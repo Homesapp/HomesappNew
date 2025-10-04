@@ -13,6 +13,8 @@ import {
   workReports,
   auditLogs,
   adminUsers,
+  emailVerificationTokens,
+  roleRequests,
   type User,
   type UpsertUser,
   type InsertUser,
@@ -42,6 +44,10 @@ import {
   type InsertAuditLog,
   type AdminUser,
   type InsertAdminUser,
+  type EmailVerificationToken,
+  type InsertEmailVerificationToken,
+  type RoleRequest,
+  type InsertRoleRequest,
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, and, or, gte, lte, ilike, desc, sql } from "drizzle-orm";
@@ -49,13 +55,29 @@ import { eq, and, or, gte, lte, ilike, desc, sql } from "drizzle-orm";
 export interface IStorage {
   // User operations
   getUser(id: string): Promise<User | undefined>;
+  getUserByEmail(email: string): Promise<User | undefined>;
   getAllUsers(): Promise<User[]>;
   upsertUser(user: UpsertUser): Promise<User>;
+  createUserWithPassword(userData: InsertUser & { passwordHash: string }): Promise<User>;
   getUsersByStatus(status: string): Promise<User[]>;
   getUsersByRole(role: string): Promise<User[]>;
   updateUserStatus(id: string, status: string): Promise<User>;
   updateUserRole(id: string, role: string): Promise<User>;
+  updateUserAdditionalRole(id: string, additionalRole: string | null): Promise<User>;
+  verifyUserEmail(userId: string): Promise<User>;
   approveAllPendingUsers(): Promise<number>;
+  
+  // Email verification token operations
+  createEmailVerificationToken(token: InsertEmailVerificationToken): Promise<EmailVerificationToken>;
+  getEmailVerificationToken(token: string): Promise<EmailVerificationToken | undefined>;
+  deleteEmailVerificationToken(token: string): Promise<void>;
+  
+  // Role request operations
+  createRoleRequest(request: InsertRoleRequest): Promise<RoleRequest>;
+  getRoleRequest(id: string): Promise<RoleRequest | undefined>;
+  getRoleRequests(filters?: { userId?: string; status?: string }): Promise<RoleRequest[]>;
+  updateRoleRequestStatus(id: string, status: string, reviewedBy: string, reviewNotes?: string): Promise<RoleRequest>;
+  getUserActiveRoleRequest(userId: string): Promise<RoleRequest | undefined>;
   
   // Property operations
   getProperty(id: string): Promise<Property | undefined>;
@@ -199,6 +221,111 @@ export class DatabaseStorage implements IStorage {
       .where(eq(users.status, "pending"))
       .returning();
     return result.length;
+  }
+
+  async getUserByEmail(email: string): Promise<User | undefined> {
+    const [user] = await db.select().from(users).where(eq(users.email, email));
+    return user;
+  }
+
+  async createUserWithPassword(userData: InsertUser & { passwordHash: string }): Promise<User> {
+    const [user] = await db.insert(users).values(userData).returning();
+    return user;
+  }
+
+  async updateUserAdditionalRole(id: string, additionalRole: string | null): Promise<User> {
+    const [user] = await db
+      .update(users)
+      .set({ additionalRole: additionalRole as any, updatedAt: new Date() })
+      .where(eq(users.id, id))
+      .returning();
+    return user;
+  }
+
+  async verifyUserEmail(userId: string): Promise<User> {
+    const [user] = await db
+      .update(users)
+      .set({ emailVerified: true, updatedAt: new Date() })
+      .where(eq(users.id, userId))
+      .returning();
+    return user;
+  }
+
+  // Email verification token operations
+  async createEmailVerificationToken(tokenData: InsertEmailVerificationToken): Promise<EmailVerificationToken> {
+    const [token] = await db.insert(emailVerificationTokens).values(tokenData).returning();
+    return token;
+  }
+
+  async getEmailVerificationToken(token: string): Promise<EmailVerificationToken | undefined> {
+    const [verificationToken] = await db
+      .select()
+      .from(emailVerificationTokens)
+      .where(eq(emailVerificationTokens.token, token));
+    return verificationToken;
+  }
+
+  async deleteEmailVerificationToken(token: string): Promise<void> {
+    await db.delete(emailVerificationTokens).where(eq(emailVerificationTokens.token, token));
+  }
+
+  // Role request operations
+  async createRoleRequest(requestData: InsertRoleRequest): Promise<RoleRequest> {
+    const [request] = await db.insert(roleRequests).values(requestData).returning();
+    return request;
+  }
+
+  async getRoleRequest(id: string): Promise<RoleRequest | undefined> {
+    const [request] = await db.select().from(roleRequests).where(eq(roleRequests.id, id));
+    return request;
+  }
+
+  async getRoleRequests(filters?: { userId?: string; status?: string }): Promise<RoleRequest[]> {
+    let query = db.select().from(roleRequests);
+    const conditions = [];
+
+    if (filters?.userId) {
+      conditions.push(eq(roleRequests.userId, filters.userId));
+    }
+    if (filters?.status) {
+      conditions.push(eq(roleRequests.status, filters.status as any));
+    }
+
+    if (conditions.length > 0) {
+      query = query.where(and(...conditions)) as any;
+    }
+
+    return await query.orderBy(desc(roleRequests.createdAt));
+  }
+
+  async updateRoleRequestStatus(
+    id: string,
+    status: string,
+    reviewedBy: string,
+    reviewNotes?: string
+  ): Promise<RoleRequest> {
+    const [request] = await db
+      .update(roleRequests)
+      .set({
+        status: status as any,
+        reviewedBy,
+        reviewedAt: new Date(),
+        reviewNotes,
+        updatedAt: new Date(),
+      })
+      .where(eq(roleRequests.id, id))
+      .returning();
+    return request;
+  }
+
+  async getUserActiveRoleRequest(userId: string): Promise<RoleRequest | undefined> {
+    const [request] = await db
+      .select()
+      .from(roleRequests)
+      .where(and(eq(roleRequests.userId, userId), eq(roleRequests.status, "pending")))
+      .orderBy(desc(roleRequests.createdAt))
+      .limit(1);
+    return request;
   }
 
   // Property operations
