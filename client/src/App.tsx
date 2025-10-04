@@ -17,6 +17,7 @@ import Login from "@/pages/Login";
 import Register from "@/pages/Register";
 import VerifyEmail from "@/pages/VerifyEmail";
 import PropertySearch from "@/pages/PropertySearch";
+import Favorites from "@/pages/Favorites";
 import Dashboard from "@/pages/Dashboard";
 import Properties from "@/pages/Properties";
 import Appointments from "@/pages/Appointments";
@@ -123,6 +124,7 @@ function AuthenticatedApp() {
             <Switch>
               <Route path="/" component={Dashboard} />
               <Route path="/buscar-propiedades" component={PropertySearch} />
+              <Route path="/favoritos" component={Favorites} />
               <Route path="/properties" component={Properties} />
               <Route path="/appointments" component={Appointments} />
               <Route path="/calendario" component={Calendar} />

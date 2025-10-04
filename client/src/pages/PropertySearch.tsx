@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useMutation } from "@tanstack/react-query";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -8,8 +8,11 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Slider } from "@/components/ui/slider";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
-import { Search, SlidersHorizontal, MapPin, Bed, Bath, Square, Star, X } from "lucide-react";
+import { Search, SlidersHorizontal, MapPin, Bed, Bath, Square, Star, X, Heart } from "lucide-react";
 import { type Property } from "@shared/schema";
+import { apiRequest, queryClient } from "@/lib/queryClient";
+import { useToast } from "@/hooks/use-toast";
+import { useAuth } from "@/hooks/useAuth";
 
 interface SearchFilters {
   query?: string;
@@ -40,9 +43,12 @@ const AVAILABLE_AMENITIES = [
 ];
 
 export default function PropertySearch() {
+  const { isAuthenticated } = useAuth();
+  const { toast } = useToast();
   const [filters, setFilters] = useState<SearchFilters>({});
   const [showFilters, setShowFilters] = useState(true);
   const [selectedAmenities, setSelectedAmenities] = useState<string[]>([]);
+  const [favoriteIds, setFavoriteIds] = useState<Set<string>>(new Set());
 
   const buildQueryString = (filters: SearchFilters) => {
     const params = new URLSearchParams();
@@ -298,7 +304,17 @@ export default function PropertySearch() {
                 </div>
                 <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
                   {properties.map((property) => (
-                    <Card key={property.id} className="hover-elevate cursor-pointer" data-testid={`card-property-${property.id}`}>
+                    <Card key={property.id} className="relative hover-elevate cursor-pointer" data-testid={`card-property-${property.id}`}>
+                      {isAuthenticated && (
+                        <Button
+                          size="icon"
+                          variant="ghost"
+                          className="absolute top-2 left-2 z-10 bg-background/80 backdrop-blur-sm"
+                          data-testid={`button-favorite-${property.id}`}
+                        >
+                          <Heart className="h-4 w-4" />
+                        </Button>
+                      )}
                       {property.images && property.images.length > 0 ? (
                         <div className="h-48 bg-muted relative overflow-hidden">
                           <img

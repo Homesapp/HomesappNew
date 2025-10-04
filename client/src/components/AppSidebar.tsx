@@ -23,6 +23,7 @@ import {
   FileText,
   ListTodo,
   Search,
+  Heart,
 } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
@@ -62,6 +63,7 @@ export function AppSidebar({ userRole, userName, userAvatar }: AppSidebarProps) 
   const mainItems = [
     { title: "Inicio", url: "/", icon: Home, roles: ["master", "admin", "admin_jr", "seller", "owner", "management"] },
     { title: "Buscar Propiedades", url: "/buscar-propiedades", icon: Search, roles: ["master", "admin", "admin_jr", "seller", "owner", "management", "concierge", "provider"] },
+    { title: "Mis Favoritos", url: "/favoritos", icon: Heart, roles: ["master", "admin", "admin_jr", "seller", "owner", "management", "concierge", "provider"] },
     { title: "Propiedades", url: "/properties", icon: Building2, roles: ["master", "admin", "admin_jr", "seller", "owner", "management"] },
     { title: "Citas", url: "/appointments", icon: Calendar, roles: ["master", "admin", "admin_jr", "seller", "owner", "management", "concierge"] },
     { title: "Calendario", url: "/calendario", icon: Calendar, roles: ["master", "admin", "admin_jr"] },
