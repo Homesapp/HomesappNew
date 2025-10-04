@@ -1,4 +1,4 @@
-import type { Express } from "express";
+import type { Express, Request } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
 import { setupAuth, isAuthenticated, requireRole } from "./replitAuth";
@@ -17,6 +17,35 @@ import {
   insertWorkReportSchema,
   insertAuditLogSchema,
 } from "@shared/schema";
+
+// Helper function to create audit logs
+async function createAuditLog(
+  req: Request & { user?: any },
+  action: "create" | "update" | "delete" | "view" | "approve" | "reject" | "assign",
+  entityType: string,
+  entityId: string | null,
+  details?: string
+) {
+  try {
+    const userId = req.user?.claims?.sub;
+    if (!userId) return;
+
+    const ipAddress = req.ip || req.socket.remoteAddress || null;
+    const userAgent = req.get("user-agent") || null;
+
+    await storage.createAuditLog({
+      userId,
+      action,
+      entityType,
+      entityId,
+      details,
+      ipAddress,
+      userAgent,
+    });
+  } catch (error) {
+    console.error("Error creating audit log:", error);
+  }
+}
 
 export async function registerRoutes(app: Express): Promise<Server> {
   // Auth middleware
@@ -58,10 +87,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post("/api/users/:id/approve", isAuthenticated, requireRole(["master", "admin"]), async (req, res) => {
+  app.post("/api/users/:id/approve", isAuthenticated, requireRole(["master", "admin"]), async (req: any, res) => {
     try {
       const { id } = req.params;
       const user = await storage.updateUserStatus(id, "approved");
+      
+      // Log the approval action
+      await createAuditLog(
+        req,
+        "approve",
+        "user",
+        id,
+        `Usuario aprobado: ${user.firstName} ${user.lastName} (${user.email})`
+      );
+      
       res.json(user);
     } catch (error) {
       console.error("Error approving user:", error);
@@ -69,10 +108,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post("/api/users/:id/reject", isAuthenticated, requireRole(["master", "admin"]), async (req, res) => {
+  app.post("/api/users/:id/reject", isAuthenticated, requireRole(["master", "admin"]), async (req: any, res) => {
     try {
       const { id } = req.params;
       const user = await storage.updateUserStatus(id, "rejected");
+      
+      // Log the rejection action
+      await createAuditLog(
+        req,
+        "reject",
+        "user",
+        id,
+        `Usuario rechazado: ${user.firstName} ${user.lastName} (${user.email})`
+      );
+      
       res.json(user);
     } catch (error) {
       console.error("Error rejecting user:", error);
@@ -80,9 +129,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post("/api/users/approve-all", isAuthenticated, requireRole(["master", "admin"]), async (req, res) => {
+  app.post("/api/users/approve-all", isAuthenticated, requireRole(["master", "admin"]), async (req: any, res) => {
     try {
       const count = await storage.approveAllPendingUsers();
+      
+      // Log the bulk approval action
+      await createAuditLog(
+        req,
+        "approve",
+        "user",
+        null,
+        `Aprobados ${count} usuarios pendientes en masa`
+      );
+      
       res.json({ count });
     } catch (error) {
       console.error("Error approving all users:", error);
@@ -90,11 +149,21 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.patch("/api/users/:id/role", isAuthenticated, requireRole(["master"]), async (req, res) => {
+  app.patch("/api/users/:id/role", isAuthenticated, requireRole(["master"]), async (req: any, res) => {
     try {
       const { id } = req.params;
       const { role } = req.body;
       const user = await storage.updateUserRole(id, role);
+      
+      // Log the role update action
+      await createAuditLog(
+        req,
+        "update",
+        "user",
+        id,
+        `Rol actualizado a: ${role} para ${user.firstName} ${user.lastName}`
+      );
+      
       res.json(user);
     } catch (error) {
       console.error("Error updating user role:", error);
@@ -173,6 +242,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
       });
       
       const property = await storage.createProperty(propertyData);
+      
+      // Log property creation
+      await createAuditLog(
+        req,
+        "create",
+        "property",
+        property.id,
+        `Propiedad creada: ${property.title} - ${property.address}`
+      );
+      
       res.status(201).json(property);
     } catch (error: any) {
       console.error("Error creating property:", error);
@@ -196,6 +275,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       const updatedProperty = await storage.updateProperty(id, req.body);
+      
+      // Log property update
+      await createAuditLog(
+        req,
+        "update",
+        "property",
+        id,
+        `Propiedad actualizada: ${updatedProperty.title}`
+      );
+      
       res.json(updatedProperty);
     } catch (error) {
       console.error("Error updating property:", error);
@@ -217,6 +306,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!user || (property.ownerId !== userId && !["master", "admin"].includes(user.role))) {
         return res.status(403).json({ message: "Forbidden" });
       }
+
+      // Log property deletion (before deletion to capture details)
+      await createAuditLog(
+        req,
+        "delete",
+        "property",
+        id,
+        `Propiedad eliminada: ${property.title} - ${property.address}`
+      );
 
       await storage.deleteProperty(id);
       res.status(204).send();
@@ -320,6 +418,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
         googleEventId: googleEventId || undefined,
       });
 
+      // Log appointment creation
+      const property = await storage.getProperty(appointment.propertyId);
+      await createAuditLog(
+        req,
+        "create",
+        "appointment",
+        appointment.id,
+        `Cita creada para ${property?.title || "propiedad"} - ${new Date(appointment.date).toLocaleDateString()}`
+      );
+
       res.status(201).json(appointment);
     } catch (error: any) {
       console.error("Error creating appointment:", error);
@@ -327,10 +435,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.patch("/api/appointments/:id", isAuthenticated, async (req, res) => {
+  app.patch("/api/appointments/:id", isAuthenticated, async (req: any, res) => {
     try {
       const { id } = req.params;
       const appointment = await storage.updateAppointment(id, req.body);
+      
+      // Log appointment update
+      await createAuditLog(
+        req,
+        "update",
+        "appointment",
+        id,
+        `Cita actualizada - Estado: ${appointment.status}`
+      );
+      
       res.json(appointment);
     } catch (error) {
       console.error("Error updating appointment:", error);
@@ -338,10 +456,22 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.delete("/api/appointments/:id", isAuthenticated, async (req, res) => {
+  app.delete("/api/appointments/:id", isAuthenticated, async (req: any, res) => {
     try {
       const { id } = req.params;
       const appointment = await storage.getAppointment(id);
+
+      // Log appointment deletion (before deletion to capture details)
+      if (appointment) {
+        const property = await storage.getProperty(appointment.propertyId);
+        await createAuditLog(
+          req,
+          "delete",
+          "appointment",
+          id,
+          `Cita cancelada para ${property?.title || "propiedad"} - ${new Date(appointment.date).toLocaleDateString()}`
+        );
+      }
 
       if (appointment?.googleEventId) {
         await deleteGoogleMeetEvent(appointment.googleEventId);
@@ -530,6 +660,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
       });
 
       const offer = await storage.createOffer(offerData);
+      
+      // Log offer creation
+      await createAuditLog(
+        req,
+        "create",
+        "offer",
+        offer.id,
+        `Oferta creada de $${offer.amount} - Estado: ${offer.status}`
+      );
+      
       res.status(201).json(offer);
     } catch (error: any) {
       console.error("Error creating offer:", error);
@@ -537,10 +677,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.patch("/api/offers/:id", isAuthenticated, async (req, res) => {
+  app.patch("/api/offers/:id", isAuthenticated, async (req: any, res) => {
     try {
       const { id } = req.params;
       const offer = await storage.updateOffer(id, req.body);
+      
+      // Log offer update
+      await createAuditLog(
+        req,
+        "update",
+        "offer",
+        id,
+        `Oferta actualizada - Estado: ${offer.status}`
+      );
+      
       res.json(offer);
     } catch (error) {
       console.error("Error updating offer:", error);
@@ -723,6 +873,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       const taskData = insertTaskSchema.parse(req.body);
       const task = await storage.createTask(taskData);
+      
+      // Log task creation
+      await createAuditLog(
+        req,
+        "create",
+        "task",
+        task.id,
+        `Tarea creada: ${task.title}`
+      );
+      
       res.status(201).json(task);
     } catch (error: any) {
       console.error("Error creating task:", error);
@@ -746,6 +906,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       const updatedTask = await storage.updateTask(id, req.body);
+      
+      // Log task update
+      await createAuditLog(
+        req,
+        "update",
+        "task",
+        id,
+        `Tarea actualizada: ${updatedTask.title} - Estado: ${updatedTask.status}`
+      );
+      
       res.json(updatedTask);
     } catch (error) {
       console.error("Error updating task:", error);
@@ -767,6 +937,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!user || !["master", "admin", "management"].includes(user.role)) {
         return res.status(403).json({ message: "Forbidden" });
       }
+
+      // Log task deletion (before deletion to capture details)
+      await createAuditLog(
+        req,
+        "delete",
+        "task",
+        id,
+        `Tarea eliminada: ${task.title}`
+      );
 
       await storage.deleteTask(id);
       res.status(204).send();

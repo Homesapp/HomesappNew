@@ -84,6 +84,16 @@ export function UserProfileDialog({ user, open, onOpenChange }: UserProfileDialo
   const fullName = `${user.firstName || ""} ${user.lastName || ""}`.trim() || "Usuario";
   const initials = `${user.firstName?.[0] || ""}${user.lastName?.[0] || ""}`.toUpperCase() || "U";
 
+  const formatDetails = (details: unknown): string => {
+    if (!details) return "";
+    if (typeof details === "string") return details;
+    try {
+      return JSON.stringify(details);
+    } catch {
+      return String(details);
+    }
+  };
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-3xl max-h-[85vh]" data-testid="dialog-user-profile">
@@ -192,7 +202,7 @@ export function UserProfileDialog({ user, open, onOpenChange }: UserProfileDialo
                                 </div>
                                 {log.details && (
                                   <p className="text-sm text-muted-foreground">
-                                    {String(typeof log.details === 'string' ? log.details : JSON.stringify(log.details))}
+                                    {formatDetails(log.details)}
                                   </p>
                                 )}
                                 <div className="flex items-center gap-2 text-xs text-muted-foreground">
