@@ -3,6 +3,7 @@ import { createServer, type Server } from "http";
 import { storage } from "./storage";
 import { setupAuth, isAuthenticated, requireRole } from "./replitAuth";
 import { createGoogleMeetEvent, deleteGoogleMeetEvent } from "./googleCalendar";
+import bcrypt from "bcryptjs";
 import {
   insertPropertySchema,
   insertAppointmentSchema,
@@ -63,6 +64,88 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Error fetching user:", error);
       res.status(500).json({ message: "Failed to fetch user" });
+    }
+  });
+
+  // Admin login route (local authentication)
+  app.post("/api/auth/admin/login", async (req: any, res) => {
+    try {
+      const { username, password } = req.body;
+      
+      if (!username || !password) {
+        return res.status(400).json({ message: "Username and password are required" });
+      }
+      
+      // Find admin by username
+      const admin = await storage.getAdminByUsername(username);
+      if (!admin) {
+        return res.status(401).json({ message: "Invalid credentials" });
+      }
+      
+      // Check if admin is active
+      if (!admin.isActive) {
+        return res.status(403).json({ message: "Account is inactive" });
+      }
+      
+      // Verify password
+      const isValidPassword = await bcrypt.compare(password, admin.passwordHash);
+      if (!isValidPassword) {
+        return res.status(401).json({ message: "Invalid credentials" });
+      }
+      
+      // Create session with admin info
+      req.session.adminUser = {
+        id: admin.id,
+        username: admin.username,
+        email: admin.email,
+        firstName: admin.firstName,
+        lastName: admin.lastName,
+        role: admin.role,
+      };
+      
+      // Save session explicitly
+      await new Promise<void>((resolve, reject) => {
+        req.session.save((err) => {
+          if (err) reject(err);
+          else resolve();
+        });
+      });
+      
+      // Return admin info (without password hash)
+      const { passwordHash, ...adminWithoutPassword } = admin;
+      res.json(adminWithoutPassword);
+    } catch (error) {
+      console.error("Error during admin login:", error);
+      res.status(500).json({ message: "Login failed" });
+    }
+  });
+
+  // Admin logout route
+  app.post("/api/auth/admin/logout", async (req, res) => {
+    try {
+      req.session.destroy((err) => {
+        if (err) {
+          console.error("Error destroying session:", err);
+          return res.status(500).json({ message: "Logout failed" });
+        }
+        res.json({ message: "Logged out successfully" });
+      });
+    } catch (error) {
+      console.error("Error during admin logout:", error);
+      res.status(500).json({ message: "Logout failed" });
+    }
+  });
+
+  // Get current admin user
+  app.get("/api/auth/admin/user", async (req: any, res) => {
+    try {
+      if (!req.session.adminUser) {
+        return res.status(401).json({ message: "Not authenticated" });
+      }
+      res.json(req.session.adminUser);
+    } catch (error) {
+      console.error("Error fetching admin user:", error);
+      res.status(500).json({ message: "Failed to fetch admin user" });
     }
   });
 
