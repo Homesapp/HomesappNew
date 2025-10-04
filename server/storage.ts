@@ -11,6 +11,7 @@ import {
   budgets,
   tasks,
   workReports,
+  auditLogs,
   type User,
   type UpsertUser,
   type InsertUser,
@@ -36,6 +37,8 @@ import {
   type InsertTask,
   type WorkReport,
   type InsertWorkReport,
+  type AuditLog,
+  type InsertAuditLog,
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, and, or, gte, lte, ilike, desc, sql } from "drizzle-orm";
@@ -121,6 +124,11 @@ export interface IStorage {
   getWorkReport(id: string): Promise<WorkReport | undefined>;
   getWorkReports(filters?: { taskId?: string; staffId?: string }): Promise<WorkReport[]>;
   createWorkReport(report: InsertWorkReport): Promise<WorkReport>;
+  
+  // Audit log operations
+  createAuditLog(log: InsertAuditLog): Promise<AuditLog>;
+  getAuditLogs(filters?: { userId?: string; entityType?: string; entityId?: string; action?: string; limit?: number }): Promise<AuditLog[]>;
+  getUserAuditHistory(userId: string, limit?: number): Promise<AuditLog[]>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -626,6 +634,57 @@ export class DatabaseStorage implements IStorage {
   async createWorkReport(reportData: InsertWorkReport): Promise<WorkReport> {
     const [report] = await db.insert(workReports).values(reportData).returning();
     return report;
+  }
+
+  // Audit log operations
+  async createAuditLog(logData: InsertAuditLog): Promise<AuditLog> {
+    const [log] = await db.insert(auditLogs).values(logData).returning();
+    return log;
+  }
+
+  async getAuditLogs(filters?: { 
+    userId?: string; 
+    entityType?: string; 
+    entityId?: string; 
+    action?: string; 
+    limit?: number 
+  }): Promise<AuditLog[]> {
+    let query = db.select().from(auditLogs);
+    const conditions = [];
+
+    if (filters?.userId) {
+      conditions.push(eq(auditLogs.userId, filters.userId));
+    }
+    if (filters?.entityType) {
+      conditions.push(eq(auditLogs.entityType, filters.entityType));
+    }
+    if (filters?.entityId) {
+      conditions.push(eq(auditLogs.entityId, filters.entityId));
+    }
+    if (filters?.action) {
+      conditions.push(eq(auditLogs.action, filters.action as any));
+    }
+
+    if (conditions.length > 0) {
+      query = query.where(and(...conditions)) as any;
+    }
+
+    query = query.orderBy(desc(auditLogs.createdAt)) as any;
+
+    if (filters?.limit) {
+      query = query.limit(filters.limit) as any;
+    }
+
+    return await query;
+  }
+
+  async getUserAuditHistory(userId: string, limit: number = 100): Promise<AuditLog[]> {
+    return await db
+      .select()
+      .from(auditLogs)
+      .where(eq(auditLogs.userId, userId))
+      .orderBy(desc(auditLogs.createdAt))
+      .limit(limit);
   }
 }
 

@@ -84,6 +84,17 @@ export const taskStatusEnum = pgEnum("task_status", [
   "cancelled",
 ]);
 
+export const auditActionEnum = pgEnum("audit_action", [
+  "create",
+  "update",
+  "delete",
+  "login",
+  "logout",
+  "approve",
+  "reject",
+  "view",
+]);
+
 // Users table (required for Replit Auth + extended fields)
 export const users = pgTable("users", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
@@ -385,6 +396,27 @@ export const insertPermissionSchema = createInsertSchema(permissions).omit({
 export type InsertPermission = z.infer<typeof insertPermissionSchema>;
 export type Permission = typeof permissions.$inferSelect;
 
+// Audit Logs table (para rastrear acciones de usuarios)
+export const auditLogs = pgTable("audit_logs", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: varchar("user_id").references(() => users.id, { onDelete: "set null" }),
+  action: auditActionEnum("action").notNull(),
+  entityType: varchar("entity_type").notNull(), // property, appointment, user, offer, etc.
+  entityId: varchar("entity_id"),
+  details: jsonb("details"), // JSON with additional details
+  ipAddress: varchar("ip_address"),
+  userAgent: text("user_agent"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+export const insertAuditLogSchema = createInsertSchema(auditLogs).omit({
+  id: true,
+  createdAt: true,
+});
+
+export type InsertAuditLog = z.infer<typeof insertAuditLogSchema>;
+export type AuditLog = typeof auditLogs.$inferSelect;
+
 // Relations
 export const usersRelations = relations(users, ({ many }) => ({
   properties: many(properties, { relationName: "owner" }),
@@ -399,6 +431,7 @@ export const usersRelations = relations(users, ({ many }) => ({
   budgets: many(budgets),
   assignedTasks: many(tasks),
   workReports: many(workReports),
+  auditLogs: many(auditLogs),
 }));
 
 export const propertiesRelations = relations(properties, ({ one, many }) => ({
@@ -526,6 +559,13 @@ export const workReportsRelations = relations(workReports, ({ one }) => ({
   }),
   staff: one(users, {
     fields: [workReports.staffId],
+    references: [users.id],
+  }),
+}));
+
+export const auditLogsRelations = relations(auditLogs, ({ one }) => ({
+  user: one(users, {
+    fields: [auditLogs.userId],
     references: [users.id],
   }),
 }));

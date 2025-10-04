@@ -15,6 +15,7 @@ import {
   insertBudgetSchema,
   insertTaskSchema,
   insertWorkReportSchema,
+  insertAuditLogSchema,
 } from "@shared/schema";
 
 export async function registerRoutes(app: Express): Promise<Server> {
@@ -808,6 +809,56 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error: any) {
       console.error("Error creating work report:", error);
       res.status(400).json({ message: error.message || "Failed to create work report" });
+    }
+  });
+
+  // Audit log routes
+  app.get("/api/audit-logs", isAuthenticated, requireRole(["master", "admin"]), async (req, res) => {
+    try {
+      const { userId, entityType, entityId, action, limit } = req.query;
+      const filters: any = {};
+      if (userId) filters.userId = userId;
+      if (entityType) filters.entityType = entityType;
+      if (entityId) filters.entityId = entityId;
+      if (action) filters.action = action;
+      if (limit) filters.limit = parseInt(limit as string);
+
+      const logs = await storage.getAuditLogs(filters);
+      res.json(logs);
+    } catch (error) {
+      console.error("Error fetching audit logs:", error);
+      res.status(500).json({ message: "Failed to fetch audit logs" });
+    }
+  });
+
+  app.get("/api/audit-logs/user/:userId", isAuthenticated, async (req: any, res) => {
+    try {
+      const { userId } = req.params;
+      const { limit } = req.query;
+      const currentUserId = req.user.claims.sub;
+      const currentUser = await storage.getUser(currentUserId);
+
+      // Users can view their own audit logs, admins can view any user's logs
+      if (userId !== currentUserId && !["master", "admin"].includes(currentUser?.role || "")) {
+        return res.status(403).json({ message: "Forbidden" });
+      }
+
+      const logs = await storage.getUserAuditHistory(userId, limit ? parseInt(limit as string) : 100);
+      res.json(logs);
+    } catch (error) {
+      console.error("Error fetching user audit history:", error);
+      res.status(500).json({ message: "Failed to fetch user audit history" });
+    }
+  });
+
+  app.post("/api/audit-logs", isAuthenticated, async (req: any, res) => {
+    try {
+      const logData = insertAuditLogSchema.parse(req.body);
+      const log = await storage.createAuditLog(logData);
+      res.status(201).json(log);
+    } catch (error: any) {
+      console.error("Error creating audit log:", error);
+      res.status(400).json({ message: error.message || "Failed to create audit log" });
     }
   });
 
