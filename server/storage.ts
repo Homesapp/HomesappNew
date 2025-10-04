@@ -12,6 +12,7 @@ import {
   tasks,
   workReports,
   auditLogs,
+  adminUsers,
   type User,
   type UpsertUser,
   type InsertUser,
@@ -39,6 +40,8 @@ import {
   type InsertWorkReport,
   type AuditLog,
   type InsertAuditLog,
+  type AdminUser,
+  type InsertAdminUser,
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, and, or, gte, lte, ilike, desc, sql } from "drizzle-orm";
@@ -130,6 +133,11 @@ export interface IStorage {
   createAuditLog(log: InsertAuditLog): Promise<AuditLog>;
   getAuditLogs(filters?: { userId?: string; entityType?: string; entityId?: string; action?: string; limit?: number }): Promise<AuditLog[]>;
   getUserAuditHistory(userId: string, limit?: number): Promise<AuditLog[]>;
+  
+  // Admin user operations
+  getAdminByUsername(username: string): Promise<AdminUser | undefined>;
+  createAdmin(admin: InsertAdminUser): Promise<AdminUser>;
+  getAllAdmins(): Promise<AdminUser[]>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -690,6 +698,31 @@ export class DatabaseStorage implements IStorage {
       .where(eq(auditLogs.userId, userId))
       .orderBy(desc(auditLogs.createdAt))
       .limit(limit);
+  }
+  
+  // Admin user operations
+  async getAdminByUsername(username: string): Promise<AdminUser | undefined> {
+    const [admin] = await db
+      .select()
+      .from(adminUsers)
+      .where(eq(adminUsers.username, username));
+    return admin;
+  }
+  
+  async createAdmin(adminData: InsertAdminUser): Promise<AdminUser> {
+    const [admin] = await db
+      .insert(adminUsers)
+      .values(adminData)
+      .returning();
+    return admin;
+  }
+  
+  async getAllAdmins(): Promise<AdminUser[]> {
+    return await db
+      .select()
+      .from(adminUsers)
+      .where(eq(adminUsers.isActive, true))
+      .orderBy(desc(adminUsers.createdAt));
   }
 }
 
