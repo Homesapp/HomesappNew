@@ -55,10 +55,15 @@ Preferred communication style: Simple, everyday language.
 - JSON request/response format
 
 **Authentication & Authorization:**
-- Replit Auth integration via OpenID Connect/Passport.js
-- Session management with connect-pg-simple
+- **Dual Authentication System**:
+  - **Replit Auth** (OpenID Connect/Passport.js): For regular users (sellers, owners, management, concierge, service providers)
+  - **Local Admin Auth** (username/password + bcrypt): Exclusive authentication method for administrators
+- Session management with connect-pg-simple for both authentication types
 - Role-based access control enforced at route level
 - User approval workflow (pending → approved/rejected states)
+- Unified middlewares support both authentication methods:
+  - `isAuthenticated`: Checks admin session first, then Replit Auth
+  - `requireRole`: Verifies admin role from session first, then Replit Auth user role
 - Admin role switching feature for testing different role perspectives
   - Master and Admin users can temporarily view the platform as any other role
   - Visual indicator (badge) shows when viewing as another role
@@ -74,6 +79,7 @@ Preferred communication style: Simple, everyday language.
 
 **Schema Design:**
 - User management with role-based permissions (userRoleEnum, userStatusEnum)
+- Admin users table (`admin_users`) with bcrypt-hashed passwords for local authentication
 - Properties with flexible status (rent, sale, both, rented, sold, inactive)
 - Appointments with type discrimination (in-person vs video)
 - Presentation cards for client property matching
@@ -81,7 +87,7 @@ Preferred communication style: Simple, everyday language.
 - Offers workflow (pending, accepted, rejected, under-review)
 - Property staff assignments for access control
 - Audit logs for tracking user actions (create, update, delete, view, approve, reject, assign)
-- Session storage for authentication
+- Session storage for both Replit Auth and admin authentication
 
 **Data Relationships:**
 - One-to-many: Users to properties, properties to appointments
@@ -166,3 +172,36 @@ Preferred communication style: Simple, everyday language.
 - Real-time cache invalidation for seamless user approval workflow
 - Admin/master access to view any user's profile and history
 - Users can view their own profile and activity log
+
+### Dual Authentication System (October 2025)
+- **Separate admin authentication system** independent from regular users
+- **Admin Local Auth**:
+  - Database table `admin_users` with username, bcrypt-hashed passwords, and role
+  - POST `/api/auth/admin/login` endpoint with Zod validation
+  - POST `/api/auth/admin/logout` endpoint for session cleanup
+  - GET `/api/auth/admin/user` endpoint for session verification
+  - Admin login page at `/admin-login` route
+  - `useAdminAuth` hook for frontend admin session management
+- **Unified middleware layer**:
+  - `isAuthenticated` middleware checks both admin sessions and Replit Auth
+  - `requireRole` middleware verifies roles from both authentication systems
+  - Seamless coexistence of both auth methods without conflicts
+- **Frontend integration**:
+  - App.tsx handles both authentication states simultaneously
+  - Conditional rendering based on authentication type
+  - Admin logout uses POST mutation with query cache invalidation
+  - Graceful avatar handling (undefined for admins, profileImageUrl for regular users)
+- **Security features**:
+  - Passwords hashed with bcrypt (10 salt rounds)
+  - Session-based authentication with PostgreSQL persistence
+  - Query invalidation on login/logout for immediate UI updates
+  - Zod schema validation for login credentials
+  - Admin activation status (`isActive` flag)
+- **Admin management**:
+  - CLI script `server/createAdmin.ts` for creating admins
+  - Default test credentials: username="admin", password="admin123"
+  - Storage methods: `getAdminByUsername()`, `createAdmin()`, `getAllAdmins()`
+- **End-to-end tested**:
+  - Playwright tests confirm complete login → protected routes → logout flow
+  - Query cache properly invalidated on state changes
+  - Session management working correctly for both auth types
