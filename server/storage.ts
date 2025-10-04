@@ -15,6 +15,7 @@ import {
   adminUsers,
   emailVerificationTokens,
   roleRequests,
+  favorites,
   type User,
   type UpsertUser,
   type InsertUser,
@@ -48,6 +49,8 @@ import {
   type InsertEmailVerificationToken,
   type RoleRequest,
   type InsertRoleRequest,
+  type Favorite,
+  type InsertFavorite,
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, and, or, gte, lte, ilike, desc, sql } from "drizzle-orm";
@@ -176,6 +179,12 @@ export interface IStorage {
   getAdminByUsername(username: string): Promise<AdminUser | undefined>;
   createAdmin(admin: InsertAdminUser): Promise<AdminUser>;
   getAllAdmins(): Promise<AdminUser[]>;
+  
+  // Favorite operations
+  addFavorite(favorite: InsertFavorite): Promise<Favorite>;
+  removeFavorite(userId: string, propertyId: string): Promise<void>;
+  getUserFavorites(userId: string): Promise<Property[]>;
+  isFavorite(userId: string, propertyId: string): Promise<boolean>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -969,6 +978,49 @@ export class DatabaseStorage implements IStorage {
       .from(adminUsers)
       .where(eq(adminUsers.isActive, true))
       .orderBy(desc(adminUsers.createdAt));
+  }
+  
+  // Favorite operations
+  async addFavorite(favoriteData: InsertFavorite): Promise<Favorite> {
+    const [favorite] = await db.insert(favorites).values(favoriteData).returning();
+    return favorite;
+  }
+
+  async removeFavorite(userId: string, propertyId: string): Promise<void> {
+    await db
+      .delete(favorites)
+      .where(
+        and(
+          eq(favorites.userId, userId),
+          eq(favorites.propertyId, propertyId)
+        )
+      );
+  }
+
+  async getUserFavorites(userId: string): Promise<Property[]> {
+    const userFavorites = await db
+      .select({ property: properties })
+      .from(favorites)
+      .innerJoin(properties, eq(favorites.propertyId, properties.id))
+      .where(eq(favorites.userId, userId))
+      .orderBy(desc(favorites.createdAt));
+    
+    return userFavorites.map(f => f.property);
+  }
+
+  async isFavorite(userId: string, propertyId: string): Promise<boolean> {
+    const [favorite] = await db
+      .select()
+      .from(favorites)
+      .where(
+        and(
+          eq(favorites.userId, userId),
+          eq(favorites.propertyId, propertyId)
+        )
+      )
+      .limit(1);
+    
+    return !!favorite;
   }
 }
 

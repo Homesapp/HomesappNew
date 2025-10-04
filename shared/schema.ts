@@ -524,6 +524,28 @@ export const insertAuditLogSchema = createInsertSchema(auditLogs).omit({
 export type InsertAuditLog = z.infer<typeof insertAuditLogSchema>;
 export type AuditLog = typeof auditLogs.$inferSelect;
 
+// Favorites table
+export const favorites = pgTable(
+  "favorites",
+  {
+    id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+    userId: varchar("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+    propertyId: varchar("property_id").notNull().references(() => properties.id, { onDelete: "cascade" }),
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+  },
+  (table) => [
+    unique().on(table.userId, table.propertyId),
+  ]
+);
+
+export const insertFavoriteSchema = createInsertSchema(favorites).omit({
+  id: true,
+  createdAt: true,
+});
+
+export type InsertFavorite = z.infer<typeof insertFavoriteSchema>;
+export type Favorite = typeof favorites.$inferSelect;
+
 // Relations
 export const usersRelations = relations(users, ({ many }) => ({
   properties: many(properties, { relationName: "owner" }),
