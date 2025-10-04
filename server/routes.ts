@@ -3,7 +3,9 @@ import { createServer, type Server } from "http";
 import { storage } from "./storage";
 import { setupAuth, isAuthenticated, requireRole } from "./replitAuth";
 import { createGoogleMeetEvent, deleteGoogleMeetEvent } from "./googleCalendar";
+import { sendVerificationEmail } from "./resend";
 import bcrypt from "bcryptjs";
+import crypto from "crypto";
 import {
   insertPropertySchema,
   insertAppointmentSchema,
@@ -18,6 +20,8 @@ import {
   insertWorkReportSchema,
   insertAuditLogSchema,
   adminLoginSchema,
+  userRegistrationSchema,
+  insertRoleRequestSchema,
 } from "@shared/schema";
 
 // Helper function to create audit logs
@@ -273,6 +277,250 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Error fetching users by role:", error);
       res.status(500).json({ message: "Failed to fetch users by role" });
+    }
+  });
+
+  // User registration routes
+  app.post("/api/register", async (req, res) => {
+    try {
+      const validationResult = userRegistrationSchema.safeParse(req.body);
+      if (!validationResult.success) {
+        return res.status(400).json({
+          message: "Invalid registration data",
+          errors: validationResult.error.errors,
+        });
+      }
+
+      const { email, password, firstName, lastName, phone } = validationResult.data;
+
+      // Check if user already exists
+      const existingUser = await storage.getUserByEmail(email);
+      if (existingUser) {
+        return res.status(409).json({ message: "El email ya está registrado" });
+      }
+
+      // Hash password
+      const passwordHash = await bcrypt.hash(password, 10);
+
+      // Create user with "cliente" role by default
+      const user = await storage.createUserWithPassword({
+        email,
+        passwordHash,
+        firstName,
+        lastName,
+        phone,
+        role: "cliente",
+        status: "approved",
+        emailVerified: false,
+      });
+
+      // Generate verification token
+      const verificationToken = crypto.randomBytes(32).toString("hex");
+      const expiresAt = new Date();
+      expiresAt.setHours(expiresAt.getHours() + 24); // 24 hours expiration
+
+      await storage.createEmailVerificationToken({
+        userId: user.id,
+        token: verificationToken,
+        expiresAt,
+      });
+
+      // Send verification email
+      try {
+        await sendVerificationEmail(user.email, verificationToken);
+      } catch (emailError) {
+        console.error("Error sending verification email:", emailError);
+        // Don't fail registration if email fails
+      }
+
+      res.status(201).json({
+        message: "Cuenta creada exitosamente. Por favor verifica tu email.",
+        userId: user.id,
+      });
+    } catch (error) {
+      console.error("Error during registration:", error);
+      res.status(500).json({ message: "Error al crear la cuenta" });
+    }
+  });
+
+  app.get("/api/verify-email", async (req, res) => {
+    try {
+      const { token } = req.query;
+
+      if (!token || typeof token !== "string") {
+        return res.status(400).json({ message: "Token inválido" });
+      }
+
+      // Get verification token
+      const verificationToken = await storage.getEmailVerificationToken(token);
+      if (!verificationToken) {
+        return res.status(404).json({ message: "Token no encontrado o expirado" });
+      }
+
+      // Check if token is expired
+      if (new Date() > verificationToken.expiresAt) {
+        await storage.deleteEmailVerificationToken(token);
+        return res.status(400).json({ message: "El token ha expirado" });
+      }
+
+      // Verify user email
+      await storage.verifyUserEmail(verificationToken.userId);
+
+      // Delete used token
+      await storage.deleteEmailVerificationToken(token);
+
+      res.json({ message: "Email verificado exitosamente" });
+    } catch (error) {
+      console.error("Error during email verification:", error);
+      res.status(500).json({ message: "Error al verificar el email" });
+    }
+  });
+
+  // Role request routes
+  app.post("/api/role-requests", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user?.claims?.sub || req.session?.adminUser?.id;
+      if (!userId) {
+        return res.status(401).json({ message: "Usuario no autenticado" });
+      }
+
+      const validationResult = insertRoleRequestSchema.safeParse(req.body);
+      if (!validationResult.success) {
+        return res.status(400).json({
+          message: "Datos inválidos",
+          errors: validationResult.error.errors,
+        });
+      }
+
+      // Check if user already has an active request
+      const existingRequest = await storage.getUserActiveRoleRequest(userId);
+      if (existingRequest) {
+        return res.status(409).json({
+          message: "Ya tienes una solicitud pendiente",
+        });
+      }
+
+      const roleRequest = await storage.createRoleRequest({
+        ...validationResult.data,
+        userId,
+      });
+
+      // Log the role request creation
+      await createAuditLog(
+        req,
+        "create",
+        "role_request",
+        roleRequest.id,
+        `Solicitud de rol: ${roleRequest.requestedRole}`
+      );
+
+      res.status(201).json(roleRequest);
+    } catch (error) {
+      console.error("Error creating role request:", error);
+      res.status(500).json({ message: "Error al crear solicitud de rol" });
+    }
+  });
+
+  app.get("/api/role-requests", isAuthenticated, requireRole(["master", "admin"]), async (req, res) => {
+    try {
+      const { status, userId } = req.query;
+      const filters: any = {};
+      if (status) filters.status = status;
+      if (userId) filters.userId = userId;
+
+      const requests = await storage.getRoleRequests(filters);
+      res.json(requests);
+    } catch (error) {
+      console.error("Error fetching role requests:", error);
+      res.status(500).json({ message: "Error al obtener solicitudes" });
+    }
+  });
+
+  app.get("/api/role-requests/my-requests", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user?.claims?.sub || req.session?.adminUser?.id;
+      if (!userId) {
+        return res.status(401).json({ message: "Usuario no autenticado" });
+      }
+
+      const requests = await storage.getRoleRequests({ userId });
+      res.json(requests);
+    } catch (error) {
+      console.error("Error fetching user role requests:", error);
+      res.status(500).json({ message: "Error al obtener tus solicitudes" });
+    }
+  });
+
+  app.patch("/api/role-requests/:id/approve", isAuthenticated, requireRole(["master", "admin"]), async (req: any, res) => {
+    try {
+      const { id } = req.params;
+      const { reviewNotes } = req.body;
+      const reviewerId = req.user?.claims?.sub || req.session?.adminUser?.id;
+
+      const roleRequest = await storage.getRoleRequest(id);
+      if (!roleRequest) {
+        return res.status(404).json({ message: "Solicitud no encontrada" });
+      }
+
+      // Update role request status
+      const updatedRequest = await storage.updateRoleRequestStatus(
+        id,
+        "approved",
+        reviewerId,
+        reviewNotes
+      );
+
+      // Update user's additional role
+      await storage.updateUserAdditionalRole(roleRequest.userId, roleRequest.requestedRole);
+
+      // Log the approval
+      await createAuditLog(
+        req,
+        "approve",
+        "role_request",
+        id,
+        `Aprobada solicitud de rol: ${roleRequest.requestedRole}`
+      );
+
+      res.json(updatedRequest);
+    } catch (error) {
+      console.error("Error approving role request:", error);
+      res.status(500).json({ message: "Error al aprobar solicitud" });
+    }
+  });
+
+  app.patch("/api/role-requests/:id/reject", isAuthenticated, requireRole(["master", "admin"]), async (req: any, res) => {
+    try {
+      const { id } = req.params;
+      const { reviewNotes } = req.body;
+      const reviewerId = req.user?.claims?.sub || req.session?.adminUser?.id;
+
+      const roleRequest = await storage.getRoleRequest(id);
+      if (!roleRequest) {
+        return res.status(404).json({ message: "Solicitud no encontrada" });
+      }
+
+      // Update role request status
+      const updatedRequest = await storage.updateRoleRequestStatus(
+        id,
+        "rejected",
+        reviewerId,
+        reviewNotes
+      );
+
+      // Log the rejection
+      await createAuditLog(
+        req,
+        "reject",
+        "role_request",
+        id,
+        `Rechazada solicitud de rol: ${roleRequest.requestedRole}`
+      );
+
+      res.json(updatedRequest);
+    } catch (error) {
+      console.error("Error rejecting role request:", error);
+      res.status(500).json({ message: "Error al rechazar solicitud" });
     }
   });
 
