@@ -248,6 +248,11 @@ export const properties = pgTable("properties", {
   ownerId: varchar("owner_id").notNull().references(() => users.id),
   managementId: varchar("management_id").references(() => users.id),
   active: boolean("active").notNull().default(true),
+  availableFrom: timestamp("available_from"),
+  availableTo: timestamp("available_to"),
+  rating: decimal("rating", { precision: 3, scale: 2 }).default("0"),
+  reviewCount: integer("review_count").notNull().default(0),
+  featured: boolean("featured").notNull().default(false),
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });
