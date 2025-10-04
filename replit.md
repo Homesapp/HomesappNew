@@ -145,8 +145,16 @@ Preferred communication style: Simple, everyday language.
   - GET `/api/audit-logs/user/:userId` - User-specific audit history
   - POST `/api/audit-logs` - Create new audit log entry
 - Storage methods: `createAuditLog()`, `getAuditLogs()`, `getUserAuditHistory()`
-- Tracks actions: create, update, delete, view, approve, reject, assign
-- Infrastructure ready for automatic logging implementation (pending)
+- Centralized helper function `createAuditLog()` in routes.ts for automatic metadata capture
+- Automatic logging implemented for all critical operations:
+  - **User Management**: Approve, reject, approve all, update role
+  - **Properties**: Create, update, delete
+  - **Appointments**: Create, update, cancel/delete
+  - **Offers**: Create, update status
+  - **Tasks**: Create, update, delete
+- Spanish-language details for audit trail readability
+- Fail-safe error handling ensures logging never interrupts operations
+- Logs captured before deletes to preserve entity information
 
 ### User Profile & Activity History (October 2025)
 - UserProfileDialog component showing detailed user information and activity history
