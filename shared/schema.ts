@@ -221,6 +221,14 @@ export const userRegistrationSchema = z.object({
 
 export type UserRegistration = z.infer<typeof userRegistrationSchema>;
 
+// User login schema
+export const userLoginSchema = z.object({
+  email: z.string().email("Email inválido"),
+  password: z.string().min(1, "Contraseña es requerida"),
+});
+
+export type UserLogin = z.infer<typeof userLoginSchema>;
+
 // Properties table
 export const properties = pgTable("properties", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),

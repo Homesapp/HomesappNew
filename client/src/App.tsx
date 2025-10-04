@@ -13,6 +13,7 @@ import { useAdminAuth } from "@/hooks/useAdminAuth";
 import { apiRequest } from "@/lib/queryClient";
 import Landing from "@/pages/Landing";
 import AdminLogin from "@/pages/AdminLogin";
+import Login from "@/pages/Login";
 import Register from "@/pages/Register";
 import VerifyEmail from "@/pages/VerifyEmail";
 import Dashboard from "@/pages/Dashboard";
@@ -23,6 +24,7 @@ import Directory from "@/pages/Directory";
 import PresentationCards from "@/pages/PresentationCards";
 import Backoffice from "@/pages/Backoffice";
 import Users from "@/pages/Users";
+import Clients from "@/pages/Clients";
 import Budgets from "@/pages/Budgets";
 import Tasks from "@/pages/Tasks";
 import NotFound from "@/pages/not-found";
@@ -63,6 +65,7 @@ function AuthenticatedApp() {
     return (
       <Switch>
         <Route path="/admin-login" component={AdminLogin} />
+        <Route path="/login" component={Login} />
         <Route path="/register" component={Register} />
         <Route path="/verify-email" component={VerifyEmail} />
         <Route path="/" component={Landing} />
@@ -75,10 +78,10 @@ function AuthenticatedApp() {
   const currentUser = isAdminAuthenticated ? adminUser : user;
   const userName = currentUser?.firstName && currentUser?.lastName 
     ? `${currentUser.firstName} ${currentUser.lastName}`
-    : currentUser?.email || currentUser?.username || "Usuario";
+    : currentUser?.email || (isAdminAuthenticated && adminUser ? adminUser.username : undefined) || "Usuario";
   
   const userRole = currentUser?.role || "owner";
-  const userAvatar = isAdminAuthenticated ? undefined : user?.profileImageUrl;
+  const userAvatar = isAdminAuthenticated ? undefined : (user?.profileImageUrl ?? undefined);
 
   return (
     <SidebarProvider style={style as React.CSSProperties}>
@@ -126,6 +129,7 @@ function AuthenticatedApp() {
               <Route path="/tareas" component={Tasks} />
               <Route path="/backoffice" component={Backoffice} />
               <Route path="/users" component={Users} />
+              <Route path="/clientes" component={Clients} />
               <Route component={NotFound} />
             </Switch>
           </main>

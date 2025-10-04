@@ -13,7 +13,7 @@ export default function Landing() {
           </div>
           <div className="flex items-center gap-3">
             <Button variant="outline" asChild data-testid="button-login">
-              <a href="/api/login">Iniciar Sesión</a>
+              <Link href="/login">Iniciar Sesión</Link>
             </Button>
             <Button asChild data-testid="button-register">
               <Link href="/register">Registrarse</Link>
@@ -73,7 +73,7 @@ export default function Landing() {
               <Link href="/register">Crear Cuenta Gratis</Link>
             </Button>
             <Button size="lg" variant="outline" asChild data-testid="button-get-started-login">
-              <a href="/api/login">Iniciar Sesión</a>
+              <Link href="/login">Iniciar Sesión</Link>
             </Button>
           </div>
         </div>

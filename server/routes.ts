@@ -21,6 +21,7 @@ import {
   insertAuditLogSchema,
   adminLoginSchema,
   userRegistrationSchema,
+  userLoginSchema,
   insertRoleRequestSchema,
 } from "@shared/schema";
 
@@ -161,6 +162,61 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Error fetching admin user:", error);
       res.status(500).json({ message: "Failed to fetch admin user" });
+    }
+  });
+
+  // Local user login route (for users who registered with email/password)
+  app.post("/api/auth/login", async (req: any, res) => {
+    try {
+      const validationResult = userLoginSchema.safeParse(req.body);
+      if (!validationResult.success) {
+        return res.status(400).json({
+          message: "Invalid request data",
+          errors: validationResult.error.errors,
+        });
+      }
+
+      const { email, password } = validationResult.data;
+
+      // Find user by email
+      const user = await storage.getUserByEmail(email);
+      if (!user || !user.passwordHash) {
+        return res.status(401).json({ message: "Credenciales inválidas" });
+      }
+
+      // Check if user is approved
+      if (user.status !== "approved") {
+        return res.status(403).json({ message: "Tu cuenta está pendiente de aprobación" });
+      }
+
+      // Check if email is verified
+      if (!user.emailVerified) {
+        return res.status(403).json({ message: "Por favor verifica tu email primero" });
+      }
+
+      // Verify password
+      const isValidPassword = await bcrypt.compare(password, user.passwordHash);
+      if (!isValidPassword) {
+        return res.status(401).json({ message: "Credenciales inválidas" });
+      }
+
+      // Create session
+      req.session.userId = user.id;
+
+      // Save session explicitly
+      await new Promise<void>((resolve, reject) => {
+        req.session.save((err) => {
+          if (err) reject(err);
+          else resolve();
+        });
+      });
+
+      // Return user info (without password hash)
+      const { passwordHash, ...userWithoutPassword } = user;
+      res.json(userWithoutPassword);
+    } catch (error) {
+      console.error("Error during login:", error);
+      res.status(500).json({ message: "Error al iniciar sesión" });
     }
   });
 
@@ -462,6 +518,25 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ message: "Solicitud no encontrada" });
       }
 
+      // Check if request is still pending
+      if (roleRequest.status !== "pending") {
+        return res.status(400).json({
+          message: `Esta solicitud ya fue ${roleRequest.status === "approved" ? "aprobada" : "rechazada"}`,
+        });
+      }
+
+      // Validate requested role is allowed
+      const allowedRoles = ["owner", "seller", "management", "concierge", "provider"];
+      if (!allowedRoles.includes(roleRequest.requestedRole)) {
+        return res.status(400).json({ message: "Rol solicitado no es válido" });
+      }
+
+      // Check if user already has this role
+      const user = await storage.getUser(roleRequest.userId);
+      if (user?.additionalRole === roleRequest.requestedRole) {
+        return res.status(400).json({ message: "El usuario ya tiene este rol" });
+      }
+
       // Update role request status
       const updatedRequest = await storage.updateRoleRequestStatus(
         id,
@@ -498,6 +573,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const roleRequest = await storage.getRoleRequest(id);
       if (!roleRequest) {
         return res.status(404).json({ message: "Solicitud no encontrada" });
+      }
+
+      // Check if request is still pending
+      if (roleRequest.status !== "pending") {
+        return res.status(400).json({
+          message: `Esta solicitud ya fue ${roleRequest.status === "approved" ? "aprobada" : "rechazada"}`,
+        });
       }
 
       // Update role request status
