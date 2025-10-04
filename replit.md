@@ -173,35 +173,116 @@ Preferred communication style: Simple, everyday language.
 - Admin/master access to view any user's profile and history
 - Users can view their own profile and activity log
 
-### Dual Authentication System (October 2025)
-- **Separate admin authentication system** independent from regular users
-- **Admin Local Auth**:
+### Triple Authentication System (October 2025)
+The platform supports three independent authentication methods with normalized identity management:
+
+#### 1. Public User Registration & Local Auth (October 2025)
+- **User Registration Flow**:
+  - Public self-registration via `/register` page
+  - Email/password authentication with bcrypt hashing (10 salt rounds)
+  - Email verification required via Resend integration
+  - Database tables: `users`, `email_verification_tokens`
+  - Default role: "cliente" (client) upon registration
+  - Status: "pending" until admin approval
+
+- **Email Verification**:
+  - Verification tokens expire after 24 hours
+  - Email sent via Resend API with verification link
+  - Token stored in `email_verification_tokens` table
+  - Verification endpoint: GET `/verify-email?token=xxx`
+  - Sets `email_verified` flag to true upon successful verification
+
+- **Role Request System**:
+  - Users can request additional roles: owner, seller, management, concierge, provider
+  - Stored in `role_requests` table with status (pending, approved, rejected)
+  - Admin approval required via Clients page > "Solicitudes de Rol" tab
+  - Security validations:
+    - Prevents duplicate approvals (status must be pending)
+    - Validates requested role against allowed list
+    - Checks user doesn't already have the requested role
+  - Approved roles stored in `additional_role` field
+
+- **Local Login Endpoints**:
+  - POST `/api/auth/login` - User login with email/password
+  - POST `/api/auth/local/logout` - User logout
+  - GET `/api/auth/user` - Get current user (unified for all auth types)
+
+- **Login Security**:
+  - Verifies email is verified (`email_verified === true`)
+  - Verifies user is approved (`status === "approved"`)
+  - Verifies password with bcrypt comparison
+  - Creates session with `req.session.userId`
+
+- **Frontend Pages**:
+  - `/register` - Registration form with validation
+  - `/login` - Login form for local users
+  - `/verify-email` - Email verification confirmation page
+  - `/` (Landing) - Entry point with login/register buttons
+
+- **Clients Management** (Admin):
+  - Two tabs: "Clientes" and "Solicitudes de Rol"
+  - View all registered users (approved and pending)
+  - Approve/reject user registrations
+  - Approve/reject role requests
+  - Real-time cache invalidation for seamless workflow
+
+#### 2. Admin Local Auth
+- **Admin Authentication**:
   - Database table `admin_users` with username, bcrypt-hashed passwords, and role
   - POST `/api/auth/admin/login` endpoint with Zod validation
   - POST `/api/auth/admin/logout` endpoint for session cleanup
   - GET `/api/auth/admin/user` endpoint for session verification
   - Admin login page at `/admin-login` route
   - `useAdminAuth` hook for frontend admin session management
-- **Unified middleware layer**:
-  - `isAuthenticated` middleware checks both admin sessions and Replit Auth
-  - `requireRole` middleware verifies roles from both authentication systems
-  - Seamless coexistence of both auth methods without conflicts
-- **Frontend integration**:
-  - App.tsx handles both authentication states simultaneously
-  - Conditional rendering based on authentication type
-  - Admin logout uses POST mutation with query cache invalidation
-  - Graceful avatar handling (undefined for admins, profileImageUrl for regular users)
-- **Security features**:
-  - Passwords hashed with bcrypt (10 salt rounds)
-  - Session-based authentication with PostgreSQL persistence
-  - Query invalidation on login/logout for immediate UI updates
-  - Zod schema validation for login credentials
-  - Admin activation status (`isActive` flag)
-- **Admin management**:
+
+- **Admin Management**:
   - CLI script `server/createAdmin.ts` for creating admins
   - Default test credentials: username="admin", password="admin123"
   - Storage methods: `getAdminByUsername()`, `createAdmin()`, `getAllAdmins()`
-- **End-to-end tested**:
-  - Playwright tests confirm complete login → protected routes → logout flow
-  - Query cache properly invalidated on state changes
-  - Session management working correctly for both auth types
+
+#### 3. Replit Auth (OAuth)
+- **Replit Authentication**:
+  - OpenID Connect provider for OAuth-based user authentication
+  - Session-based auth with PostgreSQL persistence
+  - 7-day session TTL with HTTP-only secure cookies
+  - OIDC discovery and token management
+  - Automatic token refresh for expired sessions
+
+#### Unified Middleware & Identity Normalization
+- **`isAuthenticated` Middleware**:
+  - Checks admin session first (`req.session.adminUser`)
+  - Then checks local user session (`req.session.userId`)
+  - Finally checks Replit Auth (`req.user` with OAuth tokens)
+  - **Normalizes all authentication types** into consistent `req.user` structure:
+    ```typescript
+    req.user = {
+      claims: { sub, email, first_name, last_name },
+      [authType]: true  // adminAuth, localAuth, or OAuth tokens
+    }
+    ```
+
+- **`requireRole` Middleware**:
+  - Verifies roles from normalized `req.user.claims.sub`
+  - Loads user from database for role verification
+  - Supports `additionalRole` for users with multiple roles
+  - Seamless handling of admin/local/Replit users
+
+- **Benefits of Normalization**:
+  - Audit logs work consistently for all auth types
+  - Authorization logic is uniform across all routes
+  - Downstream code always receives `req.user.claims.sub`
+  - No bifurcated logic paths between auth methods
+
+- **Frontend Integration**:
+  - App.tsx handles all three authentication states simultaneously
+  - Conditional rendering based on authentication type
+  - Unified logout handling with query cache invalidation
+  - Consistent user experience across auth methods
+
+- **Security Features**:
+  - All passwords hashed with bcrypt (10 salt rounds)
+  - Session-based authentication with PostgreSQL persistence
+  - Email verification required for local users
+  - Admin approval required for local users
+  - Query invalidation on login/logout for immediate UI updates
+  - Zod schema validation for all auth credentials
