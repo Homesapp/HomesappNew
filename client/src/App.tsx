@@ -1,6 +1,6 @@
-import { Switch, Route } from "wouter";
+import { Switch, Route, useLocation } from "wouter";
 import { queryClient } from "./lib/queryClient";
-import { QueryClientProvider } from "@tanstack/react-query";
+import { QueryClientProvider, useMutation } from "@tanstack/react-query";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
@@ -9,7 +9,10 @@ import { ThemeToggle } from "@/components/ThemeToggle";
 import { RoleSelector } from "@/components/RoleSelector";
 import { AppSidebar } from "@/components/AppSidebar";
 import { useAuth } from "@/hooks/useAuth";
+import { useAdminAuth } from "@/hooks/useAdminAuth";
+import { apiRequest } from "@/lib/queryClient";
 import Landing from "@/pages/Landing";
+import AdminLogin from "@/pages/AdminLogin";
 import Dashboard from "@/pages/Dashboard";
 import Properties from "@/pages/Properties";
 import Appointments from "@/pages/Appointments";
@@ -24,13 +27,25 @@ import NotFound from "@/pages/not-found";
 
 function AuthenticatedApp() {
   const { isAuthenticated, isLoading, user } = useAuth();
+  const { adminUser, isAdminAuthenticated, isLoading: isAdminLoading } = useAdminAuth();
+  const [_, setLocation] = useLocation();
+
+  const adminLogoutMutation = useMutation({
+    mutationFn: async () => {
+      await apiRequest("POST", "/api/auth/admin/logout");
+    },
+    onSuccess: () => {
+      queryClient.clear();
+      setLocation("/admin-login");
+    },
+  });
 
   const style = {
     "--sidebar-width": "20rem",
     "--sidebar-width-icon": "4rem",
   };
 
-  if (isLoading) {
+  if (isLoading || isAdminLoading) {
     return (
       <div className="flex items-center justify-center h-screen">
         <div className="text-center space-y-4">
@@ -41,26 +56,33 @@ function AuthenticatedApp() {
     );
   }
 
-  if (!isAuthenticated) {
+  // If not authenticated with either system, show landing/admin login
+  if (!isAuthenticated && !isAdminAuthenticated) {
     return (
       <Switch>
+        <Route path="/admin-login" component={AdminLogin} />
         <Route path="/" component={Landing} />
         <Route component={Landing} />
       </Switch>
     );
   }
 
-  const userName = user?.firstName && user?.lastName 
-    ? `${user.firstName} ${user.lastName}`
-    : user?.email || "Usuario";
+  // Determine which user is authenticated
+  const currentUser = isAdminAuthenticated ? adminUser : user;
+  const userName = currentUser?.firstName && currentUser?.lastName 
+    ? `${currentUser.firstName} ${currentUser.lastName}`
+    : currentUser?.email || currentUser?.username || "Usuario";
+  
+  const userRole = currentUser?.role || "owner";
+  const userAvatar = isAdminAuthenticated ? undefined : user?.profileImageUrl;
 
   return (
     <SidebarProvider style={style as React.CSSProperties}>
       <div className="flex h-screen w-full">
         <AppSidebar
-          userRole={user?.role || "owner"}
+          userRole={userRole}
           userName={userName}
-          userAvatar={user?.profileImageUrl || undefined}
+          userAvatar={userAvatar}
         />
         <div className="flex flex-col flex-1 overflow-hidden">
           <header className="flex items-center justify-between p-4 border-b bg-background">
@@ -68,13 +90,24 @@ function AuthenticatedApp() {
             <div className="flex items-center gap-4">
               <RoleSelector />
               <ThemeToggle />
-              <a
-                href="/api/logout"
-                className="text-sm text-muted-foreground hover:text-foreground"
-                data-testid="link-logout"
-              >
-                Cerrar Sesión
-              </a>
+              {isAdminAuthenticated ? (
+                <button
+                  onClick={() => adminLogoutMutation.mutate()}
+                  disabled={adminLogoutMutation.isPending}
+                  className="text-sm text-muted-foreground hover:text-foreground"
+                  data-testid="button-logout"
+                >
+                  {adminLogoutMutation.isPending ? "Cerrando..." : "Cerrar Sesión"}
+                </button>
+              ) : (
+                <a
+                  href="/api/logout"
+                  className="text-sm text-muted-foreground hover:text-foreground"
+                  data-testid="link-logout"
+                >
+                  Cerrar Sesión
+                </a>
+              )}
             </div>
           </header>
           <main className="flex-1 overflow-auto p-6">

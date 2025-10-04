@@ -17,6 +17,7 @@ import {
   insertTaskSchema,
   insertWorkReportSchema,
   insertAuditLogSchema,
+  adminLoginSchema,
 } from "@shared/schema";
 
 // Helper function to create audit logs
@@ -55,6 +56,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Auth routes
   app.get("/api/auth/user", isAuthenticated, async (req: any, res) => {
     try {
+      // Check if admin session exists
+      if (req.session && req.session.adminUser) {
+        return res.json(req.session.adminUser);
+      }
+
+      // Otherwise, get regular user from Replit Auth
       const userId = req.user.claims.sub;
       const user = await storage.getUser(userId);
       if (!user) {
@@ -70,11 +77,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Admin login route (local authentication)
   app.post("/api/auth/admin/login", async (req: any, res) => {
     try {
-      const { username, password } = req.body;
-      
-      if (!username || !password) {
-        return res.status(400).json({ message: "Username and password are required" });
+      const validationResult = adminLoginSchema.safeParse(req.body);
+      if (!validationResult.success) {
+        return res.status(400).json({ 
+          message: "Invalid request data",
+          errors: validationResult.error.errors 
+        });
       }
+      
+      const { username, password } = validationResult.data;
       
       // Find admin by username
       const admin = await storage.getAdminByUsername(username);

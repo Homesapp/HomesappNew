@@ -124,9 +124,14 @@ export async function setupAuth(app: Express) {
   });
 }
 
-export const isAuthenticated: RequestHandler = async (req, res, next) => {
-  const user = req.user as any;
+export const isAuthenticated: RequestHandler = async (req: any, res, next) => {
+  // Check if admin is authenticated via local session
+  if (req.session && req.session.adminUser) {
+    return next();
+  }
 
+  // Check if user is authenticated via Replit Auth
+  const user = req.user as any;
   if (!req.isAuthenticated() || !user.expires_at) {
     return res.status(401).json({ message: "Unauthorized" });
   }
@@ -154,9 +159,18 @@ export const isAuthenticated: RequestHandler = async (req, res, next) => {
 };
 
 export const requireRole = (allowedRoles: string[]): RequestHandler => {
-  return async (req, res, next) => {
+  return async (req: any, res, next) => {
+    // Check admin session first
+    if (req.session && req.session.adminUser) {
+      const adminRole = req.session.adminUser.role;
+      if (!allowedRoles.includes(adminRole)) {
+        return res.status(403).json({ message: "Forbidden: insufficient permissions" });
+      }
+      return next();
+    }
+
+    // Check Replit Auth user
     const user = req.user as any;
-    
     if (!req.isAuthenticated()) {
       return res.status(401).json({ message: "Unauthorized" });
     }
