@@ -113,6 +113,19 @@ export const leadStatusEnum = pgEnum("lead_status", [
   "perdido",
 ]);
 
+export const rentalApplicationStatusEnum = pgEnum("rental_application_status", [
+  "solicitud_enviada",
+  "revision_documentos",
+  "verificacion_credito",
+  "aprobado",
+  "contrato_enviado",
+  "contrato_firmado",
+  "pago_deposito",
+  "activo",
+  "rechazado",
+  "cancelado",
+]);
+
 // Users table (required for Replit Auth + extended fields)
 export const users = pgTable("users", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
@@ -333,6 +346,32 @@ export const insertLeadSchema = createInsertSchema(leads).omit({
 
 export type InsertLead = z.infer<typeof insertLeadSchema>;
 export type Lead = typeof leads.$inferSelect;
+
+// Rental Applications table (Rental Process Kanban)
+export const rentalApplications = pgTable("rental_applications", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  propertyId: varchar("property_id").notNull().references(() => properties.id),
+  applicantId: varchar("applicant_id").notNull().references(() => users.id),
+  status: rentalApplicationStatusEnum("status").notNull().default("solicitud_enviada"),
+  monthlyIncome: decimal("monthly_income", { precision: 12, scale: 2 }),
+  employmentStatus: varchar("employment_status"),
+  moveInDate: timestamp("move_in_date"),
+  leaseDuration: integer("lease_duration"),
+  depositAmount: decimal("deposit_amount", { precision: 12, scale: 2 }),
+  documents: text("documents").array().default(sql`ARRAY[]::text[]`),
+  notes: text("notes"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
+export const insertRentalApplicationSchema = createInsertSchema(rentalApplications).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export type InsertRentalApplication = z.infer<typeof insertRentalApplicationSchema>;
+export type RentalApplication = typeof rentalApplications.$inferSelect;
 
 // Appointments table
 export const appointments = pgTable("appointments", {

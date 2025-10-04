@@ -1,12 +1,14 @@
-import { useState } from "react";
+import { useState, type DragEvent } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Plus, Mail, Phone, DollarSign, User } from "lucide-react";
-import { type Lead } from "@shared/schema";
+import { type Lead, insertLeadSchema } from "@shared/schema";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { z } from "zod";
 import {
   Dialog,
   DialogContent,
@@ -39,12 +41,17 @@ const LEAD_STATUSES = [
   { value: "perdido", label: "Perdido", color: "bg-red-500" },
 ];
 
+const leadFormSchema = insertLeadSchema.extend({
+  budget: z.string().optional(),
+});
+
 export default function LeadsKanban() {
   const { toast } = useToast();
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingLead, setEditingLead] = useState<Lead | null>(null);
   
   const form = useForm({
+    resolver: zodResolver(leadFormSchema),
     defaultValues: {
       firstName: "",
       lastName: "",
@@ -88,15 +95,15 @@ export default function LeadsKanban() {
     },
   });
 
-  const handleDragStart = (e: React.DragEvent, leadId: string) => {
+  const handleDragStart = (e: DragEvent, leadId: string) => {
     e.dataTransfer.setData("leadId", leadId);
   };
 
-  const handleDragOver = (e: React.DragEvent) => {
+  const handleDragOver = (e: DragEvent) => {
     e.preventDefault();
   };
 
-  const handleDrop = (e: React.DragEvent, newStatus: string) => {
+  const handleDrop = (e: DragEvent, newStatus: string) => {
     e.preventDefault();
     const leadId = e.dataTransfer.getData("leadId");
     updateLeadStatusMutation.mutate({ id: leadId, status: newStatus });
@@ -278,17 +285,18 @@ export default function LeadsKanban() {
             className="flex flex-col"
             onDragOver={handleDragOver}
             onDrop={(e) => handleDrop(e, status.value)}
+            data-testid={`column-${status.value}`}
           >
             <Card className="flex-1">
-              <CardHeader className={`${status.color} text-white rounded-t-lg`}>
+              <CardHeader className={`${status.color} text-white rounded-t-lg`} data-testid={`header-${status.value}`}>
                 <CardTitle className="text-sm font-medium flex items-center justify-between">
-                  <span>{status.label}</span>
-                  <Badge variant="secondary" className="bg-white/20 text-white border-0">
+                  <span data-testid={`text-status-${status.value}`}>{status.label}</span>
+                  <Badge variant="secondary" className="bg-white/20 text-white border-0" data-testid={`badge-count-${status.value}`}>
                     {getLeadsByStatus(status.value).length}
                   </Badge>
                 </CardTitle>
               </CardHeader>
-              <CardContent className="p-2 space-y-2 min-h-[400px]">
+              <CardContent className="p-2 space-y-2 min-h-[400px]" data-testid={`content-${status.value}`}>
                 {getLeadsByStatus(status.value).map((lead) => (
                   <Card
                     key={lead.id}

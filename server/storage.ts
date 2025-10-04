@@ -17,6 +17,7 @@ import {
   roleRequests,
   favorites,
   leads,
+  rentalApplications,
   type User,
   type UpsertUser,
   type InsertUser,
@@ -54,6 +55,8 @@ import {
   type InsertFavorite,
   type Lead,
   type InsertLead,
+  type RentalApplication,
+  type InsertRentalApplication,
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, and, or, gte, lte, ilike, desc, sql } from "drizzle-orm";
@@ -196,6 +199,14 @@ export interface IStorage {
   updateLead(id: string, updates: Partial<InsertLead>): Promise<Lead>;
   updateLeadStatus(id: string, status: string): Promise<Lead>;
   deleteLead(id: string): Promise<void>;
+  
+  // Rental Application operations
+  getRentalApplication(id: string): Promise<RentalApplication | undefined>;
+  getRentalApplications(filters?: { status?: string; propertyId?: string; applicantId?: string }): Promise<RentalApplication[]>;
+  createRentalApplication(application: InsertRentalApplication): Promise<RentalApplication>;
+  updateRentalApplication(id: string, updates: Partial<InsertRentalApplication>): Promise<RentalApplication>;
+  updateRentalApplicationStatus(id: string, status: string): Promise<RentalApplication>;
+  deleteRentalApplication(id: string): Promise<void>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -1083,6 +1094,60 @@ export class DatabaseStorage implements IStorage {
 
   async deleteLead(id: string): Promise<void> {
     await db.delete(leads).where(eq(leads.id, id));
+  }
+  
+  // Rental Application operations
+  async getRentalApplication(id: string): Promise<RentalApplication | undefined> {
+    const [application] = await db.select().from(rentalApplications).where(eq(rentalApplications.id, id));
+    return application;
+  }
+
+  async getRentalApplications(filters?: { status?: string; propertyId?: string; applicantId?: string }): Promise<RentalApplication[]> {
+    let query = db.select().from(rentalApplications);
+    
+    const conditions = [];
+    if (filters?.status) {
+      conditions.push(eq(rentalApplications.status, filters.status));
+    }
+    if (filters?.propertyId) {
+      conditions.push(eq(rentalApplications.propertyId, filters.propertyId));
+    }
+    if (filters?.applicantId) {
+      conditions.push(eq(rentalApplications.applicantId, filters.applicantId));
+    }
+    
+    if (conditions.length > 0) {
+      query = query.where(and(...conditions)) as any;
+    }
+    
+    return await query.orderBy(desc(rentalApplications.createdAt));
+  }
+
+  async createRentalApplication(applicationData: InsertRentalApplication): Promise<RentalApplication> {
+    const [application] = await db.insert(rentalApplications).values(applicationData).returning();
+    return application;
+  }
+
+  async updateRentalApplication(id: string, updates: Partial<InsertRentalApplication>): Promise<RentalApplication> {
+    const [updated] = await db
+      .update(rentalApplications)
+      .set({ ...updates, updatedAt: new Date() })
+      .where(eq(rentalApplications.id, id))
+      .returning();
+    return updated;
+  }
+
+  async updateRentalApplicationStatus(id: string, status: string): Promise<RentalApplication> {
+    const [updated] = await db
+      .update(rentalApplications)
+      .set({ status: status as any, updatedAt: new Date() })
+      .where(eq(rentalApplications.id, id))
+      .returning();
+    return updated;
+  }
+
+  async deleteRentalApplication(id: string): Promise<void> {
+    await db.delete(rentalApplications).where(eq(rentalApplications.id, id));
   }
 }
 
