@@ -1,9 +1,13 @@
 import { useState } from "react";
 import { UserApprovalCard } from "@/components/UserApprovalCard";
+import { UserProfileDialog } from "@/components/UserProfileDialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Card, CardContent } from "@/components/ui/card";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Badge } from "@/components/ui/badge";
 import { Search, UserPlus, CheckCircle, Loader2 } from "lucide-react";
 import {
   AlertDialog,
@@ -18,8 +22,9 @@ import {
 } from "@/components/ui/alert-dialog";
 import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
-import { usePendingUsers, useApproveUser, useRejectUser, useApproveAllUsers } from "@/hooks/useUsers";
+import { usePendingUsers, useApprovedUsers, useApproveUser, useRejectUser, useApproveAllUsers } from "@/hooks/useUsers";
 import { format } from "date-fns";
+import type { User } from "@shared/schema";
 
 const roleLabels: Record<string, string> = {
   master: "Master",
@@ -35,14 +40,22 @@ const roleLabels: Record<string, string> = {
 export default function Users() {
   const [searchQuery, setSearchQuery] = useState("");
   const [activeTab, setActiveTab] = useState("pending");
+  const [selectedUser, setSelectedUser] = useState<User | null>(null);
+  const [isProfileOpen, setIsProfileOpen] = useState(false);
 
   const { user: currentUser } = useAuth();
-  const { data: pendingUsers = [], isLoading, error } = usePendingUsers();
+  const { data: pendingUsers = [], isLoading: isLoadingPending, error: errorPending } = usePendingUsers();
+  const { data: approvedUsers = [], isLoading: isLoadingApproved, error: errorApproved } = useApprovedUsers();
   const { toast } = useToast();
   
   const approveUser = useApproveUser();
   const rejectUser = useRejectUser();
   const approveAllUsers = useApproveAllUsers();
+
+  const handleViewProfile = (user: User) => {
+    setSelectedUser(user);
+    setIsProfileOpen(true);
+  };
 
   const handleApprove = async (userId: string, userName: string) => {
     try {
@@ -121,6 +134,9 @@ export default function Users() {
 
   const canApproveUsers = currentUser && ["master", "admin"].includes(currentUser.role);
   const isMaster = currentUser?.role === "master";
+
+  const error = activeTab === "pending" ? errorPending : errorApproved;
+  const isLoading = activeTab === "pending" ? isLoadingPending : isLoadingApproved;
 
   if (error) {
     return (
@@ -201,7 +217,7 @@ export default function Users() {
             Pendientes ({pendingUsers.length})
           </TabsTrigger>
           <TabsTrigger value="approved" data-testid="tab-approved-users">
-            Aprobados (0)
+            Aprobados ({approvedUsers.length})
           </TabsTrigger>
         </TabsList>
 
@@ -249,11 +265,71 @@ export default function Users() {
         </TabsContent>
 
         <TabsContent value="approved" className="mt-6">
-          <div className="text-center py-12 text-muted-foreground">
-            Funcionalidad de usuarios aprobados en desarrollo
-          </div>
+          {isLoading ? (
+            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+              {[1, 2, 3].map((i) => (
+                <div key={i} className="space-y-3">
+                  <Skeleton className="h-32 w-full" />
+                </div>
+              ))}
+            </div>
+          ) : (
+            <>
+              <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+                {filterUsers(approvedUsers).map((user) => {
+                  const fullName = `${user.firstName || ""} ${user.lastName || ""}`.trim() || "Usuario";
+                  const initials = `${user.firstName?.[0] || ""}${user.lastName?.[0] || ""}`.toUpperCase() || "U";
+                  const roleLabel = roleLabels[user.role] || user.role;
+                  
+                  return (
+                    <Card 
+                      key={user.id} 
+                      className="hover-elevate cursor-pointer" 
+                      onClick={() => handleViewProfile(user)}
+                      data-testid={`card-user-${user.id}`}
+                    >
+                      <CardContent className="pt-6">
+                        <div className="flex items-start gap-4">
+                          <Avatar className="h-12 w-12">
+                            <AvatarImage src={user.profileImageUrl || undefined} alt={fullName} />
+                            <AvatarFallback>{initials}</AvatarFallback>
+                          </Avatar>
+                          <div className="flex-1 min-w-0 space-y-1">
+                            <h3 className="font-semibold truncate" data-testid={`text-user-name-${user.id}`}>
+                              {fullName}
+                            </h3>
+                            <p className="text-sm text-muted-foreground truncate" data-testid={`text-user-email-${user.id}`}>
+                              {user.email}
+                            </p>
+                            <div className="flex items-center gap-2 flex-wrap">
+                              <Badge variant="secondary" data-testid={`badge-user-role-${user.id}`}>
+                                {roleLabel}
+                              </Badge>
+                            </div>
+                          </div>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  );
+                })}
+              </div>
+              {filterUsers(approvedUsers).length === 0 && (
+                <div className="text-center py-12 text-muted-foreground">
+                  {searchQuery
+                    ? "No se encontraron usuarios que coincidan con la búsqueda"
+                    : "No hay usuarios aprobados"}
+                </div>
+              )}
+            </>
+          )}
         </TabsContent>
       </Tabs>
+
+      <UserProfileDialog 
+        user={selectedUser}
+        open={isProfileOpen}
+        onOpenChange={setIsProfileOpen}
+      />
     </div>
   );
 }

@@ -1,10 +1,32 @@
 import { useQuery, useMutation } from "@tanstack/react-query";
-import type { User } from "@shared/schema";
+import type { User, AuditLog } from "@shared/schema";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 
 export function usePendingUsers() {
   return useQuery<User[]>({
     queryKey: ["/api/users/pending"],
+  });
+}
+
+export function useApprovedUsers() {
+  return useQuery<User[]>({
+    queryKey: ["/api/users"],
+    select: (users) => users.filter(user => user.status === "approved"),
+  });
+}
+
+export function useUserAuditHistory(userId: string | null, limit: number = 100) {
+  return useQuery<AuditLog[]>({
+    queryKey: ["/api/audit-logs/user", userId, limit],
+    queryFn: async () => {
+      if (!userId) throw new Error("User ID is required");
+      const res = await fetch(`/api/audit-logs/user/${userId}?limit=${limit}`, {
+        credentials: "include",
+      });
+      if (!res.ok) throw new Error("Failed to fetch audit history");
+      return res.json();
+    },
+    enabled: !!userId,
   });
 }
 
@@ -23,6 +45,7 @@ export function useApproveUser() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/users/pending"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/users"] });
     },
   });
 }
@@ -35,6 +58,7 @@ export function useRejectUser() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/users/pending"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/users"] });
     },
   });
 }
@@ -47,6 +71,7 @@ export function useApproveAllUsers() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/users/pending"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/users"] });
     },
   });
 }
