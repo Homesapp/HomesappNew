@@ -229,45 +229,155 @@ export default function PublicDashboard() {
           </div>
         </div>
 
-        {/* Owner Banner - List Your Property */}
-        <div className="mb-12 overflow-hidden rounded-lg border bg-card shadow-sm">
-          <div className="grid md:grid-cols-2 gap-0">
-            <div className="relative h-48 md:h-64">
-              <img
-                src={tulumProperty1}
-                alt={t("public.ownerBanner.imgAlt")}
-                className="h-full w-full object-cover"
-              />
-              <div className="absolute inset-0 bg-gradient-to-r from-black/60 to-transparent" />
+        {/* Promotional Banners Carousel */}
+        <div className="mb-12">
+          <Carousel
+            opts={{
+              align: "start",
+              loop: true,
+            }}
+            plugins={[
+              Autoplay({
+                delay: 5000,
+              }),
+            ]}
+            className="w-full"
+          >
+            <CarouselContent>
+              {/* Owner Banner Slide */}
+              <CarouselItem>
+                <div className="overflow-hidden rounded-lg border bg-card shadow-sm">
+                  <div className="grid md:grid-cols-2 gap-0">
+                    <div className="relative h-64 md:h-80">
+                      <img
+                        src={tulumProperty1}
+                        alt={t("public.ownerBanner.imgAlt")}
+                        className="h-full w-full object-cover"
+                      />
+                      <div className="absolute inset-0 bg-gradient-to-r from-black/60 to-transparent" />
+                    </div>
+                    <div className="p-6 md:p-8 flex flex-col justify-center">
+                      <h2 className="text-2xl md:text-3xl font-bold mb-4">{t("public.ownerBanner.title")}</h2>
+                      <p className="text-base text-muted-foreground mb-6">
+                        {t("public.ownerBanner.subtitle")}
+                      </p>
+                      <div className="space-y-3 mb-6">
+                        <div className="flex items-start gap-3">
+                          <div className="h-2 w-2 rounded-full bg-primary mt-2 flex-shrink-0" />
+                          <span className="text-sm">{t("public.ownerBanner.benefit1")}</span>
+                        </div>
+                        <div className="flex items-start gap-3">
+                          <div className="h-2 w-2 rounded-full bg-primary mt-2 flex-shrink-0" />
+                          <span className="text-sm">{t("public.ownerBanner.benefit2")}</span>
+                        </div>
+                        <div className="flex items-start gap-3">
+                          <div className="h-2 w-2 rounded-full bg-primary mt-2 flex-shrink-0" />
+                          <span className="text-sm">{t("public.ownerBanner.benefit3")}</span>
+                        </div>
+                      </div>
+                      <Button
+                        onClick={() => setLocation("/register")}
+                        size="lg"
+                        className="w-fit"
+                        data-testid="button-list-property"
+                      >
+                        {t("public.ownerBanner.button")}
+                      </Button>
+                    </div>
+                  </div>
+                </div>
+              </CarouselItem>
+
+              {/* Service Provider Banner Slide */}
+              <CarouselItem>
+                <div className="overflow-hidden rounded-lg border bg-card shadow-sm">
+                  <div className="grid md:grid-cols-2 gap-0">
+                    <div className="p-6 md:p-8 flex flex-col justify-center">
+                      <h2 className="text-2xl md:text-3xl font-bold mb-4">{t("public.serviceBanner.title")}</h2>
+                      <p className="text-base text-muted-foreground mb-6">
+                        {t("public.serviceBanner.subtitle")}
+                      </p>
+                      <div className="space-y-3 mb-6">
+                        <div className="flex items-start gap-3">
+                          <div className="h-2 w-2 rounded-full bg-primary mt-2 flex-shrink-0" />
+                          <span className="text-sm">{t("public.serviceBanner.benefit1")}</span>
+                        </div>
+                        <div className="flex items-start gap-3">
+                          <div className="h-2 w-2 rounded-full bg-primary mt-2 flex-shrink-0" />
+                          <span className="text-sm">{t("public.serviceBanner.benefit2")}</span>
+                        </div>
+                        <div className="flex items-start gap-3">
+                          <div className="h-2 w-2 rounded-full bg-primary mt-2 flex-shrink-0" />
+                          <span className="text-sm">{t("public.serviceBanner.benefit3")}</span>
+                        </div>
+                      </div>
+                      <Button
+                        onClick={() => setLocation("/solicitud-proveedor")}
+                        size="lg"
+                        className="w-fit"
+                        data-testid="button-provider-apply"
+                      >
+                        {t("public.serviceBanner.button")}
+                      </Button>
+                    </div>
+                    <div className="relative h-64 md:h-80">
+                      <img
+                        src={serviceProvider}
+                        alt={t("public.serviceBanner.imgAlt")}
+                        className="h-full w-full object-cover"
+                      />
+                      <div className="absolute inset-0 bg-gradient-to-l from-black/40 to-transparent" />
+                    </div>
+                  </div>
+                </div>
+              </CarouselItem>
+
+              {/* Affiliate Banner Slide */}
+              <CarouselItem>
+                <div className="overflow-hidden rounded-lg border bg-gradient-to-br from-primary/10 to-primary/5">
+                  <div className="absolute top-0 right-0 w-64 h-64 bg-primary/10 rounded-full blur-3xl pointer-events-none" />
+                  <div className="absolute bottom-0 left-0 w-96 h-96 bg-primary/5 rounded-full blur-3xl pointer-events-none" />
+                  <div className="relative p-6 md:p-8 min-h-[20rem] md:min-h-[20rem] flex flex-col justify-center">
+                    <div className="max-w-3xl">
+                      <h2 className="text-2xl md:text-3xl font-bold mb-4">{t("public.affiliateBanner.title")}</h2>
+                      <p className="text-base text-muted-foreground mb-6">
+                        {t("public.affiliateBanner.subtitle")}
+                      </p>
+                      <div className="grid sm:grid-cols-2 gap-4 mb-6">
+                        <div className="space-y-3">
+                          <div className="flex items-start gap-3">
+                            <div className="h-2 w-2 rounded-full bg-primary mt-2 flex-shrink-0" />
+                            <span className="text-sm">{t("public.affiliateBanner.benefit1")}</span>
+                          </div>
+                          <div className="flex items-start gap-3">
+                            <div className="h-2 w-2 rounded-full bg-primary mt-2 flex-shrink-0" />
+                            <span className="text-sm">{t("public.affiliateBanner.benefit2")}</span>
+                          </div>
+                        </div>
+                        <div className="space-y-3">
+                          <div className="flex items-start gap-3">
+                            <div className="h-2 w-2 rounded-full bg-primary mt-2 flex-shrink-0" />
+                            <span className="text-sm">{t("public.affiliateBanner.benefit3")}</span>
+                          </div>
+                        </div>
+                      </div>
+                      <Button
+                        onClick={() => setLocation("/register")}
+                        size="lg"
+                        data-testid="button-affiliate-join"
+                      >
+                        {t("public.affiliateBanner.button")}
+                      </Button>
+                    </div>
+                  </div>
+                </div>
+              </CarouselItem>
+            </CarouselContent>
+            <div className="mt-6 flex justify-center gap-4">
+              <CarouselPrevious className="static translate-y-0" data-testid="button-banner-carousel-prev" />
+              <CarouselNext className="static translate-y-0" data-testid="button-banner-carousel-next" />
             </div>
-            <div className="p-4 md:p-6 flex flex-col justify-center">
-              <h2 className="text-2xl font-bold mb-3">{t("public.ownerBanner.title")}</h2>
-              <p className="text-base text-muted-foreground mb-4">
-                {t("public.ownerBanner.subtitle")}
-              </p>
-              <div className="space-y-2 mb-4">
-                <div className="flex items-center gap-2">
-                  <div className="h-2 w-2 rounded-full bg-primary" />
-                  <span>{t("public.ownerBanner.benefit1")}</span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <div className="h-2 w-2 rounded-full bg-primary" />
-                  <span>{t("public.ownerBanner.benefit2")}</span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <div className="h-2 w-2 rounded-full bg-primary" />
-                  <span>{t("public.ownerBanner.benefit3")}</span>
-                </div>
-              </div>
-              <Button
-                onClick={() => setLocation("/register")}
-                className="w-fit"
-                data-testid="button-list-property"
-              >
-                {t("public.ownerBanner.button")}
-              </Button>
-            </div>
-          </div>
+          </Carousel>
         </div>
 
         {/* Featured Properties */}
@@ -486,85 +596,6 @@ export default function PublicDashboard() {
                 </div>
               </div>
             ))}
-          </div>
-        </div>
-
-        {/* Service Provider Banner */}
-        <div className="mt-12 mb-12 overflow-hidden rounded-lg border bg-card shadow-sm">
-          <div className="grid md:grid-cols-2 gap-0">
-            <div className="p-4 md:p-6 flex flex-col justify-center">
-              <h2 className="text-2xl font-bold mb-3">{t("public.serviceBanner.title")}</h2>
-              <p className="text-base text-muted-foreground mb-4">
-                {t("public.serviceBanner.subtitle")}
-              </p>
-              <div className="space-y-2 mb-4">
-                <div className="flex items-center gap-2">
-                  <div className="h-2 w-2 rounded-full bg-primary" />
-                  <span>{t("public.serviceBanner.benefit1")}</span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <div className="h-2 w-2 rounded-full bg-primary" />
-                  <span>{t("public.serviceBanner.benefit2")}</span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <div className="h-2 w-2 rounded-full bg-primary" />
-                  <span>{t("public.serviceBanner.benefit3")}</span>
-                </div>
-              </div>
-              <Button
-                onClick={() => setLocation("/solicitud-proveedor")}
-                className="w-fit"
-                data-testid="button-provider-apply"
-              >
-                {t("public.serviceBanner.button")}
-              </Button>
-            </div>
-            <div className="relative h-48 md:h-64">
-              <img
-                src={serviceProvider}
-                alt={t("public.serviceBanner.imgAlt")}
-                className="h-full w-full object-cover"
-              />
-              <div className="absolute inset-0 bg-gradient-to-l from-black/40 to-transparent" />
-            </div>
-          </div>
-        </div>
-
-        {/* Seller/Affiliate Banner */}
-        <div className="mt-12 mb-12 relative overflow-hidden rounded-lg border bg-gradient-to-br from-primary/10 to-primary/5">
-          <div className="absolute top-0 right-0 w-64 h-64 bg-primary/10 rounded-full blur-3xl" />
-          <div className="absolute bottom-0 left-0 w-96 h-96 bg-primary/5 rounded-full blur-3xl" />
-          <div className="relative p-4 md:p-6">
-            <div className="max-w-2xl">
-              <h2 className="text-2xl font-bold mb-3">{t("public.affiliateBanner.title")}</h2>
-              <p className="text-base text-muted-foreground mb-4">
-                {t("public.affiliateBanner.subtitle")}
-              </p>
-              <div className="grid sm:grid-cols-2 gap-4 mb-4">
-                <div className="space-y-3">
-                  <div className="flex items-center gap-2">
-                    <div className="h-2 w-2 rounded-full bg-primary" />
-                    <span>{t("public.affiliateBanner.benefit1")}</span>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <div className="h-2 w-2 rounded-full bg-primary" />
-                    <span>{t("public.affiliateBanner.benefit2")}</span>
-                  </div>
-                </div>
-                <div className="space-y-3">
-                  <div className="flex items-center gap-2">
-                    <div className="h-2 w-2 rounded-full bg-primary" />
-                    <span>{t("public.affiliateBanner.benefit3")}</span>
-                  </div>
-                </div>
-              </div>
-              <Button
-                onClick={() => setLocation("/register")}
-                data-testid="button-affiliate-join"
-              >
-                {t("public.affiliateBanner.button")}
-              </Button>
-            </div>
           </div>
         </div>
 
