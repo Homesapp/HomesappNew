@@ -26,7 +26,7 @@ import {
   rentalOpportunityRequests,
   leadJourneys,
 } from "@shared/schema";
-import { db } from "@db";
+import { db } from "./db";
 import { eq, and, inArray } from "drizzle-orm";
 
 // Helper function to create audit logs

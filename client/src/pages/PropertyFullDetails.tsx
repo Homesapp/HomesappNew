@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useRoute, useLocation } from "wouter";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -10,10 +11,16 @@ import {
   User, Phone, Mail, Building
 } from "lucide-react";
 import { type Property } from "@shared/schema";
+import { RentalOpportunityRequestDialog } from "@/components/RentalOpportunityRequestDialog";
+import { useAuth } from "@/hooks/useAuth";
+import { useToast } from "@/hooks/use-toast";
 
 export default function PropertyFullDetails() {
   const [, params] = useRoute("/propiedad/:id/completo");
   const [, setLocation] = useLocation();
+  const { isAuthenticated } = useAuth();
+  const { toast } = useToast();
+  const [showSORDialog, setShowSORDialog] = useState(false);
 
   const { data: property, isLoading } = useQuery<Property>({
     queryKey: ["/api/properties", params?.id],
@@ -221,9 +228,30 @@ export default function PropertyFullDetails() {
                   )}
                 </div>
               )}
-              <Button className="w-full" size="lg" data-testid="button-contact">
-                Contactar
-              </Button>
+              {property.status === "rent" || property.status === "both" ? (
+                <Button 
+                  className="w-full" 
+                  size="lg" 
+                  onClick={() => {
+                    if (!isAuthenticated) {
+                      toast({
+                        title: "Inicia sesión para solicitar",
+                        description: "Debes iniciar sesión para solicitar una oportunidad de renta",
+                        variant: "destructive",
+                      });
+                      return;
+                    }
+                    setShowSORDialog(true);
+                  }}
+                  data-testid="button-request-opportunity"
+                >
+                  Solicitar Oportunidad de Renta
+                </Button>
+              ) : (
+                <Button className="w-full" size="lg" data-testid="button-contact">
+                  Contactar
+                </Button>
+              )}
             </CardContent>
           </Card>
 
@@ -252,6 +280,14 @@ export default function PropertyFullDetails() {
           </Card>
         </div>
       </div>
+
+      {property && (
+        <RentalOpportunityRequestDialog
+          open={showSORDialog}
+          onOpenChange={setShowSORDialog}
+          property={property}
+        />
+      )}
     </div>
   );
 }
