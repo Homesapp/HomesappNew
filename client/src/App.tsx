@@ -59,7 +59,7 @@ function AuthenticatedApp() {
     "--sidebar-width-icon": "4rem",
   };
 
-  if (isLoading || isAdminLoading) {
+  if (isLoading) {
     return (
       <div className="flex items-center justify-center h-screen">
         <div className="text-center space-y-4">
