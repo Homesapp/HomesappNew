@@ -132,6 +132,95 @@ const translations: Record<Language, Record<string, string>> = {
     "register.errorDesc": "No se pudo crear tu cuenta. Inténtalo de nuevo.",
     "register.passwordMismatch": "Las contraseñas no coinciden",
     "register.confirmPasswordRequired": "Por favor confirma tu contraseña",
+    
+    // Landing Page
+    "landing.login": "Iniciar Sesión",
+    "landing.register": "Registrarse",
+    "landing.title": "HomesApp - Plataforma Completa de Gestión Inmobiliaria",
+    "landing.subtitle": "Administra propiedades, coordina citas, gestiona clientes y servicios todo en un solo lugar",
+    "landing.feature1.title": "Gestión de Propiedades",
+    "landing.feature1.desc": "Administra tu portafolio completo con detalles, imágenes y estado",
+    "landing.feature2.title": "Coordinación de Citas",
+    "landing.feature2.desc": "Agenda visitas presenciales y videollamadas con Google Meet",
+    "landing.feature3.title": "Multi-Rol",
+    "landing.feature3.desc": "Sistema completo de roles para propietarios, vendedores y más",
+    "landing.feature4.title": "Directorio de Servicios",
+    "landing.feature4.desc": "Marketplace de proveedores para mantenimiento y servicios",
+    "landing.createAccount": "Crear Cuenta Gratis",
+    "landing.loginButton": "Iniciar Sesión",
+    
+    // Public Dashboard - Additional translations
+    "public.searchPlaceholder": "Buscar por ubicación, colonia, condominio o descripción...",
+    "public.searchButton": "Buscar",
+    "public.filterPropertyType": "Tipo de Propiedad",
+    "public.filterAllTypes": "Todos los tipos",
+    "public.propertyType.house": "Casa",
+    "public.propertyType.apartment": "Departamento",
+    "public.propertyType.villa": "Villa",
+    "public.propertyType.condo": "Condominio",
+    "public.propertyType.penthouse": "Penthouse",
+    "public.propertyType.studio": "Estudio",
+    "public.propertyType.loft": "Loft",
+    "public.propertyType.townhouse": "Casa adosada",
+    "public.filterColony": "Colonia",
+    "public.filterColonyPlaceholder": "Ej: La Veleta, Aldea Zama...",
+    "public.filterCondo": "Condominio",
+    "public.filterCondoPlaceholder": "Nombre del condominio...",
+    "public.clearFilters": "Limpiar filtros",
+    
+    // Owner Banner
+    "public.ownerBanner.title": "¿Tienes una propiedad en Tulum?",
+    "public.ownerBanner.subtitle": "Únete a nuestra plataforma y alcanza miles de clientes potenciales. Gestiona reservas, citas y mucho más desde un solo lugar.",
+    "public.ownerBanner.benefit1": "Exposición a miles de clientes verificados",
+    "public.ownerBanner.benefit2": "Herramientas de gestión profesionales",
+    "public.ownerBanner.benefit3": "Sin comisiones ocultas",
+    "public.ownerBanner.button": "Enlistar mi Propiedad",
+    
+    // Benefits Section
+    "public.clientBenefits.title": "Para Clientes",
+    "public.clientBenefits.subtitle": "Encuentra tu hogar perfecto en el paraíso",
+    "public.clientBenefits.benefit1": "Acceso exclusivo a propiedades verificadas en Tulum",
+    "public.clientBenefits.benefit2": "Agenda visitas virtuales o presenciales fácilmente",
+    "public.clientBenefits.benefit3": "Chat directo con propietarios y agentes",
+    "public.clientBenefits.benefit4": "Guarda tus favoritas y compáralas",
+    "public.ownerBenefits.title": "Para Propietarios",
+    "public.ownerBenefits.subtitle": "Maximiza el potencial de tu inversión",
+    "public.ownerBenefits.benefit1": "Plataforma completa para gestionar tu propiedad",
+    "public.ownerBenefits.benefit2": "Calendario integrado de citas y reservas",
+    "public.ownerBenefits.benefit3": "Marketplace de proveedores de servicios confiables",
+    "public.ownerBenefits.benefit4": "Reportes y análisis en tiempo real",
+    
+    // Service Provider Banner
+    "public.serviceBanner.title": "¿Ofreces Servicios para Propiedades?",
+    "public.serviceBanner.subtitle": "Únete a nuestra red de proveedores de servicios confiables. Conecta con propietarios que necesitan tus servicios profesionales.",
+    "public.serviceBanner.benefit1": "Limpieza, mantenimiento, jardinería y más",
+    "public.serviceBanner.benefit2": "Crea tu perfil profesional verificado",
+    "public.serviceBanner.benefit3": "Recibe solicitudes de trabajo directamente",
+    "public.serviceBanner.button": "Unirme como Proveedor",
+    
+    // Affiliate Banner
+    "public.affiliateBanner.title": "Programa de Afiliados",
+    "public.affiliateBanner.subtitle": "Gana comisiones recomendando propiedades. Únete a nuestro programa de afiliados y obtén ingresos pasivos por cada cliente que traigas.",
+    "public.affiliateBanner.benefit1": "Comisiones competitivas por referencia",
+    "public.affiliateBanner.benefit2": "Materiales de marketing profesionales",
+    "public.affiliateBanner.benefit3": "Panel de seguimiento en tiempo real",
+    "public.affiliateBanner.button": "Convertirme en Afiliado",
+    
+    // Property Card
+    "property.status.rent": "En Renta",
+    "property.status.sale": "En Venta",
+    "property.status.both": "Renta y Venta",
+    "property.perMonth": "/mes",
+    "property.saleLabel": "Venta:",
+    "property.viewButton": "Ver",
+    "property.editButton": "Editar",
+    "property.deleteButton": "Eliminar",
+    "property.scheduleButton": "Agendar",
+    
+    // Property Display
+    "property.bedrooms": "hab",
+    "property.bathrooms": "baños",
+    "property.area": "m²",
   },
   en: {
     // Header
@@ -252,6 +341,95 @@ const translations: Record<Language, Record<string, string>> = {
     "register.errorDesc": "Could not create your account. Please try again.",
     "register.passwordMismatch": "Passwords do not match",
     "register.confirmPasswordRequired": "Please confirm your password",
+    
+    // Landing Page
+    "landing.login": "Login",
+    "landing.register": "Register",
+    "landing.title": "HomesApp - Complete Real Estate Management Platform",
+    "landing.subtitle": "Manage properties, coordinate appointments, manage clients and services all in one place",
+    "landing.feature1.title": "Property Management",
+    "landing.feature1.desc": "Manage your complete portfolio with details, images and status",
+    "landing.feature2.title": "Appointment Coordination",
+    "landing.feature2.desc": "Schedule in-person visits and video calls with Google Meet",
+    "landing.feature3.title": "Multi-Role",
+    "landing.feature3.desc": "Complete role system for owners, sellers and more",
+    "landing.feature4.title": "Service Directory",
+    "landing.feature4.desc": "Marketplace of providers for maintenance and services",
+    "landing.createAccount": "Create Free Account",
+    "landing.loginButton": "Login",
+    
+    // Public Dashboard - Additional translations
+    "public.searchPlaceholder": "Search by location, colony, condominium or description...",
+    "public.searchButton": "Search",
+    "public.filterPropertyType": "Property Type",
+    "public.filterAllTypes": "All types",
+    "public.propertyType.house": "House",
+    "public.propertyType.apartment": "Apartment",
+    "public.propertyType.villa": "Villa",
+    "public.propertyType.condo": "Condo",
+    "public.propertyType.penthouse": "Penthouse",
+    "public.propertyType.studio": "Studio",
+    "public.propertyType.loft": "Loft",
+    "public.propertyType.townhouse": "Townhouse",
+    "public.filterColony": "Colony",
+    "public.filterColonyPlaceholder": "E.g.: La Veleta, Aldea Zama...",
+    "public.filterCondo": "Condominium",
+    "public.filterCondoPlaceholder": "Condominium name...",
+    "public.clearFilters": "Clear filters",
+    
+    // Owner Banner
+    "public.ownerBanner.title": "Do you have a property in Tulum?",
+    "public.ownerBanner.subtitle": "Join our platform and reach thousands of potential clients. Manage bookings, appointments and much more from one place.",
+    "public.ownerBanner.benefit1": "Exposure to thousands of verified clients",
+    "public.ownerBanner.benefit2": "Professional management tools",
+    "public.ownerBanner.benefit3": "No hidden commissions",
+    "public.ownerBanner.button": "List my Property",
+    
+    // Benefits Section
+    "public.clientBenefits.title": "For Clients",
+    "public.clientBenefits.subtitle": "Find your perfect home in paradise",
+    "public.clientBenefits.benefit1": "Exclusive access to verified properties in Tulum",
+    "public.clientBenefits.benefit2": "Schedule virtual or in-person visits easily",
+    "public.clientBenefits.benefit3": "Direct chat with owners and agents",
+    "public.clientBenefits.benefit4": "Save your favorites and compare them",
+    "public.ownerBenefits.title": "For Owners",
+    "public.ownerBenefits.subtitle": "Maximize your investment potential",
+    "public.ownerBenefits.benefit1": "Complete platform to manage your property",
+    "public.ownerBenefits.benefit2": "Integrated calendar of appointments and bookings",
+    "public.ownerBenefits.benefit3": "Marketplace of reliable service providers",
+    "public.ownerBenefits.benefit4": "Real-time reports and analytics",
+    
+    // Service Provider Banner
+    "public.serviceBanner.title": "Do you offer Property Services?",
+    "public.serviceBanner.subtitle": "Join our network of trusted service providers. Connect with property owners who need your professional services.",
+    "public.serviceBanner.benefit1": "Cleaning, maintenance, gardening and more",
+    "public.serviceBanner.benefit2": "Create your verified professional profile",
+    "public.serviceBanner.benefit3": "Receive work requests directly",
+    "public.serviceBanner.button": "Join as a Provider",
+    
+    // Affiliate Banner
+    "public.affiliateBanner.title": "Affiliate Program",
+    "public.affiliateBanner.subtitle": "Earn commissions recommending properties. Join our affiliate program and get passive income for every client you bring.",
+    "public.affiliateBanner.benefit1": "Competitive referral commissions",
+    "public.affiliateBanner.benefit2": "Professional marketing materials",
+    "public.affiliateBanner.benefit3": "Real-time tracking dashboard",
+    "public.affiliateBanner.button": "Become an Affiliate",
+    
+    // Property Card
+    "property.status.rent": "For Rent",
+    "property.status.sale": "For Sale",
+    "property.status.both": "Rent and Sale",
+    "property.perMonth": "/month",
+    "property.saleLabel": "Sale:",
+    "property.viewButton": "View",
+    "property.editButton": "Edit",
+    "property.deleteButton": "Delete",
+    "property.scheduleButton": "Schedule",
+    
+    // Property Display
+    "property.bedrooms": "bed",
+    "property.bathrooms": "bath",
+    "property.area": "m²",
   },
 };
 
