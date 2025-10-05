@@ -54,10 +54,42 @@ The application uses PostgreSQL (via Neon serverless platform) and Drizzle ORM f
 **User Experience Enhancements (Latest)**:
 - **Role Switching (Airbnb-style)**: Users can seamlessly switch between owner and client roles via a toggle in the header, enabling them to manage properties as owners or search/rent as clients
 - **Internationalization**: Full i18n support with English/Spanish language toggle, implemented via React Context with localStorage persistence
+- **Real-Time Chat System**: WebSocket-based live messaging between users with:
+  - Secure authentication via session cookies
+  - Per-conversation authorization (participants only)
+  - Real-time message delivery
+  - Conversation management (create, list, participants)
+  - Automatic connection/disconnection handling
+- **Enhanced Presentation Cards**: Extended client presentation cards with:
+  - Move-in date (fecha de ingreso)
+  - Contract duration (6 months to 5 years)
+  - Pet information (hasPets checkbox and petPhotoUrl)
+  - Additional requirements/special amenity requests field
+  - Full Zod validation
+- **Email Notification Preferences**: Granular user control over email notifications:
+  - Appointments (citas)
+  - Offers (ofertas)
+  - Messages (mensajes)
+  - Property updates (actualizaciones de propiedades)
+  - Rental updates (actualizaciones de rentas)
+  - Marketing and promotions (marketing y promociones)
+  - Settings stored in owner_settings.notificationPreferences JSONB field
+- **Improved Client Dashboard**: Redesigned layout with:
+  - Reduced spacing for more compact, data-dense display
+  - Fixed text alignment in property cards
+  - Better title handling (min-height ensures consistent card heights)
+  - Improved responsive layout with flex-wrap on property details
 
 ### System Design Choices
 
 The platform employs a unified middleware approach to normalize all authentication types (Replit Auth, local user auth, admin local auth) into a consistent `req.user` structure, simplifying authorization logic and ensuring seamless operation across different user types. Critical operations are automatically logged for auditing purposes. A public dashboard with an Airbnb-inspired design provides a user-friendly entry point, adapting its experience for authenticated vs. non-authenticated users. A calendar view for appointments enhances scheduling visualization, and detailed user profiles with activity history are available.
+
+**WebSocket Security**: The real-time chat system implements defense-in-depth security:
+- Session-based authentication: Validates Express session cookies on WebSocket upgrade
+- Per-conversation authorization: Verifies participant membership before allowing room joins
+- Secure connection handling: Closes unauthorized connections with appropriate status codes
+- Audit logging: Tracks all connection attempts, joins, and authorization failures
+- Session store integration: Shares authentication state with HTTP endpoints
 
 ## External Dependencies
 
@@ -70,3 +102,5 @@ The platform employs a unified middleware approach to normalize all authenticati
 *   **date-fns**: Library for date manipulation and formatting.
 *   **react-day-picker**: Calendar component for date selection.
 *   **Zod**: Runtime type validation and schema definition.
+*   **WebSocket (ws)**: Server-side WebSocket implementation for real-time chat.
+*   **cookie**: Cookie parsing library for WebSocket authentication.
