@@ -184,19 +184,38 @@ export default function Step7Review({ data, draftId, onPrevious }: Step7Props) {
         )}
 
         {/* Media */}
-        {data.media && (data.media.images?.length > 0 || data.media.virtualTourUrl) && (
+        {data.media && (data.media.primaryImages?.length > 0 || data.media.secondaryImages?.length > 0 || data.media.images?.length > 0 || data.media.virtualTourUrl) && (
           <Card data-testid="card-review-media">
             <CardHeader>
               <CardTitle>Multimedia</CardTitle>
             </CardHeader>
             <CardContent className="space-y-2">
-              {data.media.images && data.media.images.length > 0 && (
-                <div>
-                  <span className="text-sm font-medium text-muted-foreground">Imágenes:</span>
-                  <p className="text-base" data-testid="text-review-images-count">
-                    {data.media.images.length} imagen(es)
-                  </p>
-                </div>
+              {data.media.primaryImages && data.media.primaryImages.length > 0 ? (
+                <>
+                  <div>
+                    <span className="text-sm font-medium text-muted-foreground">Imágenes Principales:</span>
+                    <p className="text-base" data-testid="text-review-primary-images-count">
+                      {data.media.primaryImages.length} imagen(es) {data.media.coverImageIndex !== undefined && `(portada: #${data.media.coverImageIndex + 1})`}
+                    </p>
+                  </div>
+                  {data.media.secondaryImages && data.media.secondaryImages.length > 0 && (
+                    <div>
+                      <span className="text-sm font-medium text-muted-foreground">Imágenes Secundarias:</span>
+                      <p className="text-base" data-testid="text-review-secondary-images-count">
+                        {data.media.secondaryImages.length} imagen(es)
+                      </p>
+                    </div>
+                  )}
+                </>
+              ) : (
+                data.media.images && data.media.images.length > 0 && (
+                  <div>
+                    <span className="text-sm font-medium text-muted-foreground">Imágenes:</span>
+                    <p className="text-base" data-testid="text-review-images-count">
+                      {data.media.images.length} imagen(es)
+                    </p>
+                  </div>
+                )
               )}
               {data.media.virtualTourUrl && (
                 <div>

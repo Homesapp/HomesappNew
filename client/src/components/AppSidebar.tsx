@@ -33,6 +33,7 @@ import {
   HelpCircle,
   Plus,
 } from "lucide-react";
+import logoUrl from "@assets/H mes (500 x 300 px)_1759672952263.png";
 import { Link, useLocation } from "wouter";
 import { RoleToggle } from "@/components/RoleToggle";
 import { Button } from "@/components/ui/button";
@@ -116,9 +117,13 @@ export function AppSidebar({ userRole }: AppSidebarProps) {
     <Sidebar>
       <SidebarContent>
         <SidebarGroup>
-          <div className="flex items-center gap-2 px-4 py-3">
-            <Building2 className="h-6 w-6 text-primary" />
-            <span className="text-lg font-bold">HomesApp</span>
+          <div className="flex items-center justify-center px-4 py-3">
+            <img 
+              src={logoUrl} 
+              alt="HomesApp Logo" 
+              className="h-16 w-auto object-contain"
+              data-testid="img-sidebar-logo"
+            />
           </div>
         </SidebarGroup>
         {filteredMain.length > 0 && (
