@@ -59,16 +59,16 @@ export function RoleToggle() {
   return (
     <DropdownMenu open={isOpen} onOpenChange={setIsOpen}>
       <DropdownMenuTrigger asChild>
-        <Button variant="outline" size="sm" className="gap-2" data-testid="button-role-toggle">
+        <Button variant="outline" size="sm" className="gap-2 w-full justify-start" data-testid="button-role-toggle">
           {isOwner ? (
             <>
               <Building2 className="h-4 w-4" />
-              <span className="hidden sm:inline">Propietario</span>
+              <span>Propietario</span>
             </>
           ) : (
             <>
               <User className="h-4 w-4" />
-              <span className="hidden sm:inline">Cliente</span>
+              <span>Cliente</span>
             </>
           )}
         </Button>

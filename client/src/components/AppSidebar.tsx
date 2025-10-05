@@ -28,16 +28,13 @@ import {
   ClipboardCheck,
   CalendarCheck,
 } from "lucide-react";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Badge } from "@/components/ui/badge";
 import { Link, useLocation } from "wouter";
+import { RoleToggle } from "@/components/RoleToggle";
 
 export type UserRole = "master" | "admin" | "admin_jr" | "seller" | "owner" | "management" | "concierge" | "provider";
 
 export type AppSidebarProps = {
   userRole: UserRole;
-  userName: string;
-  userAvatar?: string;
 };
 
 const roleLabels: Record<UserRole, string> = {
@@ -51,17 +48,8 @@ const roleLabels: Record<UserRole, string> = {
   provider: "Proveedor",
 };
 
-export function AppSidebar({ userRole, userName, userAvatar }: AppSidebarProps) {
+export function AppSidebar({ userRole }: AppSidebarProps) {
   const [location] = useLocation();
-
-  const getInitials = (name: string) => {
-    return name
-      .split(" ")
-      .map((n) => n[0])
-      .join("")
-      .toUpperCase()
-      .slice(0, 2);
-  };
 
   const mainItems = [
     { title: "Inicio", url: "/", icon: Home, roles: ["master", "admin", "admin_jr", "seller", "management", "concierge", "provider"] },
@@ -171,17 +159,8 @@ export function AppSidebar({ userRole, userName, userAvatar }: AppSidebarProps) 
       </SidebarContent>
 
       <SidebarFooter>
-        <div className="flex items-center gap-3 p-4 border-t">
-          <Avatar className="h-10 w-10">
-            {userAvatar && <AvatarImage src={userAvatar} />}
-            <AvatarFallback>{getInitials(userName)}</AvatarFallback>
-          </Avatar>
-          <div className="flex-1 min-w-0">
-            <p className="font-medium text-sm truncate">{userName}</p>
-            <Badge variant="secondary" className="text-xs mt-1">
-              {roleLabels[userRole]}
-            </Badge>
-          </div>
+        <div className="p-4 border-t">
+          <RoleToggle />
         </div>
       </SidebarFooter>
     </Sidebar>

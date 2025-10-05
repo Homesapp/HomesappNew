@@ -7,7 +7,6 @@ import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import { ThemeProvider } from "@/components/ThemeProvider";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { LanguageToggle } from "@/components/LanguageToggle";
-import { RoleToggle } from "@/components/RoleToggle";
 import { RoleSelector } from "@/components/RoleSelector";
 import { AppSidebar } from "@/components/AppSidebar";
 import { LanguageProvider } from "@/contexts/LanguageContext";
@@ -106,21 +105,17 @@ function AuthenticatedApp() {
     : currentUser?.email || (isAdminAuthenticated && adminUser ? adminUser.username : undefined) || "Usuario";
   
   const userRole = currentUser?.role || "owner";
-  const userAvatar = isAdminAuthenticated ? undefined : (user?.profileImageUrl ?? undefined);
 
   return (
     <SidebarProvider style={style as React.CSSProperties}>
       <div className="flex h-screen w-full">
         <AppSidebar
           userRole={userRole}
-          userName={userName}
-          userAvatar={userAvatar}
         />
         <div className="flex flex-col flex-1 overflow-hidden">
           <header className="flex items-center justify-between p-4 border-b bg-background">
             <SidebarTrigger data-testid="button-sidebar-toggle" />
             <div className="flex items-center gap-2">
-              <RoleToggle />
               <LanguageToggle />
               <ThemeToggle />
               {isAdminAuthenticated && adminUser ? (
