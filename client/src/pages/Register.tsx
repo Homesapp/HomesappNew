@@ -13,17 +13,21 @@ import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { Building2, Eye, EyeOff } from "lucide-react";
 import { userRegistrationSchema } from "@shared/schema";
+import { useLanguage } from "@/contexts/LanguageContext";
+import { LanguageToggle } from "@/components/LanguageToggle";
+import logoIcon from "@assets/H mes (500 x 300 px)_1759672952263.png";
 
 export default function Register() {
   const [_, setLocation] = useLocation();
   const { toast } = useToast();
+  const { t, language } = useLanguage();
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
 
   const formSchema = userRegistrationSchema.extend({
-    confirmPassword: z.string().min(1, "Por favor confirma tu contraseña"),
+    confirmPassword: z.string().min(1, t("register.confirmPasswordRequired")),
   }).refine((data) => data.password === data.confirmPassword, {
-    message: "Las contraseñas no coinciden",
+    message: t("register.passwordMismatch"),
     path: ["confirmPassword"],
   });
 
@@ -38,7 +42,7 @@ export default function Register() {
       firstName: "",
       lastName: "",
       phone: "",
-      preferredLanguage: "es",
+      preferredLanguage: language,
     },
   });
 
@@ -49,15 +53,15 @@ export default function Register() {
     },
     onSuccess: () => {
       toast({
-        title: "¡Registro exitoso!",
-        description: "Te hemos enviado un email de verificación. Por favor revisa tu bandeja de entrada.",
+        title: t("register.success"),
+        description: t("register.successDesc"),
       });
       setLocation("/");
     },
     onError: (error: any) => {
       toast({
-        title: "Error al registrarse",
-        description: error.message || "No se pudo crear tu cuenta. Inténtalo de nuevo.",
+        title: t("register.error"),
+        description: error.message || t("register.errorDesc"),
         variant: "destructive",
       });
     },
@@ -69,23 +73,24 @@ export default function Register() {
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-background via-background to-accent/10 p-4">
+      <div className="absolute top-4 right-4">
+        <LanguageToggle />
+      </div>
       <Card className="w-full max-w-md">
         <CardHeader className="space-y-2 text-center">
           <div className="flex justify-center mb-4">
-            <div className="p-3 rounded-full bg-primary/10">
-              <Building2 className="h-8 w-8 text-primary" />
-            </div>
+            <img src={logoIcon} alt="HomesApp" className="h-16 w-auto" data-testid="img-logo" />
           </div>
-          <CardTitle className="text-2xl">Crear Cuenta</CardTitle>
+          <CardTitle className="text-2xl">{t("register.title")}</CardTitle>
           <CardDescription>
-            Regístrate para acceder a HomesApp
+            {t("register.subtitle")}
           </CardDescription>
         </CardHeader>
         <CardContent>
           <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
-                <Label htmlFor="firstName">Nombre</Label>
+                <Label htmlFor="firstName">{t("register.firstName")}</Label>
                 <Input
                   id="firstName"
                   placeholder="Juan"
@@ -99,7 +104,7 @@ export default function Register() {
                 )}
               </div>
               <div className="space-y-2">
-                <Label htmlFor="lastName">Apellido</Label>
+                <Label htmlFor="lastName">{t("register.lastName")}</Label>
                 <Input
                   id="lastName"
                   placeholder="Pérez"
@@ -115,7 +120,7 @@ export default function Register() {
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="email">Email</Label>
+              <Label htmlFor="email">{t("register.email")}</Label>
               <Input
                 id="email"
                 type="email"
@@ -131,7 +136,7 @@ export default function Register() {
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="phone">Teléfono</Label>
+              <Label htmlFor="phone">{t("register.phoneOptional")}</Label>
               <Input
                 id="phone"
                 type="tel"
@@ -147,7 +152,7 @@ export default function Register() {
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="preferredLanguage">Idioma Preferido</Label>
+              <Label htmlFor="preferredLanguage">{t("register.preferredLanguage")}</Label>
               <Select
                 value={form.watch("preferredLanguage")}
                 onValueChange={(value) => form.setValue("preferredLanguage", value as "es" | "en")}
@@ -156,8 +161,8 @@ export default function Register() {
                   <SelectValue placeholder="Selecciona un idioma" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="es">Español</SelectItem>
-                  <SelectItem value="en">English</SelectItem>
+                  <SelectItem value="es">{t("register.languageSpanish")}</SelectItem>
+                  <SelectItem value="en">{t("register.languageEnglish")}</SelectItem>
                 </SelectContent>
               </Select>
               {form.formState.errors.preferredLanguage && (
@@ -168,7 +173,7 @@ export default function Register() {
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="password">Contraseña</Label>
+              <Label htmlFor="password">{t("register.password")}</Label>
               <div className="relative">
                 <Input
                   id="password"
@@ -194,7 +199,7 @@ export default function Register() {
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="confirmPassword">Confirmar Contraseña</Label>
+              <Label htmlFor="confirmPassword">{t("register.confirmPassword")}</Label>
               <div className="relative">
                 <Input
                   id="confirmPassword"
@@ -225,18 +230,18 @@ export default function Register() {
               disabled={registerMutation.isPending}
               data-testid="button-register"
             >
-              {registerMutation.isPending ? "Creando cuenta..." : "Crear Cuenta"}
+              {registerMutation.isPending ? t("register.submitting") : t("register.submit")}
             </Button>
 
             <div className="text-center text-sm text-muted-foreground">
-              ¿Ya tienes cuenta?{" "}
+              {t("register.hasAccount")}{" "}
               <button
                 type="button"
                 onClick={() => setLocation("/")}
                 className="text-primary hover:underline"
                 data-testid="link-login"
               >
-                Iniciar sesión
+                {t("register.loginLink")}
               </button>
             </div>
           </form>

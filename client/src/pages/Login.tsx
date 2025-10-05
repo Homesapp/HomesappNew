@@ -13,10 +13,13 @@ import { useToast } from "@/hooks/use-toast";
 import { Eye, EyeOff } from "lucide-react";
 import { userLoginSchema } from "@shared/schema";
 import logoIcon from "@assets/H mes (500 x 300 px)_1759672952263.png";
+import { useLanguage } from "@/contexts/LanguageContext";
+import { LanguageToggle } from "@/components/LanguageToggle";
 
 export default function Login() {
   const [_, setLocation] = useLocation();
   const { toast } = useToast();
+  const { t } = useLanguage();
   const [showPassword, setShowPassword] = useState(false);
 
   type FormData = z.infer<typeof userLoginSchema>;
@@ -52,8 +55,8 @@ export default function Login() {
     },
     onError: (error: any) => {
       toast({
-        title: "Error al iniciar sesión",
-        description: error.message || "Credenciales inválidas. Verifica tu email y contraseña.",
+        title: t("login.error"),
+        description: error.message || t("login.errorDesc"),
         variant: "destructive",
       });
     },
@@ -65,20 +68,23 @@ export default function Login() {
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-background via-background to-accent/10 p-4">
+      <div className="absolute top-4 right-4">
+        <LanguageToggle />
+      </div>
       <Card className="w-full max-w-md">
         <CardHeader className="space-y-2 text-center">
           <div className="flex justify-center mb-4">
             <img src={logoIcon} alt="HomesApp" className="h-16 w-auto" data-testid="img-logo" />
           </div>
-          <CardTitle className="text-2xl">Iniciar Sesión</CardTitle>
+          <CardTitle className="text-2xl">{t("login.title")}</CardTitle>
           <CardDescription>
-            Ingresa con tu cuenta de HomesApp
+            {t("login.subtitle")}
           </CardDescription>
         </CardHeader>
         <CardContent>
           <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
             <div className="space-y-2">
-              <Label htmlFor="email">Email</Label>
+              <Label htmlFor="email">{t("login.email")}</Label>
               <Input
                 id="email"
                 type="email"
@@ -94,7 +100,7 @@ export default function Login() {
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="password">Contraseña</Label>
+              <Label htmlFor="password">{t("login.password")}</Label>
               <div className="relative">
                 <Input
                   id="password"
@@ -125,29 +131,29 @@ export default function Login() {
               disabled={loginMutation.isPending}
               data-testid="button-login"
             >
-              {loginMutation.isPending ? "Iniciando sesión..." : "Iniciar Sesión"}
+              {loginMutation.isPending ? t("login.submitting") : t("login.submit")}
             </Button>
 
             <div className="space-y-3 text-center text-sm">
               <div className="text-muted-foreground">
-                ¿No tienes cuenta?{" "}
+                {t("login.noAccount")}{" "}
                 <button
                   type="button"
                   onClick={() => setLocation("/register")}
                   className="text-primary hover:underline"
                   data-testid="link-register"
                 >
-                  Regístrate aquí
+                  {t("login.registerLink")}
                 </button>
               </div>
               <div className="text-muted-foreground">
-                o{" "}
+                {t("login.orContinueWith")}{" "}
                 <a
                   href="/api/login"
                   className="text-primary hover:underline"
                   data-testid="link-replit-login"
                 >
-                  inicia sesión con Replit
+                  Replit
                 </a>
               </div>
             </div>

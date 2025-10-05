@@ -94,6 +94,44 @@ const translations: Record<Language, Record<string, string>> = {
     "profile.noConversations": "No tienes conversaciones aún",
     "profile.viewAllChats": "Ver Todas las Conversaciones",
     "profile.bot": "Bot",
+    
+    // Login Page
+    "login.title": "Iniciar Sesión",
+    "login.subtitle": "Ingresa con tu cuenta de HomesApp",
+    "login.email": "Email",
+    "login.password": "Contraseña",
+    "login.submit": "Entrar",
+    "login.submitting": "Entrando...",
+    "login.noAccount": "¿No tienes una cuenta?",
+    "login.registerLink": "Regístrate aquí",
+    "login.orContinueWith": "O inicia sesión con",
+    "login.continueWithReplit": "Continuar con Replit",
+    "login.error": "Error al iniciar sesión",
+    "login.errorDesc": "Credenciales inválidas. Verifica tu email y contraseña.",
+    
+    // Register Page
+    "register.title": "Crear Cuenta",
+    "register.subtitle": "Únete a HomesApp",
+    "register.firstName": "Nombre",
+    "register.lastName": "Apellido",
+    "register.email": "Email",
+    "register.phone": "Teléfono",
+    "register.phoneOptional": "Teléfono (opcional)",
+    "register.password": "Contraseña",
+    "register.confirmPassword": "Confirmar Contraseña",
+    "register.preferredLanguage": "Idioma Preferido",
+    "register.languageSpanish": "Español",
+    "register.languageEnglish": "English",
+    "register.submit": "Crear Cuenta",
+    "register.submitting": "Creando cuenta...",
+    "register.hasAccount": "¿Ya tienes cuenta?",
+    "register.loginLink": "Inicia sesión aquí",
+    "register.success": "¡Registro exitoso!",
+    "register.successDesc": "Te hemos enviado un email de verificación. Por favor revisa tu bandeja de entrada.",
+    "register.error": "Error al registrarse",
+    "register.errorDesc": "No se pudo crear tu cuenta. Inténtalo de nuevo.",
+    "register.passwordMismatch": "Las contraseñas no coinciden",
+    "register.confirmPasswordRequired": "Por favor confirma tu contraseña",
   },
   en: {
     // Header
@@ -176,6 +214,44 @@ const translations: Record<Language, Record<string, string>> = {
     "profile.noConversations": "You don't have any conversations yet",
     "profile.viewAllChats": "View All Conversations",
     "profile.bot": "Bot",
+    
+    // Login Page
+    "login.title": "Login",
+    "login.subtitle": "Enter your HomesApp account",
+    "login.email": "Email",
+    "login.password": "Password",
+    "login.submit": "Login",
+    "login.submitting": "Logging in...",
+    "login.noAccount": "Don't have an account?",
+    "login.registerLink": "Register here",
+    "login.orContinueWith": "Or continue with",
+    "login.continueWithReplit": "Continue with Replit",
+    "login.error": "Login error",
+    "login.errorDesc": "Invalid credentials. Check your email and password.",
+    
+    // Register Page
+    "register.title": "Create Account",
+    "register.subtitle": "Join HomesApp",
+    "register.firstName": "First Name",
+    "register.lastName": "Last Name",
+    "register.email": "Email",
+    "register.phone": "Phone",
+    "register.phoneOptional": "Phone (optional)",
+    "register.password": "Password",
+    "register.confirmPassword": "Confirm Password",
+    "register.preferredLanguage": "Preferred Language",
+    "register.languageSpanish": "Español",
+    "register.languageEnglish": "English",
+    "register.submit": "Create Account",
+    "register.submitting": "Creating account...",
+    "register.hasAccount": "Already have an account?",
+    "register.loginLink": "Login here",
+    "register.success": "Registration successful!",
+    "register.successDesc": "We've sent you a verification email. Please check your inbox.",
+    "register.error": "Registration error",
+    "register.errorDesc": "Could not create your account. Please try again.",
+    "register.passwordMismatch": "Passwords do not match",
+    "register.confirmPasswordRequired": "Please confirm your password",
   },
 };
 
@@ -190,15 +266,42 @@ export function LanguageProvider({ children }: { children: ReactNode }) {
     return (saved as Language) || "es";
   });
 
-  // Update language when user data loads
+  // Sync language between localStorage and user profile
   useEffect(() => {
-    if (user?.preferredLanguage) {
-      const userLang = user.preferredLanguage as Language;
-      if (userLang !== language) {
-        setLanguageState(userLang);
+    const syncLanguage = async () => {
+      if (user) {
+        const localStorageLang = localStorage.getItem("language") as Language;
+        const userLang = user.preferredLanguage as Language;
+        
+        // If user has a language preference in localStorage that differs from their profile,
+        // update the backend with the localStorage value (user chose this before/after login)
+        if (localStorageLang && localStorageLang !== userLang) {
+          try {
+            await fetch("/api/profile", {
+              method: "PATCH",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ preferredLanguage: localStorageLang }),
+            });
+            // Keep the localStorage language active
+            if (localStorageLang !== language) {
+              setLanguageState(localStorageLang);
+            }
+          } catch (error) {
+            console.error("Failed to sync language to backend:", error);
+            // If sync fails, fall back to user's saved preference
+            if (userLang && userLang !== language) {
+              setLanguageState(userLang);
+            }
+          }
+        } else if (userLang && userLang !== language && !localStorageLang) {
+          // User has a preference in DB but not in localStorage, use DB preference
+          setLanguageState(userLang);
+        }
       }
-    }
-  }, [user?.preferredLanguage]);
+    };
+    
+    syncLanguage();
+  }, [user?.id]); // Only run when user changes (login/logout)
 
   useEffect(() => {
     localStorage.setItem("language", language);
