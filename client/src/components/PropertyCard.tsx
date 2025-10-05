@@ -2,6 +2,7 @@ import { Card, CardContent, CardFooter, CardHeader } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Bed, Bath, Square, MapPin, Eye, Edit, Calendar, Trash2 } from "lucide-react";
+import { useLanguage } from "@/contexts/LanguageContext";
 
 export type PropertyCardProps = {
   id: string;
@@ -51,10 +52,12 @@ export function PropertyCard({
   onSchedule,
   showActions = true,
 }: PropertyCardProps) {
+  const { t } = useLanguage();
+  
   const statusLabels = {
-    rent: "En Renta",
-    sale: "En Venta",
-    both: "Renta y Venta",
+    rent: t("property.status.rent"),
+    sale: t("property.status.sale"),
+    both: t("property.status.both"),
   };
 
   const statusVariants = {
@@ -114,16 +117,16 @@ export function PropertyCard({
           <div className="space-y-1">
             <div className="text-2xl font-bold text-primary">
               ${price.toLocaleString()} {currency}
-              <span className="text-sm font-normal text-muted-foreground">/mes</span>
+              <span className="text-sm font-normal text-muted-foreground">{t("property.perMonth")}</span>
             </div>
             <div className="text-base font-semibold text-muted-foreground">
-              Venta: ${salePrice.toLocaleString()} {currency}
+              {t("property.saleLabel")} ${salePrice.toLocaleString()} {currency}
             </div>
           </div>
         ) : (
           <div className="text-2xl font-bold text-primary">
             ${price.toLocaleString()} {currency}
-            {status === "rent" && <span className="text-sm font-normal text-muted-foreground">/mes</span>}
+            {status === "rent" && <span className="text-sm font-normal text-muted-foreground">{t("property.perMonth")}</span>}
           </div>
         )}
         
@@ -153,7 +156,7 @@ export function PropertyCard({
             data-testid="button-view-property"
           >
             <Eye className="h-4 w-4 mr-1" />
-            Ver
+            {t("property.viewButton")}
           </Button>
           {onEdit && (
             <Button 
@@ -164,7 +167,7 @@ export function PropertyCard({
               data-testid="button-edit-property"
             >
               <Edit className="h-4 w-4 mr-1" />
-              Editar
+              {t("property.editButton")}
             </Button>
           )}
           {onDelete && (
@@ -175,7 +178,7 @@ export function PropertyCard({
               data-testid="button-delete-property"
             >
               <Trash2 className="h-4 w-4 mr-1" />
-              Eliminar
+              {t("property.deleteButton")}
             </Button>
           )}
           {onSchedule && (
@@ -186,7 +189,7 @@ export function PropertyCard({
               data-testid="button-schedule-appointment"
             >
               <Calendar className="h-4 w-4 mr-1" />
-              Agendar
+              {t("property.scheduleButton")}
             </Button>
           )}
         </CardFooter>
