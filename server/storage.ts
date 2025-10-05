@@ -166,6 +166,10 @@ export interface IStorage {
     featured?: boolean;
     availableFrom?: Date;
     availableTo?: Date;
+    propertyType?: string;
+    colonyName?: string;
+    condoName?: string;
+    unitType?: string;
   }): Promise<Property[]>;
   
   // Property staff operations
@@ -661,6 +665,10 @@ export class DatabaseStorage implements IStorage {
     featured?: boolean;
     availableFrom?: Date;
     availableTo?: Date;
+    propertyType?: string;
+    colonyName?: string;
+    condoName?: string;
+    unitType?: string;
   }): Promise<Property[]> {
     let query = db.select().from(properties);
     const conditions = [];
@@ -736,6 +744,22 @@ export class DatabaseStorage implements IStorage {
       conditions.push(
         sql`${properties.amenities} && ARRAY[${sql.join(filters.amenities.map(a => sql`${a}`), sql`, `)}]::text[]`
       );
+    }
+
+    if (filters.propertyType) {
+      conditions.push(eq(properties.propertyType, filters.propertyType));
+    }
+
+    if (filters.colonyName) {
+      conditions.push(ilike(properties.colonyName, `%${filters.colonyName}%`));
+    }
+
+    if (filters.condoName) {
+      conditions.push(ilike(properties.condoName, `%${filters.condoName}%`));
+    }
+
+    if (filters.unitType) {
+      conditions.push(eq(properties.unitType, filters.unitType));
     }
 
     if (conditions.length > 0) {

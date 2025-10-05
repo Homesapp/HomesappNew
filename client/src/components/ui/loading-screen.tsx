@@ -11,7 +11,7 @@ export function LoadingScreen({ className }: LoadingScreenProps) {
       <img 
         src={logoPath} 
         alt="HomesApp" 
-        className="h-24 w-auto animate-pulse-color"
+        className="h-16 w-auto animate-pulse-color"
         data-testid="img-loading-logo"
       />
     </div>

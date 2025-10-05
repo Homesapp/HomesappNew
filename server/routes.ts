@@ -1064,7 +1064,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
         minRating,
         featured,
         availableFrom,
-        availableTo
+        availableTo,
+        propertyType,
+        colonyName,
+        condoName,
+        unitType
       } = req.query;
 
       const filters: any = {};
@@ -1096,6 +1100,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       if (availableTo && typeof availableTo === "string") {
         filters.availableTo = new Date(availableTo);
+      }
+      if (propertyType && typeof propertyType === "string") {
+        filters.propertyType = propertyType;
+      }
+      if (colonyName && typeof colonyName === "string") {
+        filters.colonyName = colonyName;
+      }
+      if (condoName && typeof condoName === "string") {
+        filters.condoName = condoName;
+      }
+      if (unitType && typeof unitType === "string") {
+        filters.unitType = unitType;
       }
 
       // Only show approved properties to non-authenticated users

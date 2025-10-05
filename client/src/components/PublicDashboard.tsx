@@ -1,9 +1,10 @@
 import { useState } from "react";
 import { useLocation } from "wouter";
-import { Search, MapPin, Home, Sparkles, TrendingUp, PawPrint } from "lucide-react";
+import { Search, MapPin, Home, Sparkles, TrendingUp, PawPrint, SlidersHorizontal, Building2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useQuery } from "@tanstack/react-query";
 import { type Property } from "@shared/schema";
 import { ThemeToggle } from "@/components/ThemeToggle";
@@ -22,6 +23,10 @@ import logoIcon from "@assets/H mes (500 x 300 px)_1759672952263.png";
 export default function PublicDashboard() {
   const [, setLocation] = useLocation();
   const [searchQuery, setSearchQuery] = useState("");
+  const [showFilters, setShowFilters] = useState(false);
+  const [propertyType, setPropertyType] = useState("");
+  const [colonyName, setColonyName] = useState("");
+  const [condoName, setCondoName] = useState("");
   const { t } = useLanguage();
 
   const { data: properties = [] } = useQuery<Property[]>({
@@ -32,11 +37,23 @@ export default function PublicDashboard() {
   const allProperties = properties.slice(0, 12);
 
   const handleSearch = () => {
+    const params = new URLSearchParams();
+    
     if (searchQuery.trim()) {
-      setLocation(`/buscar-propiedades?query=${encodeURIComponent(searchQuery)}`);
-    } else {
-      setLocation("/buscar-propiedades");
+      params.append("q", searchQuery);
     }
+    if (propertyType && propertyType !== "all") {
+      params.append("propertyType", propertyType);
+    }
+    if (colonyName.trim()) {
+      params.append("colonyName", colonyName);
+    }
+    if (condoName.trim()) {
+      params.append("condoName", condoName);
+    }
+    
+    const queryString = params.toString();
+    setLocation(queryString ? `/buscar-propiedades?${queryString}` : "/buscar-propiedades");
   };
 
   return (
@@ -79,12 +96,12 @@ export default function PublicDashboard() {
           </p>
           
           {/* Search Bar */}
-          <div className="mx-auto max-w-3xl">
+          <div className="mx-auto max-w-4xl">
             <div className="flex gap-2">
               <div className="relative flex-1">
                 <Search className="absolute left-3 top-1/2 h-5 w-5 -translate-y-1/2 text-muted-foreground" />
                 <Input
-                  placeholder={t("public.search.placeholder")}
+                  placeholder="Buscar por ubicación, colonia, condominio o descripción..."
                   className="h-14 pl-11 text-base"
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
@@ -93,14 +110,85 @@ export default function PublicDashboard() {
                 />
               </div>
               <Button
+                variant="outline"
+                size="lg"
+                className="h-14 px-4"
+                onClick={() => setShowFilters(!showFilters)}
+                data-testid="button-toggle-filters"
+              >
+                <SlidersHorizontal className="h-5 w-5" />
+              </Button>
+              <Button
                 size="lg"
                 className="h-14 px-8"
                 onClick={handleSearch}
                 data-testid="button-search"
               >
-                {t("public.search.button")}
+                Buscar
               </Button>
             </div>
+
+            {/* Advanced Filters */}
+            {showFilters && (
+              <div className="mt-4 p-6 bg-card border rounded-lg shadow-sm">
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium">Tipo de Propiedad</label>
+                    <Select value={propertyType} onValueChange={setPropertyType}>
+                      <SelectTrigger data-testid="select-property-type">
+                        <SelectValue placeholder="Todos los tipos" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="all">Todos los tipos</SelectItem>
+                        <SelectItem value="house">Casa</SelectItem>
+                        <SelectItem value="apartment">Departamento</SelectItem>
+                        <SelectItem value="villa">Villa</SelectItem>
+                        <SelectItem value="condo">Condominio</SelectItem>
+                        <SelectItem value="penthouse">Penthouse</SelectItem>
+                        <SelectItem value="studio">Estudio</SelectItem>
+                        <SelectItem value="loft">Loft</SelectItem>
+                        <SelectItem value="townhouse">Casa adosada</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium">Colonia</label>
+                    <Input
+                      placeholder="Ej: La Veleta, Aldea Zama..."
+                      value={colonyName}
+                      onChange={(e) => setColonyName(e.target.value)}
+                      data-testid="input-colony"
+                    />
+                  </div>
+
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium">Condominio</label>
+                    <Input
+                      placeholder="Nombre del condominio..."
+                      value={condoName}
+                      onChange={(e) => setCondoName(e.target.value)}
+                      data-testid="input-condo"
+                    />
+                  </div>
+                </div>
+
+                <div className="mt-4 flex justify-end gap-2">
+                  <Button
+                    variant="ghost"
+                    onClick={() => {
+                      setPropertyType("");
+                      setColonyName("");
+                      setCondoName("");
+                      setSearchQuery("");
+                    }}
+                    data-testid="button-clear-filters"
+                  >
+                    Limpiar filtros
+                  </Button>
+                </div>
+              </div>
+            )}
             
             {/* Quick Filters */}
             <div className="mt-6 flex flex-wrap justify-center gap-3">
@@ -108,21 +196,21 @@ export default function PublicDashboard() {
                 variant="outline"
                 size="lg"
                 className="px-6 hover-elevate active-elevate-2"
-                onClick={() => setLocation("/buscar-propiedades?availability=rent")}
+                onClick={() => setLocation("/buscar-propiedades?status=rent")}
                 data-testid="badge-rent"
               >
                 <Home className="mr-2 h-5 w-5" />
-                {t("public.filter.rent")}
+                En Renta
               </Button>
               <Button
                 variant="outline"
                 size="lg"
                 className="px-6 hover-elevate active-elevate-2"
-                onClick={() => setLocation("/buscar-propiedades?availability=sale")}
+                onClick={() => setLocation("/buscar-propiedades?status=sale")}
                 data-testid="badge-sale"
               >
                 <TrendingUp className="mr-2 h-5 w-5" />
-                {t("public.filter.sale")}
+                En Venta
               </Button>
               <Button
                 variant="outline"
@@ -132,7 +220,7 @@ export default function PublicDashboard() {
                 data-testid="badge-featured"
               >
                 <Sparkles className="mr-2 h-5 w-5" />
-                {t("public.filter.featured")}
+                Destacadas
               </Button>
             </div>
           </div>
