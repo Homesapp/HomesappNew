@@ -237,6 +237,7 @@ export const users = pgTable("users", {
   status: userStatusEnum("status").notNull().default("approved"),
   phone: varchar("phone"),
   emailVerified: boolean("email_verified").notNull().default(false),
+  preferredLanguage: varchar("preferred_language", { length: 2 }).notNull().default("es"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });
