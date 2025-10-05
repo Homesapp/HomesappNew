@@ -96,6 +96,7 @@ export function AppSidebar({ userRole }: AppSidebarProps) {
     { title: "Backoffice", url: "/backoffice", icon: FolderKanban, roles: ["master", "admin", "admin_jr", "seller", "management", "concierge", "provider"] },
     { title: "Solicitudes de Cambio", url: "/admin/change-requests", icon: FileEdit, roles: ["master", "admin", "admin_jr"] },
     { title: "Reportes de Inspección", url: "/admin/inspection-reports", icon: ClipboardCheck, roles: ["master", "admin", "admin_jr"] },
+    { title: "Plantillas de Acuerdos", url: "/admin/agreement-templates", icon: FileText, roles: ["master", "admin"] },
     { title: "Gestión Usuarios", url: "/users", icon: UserCog, roles: ["master", "admin"] },
     { title: "Permisos", url: "/permissions", icon: Settings, roles: ["master", "admin"] },
   ];
