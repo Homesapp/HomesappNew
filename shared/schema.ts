@@ -1324,6 +1324,7 @@ export type ReferralConfig = typeof referralConfig.$inferSelect;
 export const clientReferrals = pgTable("client_referrals", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   referrerId: varchar("referrer_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  assignedTo: varchar("assigned_to").references(() => users.id, { onDelete: "set null" }),
   firstName: varchar("first_name").notNull(),
   lastName: varchar("last_name").notNull(),
   phone: varchar("phone").notNull(),
@@ -1353,6 +1354,7 @@ export type ClientReferral = typeof clientReferrals.$inferSelect;
 export const ownerReferrals = pgTable("owner_referrals", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   referrerId: varchar("referrer_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  assignedTo: varchar("assigned_to").references(() => users.id, { onDelete: "set null" }),
   firstName: varchar("first_name").notNull(),
   lastName: varchar("last_name").notNull(),
   nationality: varchar("nationality"),

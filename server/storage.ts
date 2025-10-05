@@ -114,7 +114,7 @@ import {
   type InsertOwnerReferral,
 } from "@shared/schema";
 import { db } from "./db";
-import { eq, and, or, gte, lte, ilike, desc, sql } from "drizzle-orm";
+import { eq, and, or, gte, lte, ilike, desc, sql, isNull } from "drizzle-orm";
 
 export interface IStorage {
   // User operations
@@ -1148,13 +1148,22 @@ export class DatabaseStorage implements IStorage {
     return referral;
   }
 
-  async getClientReferrals(filters?: { referrerId?: string; status?: string }): Promise<ClientReferral[]> {
+  async getClientReferrals(filters?: { referrerId?: string; sellerView?: string; status?: string }): Promise<ClientReferral[]> {
     let query = db.select().from(clientReferrals);
     const conditions = [];
 
-    if (filters?.referrerId) {
+    if (filters?.sellerView) {
+      conditions.push(
+        or(
+          eq(clientReferrals.referrerId, filters.sellerView),
+          eq(clientReferrals.assignedTo, filters.sellerView),
+          isNull(clientReferrals.assignedTo)
+        )!
+      );
+    } else if (filters?.referrerId) {
       conditions.push(eq(clientReferrals.referrerId, filters.referrerId));
     }
+    
     if (filters?.status) {
       conditions.push(eq(clientReferrals.status, filters.status as any));
     }
@@ -1195,13 +1204,22 @@ export class DatabaseStorage implements IStorage {
     return referral;
   }
 
-  async getOwnerReferrals(filters?: { referrerId?: string; status?: string }): Promise<OwnerReferral[]> {
+  async getOwnerReferrals(filters?: { referrerId?: string; sellerView?: string; status?: string }): Promise<OwnerReferral[]> {
     let query = db.select().from(ownerReferrals);
     const conditions = [];
 
-    if (filters?.referrerId) {
+    if (filters?.sellerView) {
+      conditions.push(
+        or(
+          eq(ownerReferrals.referrerId, filters.sellerView),
+          eq(ownerReferrals.assignedTo, filters.sellerView),
+          isNull(ownerReferrals.assignedTo)
+        )!
+      );
+    } else if (filters?.referrerId) {
       conditions.push(eq(ownerReferrals.referrerId, filters.referrerId));
     }
+    
     if (filters?.status) {
       conditions.push(eq(ownerReferrals.status, filters.status as any));
     }

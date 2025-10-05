@@ -3829,7 +3829,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       let filters: any = {};
       
-      // Admins can see all referrals or filter by referrerId
       if (user && ["master", "admin", "admin_jr"].includes(user.role)) {
         if (req.query.referrerId) {
           filters.referrerId = req.query.referrerId;
@@ -3837,8 +3836,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
         if (req.query.status) {
           filters.status = req.query.status;
         }
+      } else if (user && user.role === "seller") {
+        filters.sellerView = userId;
+        if (req.query.status) {
+          filters.status = req.query.status;
+        }
       } else {
-        // Regular users can only see their own referrals
         filters.referrerId = userId;
         if (req.query.status) {
           filters.status = req.query.status;
@@ -3913,7 +3916,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       let filters: any = {};
       
-      // Admins can see all referrals or filter by referrerId
       if (user && ["master", "admin", "admin_jr"].includes(user.role)) {
         if (req.query.referrerId) {
           filters.referrerId = req.query.referrerId;
@@ -3921,8 +3923,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
         if (req.query.status) {
           filters.status = req.query.status;
         }
+      } else if (user && user.role === "seller") {
+        filters.sellerView = userId;
+        if (req.query.status) {
+          filters.status = req.query.status;
+        }
       } else {
-        // Regular users can only see their own referrals
         filters.referrerId = userId;
         if (req.query.status) {
           filters.status = req.query.status;
