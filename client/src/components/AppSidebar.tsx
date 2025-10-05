@@ -29,6 +29,7 @@ import {
   CalendarCheck,
   Bell,
   MessageCircle,
+  User,
 } from "lucide-react";
 import { Link, useLocation } from "wouter";
 import { RoleToggle } from "@/components/RoleToggle";
@@ -72,6 +73,7 @@ export function AppSidebar({ userRole }: AppSidebarProps) {
     { title: "Tareas", url: "/tareas", icon: ListTodo, roles: ["master", "admin", "admin_jr", "management", "concierge"] },
     { title: "Clientes", url: "/clientes", icon: Users, roles: ["master", "admin", "admin_jr", "seller"] },
     { title: "Tarjetas", url: "/presentation-cards", icon: ClipboardList, roles: ["master", "admin", "admin_jr", "seller"] },
+    { title: "Mi Perfil", url: "/perfil", icon: User, roles: ["master", "admin", "admin_jr", "seller", "owner", "management", "concierge", "provider", "cliente"] },
   ];
 
   const adminItems = [

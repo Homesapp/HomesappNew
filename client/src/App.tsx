@@ -49,6 +49,7 @@ import OwnerDashboard from "@/pages/OwnerDashboard";
 import AdminDashboard from "@/pages/AdminDashboard";
 import Notifications from "@/pages/Notifications";
 import Chat from "@/pages/Chat";
+import Profile from "@/pages/Profile";
 import NotFound from "@/pages/not-found";
 
 function AuthenticatedApp() {
@@ -163,6 +164,7 @@ function AuthenticatedApp() {
               <Route path="/clientes" component={Clients} />
               <Route path="/notificaciones" component={Notifications} />
               <Route path="/chat" component={Chat} />
+              <Route path="/perfil" component={Profile} />
               <Route component={NotFound} />
             </Switch>
           </main>
