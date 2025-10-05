@@ -303,6 +303,7 @@ export interface IStorage {
   createChatMessage(message: InsertChatMessage): Promise<ChatMessage>;
   addChatParticipant(participant: InsertChatParticipant): Promise<ChatParticipant>;
   getChatParticipants(conversationId: string): Promise<ChatParticipant[]>;
+  markConversationAsRead(conversationId: string, userId: string): Promise<boolean>;
   
   // Agreement Template operations
   getAgreementTemplate(id: string): Promise<AgreementTemplate | undefined>;
@@ -1645,6 +1646,21 @@ export class DatabaseStorage implements IStorage {
       .select()
       .from(chatParticipants)
       .where(eq(chatParticipants.conversationId, conversationId));
+  }
+
+  async markConversationAsRead(conversationId: string, userId: string): Promise<boolean> {
+    const result = await db
+      .update(chatParticipants)
+      .set({ lastReadAt: new Date() })
+      .where(
+        and(
+          eq(chatParticipants.conversationId, conversationId),
+          eq(chatParticipants.userId, userId)
+        )
+      )
+      .returning();
+    
+    return result.length > 0;
   }
 
   // Agreement Template operations

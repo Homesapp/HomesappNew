@@ -4027,6 +4027,28 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  app.patch("/api/chat/conversations/:id/mark-read", isAuthenticated, async (req: any, res) => {
+    try {
+      const { id } = req.params;
+      const userId = req.user.claims.sub;
+      
+      const conversation = await storage.getChatConversation(id);
+      if (!conversation) {
+        return res.status(404).json({ message: "Conversation not found" });
+      }
+      
+      const updated = await storage.markConversationAsRead(id, userId);
+      if (!updated) {
+        return res.status(403).json({ message: "You are not a participant in this conversation" });
+      }
+      
+      res.json({ success: true });
+    } catch (error) {
+      console.error("Error marking conversation as read:", error);
+      res.status(500).json({ message: "Failed to mark conversation as read" });
+    }
+  });
+
   const httpServer = createServer(app);
   const sessionMiddleware = getSession();
   
