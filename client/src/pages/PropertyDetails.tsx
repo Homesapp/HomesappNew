@@ -9,6 +9,7 @@ import { type Property } from "@shared/schema";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/useAuth";
+import { LoadingScreen } from "@/components/ui/loading-screen";
 
 export default function PropertyDetails() {
   const [, params] = useRoute("/propiedad/:id");
@@ -47,13 +48,7 @@ export default function PropertyDetails() {
   if (isLoading || !property) {
     return (
       <div className="container mx-auto py-6">
-        <Card className="animate-pulse">
-          <div className="h-96 bg-muted" />
-          <CardContent className="py-6">
-            <div className="h-8 bg-muted rounded w-3/4 mb-4" />
-            <div className="h-4 bg-muted rounded w-1/2" />
-          </CardContent>
-        </Card>
+        <LoadingScreen className="min-h-[500px]" />
       </div>
     );
   }

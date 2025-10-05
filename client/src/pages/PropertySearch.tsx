@@ -14,6 +14,7 @@ import { type Property } from "@shared/schema";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/useAuth";
+import { LoadingScreen } from "@/components/ui/loading-screen";
 
 interface SearchFilters {
   query?: string;
@@ -345,17 +346,7 @@ export default function PropertySearch() {
 
           <div className={showFilters ? "lg:col-span-3" : "lg:col-span-4"}>
             {isLoading ? (
-              <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
-                {[...Array(6)].map((_, i) => (
-                  <Card key={i} className="animate-pulse">
-                    <div className="h-48 bg-muted" />
-                    <CardHeader>
-                      <div className="h-4 bg-muted rounded w-3/4" />
-                      <div className="h-3 bg-muted rounded w-1/2 mt-2" />
-                    </CardHeader>
-                  </Card>
-                ))}
-              </div>
+              <LoadingScreen className="min-h-[400px]" />
             ) : properties.length === 0 ? (
               <Card>
                 <CardContent className="py-12 text-center">

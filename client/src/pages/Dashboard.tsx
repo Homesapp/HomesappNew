@@ -15,7 +15,7 @@ import { AppointmentCard } from "@/components/AppointmentCard";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { LanguageToggle } from "@/components/LanguageToggle";
 import { format } from "date-fns";
-import logoIcon from "@assets/Sin título (6 x 6 cm) (1024 x 1024 px) (2)_1759620872379.png";
+import logoIcon from "@assets/loho homesapp negro_1759672544955.png";
 
 export default function Dashboard() {
   const [, setLocation] = useLocation();
