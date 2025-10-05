@@ -1636,6 +1636,245 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Property Submission Draft routes
+  app.get("/api/property-submission-drafts", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const drafts = await storage.getPropertySubmissionDrafts({ userId });
+      res.json(drafts);
+    } catch (error: any) {
+      console.error("Error fetching property submission drafts:", error);
+      res.status(500).json({ message: error.message || "Error al obtener borradores" });
+    }
+  });
+
+  app.get("/api/property-submission-drafts/:id", isAuthenticated, async (req: any, res) => {
+    try {
+      const { id } = req.params;
+      const userId = req.user.claims.sub;
+      
+      const draft = await storage.getPropertySubmissionDraft(id);
+      if (!draft) {
+        return res.status(404).json({ message: "Borrador no encontrado" });
+      }
+      
+      if (draft.userId !== userId) {
+        return res.status(403).json({ message: "No autorizado" });
+      }
+      
+      res.json(draft);
+    } catch (error: any) {
+      console.error("Error fetching property submission draft:", error);
+      res.status(500).json({ message: error.message || "Error al obtener borrador" });
+    }
+  });
+
+  app.post("/api/property-submission-drafts", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      
+      const validationResult = insertPropertySubmissionDraftSchema.safeParse({
+        ...req.body,
+        userId
+      });
+      
+      if (!validationResult.success) {
+        return res.status(400).json({ 
+          message: "Datos inválidos", 
+          errors: validationResult.error.errors 
+        });
+      }
+
+      const draft = await storage.createPropertySubmissionDraft(validationResult.data);
+      
+      await createAuditLog(
+        req,
+        "create",
+        "property_submission_draft",
+        draft.id,
+        "Borrador de propiedad creado"
+      );
+
+      res.status(201).json(draft);
+    } catch (error: any) {
+      console.error("Error creating property submission draft:", error);
+      res.status(500).json({ message: error.message || "Error al crear borrador" });
+    }
+  });
+
+  app.patch("/api/property-submission-drafts/:id", isAuthenticated, async (req: any, res) => {
+    try {
+      const { id } = req.params;
+      const userId = req.user.claims.sub;
+      
+      const existing = await storage.getPropertySubmissionDraft(id);
+      if (!existing) {
+        return res.status(404).json({ message: "Borrador no encontrado" });
+      }
+      
+      if (existing.userId !== userId) {
+        return res.status(403).json({ message: "No autorizado" });
+      }
+
+      const validationResult = insertPropertySubmissionDraftSchema.partial().safeParse(req.body);
+      if (!validationResult.success) {
+        return res.status(400).json({ 
+          message: "Datos inválidos", 
+          errors: validationResult.error.errors 
+        });
+      }
+
+      // Remove server-controlled fields to prevent unauthorized mutation
+      const sanitizedData = { ...validationResult.data };
+      delete sanitizedData.userId;
+      delete (sanitizedData as any).id;
+      delete (sanitizedData as any).createdAt;
+      delete (sanitizedData as any).updatedAt;
+
+      const updated = await storage.updatePropertySubmissionDraft(id, sanitizedData);
+      
+      await createAuditLog(
+        req,
+        "update",
+        "property_submission_draft",
+        id,
+        "Borrador de propiedad actualizado"
+      );
+
+      res.json(updated);
+    } catch (error: any) {
+      console.error("Error updating property submission draft:", error);
+      res.status(500).json({ message: error.message || "Error al actualizar borrador" });
+    }
+  });
+
+  app.delete("/api/property-submission-drafts/:id", isAuthenticated, async (req: any, res) => {
+    try {
+      const { id } = req.params;
+      const userId = req.user.claims.sub;
+      
+      const existing = await storage.getPropertySubmissionDraft(id);
+      if (!existing) {
+        return res.status(404).json({ message: "Borrador no encontrado" });
+      }
+      
+      if (existing.userId !== userId) {
+        return res.status(403).json({ message: "No autorizado" });
+      }
+
+      await storage.deletePropertySubmissionDraft(id);
+      
+      await createAuditLog(
+        req,
+        "delete",
+        "property_submission_draft",
+        id,
+        "Borrador de propiedad eliminado"
+      );
+
+      res.status(204).send();
+    } catch (error: any) {
+      console.error("Error deleting property submission draft:", error);
+      res.status(500).json({ message: error.message || "Error al eliminar borrador" });
+    }
+  });
+
+  // Property Agreement routes
+  app.get("/api/property-agreements/:id", isAuthenticated, async (req: any, res) => {
+    try {
+      const { id } = req.params;
+      const userId = req.user.claims.sub;
+      
+      const agreement = await storage.getPropertyAgreement(id);
+      if (!agreement) {
+        return res.status(404).json({ message: "Acuerdo no encontrado" });
+      }
+      
+      if (agreement.userId !== userId) {
+        return res.status(403).json({ message: "No autorizado" });
+      }
+      
+      res.json(agreement);
+    } catch (error: any) {
+      console.error("Error fetching property agreement:", error);
+      res.status(500).json({ message: error.message || "Error al obtener acuerdo" });
+    }
+  });
+
+  app.post("/api/property-agreements", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      
+      const validationResult = insertPropertyAgreementSchema.safeParse({
+        ...req.body,
+        userId
+      });
+      
+      if (!validationResult.success) {
+        return res.status(400).json({ 
+          message: "Datos inválidos", 
+          errors: validationResult.error.errors 
+        });
+      }
+
+      const agreement = await storage.createPropertyAgreement(validationResult.data);
+      
+      await createAuditLog(
+        req,
+        "create",
+        "property_agreement",
+        agreement.id,
+        "Acuerdo de propiedad creado"
+      );
+
+      res.status(201).json(agreement);
+    } catch (error: any) {
+      console.error("Error creating property agreement:", error);
+      res.status(500).json({ message: error.message || "Error al crear acuerdo" });
+    }
+  });
+
+  app.post("/api/property-agreements/:id/sign", isAuthenticated, async (req: any, res) => {
+    try {
+      const { id } = req.params;
+      const userId = req.user.claims.sub;
+      const { signerName } = req.body;
+      
+      if (!signerName) {
+        return res.status(400).json({ message: "Se requiere el nombre del firmante" });
+      }
+      
+      const agreement = await storage.getPropertyAgreement(id);
+      if (!agreement) {
+        return res.status(404).json({ message: "Acuerdo no encontrado" });
+      }
+      
+      if (agreement.userId !== userId) {
+        return res.status(403).json({ message: "No autorizado" });
+      }
+      
+      if (agreement.status === "signed") {
+        return res.status(400).json({ message: "Este acuerdo ya ha sido firmado" });
+      }
+      
+      const signerIp = req.ip || req.socket.remoteAddress || "unknown";
+      const signed = await storage.signPropertyAgreement(id, signerName, signerIp);
+      
+      await createAuditLog(
+        req,
+        "update",
+        "property_agreement",
+        id,
+        `Acuerdo firmado por ${signerName}`
+      );
+
+      res.json(signed);
+    } catch (error: any) {
+      console.error("Error signing property agreement:", error);
+      res.status(500).json({ message: error.message || "Error al firmar acuerdo" });
+    }
+  });
+
   // Rental Opportunity Requests (SOR) routes
   app.post("/api/rental-opportunity-requests", isAuthenticated, async (req: any, res) => {
     try {

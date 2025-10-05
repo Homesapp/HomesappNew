@@ -2,7 +2,7 @@
 
 ## Overview
 
-HomesApp is a comprehensive SaaS platform designed for real estate property management. It supports multiple user roles (master, admin, sellers, owners, management, concierge, service providers) to manage properties, schedule appointments, create client presentations, coordinate services, and process offers. The platform features role-based access control, Google Calendar integration, a service provider marketplace, and a full back office for offer management. Its UI is a professional, data-dense dashboard with light/dark mode support, aiming to streamline property management operations and enhance user experience in the real estate sector.
+HomesApp is a comprehensive SaaS platform designed for real estate property management. It supports multiple user roles (master, admin, admin_jr, seller, owner, cliente, management, concierge, providers, abogado, contador, agente_servicios_especiales) to manage properties, schedule appointments, create client presentations, coordinate services, and process offers. The platform features role-based access control, Google Calendar integration, a service provider marketplace, property submission workflow with digital agreement signing, and a full back office for offer management. Its UI is a professional, data-dense dashboard with light/dark mode support, aiming to streamline property management operations and enhance user experience in the real estate sector.
 
 ## User Preferences
 
@@ -54,7 +54,32 @@ The application uses PostgreSQL (via Neon serverless platform) and Drizzle ORM f
   - `/admin/dashboard`: Admin dashboard with global statistics
 - **Security**: All endpoints use Zod validation with whitelisted fields to prevent arbitrary field injection
 
-**User Experience Enhancements (Latest)**:
+**Property Submission Workflow with Digital Agreements (Latest Implementation)**:
+- **Agreement Templates System**: Admin-managed templates for property submission agreements
+  - Support for variable substitution with {{owner.name}}, {{property.address}}, etc.
+  - Template rendering utility with nested value extraction
+  - Template validation to ensure all variables can be resolved
+  - CRUD endpoints for template management (admin only)
+  - Active/inactive template status
+- **Property Submission Drafts**: Multi-step property submission with automatic draft saving
+  - CRUD endpoints for draft management
+  - Draft status tracking (draft, in_review, approved, rejected)
+  - User-scoped access control
+  - Automatic progress saving
+- **Property Agreements**: Digital agreement signing workflow
+  - Agreement generation from templates with property context
+  - Digital signature capture with signer name and IP address
+  - Agreement status tracking (pending, signed, rejected)
+  - Timestamped signature records
+  - Audit logging for all agreement actions
+- **Backend Infrastructure**:
+  - Storage layer functions for templates, drafts, and agreements
+  - RESTful API endpoints with Zod validation
+  - Template rendering utility (server/templateRenderer.ts)
+  - Role-based access control (admin for templates, user for drafts/agreements)
+  - Comprehensive audit logging
+
+**User Experience Enhancements**:
 - **Role Switching (Airbnb-style)**: Users can seamlessly switch between owner and client roles via a toggle in the header, enabling them to manage properties as owners or search/rent as clients
 - **Internationalization**: Full i18n support with English/Spanish language toggle, implemented via React Context with localStorage persistence
 - **Real-Time Chat System**: WebSocket-based live messaging between users with:
