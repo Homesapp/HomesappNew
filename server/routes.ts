@@ -420,6 +420,62 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Profile management endpoints
+  app.patch("/api/profile", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const { firstName, lastName, bio, profileImageUrl, phone } = req.body;
+      
+      const updates: any = {};
+      if (firstName !== undefined) updates.firstName = firstName;
+      if (lastName !== undefined) updates.lastName = lastName;
+      if (bio !== undefined) updates.bio = bio;
+      if (profileImageUrl !== undefined) updates.profileImageUrl = profileImageUrl;
+      if (phone !== undefined) updates.phone = phone;
+      
+      const user = await storage.updateUserProfile(userId, updates);
+      
+      await createAuditLog(
+        req,
+        "update",
+        "user",
+        userId,
+        "Perfil actualizado"
+      );
+      
+      res.json(user);
+    } catch (error) {
+      console.error("Error updating profile:", error);
+      res.status(500).json({ message: "Failed to update profile" });
+    }
+  });
+
+  app.delete("/api/profile", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      
+      await createAuditLog(
+        req,
+        "delete",
+        "user",
+        userId,
+        "Usuario eliminó su cuenta"
+      );
+      
+      await storage.deleteUser(userId);
+      
+      req.logout((err: any) => {
+        if (err) {
+          console.error("Error logging out:", err);
+        }
+        res.json({ message: "Account deleted successfully" });
+      });
+    } catch (error) {
+      console.error("Error deleting account:", error);
+      res.status(500).json({ message: "Failed to delete account" });
+    }
+  });
+
   // User registration routes
   app.post("/api/register", async (req, res) => {
     try {
