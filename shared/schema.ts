@@ -370,8 +370,14 @@ export const properties = pgTable("properties", {
   location: text("location").notNull(),
   status: propertyStatusEnum("status").notNull(),
   images: text("images").array().default(sql`ARRAY[]::text[]`),
+  primaryImages: text("primary_images").array().default(sql`ARRAY[]::text[]`), // 5 fotos principales max
+  coverImageIndex: integer("cover_image_index").default(0), // Índice de la foto de portada en primaryImages
+  secondaryImages: text("secondary_images").array().default(sql`ARRAY[]::text[]`), // 20 fotos secundarias max
   videos: text("videos").array().default(sql`ARRAY[]::text[]`), // URLs de videos
   virtualTourUrl: text("virtual_tour_url"), // Link de tour 360
+  googleMapsUrl: text("google_maps_url"), // Link de Google Maps
+  latitude: decimal("latitude", { precision: 10, scale: 7 }), // Coordenada latitud
+  longitude: decimal("longitude", { precision: 10, scale: 7 }), // Coordenada longitud
   amenities: text("amenities").array().default(sql`ARRAY[]::text[]`),
   specifications: jsonb("specifications"),
   accessInfo: jsonb("access_info"), // lockboxCode, contactPerson, contactPhone

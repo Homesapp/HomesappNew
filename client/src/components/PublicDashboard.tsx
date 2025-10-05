@@ -202,7 +202,7 @@ export default function PublicDashboard() {
                           <span data-testid={`text-area-${property.id}`}>{property.area} m²</span>
                           {(property.amenities?.includes("Mascotas permitidas") || property.amenities?.includes("Pet Friendly")) && (
                             <span title="Pet-friendly">
-                              <PawPrint className="h-4 w-4 text-primary" />
+                              <PawPrint className="h-4 w-4 text-foreground" />
                             </span>
                           )}
                         </div>
@@ -270,7 +270,7 @@ export default function PublicDashboard() {
                     <span data-testid={`text-all-area-${property.id}`}>{property.area} m²</span>
                     {(property.amenities?.includes("Mascotas permitidas") || property.amenities?.includes("Pet Friendly")) && (
                       <span title="Pet-friendly">
-                        <PawPrint className="h-3 w-3 text-primary" />
+                        <PawPrint className="h-3 w-3 text-foreground" />
                       </span>
                     )}
                   </div>

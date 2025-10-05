@@ -432,7 +432,7 @@ export default function PropertySearch() {
                           </div>
                           {(property.amenities?.includes("Mascotas permitidas") || property.amenities?.includes("Pet Friendly")) && (
                             <div className="flex items-center gap-1" title="Pet-friendly">
-                              <PawPrint className="h-4 w-4 text-primary" />
+                              <PawPrint className="h-4 w-4 text-foreground" />
                             </div>
                           )}
                         </div>

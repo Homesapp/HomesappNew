@@ -10,8 +10,9 @@ import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
-import { Building2, Eye, EyeOff } from "lucide-react";
+import { Eye, EyeOff } from "lucide-react";
 import { userLoginSchema } from "@shared/schema";
+import logoIcon from "@assets/H mes (500 x 300 px)_1759672952263.png";
 
 export default function Login() {
   const [_, setLocation] = useLocation();
@@ -67,9 +68,7 @@ export default function Login() {
       <Card className="w-full max-w-md">
         <CardHeader className="space-y-2 text-center">
           <div className="flex justify-center mb-4">
-            <div className="p-3 rounded-full bg-primary/10">
-              <Building2 className="h-8 w-8 text-primary" />
-            </div>
+            <img src={logoIcon} alt="HomesApp" className="h-16 w-auto" data-testid="img-logo" />
           </div>
           <CardTitle className="text-2xl">Iniciar Sesión</CardTitle>
           <CardDescription>

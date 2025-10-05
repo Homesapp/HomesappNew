@@ -12,6 +12,9 @@ const locationSchema = z.object({
   state: z.string().min(2, "El estado es requerido"),
   zipCode: z.string().min(4, "El código postal debe tener al menos 4 caracteres"),
   neighborhood: z.string().optional(),
+  googleMapsUrl: z.string().url("Debe ser una URL válida").optional().or(z.literal("")),
+  latitude: z.string().optional(),
+  longitude: z.string().optional(),
 });
 
 type LocationForm = z.infer<typeof locationSchema>;
@@ -32,6 +35,9 @@ export default function Step3Location({ data, onUpdate, onNext, onPrevious }: St
       state: data.locationInfo?.state || "",
       zipCode: data.locationInfo?.zipCode || "",
       neighborhood: data.locationInfo?.neighborhood || "",
+      googleMapsUrl: data.locationInfo?.googleMapsUrl || "",
+      latitude: data.locationInfo?.latitude || "",
+      longitude: data.locationInfo?.longitude || "",
     },
   });
 
@@ -146,6 +152,24 @@ export default function Step3Location({ data, onUpdate, onNext, onPrevious }: St
               )}
             />
           </div>
+
+          <FormField
+            control={form.control}
+            name="googleMapsUrl"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Link de Google Maps (Opcional)</FormLabel>
+                <FormControl>
+                  <Input
+                    placeholder="https://maps.google.com/..."
+                    {...field}
+                    data-testid="input-google-maps-url"
+                  />
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
 
           <div className="flex justify-between pt-4">
             <Button

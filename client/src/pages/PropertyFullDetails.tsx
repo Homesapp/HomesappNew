@@ -8,7 +8,7 @@ import { Separator } from "@/components/ui/separator";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { 
   Heart, MapPin, Bed, Bath, Square, Star, ArrowLeft, Calendar, 
-  User, Phone, Mail, Building
+  User, Phone, Mail, Building, Image, Video, Map, Scan
 } from "lucide-react";
 import { type Property } from "@shared/schema";
 import { RentalOpportunityRequestDialog } from "@/components/RentalOpportunityRequestDialog";
@@ -92,6 +92,45 @@ export default function PropertyFullDetails() {
                   <MapPin className="h-24 w-24 text-muted-foreground" />
                 </div>
               )}
+            </div>
+
+            {/* Media Options Buttons */}
+            <div className="grid grid-cols-4 gap-2 px-4 py-4 border-b">
+              <Button
+                variant="outline"
+                className="flex flex-col items-center gap-2 h-auto py-3"
+                data-testid="button-view-images"
+              >
+                <Image className="h-5 w-5" />
+                <span className="text-xs">Imágenes</span>
+              </Button>
+              <Button
+                variant="outline"
+                className="flex flex-col items-center gap-2 h-auto py-3"
+                disabled={!property.videos || property.videos.length === 0}
+                data-testid="button-view-video"
+              >
+                <Video className="h-5 w-5" />
+                <span className="text-xs">Video</span>
+              </Button>
+              <Button
+                variant="outline"
+                className="flex flex-col items-center gap-2 h-auto py-3"
+                disabled={!property.googleMapsUrl}
+                data-testid="button-view-location"
+              >
+                <Map className="h-5 w-5" />
+                <span className="text-xs">Ubicación</span>
+              </Button>
+              <Button
+                variant="outline"
+                className="flex flex-col items-center gap-2 h-auto py-3"
+                disabled={!property.virtualTourUrl}
+                data-testid="button-view-tour360"
+              >
+                <Scan className="h-5 w-5" />
+                <span className="text-xs">Tour 360</span>
+              </Button>
             </div>
 
             <CardContent className="py-6">
