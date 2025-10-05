@@ -85,6 +85,16 @@ Preferred communication style: Simple, everyday language.
   - Added comprehensive translations for profile page UI elements
   - Profile updates, error messages, and form labels fully translated
   - Date formatting respects user's language preference (Spanish/English locale)
+- **Language Persistence System**: Implemented robust language selection persistence across authentication
+  - Three-effect architecture in LanguageContext for reliable language management
+  - Effect 1 (Initial sync): Prefers localStorage over user profile on login, syncs to backend
+  - Effect 2 (Backend updates): Updates backend when authenticated users change language
+  - Effect 3 (localStorage sync): Persists all language changes to browser storage
+  - Pre-login language selection correctly preserved after authentication
+  - Login and Register pages fully translated with 40+ translation keys
+  - Language toggle works correctly for both authenticated and unauthenticated users
+  - Backend schema updated to support language-only profile updates (optional firstName/lastName)
+  - No infinite loops or reversion issues in language synchronization
 
 ## System Architecture
 
