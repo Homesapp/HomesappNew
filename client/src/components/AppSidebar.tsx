@@ -64,7 +64,8 @@ export function AppSidebar({ userRole, userName, userAvatar }: AppSidebarProps) 
   };
 
   const mainItems = [
-    { title: "Inicio", url: "/", icon: Home, roles: ["master", "admin", "admin_jr", "seller", "owner", "management"] },
+    { title: "Inicio", url: "/", icon: Home, roles: ["master", "admin", "admin_jr", "seller", "management", "concierge", "provider"] },
+    { title: "Dashboard", url: "/owner/dashboard", icon: Home, roles: ["owner"] },
     { title: "Buscar Propiedades", url: "/buscar-propiedades", icon: Search, roles: ["master", "admin", "admin_jr", "seller", "owner", "management", "concierge", "provider"] },
     { title: "Mis Favoritos", url: "/favoritos", icon: Heart, roles: ["master", "admin", "admin_jr", "seller", "owner", "management", "concierge", "provider"] },
     { title: "Mis Oportunidades", url: "/mis-oportunidades", icon: Calendar, roles: ["master", "admin", "admin_jr", "seller", "owner", "management", "concierge", "provider"] },
@@ -82,6 +83,7 @@ export function AppSidebar({ userRole, userName, userAvatar }: AppSidebarProps) 
   ];
 
   const adminItems = [
+    { title: "Dashboard Admin", url: "/admin/dashboard", icon: Home, roles: ["master", "admin", "admin_jr"] },
     { title: "Backoffice", url: "/backoffice", icon: FolderKanban, roles: ["master", "admin", "admin_jr"] },
     { title: "Solicitudes de Cambio", url: "/admin/change-requests", icon: FileEdit, roles: ["master", "admin", "admin_jr"] },
     { title: "Reportes de Inspección", url: "/admin/inspection-reports", icon: ClipboardCheck, roles: ["master", "admin", "admin_jr"] },

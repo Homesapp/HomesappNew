@@ -42,6 +42,8 @@ import EditOwnerProperty from "@/pages/EditOwnerProperty";
 import AdminChangeRequests from "@/pages/AdminChangeRequests";
 import AdminInspectionReports from "@/pages/AdminInspectionReports";
 import OwnerAppointments from "@/pages/OwnerAppointments";
+import OwnerDashboard from "@/pages/OwnerDashboard";
+import AdminDashboard from "@/pages/AdminDashboard";
 import NotFound from "@/pages/not-found";
 
 function AuthenticatedApp() {
@@ -136,6 +138,8 @@ function AuthenticatedApp() {
               <Route path="/propiedad/:id" component={PropertyDetails} />
               <Route path="/favoritos" component={Favorites} />
               <Route path="/mis-oportunidades" component={MyOpportunities} />
+              <Route path="/owner/dashboard" component={OwnerDashboard} />
+              <Route path="/admin/dashboard" component={AdminDashboard} />
               <Route path="/mis-propiedades" component={MyProperties} />
               <Route path="/owner/property/:id/edit" component={EditOwnerProperty} />
               <Route path="/owner/property/:id" component={OwnerPropertyDetails} />
