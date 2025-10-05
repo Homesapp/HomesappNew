@@ -7,10 +7,11 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
+import { Switch } from "@/components/ui/switch";
 import { useToast } from "@/hooks/use-toast";
 import { queryClient, apiRequest } from "@/lib/queryClient";
-import { CheckCircle2, XCircle, Clock, Calendar as CalendarIcon, MapPin, User } from "lucide-react";
-import type { Appointment, Property } from "@shared/schema";
+import { CheckCircle2, XCircle, Clock, Calendar as CalendarIcon, MapPin, User, Settings } from "lucide-react";
+import type { Appointment, Property, OwnerSettings } from "@shared/schema";
 
 type OwnerApprovalStatus = "pending" | "approved" | "rejected";
 
@@ -28,6 +29,10 @@ export default function OwnerAppointments() {
 
   const { data: allAppointments = [], isLoading } = useQuery<AppointmentWithDetails[]>({
     queryKey: ["/api/appointments"],
+  });
+
+  const { data: ownerSettings, isLoading: isLoadingSettings } = useQuery<OwnerSettings>({
+    queryKey: ["/api/owner/settings"],
   });
 
   // Filter by ownerApprovalStatus
@@ -78,6 +83,30 @@ export default function OwnerAppointments() {
       });
     },
   });
+
+  const updateSettingsMutation = useMutation({
+    mutationFn: async (data: { autoApproveAppointments: boolean }) => {
+      return apiRequest("POST", "/api/owner/settings", data);
+    },
+    onSuccess: () => {
+      toast({
+        title: "Configuración actualizada",
+        description: "Tus preferencias han sido guardadas exitosamente",
+      });
+      queryClient.invalidateQueries({ queryKey: ["/api/owner/settings"] });
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Error",
+        description: error.message || "No se pudo actualizar la configuración",
+        variant: "destructive",
+      });
+    },
+  });
+
+  const handleToggleAutoApprove = (enabled: boolean) => {
+    updateSettingsMutation.mutate({ autoApproveAppointments: enabled });
+  };
 
   const handleOpenReview = (appointment: AppointmentWithDetails, action: "approve" | "reject") => {
     setSelectedAppointment(appointment);
@@ -154,6 +183,38 @@ export default function OwnerAppointments() {
           Administra las solicitudes de visita a tus propiedades
         </p>
       </div>
+
+      <Card data-testid="card-settings">
+        <CardHeader>
+          <div className="flex items-center gap-2">
+            <Settings className="w-5 h-5" />
+            <CardTitle>Configuración de Visitas</CardTitle>
+          </div>
+          <CardDescription>
+            Configura cómo se gestionan las solicitudes de visita a tus propiedades
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="flex items-center justify-between gap-4">
+            <div className="space-y-0.5">
+              <Label htmlFor="auto-approve" className="text-base font-medium">
+                Aprobación automática de visitas
+              </Label>
+              <p className="text-sm text-muted-foreground">
+                Las solicitudes de visita serán aprobadas automáticamente sin requerir tu intervención
+              </p>
+            </div>
+            <Switch
+              id="auto-approve"
+              checked={ownerSettings?.autoApproveAppointments ?? false}
+              onCheckedChange={handleToggleAutoApprove}
+              disabled={isLoadingSettings || updateSettingsMutation.isPending || !ownerSettings}
+              aria-label="Activar o desactivar aprobación automática de visitas"
+              data-testid="switch-auto-approve"
+            />
+          </div>
+        </CardContent>
+      </Card>
 
       <Tabs value={statusFilter} onValueChange={(value) => setStatusFilter(value as any)}>
         <TabsList>

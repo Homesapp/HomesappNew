@@ -43,7 +43,10 @@ The application uses PostgreSQL (via Neon serverless platform) and Drizzle ORM f
 - **Owner Property Management Pages**:
   - `/mis-propiedades`: List view with approval status badges
   - `/owner/property/:id`: Detailed view with tabs for details, change requests, staff, and appointments
-  - `/owner/appointments`: Appointment management with approve/reject functionality
+  - `/owner/appointments`: Appointment management with approve/reject functionality and auto-approval toggle
+    - Includes "Configuración de Visitas" card with switch to enable/disable automatic appointment approval
+    - When enabled, visit requests are automatically approved without owner intervention
+    - Settings persist in owner_settings.autoApproveAppointments field
   - `/owner/dashboard`: Owner dashboard with metrics and pending actions
 - **Admin Management Pages**:
   - `/admin/change-requests`: Review and approve/reject property change requests
