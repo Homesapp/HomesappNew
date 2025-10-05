@@ -21,6 +21,7 @@ import PropertyDetails from "@/pages/PropertyDetails";
 import PropertyFullDetails from "@/pages/PropertyFullDetails";
 import Favorites from "@/pages/Favorites";
 import LeadsKanban from "@/pages/LeadsKanban";
+import RentalsKanban from "@/pages/RentalsKanban";
 import Dashboard from "@/pages/Dashboard";
 import PublicDashboard from "@/components/PublicDashboard";
 import Properties from "@/pages/Properties";
@@ -136,6 +137,7 @@ function AuthenticatedApp() {
               <Route path="/propiedad/:id" component={PropertyDetails} />
               <Route path="/favoritos" component={Favorites} />
               <Route path="/leads" component={LeadsKanban} />
+              <Route path="/rentas" component={RentalsKanban} />
               <Route path="/properties" component={Properties} />
               <Route path="/appointments" component={Appointments} />
               <Route path="/calendario" component={Calendar} />
