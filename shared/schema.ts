@@ -126,6 +126,25 @@ export const rentalApplicationStatusEnum = pgEnum("rental_application_status", [
   "cancelado",
 ]);
 
+export const leadJourneyActionEnum = pgEnum("lead_journey_action", [
+  "search",
+  "view_layer1",
+  "view_layer2",
+  "view_layer3",
+  "favorite",
+  "unfavorite",
+  "request_opportunity",
+]);
+
+export const opportunityRequestStatusEnum = pgEnum("opportunity_request_status", [
+  "pending",
+  "scheduled_visit",
+  "accepted",
+  "rejected",
+  "expired",
+  "cancelled",
+]);
+
 // Users table (required for Replit Auth + extended fields)
 export const users = pgTable("users", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
@@ -621,6 +640,45 @@ export const insertFavoriteSchema = createInsertSchema(favorites).omit({
 
 export type InsertFavorite = z.infer<typeof insertFavoriteSchema>;
 export type Favorite = typeof favorites.$inferSelect;
+
+// Lead Journeys - Tracking de acciones del usuario en el proceso de captación
+export const leadJourneys = pgTable("lead_journeys", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: varchar("user_id").references(() => users.id, { onDelete: "cascade" }),
+  propertyId: varchar("property_id").references(() => properties.id, { onDelete: "cascade" }),
+  action: leadJourneyActionEnum("action").notNull(),
+  metadata: jsonb("metadata"), // Para guardar detalles como filtros de búsqueda, etc.
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+export const insertLeadJourneySchema = createInsertSchema(leadJourneys).omit({
+  id: true,
+  createdAt: true,
+});
+
+export type InsertLeadJourney = z.infer<typeof insertLeadJourneySchema>;
+export type LeadJourney = typeof leadJourneys.$inferSelect;
+
+// Rental Opportunity Requests (SOR) - Solicitudes de Oportunidad de Renta
+export const rentalOpportunityRequests = pgTable("rental_opportunity_requests", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: varchar("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  propertyId: varchar("property_id").notNull().references(() => properties.id, { onDelete: "cascade" }),
+  status: opportunityRequestStatusEnum("status").notNull().default("pending"),
+  notes: text("notes"),
+  requestedDate: timestamp("requested_date"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
+export const insertRentalOpportunityRequestSchema = createInsertSchema(rentalOpportunityRequests).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export type InsertRentalOpportunityRequest = z.infer<typeof insertRentalOpportunityRequestSchema>;
+export type RentalOpportunityRequest = typeof rentalOpportunityRequests.$inferSelect;
 
 // Relations
 export const usersRelations = relations(users, ({ many }) => ({
