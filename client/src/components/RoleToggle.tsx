@@ -5,6 +5,7 @@ import { Building2, User } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { queryClient, apiRequest } from "@/lib/queryClient";
 import { useLanguage } from "@/contexts/LanguageContext";
+import { useSidebar } from "@/components/ui/sidebar";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -18,6 +19,7 @@ import type { User as UserType } from "@shared/schema";
 export function RoleToggle() {
   const { toast } = useToast();
   const { t } = useLanguage();
+  const { state } = useSidebar();
   const [isOpen, setIsOpen] = useState(false);
 
   const { data: user } = useQuery<UserType>({
@@ -31,8 +33,8 @@ export function RoleToggle() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/auth/user"] });
       toast({
-        title: "Rol actualizado",
-        description: "Tu rol ha sido cambiado exitosamente",
+        title: t("role.updated"),
+        description: t("role.updatedDesc"),
       });
       setIsOpen(false);
       // Reload page to update UI based on new role
@@ -40,8 +42,8 @@ export function RoleToggle() {
     },
     onError: (error: any) => {
       toast({
-        title: "Error",
-        description: error.message || "No se pudo cambiar el rol",
+        title: t("common.error"),
+        description: error.message || t("role.updateError"),
         variant: "destructive",
       });
     },
@@ -55,26 +57,32 @@ export function RoleToggle() {
 
   const isOwner = user.role === "owner";
   const isClient = user.role === "cliente";
+  const isCollapsed = state === "collapsed";
 
   return (
     <DropdownMenu open={isOpen} onOpenChange={setIsOpen}>
       <DropdownMenuTrigger asChild>
-        <Button variant="outline" size="sm" className="gap-2 w-full justify-start" data-testid="button-role-toggle">
+        <Button 
+          variant="outline" 
+          size={isCollapsed ? "icon" : "default"}
+          className={isCollapsed ? "" : "gap-2 w-full justify-start"} 
+          data-testid="button-role-toggle"
+        >
           {isOwner ? (
             <>
               <Building2 className="h-4 w-4" />
-              <span>Propietario</span>
+              {!isCollapsed && <span>{t("role.owner")}</span>}
             </>
           ) : (
             <>
               <User className="h-4 w-4" />
-              <span>Cliente</span>
+              {!isCollapsed && <span>{t("role.client")}</span>}
             </>
           )}
         </Button>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end" className="w-56">
-        <DropdownMenuLabel>Cambiar modo</DropdownMenuLabel>
+        <DropdownMenuLabel>{t("role.switchMode")}</DropdownMenuLabel>
         <DropdownMenuSeparator />
         <DropdownMenuItem
           onClick={() => switchRoleMutation.mutate("owner")}
@@ -86,7 +94,7 @@ export function RoleToggle() {
           <div className="flex flex-col">
             <span className="font-medium">{t("header.switchToOwner")}</span>
             <span className="text-xs text-muted-foreground">
-              Gestiona tus propiedades
+              {t("role.ownerDesc")}
             </span>
           </div>
         </DropdownMenuItem>
@@ -100,7 +108,7 @@ export function RoleToggle() {
           <div className="flex flex-col">
             <span className="font-medium">{t("header.switchToClient")}</span>
             <span className="text-xs text-muted-foreground">
-              Busca y renta propiedades
+              {t("role.clientDesc")}
             </span>
           </div>
         </DropdownMenuItem>

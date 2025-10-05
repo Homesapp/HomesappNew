@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Home, Bed, Bath, DollarSign, MapPin, Share2, Save, Power, PowerOff, Trash2 } from "lucide-react";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { useState } from "react";
+import { useLanguage } from "@/contexts/LanguageContext";
 
 export type ClientPresentationCardProps = {
   id: string;
@@ -45,11 +46,12 @@ export function ClientPresentationCard({
   onDelete,
 }: ClientPresentationCardProps) {
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
+  const { t } = useLanguage();
   
   const modalityLabels = {
-    rent: "Renta",
-    sale: "Venta",
-    both: "Renta o Venta",
+    rent: t("presentationCard.rent"),
+    sale: t("presentationCard.sale"),
+    both: t("presentationCard.rentOrSale"),
   };
 
   return (
@@ -62,15 +64,15 @@ export function ClientPresentationCard({
               {isActive && (
                 <Badge variant="default" className="flex items-center gap-1">
                   <Power className="h-3 w-3" />
-                  Activa
+                  {t("presentationCard.active")}
                 </Badge>
               )}
             </div>
-            <p className="text-sm text-muted-foreground">Tarjeta de Presentación</p>
+            <p className="text-sm text-muted-foreground">{t("presentationCard.title")}</p>
           </div>
           {matchCount !== undefined && (
             <Badge variant="secondary">
-              {matchCount} {matchCount === 1 ? "coincidencia" : "coincidencias"}
+              {matchCount} {matchCount === 1 ? t("presentationCard.match") : t("presentationCard.matches")}
             </Badge>
           )}
         </CardHeader>
@@ -101,13 +103,13 @@ export function ClientPresentationCard({
                 {bedrooms && (
                   <div className="flex items-center gap-1">
                     <Bed className="h-4 w-4 text-muted-foreground" />
-                    <span>{bedrooms}+ recámaras</span>
+                    <span>{bedrooms}+ {t("presentationCard.bedrooms")}</span>
                   </div>
                 )}
                 {bathrooms && (
                   <div className="flex items-center gap-1">
                     <Bath className="h-4 w-4 text-muted-foreground" />
-                    <span>{bathrooms}+ baños</span>
+                    <span>{bathrooms}+ {t("presentationCard.bathrooms")}</span>
                   </div>
                 )}
               </div>
@@ -116,7 +118,7 @@ export function ClientPresentationCard({
 
           {amenities && amenities.length > 0 && (
             <div className="space-y-2">
-              <p className="text-sm font-medium">Amenidades:</p>
+              <p className="text-sm font-medium">{t("presentationCard.amenities")}</p>
               <div className="flex flex-wrap gap-1">
                 {amenities.map((amenity, idx) => (
                   <Badge key={idx} variant="outline" className="text-xs">
@@ -139,12 +141,12 @@ export function ClientPresentationCard({
               {isActive ? (
                 <>
                   <PowerOff className="h-4 w-4 mr-1" />
-                  Desactivar
+                  {t("presentationCard.deactivate")}
                 </>
               ) : (
                 <>
                   <Power className="h-4 w-4 mr-1" />
-                  Activar
+                  {t("presentationCard.activate")}
                 </>
               )}
             </Button>
@@ -157,7 +159,7 @@ export function ClientPresentationCard({
               data-testid={`button-edit-${id}`}
             >
               <Save className="h-4 w-4 mr-1" />
-              Editar
+              {t("presentationCard.edit")}
             </Button>
           )}
           {onDelete && (
@@ -168,7 +170,7 @@ export function ClientPresentationCard({
               data-testid={`button-delete-${id}`}
             >
               <Trash2 className="h-4 w-4 mr-1" />
-              Eliminar
+              {t("presentationCard.delete")}
             </Button>
           )}
           {onViewMatches && matchCount !== undefined && matchCount > 0 && (
@@ -178,7 +180,7 @@ export function ClientPresentationCard({
               onClick={onViewMatches}
               data-testid={`button-view-matches-${id}`}
             >
-              Ver Coincidencias
+              {t("presentationCard.viewMatches")}
             </Button>
           )}
         </CardFooter>

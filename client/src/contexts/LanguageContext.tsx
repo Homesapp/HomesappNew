@@ -296,6 +296,33 @@ const translations: Record<Language, Record<string, string>> = {
     "propertyTypes.studio": "Estudio",
     "propertyTypes.penthouse": "Penthouse",
     
+    // Presentation Cards
+    "presentationCard.active": "Activa",
+    "presentationCard.activate": "Activar",
+    "presentationCard.deactivate": "Desactivar",
+    "presentationCard.edit": "Editar",
+    "presentationCard.delete": "Eliminar",
+    "presentationCard.viewMatches": "Ver Coincidencias",
+    "presentationCard.bedrooms": "recámaras",
+    "presentationCard.bathrooms": "baños",
+    "presentationCard.amenities": "Amenidades:",
+    "presentationCard.match": "coincidencia",
+    "presentationCard.matches": "coincidencias",
+    "presentationCard.rent": "Renta",
+    "presentationCard.sale": "Venta",
+    "presentationCard.rentOrSale": "Renta o Venta",
+    "presentationCard.title": "Tarjeta de Presentación",
+    
+    // Role Switching
+    "role.owner": "Propietario",
+    "role.client": "Cliente",
+    "role.switchMode": "Cambiar modo",
+    "role.ownerDesc": "Gestiona tus propiedades",
+    "role.clientDesc": "Busca y renta propiedades",
+    "role.updated": "Rol actualizado",
+    "role.updatedDesc": "Tu rol ha sido cambiado exitosamente",
+    "role.updateError": "No se pudo cambiar el rol",
+    
     // Help & Tutorials
     "help.title": "Ayuda",
     "help.dialog.title": "HomesApp - Ayuda y Guías",
@@ -629,6 +656,33 @@ const translations: Record<Language, Record<string, string>> = {
     "propertyTypes.villa": "Villa",
     "propertyTypes.studio": "Studio",
     "propertyTypes.penthouse": "Penthouse",
+    
+    // Presentation Cards
+    "presentationCard.active": "Active",
+    "presentationCard.activate": "Activate",
+    "presentationCard.deactivate": "Deactivate",
+    "presentationCard.edit": "Edit",
+    "presentationCard.delete": "Delete",
+    "presentationCard.viewMatches": "View Matches",
+    "presentationCard.bedrooms": "bedrooms",
+    "presentationCard.bathrooms": "bathrooms",
+    "presentationCard.amenities": "Amenities:",
+    "presentationCard.match": "match",
+    "presentationCard.matches": "matches",
+    "presentationCard.rent": "Rent",
+    "presentationCard.sale": "Sale",
+    "presentationCard.rentOrSale": "Rent or Sale",
+    "presentationCard.title": "Presentation Card",
+    
+    // Role Switching
+    "role.owner": "Owner",
+    "role.client": "Client",
+    "role.switchMode": "Switch mode",
+    "role.ownerDesc": "Manage your properties",
+    "role.clientDesc": "Search and rent properties",
+    "role.updated": "Role updated",
+    "role.updatedDesc": "Your role has been changed successfully",
+    "role.updateError": "Could not change role",
     
     // Help & Tutorials
     "help.title": "Help",
