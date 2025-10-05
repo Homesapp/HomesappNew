@@ -21,6 +21,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { useLocation } from "wouter";
 import type { Appointment, Property, User as UserType, Lead } from "@shared/schema";
 import { WelcomeModal } from "@/components/WelcomeModal";
+import { LoadingScreen } from "@/components/ui/loading-screen";
 
 type AppointmentWithRelations = Appointment & {
   property?: Property;
@@ -80,14 +81,7 @@ export default function ClientDashboard() {
   const isLoading = appointmentsLoading || favoritesLoading || leadsLoading;
 
   if (isLoading) {
-    return (
-      <div className="flex items-center justify-center h-full">
-        <div className="text-center space-y-4">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto" />
-          <p className="text-muted-foreground">Cargando...</p>
-        </div>
-      </div>
-    );
+    return <LoadingScreen className="h-full" />;
   }
 
   return (

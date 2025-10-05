@@ -14,6 +14,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { insertAgreementTemplateSchema, type InsertAgreementTemplate, type AgreementTemplate } from "@shared/schema";
 import { Plus, Edit, Trash2, FileText } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
+import { LoadingScreen } from "@/components/ui/loading-screen";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -139,14 +140,7 @@ export default function AdminAgreementTemplates() {
   };
 
   if (isLoading) {
-    return (
-      <div className="flex items-center justify-center h-full">
-        <div className="text-center space-y-4">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto" data-testid="loading-spinner" />
-          <p className="text-muted-foreground" data-testid="text-loading">Cargando plantillas...</p>
-        </div>
-      </div>
-    );
+    return <LoadingScreen className="h-full" />;
   }
 
   return (
