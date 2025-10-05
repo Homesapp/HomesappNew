@@ -124,6 +124,14 @@ export const leadStatusEnum = pgEnum("lead_status", [
   "perdido",
 ]);
 
+export const reviewRatingEnum = pgEnum("review_rating", [
+  "1",
+  "2",
+  "3",
+  "4",
+  "5",
+]);
+
 export const rentalApplicationStatusEnum = pgEnum("rental_application_status", [
   "solicitud_enviada",
   "revision_documentos",
@@ -609,6 +617,97 @@ export const insertAppointmentSchema = createInsertSchema(appointments).omit({
 
 export type InsertAppointment = z.infer<typeof insertAppointmentSchema>;
 export type Appointment = typeof appointments.$inferSelect;
+
+// Property Reviews table
+export const propertyReviews = pgTable("property_reviews", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  propertyId: varchar("property_id").notNull().references(() => properties.id, { onDelete: "cascade" }),
+  clientId: varchar("client_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  appointmentId: varchar("appointment_id").references(() => appointments.id, { onDelete: "set null" }),
+  rating: reviewRatingEnum("rating").notNull(),
+  comment: text("comment"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
+export const insertPropertyReviewSchema = createInsertSchema(propertyReviews).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export type InsertPropertyReview = z.infer<typeof insertPropertyReviewSchema>;
+export type PropertyReview = typeof propertyReviews.$inferSelect;
+
+// Appointment Reviews table
+export const appointmentReviews = pgTable("appointment_reviews", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  appointmentId: varchar("appointment_id").notNull().references(() => appointments.id, { onDelete: "cascade" }),
+  clientId: varchar("client_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  rating: reviewRatingEnum("rating").notNull(),
+  comment: text("comment"),
+  experienceRating: reviewRatingEnum("experience_rating"),
+  punctualityRating: reviewRatingEnum("punctuality_rating"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
+export const insertAppointmentReviewSchema = createInsertSchema(appointmentReviews).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export type InsertAppointmentReview = z.infer<typeof insertAppointmentReviewSchema>;
+export type AppointmentReview = typeof appointmentReviews.$inferSelect;
+
+// Concierge Reviews (from clients)
+export const conciergeReviews = pgTable("concierge_reviews", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  conciergeId: varchar("concierge_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  clientId: varchar("client_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  appointmentId: varchar("appointment_id").references(() => appointments.id, { onDelete: "set null" }),
+  rating: reviewRatingEnum("rating").notNull(),
+  professionalismRating: reviewRatingEnum("professionalism_rating"),
+  knowledgeRating: reviewRatingEnum("knowledge_rating"),
+  communicationRating: reviewRatingEnum("communication_rating"),
+  comment: text("comment"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
+export const insertConciergeReviewSchema = createInsertSchema(conciergeReviews).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export type InsertConciergeReview = z.infer<typeof insertConciergeReviewSchema>;
+export type ConciergeReview = typeof conciergeReviews.$inferSelect;
+
+// Client Reviews (from concierges)
+export const clientReviews = pgTable("client_reviews", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  clientId: varchar("client_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  conciergeId: varchar("concierge_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  appointmentId: varchar("appointment_id").references(() => appointments.id, { onDelete: "set null" }),
+  rating: reviewRatingEnum("rating").notNull(),
+  punctualityRating: reviewRatingEnum("punctuality_rating"),
+  attitudeRating: reviewRatingEnum("attitude_rating"),
+  seriousnessRating: reviewRatingEnum("seriousness_rating"),
+  comment: text("comment"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
+export const insertClientReviewSchema = createInsertSchema(clientReviews).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export type InsertClientReview = z.infer<typeof insertClientReviewSchema>;
+export type ClientReview = typeof clientReviews.$inferSelect;
 
 // Client presentation cards table
 export const presentationCards = pgTable("presentation_cards", {

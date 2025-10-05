@@ -4,6 +4,10 @@ import {
   colonies,
   condominiums,
   appointments,
+  propertyReviews,
+  appointmentReviews,
+  conciergeReviews,
+  clientReviews,
   presentationCards,
   serviceProviders,
   services,
@@ -116,6 +120,14 @@ import {
   type Feedback,
   type InsertFeedback,
   type UpdateFeedback,
+  type PropertyReview,
+  type InsertPropertyReview,
+  type AppointmentReview,
+  type InsertAppointmentReview,
+  type ConciergeReview,
+  type InsertConciergeReview,
+  type ClientReview,
+  type InsertClientReview,
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, and, or, gte, lte, ilike, desc, sql, isNull } from "drizzle-orm";
@@ -204,6 +216,30 @@ export interface IStorage {
   createAppointment(appointment: InsertAppointment): Promise<Appointment>;
   updateAppointment(id: string, updates: Partial<InsertAppointment>): Promise<Appointment>;
   deleteAppointment(id: string): Promise<void>;
+  
+  // Property Review operations
+  getPropertyReview(id: string): Promise<PropertyReview | undefined>;
+  getPropertyReviews(filters?: { propertyId?: string; clientId?: string }): Promise<PropertyReview[]>;
+  createPropertyReview(review: InsertPropertyReview): Promise<PropertyReview>;
+  updatePropertyReview(id: string, updates: Partial<InsertPropertyReview>): Promise<PropertyReview>;
+  
+  // Appointment Review operations
+  getAppointmentReview(id: string): Promise<AppointmentReview | undefined>;
+  getAppointmentReviews(filters?: { appointmentId?: string; clientId?: string }): Promise<AppointmentReview[]>;
+  createAppointmentReview(review: InsertAppointmentReview): Promise<AppointmentReview>;
+  updateAppointmentReview(id: string, updates: Partial<InsertAppointmentReview>): Promise<AppointmentReview>;
+  
+  // Concierge Review operations (from clients)
+  getConciergeReview(id: string): Promise<ConciergeReview | undefined>;
+  getConciergeReviews(filters?: { conciergeId?: string; clientId?: string }): Promise<ConciergeReview[]>;
+  createConciergeReview(review: InsertConciergeReview): Promise<ConciergeReview>;
+  updateConciergeReview(id: string, updates: Partial<InsertConciergeReview>): Promise<ConciergeReview>;
+  
+  // Client Review operations (from concierges)
+  getClientReview(id: string): Promise<ClientReview | undefined>;
+  getClientReviews(filters?: { clientId?: string; conciergeId?: string }): Promise<ClientReview[]>;
+  createClientReview(review: InsertClientReview): Promise<ClientReview>;
+  updateClientReview(id: string, updates: Partial<InsertClientReview>): Promise<ClientReview>;
   
   // Presentation card operations
   getPresentationCard(id: string): Promise<PresentationCard | undefined>;
@@ -898,6 +934,150 @@ export class DatabaseStorage implements IStorage {
 
   async deleteAppointment(id: string): Promise<void> {
     await db.delete(appointments).where(eq(appointments.id, id));
+  }
+
+  // Property Review operations
+  async getPropertyReview(id: string): Promise<PropertyReview | undefined> {
+    const [review] = await db.select().from(propertyReviews).where(eq(propertyReviews.id, id));
+    return review;
+  }
+
+  async getPropertyReviews(filters?: { propertyId?: string; clientId?: string }): Promise<PropertyReview[]> {
+    const conditions = [];
+    if (filters?.propertyId) {
+      conditions.push(eq(propertyReviews.propertyId, filters.propertyId));
+    }
+    if (filters?.clientId) {
+      conditions.push(eq(propertyReviews.clientId, filters.clientId));
+    }
+
+    let query = db.select().from(propertyReviews);
+    if (conditions.length > 0) {
+      query = query.where(and(...conditions)) as any;
+    }
+    return await query.orderBy(desc(propertyReviews.createdAt));
+  }
+
+  async createPropertyReview(reviewData: InsertPropertyReview): Promise<PropertyReview> {
+    const [review] = await db.insert(propertyReviews).values(reviewData).returning();
+    return review;
+  }
+
+  async updatePropertyReview(id: string, updates: Partial<InsertPropertyReview>): Promise<PropertyReview> {
+    const [review] = await db
+      .update(propertyReviews)
+      .set({ ...updates, updatedAt: new Date() })
+      .where(eq(propertyReviews.id, id))
+      .returning();
+    return review;
+  }
+
+  // Appointment Review operations
+  async getAppointmentReview(id: string): Promise<AppointmentReview | undefined> {
+    const [review] = await db.select().from(appointmentReviews).where(eq(appointmentReviews.id, id));
+    return review;
+  }
+
+  async getAppointmentReviews(filters?: { appointmentId?: string; clientId?: string }): Promise<AppointmentReview[]> {
+    const conditions = [];
+    if (filters?.appointmentId) {
+      conditions.push(eq(appointmentReviews.appointmentId, filters.appointmentId));
+    }
+    if (filters?.clientId) {
+      conditions.push(eq(appointmentReviews.clientId, filters.clientId));
+    }
+
+    let query = db.select().from(appointmentReviews);
+    if (conditions.length > 0) {
+      query = query.where(and(...conditions)) as any;
+    }
+    return await query.orderBy(desc(appointmentReviews.createdAt));
+  }
+
+  async createAppointmentReview(reviewData: InsertAppointmentReview): Promise<AppointmentReview> {
+    const [review] = await db.insert(appointmentReviews).values(reviewData).returning();
+    return review;
+  }
+
+  async updateAppointmentReview(id: string, updates: Partial<InsertAppointmentReview>): Promise<AppointmentReview> {
+    const [review] = await db
+      .update(appointmentReviews)
+      .set({ ...updates, updatedAt: new Date() })
+      .where(eq(appointmentReviews.id, id))
+      .returning();
+    return review;
+  }
+
+  // Concierge Review operations (from clients)
+  async getConciergeReview(id: string): Promise<ConciergeReview | undefined> {
+    const [review] = await db.select().from(conciergeReviews).where(eq(conciergeReviews.id, id));
+    return review;
+  }
+
+  async getConciergeReviews(filters?: { conciergeId?: string; clientId?: string }): Promise<ConciergeReview[]> {
+    const conditions = [];
+    if (filters?.conciergeId) {
+      conditions.push(eq(conciergeReviews.conciergeId, filters.conciergeId));
+    }
+    if (filters?.clientId) {
+      conditions.push(eq(conciergeReviews.clientId, filters.clientId));
+    }
+
+    let query = db.select().from(conciergeReviews);
+    if (conditions.length > 0) {
+      query = query.where(and(...conditions)) as any;
+    }
+    return await query.orderBy(desc(conciergeReviews.createdAt));
+  }
+
+  async createConciergeReview(reviewData: InsertConciergeReview): Promise<ConciergeReview> {
+    const [review] = await db.insert(conciergeReviews).values(reviewData).returning();
+    return review;
+  }
+
+  async updateConciergeReview(id: string, updates: Partial<InsertConciergeReview>): Promise<ConciergeReview> {
+    const [review] = await db
+      .update(conciergeReviews)
+      .set({ ...updates, updatedAt: new Date() })
+      .where(eq(conciergeReviews.id, id))
+      .returning();
+    return review;
+  }
+
+  // Client Review operations (from concierges)
+  async getClientReview(id: string): Promise<ClientReview | undefined> {
+    const [review] = await db.select().from(clientReviews).where(eq(clientReviews.id, id));
+    return review;
+  }
+
+  async getClientReviews(filters?: { clientId?: string; conciergeId?: string }): Promise<ClientReview[]> {
+    const conditions = [];
+    if (filters?.clientId) {
+      conditions.push(eq(clientReviews.clientId, filters.clientId));
+    }
+    if (filters?.conciergeId) {
+      conditions.push(eq(clientReviews.conciergeId, filters.conciergeId));
+    }
+
+    let query = db.select().from(clientReviews);
+    if (conditions.length > 0) {
+      query = query.where(and(...conditions)) as any;
+    }
+    return await query.orderBy(desc(clientReviews.createdAt));
+  }
+
+  async createClientReview(reviewData: InsertClientReview): Promise<ClientReview> {
+    const [review] = await db.insert(clientReviews).values(reviewData).returning();
+    return review;
+  }
+
+  async updateClientReview(id: string, updates: Partial<InsertClientReview>): Promise<ClientReview> {
+    const [review] = await db
+      .update(clientReviews)
+      .set({ ...updates, updatedAt: new Date() })
+      .where(eq(clientReviews.id, id))
+      .returning();
+    return review;
   }
 
   // Presentation card operations
