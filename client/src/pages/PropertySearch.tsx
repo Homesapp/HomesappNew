@@ -171,14 +171,14 @@ export default function PropertySearch() {
                   <div className="space-y-2">
                     <Label htmlFor="bedrooms">Recámaras</Label>
                     <Select
-                      value={filters.bedrooms?.toString() || ""}
-                      onValueChange={(value) => setFilters({ ...filters, bedrooms: value ? parseInt(value) : undefined })}
+                      value={filters.bedrooms?.toString() || "any"}
+                      onValueChange={(value) => setFilters({ ...filters, bedrooms: value !== "any" ? parseInt(value) : undefined })}
                     >
                       <SelectTrigger id="bedrooms" data-testid="select-bedrooms">
                         <SelectValue placeholder="Cualquiera" />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="">Cualquiera</SelectItem>
+                        <SelectItem value="any">Cualquiera</SelectItem>
                         <SelectItem value="1">1+</SelectItem>
                         <SelectItem value="2">2+</SelectItem>
                         <SelectItem value="3">3+</SelectItem>
@@ -190,14 +190,14 @@ export default function PropertySearch() {
                   <div className="space-y-2">
                     <Label htmlFor="bathrooms">Baños</Label>
                     <Select
-                      value={filters.bathrooms?.toString() || ""}
-                      onValueChange={(value) => setFilters({ ...filters, bathrooms: value ? parseFloat(value) : undefined })}
+                      value={filters.bathrooms?.toString() || "any"}
+                      onValueChange={(value) => setFilters({ ...filters, bathrooms: value !== "any" ? parseFloat(value) : undefined })}
                     >
                       <SelectTrigger id="bathrooms" data-testid="select-bathrooms">
                         <SelectValue placeholder="Cualquiera" />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="">Cualquiera</SelectItem>
+                        <SelectItem value="any">Cualquiera</SelectItem>
                         <SelectItem value="1">1+</SelectItem>
                         <SelectItem value="1.5">1.5+</SelectItem>
                         <SelectItem value="2">2+</SelectItem>
@@ -230,14 +230,14 @@ export default function PropertySearch() {
                   <div className="space-y-2">
                     <Label htmlFor="status">Tipo</Label>
                     <Select
-                      value={filters.status || ""}
-                      onValueChange={(value) => setFilters({ ...filters, status: value || undefined })}
+                      value={filters.status || "all"}
+                      onValueChange={(value) => setFilters({ ...filters, status: value !== "all" ? value : undefined })}
                     >
                       <SelectTrigger id="status" data-testid="select-status">
                         <SelectValue placeholder="Todos" />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="">Todos</SelectItem>
+                        <SelectItem value="all">Todos</SelectItem>
                         <SelectItem value="rent">Renta</SelectItem>
                         <SelectItem value="sale">Venta</SelectItem>
                         <SelectItem value="both">Renta o Venta</SelectItem>
