@@ -70,6 +70,7 @@ const translations: Record<Language, Record<string, string>> = {
     "welcome.client.feature2": "Agendar citas para visitas presenciales o virtuales",
     "welcome.client.feature3": "Chatear directamente con propietarios y agentes",
     "welcome.client.feature4": "Gestionar tus oportunidades y ofertas",
+    "welcome.client.dontShowAgain": "No volver a mostrar este mensaje",
     "welcome.client.button": "Comenzar a Explorar",
     "welcome.owner.title": "¡Bienvenido Propietario!",
     "welcome.owner.subtitle": "Tu Panel de Gestión de Propiedades",
@@ -78,6 +79,7 @@ const translations: Record<Language, Record<string, string>> = {
     "welcome.owner.feature2": "Gestionar citas y visitas de potenciales clientes",
     "welcome.owner.feature3": "Conectar con proveedores de servicios confiables",
     "welcome.owner.feature4": "Ver reportes y estadísticas en tiempo real",
+    "welcome.owner.dontShowAgain": "No volver a mostrar este mensaje",
     "welcome.owner.button": "Ir a Mi Panel",
     
     // Profile Page
@@ -350,6 +352,7 @@ const translations: Record<Language, Record<string, string>> = {
     "welcome.client.feature2": "Schedule in-person or virtual visits",
     "welcome.client.feature3": "Chat directly with owners and agents",
     "welcome.client.feature4": "Manage your opportunities and offers",
+    "welcome.client.dontShowAgain": "Don't show this message again",
     "welcome.client.button": "Start Exploring",
     "welcome.owner.title": "Welcome Property Owner!",
     "welcome.owner.subtitle": "Your Property Management Dashboard",
@@ -358,6 +361,7 @@ const translations: Record<Language, Record<string, string>> = {
     "welcome.owner.feature2": "Manage appointments and client visits",
     "welcome.owner.feature3": "Connect with reliable service providers",
     "welcome.owner.feature4": "View reports and real-time analytics",
+    "welcome.owner.dontShowAgain": "Don't show this message again",
     "welcome.owner.button": "Go to Dashboard",
     
     // Profile Page

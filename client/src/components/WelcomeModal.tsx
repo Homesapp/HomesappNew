@@ -7,6 +7,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Check } from "lucide-react";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { useMutation } from "@tanstack/react-query";
@@ -15,24 +16,43 @@ import { apiRequest, queryClient } from "@/lib/queryClient";
 interface WelcomeModalProps {
   userRole: "cliente" | "owner";
   hasSeenWelcome: boolean;
+  lastWelcomeShown?: string | null;
   onDismiss?: () => void;
 }
 
-export function WelcomeModal({ userRole, hasSeenWelcome, onDismiss }: WelcomeModalProps) {
+export function WelcomeModal({ userRole, hasSeenWelcome, lastWelcomeShown, onDismiss }: WelcomeModalProps) {
   const [isOpen, setIsOpen] = useState(false);
+  const [dontShowAgain, setDontShowAgain] = useState(false);
   const { t } = useLanguage();
 
   useEffect(() => {
-    if (!hasSeenWelcome) {
-      setIsOpen(true);
-    } else {
+    // Don't show if user has permanently dismissed
+    if (hasSeenWelcome) {
       setIsOpen(false);
+      return;
     }
-  }, [hasSeenWelcome]);
+
+    // Show if never shown before OR if last shown was not today
+    if (!lastWelcomeShown) {
+      setIsOpen(true);
+      return;
+    }
+
+    const lastShown = new Date(lastWelcomeShown);
+    const today = new Date();
+    const isToday = 
+      lastShown.getDate() === today.getDate() &&
+      lastShown.getMonth() === today.getMonth() &&
+      lastShown.getFullYear() === today.getFullYear();
+
+    setIsOpen(!isToday);
+  }, [hasSeenWelcome, lastWelcomeShown]);
 
   const markAsSeenMutation = useMutation({
-    mutationFn: async () => {
-      return await apiRequest("PATCH", "/api/user/mark-welcome-seen");
+    mutationFn: async (dontShow: boolean) => {
+      return await apiRequest("PATCH", "/api/user/mark-welcome-seen", {
+        dontShowAgain: dontShow,
+      });
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/auth/user"] });
@@ -44,7 +64,7 @@ export function WelcomeModal({ userRole, hasSeenWelcome, onDismiss }: WelcomeMod
   });
 
   const handleDismiss = () => {
-    markAsSeenMutation.mutate();
+    markAsSeenMutation.mutate(dontShowAgain);
   };
 
   const prefix = userRole === "cliente" ? "welcome.client" : "welcome.owner";
@@ -90,6 +110,21 @@ export function WelcomeModal({ userRole, hasSeenWelcome, onDismiss }: WelcomeMod
               <span>{t(`${prefix}.feature4`)}</span>
             </li>
           </ul>
+
+          <div className="flex items-center space-x-2 pt-2">
+            <Checkbox 
+              id="dont-show-again" 
+              checked={dontShowAgain}
+              onCheckedChange={(checked) => setDontShowAgain(checked as boolean)}
+              data-testid="checkbox-dont-show-again"
+            />
+            <label
+              htmlFor="dont-show-again"
+              className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 cursor-pointer"
+            >
+              {t(`${prefix}.dontShowAgain`)}
+            </label>
+          </div>
 
           <Button
             onClick={handleDismiss}

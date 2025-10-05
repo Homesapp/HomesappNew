@@ -74,7 +74,8 @@ export default function ClientDashboard() {
       {!isAuthLoading && user && (
         <WelcomeModal 
           userRole="cliente" 
-          hasSeenWelcome={user.hasSeenWelcome || false} 
+          hasSeenWelcome={user.hasSeenWelcome || false}
+          lastWelcomeShown={user.lastWelcomeShown}
         />
       )}
       <div className="space-y-6">

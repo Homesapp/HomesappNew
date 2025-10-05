@@ -513,10 +513,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.patch("/api/user/mark-welcome-seen", isAuthenticated, async (req: any, res) => {
     try {
       const userId = req.user.claims.sub;
+      const { dontShowAgain } = req.body;
+      
+      const updates: any = {
+        lastWelcomeShown: new Date(),
+      };
+      
+      if (dontShowAgain === true) {
+        updates.hasSeenWelcome = true;
+      }
       
       await db
         .update(users)
-        .set({ hasSeenWelcome: true })
+        .set(updates)
         .where(eq(users.id, userId));
       
       res.json({ success: true });

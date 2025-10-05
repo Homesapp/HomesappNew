@@ -76,7 +76,8 @@ export default function OwnerDashboard() {
       {!isAuthLoading && user && (
         <WelcomeModal 
           userRole="owner" 
-          hasSeenWelcome={user.hasSeenWelcome || false} 
+          hasSeenWelcome={user.hasSeenWelcome || false}
+          lastWelcomeShown={user.lastWelcomeShown}
         />
       )}
       <div className="p-6 space-y-6">

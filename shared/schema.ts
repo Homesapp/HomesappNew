@@ -259,6 +259,7 @@ export const users = pgTable("users", {
   emailVerified: boolean("email_verified").notNull().default(false),
   preferredLanguage: varchar("preferred_language", { length: 2 }).notNull().default("es"),
   hasSeenWelcome: boolean("has_seen_welcome").notNull().default(false),
+  lastWelcomeShown: timestamp("last_welcome_shown"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });
