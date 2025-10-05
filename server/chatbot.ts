@@ -26,8 +26,12 @@ export async function processChatbotMessage(
   conversationHistory: Array<{ role: 'user' | 'assistant'; content: string }>
 ): Promise<ChatbotResponse> {
   
+  // Determine chatbot name based on user's preferred language
+  const userLanguage = context.user.preferredLanguage || 'es';
+  const chatbotName = userLanguage === 'en' ? 'Marco-AI' : 'Marco-IA';
+  
   // Use custom system prompt from config if available, otherwise use default
-  const baseSystemPrompt = context.config?.systemPrompt || `Eres MARCO, el asistente virtual de HomesApp especializado en ayudar a clientes a encontrar su propiedad ideal en Tulum. Eres amigable, profesional y conversas de manera natural paso a paso.
+  const defaultSystemPromptES = `Eres ${chatbotName}, el asistente virtual de HomesApp especializado en ayudar a clientes a encontrar su propiedad ideal en Tulum. Eres amigable, profesional y conversas de manera natural paso a paso.
 
 Tu objetivo es:
 1. Presentarte de manera cálida y preguntar el nombre del cliente
@@ -37,6 +41,20 @@ Tu objetivo es:
 5. Ayudar a coordinar citas para ver propiedades que le interesen
 
 Siempre sé conversacional, haz preguntas de una en una para que el cliente no se sienta abrumado, y muestra empatía. Cuando el cliente comparta información, confirma que la entendiste antes de pasar a la siguiente pregunta.`;
+
+  const defaultSystemPromptEN = `You are ${chatbotName}, HomesApp's virtual assistant specialized in helping clients find their ideal property in Tulum. You are friendly, professional, and converse naturally step by step.
+
+Your goal is to:
+1. Introduce yourself warmly and ask for the client's name
+2. Understand what type of property they're looking for (house, apartment, villa, etc.)
+3. Find out their budget and preferences (number of bedrooms, location, amenities)
+4. Suggest if they want to use any of their existing presentation cards to receive personalized recommendations
+5. Help coordinate appointments to view properties they're interested in
+
+Always be conversational, ask questions one at a time so the client doesn't feel overwhelmed, and show empathy. When the client shares information, confirm that you understood it before moving to the next question.`;
+
+  const defaultSystemPrompt = userLanguage === 'en' ? defaultSystemPromptEN : defaultSystemPromptES;
+  const baseSystemPrompt = context.config?.systemPrompt || defaultSystemPrompt;
 
   const systemPrompt = `${baseSystemPrompt}
 
@@ -79,14 +97,19 @@ Instrucciones:
 - Cuando sugieras propiedades, menciona por qué se ajustan a las necesidades del cliente
 - Si el cliente quiere agendar una cita, confirma los detalles y ofrece ayuda
 - Usa un tono conversacional y cercano
-- Responde SIEMPRE en español
+- Responde SIEMPRE en ${userLanguage === 'en' ? 'inglés' : 'español'}
 - Si sugieres propiedades, proporciona los IDs en tu respuesta en formato JSON al final del mensaje usando esta estructura:
   SUGGESTED_PROPERTIES: [id1, id2, id3]
 
-Ejemplo de respuesta con sugerencias:
+${userLanguage === 'en' 
+  ? `Example response with suggestions:
+"Hi! I found 3 properties that might interest you based on your preferences. The first is an apartment in Aldea Zama with 2 bedrooms, pool and parking. The second... [description]. Would you like to schedule a visit?
+
+SUGGESTED_PROPERTIES: ["prop-id-1", "prop-id-2", "prop-id-3"]"`
+  : `Ejemplo de respuesta con sugerencias:
 "¡Hola! Encontré 3 propiedades que podrían interesarte según tus preferencias. La primera es un departamento en Aldea Zama con 2 recámaras, alberca y estacionamiento. La segunda... [descripción]. ¿Te gustaría agendar una visita?
 
-SUGGESTED_PROPERTIES: ["prop-id-1", "prop-id-2", "prop-id-3"]"
+SUGGESTED_PROPERTIES: ["prop-id-1", "prop-id-2", "prop-id-3"]"`}
 `;
 
   try {

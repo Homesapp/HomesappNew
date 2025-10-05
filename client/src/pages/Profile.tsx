@@ -11,7 +11,8 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
 import type { ChatConversation } from "@shared/schema";
 import { formatDistanceToNow } from "date-fns";
-import { es } from "date-fns/locale";
+import { es, enUS } from "date-fns/locale";
+import { useLanguage } from "@/contexts/LanguageContext";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -34,12 +35,14 @@ import { useEffect, useRef, useState } from "react";
 export default function Profile() {
   const { user } = useAuth();
   const { toast } = useToast();
+  const { t, language } = useLanguage();
   const queryClient = useQueryClient();
   const [, setLocation] = useLocation();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [imagePreview, setImagePreview] = useState<string>("");
   const [imageChanged, setImageChanged] = useState(false);
   const [originalImage, setOriginalImage] = useState<string>("");
+  const dateLocale = language === 'en' ? enUS : es;
 
   const form = useForm<UpdateUserProfile>({
     resolver: zodResolver(updateUserProfileSchema),
@@ -83,14 +86,14 @@ export default function Profile() {
       queryClient.invalidateQueries({ queryKey: ["/api/auth/user"] });
       setImageChanged(false);
       toast({
-        title: "Perfil actualizado",
-        description: "Tu perfil ha sido actualizado exitosamente",
+        title: t("profile.profileUpdated"),
+        description: t("profile.profileUpdatedDesc"),
       });
     },
     onError: (error: any) => {
       toast({
-        title: "Error",
-        description: error.message || "No se pudo actualizar el perfil",
+        title: t("common.error") || "Error",
+        description: error.message || t("profile.updateError"),
         variant: "destructive",
       });
     },
@@ -102,8 +105,8 @@ export default function Profile() {
     },
     onSuccess: () => {
       toast({
-        title: "Cuenta eliminada",
-        description: "Tu cuenta ha sido eliminada exitosamente",
+        title: t("profile.accountDeleted"),
+        description: t("profile.accountDeletedDesc"),
       });
       setTimeout(() => {
         setLocation("/");
@@ -113,7 +116,7 @@ export default function Profile() {
     onError: (error: any) => {
       toast({
         title: "Error",
-        description: error.message || "No se pudo eliminar la cuenta",
+        description: error.message || t("profile.deleteError"),
         variant: "destructive",
       });
     },
@@ -127,7 +130,7 @@ export default function Profile() {
     if (!file.type.startsWith("image/")) {
       toast({
         title: "Error",
-        description: "Por favor selecciona un archivo de imagen válido",
+        description: t("profile.imageError"),
         variant: "destructive",
       });
       return;
@@ -137,7 +140,7 @@ export default function Profile() {
     if (file.size > 2 * 1024 * 1024) {
       toast({
         title: "Error",
-        description: "La imagen debe ser menor a 2MB",
+        description: t("profile.imageSizeError"),
         variant: "destructive",
       });
       return;
@@ -192,16 +195,16 @@ export default function Profile() {
 
   return (
     <div className="container mx-auto p-6 max-w-4xl">
-      <h1 className="text-3xl font-bold mb-6">Mi Perfil</h1>
+      <h1 className="text-3xl font-bold mb-6">{t("profile.title")}</h1>
 
       <Tabs defaultValue="personal" className="space-y-6">
         <TabsList className="grid w-full grid-cols-2">
           <TabsTrigger value="personal" data-testid="tab-personal">
-            Información Personal
+            {t("profile.personalInfo")}
           </TabsTrigger>
           <TabsTrigger value="chat" data-testid="tab-chat">
             <MessageCircle className="h-4 w-4 mr-2" />
-            Conversaciones
+            {t("profile.conversations")}
           </TabsTrigger>
         </TabsList>
 
@@ -210,7 +213,7 @@ export default function Profile() {
             <form onSubmit={form.handleSubmit(onSubmit)}>
               <Card>
             <CardHeader>
-              <CardTitle>Información Personal</CardTitle>
+              <CardTitle>{t("profile.personalInfo")}</CardTitle>
             </CardHeader>
             <CardContent className="space-y-6">
               {/* Profile Image Upload Section */}
@@ -228,7 +231,7 @@ export default function Profile() {
                     data-testid="button-upload-image"
                   >
                     <Upload className="h-4 w-4 mr-2" />
-                    Subir Foto
+                    {t("profile.uploadPhoto")}
                   </Button>
                   
                   {imagePreview && (
@@ -239,7 +242,7 @@ export default function Profile() {
                       data-testid="button-remove-image"
                     >
                       <X className="h-4 w-4 mr-2" />
-                      Quitar Foto
+                      {t("profile.removePhoto")}
                     </Button>
                   )}
                 </div>
@@ -254,7 +257,7 @@ export default function Profile() {
                 />
 
                 <p className="text-sm text-muted-foreground text-center">
-                  Formatos permitidos: JPG, PNG, GIF. Tamaño máximo: 2MB
+                  {t("profile.imageFormats")}
                 </p>
               </div>
 
@@ -264,7 +267,7 @@ export default function Profile() {
                   name="firstName"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Nombre</FormLabel>
+                      <FormLabel>{t("profile.firstName")}</FormLabel>
                       <FormControl>
                         <Input
                           {...field}
@@ -281,7 +284,7 @@ export default function Profile() {
                   name="lastName"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Apellido</FormLabel>
+                      <FormLabel>{t("profile.lastName")}</FormLabel>
                       <FormControl>
                         <Input
                           {...field}
@@ -296,7 +299,7 @@ export default function Profile() {
               </div>
 
               <FormItem>
-                <FormLabel>Email</FormLabel>
+                <FormLabel>{t("profile.email")}</FormLabel>
                 <FormControl>
                   <Input
                     value={user?.email || ""}
@@ -306,7 +309,7 @@ export default function Profile() {
                   />
                 </FormControl>
                 <FormDescription>
-                  El email no se puede cambiar
+                  {t("profile.emailCannotChange")}
                 </FormDescription>
               </FormItem>
 
@@ -315,7 +318,7 @@ export default function Profile() {
                 name="phone"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Teléfono</FormLabel>
+                    <FormLabel>{t("profile.phone")}</FormLabel>
                     <FormControl>
                       <Input
                         {...field}
@@ -333,11 +336,11 @@ export default function Profile() {
                 name="bio"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Biografía</FormLabel>
+                    <FormLabel>{t("profile.bio")}</FormLabel>
                     <FormControl>
                       <Textarea
                         {...field}
-                        placeholder="Cuéntanos un poco sobre ti..."
+                        placeholder={t("profile.bioPlaceholder")}
                         rows={4}
                         data-testid="textarea-bio"
                       />
@@ -357,26 +360,25 @@ export default function Profile() {
                     data-testid="button-delete-account"
                   >
                     <Trash2 className="h-4 w-4 mr-2" />
-                    {deleteAccountMutation.isPending ? "Eliminando..." : "Eliminar Cuenta"}
+                    {deleteAccountMutation.isPending ? t("profile.deleting") : t("profile.deleteAccount")}
                   </Button>
                 </AlertDialogTrigger>
                 <AlertDialogContent>
                   <AlertDialogHeader>
-                    <AlertDialogTitle>¿Estás seguro?</AlertDialogTitle>
+                    <AlertDialogTitle>{t("profile.deleteConfirmTitle")}</AlertDialogTitle>
                     <AlertDialogDescription>
-                      Esta acción no se puede deshacer. Se eliminará permanentemente tu cuenta
-                      y todos tus datos asociados.
+                      {t("profile.deleteConfirmDesc")}
                     </AlertDialogDescription>
                   </AlertDialogHeader>
                   <AlertDialogFooter>
-                    <AlertDialogCancel data-testid="button-cancel-delete">Cancelar</AlertDialogCancel>
+                    <AlertDialogCancel data-testid="button-cancel-delete">{t("common.cancel")}</AlertDialogCancel>
                     <AlertDialogAction
                       onClick={() => deleteAccountMutation.mutate()}
                       className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
                       data-testid="button-confirm-delete"
                       disabled={deleteAccountMutation.isPending}
                     >
-                      {deleteAccountMutation.isPending ? "Eliminando..." : "Eliminar"}
+                      {deleteAccountMutation.isPending ? t("profile.deleting") : t("common.delete")}
                     </AlertDialogAction>
                   </AlertDialogFooter>
                 </AlertDialogContent>
@@ -388,7 +390,7 @@ export default function Profile() {
                 data-testid="button-save-profile"
               >
                 <Save className="h-4 w-4 mr-2" />
-                {updateProfileMutation.isPending ? "Guardando..." : "Guardar Cambios"}
+                {updateProfileMutation.isPending ? t("profile.saving") : t("profile.saveChanges")}
               </Button>
             </CardFooter>
               </Card>
@@ -399,13 +401,13 @@ export default function Profile() {
         <TabsContent value="chat">
           <Card>
             <CardHeader>
-              <CardTitle>Conversaciones Recientes</CardTitle>
+              <CardTitle>{t("profile.recentConversations")}</CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
               {recentConversations.length === 0 ? (
                 <div className="text-center py-12 text-muted-foreground">
                   <MessageCircle className="h-12 w-12 mx-auto mb-4 opacity-50" />
-                  <p>No tienes conversaciones aún</p>
+                  <p>{t("profile.noConversations")}</p>
                 </div>
               ) : (
                 <div className="space-y-3">
@@ -431,7 +433,7 @@ export default function Profile() {
                                 </h4>
                                 {conversation.isBot && (
                                   <Badge variant="secondary" className="text-xs">
-                                    Bot
+                                    {t("profile.bot")}
                                   </Badge>
                                 )}
                               </div>
@@ -439,7 +441,7 @@ export default function Profile() {
                                 <p className="text-xs text-muted-foreground mt-1">
                                   {formatDistanceToNow(new Date(conversation.lastMessageAt), {
                                     addSuffix: true,
-                                    locale: es,
+                                    locale: dateLocale,
                                   })}
                                 </p>
                               )}
@@ -458,7 +460,7 @@ export default function Profile() {
                   onClick={() => setLocation("/chat")}
                   data-testid="button-view-all-chats"
                 >
-                  Ver Todas las Conversaciones
+                  {t("profile.viewAllChats")}
                 </Button>
               </div>
             </CardContent>
