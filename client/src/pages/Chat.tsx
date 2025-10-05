@@ -24,6 +24,7 @@ export default function Chat() {
   const [selectedConversation, setSelectedConversation] = useState<string | null>(null);
   const [message, setMessage] = useState("");
   const [activeTab, setActiveTab] = useState(user?.role === "cliente" ? "appointment" : "rental");
+  const [chatbotConversations, setChatbotConversations] = useState<Set<string>>(new Set());
   const messagesEndRef = useRef<HTMLDivElement>(null);
   
   // Connect to WebSocket for real-time updates
@@ -49,15 +50,68 @@ export default function Chat() {
     enabled: !!selectedConversation,
   });
 
+  const startChatbotMutation = useMutation({
+    mutationFn: async () => {
+      return await apiRequest("POST", `/api/chat/chatbot/start`, {});
+    },
+    onSuccess: (conversation) => {
+      // Mark this conversation as a chatbot conversation in local state
+      setChatbotConversations(prev => new Set(prev).add(conversation.id));
+      setSelectedConversation(conversation.id);
+      
+      // Optimistically update the conversations cache
+      queryClient.setQueryData(
+        ["/api/chat/conversations", activeTab],
+        (old: ChatConversation[] = []) => [conversation, ...old]
+      );
+      
+      // Still invalidate to ensure fresh data
+      queryClient.invalidateQueries({ queryKey: ["/api/chat/conversations", activeTab] });
+    },
+  });
+
   const sendMessageMutation = useMutation({
     mutationFn: async (data: { conversationId: string; message: string; senderId: string }) => {
-      return await apiRequest("POST", `/api/chat/messages`, data);
+      // Check local state first for chatbot conversations
+      const isChatbotFromState = chatbotConversations.has(data.conversationId);
+      
+      // Fallback to checking conversation metadata if not in local state
+      const conversation = conversations.find(c => c.id === data.conversationId);
+      const isChatbotFromMeta = conversation?.isBot === true;
+      
+      const isChatbot = isChatbotFromState || isChatbotFromMeta;
+      
+      if (isChatbot) {
+        // Use chatbot endpoint
+        return await apiRequest("POST", `/api/chat/chatbot/message`, {
+          conversationId: data.conversationId,
+          message: data.message,
+        });
+      } else {
+        // Use regular message endpoint
+        return await apiRequest("POST", `/api/chat/messages`, data);
+      }
     },
     onSuccess: () => {
       setMessage("");
     },
   });
   
+  // Sync chatbot conversations from loaded conversations
+  useEffect(() => {
+    const chatbotConvIds = conversations
+      .filter(c => c.isBot === true)
+      .map(c => c.id);
+    
+    if (chatbotConvIds.length > 0) {
+      setChatbotConversations(prev => {
+        const updated = new Set(prev);
+        chatbotConvIds.forEach(id => updated.add(id));
+        return updated;
+      });
+    }
+  }, [conversations]);
+
   // Auto-scroll to bottom when new messages arrive
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -147,6 +201,21 @@ export default function Chat() {
               </CardHeader>
               <CardContent className="p-0">
                 <ScrollArea className="h-[500px]">
+                  {/* Show chatbot button for clients in appointment tab */}
+                  {activeTab === "appointment" && user?.role === "cliente" && (
+                    <div className="p-4 border-b">
+                      <Button 
+                        onClick={() => startChatbotMutation.mutate()}
+                        disabled={startChatbotMutation.isPending}
+                        className="w-full"
+                        variant="outline"
+                        data-testid="button-start-chatbot"
+                      >
+                        <Headset className="h-4 w-4 mr-2" />
+                        Iniciar Chat con Asistente Virtual
+                      </Button>
+                    </div>
+                  )}
                   {conversations.length === 0 ? (
                     <div className="p-8 text-center text-muted-foreground">
                       <MessageCircle className="h-12 w-12 mx-auto mb-3 opacity-50" />
@@ -216,7 +285,9 @@ export default function Chat() {
                         ) : (
                           <>
                             {messages.map((msg) => {
-                              const isOwn = msg.senderId === currentUser?.id;
+                              const isBot = msg.isBot;
+                              const isOwn = msg.senderId === currentUser?.id && !isBot;
+                              
                               return (
                                 <div
                                   key={msg.id}
@@ -224,19 +295,26 @@ export default function Chat() {
                                   data-testid={`message-${msg.id}`}
                                 >
                                   <Avatar className="h-8 w-8">
-                                    <AvatarFallback>
-                                      {getUserInitials(currentUser?.firstName || undefined)}
+                                    <AvatarFallback className={isBot ? "bg-primary text-primary-foreground" : ""}>
+                                      {isBot ? <Headset className="h-4 w-4" /> : getUserInitials(currentUser?.firstName || undefined)}
                                     </AvatarFallback>
                                   </Avatar>
                                   <div className={`flex-1 ${isOwn ? "text-right" : ""}`}>
+                                    {isBot && (
+                                      <p className="text-xs text-muted-foreground mb-1">
+                                        Asistente Virtual
+                                      </p>
+                                    )}
                                     <div
                                       className={`inline-block p-3 rounded-lg ${
                                         isOwn
                                           ? "bg-primary text-primary-foreground"
+                                          : isBot
+                                          ? "bg-accent text-accent-foreground border border-primary/20"
                                           : "bg-muted"
                                       }`}
                                     >
-                                      <p>{msg.message}</p>
+                                      <p className="whitespace-pre-wrap">{msg.message}</p>
                                     </div>
                                     <p className="text-xs text-muted-foreground mt-1">
                                       {formatDistanceToNow(new Date(msg.createdAt), {

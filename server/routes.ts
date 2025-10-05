@@ -4512,6 +4512,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         type: "appointment",
         title: `Chat con Asistente Virtual - ${user.firstName || user.email}`,
         createdById: userId,
+        isBot: true,
       });
 
       // Add user as participant

@@ -1046,6 +1046,7 @@ export const chatConversations = pgTable("chat_conversations", {
   propertyId: varchar("property_id").references(() => properties.id, { onDelete: "cascade" }), // Para chats de rentas
   rentalApplicationId: varchar("rental_application_id").references(() => rentalApplications.id, { onDelete: "cascade" }), // Para chats de rentas en curso
   createdById: varchar("created_by_id").notNull().references(() => users.id),
+  isBot: boolean("is_bot").notNull().default(false), // Indicates if this is a chatbot conversation
   lastMessageAt: timestamp("last_message_at"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
