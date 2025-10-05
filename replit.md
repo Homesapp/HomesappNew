@@ -20,6 +20,19 @@ Preferred communication style: Simple, everyday language.
   - Conversations now filtered via JOIN with chat_participants table
   - Clients can now send messages in conversations where they are participants
   - Improved chat visibility and permissions across all user roles
+- **MARCO Virtual Assistant**: Intelligent, humanized chatbot for client property search
+  - Named "MARCO" - configurable virtual assistant that guides clients step-by-step
+  - Conversational approach: asks one question at a time to avoid overwhelming clients
+  - Integration with client presentation cards for personalized recommendations
+  - Ability to coordinate appointments for property viewings
+  - Full admin configuration page (accessible only to master/admin roles)
+    - Configure chatbot name, system prompt, and welcome message
+    - Toggle active/inactive status to enable/disable chatbot platform-wide
+    - Control capabilities: conversational mode, presentation card suggestions, appointment scheduling
+  - Backend validation: chatbot start/message endpoints check isActive flag
+  - Frontend respects active status: chatbot button only shows when enabled
+  - Database-driven configuration stored in chatbot_config table
+  - Uses OpenAI GPT-5 for natural language processing
 - Carousel navigation arrows repositioned below carousel content, centered with gap-4 spacing for better UX
 - **Location Standardization**: All property locations updated to "Tulum" for consistency and improved search functionality
 - **Condominium System**: Created approval workflow for condominiums with 396 pre-approved units
