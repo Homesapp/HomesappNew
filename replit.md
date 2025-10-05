@@ -34,6 +34,14 @@ Preferred communication style: Simple, everyday language.
   - Profile image displays as thumbnail in UserProfileMenu (top-right)
   - Large avatar preview on profile page with upload/remove controls
   - Smart update logic: only sends image data when actually changed to preserve existing photos
+- **Enhanced Public Search**: Advanced search filters in PublicDashboard
+  - Toggleable advanced filters section with SlidersHorizontal icon button
+  - Property type dropdown (Casa, Departamento, Villa, Loft, Penthouse, Estudio, Townhouse)
+  - Colony name and condominium name text inputs
+  - Clear filters button to reset all search criteria
+  - Updated search placeholder: "Buscar por ubicación, colonia, condominio o descripción..."
+  - Backend support for propertyType, colonyName, condoName, unitType filters
+  - Search parameters use "q" for text query, properly mapped to filters in API
 
 ## System Architecture
 
