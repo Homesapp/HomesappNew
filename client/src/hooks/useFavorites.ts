@@ -32,9 +32,13 @@ export function useToggleFavorite() {
       } else {
         await apiRequest("POST", "/api/favorites", { propertyId });
       }
+      return { propertyId, newFavoriteState: !isFavorite };
     },
-    onSuccess: () => {
+    onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ["/api/favorites"] });
+      queryClient.invalidateQueries({ 
+        queryKey: ["/api/favorites", data.propertyId, "check"] 
+      });
     },
   });
 }

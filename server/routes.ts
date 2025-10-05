@@ -80,6 +80,37 @@ async function createAuditLog(
   }
 }
 
+// Helper function to check if user has full admin privileges (admin and master only)
+function hasFullAdminPrivileges(userRole: string): boolean {
+  return ["master", "admin"].includes(userRole);
+}
+
+// Helper function to check if user has any admin privileges (including admin_jr)
+function hasAdminPrivileges(userRole: string): boolean {
+  return ["master", "admin", "admin_jr"].includes(userRole);
+}
+
+// Middleware to require full admin privileges
+function requireFullAdmin(req: any, res: any, next: any) {
+  const user = req.user;
+  if (!user) {
+    return res.status(401).json({ message: "Unauthorized" });
+  }
+  
+  const userId = user.claims.sub;
+  storage.getUser(userId).then(dbUser => {
+    if (!dbUser || !hasFullAdminPrivileges(dbUser.role)) {
+      return res.status(403).json({ 
+        message: "Forbidden: This action requires full administrator privileges" 
+      });
+    }
+    next();
+  }).catch(error => {
+    console.error("Error checking admin privileges:", error);
+    res.status(500).json({ message: "Internal server error" });
+  });
+}
+
 // WebSocket clients organized by conversation ID
 const wsClients = new Map<string, Set<WebSocket>>();
 
@@ -946,15 +977,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.patch("/api/admin/condominiums/:id/approve", isAuthenticated, async (req: any, res) => {
+  app.patch("/api/admin/condominiums/:id/approve", isAuthenticated, requireFullAdmin, async (req: any, res) => {
     try {
-      const userId = req.user.claims.sub;
-      const user = await storage.getUser(userId);
       const { id } = req.params;
-
-      if (!user || !["master", "admin", "admin_jr"].includes(user.role)) {
-        return res.status(403).json({ message: "Forbidden" });
-      }
 
       // Validate condominium exists
       const existingCondominium = await storage.getCondominium(id);
@@ -979,15 +1004,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.patch("/api/admin/condominiums/:id/reject", isAuthenticated, async (req: any, res) => {
+  app.patch("/api/admin/condominiums/:id/reject", isAuthenticated, requireFullAdmin, async (req: any, res) => {
     try {
-      const userId = req.user.claims.sub;
-      const user = await storage.getUser(userId);
       const { id } = req.params;
-
-      if (!user || !["master", "admin", "admin_jr"].includes(user.role)) {
-        return res.status(403).json({ message: "Forbidden" });
-      }
 
       // Validate condominium exists
       const existingCondominium = await storage.getCondominium(id);
@@ -2936,7 +2955,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.delete("/api/leads/:id", isAuthenticated, requireRole(["master", "admin", "admin_jr"]), async (req: any, res) => {
+  app.delete("/api/leads/:id", isAuthenticated, requireFullAdmin, async (req: any, res) => {
     try {
       const { id } = req.params;
       
