@@ -1800,6 +1800,60 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Get interested clients for owner's properties (with limited info - no contact details)
+  app.get("/api/owner/interested-clients", isAuthenticated, requireRole(["owner"]), async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+
+      // Get all properties owned by this user
+      const ownerProperties = await db
+        .select({ id: properties.id })
+        .from(properties)
+        .where(eq(properties.ownerId, userId));
+
+      if (ownerProperties.length === 0) {
+        return res.json([]);
+      }
+
+      const propertyIds = ownerProperties.map(p => p.id);
+
+      // Get all rental opportunity requests for these properties
+      const interestedClients = await db
+        .select({
+          id: rentalOpportunityRequests.id,
+          status: rentalOpportunityRequests.status,
+          desiredMoveInDate: rentalOpportunityRequests.desiredMoveInDate,
+          createdAt: rentalOpportunityRequests.createdAt,
+          notes: rentalOpportunityRequests.notes,
+          propertyId: rentalOpportunityRequests.propertyId,
+          propertyTitle: properties.title,
+          propertyAddress: properties.address,
+          propertyPrice: properties.price,
+          // Limited client info - NO CONTACT DETAILS
+          clientId: users.id,
+          clientFirstName: users.firstName,
+          clientLastName: users.lastName,
+          // Presentation card info if exists
+          presentationCardId: presentationCards.id,
+          cardPropertyType: presentationCards.propertyType,
+          cardModality: presentationCards.modality,
+          cardMinPrice: presentationCards.minPrice,
+          cardMaxPrice: presentationCards.maxPrice,
+        })
+        .from(rentalOpportunityRequests)
+        .innerJoin(properties, eq(rentalOpportunityRequests.propertyId, properties.id))
+        .innerJoin(users, eq(rentalOpportunityRequests.userId, users.id))
+        .leftJoin(presentationCards, eq(users.id, presentationCards.clientId))
+        .where(inArray(rentalOpportunityRequests.propertyId, propertyIds))
+        .orderBy(desc(rentalOpportunityRequests.createdAt));
+
+      res.json(interestedClients);
+    } catch (error: any) {
+      console.error("Error getting interested clients:", error);
+      res.status(500).json({ error: error.message });
+    }
+  });
+
   // Counter offer endpoint (for property owner/admin)
   app.post("/api/offers/:offerId/counter", isAuthenticated, requireRole(["admin", "propietario", "vendedor"]), async (req: any, res) => {
     try {
