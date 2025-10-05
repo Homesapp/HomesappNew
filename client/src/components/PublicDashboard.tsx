@@ -211,8 +211,10 @@ export default function PublicDashboard() {
                   </CarouselItem>
                 ))}
               </CarouselContent>
-              <CarouselPrevious className="left-0" />
-              <CarouselNext className="right-0" />
+              <div className="mt-6 flex justify-center gap-4">
+                <CarouselPrevious className="static translate-y-0" data-testid="button-carousel-prev" />
+                <CarouselNext className="static translate-y-0" data-testid="button-carousel-next" />
+              </div>
             </Carousel>
           </div>
         )}
