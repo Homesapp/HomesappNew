@@ -204,7 +204,9 @@ const translations: Record<Language, Record<string, string>> = {
     "public.affiliateBanner.benefit1": "Comisiones competitivas por referencia",
     "public.affiliateBanner.benefit2": "Materiales de marketing profesionales",
     "public.affiliateBanner.benefit3": "Panel de seguimiento en tiempo real",
+    "public.affiliateBanner.benefit4": "Soporte dedicado y capacitación continua",
     "public.affiliateBanner.button": "Convertirme en Afiliado",
+    "public.affiliateBanner.imgAlt": "Programa de afiliados",
     
     // Property Card
     "property.status.rent": "En Renta",
@@ -417,7 +419,9 @@ const translations: Record<Language, Record<string, string>> = {
     "public.affiliateBanner.benefit1": "Competitive referral commissions",
     "public.affiliateBanner.benefit2": "Professional marketing materials",
     "public.affiliateBanner.benefit3": "Real-time tracking dashboard",
+    "public.affiliateBanner.benefit4": "Dedicated support and ongoing training",
     "public.affiliateBanner.button": "Become an Affiliate",
+    "public.affiliateBanner.imgAlt": "Affiliate program",
     
     // Property Card
     "property.status.rent": "For Rent",

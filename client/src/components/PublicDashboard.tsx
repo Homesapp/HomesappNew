@@ -22,6 +22,7 @@ import logoIcon from "@assets/H mes (500 x 300 px)_1759672952263.png";
 import tulumProperty1 from "@assets/stock_images/tulum_mexico_luxury__2d50d3ea.jpg";
 import tulumBeach from "@assets/stock_images/tulum_mexico_beach_t_21c511ca.jpg";
 import serviceProvider from "@assets/stock_images/professional_service_ac32cdb7.jpg";
+import affiliateImage from "@assets/stock_images/professional_service_dabc3389.jpg";
 
 export default function PublicDashboard() {
   const [, setLocation] = useLocation();
@@ -334,36 +335,43 @@ export default function PublicDashboard() {
 
               {/* Affiliate Banner Slide */}
               <CarouselItem>
-                <div className="overflow-hidden rounded-lg border bg-gradient-to-br from-primary/10 to-primary/5">
-                  <div className="absolute top-0 right-0 w-64 h-64 bg-primary/10 rounded-full blur-3xl pointer-events-none" />
-                  <div className="absolute bottom-0 left-0 w-96 h-96 bg-primary/5 rounded-full blur-3xl pointer-events-none" />
-                  <div className="relative p-6 md:p-8 min-h-[20rem] md:min-h-[20rem] flex flex-col justify-center">
-                    <div className="max-w-3xl">
+                <div className="overflow-hidden rounded-lg border bg-card shadow-sm">
+                  <div className="grid md:grid-cols-2 gap-0">
+                    <div className="relative h-64 md:h-80">
+                      <img
+                        src={affiliateImage}
+                        alt={t("public.affiliateBanner.imgAlt")}
+                        className="h-full w-full object-cover"
+                      />
+                      <div className="absolute inset-0 bg-gradient-to-r from-black/60 to-transparent" />
+                    </div>
+                    <div className="p-6 md:p-8 flex flex-col justify-center">
                       <h2 className="text-2xl md:text-3xl font-bold mb-4">{t("public.affiliateBanner.title")}</h2>
                       <p className="text-base text-muted-foreground mb-6">
                         {t("public.affiliateBanner.subtitle")}
                       </p>
-                      <div className="grid sm:grid-cols-2 gap-4 mb-6">
-                        <div className="space-y-3">
-                          <div className="flex items-start gap-3">
-                            <div className="h-2 w-2 rounded-full bg-primary mt-2 flex-shrink-0" />
-                            <span className="text-sm">{t("public.affiliateBanner.benefit1")}</span>
-                          </div>
-                          <div className="flex items-start gap-3">
-                            <div className="h-2 w-2 rounded-full bg-primary mt-2 flex-shrink-0" />
-                            <span className="text-sm">{t("public.affiliateBanner.benefit2")}</span>
-                          </div>
+                      <div className="space-y-3 mb-6">
+                        <div className="flex items-start gap-3">
+                          <div className="h-2 w-2 rounded-full bg-primary mt-2 flex-shrink-0" />
+                          <span className="text-sm">{t("public.affiliateBanner.benefit1")}</span>
                         </div>
-                        <div className="space-y-3">
-                          <div className="flex items-start gap-3">
-                            <div className="h-2 w-2 rounded-full bg-primary mt-2 flex-shrink-0" />
-                            <span className="text-sm">{t("public.affiliateBanner.benefit3")}</span>
-                          </div>
+                        <div className="flex items-start gap-3">
+                          <div className="h-2 w-2 rounded-full bg-primary mt-2 flex-shrink-0" />
+                          <span className="text-sm">{t("public.affiliateBanner.benefit2")}</span>
+                        </div>
+                        <div className="flex items-start gap-3">
+                          <div className="h-2 w-2 rounded-full bg-primary mt-2 flex-shrink-0" />
+                          <span className="text-sm">{t("public.affiliateBanner.benefit3")}</span>
+                        </div>
+                        <div className="flex items-start gap-3">
+                          <div className="h-2 w-2 rounded-full bg-primary mt-2 flex-shrink-0" />
+                          <span className="text-sm">{t("public.affiliateBanner.benefit4")}</span>
                         </div>
                       </div>
                       <Button
                         onClick={() => setLocation("/register")}
                         size="lg"
+                        className="w-fit"
                         data-testid="button-affiliate-join"
                       >
                         {t("public.affiliateBanner.button")}
