@@ -1,4 +1,6 @@
 import { useState, useMemo } from "react";
+import { useMutation } from "@tanstack/react-query";
+import { useLocation } from "wouter";
 import { ServiceProviderCard } from "@/components/ServiceProviderCard";
 import { ServiceProviderFormDialog } from "@/components/ServiceProviderFormDialog";
 import { ServiceFormDialog } from "@/components/ServiceFormDialog";
@@ -17,22 +19,55 @@ import { Search, Plus } from "lucide-react";
 import { useServiceProviders, useServicesByProvider } from "@/hooks/useServiceProviders";
 import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
+import { apiRequest } from "@/lib/queryClient";
 
 function ProviderCardWithServices({ provider, onHire }: { provider: any; onHire: (providerId: string, providerName: string) => void }) {
   const { data: services, isLoading: servicesLoading } = useServicesByProvider(provider.id);
   const { toast } = useToast();
+  const [, setLocation] = useLocation();
+
+  const createConversationMutation = useMutation({
+    mutationFn: async () => {
+      const fullName = `${provider.user.firstName || ""} ${provider.user.lastName || ""}`.trim();
+      
+      const conversation = await apiRequest("POST", "/api/chat/conversations", {
+        type: "internal",
+        title: `Chat con ${fullName || provider.specialty}`,
+        createdById: provider.userId,
+      });
+      
+      await apiRequest("POST", "/api/chat/participants", {
+        conversationId: conversation.id,
+        userId: provider.userId,
+      });
+      
+      return conversation;
+    },
+    onSuccess: (conversation) => {
+      setLocation("/chat");
+      toast({
+        title: "Chat iniciado",
+        description: `Ahora puedes enviar mensajes al proveedor`,
+      });
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Error",
+        description: error.message || "No se pudo iniciar el chat",
+        variant: "destructive",
+      });
+    },
+  });
 
   const handleMessage = () => {
-    toast({
-      title: "Mensaje enviado",
-      description: `Se ha enviado un mensaje a ${provider.user.firstName} ${provider.user.lastName}`,
-    });
+    createConversationMutation.mutate();
   };
 
   const handleCall = () => {
+    const fullName = `${provider.user.firstName || ""} ${provider.user.lastName || ""}`.trim();
     toast({
-      title: "Iniciando llamada",
-      description: `Llamando a ${provider.user.firstName} ${provider.user.lastName}...`,
+      title: "Contacto del proveedor",
+      description: `Para contactar a ${fullName}, utiliza el chat o envía una solicitud de servicio.`,
     });
   };
 
