@@ -187,7 +187,7 @@ export default function OwnerDashboard() {
                 <CardDescription>Visitas agendadas aprobadas</CardDescription>
               </div>
               <Link href="/owner/appointments">
-                <Button variant="outline" size="sm">
+                <Button variant="outline" size="sm" data-testid="button-view-all-appointments">
                   Ver todas
                 </Button>
               </Link>
