@@ -41,14 +41,14 @@ export default function PublicDashboard() {
             <ThemeToggle />
             <Button
               variant="ghost"
-              onClick={() => setLocation("/auth")}
+              onClick={() => setLocation("/login")}
               data-testid="button-login"
             >
               Iniciar Sesión
             </Button>
             <Button
               variant="default"
-              onClick={() => setLocation("/auth?mode=register")}
+              onClick={() => setLocation("/register")}
               data-testid="button-register"
             >
               Registrarse
@@ -246,7 +246,7 @@ export default function PublicDashboard() {
           <Button
             size="lg"
             variant="secondary"
-            onClick={() => setLocation("/auth?mode=register")}
+            onClick={() => setLocation("/register")}
             data-testid="button-cta-register"
           >
             Comenzar Ahora
