@@ -36,6 +36,7 @@ import {
   referralConfig,
   clientReferrals,
   ownerReferrals,
+  feedback,
   type User,
   type Colony,
   type InsertColony,
@@ -112,6 +113,9 @@ import {
   type InsertClientReferral,
   type OwnerReferral,
   type InsertOwnerReferral,
+  type Feedback,
+  type InsertFeedback,
+  type UpdateFeedback,
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, and, or, gte, lte, ilike, desc, sql, isNull } from "drizzle-orm";
@@ -375,6 +379,12 @@ export interface IStorage {
   createPropertyAgreement(agreement: InsertPropertyAgreement): Promise<PropertyAgreement>;
   updatePropertyAgreement(id: string, updates: Partial<InsertPropertyAgreement>): Promise<PropertyAgreement>;
   signPropertyAgreement(id: string, signerName: string, signerIp: string): Promise<PropertyAgreement>;
+
+  // Feedback operations
+  getFeedback(id: string): Promise<Feedback | undefined>;
+  getAllFeedback(filters?: { type?: string; status?: string; userId?: string }): Promise<Feedback[]>;
+  createFeedback(feedbackData: InsertFeedback): Promise<Feedback>;
+  updateFeedback(id: string, updates: UpdateFeedback): Promise<Feedback>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -2102,6 +2112,50 @@ export class DatabaseStorage implements IStorage {
         signerIp,
       })
       .where(eq(propertyAgreements.id, id))
+      .returning();
+    return updated;
+  }
+
+  // Feedback operations
+  async getFeedback(id: string): Promise<Feedback | undefined> {
+    const [feedbackItem] = await db.select().from(feedback).where(eq(feedback.id, id));
+    return feedbackItem;
+  }
+
+  async getAllFeedback(filters?: { type?: string; status?: string; userId?: string }): Promise<Feedback[]> {
+    let query = db.select().from(feedback);
+    
+    const conditions = [];
+    if (filters?.type) {
+      conditions.push(eq(feedback.type, filters.type as any));
+    }
+    if (filters?.status) {
+      conditions.push(eq(feedback.status, filters.status as any));
+    }
+    if (filters?.userId) {
+      conditions.push(eq(feedback.userId, filters.userId));
+    }
+    
+    if (conditions.length > 0) {
+      query = query.where(and(...conditions)) as any;
+    }
+    
+    return await query.orderBy(desc(feedback.createdAt));
+  }
+
+  async createFeedback(feedbackData: InsertFeedback): Promise<Feedback> {
+    const [newFeedback] = await db.insert(feedback).values(feedbackData).returning();
+    return newFeedback;
+  }
+
+  async updateFeedback(id: string, updates: UpdateFeedback): Promise<Feedback> {
+    const [updated] = await db
+      .update(feedback)
+      .set({
+        ...updates,
+        updatedAt: new Date(),
+      })
+      .where(eq(feedback.id, id))
       .returning();
     return updated;
   }

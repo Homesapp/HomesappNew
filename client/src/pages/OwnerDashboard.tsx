@@ -91,7 +91,7 @@ export default function OwnerDashboard() {
       {/* Stats Grid */}
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4 xl:grid-cols-5">
         <Card data-testid="card-total-properties">
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+          <CardHeader className="flex flex-row items-center justify-between gap-2 space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Total Propiedades</CardTitle>
             <Building2 className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
@@ -104,7 +104,7 @@ export default function OwnerDashboard() {
         </Card>
 
         <Card data-testid="card-pending-approvals">
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+          <CardHeader className="flex flex-row items-center justify-between gap-2 space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Visitas Pendientes</CardTitle>
             <Clock className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
@@ -117,7 +117,7 @@ export default function OwnerDashboard() {
         </Card>
 
         <Card data-testid="card-change-requests">
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+          <CardHeader className="flex flex-row items-center justify-between gap-2 space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Cambios Pendientes</CardTitle>
             <FileEdit className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
@@ -130,7 +130,7 @@ export default function OwnerDashboard() {
         </Card>
 
         <Card data-testid="card-pending-properties">
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+          <CardHeader className="flex flex-row items-center justify-between gap-2 space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">En Revisión</CardTitle>
             <AlertCircle className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
@@ -143,7 +143,7 @@ export default function OwnerDashboard() {
         </Card>
 
         <Card data-testid="card-interested-clients">
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+          <CardHeader className="flex flex-row items-center justify-between gap-2 space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Clientes Interesados</CardTitle>
             <Users className="h-4 w-4 text-muted-foreground" />
           </CardHeader>

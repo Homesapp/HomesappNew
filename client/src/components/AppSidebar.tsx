@@ -36,6 +36,7 @@ import {
   Zap,
   Bot,
   Share2,
+  MessageSquare,
 } from "lucide-react";
 import logoUrl from "@assets/H mes (500 x 300 px)_1759672952263.png";
 import { Link, useLocation } from "wouter";
@@ -89,6 +90,7 @@ export function AppSidebar({ userRole }: AppSidebarProps) {
     { title: "Gestión de Visitas", url: "/owner/appointments", icon: CalendarCheck, roles: ["owner"] },
     { title: "Notificaciones", url: "/notificaciones", icon: Bell, roles: ["master", "admin", "admin_jr", "seller", "owner", "management", "concierge", "provider", "cliente"] },
     { title: "Mensajes", url: "/chat", icon: MessageCircle, roles: ["master", "admin", "admin_jr", "seller", "owner", "management", "concierge", "provider", "cliente"] },
+    { title: "Feedback", url: "/feedback", icon: MessageSquare, roles: ["master", "admin", "admin_jr", "seller", "owner", "management", "concierge", "provider", "cliente"] },
     { title: "CRM - Leads", url: "/leads", icon: Users, roles: ["master", "admin", "admin_jr", "seller", "management"] },
     { title: "Kanban - Rentas", url: "/rentas", icon: FolderKanban, roles: ["master", "admin", "admin_jr", "seller", "management"] },
     { title: "Propiedades", url: "/properties", icon: Building2, roles: ["master", "admin", "admin_jr", "seller", "management"] },
@@ -108,6 +110,7 @@ export function AppSidebar({ userRole }: AppSidebarProps) {
     { title: "Plantillas de Acuerdos", url: "/admin/agreement-templates", icon: FileText, roles: ["master", "admin"] },
     { title: "Condominios", url: "/admin/condominiums", icon: Building2, roles: ["master", "admin", "admin_jr"] },
     { title: "Configuración Chatbot", url: "/admin/chatbot-config", icon: Bot, roles: ["master", "admin"] },
+    { title: "Gestión de Feedback", url: "/admin/feedback", icon: MessageSquare, roles: ["master", "admin", "admin_jr"] },
     { title: "Crear Usuario", url: "/admin/create-user", icon: UserPlus, roles: ["master", "admin"] },
     { title: "Gestión Usuarios", url: "/users", icon: UserCog, roles: ["master", "admin"] },
     { title: "Permisos", url: "/permissions", icon: Settings, roles: ["master", "admin"] },
@@ -123,6 +126,7 @@ export function AppSidebar({ userRole }: AppSidebarProps) {
     { title: "Inicio", url: "/", icon: Home },
     { title: "Notificaciones", url: "/notificaciones", icon: Bell },
     { title: "Mensajes", url: "/chat", icon: MessageCircle },
+    { title: "Feedback", url: "/feedback", icon: MessageSquare },
     { title: "Perfil", url: "/perfil", icon: User },
   ];
 

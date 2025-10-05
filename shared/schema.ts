@@ -243,6 +243,18 @@ export const ownerReferralStatusEnum = pgEnum("owner_referral_status", [
   "activo",                  // Active (property published)
 ]);
 
+export const feedbackTypeEnum = pgEnum("feedback_type", [
+  "bug",        // Reporte de bug
+  "mejora",     // Sugerencia de mejora
+]);
+
+export const feedbackStatusEnum = pgEnum("feedback_status", [
+  "nuevo",       // Nuevo reporte
+  "en_revision", // En revisión por administrador
+  "resuelto",    // Resuelto
+  "rechazado",   // Rechazado/No se implementará
+]);
+
 // Users table (required for Replit Auth + extended fields)
 export const users = pgTable("users", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
@@ -976,6 +988,36 @@ export const insertAuditLogSchema = createInsertSchema(auditLogs).omit({
 export type InsertAuditLog = z.infer<typeof insertAuditLogSchema>;
 export type AuditLog = typeof auditLogs.$inferSelect;
 
+// Feedback table (para reportar bugs y sugerir mejoras)
+export const feedback = pgTable("feedback", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: varchar("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  type: feedbackTypeEnum("type").notNull(),
+  status: feedbackStatusEnum("status").notNull().default("nuevo"),
+  title: varchar("title", { length: 200 }).notNull(),
+  description: text("description").notNull(),
+  adminNotes: text("admin_notes"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
+export const insertFeedbackSchema = createInsertSchema(feedback).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+  status: true,
+  adminNotes: true,
+});
+
+export const updateFeedbackSchema = createInsertSchema(feedback).pick({
+  status: true,
+  adminNotes: true,
+});
+
+export type InsertFeedback = z.infer<typeof insertFeedbackSchema>;
+export type UpdateFeedback = z.infer<typeof updateFeedbackSchema>;
+export type Feedback = typeof feedback.$inferSelect;
+
 // Favorites table
 export const favorites = pgTable(
   "favorites",
@@ -1536,6 +1578,13 @@ export const workReportsRelations = relations(workReports, ({ one }) => ({
 export const auditLogsRelations = relations(auditLogs, ({ one }) => ({
   user: one(users, {
     fields: [auditLogs.userId],
+    references: [users.id],
+  }),
+}));
+
+export const feedbackRelations = relations(feedback, ({ one }) => ({
+  user: one(users, {
+    fields: [feedback.userId],
     references: [users.id],
   }),
 }));

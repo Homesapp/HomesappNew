@@ -51,6 +51,8 @@ import {
   insertPropertySubmissionDraftSchema,
   insertPropertyAgreementSchema,
   insertProviderApplicationSchema,
+  insertFeedbackSchema,
+  updateFeedbackSchema,
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, and, inArray, desc } from "drizzle-orm";
@@ -5046,6 +5048,102 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error: any) {
       console.error("Error updating chatbot config:", error);
       res.status(500).json({ message: error.message || "Failed to update chatbot configuration" });
+    }
+  });
+
+  // Feedback routes
+  app.get("/api/feedback", isAuthenticated, requireRole(["master", "admin", "admin_jr"]), async (req: any, res) => {
+    try {
+      const { type, status } = req.query;
+      const filters: any = {};
+      
+      if (type) filters.type = type;
+      if (status) filters.status = status;
+      
+      const feedbackList = await storage.getAllFeedback(filters);
+      res.json(feedbackList);
+    } catch (error: any) {
+      console.error("Error fetching feedback:", error);
+      res.status(500).json({ message: "Failed to fetch feedback" });
+    }
+  });
+
+  app.get("/api/feedback/my-feedback", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user?.claims?.sub || req.session?.adminUser?.id;
+      if (!userId) {
+        return res.status(401).json({ message: "Usuario no autenticado" });
+      }
+      
+      const feedbackList = await storage.getAllFeedback({ userId });
+      res.json(feedbackList);
+    } catch (error: any) {
+      console.error("Error fetching user feedback:", error);
+      res.status(500).json({ message: "Failed to fetch user feedback" });
+    }
+  });
+
+  app.post("/api/feedback", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user?.claims?.sub || req.session?.adminUser?.id;
+      if (!userId) {
+        return res.status(401).json({ message: "Usuario no autenticado" });
+      }
+
+      const validationResult = insertFeedbackSchema.safeParse(req.body);
+      if (!validationResult.success) {
+        return res.status(400).json({
+          message: "Datos inválidos",
+          errors: validationResult.error.errors,
+        });
+      }
+
+      const newFeedback = await storage.createFeedback({
+        ...validationResult.data,
+        userId,
+      });
+
+      await createAuditLog(
+        req,
+        "create",
+        "feedback",
+        newFeedback.id,
+        `Feedback creado: ${newFeedback.type} - ${newFeedback.title}`
+      );
+
+      res.status(201).json(newFeedback);
+    } catch (error: any) {
+      console.error("Error creating feedback:", error);
+      res.status(500).json({ message: "Failed to create feedback" });
+    }
+  });
+
+  app.patch("/api/feedback/:id", isAuthenticated, requireRole(["master", "admin", "admin_jr"]), async (req: any, res) => {
+    try {
+      const { id } = req.params;
+      
+      const validationResult = updateFeedbackSchema.safeParse(req.body);
+      if (!validationResult.success) {
+        return res.status(400).json({
+          message: "Datos inválidos",
+          errors: validationResult.error.errors,
+        });
+      }
+
+      const updatedFeedback = await storage.updateFeedback(id, validationResult.data);
+
+      await createAuditLog(
+        req,
+        "update",
+        "feedback",
+        id,
+        `Feedback actualizado a: ${updatedFeedback.status}`
+      );
+
+      res.json(updatedFeedback);
+    } catch (error: any) {
+      console.error("Error updating feedback:", error);
+      res.status(500).json({ message: "Failed to update feedback" });
     }
   });
 

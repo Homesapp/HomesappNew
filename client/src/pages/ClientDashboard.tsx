@@ -107,7 +107,7 @@ export default function ClientDashboard() {
         {/* Quick Stats */}
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
           <Card data-testid="card-stat-appointments">
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardHeader className="flex flex-row items-center justify-between gap-2 space-y-0 pb-2">
               <CardTitle className="text-sm font-medium">Próximas Citas</CardTitle>
               <CalendarIcon className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
@@ -120,7 +120,7 @@ export default function ClientDashboard() {
           </Card>
 
           <Card data-testid="card-stat-favorites">
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardHeader className="flex flex-row items-center justify-between gap-2 space-y-0 pb-2">
               <CardTitle className="text-sm font-medium">Favoritos</CardTitle>
               <Heart className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
@@ -133,7 +133,7 @@ export default function ClientDashboard() {
           </Card>
 
           <Card data-testid="card-stat-opportunities">
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardHeader className="flex flex-row items-center justify-between gap-2 space-y-0 pb-2">
               <CardTitle className="text-sm font-medium">Oportunidades</CardTitle>
               <Zap className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
@@ -146,7 +146,7 @@ export default function ClientDashboard() {
           </Card>
 
           <Card data-testid="card-stat-properties">
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardHeader className="flex flex-row items-center justify-between gap-2 space-y-0 pb-2">
               <CardTitle className="text-sm font-medium">Propiedades Vistas</CardTitle>
               <TrendingUp className="h-4 w-4 text-muted-foreground" />
             </CardHeader>

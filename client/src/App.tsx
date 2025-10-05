@@ -59,6 +59,8 @@ import Profile from "@/pages/Profile";
 import ProviderApplication from "@/pages/ProviderApplication";
 import CreateUser from "@/pages/CreateUser";
 import Referrals from "@/pages/Referrals";
+import Feedback from "@/pages/Feedback";
+import AdminFeedback from "@/pages/AdminFeedback";
 import NotFound from "@/pages/not-found";
 
 function AuthenticatedApp() {
@@ -205,6 +207,8 @@ function AuthenticatedApp() {
               <Route path="/chat" component={Chat} />
               <Route path="/perfil" component={Profile} />
               <Route path="/referidos" component={Referrals} />
+              <Route path="/feedback" component={Feedback} />
+              <Route path="/admin/feedback" component={AdminFeedback} />
               <Route component={NotFound} />
             </Switch>
           </main>
