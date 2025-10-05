@@ -302,7 +302,7 @@ export default function PublicDashboard() {
                   <CarouselItem key={property.id} className="pl-2 md:pl-4 md:basis-1/2 lg:basis-1/3">
                     <div
                       className="group cursor-pointer overflow-hidden rounded-lg border bg-card hover-elevate active-elevate-2"
-                      onClick={() => setLocation(`/propiedad/${property.id}`)}
+                      onClick={() => setLocation(`/propiedad/${property.id}/completo`)}
                       data-testid={`card-property-${property.id}`}
                     >
                       <div className="relative aspect-[4/3] overflow-hidden bg-muted">
@@ -447,7 +447,7 @@ export default function PublicDashboard() {
               <div
                 key={property.id}
                 className="group cursor-pointer overflow-hidden rounded-lg border bg-card hover-elevate active-elevate-2"
-                onClick={() => setLocation(`/propiedad/${property.id}`)}
+                onClick={() => setLocation(`/propiedad/${property.id}/completo`)}
                 data-testid={`card-all-property-${property.id}`}
               >
                 <div className="relative aspect-square overflow-hidden bg-muted">

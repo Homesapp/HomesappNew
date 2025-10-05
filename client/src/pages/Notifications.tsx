@@ -85,7 +85,7 @@ export default function Notifications() {
     
     if (notification.relatedEntityType && notification.relatedEntityId) {
       if (notification.relatedEntityType === "property") {
-        setLocation(`/propiedad/${notification.relatedEntityId}`);
+        setLocation(`/propiedad/${notification.relatedEntityId}/completo`);
       } else if (notification.relatedEntityType === "appointment") {
         setLocation(`/appointments`);
       } else if (notification.relatedEntityType === "offer") {

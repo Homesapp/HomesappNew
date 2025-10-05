@@ -1173,6 +1173,38 @@ export const insertServiceBookingSchema = createInsertSchema(serviceBookings).om
 export type InsertServiceBooking = z.infer<typeof insertServiceBookingSchema>;
 export type ServiceBooking = typeof serviceBookings.$inferSelect;
 
+// Provider Application Status Enum
+export const providerApplicationStatusEnum = pgEnum("provider_application_status", [
+  "pending",
+  "approved",
+  "rejected",
+]);
+
+// Provider Applications table - for service provider applications
+export const providerApplications = pgTable("provider_applications", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  fullName: text("full_name").notNull(),
+  email: varchar("email", { length: 255 }).notNull(),
+  phone: varchar("phone", { length: 50 }).notNull(),
+  specialty: text("specialty").notNull(), // e.g., "Limpieza", "Mantenimiento", "Jardinería"
+  experience: text("experience").notNull(), // Years of experience description
+  description: text("description").notNull(), // Why they want to join
+  references: text("references"), // Optional references
+  status: providerApplicationStatusEnum("status").notNull().default("pending"),
+  reviewedBy: varchar("reviewed_by").references(() => adminUsers.id), // Admin who reviewed
+  reviewedAt: timestamp("reviewed_at"),
+  reviewNotes: text("review_notes"), // Admin notes
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+export const insertProviderApplicationSchema = createInsertSchema(providerApplications).omit({
+  id: true,
+  createdAt: true,
+});
+
+export type InsertProviderApplication = z.infer<typeof insertProviderApplicationSchema>;
+export type ProviderApplication = typeof providerApplications.$inferSelect;
+
 // Relations
 export const usersRelations = relations(users, ({ many }) => ({
   properties: many(properties, { relationName: "owner" }),

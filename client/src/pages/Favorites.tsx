@@ -160,7 +160,7 @@ export default function Favorites() {
               <CardFooter>
                 <Button
                   className="w-full"
-                  onClick={() => setLocation(`/propiedad/${property.id}`)}
+                  onClick={() => setLocation(`/propiedad/${property.id}/completo`)}
                   data-testid={`button-view-property-${property.id}`}
                 >
                   Ver detalles

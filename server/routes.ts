@@ -47,6 +47,7 @@ import {
   insertAgreementTemplateSchema,
   insertPropertySubmissionDraftSchema,
   insertPropertyAgreementSchema,
+  insertProviderApplicationSchema,
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, and, inArray, desc } from "drizzle-orm";
@@ -3330,6 +3331,82 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Error deleting service booking:", error);
       res.status(500).json({ message: "Failed to delete service booking" });
+    }
+  });
+
+  // Provider Application routes
+  app.post("/api/provider-applications", async (req, res) => {
+    try {
+      const applicationData = insertProviderApplicationSchema.parse({
+        ...req.body,
+        status: "pending",
+      });
+      
+      const application = await storage.createProviderApplication(applicationData);
+      res.status(201).json(application);
+    } catch (error: any) {
+      console.error("Error creating provider application:", error);
+      res.status(400).json({ message: error.message || "Failed to create provider application" });
+    }
+  });
+
+  app.get("/api/provider-applications", isAuthenticated, requireFullAdmin, async (req, res) => {
+    try {
+      const { status } = req.query;
+      const filters: any = {};
+      if (status && typeof status === "string") {
+        filters.status = status;
+      }
+      
+      const applications = await storage.getProviderApplications(filters);
+      res.json(applications);
+    } catch (error) {
+      console.error("Error fetching provider applications:", error);
+      res.status(500).json({ message: "Failed to fetch provider applications" });
+    }
+  });
+
+  app.get("/api/provider-applications/:id", isAuthenticated, requireFullAdmin, async (req, res) => {
+    try {
+      const { id } = req.params;
+      const application = await storage.getProviderApplication(id);
+      
+      if (!application) {
+        return res.status(404).json({ message: "Provider application not found" });
+      }
+      
+      res.json(application);
+    } catch (error) {
+      console.error("Error fetching provider application:", error);
+      res.status(500).json({ message: "Failed to fetch provider application" });
+    }
+  });
+
+  app.patch("/api/provider-applications/:id/status", isAuthenticated, requireFullAdmin, async (req: any, res) => {
+    try {
+      const { id } = req.params;
+      const { status, notes } = req.body;
+      const adminId = req.user.id;
+      
+      if (!["approved", "rejected"].includes(status)) {
+        return res.status(400).json({ message: "Status must be 'approved' or 'rejected'" });
+      }
+      
+      const application = await storage.updateProviderApplicationStatus(id, status, adminId, notes);
+      
+      // Log the action
+      await createAuditLog(
+        req,
+        "update",
+        "provider_application",
+        id,
+        `Provider application ${status} - ${application.fullName}`
+      );
+      
+      res.json(application);
+    } catch (error: any) {
+      console.error("Error updating provider application status:", error);
+      res.status(500).json({ message: error.message || "Failed to update provider application status" });
     }
   });
 

@@ -39,7 +39,7 @@ export function NotificationBell() {
     
     if (notification.relatedEntityType && notification.relatedEntityId) {
       if (notification.relatedEntityType === "property") {
-        setLocation(`/propiedad/${notification.relatedEntityId}`);
+        setLocation(`/propiedad/${notification.relatedEntityId}/completo`);
       } else if (notification.relatedEntityType === "appointment") {
         setLocation(`/appointments`);
       }

@@ -280,7 +280,7 @@ export default function Dashboard() {
                 <Card
                   key={property.id}
                   className="group overflow-hidden hover-elevate cursor-pointer transition-all"
-                  onClick={() => setLocation(`/propiedad/${property.id}`)}
+                  onClick={() => setLocation(`/propiedad/${property.id}/completo`)}
                   data-testid={`card-featured-${property.id}`}
                 >
                   <div className="relative h-56 overflow-hidden">
@@ -384,7 +384,7 @@ export default function Dashboard() {
                 <Card
                   key={property.id}
                   className="group overflow-hidden hover-elevate cursor-pointer transition-all"
-                  onClick={() => setLocation(`/propiedad/${property.id}`)}
+                  onClick={() => setLocation(`/propiedad/${property.id}/completo`)}
                   data-testid={`card-all-${property.id}`}
                 >
                   <div className="relative h-48 overflow-hidden">

@@ -15,6 +15,9 @@ import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/useAuth";
 import { LoadingScreen } from "@/components/ui/loading-screen";
+import { ThemeToggle } from "@/components/ThemeToggle";
+import { LanguageToggle } from "@/components/LanguageToggle";
+import logoIcon from "@assets/H mes (500 x 300 px)_1759672952263.png";
 
 interface SearchFilters {
   query?: string;
@@ -150,6 +153,35 @@ export default function PropertySearch() {
 
   return (
     <div className="min-h-screen bg-background">
+      {/* Public Header - Only show when not authenticated */}
+      {!isAuthenticated && (
+        <header className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
+          <div className="container mx-auto flex h-20 items-center justify-between px-4">
+            <div className="flex items-center cursor-pointer" onClick={() => setLocation("/")}>
+              <img src={logoIcon} alt="HomesApp" className="h-16 w-auto" />
+            </div>
+            <div className="flex items-center gap-2">
+              <LanguageToggle />
+              <ThemeToggle />
+              <Button
+                variant="ghost"
+                onClick={() => setLocation("/login")}
+                data-testid="button-login"
+              >
+                Iniciar Sesión
+              </Button>
+              <Button
+                variant="default"
+                onClick={() => setLocation("/register")}
+                data-testid="button-register"
+              >
+                Registrarse
+              </Button>
+            </div>
+          </div>
+        </header>
+      )}
+      
       <div className="container mx-auto py-6">
         <div className="flex items-center justify-between mb-6">
           <div>
@@ -363,7 +395,7 @@ export default function PropertySearch() {
                     <Card 
                       key={property.id} 
                       className="relative hover-elevate cursor-pointer" 
-                      onClick={() => setLocation(`/propiedad/${property.id}`)}
+                      onClick={() => setLocation(`/propiedad/${property.id}/completo`)}
                       data-testid={`card-property-${property.id}`}
                     >
                       {isAuthenticated && (

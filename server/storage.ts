@@ -31,6 +31,7 @@ import {
   propertySubmissionDrafts,
   propertyAgreements,
   serviceBookings,
+  providerApplications,
   type User,
   type Colony,
   type InsertColony,
@@ -96,6 +97,8 @@ import {
   type InsertPropertyAgreement,
   type ServiceBooking,
   type InsertServiceBooking,
+  type ProviderApplication,
+  type InsertProviderApplication,
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, and, or, gte, lte, ilike, desc, sql } from "drizzle-orm";
@@ -212,6 +215,12 @@ export interface IStorage {
   updateServiceBooking(id: string, updates: Partial<InsertServiceBooking>): Promise<ServiceBooking>;
   updateServiceBookingStatus(id: string, status: string): Promise<ServiceBooking>;
   deleteServiceBooking(id: string): Promise<void>;
+  
+  // Provider Application operations
+  getProviderApplication(id: string): Promise<ProviderApplication | undefined>;
+  getProviderApplications(filters?: { status?: string }): Promise<ProviderApplication[]>;
+  createProviderApplication(application: InsertProviderApplication): Promise<ProviderApplication>;
+  updateProviderApplicationStatus(id: string, status: string, adminId: string, notes?: string): Promise<ProviderApplication>;
   
   // Offer operations
   getOffer(id: string): Promise<Offer | undefined>;
@@ -1030,6 +1039,41 @@ export class DatabaseStorage implements IStorage {
 
   async deleteServiceBooking(id: string): Promise<void> {
     await db.delete(serviceBookings).where(eq(serviceBookings.id, id));
+  }
+
+  // Provider Application operations
+  async getProviderApplication(id: string): Promise<ProviderApplication | undefined> {
+    const [application] = await db.select().from(providerApplications).where(eq(providerApplications.id, id));
+    return application;
+  }
+
+  async getProviderApplications(filters?: { status?: string }): Promise<ProviderApplication[]> {
+    let query = db.select().from(providerApplications);
+    
+    if (filters?.status) {
+      query = query.where(eq(providerApplications.status, filters.status as any)) as any;
+    }
+
+    return await query.orderBy(desc(providerApplications.createdAt));
+  }
+
+  async createProviderApplication(applicationData: InsertProviderApplication): Promise<ProviderApplication> {
+    const [application] = await db.insert(providerApplications).values(applicationData).returning();
+    return application;
+  }
+
+  async updateProviderApplicationStatus(id: string, status: string, adminId: string, notes?: string): Promise<ProviderApplication> {
+    const [application] = await db
+      .update(providerApplications)
+      .set({ 
+        status: status as any, 
+        reviewedBy: adminId,
+        reviewedAt: new Date(),
+        reviewNotes: notes 
+      })
+      .where(eq(providerApplications.id, id))
+      .returning();
+    return application;
   }
 
   // Offer operations
