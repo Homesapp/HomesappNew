@@ -199,9 +199,10 @@ export const notificationTypeEnum = pgEnum("notification_type", [
 ]);
 
 export const chatTypeEnum = pgEnum("chat_type", [
+  "appointment", // Chat de citas
   "rental", // Chat de rentas en curso
   "internal", // Chat interno (administración, mantenimiento, limpieza)
-  "support", // Chat con HomesApp
+  "support", // Chat con HomesApp (soporte + chatbot)
 ]);
 
 export const agreementTemplateTypeEnum = pgEnum("agreement_template_type", [
