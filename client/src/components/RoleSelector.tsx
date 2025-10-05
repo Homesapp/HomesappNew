@@ -21,6 +21,9 @@ const ROLE_LABELS: Record<string, string> = {
   management: "Gestión",
   concierge: "Conserje",
   provider: "Proveedor",
+  abogado: "Abogado",
+  contador: "Contador",
+  agente_servicios_especiales: "Agente de Servicios Especiales",
 };
 
 const ALL_ROLES = [
@@ -33,6 +36,9 @@ const ALL_ROLES = [
   "management",
   "concierge",
   "provider",
+  "abogado",
+  "contador",
+  "agente_servicios_especiales",
 ];
 
 export function RoleSelector() {

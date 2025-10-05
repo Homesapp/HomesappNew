@@ -30,11 +30,22 @@ import {
   Bell,
   MessageCircle,
   User,
+  HelpCircle,
 } from "lucide-react";
 import { Link, useLocation } from "wouter";
 import { RoleToggle } from "@/components/RoleToggle";
+import { Button } from "@/components/ui/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
+import { useState } from "react";
 
-export type UserRole = "master" | "admin" | "admin_jr" | "seller" | "owner" | "management" | "concierge" | "provider";
+export type UserRole = "master" | "admin" | "admin_jr" | "seller" | "owner" | "management" | "concierge" | "provider" | "abogado" | "contador" | "agente_servicios_especiales";
 
 export type AppSidebarProps = {
   userRole: UserRole;
@@ -49,10 +60,14 @@ const roleLabels: Record<UserRole, string> = {
   management: "Management",
   concierge: "Conserje",
   provider: "Proveedor",
+  abogado: "Abogado",
+  contador: "Contador",
+  agente_servicios_especiales: "Agente de Servicios Especiales",
 };
 
 export function AppSidebar({ userRole }: AppSidebarProps) {
   const [location] = useLocation();
+  const [helpOpen, setHelpOpen] = useState(false);
 
   const mainItems = [
     { title: "Inicio", url: "/", icon: Home, roles: ["master", "admin", "admin_jr", "seller", "management", "concierge", "provider", "cliente"] },
@@ -72,8 +87,8 @@ export function AppSidebar({ userRole }: AppSidebarProps) {
     { title: "Presupuestos", url: "/presupuestos", icon: FileText, roles: ["master", "admin", "admin_jr", "owner", "management", "provider"] },
     { title: "Tareas", url: "/tareas", icon: ListTodo, roles: ["master", "admin", "admin_jr", "management", "concierge"] },
     { title: "Clientes", url: "/clientes", icon: Users, roles: ["master", "admin", "admin_jr", "seller"] },
-    { title: "Tarjetas", url: "/presentation-cards", icon: ClipboardList, roles: ["master", "admin", "admin_jr", "seller"] },
-    { title: "Mi Perfil", url: "/perfil", icon: User, roles: ["master", "admin", "admin_jr", "seller", "owner", "management", "concierge", "provider", "cliente"] },
+    { title: "Tarjetas", url: "/presentation-cards", icon: ClipboardList, roles: ["master", "admin", "admin_jr", "seller", "cliente"] },
+    { title: "Mi Perfil", url: "/perfil", icon: User, roles: ["master", "admin", "admin_jr", "seller", "owner", "management", "concierge", "provider", "cliente", "abogado", "contador", "agente_servicios_especiales"] },
   ];
 
   const adminItems = [
@@ -165,8 +180,93 @@ export function AppSidebar({ userRole }: AppSidebarProps) {
       </SidebarContent>
 
       <SidebarFooter>
-        <div className="p-4 border-t">
+        <div className="p-4 border-t space-y-2">
           <RoleToggle />
+          <Dialog open={helpOpen} onOpenChange={setHelpOpen}>
+            <DialogTrigger asChild>
+              <Button
+                variant="outline"
+                className="w-full justify-start gap-2"
+                data-testid="button-help"
+              >
+                <HelpCircle className="h-4 w-4" />
+                <span>Ayuda y Guías</span>
+              </Button>
+            </DialogTrigger>
+            <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
+              <DialogHeader>
+                <DialogTitle>HomesApp - Ayuda y Guías</DialogTitle>
+                <DialogDescription>
+                  Información sobre la aplicación y guías de uso
+                </DialogDescription>
+              </DialogHeader>
+              <div className="space-y-4">
+                <section>
+                  <h3 className="font-semibold text-lg mb-2">Acerca de HomesApp</h3>
+                  <p className="text-sm text-muted-foreground">
+                    HomesApp es una plataforma integral de gestión inmobiliaria diseñada para
+                    facilitar la administración de propiedades, citas, ofertas y comunicación entre
+                    propietarios, clientes y personal de la agencia.
+                  </p>
+                </section>
+
+                <section>
+                  <h3 className="font-semibold text-lg mb-2">Guías Rápidas</h3>
+                  <div className="space-y-3">
+                    <div>
+                      <h4 className="font-medium text-sm mb-1">Para Clientes:</h4>
+                      <ul className="text-sm text-muted-foreground list-disc list-inside space-y-1">
+                        <li>Busca propiedades desde "Buscar Propiedades"</li>
+                        <li>Guarda tus favoritos para revisarlos más tarde</li>
+                        <li>Solicita oportunidades de renta desde los detalles de la propiedad</li>
+                        <li>Crea tu tarjeta de presentación en "Tarjetas"</li>
+                        <li>Revisa tus oportunidades en "Mis Oportunidades"</li>
+                      </ul>
+                    </div>
+                    <div>
+                      <h4 className="font-medium text-sm mb-1">Para Propietarios:</h4>
+                      <ul className="text-sm text-muted-foreground list-disc list-inside space-y-1">
+                        <li>Gestiona tus propiedades desde "Mis Propiedades"</li>
+                        <li>Revisa y aprueba citas en "Gestión de Visitas"</li>
+                        <li>Actualiza tu configuración de notificaciones</li>
+                        <li>Solicita cambios a tus propiedades (sujeto a aprobación)</li>
+                      </ul>
+                    </div>
+                    <div>
+                      <h4 className="font-medium text-sm mb-1">Para Administradores:</h4>
+                      <ul className="text-sm text-muted-foreground list-disc list-inside space-y-1">
+                        <li>Gestiona usuarios desde "Gestión Usuarios"</li>
+                        <li>Revisa solicitudes de cambio en propiedades</li>
+                        <li>Administra reportes de inspección</li>
+                        <li>Accede al backoffice para operaciones administrativas</li>
+                      </ul>
+                    </div>
+                  </div>
+                </section>
+
+                <section>
+                  <h3 className="font-semibold text-lg mb-2">Características Principales</h3>
+                  <ul className="text-sm text-muted-foreground list-disc list-inside space-y-1">
+                    <li>Sistema de roles con permisos personalizados</li>
+                    <li>Chat en tiempo real entre usuarios</li>
+                    <li>Gestión de citas con integración de Google Calendar</li>
+                    <li>Sistema de ofertas y contrafertas</li>
+                    <li>Kanban para leads y rentas</li>
+                    <li>Presupuestos y gestión de servicios</li>
+                    <li>Sistema de notificaciones personalizable</li>
+                  </ul>
+                </section>
+
+                <section>
+                  <h3 className="font-semibold text-lg mb-2">Soporte</h3>
+                  <p className="text-sm text-muted-foreground">
+                    ¿Necesitas ayuda adicional? Contacta al equipo de soporte a través del sistema
+                    de mensajes o comunícate con tu administrador.
+                  </p>
+                </section>
+              </div>
+            </DialogContent>
+          </Dialog>
         </div>
       </SidebarFooter>
     </Sidebar>
