@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { Building2, Eye, EyeOff } from "lucide-react";
@@ -37,6 +38,7 @@ export default function Register() {
       firstName: "",
       lastName: "",
       phone: "",
+      preferredLanguage: "es",
     },
   });
 
@@ -140,6 +142,27 @@ export default function Register() {
               {form.formState.errors.phone && (
                 <p className="text-sm text-destructive">
                   {form.formState.errors.phone.message}
+                </p>
+              )}
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="preferredLanguage">Idioma Preferido</Label>
+              <Select
+                value={form.watch("preferredLanguage")}
+                onValueChange={(value) => form.setValue("preferredLanguage", value as "es" | "en")}
+              >
+                <SelectTrigger id="preferredLanguage" data-testid="select-language">
+                  <SelectValue placeholder="Selecciona un idioma" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="es">Español</SelectItem>
+                  <SelectItem value="en">English</SelectItem>
+                </SelectContent>
+              </Select>
+              {form.formState.errors.preferredLanguage && (
+                <p className="text-sm text-destructive">
+                  {form.formState.errors.preferredLanguage.message}
                 </p>
               )}
             </div>

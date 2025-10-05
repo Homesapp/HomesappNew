@@ -1,4 +1,6 @@
 import { createContext, useContext, useState, useEffect, ReactNode } from "react";
+import { useQuery } from "@tanstack/react-query";
+import type { User } from "@shared/schema";
 
 type Language = "es" | "en";
 
@@ -110,10 +112,25 @@ const translations: Record<Language, Record<string, string>> = {
 };
 
 export function LanguageProvider({ children }: { children: ReactNode }) {
+  const { data: user } = useQuery<User>({
+    queryKey: ["/api/auth/user"],
+    retry: false,
+  });
+
   const [language, setLanguageState] = useState<Language>(() => {
     const saved = localStorage.getItem("language");
     return (saved as Language) || "es";
   });
+
+  // Update language when user data loads
+  useEffect(() => {
+    if (user?.preferredLanguage) {
+      const userLang = user.preferredLanguage as Language;
+      if (userLang !== language) {
+        setLanguageState(userLang);
+      }
+    }
+  }, [user?.preferredLanguage]);
 
   useEffect(() => {
     localStorage.setItem("language", language);

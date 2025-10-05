@@ -1,6 +1,9 @@
 import { Button } from "@/components/ui/button";
 import { Languages } from "lucide-react";
 import { useLanguage } from "@/contexts/LanguageContext";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { apiRequest } from "@/lib/queryClient";
+import type { User } from "@shared/schema";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -10,6 +13,30 @@ import {
 
 export function LanguageToggle() {
   const { language, setLanguage } = useLanguage();
+  const queryClient = useQueryClient();
+  
+  const { data: user } = useQuery<User>({
+    queryKey: ["/api/auth/user"],
+    retry: false,
+  });
+
+  const updateLanguageMutation = useMutation({
+    mutationFn: async (lang: "es" | "en") => {
+      if (user) {
+        await apiRequest("PATCH", "/api/profile", { preferredLanguage: lang });
+      }
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/auth/user"] });
+    },
+  });
+
+  const handleLanguageChange = (lang: "es" | "en") => {
+    setLanguage(lang);
+    if (user) {
+      updateLanguageMutation.mutate(lang);
+    }
+  };
 
   return (
     <DropdownMenu>
@@ -21,14 +48,14 @@ export function LanguageToggle() {
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end">
         <DropdownMenuItem
-          onClick={() => setLanguage("es")}
+          onClick={() => handleLanguageChange("es")}
           data-testid="option-language-es"
           className={language === "es" ? "bg-accent" : ""}
         >
           🇪🇸 Español
         </DropdownMenuItem>
         <DropdownMenuItem
-          onClick={() => setLanguage("en")}
+          onClick={() => handleLanguageChange("en")}
           data-testid="option-language-en"
           className={language === "en" ? "bg-accent" : ""}
         >

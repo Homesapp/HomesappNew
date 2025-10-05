@@ -266,6 +266,7 @@ export const updateUserProfileSchema = z.object({
   phone: z.string().max(20).optional().or(z.literal("")),
   bio: z.string().max(500).optional().or(z.literal("")),
   profileImageUrl: z.string().url("Debe ser una URL válida").optional().or(z.literal("")),
+  preferredLanguage: z.enum(["es", "en"]).optional(),
 });
 
 export type UpdateUserProfile = z.infer<typeof updateUserProfileSchema>;
@@ -350,6 +351,7 @@ export const userRegistrationSchema = z.object({
   firstName: z.string().min(1, "Nombre es requerido"),
   lastName: z.string().min(1, "Apellido es requerido"),
   phone: z.string().optional(),
+  preferredLanguage: z.enum(["es", "en"]).default("es"),
 });
 
 export type UserRegistration = z.infer<typeof userRegistrationSchema>;

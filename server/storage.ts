@@ -111,7 +111,7 @@ export interface IStorage {
   updateUserAdditionalRole(id: string, additionalRole: string | null): Promise<User>;
   verifyUserEmail(userId: string): Promise<User>;
   approveAllPendingUsers(): Promise<number>;
-  updateUserProfile(id: string, updates: { firstName?: string; lastName?: string; bio?: string; profileImageUrl?: string; phone?: string }): Promise<User>;
+  updateUserProfile(id: string, updates: { firstName?: string; lastName?: string; bio?: string; profileImageUrl?: string; phone?: string; preferredLanguage?: string }): Promise<User>;
   deleteUser(id: string): Promise<void>;
   
   // Email verification token operations
@@ -405,7 +405,7 @@ export class DatabaseStorage implements IStorage {
     return user;
   }
 
-  async updateUserProfile(id: string, updates: { firstName?: string; lastName?: string; bio?: string; profileImageUrl?: string; phone?: string }): Promise<User> {
+  async updateUserProfile(id: string, updates: { firstName?: string; lastName?: string; bio?: string; profileImageUrl?: string; phone?: string; preferredLanguage?: string }): Promise<User> {
     const [user] = await db
       .update(users)
       .set({ ...updates, updatedAt: new Date() })

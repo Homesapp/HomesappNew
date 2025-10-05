@@ -485,7 +485,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         });
       }
 
-      const { email, password, firstName, lastName, phone } = validationResult.data;
+      const { email, password, firstName, lastName, phone, preferredLanguage } = validationResult.data;
 
       // Check if user already exists
       const existingUser = await storage.getUserByEmail(email);
@@ -503,6 +503,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         firstName,
         lastName,
         phone,
+        preferredLanguage: preferredLanguage || "es",
         role: "cliente",
         status: "approved",
         emailVerified: false,
