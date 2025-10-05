@@ -1370,6 +1370,143 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Rental Application routes (Rental Process Kanban)
+  app.get("/api/rental-applications", isAuthenticated, async (req, res) => {
+    try {
+      const { status, propertyId, applicantId } = req.query;
+      const filters: any = {};
+      if (status) filters.status = status;
+      if (propertyId) filters.propertyId = propertyId;
+      if (applicantId) filters.applicantId = applicantId;
+
+      const applications = await storage.getRentalApplications(filters);
+      res.json(applications);
+    } catch (error) {
+      console.error("Error fetching rental applications:", error);
+      res.status(500).json({ message: "Failed to fetch rental applications" });
+    }
+  });
+
+  app.get("/api/rental-applications/:id", isAuthenticated, async (req, res) => {
+    try {
+      const { id } = req.params;
+      const application = await storage.getRentalApplication(id);
+      if (!application) {
+        return res.status(404).json({ message: "Rental application not found" });
+      }
+      res.json(application);
+    } catch (error) {
+      console.error("Error fetching rental application:", error);
+      res.status(500).json({ message: "Failed to fetch rental application" });
+    }
+  });
+
+  app.post("/api/rental-applications", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const applicationData = insertRentalApplicationSchema.parse({
+        ...req.body,
+        applicantId: req.body.applicantId || userId,
+      });
+
+      const application = await storage.createRentalApplication(applicationData);
+      
+      // Log rental application creation
+      await createAuditLog(
+        req,
+        "create",
+        "rental_application",
+        application.id,
+        `Solicitud de renta creada - Estado: ${application.status}`
+      );
+      
+      res.status(201).json(application);
+    } catch (error: any) {
+      console.error("Error creating rental application:", error);
+      res.status(400).json({ message: error.message || "Failed to create rental application" });
+    }
+  });
+
+  app.patch("/api/rental-applications/:id", isAuthenticated, async (req: any, res) => {
+    try {
+      const { id } = req.params;
+      const application = await storage.updateRentalApplication(id, req.body);
+      
+      // Log rental application update
+      await createAuditLog(
+        req,
+        "update",
+        "rental_application",
+        id,
+        `Solicitud de renta actualizada - Estado: ${application.status}`
+      );
+      
+      res.json(application);
+    } catch (error) {
+      console.error("Error updating rental application:", error);
+      res.status(500).json({ message: "Failed to update rental application" });
+    }
+  });
+
+  app.patch("/api/rental-applications/:id/status", isAuthenticated, async (req: any, res) => {
+    try {
+      const { id } = req.params;
+      const { status } = req.body;
+      
+      if (!status) {
+        return res.status(400).json({ message: "Status is required" });
+      }
+
+      const application = await storage.updateRentalApplicationStatus(id, status);
+      
+      // Log status change
+      await createAuditLog(
+        req,
+        "update",
+        "rental_application",
+        id,
+        `Estado de solicitud cambiado a: ${status}`
+      );
+      
+      res.json(application);
+    } catch (error) {
+      console.error("Error updating rental application status:", error);
+      res.status(500).json({ message: "Failed to update rental application status" });
+    }
+  });
+
+  app.delete("/api/rental-applications/:id", isAuthenticated, async (req: any, res) => {
+    try {
+      const { id } = req.params;
+      const userId = req.user.claims.sub;
+      const user = await storage.getUser(userId);
+      
+      if (!user || !["master", "admin", "admin_jr"].includes(user.role)) {
+        return res.status(403).json({ message: "Forbidden" });
+      }
+
+      const application = await storage.getRentalApplication(id);
+      if (!application) {
+        return res.status(404).json({ message: "Rental application not found" });
+      }
+
+      // Log deletion
+      await createAuditLog(
+        req,
+        "delete",
+        "rental_application",
+        id,
+        `Solicitud de renta eliminada - Estado: ${application.status}`
+      );
+
+      await storage.deleteRentalApplication(id);
+      res.status(204).send();
+    } catch (error) {
+      console.error("Error deleting rental application:", error);
+      res.status(500).json({ message: "Failed to delete rental application" });
+    }
+  });
+
   // Permission routes
   app.get("/api/users/:id/permissions", isAuthenticated, requireRole(["master", "admin"]), async (req, res) => {
     try {
