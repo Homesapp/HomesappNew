@@ -1,0 +1,27 @@
+la barra lateral donde dice inicio, buscar propiedades, etc, necesito que sea mas pequeña, y tener la opcion de colapsarse o expandirse
+
+los chats deben ser live
+
+para las notificaciones los usuarios deben tener una seccion si quieren recibir algunas de ellas por correo electronico
+
+la pantalla de inicio del cliente se ve bastante mal, necesitamos algo distinto, siento que todo esta demasiado separado y los textos de las cajas de las propiedades estan torcidos
+
+tambien falta la seccion de tarjetas de presentacion del cliente, a donde podra armar el perfil de lo que busca con los siguientes campos, presupuesto, tipo de propiedad deseada, cuantas recamaras, cuantos baños, fecha de ingreso, tiempo de contrato ( 6meses - 1 año - 2 años - 3 años - 4 años - 5 años ), si tiene mascotas o no ( en este apartado necesito foto de la mascota ), y algun tipo de solicitud especial de amenidades para la propiedad que busca
+
+21 minutes ago
+en la seccion de buscar propiedades, los clientes pueden usar como filtro su tarjeta de presentacion para busqueda rapida de propiedades, aparecen las 3 posibles pero seleccionable solo la que tenga completa, tambien tendran la posibilidad de ponerle un nombre a medida a esa tarjeta si quieren.
+
+como administrador dentro de la gestion de usuarios, tengo que poder tener la habilidad de darle o quitarle permisos a cualquier usuario, asi como cambiarles de rol y cambiar los permisos que tiene cada rol tambien
+
+quitar la opcion de backoffice que esta en el menu de mi cuenta para los usuarios clientes y propietarios
+
+el rol propietario tambien debe ingresar directamente a su dashboard cuando cambia de usuario,
+
+en ver perfil ellos podran editar su informacion personal, subir foto de perfil
+nombre, apellidos, telefono, correo, contraseña, alguna bio de ellos, y opcion de eliminar su cuenta si asi lo desean.
+
+la pagina de inicio para los clientes sigue igual, no ha cambiado en nada, me gustaria un diseño nuevo
+
+falta el boton de traduccion de la pagina de español a ingles tambien en el home sin estar logueado, que por cierto no funciona
+
+las preferencias de las notificaciones no se guardan
