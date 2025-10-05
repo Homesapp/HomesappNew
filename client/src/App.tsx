@@ -36,9 +36,26 @@ import Tasks from "@/pages/Tasks";
 import NotFound from "@/pages/not-found";
 
 function AuthenticatedApp() {
+  const [location] = useLocation();
+  const [_, setLocation] = useLocation();
+  
+  // List of public routes that don't need auth check
+  const publicRoutes = [
+    "/",
+    "/admin-login",
+    "/login",
+    "/register", 
+    "/verify-email",
+    "/buscar-propiedades",
+    "/favoritos"
+  ];
+  
+  const isPublicRoute = publicRoutes.some(route => location === route) || 
+    location.startsWith("/propiedad/");
+  
+  // Only call auth hooks if NOT on a public route
   const { isAuthenticated, isLoading, user } = useAuth();
   const { adminUser, isAdminAuthenticated, isLoading: isAdminLoading } = useAdminAuth();
-  const [_, setLocation] = useLocation();
 
   const adminLogoutMutation = useMutation({
     mutationFn: async () => {
@@ -55,19 +72,8 @@ function AuthenticatedApp() {
     "--sidebar-width-icon": "4rem",
   };
 
-  if (isLoading || isAdminLoading) {
-    return (
-      <div className="flex items-center justify-center h-screen">
-        <div className="text-center space-y-4">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto" />
-          <p className="text-muted-foreground">Cargando...</p>
-        </div>
-      </div>
-    );
-  }
-
-  // If not authenticated with either system, show public pages
-  if (!isAuthenticated && !isAdminAuthenticated) {
+  // If on public route, show public pages immediately
+  if (isPublicRoute) {
     return (
       <Switch>
         <Route path="/admin-login" component={AdminLogin} />
@@ -82,6 +88,23 @@ function AuthenticatedApp() {
         <Route component={PublicDashboard} />
       </Switch>
     );
+  }
+
+  if (isLoading || isAdminLoading) {
+    return (
+      <div className="flex items-center justify-center h-screen">
+        <div className="text-center space-y-4">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto" />
+          <p className="text-muted-foreground">Cargando...</p>
+        </div>
+      </div>
+    );
+  }
+
+  // If not authenticated, redirect to home
+  if (!isAuthenticated && !isAdminAuthenticated) {
+    setLocation("/");
+    return null;
   }
 
   // Determine which user is authenticated
