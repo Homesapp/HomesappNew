@@ -31,6 +31,7 @@ import {
   MessageCircle,
   User,
   HelpCircle,
+  Plus,
 } from "lucide-react";
 import { Link, useLocation } from "wouter";
 import { RoleToggle } from "@/components/RoleToggle";
@@ -77,6 +78,7 @@ export function AppSidebar({ userRole }: AppSidebarProps) {
     { title: "Mis Favoritos", url: "/favoritos", icon: Heart, roles: ["cliente"] },
     { title: "Mis Oportunidades", url: "/mis-oportunidades", icon: Calendar, roles: ["cliente"] },
     { title: "Mis Propiedades", url: "/mis-propiedades", icon: Building2, roles: ["owner"] },
+    { title: "Cargar Propiedad", url: "/owner/property/new", icon: Plus, roles: ["owner"] },
     { title: "Gestión de Visitas", url: "/owner/appointments", icon: CalendarCheck, roles: ["owner"] },
     { title: "Notificaciones", url: "/notificaciones", icon: Bell, roles: ["master", "admin", "admin_jr", "seller", "owner", "management", "concierge", "provider", "cliente"] },
     { title: "Mensajes", url: "/chat", icon: MessageCircle, roles: ["master", "admin", "admin_jr", "seller", "owner", "management", "concierge", "provider"] },
