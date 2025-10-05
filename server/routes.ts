@@ -3255,6 +3255,178 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Review routes
+  // Property Reviews
+  app.get("/api/reviews/properties", async (req, res) => {
+    try {
+      const { propertyId, clientId } = req.query;
+      const filters: any = {};
+      if (propertyId) filters.propertyId = propertyId;
+      if (clientId) filters.clientId = clientId;
+      const reviews = await storage.getPropertyReviews(filters);
+      res.json(reviews);
+    } catch (error) {
+      console.error("Error fetching property reviews:", error);
+      res.status(500).json({ message: "Failed to fetch property reviews" });
+    }
+  });
+
+  app.post("/api/reviews/properties", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const reviewData = {
+        ...req.body,
+        clientId: userId,
+      };
+      const review = await storage.createPropertyReview(reviewData);
+      
+      await createAuditLog(
+        req,
+        "create",
+        "property_review",
+        review.id,
+        `Review creado para propiedad ${review.propertyId} - Rating: ${review.rating}`
+      );
+      
+      res.status(201).json(review);
+    } catch (error: any) {
+      console.error("Error creating property review:", error);
+      res.status(400).json({ message: error.message || "Failed to create property review" });
+    }
+  });
+
+  // Appointment Reviews
+  app.get("/api/reviews/appointments", isAuthenticated, async (req, res) => {
+    try {
+      const { appointmentId, clientId } = req.query;
+      const filters: any = {};
+      if (appointmentId) filters.appointmentId = appointmentId;
+      if (clientId) filters.clientId = clientId;
+      const reviews = await storage.getAppointmentReviews(filters);
+      res.json(reviews);
+    } catch (error) {
+      console.error("Error fetching appointment reviews:", error);
+      res.status(500).json({ message: "Failed to fetch appointment reviews" });
+    }
+  });
+
+  app.post("/api/reviews/appointments", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const reviewData = {
+        ...req.body,
+        clientId: userId,
+      };
+      const review = await storage.createAppointmentReview(reviewData);
+      
+      await createAuditLog(
+        req,
+        "create",
+        "appointment_review",
+        review.id,
+        `Review creado para cita ${review.appointmentId} - Rating: ${review.rating}`
+      );
+      
+      res.status(201).json(review);
+    } catch (error: any) {
+      console.error("Error creating appointment review:", error);
+      res.status(400).json({ message: error.message || "Failed to create appointment review" });
+    }
+  });
+
+  // Concierge Reviews (from clients)
+  app.get("/api/reviews/concierges", async (req, res) => {
+    try {
+      const { conciergeId, clientId } = req.query;
+      const filters: any = {};
+      if (conciergeId) filters.conciergeId = conciergeId;
+      if (clientId) filters.clientId = clientId;
+      const reviews = await storage.getConciergeReviews(filters);
+      res.json(reviews);
+    } catch (error) {
+      console.error("Error fetching concierge reviews:", error);
+      res.status(500).json({ message: "Failed to fetch concierge reviews" });
+    }
+  });
+
+  app.post("/api/reviews/concierges", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const reviewData = {
+        ...req.body,
+        clientId: userId,
+      };
+      const review = await storage.createConciergeReview(reviewData);
+      
+      await createAuditLog(
+        req,
+        "create",
+        "concierge_review",
+        review.id,
+        `Review creado para conserje ${review.conciergeId} - Rating: ${review.rating}`
+      );
+      
+      res.status(201).json(review);
+    } catch (error: any) {
+      console.error("Error creating concierge review:", error);
+      res.status(400).json({ message: error.message || "Failed to create concierge review" });
+    }
+  });
+
+  // Client Reviews (from concierges)
+  app.get("/api/reviews/clients", isAuthenticated, async (req: any, res) => {
+    try {
+      const { clientId, conciergeId } = req.query;
+      const userId = req.user.claims.sub;
+      const user = await storage.getUser(userId);
+      
+      // Only concierges can view client reviews
+      if (user?.role !== "concierge" && !["admin", "master", "admin_jr"].includes(user?.role as string)) {
+        return res.status(403).json({ message: "Acceso denegado" });
+      }
+      
+      const filters: any = {};
+      if (clientId) filters.clientId = clientId;
+      if (conciergeId) filters.conciergeId = conciergeId;
+      const reviews = await storage.getClientReviews(filters);
+      res.json(reviews);
+    } catch (error) {
+      console.error("Error fetching client reviews:", error);
+      res.status(500).json({ message: "Failed to fetch client reviews" });
+    }
+  });
+
+  app.post("/api/reviews/clients", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const user = await storage.getUser(userId);
+      
+      // Only concierges can create client reviews
+      if (user?.role !== "concierge") {
+        return res.status(403).json({ message: "Solo los conserjes pueden dejar reviews de clientes" });
+      }
+      
+      const reviewData = {
+        ...req.body,
+        conciergeId: userId,
+      };
+      const review = await storage.createClientReview(reviewData);
+      
+      await createAuditLog(
+        req,
+        "create",
+        "client_review",
+        review.id,
+        `Review creado para cliente ${review.clientId} - Rating: ${review.rating}`
+      );
+      
+      res.status(201).json(review);
+    } catch (error: any) {
+      console.error("Error creating client review:", error);
+      res.status(400).json({ message: error.message || "Failed to create client review" });
+    }
+  });
+
   // Presentation card routes
   app.get("/api/presentation-cards", isAuthenticated, async (req, res) => {
     try {
