@@ -744,6 +744,140 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Colony routes
+  app.get("/api/colonies", async (req, res) => {
+    try {
+      const { active } = req.query;
+      const filters: any = {};
+      if (active !== undefined) filters.active = active === "true";
+      
+      const colonies = await storage.getColonies(filters);
+      res.json(colonies);
+    } catch (error) {
+      console.error("Error fetching colonies:", error);
+      res.status(500).json({ message: "Failed to fetch colonies" });
+    }
+  });
+
+  app.get("/api/colonies/active", async (req, res) => {
+    try {
+      const colonies = await storage.getActiveColonies();
+      res.json(colonies);
+    } catch (error) {
+      console.error("Error fetching active colonies:", error);
+      res.status(500).json({ message: "Failed to fetch active colonies" });
+    }
+  });
+
+  app.post("/api/admin/colonies", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const user = await storage.getUser(userId);
+
+      if (!user || !["master", "admin", "admin_jr"].includes(user.role)) {
+        return res.status(403).json({ message: "Forbidden" });
+      }
+      
+      // Validate request body with Zod
+      const colonySchema = z.object({
+        name: z.string().min(1, "El nombre de la colonia es requerido"),
+        slug: z.string().min(1, "El slug es requerido"),
+        active: z.boolean().optional().default(true),
+      });
+      
+      const validationResult = colonySchema.safeParse(req.body);
+      if (!validationResult.success) {
+        return res.status(400).json({ 
+          message: "Datos inválidos", 
+          errors: validationResult.error.errors 
+        });
+      }
+
+      const colony = await storage.createColony(validationResult.data);
+
+      await createAuditLog(
+        req,
+        "create",
+        "colony",
+        colony.id,
+        `Colonia creada: ${colony.name}`
+      );
+
+      res.json(colony);
+    } catch (error) {
+      console.error("Error creating colony:", error);
+      res.status(500).json({ message: "Failed to create colony" });
+    }
+  });
+
+  app.patch("/api/admin/colonies/:id", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const user = await storage.getUser(userId);
+      const { id } = req.params;
+
+      if (!user || !["master", "admin", "admin_jr"].includes(user.role)) {
+        return res.status(403).json({ message: "Forbidden" });
+      }
+
+      const colonySchema = z.object({
+        name: z.string().optional(),
+        slug: z.string().optional(),
+        active: z.boolean().optional(),
+      });
+      
+      const validationResult = colonySchema.safeParse(req.body);
+      if (!validationResult.success) {
+        return res.status(400).json({ 
+          message: "Datos inválidos", 
+          errors: validationResult.error.errors 
+        });
+      }
+
+      const colony = await storage.updateColony(id, validationResult.data);
+
+      await createAuditLog(
+        req,
+        "update",
+        "colony",
+        colony.id,
+        `Colonia actualizada: ${colony.name}`
+      );
+
+      res.json(colony);
+    } catch (error) {
+      console.error("Error updating colony:", error);
+      res.status(500).json({ message: "Failed to update colony" });
+    }
+  });
+
+  app.delete("/api/admin/colonies/:id", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const user = await storage.getUser(userId);
+      const { id } = req.params;
+
+      if (!user || !["master", "admin", "admin_jr"].includes(user.role)) {
+        return res.status(403).json({ message: "Forbidden" });
+      }
+
+      await storage.deleteColony(id);
+
+      await createAuditLog(
+        req,
+        "delete",
+        "colony",
+        id,
+        `Colonia eliminada`
+      );
+
+      res.status(204).send();
+    } catch (error) {
+      console.error("Error deleting colony:", error);
+      res.status(500).json({ message: "Failed to delete colony" });
+    }
+  });
+
   // Condominium routes
   app.get("/api/condominiums", async (req, res) => {
     try {

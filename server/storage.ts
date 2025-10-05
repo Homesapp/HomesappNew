@@ -1,6 +1,7 @@
 import {
   users,
   properties,
+  colonies,
   condominiums,
   appointments,
   presentationCards,
@@ -30,6 +31,8 @@ import {
   propertySubmissionDrafts,
   propertyAgreements,
   type User,
+  type Colony,
+  type InsertColony,
   type Condominium,
   type InsertCondominium,
   type UpsertUser,
@@ -122,6 +125,14 @@ export interface IStorage {
   getRoleRequests(filters?: { userId?: string; status?: string }): Promise<RoleRequest[]>;
   updateRoleRequestStatus(id: string, status: string, reviewedBy: string, reviewNotes?: string): Promise<RoleRequest>;
   getUserActiveRoleRequest(userId: string): Promise<RoleRequest | undefined>;
+  
+  // Colony operations
+  getColony(id: string): Promise<Colony | undefined>;
+  getColonies(filters?: { active?: boolean }): Promise<Colony[]>;
+  getActiveColonies(): Promise<Colony[]>;
+  createColony(colony: InsertColony): Promise<Colony>;
+  updateColony(id: string, updates: Partial<InsertColony>): Promise<Colony>;
+  deleteColony(id: string): Promise<void>;
   
   // Condominium operations
   getCondominium(id: string): Promise<Condominium | undefined>;
@@ -482,6 +493,48 @@ export class DatabaseStorage implements IStorage {
       .orderBy(desc(roleRequests.createdAt))
       .limit(1);
     return request;
+  }
+
+  // Colony operations
+  async getColony(id: string): Promise<Colony | undefined> {
+    const [colony] = await db.select().from(colonies).where(eq(colonies.id, id));
+    return colony;
+  }
+
+  async getColonies(filters?: { active?: boolean }): Promise<Colony[]> {
+    let query = db.select().from(colonies);
+    
+    if (filters?.active !== undefined) {
+      query = query.where(eq(colonies.active, filters.active)) as any;
+    }
+
+    return await query.orderBy(colonies.name);
+  }
+
+  async getActiveColonies(): Promise<Colony[]> {
+    return await db
+      .select()
+      .from(colonies)
+      .where(eq(colonies.active, true))
+      .orderBy(colonies.name);
+  }
+
+  async createColony(colonyData: InsertColony): Promise<Colony> {
+    const [colony] = await db.insert(colonies).values(colonyData).returning();
+    return colony;
+  }
+
+  async updateColony(id: string, updates: Partial<InsertColony>): Promise<Colony> {
+    const [colony] = await db
+      .update(colonies)
+      .set({ ...updates, updatedAt: new Date() })
+      .where(eq(colonies.id, id))
+      .returning();
+    return colony;
+  }
+
+  async deleteColony(id: string): Promise<void> {
+    await db.delete(colonies).where(eq(colonies.id, id));
   }
 
   // Condominium operations
