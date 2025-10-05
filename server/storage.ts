@@ -1672,13 +1672,46 @@ export class DatabaseStorage implements IStorage {
 
   // Chat operations
   async getChatConversations(filters?: { type?: string; userId?: string }): Promise<ChatConversation[]> {
-    let query = db.select().from(chatConversations);
-    
-    if (filters?.type) {
-      query = query.where(eq(chatConversations.type, filters.type as any)) as any;
+    if (filters?.userId) {
+      // If userId is provided, join with participants table to filter
+      let query = db
+        .select({
+          id: chatConversations.id,
+          type: chatConversations.type,
+          title: chatConversations.title,
+          propertyId: chatConversations.propertyId,
+          appointmentId: chatConversations.appointmentId,
+          lastMessageAt: chatConversations.lastMessageAt,
+          isBot: chatConversations.isBot,
+          createdAt: chatConversations.createdAt,
+        })
+        .from(chatConversations)
+        .innerJoin(
+          chatParticipants,
+          eq(chatConversations.id, chatParticipants.conversationId)
+        )
+        .where(eq(chatParticipants.userId, filters.userId));
+      
+      if (filters?.type) {
+        query = query.where(
+          and(
+            eq(chatParticipants.userId, filters.userId),
+            eq(chatConversations.type, filters.type as any)
+          )
+        ) as any;
+      }
+      
+      return await query.orderBy(desc(chatConversations.createdAt));
+    } else {
+      // If no userId, return all conversations (admin view)
+      let query = db.select().from(chatConversations);
+      
+      if (filters?.type) {
+        query = query.where(eq(chatConversations.type, filters.type as any)) as any;
+      }
+      
+      return await query.orderBy(desc(chatConversations.createdAt));
     }
-    
-    return await query.orderBy(desc(chatConversations.createdAt));
   }
 
   async getChatConversation(id: string): Promise<ChatConversation | undefined> {

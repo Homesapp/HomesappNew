@@ -14,6 +14,12 @@ Preferred communication style: Simple, everyday language.
 - Updated logo to final version ("H mes (500 x 300 px)_1759672952263.png") and resized to h-16 across all components
 - Header height adjusted to h-20 to match smaller logo
 - Primary brand color changed to #21ad44 (HSL: 141 68% 40%) throughout application
+- **Chat System Fix**: Fixed chat functionality for all users including clients
+  - Added "cliente" role to sidebar Mensajes menu for client access
+  - Fixed getChatConversations to properly filter by user participation
+  - Conversations now filtered via JOIN with chat_participants table
+  - Clients can now send messages in conversations where they are participants
+  - Improved chat visibility and permissions across all user roles
 - Carousel navigation arrows repositioned below carousel content, centered with gap-4 spacing for better UX
 - **Location Standardization**: All property locations updated to "Tulum" for consistency and improved search functionality
 - **Condominium System**: Created approval workflow for condominiums with 396 pre-approved units
