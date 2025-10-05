@@ -26,30 +26,42 @@ export default function Chat() {
 
   const { data: conversations = [], isLoading } = useQuery<ChatConversation[]>({
     queryKey: ["/api/chat/conversations", activeTab],
+    queryFn: async () => {
+      const response = await fetch(`/api/chat/conversations?type=${activeTab}`);
+      if (!response.ok) throw new Error("Failed to fetch conversations");
+      return response.json();
+    },
   });
 
   const { data: messages = [] } = useQuery<ChatMessage[]>({
-    queryKey: ["/api/chat/messages", selectedConversation],
+    queryKey: ["/api/chat/conversations", selectedConversation, "messages"],
+    queryFn: async () => {
+      if (!selectedConversation) return [];
+      const response = await fetch(`/api/chat/conversations/${selectedConversation}/messages`);
+      if (!response.ok) throw new Error("Failed to fetch messages");
+      return response.json();
+    },
     enabled: !!selectedConversation,
   });
 
   const sendMessageMutation = useMutation({
-    mutationFn: async (data: { conversationId: string; message: string }) => {
+    mutationFn: async (data: { conversationId: string; message: string; senderId: string }) => {
       return await apiRequest("POST", `/api/chat/messages`, data);
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/chat/messages", selectedConversation] });
+      queryClient.invalidateQueries({ queryKey: ["/api/chat/conversations", selectedConversation, "messages"] });
       queryClient.invalidateQueries({ queryKey: ["/api/chat/conversations", activeTab] });
       setMessage("");
     },
   });
 
   const handleSendMessage = () => {
-    if (!message.trim() || !selectedConversation) return;
+    if (!message.trim() || !selectedConversation || !currentUser?.id) return;
     
     sendMessageMutation.mutate({
       conversationId: selectedConversation,
       message: message.trim(),
+      senderId: currentUser.id,
     });
   };
 
