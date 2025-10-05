@@ -1,23 +1,35 @@
-import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { format, isSameDay, parseISO } from "date-fns";
+import { format } from "date-fns";
 import { es } from "date-fns/locale";
-import { Calendar } from "@/components/ui/calendar";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { ScrollArea } from "@/components/ui/scroll-area";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { CalendarIcon, MapPin, Home, Clock, Video, User } from "lucide-react";
+import { 
+  CalendarIcon, 
+  MapPin, 
+  Clock, 
+  Video, 
+  Home, 
+  Heart, 
+  Search, 
+  Zap,
+  TrendingUp,
+  Building2,
+  User
+} from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
-import type { Appointment, Property, User as UserType } from "@shared/schema";
-import { AppointmentFormDialog } from "@/components/AppointmentFormDialog";
+import { useLocation } from "wouter";
+import type { Appointment, Property, User as UserType, Lead } from "@shared/schema";
 import { WelcomeModal } from "@/components/WelcomeModal";
 
 type AppointmentWithRelations = Appointment & {
   property?: Property;
   client?: UserType;
   concierge?: UserType;
+};
+
+type PropertyWithFavorite = Property & {
+  favoriteId?: string;
 };
 
 const STATUS_COLORS = {
@@ -35,28 +47,37 @@ const STATUS_LABELS = {
 };
 
 export default function ClientDashboard() {
-  const [selectedDate, setSelectedDate] = useState<Date | undefined>(new Date());
-  const [showAppointmentForm, setShowAppointmentForm] = useState(false);
   const { user, isLoading: isAuthLoading } = useAuth();
+  const [, setLocation] = useLocation();
 
-  const { data: appointments = [], isLoading } = useQuery<AppointmentWithRelations[]>({
+  const { data: appointments = [], isLoading: appointmentsLoading } = useQuery<AppointmentWithRelations[]>({
     queryKey: ["/api/appointments"],
   });
 
+  const { data: favorites = [], isLoading: favoritesLoading } = useQuery<PropertyWithFavorite[]>({
+    queryKey: ["/api/favorites"],
+  });
+
+  const { data: leads = [], isLoading: leadsLoading } = useQuery<Lead[]>({
+    queryKey: ["/api/leads"],
+  });
+
   const myAppointments = appointments.filter(apt => apt.clientId === user?.id);
-  
   const upcomingAppointments = myAppointments
     .filter(apt => {
       const aptDate = new Date(apt.date);
       return aptDate >= new Date() && (apt.status === "pending" || apt.status === "confirmed");
     })
-    .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+    .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime())
+    .slice(0, 3);
 
-  const selectedDateAppointments = selectedDate
-    ? myAppointments.filter((apt) => isSameDay(parseISO(apt.date as any), selectedDate))
-    : [];
+  const myLeads = leads.filter(lead => 
+    lead.clientId === user?.id && 
+    lead.status !== "closed_lost" && 
+    lead.status !== "closed_won"
+  );
 
-  const appointmentDates = myAppointments.map((apt) => parseISO(apt.date as any));
+  const isLoading = appointmentsLoading || favoritesLoading || leadsLoading;
 
   if (isLoading) {
     return (
@@ -79,55 +100,142 @@ export default function ClientDashboard() {
         />
       )}
       <div className="space-y-6">
+        {/* Header */}
         <div>
-          <h1 className="text-3xl font-bold" data-testid="text-dashboard-title">Mis Citas</h1>
+          <h1 className="text-3xl font-bold" data-testid="text-dashboard-title">
+            Bienvenido, {user?.firstName || "Cliente"}
+          </h1>
           <p className="text-muted-foreground">
-            Gestiona tus visitas a propiedades y agenda nuevas citas
+            Aquí está todo lo que necesitas saber sobre tu búsqueda de propiedades
           </p>
         </div>
 
-        <Tabs defaultValue="upcoming" className="space-y-4">
-        <TabsList>
-          <TabsTrigger value="upcoming" data-testid="tab-upcoming">
-            Próximas Citas
-          </TabsTrigger>
-          <TabsTrigger value="calendar" data-testid="tab-calendar">
-            Calendario
-          </TabsTrigger>
-          <TabsTrigger value="history" data-testid="tab-history">
-            Historial
-          </TabsTrigger>
-        </TabsList>
+        {/* Quick Stats */}
+        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+          <Card data-testid="card-stat-appointments">
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">Próximas Citas</CardTitle>
+              <CalendarIcon className="h-4 w-4 text-muted-foreground" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold">{upcomingAppointments.length}</div>
+              <p className="text-xs text-muted-foreground">
+                {upcomingAppointments.length === 1 ? 'Cita programada' : 'Citas programadas'}
+              </p>
+            </CardContent>
+          </Card>
 
-        <TabsContent value="upcoming" className="space-y-4">
-          <div className="flex justify-between items-center">
-            <p className="text-sm text-muted-foreground">
-              Tienes {upcomingAppointments.length} citas próximas
-            </p>
-            <Button onClick={() => setShowAppointmentForm(true)} data-testid="button-new-appointment">
-              <CalendarIcon className="h-4 w-4 mr-2" />
-              Nueva Cita
+          <Card data-testid="card-stat-favorites">
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">Favoritos</CardTitle>
+              <Heart className="h-4 w-4 text-muted-foreground" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold">{favorites.length}</div>
+              <p className="text-xs text-muted-foreground">
+                {favorites.length === 1 ? 'Propiedad guardada' : 'Propiedades guardadas'}
+              </p>
+            </CardContent>
+          </Card>
+
+          <Card data-testid="card-stat-opportunities">
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">Oportunidades</CardTitle>
+              <Zap className="h-4 w-4 text-muted-foreground" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold">{myLeads.length}</div>
+              <p className="text-xs text-muted-foreground">
+                {myLeads.length === 1 ? 'Oportunidad activa' : 'Oportunidades activas'}
+              </p>
+            </CardContent>
+          </Card>
+
+          <Card data-testid="card-stat-properties">
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">Propiedades Vistas</CardTitle>
+              <TrendingUp className="h-4 w-4 text-muted-foreground" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold">{myAppointments.length}</div>
+              <p className="text-xs text-muted-foreground">
+                Visitas realizadas
+              </p>
+            </CardContent>
+          </Card>
+        </div>
+
+        {/* Quick Actions */}
+        <Card data-testid="card-quick-actions">
+          <CardHeader>
+            <CardTitle>Acciones Rápidas</CardTitle>
+            <CardDescription>¿Qué te gustaría hacer hoy?</CardDescription>
+          </CardHeader>
+          <CardContent className="flex flex-wrap gap-3">
+            <Button 
+              onClick={() => setLocation("/buscar-propiedades")}
+              data-testid="button-search-properties"
+            >
+              <Search className="h-4 w-4 mr-2" />
+              Buscar Propiedades
             </Button>
-          </div>
+            <Button 
+              variant="outline"
+              onClick={() => setLocation("/favoritos")}
+              data-testid="button-view-favorites"
+            >
+              <Heart className="h-4 w-4 mr-2" />
+              Ver Favoritos
+            </Button>
+            <Button 
+              variant="outline"
+              onClick={() => setLocation("/mis-citas")}
+              data-testid="button-manage-appointments"
+            >
+              <CalendarIcon className="h-4 w-4 mr-2" />
+              Gestionar Citas
+            </Button>
+            <Button 
+              variant="outline"
+              onClick={() => setLocation("/mis-oportunidades")}
+              data-testid="button-view-opportunities"
+            >
+              <Zap className="h-4 w-4 mr-2" />
+              Mis Oportunidades
+            </Button>
+          </CardContent>
+        </Card>
 
-          {upcomingAppointments.length === 0 ? (
-            <Card>
-              <CardContent className="flex flex-col items-center justify-center py-12">
-                <CalendarIcon className="h-12 w-12 text-muted-foreground mb-4" />
-                <p className="text-muted-foreground text-center">
-                  No tienes citas próximas programadas
-                </p>
-              </CardContent>
-            </Card>
-          ) : (
-            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+        {/* Upcoming Appointments */}
+        {upcomingAppointments.length > 0 && (
+          <Card data-testid="card-upcoming-appointments">
+            <CardHeader className="flex flex-row items-center justify-between gap-2 flex-wrap space-y-0">
+              <div>
+                <CardTitle>Próximas Citas</CardTitle>
+                <CardDescription>Tus visitas programadas</CardDescription>
+              </div>
+              <Button 
+                variant="outline" 
+                size="sm"
+                onClick={() => setLocation("/mis-citas")}
+                data-testid="button-view-all-appointments"
+              >
+                Ver Todas
+              </Button>
+            </CardHeader>
+            <CardContent className="space-y-4">
               {upcomingAppointments.map((appointment) => (
                 <Card key={appointment.id} className="hover-elevate" data-testid={`card-appointment-${appointment.id}`}>
-                  <CardHeader className="space-y-0 pb-2">
+                  <CardHeader className="space-y-0 pb-3">
                     <div className="flex items-start justify-between gap-2">
-                      <CardTitle className="text-base font-medium line-clamp-1">
-                        {appointment.property?.title || "Propiedad"}
-                      </CardTitle>
+                      <div className="flex-1 min-w-0">
+                        <CardTitle className="text-base font-medium line-clamp-1">
+                          {appointment.property?.title || "Propiedad"}
+                        </CardTitle>
+                        <CardDescription className="line-clamp-1">
+                          {appointment.property?.location}
+                        </CardDescription>
+                      </div>
                       <Badge className={STATUS_COLORS[appointment.status]}>
                         {STATUS_LABELS[appointment.status]}
                       </Badge>
@@ -135,15 +243,9 @@ export default function ClientDashboard() {
                   </CardHeader>
                   <CardContent className="space-y-2">
                     <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                      <MapPin className="h-4 w-4" />
-                      <span className="line-clamp-1">{appointment.property?.location || "Ubicación no disponible"}</span>
-                    </div>
-                    <div className="flex items-center gap-2 text-sm text-muted-foreground">
                       <Clock className="h-4 w-4" />
                       <span>
-                        {format(new Date(appointment.date), "dd 'de' MMMM 'de' yyyy", { locale: es })}
-                        {" a las "}
-                        {format(new Date(appointment.date), "HH:mm")}
+                        {format(new Date(appointment.date), "dd 'de' MMMM 'de' yyyy 'a las' HH:mm", { locale: es })}
                       </span>
                     </div>
                     <div className="flex items-center gap-2 text-sm text-muted-foreground">
@@ -180,168 +282,129 @@ export default function ClientDashboard() {
                   </CardContent>
                 </Card>
               ))}
-            </div>
-          )}
-        </TabsContent>
+            </CardContent>
+          </Card>
+        )}
 
-        <TabsContent value="calendar" className="space-y-4">
-          <div className="grid gap-6 lg:grid-cols-2">
-            <Card>
-              <CardHeader>
-                <CardTitle>Calendario</CardTitle>
-                <CardDescription>
-                  Selecciona una fecha para ver tus citas
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="flex justify-center">
-                <Calendar
-                  mode="single"
-                  selected={selectedDate}
-                  onSelect={setSelectedDate}
-                  className="rounded-md border"
-                  modifiers={{
-                    hasAppointment: appointmentDates,
-                  }}
-                  modifiersStyles={{
-                    hasAppointment: {
-                      backgroundColor: "hsl(var(--primary))",
-                      color: "hsl(var(--primary-foreground))",
-                      fontWeight: "bold",
-                    },
-                  }}
-                  data-testid="calendar-appointments"
-                />
-              </CardContent>
-            </Card>
-
-            <Card>
-              <CardHeader>
-                <CardTitle>
-                  {selectedDate
-                    ? format(selectedDate, "dd 'de' MMMM 'de' yyyy", { locale: es })
-                    : "Selecciona una fecha"}
-                </CardTitle>
-                <CardDescription>
-                  {selectedDateAppointments.length} cita(s) programada(s)
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                <ScrollArea className="h-[400px] pr-4">
-                  {selectedDateAppointments.length === 0 ? (
-                    <div className="flex flex-col items-center justify-center h-full text-muted-foreground">
-                      <CalendarIcon className="h-12 w-12 mb-4" />
-                      <p>No hay citas para esta fecha</p>
-                    </div>
-                  ) : (
-                    <div className="space-y-4">
-                      {selectedDateAppointments.map((appointment) => (
-                        <Card key={appointment.id} data-testid={`card-date-appointment-${appointment.id}`}>
-                          <CardHeader className="pb-3">
-                            <div className="flex items-start justify-between gap-2">
-                              <CardTitle className="text-base">
-                                {appointment.property?.title}
-                              </CardTitle>
-                              <Badge className={STATUS_COLORS[appointment.status]}>
-                                {STATUS_LABELS[appointment.status]}
-                              </Badge>
-                            </div>
-                          </CardHeader>
-                          <CardContent className="space-y-2">
-                            <div className="flex items-center gap-2 text-sm">
-                              <Clock className="h-4 w-4" />
-                              <span>{format(new Date(appointment.date), "HH:mm")}</span>
-                            </div>
-                            <div className="flex items-center gap-2 text-sm">
-                              {appointment.type === "video" ? (
-                                <>
-                                  <Video className="h-4 w-4" />
-                                  <span>Video llamada</span>
-                                </>
-                              ) : (
-                                <>
-                                  <Home className="h-4 w-4" />
-                                  <span>Presencial</span>
-                                </>
-                              )}
-                            </div>
-                            {appointment.meetLink && (
-                              <Button
-                                size="sm"
-                                variant="outline"
-                                className="w-full"
-                                onClick={() => window.open(appointment.meetLink!, "_blank")}
-                                data-testid={`button-join-calendar-meet-${appointment.id}`}
-                              >
-                                <Video className="h-4 w-4 mr-2" />
-                                Unirse
-                              </Button>
-                            )}
-                          </CardContent>
-                        </Card>
-                      ))}
-                    </div>
-                  )}
-                </ScrollArea>
-              </CardContent>
-            </Card>
-          </div>
-        </TabsContent>
-
-        <TabsContent value="history" className="space-y-4">
-          <div className="space-y-4">
-            {myAppointments
-              .filter(apt => {
-                const aptDate = new Date(apt.date);
-                return aptDate < new Date() || apt.status === "completed" || apt.status === "cancelled";
-              })
-              .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
-              .map((appointment) => (
-                <Card key={appointment.id} data-testid={`card-history-appointment-${appointment.id}`}>
-                  <CardHeader className="flex flex-row items-center justify-between gap-2 flex-wrap space-y-0 pb-2">
-                    <div className="flex-1 min-w-0">
-                      <CardTitle className="text-base line-clamp-1">
-                        {appointment.property?.title || "Propiedad"}
+        {/* Favorite Properties */}
+        {favorites.length > 0 && (
+          <Card data-testid="card-favorite-properties">
+            <CardHeader className="flex flex-row items-center justify-between gap-2 flex-wrap space-y-0">
+              <div>
+                <CardTitle>Propiedades Favoritas</CardTitle>
+                <CardDescription>Tus propiedades guardadas</CardDescription>
+              </div>
+              <Button 
+                variant="outline" 
+                size="sm"
+                onClick={() => setLocation("/favoritos")}
+                data-testid="button-view-all-favorites"
+              >
+                Ver Todas
+              </Button>
+            </CardHeader>
+            <CardContent>
+              <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+                {favorites.slice(0, 6).map((property) => (
+                  <Card 
+                    key={property.id} 
+                    className="hover-elevate cursor-pointer" 
+                    onClick={() => setLocation(`/propiedad/${property.id}/completo`)}
+                    data-testid={`card-favorite-${property.id}`}
+                  >
+                    <CardHeader className="space-y-0 pb-2">
+                      <CardTitle className="text-base font-medium line-clamp-1">
+                        {property.title}
                       </CardTitle>
-                      <CardDescription className="line-clamp-1">
-                        {appointment.property?.location}
-                      </CardDescription>
-                    </div>
-                    <Badge className={STATUS_COLORS[appointment.status]}>
-                      {STATUS_LABELS[appointment.status]}
-                    </Badge>
-                  </CardHeader>
-                  <CardContent className="space-y-2">
-                    <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                      <Clock className="h-4 w-4" />
-                      <span>
-                        {format(new Date(appointment.date), "dd 'de' MMMM 'de' yyyy 'a las' HH:mm", { locale: es })}
-                      </span>
-                    </div>
-                    <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                      {appointment.type === "video" ? (
-                        <>
-                          <Video className="h-4 w-4" />
-                          <span>Video llamada</span>
-                        </>
-                      ) : (
-                        <>
-                          <Home className="h-4 w-4" />
-                          <span>Presencial</span>
-                        </>
+                    </CardHeader>
+                    <CardContent className="space-y-2">
+                      <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                        <MapPin className="h-4 w-4" />
+                        <span className="line-clamp-1">{property.location}</span>
+                      </div>
+                      <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                        <Building2 className="h-4 w-4" />
+                        <span>{property.propertyType}</span>
+                      </div>
+                      {property.rentalPrice && (
+                        <div className="text-lg font-bold text-primary">
+                          ${property.rentalPrice.toLocaleString()} MXN/mes
+                        </div>
                       )}
-                    </div>
-                  </CardContent>
-                </Card>
-              ))}
-          </div>
-        </TabsContent>
-      </Tabs>
+                      {property.salePrice && (
+                        <div className="text-lg font-bold text-primary">
+                          ${property.salePrice.toLocaleString()} MXN
+                        </div>
+                      )}
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
+            </CardContent>
+          </Card>
+        )}
 
-      <AppointmentFormDialog
-        open={showAppointmentForm}
-        onOpenChange={setShowAppointmentForm}
-        mode="create"
-      />
+        {/* Active Opportunities */}
+        {myLeads.length > 0 && (
+          <Card data-testid="card-active-opportunities">
+            <CardHeader className="flex flex-row items-center justify-between gap-2 flex-wrap space-y-0">
+              <div>
+                <CardTitle>Oportunidades Activas</CardTitle>
+                <CardDescription>Tus solicitudes en proceso</CardDescription>
+              </div>
+              <Button 
+                variant="outline" 
+                size="sm"
+                onClick={() => setLocation("/mis-oportunidades")}
+                data-testid="button-view-all-opportunities"
+              >
+                Ver Todas
+              </Button>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              {myLeads.slice(0, 5).map((lead) => (
+                <div 
+                  key={lead.id} 
+                  className="flex items-center justify-between p-3 rounded-md border hover-elevate cursor-pointer"
+                  onClick={() => setLocation("/mis-oportunidades")}
+                  data-testid={`item-opportunity-${lead.id}`}
+                >
+                  <div className="flex-1 min-w-0">
+                    <p className="font-medium line-clamp-1">{lead.propertyTitle || "Propiedad"}</p>
+                    <p className="text-sm text-muted-foreground">{lead.location}</p>
+                  </div>
+                  <Badge variant="secondary">
+                    {lead.status === "new" && "Nueva"}
+                    {lead.status === "contacted" && "Contactado"}
+                    {lead.status === "qualified" && "Calificado"}
+                    {lead.status === "proposal" && "Propuesta"}
+                    {lead.status === "negotiation" && "Negociación"}
+                  </Badge>
+                </div>
+              ))}
+            </CardContent>
+          </Card>
+        )}
+
+        {/* Empty State - No Activity */}
+        {upcomingAppointments.length === 0 && favorites.length === 0 && myLeads.length === 0 && (
+          <Card data-testid="card-empty-state">
+            <CardContent className="flex flex-col items-center justify-center py-12">
+              <Search className="h-16 w-16 text-muted-foreground mb-4" />
+              <h3 className="text-lg font-semibold mb-2">¡Comienza tu búsqueda!</h3>
+              <p className="text-muted-foreground text-center mb-6">
+                Aún no tienes actividad. Explora nuestras propiedades y encuentra tu hogar ideal.
+              </p>
+              <Button 
+                onClick={() => setLocation("/buscar-propiedades")}
+                data-testid="button-start-search"
+              >
+                <Search className="h-4 w-4 mr-2" />
+                Explorar Propiedades
+              </Button>
+            </CardContent>
+          </Card>
+        )}
       </div>
     </>
   );
