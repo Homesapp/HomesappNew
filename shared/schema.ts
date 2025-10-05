@@ -95,6 +95,7 @@ export const auditActionEnum = pgEnum("audit_action", [
   "approve",
   "reject",
   "view",
+  "assign",
 ]);
 
 export const roleRequestStatusEnum = pgEnum("role_request_status", [
@@ -650,6 +651,31 @@ export const insertPropertyChangeRequestSchema = createInsertSchema(propertyChan
   updatedAt: true,
 });
 
+// Schema for validating property change fields (whitelist of allowed fields)
+export const propertyChangeFieldsSchema = z.object({
+  title: z.string().optional(),
+  description: z.string().optional(),
+  price: z.string().optional(),
+  bedrooms: z.number().optional(),
+  bathrooms: z.number().optional(),
+  area: z.number().optional(),
+  location: z.string().optional(),
+  amenities: z.array(z.string()).optional(),
+  specifications: z.any().optional(),
+  accessInfo: z.any().optional(),
+  images: z.array(z.string()).optional(),
+  videos: z.array(z.string()).optional(),
+  virtualTourUrl: z.string().optional(),
+  availableFrom: z.date().optional(),
+  availableTo: z.date().optional(),
+});
+
+// Schema for creating property change request
+export const createPropertyChangeRequestSchema = z.object({
+  propertyId: z.string(),
+  changedFields: propertyChangeFieldsSchema,
+});
+
 export type InsertPropertyChangeRequest = z.infer<typeof insertPropertyChangeRequestSchema>;
 export type PropertyChangeRequest = typeof propertyChangeRequests.$inferSelect;
 
@@ -693,6 +719,13 @@ export const insertOwnerSettingsSchema = createInsertSchema(ownerSettings).omit(
   id: true,
   createdAt: true,
   updatedAt: true,
+});
+
+// Schema for updating owner settings
+export const updateOwnerSettingsSchema = z.object({
+  autoApproveAppointments: z.boolean().optional(),
+  autoAcceptOffers: z.boolean().optional(),
+  notificationPreferences: z.any().optional(),
 });
 
 export type InsertOwnerSettings = z.infer<typeof insertOwnerSettingsSchema>;

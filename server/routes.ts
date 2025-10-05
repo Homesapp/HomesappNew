@@ -28,6 +28,8 @@ import {
   leadJourneys,
   appointments,
   offers,
+  createPropertyChangeRequestSchema,
+  updateOwnerSettingsSchema,
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, and, inArray } from "drizzle-orm";
@@ -753,7 +755,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         "create",
         "property",
         property.id,
-        `Propiedad creada: ${property.title} - ${property.address}`
+        `Propiedad creada: ${property.title} - ${property.location}`
       );
       
       res.status(201).json(property);
@@ -817,7 +819,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         "delete",
         "property",
         id,
-        `Propiedad eliminada: ${property.title} - ${property.address}`
+        `Propiedad eliminada: ${property.title} - ${property.location}`
       );
 
       await storage.deleteProperty(id);
@@ -865,6 +867,489 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Error fetching property staff:", error);
       res.status(500).json({ message: "Failed to fetch property staff" });
+    }
+  });
+
+  // Owner API routes - for property owners to manage their properties
+  app.get("/api/owner/properties", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const user = await storage.getUser(userId);
+      
+      if (!user || !["owner", "seller", "admin", "admin_jr", "master"].includes(user.role)) {
+        return res.status(403).json({ message: "Acceso denegado" });
+      }
+
+      // Get properties where user is owner
+      const properties = await storage.getProperties({ ownerId: userId });
+      res.json(properties);
+    } catch (error) {
+      console.error("Error fetching owner properties:", error);
+      res.status(500).json({ message: "Error al obtener propiedades" });
+    }
+  });
+
+  app.get("/api/owner/change-requests", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const user = await storage.getUser(userId);
+      
+      if (!user || !["owner", "seller", "admin", "admin_jr", "master"].includes(user.role)) {
+        return res.status(403).json({ message: "Acceso denegado" });
+      }
+
+      // Get all change requests and filter by owner
+      const allChangeRequests = await storage.getPropertyChangeRequests();
+      const changeRequests = allChangeRequests.filter(cr => cr.requestedById === userId);
+      res.json(changeRequests);
+    } catch (error) {
+      console.error("Error fetching change requests:", error);
+      res.status(500).json({ message: "Error al obtener solicitudes de cambio" });
+    }
+  });
+
+  app.post("/api/owner/change-requests", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const user = await storage.getUser(userId);
+      
+      if (!user || !["owner", "seller", "admin", "admin_jr", "master"].includes(user.role)) {
+        return res.status(403).json({ message: "Acceso denegado" });
+      }
+
+      // Validate request body with Zod
+      const validationResult = createPropertyChangeRequestSchema.safeParse(req.body);
+      if (!validationResult.success) {
+        return res.status(400).json({ 
+          message: "Datos inválidos", 
+          errors: validationResult.error.errors 
+        });
+      }
+
+      const { propertyId, changedFields } = validationResult.data;
+
+      // Verify user owns the property
+      const property = await storage.getProperty(propertyId);
+      if (!property) {
+        return res.status(404).json({ message: "Propiedad no encontrada" });
+      }
+      if (property.ownerId !== userId && !["admin", "admin_jr", "master"].includes(user.role)) {
+        return res.status(403).json({ message: "No tienes permisos para modificar esta propiedad" });
+      }
+
+      // Create change request and update property status in transaction
+      await db.transaction(async (tx) => {
+        const changeRequest = await storage.createPropertyChangeRequest({
+          propertyId,
+          requestedById: userId,
+          changedFields: changedFields as any,
+        });
+
+        // Update property approval status to "changes_requested"
+        await storage.updateProperty(propertyId, { 
+          approvalStatus: "changes_requested" 
+        });
+
+        await createAuditLog(
+          req,
+          "create",
+          "property_change_request",
+          changeRequest.id,
+          `Solicitud de cambio creada para propiedad: ${property.title}`
+        );
+
+        res.status(201).json(changeRequest);
+      });
+    } catch (error: any) {
+      console.error("Error creating change request:", error);
+      res.status(500).json({ message: error.message || "Error al crear solicitud de cambio" });
+    }
+  });
+
+  app.get("/api/owner/settings", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const user = await storage.getUser(userId);
+      
+      if (!user || !["owner", "seller", "admin", "admin_jr", "master"].includes(user.role)) {
+        return res.status(403).json({ message: "Acceso denegado" });
+      }
+
+      const settings = await storage.getOwnerSettings(userId);
+      res.json(settings || { userId, autoApproveAppointments: false });
+    } catch (error) {
+      console.error("Error fetching owner settings:", error);
+      res.status(500).json({ message: "Error al obtener configuración" });
+    }
+  });
+
+  app.post("/api/owner/settings", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const user = await storage.getUser(userId);
+      
+      if (!user || !["owner", "seller", "admin", "admin_jr", "master"].includes(user.role)) {
+        return res.status(403).json({ message: "Acceso denegado" });
+      }
+
+      // Validate request body with Zod
+      const validationResult = updateOwnerSettingsSchema.safeParse(req.body);
+      if (!validationResult.success) {
+        return res.status(400).json({ 
+          message: "Datos inválidos", 
+          errors: validationResult.error.errors 
+        });
+      }
+
+      const updates = validationResult.data;
+      
+      // Check if settings already exist
+      const existing = await storage.getOwnerSettings(userId);
+      
+      let settings;
+      if (existing) {
+        settings = await storage.updateOwnerSettings(userId, updates);
+      } else {
+        settings = await storage.createOwnerSettings({ userId, ...updates });
+      }
+
+      await createAuditLog(
+        req,
+        "update",
+        "owner_settings",
+        settings.id,
+        `Configuración actualizada`
+      );
+
+      res.json(settings);
+    } catch (error: any) {
+      console.error("Error updating owner settings:", error);
+      res.status(500).json({ message: error.message || "Error al actualizar configuración" });
+    }
+  });
+
+  app.get("/api/owner/appointments/pending", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const user = await storage.getUser(userId);
+      
+      if (!user || !["owner", "seller", "admin", "admin_jr", "master"].includes(user.role)) {
+        return res.status(403).json({ message: "Acceso denegado" });
+      }
+
+      // Get properties owned by user
+      const properties = await storage.getProperties({ ownerId: userId });
+      const propertyIds = properties.map(p => p.id);
+
+      if (propertyIds.length === 0) {
+        return res.json([]);
+      }
+
+      // Get all appointments for these properties and filter by ownerApprovalStatus
+      const allAppointments = await storage.getAppointments({});
+      const pendingAppointments = allAppointments.filter(apt => 
+        propertyIds.includes(apt.propertyId) && apt.ownerApprovalStatus === "pending"
+      );
+      res.json(pendingAppointments);
+    } catch (error) {
+      console.error("Error fetching pending appointments:", error);
+      res.status(500).json({ message: "Error al obtener citas pendientes" });
+    }
+  });
+
+  app.patch("/api/owner/appointments/:id/approve", isAuthenticated, async (req: any, res) => {
+    try {
+      const { id } = req.params;
+      const userId = req.user.claims.sub;
+      const user = await storage.getUser(userId);
+      
+      if (!user || !["owner", "seller", "admin", "admin_jr", "master"].includes(user.role)) {
+        return res.status(403).json({ message: "Acceso denegado" });
+      }
+
+      const appointment = await storage.getAppointment(id);
+      if (!appointment) {
+        return res.status(404).json({ message: "Cita no encontrada" });
+      }
+
+      // Verify user owns the property
+      const property = await storage.getProperty(appointment.propertyId);
+      if (!property || (property.ownerId !== userId && !["admin", "admin_jr", "master"].includes(user.role))) {
+        return res.status(403).json({ message: "No tienes permisos para aprobar esta cita" });
+      }
+
+      // Update appointment approval status
+      const updated = await storage.updateAppointment(id, {
+        ownerApprovalStatus: "approved",
+        ownerApprovedAt: new Date(),
+      });
+
+      await createAuditLog(
+        req,
+        "approve",
+        "appointment",
+        id,
+        `Cita aprobada por propietario`
+      );
+
+      res.json(updated);
+    } catch (error: any) {
+      console.error("Error approving appointment:", error);
+      res.status(500).json({ message: error.message || "Error al aprobar cita" });
+    }
+  });
+
+  app.patch("/api/owner/appointments/:id/reject", isAuthenticated, async (req: any, res) => {
+    try {
+      const { id } = req.params;
+      const userId = req.user.claims.sub;
+      const user = await storage.getUser(userId);
+      
+      if (!user || !["owner", "seller", "admin", "admin_jr", "master"].includes(user.role)) {
+        return res.status(403).json({ message: "Acceso denegado" });
+      }
+
+      const appointment = await storage.getAppointment(id);
+      if (!appointment) {
+        return res.status(404).json({ message: "Cita no encontrada" });
+      }
+
+      // Verify user owns the property
+      const property = await storage.getProperty(appointment.propertyId);
+      if (!property || (property.ownerId !== userId && !["admin", "admin_jr", "master"].includes(user.role))) {
+        return res.status(403).json({ message: "No tienes permisos para rechazar esta cita" });
+      }
+
+      // Update appointment approval status
+      const updated = await storage.updateAppointment(id, {
+        ownerApprovalStatus: "rejected",
+        ownerApprovedAt: new Date(),
+      });
+
+      await createAuditLog(
+        req,
+        "reject",
+        "appointment",
+        id,
+        `Cita rechazada por propietario`
+      );
+
+      res.json(updated);
+    } catch (error: any) {
+      console.error("Error rejecting appointment:", error);
+      res.status(500).json({ message: error.message || "Error al rechazar cita" });
+    }
+  });
+
+  // Admin API routes - for admins to manage property approvals and inspections
+  app.get("/api/admin/change-requests", isAuthenticated, requireRole(["master", "admin", "admin_jr"]), async (req, res) => {
+    try {
+      const { status, propertyId } = req.query;
+      
+      const allChangeRequests = await storage.getPropertyChangeRequests();
+      let changeRequests = allChangeRequests;
+      
+      if (status) {
+        changeRequests = changeRequests.filter(cr => cr.status === status);
+      }
+      if (propertyId) {
+        changeRequests = changeRequests.filter(cr => cr.propertyId === propertyId);
+      }
+      
+      res.json(changeRequests);
+    } catch (error) {
+      console.error("Error fetching change requests:", error);
+      res.status(500).json({ message: "Error al obtener solicitudes de cambio" });
+    }
+  });
+
+  app.patch("/api/admin/change-requests/:id/approve", isAuthenticated, requireRole(["master", "admin", "admin_jr"]), async (req: any, res) => {
+    try {
+      const { id } = req.params;
+      const { reviewNotes } = req.body;
+      const reviewerId = req.user?.claims?.sub || req.session?.adminUser?.id;
+
+      const changeRequest = await storage.getPropertyChangeRequest(id);
+      if (!changeRequest) {
+        return res.status(404).json({ message: "Solicitud no encontrada" });
+      }
+
+      if (changeRequest.status !== "pending") {
+        return res.status(400).json({ 
+          message: "Esta solicitud ya fue procesada" 
+        });
+      }
+
+      // Validate changed fields before applying
+      const changedFields = changeRequest.changedFields as any;
+      if (typeof changedFields !== 'object' || changedFields === null || Array.isArray(changedFields)) {
+        return res.status(400).json({ 
+          message: "Datos de cambio inválidos" 
+        });
+      }
+
+      // Approve and apply changes in transaction
+      await db.transaction(async (tx) => {
+        // Approve change request and apply changes (cascade logic in storage)
+        const updated = await storage.updatePropertyChangeRequestStatus(
+          id,
+          "approved",
+          reviewerId,
+          reviewNotes
+        );
+
+        await createAuditLog(
+          req,
+          "approve",
+          "property_change_request",
+          id,
+          `Cambios aprobados para propiedad ${changeRequest.propertyId}`
+        );
+
+        res.json(updated);
+      });
+    } catch (error: any) {
+      console.error("Error approving change request:", error);
+      res.status(500).json({ message: error.message || "Error al aprobar cambios" });
+    }
+  });
+
+  app.patch("/api/admin/change-requests/:id/reject", isAuthenticated, requireRole(["master", "admin", "admin_jr"]), async (req: any, res) => {
+    try {
+      const { id } = req.params;
+      const { reviewNotes } = req.body;
+      const reviewerId = req.user?.claims?.sub || req.session?.adminUser?.id;
+
+      const changeRequest = await storage.getPropertyChangeRequest(id);
+      if (!changeRequest) {
+        return res.status(404).json({ message: "Solicitud no encontrada" });
+      }
+
+      if (changeRequest.status !== "pending") {
+        return res.status(400).json({ 
+          message: "Esta solicitud ya fue procesada" 
+        });
+      }
+
+      const updated = await storage.updatePropertyChangeRequestStatus(
+        id,
+        "rejected",
+        reviewerId,
+        reviewNotes
+      );
+
+      await createAuditLog(
+        req,
+        "reject",
+        "property_change_request",
+        id,
+        `Cambios rechazados para propiedad ${changeRequest.propertyId}`
+      );
+
+      res.json(updated);
+    } catch (error: any) {
+      console.error("Error rejecting change request:", error);
+      res.status(500).json({ message: error.message || "Error al rechazar cambios" });
+    }
+  });
+
+  app.get("/api/admin/inspection-reports", isAuthenticated, requireRole(["master", "admin", "admin_jr"]), async (req, res) => {
+    try {
+      const { status, propertyId } = req.query;
+      
+      const allReports = await storage.getInspectionReports();
+      let reports = allReports;
+      
+      if (status) {
+        reports = reports.filter(r => r.status === status);
+      }
+      if (propertyId) {
+        reports = reports.filter(r => r.propertyId === propertyId);
+      }
+      
+      res.json(reports);
+    } catch (error) {
+      console.error("Error fetching inspection reports:", error);
+      res.status(500).json({ message: "Error al obtener reportes de inspección" });
+    }
+  });
+
+  app.get("/api/admin/inspection-reports/:id", isAuthenticated, requireRole(["master", "admin", "admin_jr"]), async (req, res) => {
+    try {
+      const { id } = req.params;
+      const report = await storage.getInspectionReport(id);
+      
+      if (!report) {
+        return res.status(404).json({ message: "Reporte no encontrado" });
+      }
+      
+      res.json(report);
+    } catch (error) {
+      console.error("Error fetching inspection report:", error);
+      res.status(500).json({ message: "Error al obtener reporte" });
+    }
+  });
+
+  app.post("/api/admin/inspection-reports", isAuthenticated, requireRole(["master", "admin", "admin_jr"]), async (req: any, res) => {
+    try {
+      const inspectorId = req.user?.claims?.sub || req.session?.adminUser?.id;
+      const { propertyId, scheduledDate, notes } = req.body;
+
+      // Verify property exists
+      const property = await storage.getProperty(propertyId);
+      if (!property) {
+        return res.status(404).json({ message: "Propiedad no encontrada" });
+      }
+
+      // Create inspection report
+      const report = await storage.createInspectionReport({
+        propertyId,
+        inspectorId,
+        scheduledDate,
+        status: "scheduled",
+        notes,
+      });
+
+      await createAuditLog(
+        req,
+        "create",
+        "inspection_report",
+        report.id,
+        `Inspección programada para propiedad ${property.title}`
+      );
+
+      res.status(201).json(report);
+    } catch (error: any) {
+      console.error("Error creating inspection report:", error);
+      res.status(500).json({ message: error.message || "Error al crear reporte de inspección" });
+    }
+  });
+
+  app.patch("/api/admin/inspection-reports/:id", isAuthenticated, requireRole(["master", "admin", "admin_jr"]), async (req: any, res) => {
+    try {
+      const { id } = req.params;
+      const updates = req.body;
+
+      const report = await storage.getInspectionReport(id);
+      if (!report) {
+        return res.status(404).json({ message: "Reporte no encontrado" });
+      }
+
+      // Update inspection report (cascade logic in storage handles property approval status)
+      const updated = await storage.updateInspectionReport(id, updates);
+
+      await createAuditLog(
+        req,
+        "update",
+        "inspection_report",
+        id,
+        `Reporte de inspección actualizado`
+      );
+
+      res.json(updated);
+    } catch (error: any) {
+      console.error("Error updating inspection report:", error);
+      res.status(500).json({ message: error.message || "Error al actualizar reporte" });
     }
   });
 
