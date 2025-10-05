@@ -230,6 +230,87 @@ export default function PublicDashboard() {
           </div>
         </div>
 
+        {/* Featured Properties */}
+        {featuredProperties.length > 0 && (
+          <div className="mb-10">
+            <div className="mb-6 flex items-center justify-between">
+              <h2 className="text-3xl font-bold">{t("public.featured.title")}</h2>
+              <Button
+                variant="outline"
+                onClick={() => setLocation("/buscar-propiedades?featured=true")}
+                data-testid="button-view-all-featured"
+              >
+                {t("public.featured.viewAll")}
+              </Button>
+            </div>
+            <Carousel
+              opts={{
+                align: "start",
+                loop: true,
+              }}
+              plugins={[
+                Autoplay({
+                  delay: 3000,
+                }),
+              ]}
+              className="w-full"
+            >
+              <CarouselContent className="-ml-2 md:-ml-4">
+                {featuredProperties.map((property) => (
+                  <CarouselItem key={property.id} className="pl-2 md:pl-4 md:basis-1/2 lg:basis-1/3">
+                    <div
+                      className="group cursor-pointer overflow-hidden rounded-lg border bg-card hover-elevate active-elevate-2"
+                      onClick={() => setLocation(`/propiedad/${property.id}/completo`)}
+                      data-testid={`card-property-${property.id}`}
+                    >
+                      <div className="relative aspect-[4/3] overflow-hidden bg-muted">
+                        {property.images && property.images[0] ? (
+                          <img
+                            src={property.images[0]}
+                            alt={property.title}
+                            className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-110"
+                            data-testid={`img-property-${property.id}`}
+                          />
+                        ) : (
+                          <div className="flex h-full items-center justify-center bg-muted">
+                            <Home className="h-16 w-16 text-muted-foreground" />
+                          </div>
+                        )}
+                        <Badge className="absolute right-3 top-3 bg-primary text-primary-foreground" data-testid={`badge-price-${property.id}`}>
+                          ${property.price.toLocaleString()}
+                        </Badge>
+                      </div>
+                      <div className="p-4">
+                        <h3 className="mb-2 text-lg font-semibold" data-testid={`text-title-${property.id}`}>
+                          {property.title}
+                        </h3>
+                        <p className="mb-3 flex items-center text-sm text-muted-foreground" data-testid={`text-location-${property.id}`}>
+                          <MapPin className="mr-1 h-4 w-4" />
+                          {property.location}
+                        </p>
+                        <div className="flex items-center gap-4 text-sm">
+                          <span data-testid={`text-bedrooms-${property.id}`}>{property.bedrooms} {t("property.bedrooms")}</span>
+                          <span data-testid={`text-bathrooms-${property.id}`}>{property.bathrooms} {t("property.bathrooms")}</span>
+                          <span data-testid={`text-area-${property.id}`}>{property.area} {t("property.area")}</span>
+                          {(property.amenities?.includes("Mascotas permitidas") || property.amenities?.includes("Pet Friendly")) && (
+                            <span title="Pet-friendly">
+                              <PawPrint className="h-4 w-4 text-foreground" />
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  </CarouselItem>
+                ))}
+              </CarouselContent>
+              <div className="mt-4 flex justify-center gap-4">
+                <CarouselPrevious className="static translate-y-0" data-testid="button-carousel-prev" />
+                <CarouselNext className="static translate-y-0" data-testid="button-carousel-next" />
+              </div>
+            </Carousel>
+          </div>
+        )}
+
         {/* Promotional Banners Carousel */}
         <div className="mb-8">
           <Carousel
@@ -387,87 +468,6 @@ export default function PublicDashboard() {
             </div>
           </Carousel>
         </div>
-
-        {/* Featured Properties */}
-        {featuredProperties.length > 0 && (
-          <div className="mb-10">
-            <div className="mb-6 flex items-center justify-between">
-              <h2 className="text-3xl font-bold">{t("public.featured.title")}</h2>
-              <Button
-                variant="outline"
-                onClick={() => setLocation("/buscar-propiedades?featured=true")}
-                data-testid="button-view-all-featured"
-              >
-                {t("public.featured.viewAll")}
-              </Button>
-            </div>
-            <Carousel
-              opts={{
-                align: "start",
-                loop: true,
-              }}
-              plugins={[
-                Autoplay({
-                  delay: 3000,
-                }),
-              ]}
-              className="w-full"
-            >
-              <CarouselContent className="-ml-2 md:-ml-4">
-                {featuredProperties.map((property) => (
-                  <CarouselItem key={property.id} className="pl-2 md:pl-4 md:basis-1/2 lg:basis-1/3">
-                    <div
-                      className="group cursor-pointer overflow-hidden rounded-lg border bg-card hover-elevate active-elevate-2"
-                      onClick={() => setLocation(`/propiedad/${property.id}/completo`)}
-                      data-testid={`card-property-${property.id}`}
-                    >
-                      <div className="relative aspect-[4/3] overflow-hidden bg-muted">
-                        {property.images && property.images[0] ? (
-                          <img
-                            src={property.images[0]}
-                            alt={property.title}
-                            className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-110"
-                            data-testid={`img-property-${property.id}`}
-                          />
-                        ) : (
-                          <div className="flex h-full items-center justify-center bg-muted">
-                            <Home className="h-16 w-16 text-muted-foreground" />
-                          </div>
-                        )}
-                        <Badge className="absolute right-3 top-3 bg-primary text-primary-foreground" data-testid={`badge-price-${property.id}`}>
-                          ${property.price.toLocaleString()}
-                        </Badge>
-                      </div>
-                      <div className="p-4">
-                        <h3 className="mb-2 text-lg font-semibold" data-testid={`text-title-${property.id}`}>
-                          {property.title}
-                        </h3>
-                        <p className="mb-3 flex items-center text-sm text-muted-foreground" data-testid={`text-location-${property.id}`}>
-                          <MapPin className="mr-1 h-4 w-4" />
-                          {property.location}
-                        </p>
-                        <div className="flex items-center gap-4 text-sm">
-                          <span data-testid={`text-bedrooms-${property.id}`}>{property.bedrooms} {t("property.bedrooms")}</span>
-                          <span data-testid={`text-bathrooms-${property.id}`}>{property.bathrooms} {t("property.bathrooms")}</span>
-                          <span data-testid={`text-area-${property.id}`}>{property.area} {t("property.area")}</span>
-                          {(property.amenities?.includes("Mascotas permitidas") || property.amenities?.includes("Pet Friendly")) && (
-                            <span title="Pet-friendly">
-                              <PawPrint className="h-4 w-4 text-foreground" />
-                            </span>
-                          )}
-                        </div>
-                      </div>
-                    </div>
-                  </CarouselItem>
-                ))}
-              </CarouselContent>
-              <div className="mt-4 flex justify-center gap-4">
-                <CarouselPrevious className="static translate-y-0" data-testid="button-carousel-prev" />
-                <CarouselNext className="static translate-y-0" data-testid="button-carousel-next" />
-              </div>
-            </Carousel>
-          </div>
-        )}
 
         {/* Benefits Section */}
         <div className="mb-10 grid md:grid-cols-2 gap-6">
