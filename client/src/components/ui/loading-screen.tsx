@@ -1,5 +1,5 @@
 import { cn } from "@/lib/utils"
-import logoPath from "@assets/loho homesapp negro_1759672544955.png"
+import logoPath from "@assets/H mes (500 x 300 px)_1759672952263.png"
 
 interface LoadingScreenProps {
   className?: string;

@@ -17,7 +17,7 @@ import {
   CarouselPrevious,
 } from "@/components/ui/carousel";
 import Autoplay from "embla-carousel-autoplay";
-import logoIcon from "@assets/loho homesapp negro_1759672544955.png";
+import logoIcon from "@assets/H mes (500 x 300 px)_1759672952263.png";
 
 export default function PublicDashboard() {
   const [, setLocation] = useLocation();
@@ -43,9 +43,9 @@ export default function PublicDashboard() {
     <div className="min-h-screen bg-background">
       {/* Public Header */}
       <header className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
-        <div className="container mx-auto flex h-36 items-center justify-between px-4">
+        <div className="container mx-auto flex h-20 items-center justify-between px-4">
           <div className="flex items-center">
-            <img src={logoIcon} alt="HomesApp" className="h-32 w-32" />
+            <img src={logoIcon} alt="HomesApp" className="h-16 w-auto" />
           </div>
           <div className="flex items-center gap-2">
             <LanguageToggle />
