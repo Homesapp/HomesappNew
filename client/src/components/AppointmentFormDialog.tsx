@@ -310,14 +310,14 @@ export function AppointmentFormDialog({
               render={({ field }) => (
                 <FormItem>
                   <FormLabel>Concierge (Opcional)</FormLabel>
-                  <Select onValueChange={field.onChange} value={field.value || ""}>
+                  <Select onValueChange={(value) => field.onChange(value === "none" ? "" : value)} value={field.value || "none"}>
                     <FormControl>
                       <SelectTrigger data-testid="select-concierge">
                         <SelectValue placeholder="Seleccionar concierge" />
                       </SelectTrigger>
                     </FormControl>
                     <SelectContent>
-                      <SelectItem value="">Sin asignar</SelectItem>
+                      <SelectItem value="none">Sin asignar</SelectItem>
                       {concierges?.map((concierge) => (
                         <SelectItem key={concierge.id} value={concierge.id}>
                           {concierge.firstName} {concierge.lastName}
