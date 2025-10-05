@@ -297,6 +297,10 @@ const translations: Record<Language, Record<string, string>> = {
     "propertyTypes.penthouse": "Penthouse",
     
     // Presentation Cards
+    "presentationCard.deleteDialogTitle": "¿Eliminar tarjeta?",
+    "presentationCard.deleteDialogDesc": "Esta acción no se puede deshacer. La tarjeta de presentación será eliminada permanentemente.",
+    "presentationCard.deleteDialogCancel": "Cancelar",
+    "presentationCard.deleteDialogConfirm": "Eliminar",
     "presentationCard.active": "Activa",
     "presentationCard.activate": "Activar",
     "presentationCard.deactivate": "Desactivar",
@@ -658,6 +662,10 @@ const translations: Record<Language, Record<string, string>> = {
     "propertyTypes.penthouse": "Penthouse",
     
     // Presentation Cards
+    "presentationCard.deleteDialogTitle": "Delete card?",
+    "presentationCard.deleteDialogDesc": "This action cannot be undone. The presentation card will be permanently deleted.",
+    "presentationCard.deleteDialogCancel": "Cancel",
+    "presentationCard.deleteDialogConfirm": "Delete",
     "presentationCard.active": "Active",
     "presentationCard.activate": "Activate",
     "presentationCard.deactivate": "Deactivate",

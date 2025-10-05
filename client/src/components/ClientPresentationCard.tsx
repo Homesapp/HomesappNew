@@ -189,19 +189,18 @@ export function ClientPresentationCard({
       <AlertDialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>¿Eliminar tarjeta?</AlertDialogTitle>
+            <AlertDialogTitle>{t("presentationCard.deleteDialogTitle")}</AlertDialogTitle>
             <AlertDialogDescription>
-              Esta acción no se puede deshacer. La tarjeta de presentación será eliminada permanentemente.
+              {t("presentationCard.deleteDialogDesc")}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel data-testid="button-cancel-delete">Cancelar</AlertDialogCancel>
+            <AlertDialogCancel data-testid="button-cancel-delete">{t("presentationCard.deleteDialogCancel")}</AlertDialogCancel>
             <AlertDialogAction 
               onClick={onDelete}
-              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
               data-testid="button-confirm-delete"
             >
-              Eliminar
+              {t("presentationCard.deleteDialogConfirm")}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
