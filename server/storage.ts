@@ -25,6 +25,9 @@ import {
   chatConversations,
   chatParticipants,
   chatMessages,
+  agreementTemplates,
+  propertySubmissionDrafts,
+  propertyAgreements,
   type User,
   type UpsertUser,
   type InsertUser,
@@ -78,6 +81,12 @@ import {
   type InsertChatParticipant,
   type ChatMessage,
   type InsertChatMessage,
+  type AgreementTemplate,
+  type InsertAgreementTemplate,
+  type PropertySubmissionDraft,
+  type InsertPropertySubmissionDraft,
+  type PropertyAgreement,
+  type InsertPropertyAgreement,
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, and, or, gte, lte, ilike, desc, sql } from "drizzle-orm";
@@ -262,6 +271,28 @@ export interface IStorage {
   createChatMessage(message: InsertChatMessage): Promise<ChatMessage>;
   addChatParticipant(participant: InsertChatParticipant): Promise<ChatParticipant>;
   getChatParticipants(conversationId: string): Promise<ChatParticipant[]>;
+  
+  // Agreement Template operations
+  getAgreementTemplate(id: string): Promise<AgreementTemplate | undefined>;
+  getAgreementTemplateByType(type: string): Promise<AgreementTemplate | undefined>;
+  getAgreementTemplates(filters?: { active?: boolean }): Promise<AgreementTemplate[]>;
+  createAgreementTemplate(template: InsertAgreementTemplate): Promise<AgreementTemplate>;
+  updateAgreementTemplate(id: string, updates: Partial<InsertAgreementTemplate>): Promise<AgreementTemplate>;
+  deleteAgreementTemplate(id: string): Promise<void>;
+  
+  // Property Submission Draft operations
+  getPropertySubmissionDraft(id: string): Promise<PropertySubmissionDraft | undefined>;
+  getPropertySubmissionDrafts(filters?: { userId?: string; status?: string }): Promise<PropertySubmissionDraft[]>;
+  createPropertySubmissionDraft(draft: InsertPropertySubmissionDraft): Promise<PropertySubmissionDraft>;
+  updatePropertySubmissionDraft(id: string, updates: Partial<InsertPropertySubmissionDraft>): Promise<PropertySubmissionDraft>;
+  deletePropertySubmissionDraft(id: string): Promise<void>;
+  
+  // Property Agreement operations
+  getPropertyAgreement(id: string): Promise<PropertyAgreement | undefined>;
+  getPropertyAgreements(filters?: { userId?: string; propertyId?: string; status?: string; submissionDraftId?: string }): Promise<PropertyAgreement[]>;
+  createPropertyAgreement(agreement: InsertPropertyAgreement): Promise<PropertyAgreement>;
+  updatePropertyAgreement(id: string, updates: Partial<InsertPropertyAgreement>): Promise<PropertyAgreement>;
+  signPropertyAgreement(id: string, signerName: string, signerIp: string): Promise<PropertyAgreement>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -1124,7 +1155,7 @@ export class DatabaseStorage implements IStorage {
     
     const conditions = [];
     if (filters?.status) {
-      conditions.push(eq(leads.status, filters.status));
+      conditions.push(eq(leads.status, filters.status as any));
     }
     if (filters?.assignedToId) {
       conditions.push(eq(leads.assignedToId, filters.assignedToId));
@@ -1175,7 +1206,7 @@ export class DatabaseStorage implements IStorage {
     
     const conditions = [];
     if (filters?.status) {
-      conditions.push(eq(rentalApplications.status, filters.status));
+      conditions.push(eq(rentalApplications.status, filters.status as any));
     }
     if (filters?.propertyId) {
       conditions.push(eq(rentalApplications.propertyId, filters.propertyId));
@@ -1391,7 +1422,7 @@ export class DatabaseStorage implements IStorage {
   async markNotificationAsRead(id: string): Promise<Notification> {
     const [notification] = await db
       .update(notifications)
-      .set({ isRead: true })
+      .set({ read: true })
       .where(eq(notifications.id, id))
       .returning();
     return notification;
@@ -1400,7 +1431,7 @@ export class DatabaseStorage implements IStorage {
   async markAllNotificationsAsRead(userId: string): Promise<void> {
     await db
       .update(notifications)
-      .set({ isRead: true })
+      .set({ read: true })
       .where(eq(notifications.userId, userId));
   }
 
@@ -1448,6 +1479,145 @@ export class DatabaseStorage implements IStorage {
       .select()
       .from(chatParticipants)
       .where(eq(chatParticipants.conversationId, conversationId));
+  }
+
+  // Agreement Template operations
+  async getAgreementTemplate(id: string): Promise<AgreementTemplate | undefined> {
+    const [template] = await db.select().from(agreementTemplates).where(eq(agreementTemplates.id, id));
+    return template;
+  }
+
+  async getAgreementTemplateByType(type: string): Promise<AgreementTemplate | undefined> {
+    const [template] = await db.select().from(agreementTemplates).where(eq(agreementTemplates.type, type as any));
+    return template;
+  }
+
+  async getAgreementTemplates(filters?: { active?: boolean }): Promise<AgreementTemplate[]> {
+    let query = db.select().from(agreementTemplates);
+    
+    if (filters?.active !== undefined) {
+      query = query.where(eq(agreementTemplates.active, filters.active)) as any;
+    }
+    
+    return await query.orderBy(agreementTemplates.name);
+  }
+
+  async createAgreementTemplate(templateData: InsertAgreementTemplate): Promise<AgreementTemplate> {
+    const [template] = await db.insert(agreementTemplates).values(templateData).returning();
+    return template;
+  }
+
+  async updateAgreementTemplate(id: string, updates: Partial<InsertAgreementTemplate>): Promise<AgreementTemplate> {
+    const [updated] = await db
+      .update(agreementTemplates)
+      .set({ ...updates, updatedAt: new Date() })
+      .where(eq(agreementTemplates.id, id))
+      .returning();
+    return updated;
+  }
+
+  async deleteAgreementTemplate(id: string): Promise<void> {
+    await db.delete(agreementTemplates).where(eq(agreementTemplates.id, id));
+  }
+
+  // Property Submission Draft operations
+  async getPropertySubmissionDraft(id: string): Promise<PropertySubmissionDraft | undefined> {
+    const [draft] = await db.select().from(propertySubmissionDrafts).where(eq(propertySubmissionDrafts.id, id));
+    return draft;
+  }
+
+  async getPropertySubmissionDrafts(filters?: { userId?: string; status?: string }): Promise<PropertySubmissionDraft[]> {
+    let query = db.select().from(propertySubmissionDrafts);
+    
+    const conditions = [];
+    if (filters?.userId) {
+      conditions.push(eq(propertySubmissionDrafts.userId, filters.userId));
+    }
+    if (filters?.status) {
+      conditions.push(eq(propertySubmissionDrafts.status, filters.status as any));
+    }
+    
+    if (conditions.length > 0) {
+      query = query.where(and(...conditions)) as any;
+    }
+    
+    return await query.orderBy(desc(propertySubmissionDrafts.updatedAt));
+  }
+
+  async createPropertySubmissionDraft(draftData: InsertPropertySubmissionDraft): Promise<PropertySubmissionDraft> {
+    const [draft] = await db.insert(propertySubmissionDrafts).values(draftData).returning();
+    return draft;
+  }
+
+  async updatePropertySubmissionDraft(id: string, updates: Partial<InsertPropertySubmissionDraft>): Promise<PropertySubmissionDraft> {
+    const [updated] = await db
+      .update(propertySubmissionDrafts)
+      .set({ ...updates, updatedAt: new Date() })
+      .where(eq(propertySubmissionDrafts.id, id))
+      .returning();
+    return updated;
+  }
+
+  async deletePropertySubmissionDraft(id: string): Promise<void> {
+    await db.delete(propertySubmissionDrafts).where(eq(propertySubmissionDrafts.id, id));
+  }
+
+  // Property Agreement operations
+  async getPropertyAgreement(id: string): Promise<PropertyAgreement | undefined> {
+    const [agreement] = await db.select().from(propertyAgreements).where(eq(propertyAgreements.id, id));
+    return agreement;
+  }
+
+  async getPropertyAgreements(filters?: { userId?: string; propertyId?: string; status?: string; submissionDraftId?: string }): Promise<PropertyAgreement[]> {
+    let query = db.select().from(propertyAgreements);
+    
+    const conditions = [];
+    if (filters?.userId) {
+      conditions.push(eq(propertyAgreements.userId, filters.userId));
+    }
+    if (filters?.propertyId) {
+      conditions.push(eq(propertyAgreements.propertyId, filters.propertyId));
+    }
+    if (filters?.status) {
+      conditions.push(eq(propertyAgreements.status, filters.status as any));
+    }
+    if (filters?.submissionDraftId) {
+      conditions.push(eq(propertyAgreements.submissionDraftId, filters.submissionDraftId));
+    }
+    
+    if (conditions.length > 0) {
+      query = query.where(and(...conditions)) as any;
+    }
+    
+    return await query.orderBy(desc(propertyAgreements.createdAt));
+  }
+
+  async createPropertyAgreement(agreementData: InsertPropertyAgreement): Promise<PropertyAgreement> {
+    const [agreement] = await db.insert(propertyAgreements).values(agreementData).returning();
+    return agreement;
+  }
+
+  async updatePropertyAgreement(id: string, updates: Partial<InsertPropertyAgreement>): Promise<PropertyAgreement> {
+    const [updated] = await db
+      .update(propertyAgreements)
+      .set(updates)
+      .where(eq(propertyAgreements.id, id))
+      .returning();
+    return updated;
+  }
+
+  async signPropertyAgreement(id: string, signerName: string, signerIp: string): Promise<PropertyAgreement> {
+    const [updated] = await db
+      .update(propertyAgreements)
+      .set({
+        status: "signed",
+        signedAt: new Date(),
+        signerName,
+        signerIp,
+      })
+      .where(eq(propertyAgreements.id, id))
+      .returning();
+    return updated;
   }
 }
 
