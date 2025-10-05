@@ -266,43 +266,54 @@ export function LanguageProvider({ children }: { children: ReactNode }) {
     return (saved as Language) || "es";
   });
 
-  // Sync language between localStorage and user profile
+  // Effect 1: Initial sync on login - prefer localStorage over user profile
   useEffect(() => {
-    const syncLanguage = async () => {
-      if (user) {
-        const localStorageLang = localStorage.getItem("language") as Language;
-        const userLang = user.preferredLanguage as Language;
-        
-        // If user has a language preference in localStorage that differs from their profile,
-        // update the backend with the localStorage value (user chose this before/after login)
-        if (localStorageLang && localStorageLang !== userLang) {
-          try {
-            await fetch("/api/profile", {
-              method: "PATCH",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({ preferredLanguage: localStorageLang }),
-            });
-            // Keep the localStorage language active
-            if (localStorageLang !== language) {
-              setLanguageState(localStorageLang);
-            }
-          } catch (error) {
-            console.error("Failed to sync language to backend:", error);
-            // If sync fails, fall back to user's saved preference
-            if (userLang && userLang !== language) {
-              setLanguageState(userLang);
-            }
-          }
-        } else if (userLang && userLang !== language && !localStorageLang) {
-          // User has a preference in DB but not in localStorage, use DB preference
-          setLanguageState(userLang);
-        }
-      }
-    };
+    if (!user) return;
     
-    syncLanguage();
-  }, [user?.id]); // Only run when user changes (login/logout)
-
+    const localStorageLang = localStorage.getItem("language") as Language;
+    const userLang = user.preferredLanguage as Language;
+    
+    // Always prefer localStorage language (user's choice from before login)
+    if (localStorageLang) {
+      // Set UI to localStorage value
+      if (localStorageLang !== language) {
+        setLanguageState(localStorageLang);
+      }
+      // Sync backend if it differs
+      if (localStorageLang !== userLang) {
+        fetch("/api/profile", {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ preferredLanguage: localStorageLang }),
+        }).catch((error) => {
+          console.error("Failed to sync language to backend on login:", error);
+        });
+      }
+    } else if (userLang && userLang !== language) {
+      // No localStorage: use user's profile preference
+      setLanguageState(userLang);
+    }
+  }, [user?.id]); // Only run on login/logout
+  
+  // Effect 2: Update backend when authenticated user manually changes language
+  useEffect(() => {
+    if (!user) return;
+    
+    const userLang = user.preferredLanguage as Language;
+    
+    // If language changed and differs from backend, update backend
+    if (language && language !== userLang) {
+      fetch("/api/profile", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ preferredLanguage: language }),
+      }).catch((error) => {
+        console.error("Failed to update language preference:", error);
+      });
+    }
+  }, [language, user?.id]); // Run when language changes or user logs in
+  
+  // Effect 3: Save language to localStorage
   useEffect(() => {
     localStorage.setItem("language", language);
   }, [language]);
