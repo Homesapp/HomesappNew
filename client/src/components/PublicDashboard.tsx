@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Checkbox } from "@/components/ui/checkbox";
 import { useQuery } from "@tanstack/react-query";
 import { type Property } from "@shared/schema";
 import { ThemeToggle } from "@/components/ThemeToggle";
@@ -31,6 +32,7 @@ export default function PublicDashboard() {
   const [propertyType, setPropertyType] = useState("");
   const [colonyName, setColonyName] = useState("");
   const [condoName, setCondoName] = useState("");
+  const [allowsSubleasing, setAllowsSubleasing] = useState(false);
   const { t } = useLanguage();
 
   const { data: properties = [] } = useQuery<Property[]>({
@@ -54,6 +56,9 @@ export default function PublicDashboard() {
     }
     if (condoName.trim()) {
       params.append("condoName", condoName);
+    }
+    if (allowsSubleasing) {
+      params.append("allowsSubleasing", "true");
     }
     
     const queryString = params.toString();
@@ -177,6 +182,21 @@ export default function PublicDashboard() {
                   </div>
                 </div>
 
+                <div className="mt-4 flex items-center gap-2">
+                  <Checkbox
+                    id="allows-subleasing"
+                    checked={allowsSubleasing}
+                    onCheckedChange={(checked) => setAllowsSubleasing(checked === true)}
+                    data-testid="checkbox-subleasing"
+                  />
+                  <label
+                    htmlFor="allows-subleasing"
+                    className="text-sm font-medium cursor-pointer"
+                  >
+                    {t("public.filterAllowsSubleasing")}
+                  </label>
+                </div>
+
                 <div className="mt-4 flex justify-end gap-2">
                   <Button
                     variant="ghost"
@@ -185,6 +205,7 @@ export default function PublicDashboard() {
                       setColonyName("");
                       setCondoName("");
                       setSearchQuery("");
+                      setAllowsSubleasing(false);
                     }}
                     data-testid="button-clear-filters"
                   >

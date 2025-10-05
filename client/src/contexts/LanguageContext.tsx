@@ -166,6 +166,7 @@ const translations: Record<Language, Record<string, string>> = {
     "public.filterColonyPlaceholder": "Ej: La Veleta, Aldea Zama...",
     "public.filterCondo": "Condominio",
     "public.filterCondoPlaceholder": "Nombre del condominio...",
+    "public.filterAllowsSubleasing": "Permite subarrendamiento",
     "public.clearFilters": "Limpiar filtros",
     
     // Owner Banner
@@ -381,6 +382,7 @@ const translations: Record<Language, Record<string, string>> = {
     "public.filterColonyPlaceholder": "E.g.: La Veleta, Aldea Zama...",
     "public.filterCondo": "Condominium",
     "public.filterCondoPlaceholder": "Condominium name...",
+    "public.filterAllowsSubleasing": "Allows subleasing",
     "public.clearFilters": "Clear filters",
     
     // Owner Banner
