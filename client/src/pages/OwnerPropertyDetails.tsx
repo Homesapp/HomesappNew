@@ -25,7 +25,19 @@ import {
   History,
   FileText,
   ArrowLeft,
+  Trash2,
 } from "lucide-react";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
 import type { Property } from "@shared/schema";
 
 const approvalStatusLabels: Record<string, string> = {
@@ -149,13 +161,16 @@ export default function OwnerPropertyDetails() {
           )}
         </div>
         {property && (
-          <Button
-            onClick={() => setLocation(`/owner/property/${id}/edit`)}
-            data-testid="button-edit-property"
-          >
-            <Edit className="h-4 w-4 mr-2" />
-            Editar Propiedad
-          </Button>
+          <div className="flex gap-2">
+            <Button
+              onClick={() => setLocation(`/owner/property/${id}/edit`)}
+              data-testid="button-edit-property"
+            >
+              <Edit className="h-4 w-4 mr-2" />
+              Editar Propiedad
+            </Button>
+            <DeletePropertyButton propertyId={id!} propertyTitle={property.title} />
+          </div>
         )}
       </div>
 
@@ -381,5 +396,60 @@ export default function OwnerPropertyDetails() {
         </Tabs>
       )}
     </div>
+  );
+}
+
+function DeletePropertyButton({ propertyId, propertyTitle }: { propertyId: string; propertyTitle: string }) {
+  const [_, setLocation] = useLocation();
+  const { toast } = useToast();
+
+  const deleteMutation = useMutation({
+    mutationFn: async () => {
+      await apiRequest("DELETE", `/api/properties/${propertyId}`);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/owner/properties"] });
+      toast({
+        title: "Propiedad eliminada",
+        description: "La propiedad ha sido eliminada exitosamente",
+      });
+      setLocation("/mis-propiedades");
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Error",
+        description: error.message || "No se pudo eliminar la propiedad",
+        variant: "destructive",
+      });
+    },
+  });
+
+  return (
+    <AlertDialog>
+      <AlertDialogTrigger asChild>
+        <Button variant="destructive" data-testid="button-delete-property">
+          <Trash2 className="h-4 w-4 mr-2" />
+          Eliminar
+        </Button>
+      </AlertDialogTrigger>
+      <AlertDialogContent>
+        <AlertDialogHeader>
+          <AlertDialogTitle>¿Estás seguro?</AlertDialogTitle>
+          <AlertDialogDescription>
+            Esta acción no se puede deshacer. Se eliminará permanentemente la propiedad "{propertyTitle}" y todos sus datos asociados.
+          </AlertDialogDescription>
+        </AlertDialogHeader>
+        <AlertDialogFooter>
+          <AlertDialogCancel>Cancelar</AlertDialogCancel>
+          <AlertDialogAction
+            onClick={() => deleteMutation.mutate()}
+            className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            data-testid="button-confirm-delete"
+          >
+            {deleteMutation.isPending ? "Eliminando..." : "Eliminar propiedad"}
+          </AlertDialogAction>
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
   );
 }

@@ -4793,10 +4793,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
             
             currentConversationId = conversationId;
             
-            if (!wsClients.has(currentConversationId)) {
-              wsClients.set(currentConversationId, new Set());
+            if (!wsClients.has(conversationId)) {
+              wsClients.set(conversationId, new Set());
             }
-            wsClients.get(currentConversationId)!.add(ws);
+            wsClients.get(conversationId)!.add(ws);
             
             console.log(`WebSocket: User ${userId} joined conversation ${currentConversationId}`);
             ws.send(JSON.stringify({ type: 'joined', conversationId: currentConversationId }));

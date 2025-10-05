@@ -24,17 +24,20 @@ import { apiRequest } from "@/lib/queryClient";
 function ProviderCardWithServices({ provider, onHire }: { provider: any; onHire: (providerId: string, providerName: string) => void }) {
   const { data: services, isLoading: servicesLoading } = useServicesByProvider(provider.id);
   const { toast } = useToast();
+  const { user } = useAuth();
   const [, setLocation] = useLocation();
 
   const createConversationMutation = useMutation({
     mutationFn: async () => {
+      if (!user) throw new Error("Usuario no autenticado");
+      
       const fullName = `${provider.user.firstName || ""} ${provider.user.lastName || ""}`.trim();
       
       const conversation = await apiRequest("POST", "/api/chat/conversations", {
         type: "internal",
         title: `Chat con ${fullName || provider.specialty}`,
-        createdById: provider.userId,
-      });
+        createdById: user.id,
+      }) as unknown as { id: string };
       
       await apiRequest("POST", "/api/chat/participants", {
         conversationId: conversation.id,
@@ -156,11 +159,7 @@ export default function Directory() {
     setHireDialogOpen(true);
   };
 
-  const selectedProviderServices = useMemo(() => {
-    if (!selectedProviderForHire || !providers) return [];
-    const provider = providers.find(p => p.id === selectedProviderForHire.id);
-    return provider?.services || [];
-  }, [selectedProviderForHire, providers]);
+  const { data: selectedProviderServices = [] } = useServicesByProvider(selectedProviderForHire?.id || "");
 
   if (error) {
     return (
@@ -213,7 +212,7 @@ export default function Directory() {
           onOpenChange={setHireDialogOpen}
           providerId={selectedProviderForHire.id}
           providerName={selectedProviderForHire.name}
-          services={selectedProviderServices.map(s => ({
+          services={selectedProviderServices.map((s: any) => ({
             id: s.id,
             name: s.name,
             price: Number(s.price),
