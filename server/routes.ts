@@ -30,6 +30,9 @@ import {
   offers,
   createPropertyChangeRequestSchema,
   updateOwnerSettingsSchema,
+  insertRentalApplicationSchema,
+  createInspectionReportSchema,
+  updateInspectionReportSchema,
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, and, inArray } from "drizzle-orm";
@@ -139,7 +142,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       // Save session explicitly
       await new Promise<void>((resolve, reject) => {
-        req.session.save((err) => {
+        req.session.save((err: any) => {
           if (err) reject(err);
           else resolve();
         });
@@ -157,7 +160,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Admin logout route
   app.post("/api/auth/admin/logout", async (req, res) => {
     try {
-      req.session.destroy((err) => {
+      req.session.destroy((err: any) => {
         if (err) {
           console.error("Error destroying session:", err);
           return res.status(500).json({ message: "Logout failed" });
@@ -223,7 +226,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       // Save session explicitly
       await new Promise<void>((resolve, reject) => {
-        req.session.save((err) => {
+        req.session.save((err: any) => {
           if (err) reject(err);
           else resolve();
         });
@@ -1293,7 +1296,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post("/api/admin/inspection-reports", isAuthenticated, requireRole(["master", "admin", "admin_jr"]), async (req: any, res) => {
     try {
       const inspectorId = req.user?.claims?.sub || req.session?.adminUser?.id;
-      const { propertyId, scheduledDate, notes } = req.body;
+      
+      // Validate request body with Zod
+      const validationResult = createInspectionReportSchema.safeParse(req.body);
+      if (!validationResult.success) {
+        return res.status(400).json({ 
+          message: "Datos inválidos", 
+          errors: validationResult.error.errors 
+        });
+      }
+
+      const { propertyId, inspectionDate, notes, observations } = validationResult.data;
 
       // Verify property exists
       const property = await storage.getProperty(propertyId);
@@ -1305,9 +1318,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const report = await storage.createInspectionReport({
         propertyId,
         inspectorId,
-        scheduledDate,
+        inspectionDate,
         status: "scheduled",
         notes,
+        observations,
       });
 
       await createAuditLog(
@@ -1328,7 +1342,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.patch("/api/admin/inspection-reports/:id", isAuthenticated, requireRole(["master", "admin", "admin_jr"]), async (req: any, res) => {
     try {
       const { id } = req.params;
-      const updates = req.body;
+      
+      // Validate request body with Zod
+      const validationResult = updateInspectionReportSchema.safeParse(req.body);
+      if (!validationResult.success) {
+        return res.status(400).json({ 
+          message: "Datos inválidos", 
+          errors: validationResult.error.errors 
+        });
+      }
+
+      const updates = validationResult.data;
 
       const report = await storage.getInspectionReport(id);
       if (!report) {
@@ -1336,7 +1360,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       // Update inspection report (cascade logic in storage handles property approval status)
-      const updated = await storage.updateInspectionReport(id, updates);
+      const updated = await storage.updateInspectionReport(id, updates as any);
 
       await createAuditLog(
         req,

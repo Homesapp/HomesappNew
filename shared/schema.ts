@@ -701,6 +701,26 @@ export const insertInspectionReportSchema = createInsertSchema(inspectionReports
   updatedAt: true,
 });
 
+// Schema for creating inspection report (admin only)
+export const createInspectionReportSchema = z.object({
+  propertyId: z.string(),
+  inspectionDate: z.date(),
+  notes: z.string().optional(),
+  observations: z.string().optional(),
+});
+
+// Schema for updating inspection report (admin only)
+export const updateInspectionReportSchema = z.object({
+  inspectionDate: z.date().optional(),
+  status: z.string().optional(),
+  overallCondition: z.string().optional(),
+  observations: z.string().optional(),
+  images: z.array(z.string()).optional(),
+  approved: z.boolean().optional(),
+  approvalNotes: z.string().optional(),
+  notes: z.string().optional(),
+});
+
 export type InsertInspectionReport = z.infer<typeof insertInspectionReportSchema>;
 export type InspectionReport = typeof inspectionReports.$inferSelect;
 
