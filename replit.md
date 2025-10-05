@@ -27,6 +27,13 @@ Preferred communication style: Simple, everyday language.
   - Video call integration with Google Meet links
   - Appointment status tracking (pending, confirmed, completed, cancelled)
   - Direct booking capability from dashboard
+- **Profile Picture Upload**: Implemented device-based image upload for user profiles
+  - Users can upload profile pictures directly from their device (no URL required)
+  - Images converted to base64 and stored in database
+  - File validation: JPG/PNG/GIF formats, maximum 2MB size
+  - Profile image displays as thumbnail in UserProfileMenu (top-right)
+  - Large avatar preview on profile page with upload/remove controls
+  - Smart update logic: only sends image data when actually changed to preserve existing photos
 
 ## System Architecture
 
