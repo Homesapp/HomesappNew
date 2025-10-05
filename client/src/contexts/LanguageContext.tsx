@@ -62,6 +62,24 @@ const translations: Record<Language, Record<string, string>> = {
     "public.login": "Iniciar Sesión",
     "public.register": "Registrarse",
     
+    // Welcome Messages
+    "welcome.client.title": "¡Bienvenido a HomesApp!",
+    "welcome.client.subtitle": "Tu Panel Personal de Cliente",
+    "welcome.client.description": "Este es tu espacio personal para gestionar todo lo relacionado con tu búsqueda de propiedades. Aquí podrás:",
+    "welcome.client.feature1": "Explorar y guardar tus propiedades favoritas",
+    "welcome.client.feature2": "Agendar citas para visitas presenciales o virtuales",
+    "welcome.client.feature3": "Chatear directamente con propietarios y agentes",
+    "welcome.client.feature4": "Gestionar tus oportunidades y ofertas",
+    "welcome.client.button": "Comenzar a Explorar",
+    "welcome.owner.title": "¡Bienvenido Propietario!",
+    "welcome.owner.subtitle": "Tu Panel de Gestión de Propiedades",
+    "welcome.owner.description": "Este es tu panel personal para gestionar todo lo que necesites de tu perfil y propiedades. Desde aquí podrás:",
+    "welcome.owner.feature1": "Publicar y administrar tus propiedades",
+    "welcome.owner.feature2": "Gestionar citas y visitas de potenciales clientes",
+    "welcome.owner.feature3": "Conectar con proveedores de servicios confiables",
+    "welcome.owner.feature4": "Ver reportes y estadísticas en tiempo real",
+    "welcome.owner.button": "Ir a Mi Panel",
+    
     // Profile Page
     "profile.title": "Mi Perfil",
     "profile.personalInfo": "Información Personal",
@@ -277,6 +295,24 @@ const translations: Record<Language, Record<string, string>> = {
     "public.cta.button": "Get Started",
     "public.login": "Login",
     "public.register": "Register",
+    
+    // Welcome Messages
+    "welcome.client.title": "Welcome to HomesApp!",
+    "welcome.client.subtitle": "Your Personal Client Dashboard",
+    "welcome.client.description": "This is your personal space to manage everything related to your property search. Here you can:",
+    "welcome.client.feature1": "Explore and save your favorite properties",
+    "welcome.client.feature2": "Schedule in-person or virtual visits",
+    "welcome.client.feature3": "Chat directly with owners and agents",
+    "welcome.client.feature4": "Manage your opportunities and offers",
+    "welcome.client.button": "Start Exploring",
+    "welcome.owner.title": "Welcome Property Owner!",
+    "welcome.owner.subtitle": "Your Property Management Dashboard",
+    "welcome.owner.description": "This is your personal dashboard to manage everything you need for your profile and properties. From here you can:",
+    "welcome.owner.feature1": "Publish and manage your properties",
+    "welcome.owner.feature2": "Manage appointments and client visits",
+    "welcome.owner.feature3": "Connect with reliable service providers",
+    "welcome.owner.feature4": "View reports and real-time analytics",
+    "welcome.owner.button": "Go to Dashboard",
     
     // Profile Page
     "profile.title": "My Profile",

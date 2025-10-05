@@ -5,6 +5,8 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Building2, Calendar, FileEdit, CheckCircle2, AlertCircle, Clock, ArrowRight, Users } from "lucide-react";
 import type { Property, PropertyChangeRequest, Appointment } from "@shared/schema";
+import { WelcomeModal } from "@/components/WelcomeModal";
+import { useAuth } from "@/hooks/useAuth";
 
 type InterestedClient = {
   id: string;
@@ -27,6 +29,7 @@ type InterestedClient = {
 };
 
 export default function OwnerDashboard() {
+  const { user, isLoading: isAuthLoading } = useAuth();
   const { data: properties = [], isLoading: loadingProperties } = useQuery<Property[]>({
     queryKey: ["/api/owner/properties"],
   });
@@ -69,9 +72,16 @@ export default function OwnerDashboard() {
   }
 
   return (
-    <div className="p-6 space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold" data-testid="heading-owner-dashboard">Dashboard Propietario</h1>
+    <>
+      {!isAuthLoading && user && (
+        <WelcomeModal 
+          userRole="owner" 
+          hasSeenWelcome={user.hasSeenWelcome || false} 
+        />
+      )}
+      <div className="p-6 space-y-6">
+        <div>
+          <h1 className="text-2xl font-bold" data-testid="heading-owner-dashboard">Dashboard Propietario</h1>
         <p className="text-muted-foreground">
           Resumen de tus propiedades y actividades
         </p>
@@ -374,6 +384,7 @@ export default function OwnerDashboard() {
           </div>
         </CardContent>
       </Card>
-    </div>
+      </div>
+    </>
   );
 }

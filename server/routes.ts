@@ -510,6 +510,22 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  app.patch("/api/user/mark-welcome-seen", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      
+      await db
+        .update(users)
+        .set({ hasSeenWelcome: true })
+        .where(eq(users.id, userId));
+      
+      res.json({ success: true });
+    } catch (error) {
+      console.error("Error marking welcome as seen:", error);
+      res.status(500).json({ message: "Failed to mark welcome as seen" });
+    }
+  });
+
   // User registration routes
   app.post("/api/register", async (req, res) => {
     try {
@@ -1176,7 +1192,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         propertyType,
         colonyName,
         condoName,
-        unitType
+        unitType,
+        allowsSubleasing
       } = req.query;
 
       const filters: any = {};
@@ -1220,6 +1237,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       if (unitType && typeof unitType === "string") {
         filters.unitType = unitType;
+      }
+      if (allowsSubleasing !== undefined) {
+        filters.allowsSubleasing = allowsSubleasing === "true";
       }
 
       // Only show approved properties to non-authenticated users

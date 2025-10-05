@@ -12,6 +12,7 @@ import { CalendarIcon, MapPin, Home, Clock, Video, User } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import type { Appointment, Property, User as UserType } from "@shared/schema";
 import { AppointmentFormDialog } from "@/components/AppointmentFormDialog";
+import { WelcomeModal } from "@/components/WelcomeModal";
 
 type AppointmentWithRelations = Appointment & {
   property?: Property;
@@ -36,7 +37,7 @@ const STATUS_LABELS = {
 export default function ClientDashboard() {
   const [selectedDate, setSelectedDate] = useState<Date | undefined>(new Date());
   const [showAppointmentForm, setShowAppointmentForm] = useState(false);
-  const { user } = useAuth();
+  const { user, isLoading: isAuthLoading } = useAuth();
 
   const { data: appointments = [], isLoading } = useQuery<AppointmentWithRelations[]>({
     queryKey: ["/api/appointments"],
@@ -69,15 +70,22 @@ export default function ClientDashboard() {
   }
 
   return (
-    <div className="space-y-6">
-      <div>
-        <h1 className="text-3xl font-bold" data-testid="text-dashboard-title">Mis Citas</h1>
-        <p className="text-muted-foreground">
-          Gestiona tus visitas a propiedades y agenda nuevas citas
-        </p>
-      </div>
+    <>
+      {!isAuthLoading && user && (
+        <WelcomeModal 
+          userRole="cliente" 
+          hasSeenWelcome={user.hasSeenWelcome || false} 
+        />
+      )}
+      <div className="space-y-6">
+        <div>
+          <h1 className="text-3xl font-bold" data-testid="text-dashboard-title">Mis Citas</h1>
+          <p className="text-muted-foreground">
+            Gestiona tus visitas a propiedades y agenda nuevas citas
+          </p>
+        </div>
 
-      <Tabs defaultValue="upcoming" className="space-y-4">
+        <Tabs defaultValue="upcoming" className="space-y-4">
         <TabsList>
           <TabsTrigger value="upcoming" data-testid="tab-upcoming">
             Próximas Citas
@@ -333,6 +341,7 @@ export default function ClientDashboard() {
         onOpenChange={setShowAppointmentForm}
         mode="create"
       />
-    </div>
+      </div>
+    </>
   );
 }

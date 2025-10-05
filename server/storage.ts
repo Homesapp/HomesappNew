@@ -177,6 +177,7 @@ export interface IStorage {
     colonyName?: string;
     condoName?: string;
     unitType?: string;
+    allowsSubleasing?: boolean;
   }): Promise<Property[]>;
   
   // Property staff operations
@@ -686,6 +687,7 @@ export class DatabaseStorage implements IStorage {
     colonyName?: string;
     condoName?: string;
     unitType?: string;
+    allowsSubleasing?: boolean;
   }): Promise<Property[]> {
     let query = db.select().from(properties);
     const conditions = [];
@@ -777,6 +779,10 @@ export class DatabaseStorage implements IStorage {
 
     if (filters.unitType) {
       conditions.push(eq(properties.unitType, filters.unitType));
+    }
+
+    if (filters.allowsSubleasing !== undefined) {
+      conditions.push(eq(properties.allowsSubleasing, filters.allowsSubleasing));
     }
 
     if (conditions.length > 0) {

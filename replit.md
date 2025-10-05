@@ -21,6 +21,17 @@ Preferred communication style: Simple, everyday language.
   - Banner padding reduced (p-6 md:p-8 → p-4 md:p-6) for tighter, more professional look
   - Benefits section spacing reduced (gap-8→gap-6, p-8→p-6)
   - All carousel banners now follow consistent grid layout with images
+  - **Component Reordering**: Featured properties now display before promotional banners on home page
+- **Subarrendamiento Feature**: Added sublease capability to properties with search filter
+  - New allowsSubleasing boolean field in properties table (defaults to false)
+  - Filter checkbox in advanced search on public dashboard
+  - Backend search endpoint supports allowsSubleasing parameter
+  - Full Spanish/English translations for sublease feature
+- **Welcome Messages**: Implemented first-time welcome modals for clients and property owners
+  - New hasSeenWelcome boolean field in users table for cross-device consistency
+  - Role-specific welcome modals with feature highlights
+  - Modal shows automatically on first dashboard visit
+  - Backend endpoint to mark welcome message as seen (/api/user/mark-welcome-seen)
 - **Chat System Fix**: Fixed chat functionality for all users including clients
   - Added "cliente" role to sidebar Mensajes menu for client access
   - Fixed getChatConversations to properly filter by user participation
