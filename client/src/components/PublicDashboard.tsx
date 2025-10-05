@@ -235,7 +235,7 @@ export default function PublicDashboard() {
             <div className="relative h-48 md:h-64">
               <img
                 src={tulumProperty1}
-                alt="Lista tu propiedad en Tulum"
+                alt={t("public.ownerBanner.imgAlt")}
                 className="h-full w-full object-cover"
               />
               <div className="absolute inset-0 bg-gradient-to-r from-black/60 to-transparent" />
@@ -522,7 +522,7 @@ export default function PublicDashboard() {
             <div className="relative h-48 md:h-64">
               <img
                 src={serviceProvider}
-                alt="Proveedores de servicios"
+                alt={t("public.serviceBanner.imgAlt")}
                 className="h-full w-full object-cover"
               />
               <div className="absolute inset-0 bg-gradient-to-l from-black/40 to-transparent" />

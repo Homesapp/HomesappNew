@@ -221,6 +221,10 @@ const translations: Record<Language, Record<string, string>> = {
     "property.bedrooms": "hab",
     "property.bathrooms": "baños",
     "property.area": "m²",
+    
+    // Image Alt Text
+    "public.ownerBanner.imgAlt": "Lista tu propiedad en Tulum",
+    "public.serviceBanner.imgAlt": "Proveedores de servicios",
   },
   en: {
     // Header
@@ -430,6 +434,10 @@ const translations: Record<Language, Record<string, string>> = {
     "property.bedrooms": "bed",
     "property.bathrooms": "bath",
     "property.area": "m²",
+    
+    // Image Alt Text
+    "public.ownerBanner.imgAlt": "List your property in Tulum",
+    "public.serviceBanner.imgAlt": "Service providers",
   },
 };
 
