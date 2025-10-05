@@ -134,14 +134,14 @@ export function OfferFormDialog({
               render={({ field }) => (
                 <FormItem>
                   <FormLabel>Cita Relacionada (Opcional)</FormLabel>
-                  <Select onValueChange={field.onChange} value={field.value || ""} disabled={loadingAppointments}>
+                  <Select onValueChange={(value) => field.onChange(value === "none" ? "" : value)} value={field.value || "none"} disabled={loadingAppointments}>
                     <FormControl>
                       <SelectTrigger data-testid="select-appointment">
                         <SelectValue placeholder="Seleccionar cita" />
                       </SelectTrigger>
                     </FormControl>
                     <SelectContent>
-                      <SelectItem value="">Sin cita relacionada</SelectItem>
+                      <SelectItem value="none">Sin cita relacionada</SelectItem>
                       {appointments?.map((appointment) => {
                         const property = properties?.find(p => p.id === appointment.propertyId);
                         return (
