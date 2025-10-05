@@ -8,7 +8,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
-import { MessageCircle, Send, Paperclip, Key, Users, Headset } from "lucide-react";
+import { MessageCircle, Send, Paperclip, Key, Users, Headset, Calendar } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 import { es } from "date-fns/locale";
 import { useAuth } from "@/hooks/useAuth";
@@ -23,7 +23,7 @@ export default function Chat() {
   
   const [selectedConversation, setSelectedConversation] = useState<string | null>(null);
   const [message, setMessage] = useState("");
-  const [activeTab, setActiveTab] = useState("rental");
+  const [activeTab, setActiveTab] = useState(user?.role === "cliente" ? "appointment" : "rental");
   const messagesEndRef = useRef<HTMLDivElement>(null);
   
   // Connect to WebSocket for real-time updates
@@ -75,6 +75,8 @@ export default function Chat() {
 
   const getTabIcon = (type: string) => {
     switch (type) {
+      case "appointment":
+        return <Calendar className="h-4 w-4" />;
       case "rental":
         return <Key className="h-4 w-4" />;
       case "internal":
@@ -117,7 +119,11 @@ export default function Chat() {
       </div>
 
       <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-        <TabsList className="grid w-full grid-cols-3">
+        <TabsList className="grid w-full grid-cols-4">
+          <TabsTrigger value="appointment" className="flex items-center gap-2" data-testid="tab-appointment">
+            <Calendar className="h-4 w-4" />
+            Chat de Citas
+          </TabsTrigger>
           <TabsTrigger value="rental" className="flex items-center gap-2" data-testid="tab-rental">
             <Key className="h-4 w-4" />
             Rentas en Curso
@@ -174,6 +180,7 @@ export default function Chat() {
                                 )}
                               </div>
                               <Badge variant="outline" className="mt-1 capitalize">
+                                {conversation.type === "appointment" && "Citas"}
                                 {conversation.type === "rental" && "Renta"}
                                 {conversation.type === "internal" && "Interno"}
                                 {conversation.type === "support" && "Soporte"}
