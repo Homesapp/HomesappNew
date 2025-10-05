@@ -374,11 +374,16 @@ export const properties = pgTable("properties", {
   bathrooms: decimal("bathrooms", { precision: 3, scale: 1 }).notNull(),
   area: decimal("area", { precision: 8, scale: 2 }).notNull(),
   location: text("location").notNull(),
+  colonyId: varchar("colony_id").references(() => colonies.id),
+  colonyName: text("colony_name"),
+  customListingTitle: varchar("custom_listing_title", { length: 60 }),
   status: propertyStatusEnum("status").notNull(),
   unitType: text("unit_type").notNull().default("private"),
   condominiumId: varchar("condominium_id").references(() => condominiums.id),
   condoName: text("condo_name"),
   unitNumber: text("unit_number"),
+  showCondoInListing: boolean("show_condo_in_listing").notNull().default(true),
+  showUnitNumberInListing: boolean("show_unit_number_in_listing").notNull().default(true),
   images: text("images").array().default(sql`ARRAY[]::text[]`),
   primaryImages: text("primary_images").array().default(sql`ARRAY[]::text[]`), // 5 fotos principales max
   coverImageIndex: integer("cover_image_index").default(0), // Índice de la foto de portada en primaryImages
@@ -421,6 +426,25 @@ export const insertPropertySchema = createInsertSchema(properties).omit({
 
 export type InsertProperty = z.infer<typeof insertPropertySchema>;
 export type Property = typeof properties.$inferSelect;
+
+// Colonies table
+export const colonies = pgTable("colonies", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  name: text("name").notNull().unique(),
+  slug: text("slug").notNull().unique(),
+  active: boolean("active").notNull().default(true),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
+export const insertColonySchema = createInsertSchema(colonies).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export type InsertColony = z.infer<typeof insertColonySchema>;
+export type Colony = typeof colonies.$inferSelect;
 
 // Condominiums table
 export const condominiums = pgTable("condominiums", {
