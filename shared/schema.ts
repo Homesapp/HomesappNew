@@ -68,6 +68,7 @@ export const offerStatusEnum = pgEnum("offer_status", [
   "pending",
   "accepted",
   "rejected",
+  "countered", // contraoferta realizada
   "under-review",
 ]);
 
@@ -134,11 +135,21 @@ export const leadJourneyActionEnum = pgEnum("lead_journey_action", [
   "favorite",
   "unfavorite",
   "request_opportunity",
+  "schedule_visit",
+  "complete_visit",
+  "submit_offer",
+  "counter_offer",
+  "accept_offer",
+  "reject_offer",
 ]);
 
 export const opportunityRequestStatusEnum = pgEnum("opportunity_request_status", [
   "pending",
   "scheduled_visit",
+  "visit_completed", // visita completada, puede hacer oferta
+  "offer_submitted", // usuario hizo oferta
+  "offer_negotiation", // en proceso de negociación
+  "offer_accepted", // oferta aceptada, pasa a contrato
   "accepted",
   "rejected",
   "expired",
@@ -492,12 +503,15 @@ export type Service = typeof services.$inferSelect;
 // Offers table
 export const offers = pgTable("offers", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  opportunityRequestId: varchar("opportunity_request_id").references(() => rentalOpportunityRequests.id, { onDelete: "set null" }),
   propertyId: varchar("property_id").notNull().references(() => properties.id, { onDelete: "cascade" }),
   clientId: varchar("client_id").notNull().references(() => users.id),
   appointmentId: varchar("appointment_id").references(() => appointments.id),
   offerAmount: decimal("offer_amount", { precision: 12, scale: 2 }).notNull(),
+  counterOfferAmount: decimal("counter_offer_amount", { precision: 12, scale: 2 }),
   status: offerStatusEnum("status").notNull().default("pending"),
   notes: text("notes"),
+  counterOfferNotes: text("counter_offer_notes"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });
