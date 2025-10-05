@@ -42,6 +42,7 @@ import {
   insertChatConversationSchema,
   insertChatMessageSchema,
   insertChatParticipantSchema,
+  updateUserProfileSchema,
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, and, inArray, desc } from "drizzle-orm";
@@ -424,16 +425,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.patch("/api/profile", isAuthenticated, async (req: any, res) => {
     try {
       const userId = req.user.claims.sub;
-      const { firstName, lastName, bio, profileImageUrl, phone } = req.body;
       
-      const updates: any = {};
-      if (firstName !== undefined) updates.firstName = firstName;
-      if (lastName !== undefined) updates.lastName = lastName;
-      if (bio !== undefined) updates.bio = bio;
-      if (profileImageUrl !== undefined) updates.profileImageUrl = profileImageUrl;
-      if (phone !== undefined) updates.phone = phone;
+      const validated = updateUserProfileSchema.parse(req.body);
       
-      const user = await storage.updateUserProfile(userId, updates);
+      const user = await storage.updateUserProfile(userId, validated);
       
       await createAuditLog(
         req,

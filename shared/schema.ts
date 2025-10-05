@@ -231,6 +231,16 @@ export type UpsertUser = z.infer<typeof upsertUserSchema>;
 export type InsertUser = z.infer<typeof insertUserSchema>;
 export type User = typeof users.$inferSelect;
 
+export const updateUserProfileSchema = z.object({
+  firstName: z.string().min(1, "El nombre es requerido").max(100),
+  lastName: z.string().min(1, "El apellido es requerido").max(100),
+  phone: z.string().max(20).optional().or(z.literal("")),
+  bio: z.string().max(500).optional().or(z.literal("")),
+  profileImageUrl: z.string().url("Debe ser una URL válida").optional().or(z.literal("")),
+});
+
+export type UpdateUserProfile = z.infer<typeof updateUserProfileSchema>;
+
 // Admin users table for local authentication
 export const adminUsers = pgTable("admin_users", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
