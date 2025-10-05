@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useLocation } from "wouter";
-import { Search, MapPin, Home, Sparkles, TrendingUp } from "lucide-react";
+import { Search, MapPin, Home, Sparkles, TrendingUp, PawPrint } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
@@ -43,9 +43,9 @@ export default function PublicDashboard() {
     <div className="min-h-screen bg-background">
       {/* Public Header */}
       <header className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
-        <div className="container mx-auto flex h-20 items-center justify-between px-4">
+        <div className="container mx-auto flex h-36 items-center justify-between px-4">
           <div className="flex items-center">
-            <img src={logoIcon} alt="HomesApp" className="h-16 w-16" />
+            <img src={logoIcon} alt="HomesApp" className="h-32 w-32" />
           </div>
           <div className="flex items-center gap-2">
             <LanguageToggle />
@@ -200,6 +200,11 @@ export default function PublicDashboard() {
                           <span data-testid={`text-bedrooms-${property.id}`}>{property.bedrooms} hab</span>
                           <span data-testid={`text-bathrooms-${property.id}`}>{property.bathrooms} baños</span>
                           <span data-testid={`text-area-${property.id}`}>{property.area} m²</span>
+                          {property.amenities?.includes("Mascotas permitidas") && (
+                            <span title="Pet-friendly">
+                              <PawPrint className="h-4 w-4 text-primary" />
+                            </span>
+                          )}
                         </div>
                       </div>
                     </div>
@@ -260,6 +265,12 @@ export default function PublicDashboard() {
                   <div className="flex items-center gap-3 text-xs text-muted-foreground">
                     <span data-testid={`text-all-bedrooms-${property.id}`}>{property.bedrooms} hab</span>
                     <span data-testid={`text-all-bathrooms-${property.id}`}>{property.bathrooms} baños</span>
+                    <span data-testid={`text-all-area-${property.id}`}>{property.area} m²</span>
+                    {property.amenities?.includes("Mascotas permitidas") && (
+                      <span title="Pet-friendly">
+                        <PawPrint className="h-3 w-3 text-primary" />
+                      </span>
+                    )}
                   </div>
                 </div>
               </div>

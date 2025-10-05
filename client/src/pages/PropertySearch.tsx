@@ -9,7 +9,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Slider } from "@/components/ui/slider";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
-import { Search, SlidersHorizontal, MapPin, Bed, Bath, Square, Star, X, Heart } from "lucide-react";
+import { Search, SlidersHorizontal, MapPin, Bed, Bath, Square, Star, X, Heart, PawPrint } from "lucide-react";
 import { type Property } from "@shared/schema";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
@@ -49,7 +49,7 @@ export default function PropertySearch() {
   const [, setLocation] = useLocation();
   const { isAuthenticated } = useAuth();
   const { toast } = useToast();
-  const [filters, setFilters] = useState<SearchFilters>({});
+  const [filters, setFilters] = useState<SearchFilters>({ location: "Tulum" });
   const [showFilters, setShowFilters] = useState(true);
   const [selectedAmenities, setSelectedAmenities] = useState<string[]>([]);
 
@@ -135,7 +135,7 @@ export default function PropertySearch() {
   };
 
   const clearFilters = () => {
-    setFilters({});
+    setFilters({ location: "Tulum" });
     setSelectedAmenities([]);
   };
 
@@ -152,8 +152,8 @@ export default function PropertySearch() {
       <div className="container mx-auto py-6">
         <div className="flex items-center justify-between mb-6">
           <div>
-            <h1 className="text-3xl font-bold">Buscar Propiedades</h1>
-            <p className="text-muted-foreground">Encuentra tu hogar ideal</p>
+            <h1 className="text-3xl font-bold">Buscar Propiedades en Tulum</h1>
+            <p className="text-muted-foreground">Propiedades exclusivas en Tulum, Quintana Roo</p>
           </div>
           <Button
             variant="outline"
@@ -439,6 +439,11 @@ export default function PropertySearch() {
                             <Square className="h-4 w-4" />
                             <span>{property.area} m²</span>
                           </div>
+                          {property.amenities?.includes("Mascotas permitidas") && (
+                            <div className="flex items-center gap-1" title="Pet-friendly">
+                              <PawPrint className="h-4 w-4 text-primary" />
+                            </div>
+                          )}
                         </div>
 
                         <div className="flex items-center gap-1 text-sm text-muted-foreground">

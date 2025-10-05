@@ -2,13 +2,33 @@
 
 ## Overview
 
-HomesApp is a comprehensive SaaS platform designed for real estate property management. It supports multiple user roles (master, admin, admin_jr, seller, owner, cliente, management, concierge, providers, abogado, contador, agente_servicios_especiales) to manage properties, schedule appointments, create client presentations, coordinate services, and process offers. The platform features role-based access control, Google Calendar integration, a service provider marketplace, property submission workflow with digital agreement signing, and a full back office for offer management. Its UI is a professional, data-dense dashboard with light/dark mode support, aiming to streamline property management operations and enhance user experience in the real estate sector.
+HomesApp is a comprehensive SaaS platform designed for real estate property management in Tulum, Quintana Roo. Currently focused exclusively on the Tulum market to validate operations before expanding to other areas in Quintana Roo, the platform supports multiple user roles (master, admin, admin_jr, seller, owner, cliente, management, concierge, providers, abogado, contador, agente_servicios_especiales) to manage properties, schedule appointments, create client presentations, coordinate services, and process offers. The platform features role-based access control, Google Calendar integration, a service provider marketplace, property submission workflow with digital agreement signing, and a full back office for offer management. Its UI is a professional, data-dense dashboard with light/dark mode support, aiming to streamline property management operations and enhance user experience in the real estate sector.
 
 ## User Preferences
 
 Preferred communication style: Simple, everyday language.
 
 ## Recent Changes
+
+**October 2025 - Tulum Market Focus & UX Improvements**:
+- **Tulum Market Limitation**: Application currently focused exclusively on Tulum, Quintana Roo
+  - Updated hero title and subtitle to reflect Tulum focus
+  - Search placeholder updated to mention "zona en Tulum"
+  - Operational policy: Only properties in Tulum are published/approved by admin team
+  - Future expansion planned to other areas in Quintana Roo after validation
+- **Logo & Header Enhancement**:
+  - Logo size increased from h-16 (64px) to h-32 (128px) for better visibility
+  - Header height adjusted from h-20 to h-36 to accommodate larger logo
+- **Property Listing Improvements**:
+  - Area (m²) now displayed in all property cards in PublicDashboard
+  - Pet-friendly indicator (paw print icon) added to cards when "Mascotas permitidas" amenity is present
+  - Consistent display across featured properties carousel and property grid
+  - Same indicators added to PropertySearch results
+- **Performance Investigation**: 
+  - Investigated reported "loading stuck" issue when clicking properties
+  - Root cause: API response times of 2-3 seconds on initial requests (likely database cold start)
+  - Not a code bug - navigation and data loading work correctly
+  - Future optimization: Consider implementing loading skeleton states or progress indicators
 
 **October 2025 - Public Dashboard Enhancements & Dual Pricing Support**:
 - **Dual Pricing System**: Properties now support both rental and sale prices

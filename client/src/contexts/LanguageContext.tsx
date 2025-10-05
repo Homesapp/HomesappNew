@@ -43,9 +43,9 @@ const translations: Record<Language, Record<string, string>> = {
     "nav.calendar": "Calendario",
     
     // Public Dashboard
-    "public.hero.title": "Encuentra tu hogar ideal",
-    "public.hero.subtitle": "Miles de propiedades esperando por ti",
-    "public.search.placeholder": "Busca por ubicación, tipo de propiedad...",
+    "public.hero.title": "Encuentra tu hogar ideal en Tulum",
+    "public.hero.subtitle": "Propiedades exclusivas en Tulum, Quintana Roo",
+    "public.search.placeholder": "Busca por zona en Tulum, tipo de propiedad...",
     "public.search.button": "Buscar",
     "public.filter.rent": "En Renta",
     "public.filter.sale": "En Venta",
@@ -91,9 +91,9 @@ const translations: Record<Language, Record<string, string>> = {
     "nav.calendar": "Calendar",
     
     // Public Dashboard
-    "public.hero.title": "Find your ideal home",
-    "public.hero.subtitle": "Thousands of properties waiting for you",
-    "public.search.placeholder": "Search by location, property type...",
+    "public.hero.title": "Find your ideal home in Tulum",
+    "public.hero.subtitle": "Exclusive properties in Tulum, Quintana Roo",
+    "public.search.placeholder": "Search by area in Tulum, property type...",
     "public.search.button": "Search",
     "public.filter.rent": "For Rent",
     "public.filter.sale": "For Sale",
