@@ -139,7 +139,7 @@ function AuthenticatedApp() {
           </header>
           <main className="flex-1 overflow-auto p-6">
             <Switch>
-              <Route path="/" component={userRole === "cliente" ? PublicDashboard : Dashboard} />
+              <Route path="/" component={userRole === "cliente" ? ClientDashboard : Dashboard} />
               <Route path="/mis-citas" component={ClientDashboard} />
               <Route path="/buscar-propiedades" component={PropertySearch} />
               <Route path="/propiedad/:id/completo" component={PropertyFullDetails} />
