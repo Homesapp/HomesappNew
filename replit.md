@@ -8,6 +8,21 @@ HomesApp is a comprehensive SaaS platform for real estate property management, p
 
 Preferred communication style: Simple, everyday language.
 
+## Recent Changes (October 2025)
+
+### Navigation Updates
+- Removed "Mis" (my) prefix from Spanish navigation items:
+  - "Mis Citas" → "Citas"
+  - "Mis Favoritos" → "Favoritos"
+  - "Mis Oportunidades" → "Oportunidades"
+- English translations updated accordingly (Appointments, Favorites, Opportunities)
+
+### Review System Implementation
+- Complete database schema for bidirectional reviews
+- RESTful API endpoints for all review types
+- Storage layer methods with filtering capabilities
+- See TEST_ACCOUNTS.md for detailed role-based review functionality
+
 ## System Architecture
 
 ### Frontend
@@ -22,6 +37,15 @@ The backend utilizes Node.js with Express.js and TypeScript (ESM modules), provi
 
 The application uses PostgreSQL (Neon serverless) and Drizzle ORM for type-safe interactions. The schema supports user management, property statuses, appointment scheduling, client presentation cards, service providers, offer workflows, and staff assignments, with audit logs for critical actions. A lead capture system tracks user actions and manages rental opportunity requests. A dedicated `condominiums` table manages approved condominium listings with a three-state approval workflow.
 
+#### Review System (October 2025)
+A comprehensive bidirectional review system enables feedback between users:
+- **Property Reviews**: Clients rate properties (1-5 stars) with optional comments
+- **Appointment Reviews**: Clients review appointment experiences
+- **Concierge Reviews**: Clients rate concierge service quality
+- **Client Reviews**: Concierges provide feedback on client interactions
+
+Review tables: `property_reviews`, `appointment_reviews`, `concierge_reviews`, `client_reviews`
+
 ### Key Features and Workflows
 
 *   **Property Management**: Includes a property approval workflow, owner-submitted change requests, and owner settings for appointment auto-approval. All properties are standardized to Tulum location. Sublease functionality is supported with search filters.
@@ -34,6 +58,7 @@ The application uses PostgreSQL (Neon serverless) and Drizzle ORM for type-safe 
 *   **Referral System**: Secure, role-based referral filtering ensures users only see their own referrals, with admins having full visibility.
 *   **Welcome Modals**: First-time welcome modals for clients and property owners to introduce features, controlled by a `hasSeenWelcome` flag.
 *   **Service Provider Messaging**: One-click chat initiation with service providers from their directory listings.
+*   **Review System**: Bidirectional feedback system allowing clients to review properties, appointments, and concierges, while concierges can review clients. API endpoints: `/api/reviews/{properties|appointments|concierges|clients}` with GET/POST methods.
 
 ### System Design Choices
 
