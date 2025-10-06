@@ -50,6 +50,17 @@ import {
   payoutBatches,
   incomeTransactions,
   changelogs,
+  slaConfigurations,
+  leadScoringRules,
+  leadScores,
+  contractChecklistTemplates,
+  contractChecklistTemplateItems,
+  contractChecklistItems,
+  rentalHealthScores,
+  leadResponseMetrics,
+  contractCycleMetrics,
+  workflowEvents,
+  systemAlerts,
   type User,
   type Colony,
   type InsertColony,
@@ -155,6 +166,28 @@ import {
   type InsertConciergeReview,
   type ClientReview,
   type InsertClientReview,
+  type SlaConfiguration,
+  type InsertSlaConfiguration,
+  type LeadScoringRule,
+  type InsertLeadScoringRule,
+  type LeadScore,
+  type InsertLeadScore,
+  type ContractChecklistTemplate,
+  type InsertContractChecklistTemplate,
+  type ContractChecklistTemplateItem,
+  type InsertContractChecklistTemplateItem,
+  type ContractChecklistItem,
+  type InsertContractChecklistItem,
+  type RentalHealthScore,
+  type InsertRentalHealthScore,
+  type LeadResponseMetric,
+  type InsertLeadResponseMetric,
+  type ContractCycleMetric,
+  type InsertContractCycleMetric,
+  type WorkflowEvent,
+  type InsertWorkflowEvent,
+  type SystemAlert,
+  type InsertSystemAlert,
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, and, or, gte, lte, ilike, desc, sql, isNull, count, inArray } from "drizzle-orm";
@@ -552,6 +585,72 @@ export interface IStorage {
   createChangelog(changelog: InsertChangelog): Promise<Changelog>;
   updateChangelog(id: string, updates: Partial<InsertChangelog>): Promise<Changelog>;
   deleteChangelog(id: string): Promise<void>;
+
+  // SLA Configuration operations
+  getSlaConfiguration(id: string): Promise<SlaConfiguration | undefined>;
+  getSlaConfigurations(filters?: { isActive?: boolean }): Promise<SlaConfiguration[]>;
+  getSlaConfigurationByProcess(processName: string): Promise<SlaConfiguration | undefined>;
+  createSlaConfiguration(config: InsertSlaConfiguration): Promise<SlaConfiguration>;
+  updateSlaConfiguration(id: string, updates: Partial<InsertSlaConfiguration>): Promise<SlaConfiguration>;
+  deleteSlaConfiguration(id: string): Promise<void>;
+
+  // Lead Scoring operations
+  getLeadScoringRule(id: string): Promise<LeadScoringRule | undefined>;
+  getLeadScoringRules(filters?: { isActive?: boolean }): Promise<LeadScoringRule[]>;
+  createLeadScoringRule(rule: InsertLeadScoringRule): Promise<LeadScoringRule>;
+  updateLeadScoringRule(id: string, updates: Partial<InsertLeadScoringRule>): Promise<LeadScoringRule>;
+  deleteLeadScoringRule(id: string): Promise<void>;
+  getLeadScore(leadId: string): Promise<LeadScore | undefined>;
+  createLeadScore(score: InsertLeadScore): Promise<LeadScore>;
+  updateLeadScore(leadId: string, updates: Partial<InsertLeadScore>): Promise<LeadScore>;
+  calculateLeadScore(leadId: string): Promise<LeadScore>;
+
+  // Contract Checklist operations
+  getContractChecklistTemplate(id: string): Promise<ContractChecklistTemplate | undefined>;
+  getContractChecklistTemplates(filters?: { contractType?: string; isActive?: boolean }): Promise<ContractChecklistTemplate[]>;
+  createContractChecklistTemplate(template: InsertContractChecklistTemplate): Promise<ContractChecklistTemplate>;
+  updateContractChecklistTemplate(id: string, updates: Partial<InsertContractChecklistTemplate>): Promise<ContractChecklistTemplate>;
+  deleteContractChecklistTemplate(id: string): Promise<void>;
+  getContractChecklistTemplateItems(templateId: string): Promise<ContractChecklistTemplateItem[]>;
+  createContractChecklistTemplateItem(item: InsertContractChecklistTemplateItem): Promise<ContractChecklistTemplateItem>;
+  updateContractChecklistTemplateItem(id: string, updates: Partial<InsertContractChecklistTemplateItem>): Promise<ContractChecklistTemplateItem>;
+  deleteContractChecklistTemplateItem(id: string): Promise<void>;
+  getContractChecklistItems(contractId: string): Promise<ContractChecklistItem[]>;
+  createContractChecklistItem(item: InsertContractChecklistItem): Promise<ContractChecklistItem>;
+  updateContractChecklistItem(id: string, updates: Partial<InsertContractChecklistItem>): Promise<ContractChecklistItem>;
+  completeContractChecklistItem(id: string, completedBy: string, notes?: string): Promise<ContractChecklistItem>;
+  deleteContractChecklistItem(id: string): Promise<void>;
+  initializeContractChecklist(contractId: string, templateId: string): Promise<ContractChecklistItem[]>;
+
+  // Rental Health Score operations
+  getRentalHealthScore(contractId: string): Promise<RentalHealthScore | undefined>;
+  createRentalHealthScore(score: InsertRentalHealthScore): Promise<RentalHealthScore>;
+  updateRentalHealthScore(contractId: string, updates: Partial<InsertRentalHealthScore>): Promise<RentalHealthScore>;
+  calculateRentalHealthScore(contractId: string): Promise<RentalHealthScore>;
+  getRentalHealthScoresByStatus(status: string): Promise<RentalHealthScore[]>;
+
+  // Performance Metrics operations
+  getLeadResponseMetric(leadId: string): Promise<LeadResponseMetric | undefined>;
+  createLeadResponseMetric(metric: InsertLeadResponseMetric): Promise<LeadResponseMetric>;
+  getContractCycleMetric(contractId: string): Promise<ContractCycleMetric | undefined>;
+  createContractCycleMetric(metric: InsertContractCycleMetric): Promise<ContractCycleMetric>;
+  updateContractCycleMetric(contractId: string, updates: Partial<InsertContractCycleMetric>): Promise<ContractCycleMetric>;
+
+  // Workflow Event operations
+  createWorkflowEvent(event: InsertWorkflowEvent): Promise<WorkflowEvent>;
+  getWorkflowEvents(filters?: { eventType?: string; entityType?: string; entityId?: string }): Promise<WorkflowEvent[]>;
+
+  // System Alert operations
+  getSystemAlert(id: string): Promise<SystemAlert | undefined>;
+  getSystemAlerts(filters?: { userId?: string; status?: string; priority?: string; alertType?: string }): Promise<SystemAlert[]>;
+  getUserPendingAlerts(userId: string): Promise<SystemAlert[]>;
+  createSystemAlert(alert: InsertSystemAlert): Promise<SystemAlert>;
+  updateSystemAlert(id: string, updates: Partial<InsertSystemAlert>): Promise<SystemAlert>;
+  acknowledgeSystemAlert(id: string): Promise<SystemAlert>;
+  resolveSystemAlert(id: string): Promise<SystemAlert>;
+  dismissSystemAlert(id: string): Promise<SystemAlert>;
+  deleteSystemAlert(id: string): Promise<void>;
+  cleanupExpiredAlerts(): Promise<number>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -3338,6 +3437,557 @@ export class DatabaseStorage implements IStorage {
 
   async deleteChangelog(id: string): Promise<void> {
     await db.delete(changelogs).where(eq(changelogs.id, id));
+  }
+
+  // SLA Configuration operations
+  async getSlaConfiguration(id: string): Promise<SlaConfiguration | undefined> {
+    const [config] = await db.select().from(slaConfigurations).where(eq(slaConfigurations.id, id));
+    return config;
+  }
+
+  async getSlaConfigurations(filters?: { isActive?: boolean }): Promise<SlaConfiguration[]> {
+    let query = db.select().from(slaConfigurations);
+    
+    if (filters?.isActive !== undefined) {
+      query = query.where(eq(slaConfigurations.isActive, filters.isActive)) as any;
+    }
+    
+    return await query.orderBy(desc(slaConfigurations.createdAt));
+  }
+
+  async getSlaConfigurationByProcess(processName: string): Promise<SlaConfiguration | undefined> {
+    const [config] = await db.select().from(slaConfigurations)
+      .where(and(
+        eq(slaConfigurations.processName, processName),
+        eq(slaConfigurations.isActive, true)
+      ));
+    return config;
+  }
+
+  async createSlaConfiguration(configData: InsertSlaConfiguration): Promise<SlaConfiguration> {
+    const [config] = await db.insert(slaConfigurations).values(configData).returning();
+    return config;
+  }
+
+  async updateSlaConfiguration(id: string, updates: Partial<InsertSlaConfiguration>): Promise<SlaConfiguration> {
+    const [config] = await db
+      .update(slaConfigurations)
+      .set({ ...updates, updatedAt: new Date() })
+      .where(eq(slaConfigurations.id, id))
+      .returning();
+    return config;
+  }
+
+  async deleteSlaConfiguration(id: string): Promise<void> {
+    await db.delete(slaConfigurations).where(eq(slaConfigurations.id, id));
+  }
+
+  // Lead Scoring operations
+  async getLeadScoringRule(id: string): Promise<LeadScoringRule | undefined> {
+    const [rule] = await db.select().from(leadScoringRules).where(eq(leadScoringRules.id, id));
+    return rule;
+  }
+
+  async getLeadScoringRules(filters?: { isActive?: boolean }): Promise<LeadScoringRule[]> {
+    let query = db.select().from(leadScoringRules);
+    
+    if (filters?.isActive !== undefined) {
+      query = query.where(eq(leadScoringRules.isActive, filters.isActive)) as any;
+    }
+    
+    return await query.orderBy(leadScoringRules.priority, desc(leadScoringRules.createdAt));
+  }
+
+  async createLeadScoringRule(ruleData: InsertLeadScoringRule): Promise<LeadScoringRule> {
+    const [rule] = await db.insert(leadScoringRules).values(ruleData).returning();
+    return rule;
+  }
+
+  async updateLeadScoringRule(id: string, updates: Partial<InsertLeadScoringRule>): Promise<LeadScoringRule> {
+    const [rule] = await db
+      .update(leadScoringRules)
+      .set({ ...updates, updatedAt: new Date() })
+      .where(eq(leadScoringRules.id, id))
+      .returning();
+    return rule;
+  }
+
+  async deleteLeadScoringRule(id: string): Promise<void> {
+    await db.delete(leadScoringRules).where(eq(leadScoringRules.id, id));
+  }
+
+  async getLeadScore(leadId: string): Promise<LeadScore | undefined> {
+    const [score] = await db.select().from(leadScores).where(eq(leadScores.leadId, leadId));
+    return score;
+  }
+
+  async createLeadScore(scoreData: InsertLeadScore): Promise<LeadScore> {
+    const [score] = await db.insert(leadScores).values(scoreData).returning();
+    return score;
+  }
+
+  async updateLeadScore(leadId: string, updates: Partial<InsertLeadScore>): Promise<LeadScore> {
+    const [score] = await db
+      .update(leadScores)
+      .set({ ...updates, lastCalculatedAt: new Date() })
+      .where(eq(leadScores.leadId, leadId))
+      .returning();
+    return score;
+  }
+
+  async calculateLeadScore(leadId: string): Promise<LeadScore> {
+    // Get the lead
+    const lead = await this.getLead(leadId);
+    if (!lead) throw new Error("Lead not found");
+
+    // Get active scoring rules
+    const rules = await this.getLeadScoringRules({ isActive: true });
+
+    let totalScore = 0;
+    const reasons: string[] = [];
+
+    // Apply each rule
+    for (const rule of rules) {
+      let applies = false;
+
+      // Simple rule evaluation logic (can be extended)
+      const leadValue = (lead as any)[rule.criteriaField];
+      
+      switch (rule.criteriaOperator) {
+        case "greater_than":
+          applies = Number(leadValue) > Number(rule.criteriaValue);
+          break;
+        case "equals":
+          applies = leadValue === rule.criteriaValue;
+          break;
+        case "contains":
+          applies = String(leadValue).includes(rule.criteriaValue);
+          break;
+      }
+
+      if (applies) {
+        totalScore += rule.scorePoints;
+        reasons.push(`${rule.name}: +${rule.scorePoints}`);
+      }
+    }
+
+    // Determine quality based on score
+    let quality: "hot" | "warm" | "cold" = "cold";
+    if (totalScore >= 70) quality = "hot";
+    else if (totalScore >= 40) quality = "warm";
+
+    // Update or create score
+    const existingScore = await this.getLeadScore(leadId);
+    
+    if (existingScore) {
+      return await this.updateLeadScore(leadId, {
+        score: totalScore,
+        quality,
+        reasons,
+      });
+    } else {
+      return await this.createLeadScore({
+        leadId,
+        score: totalScore,
+        quality,
+        reasons,
+      });
+    }
+  }
+
+  // Contract Checklist operations
+  async getContractChecklistTemplate(id: string): Promise<ContractChecklistTemplate | undefined> {
+    const [template] = await db.select().from(contractChecklistTemplates).where(eq(contractChecklistTemplates.id, id));
+    return template;
+  }
+
+  async getContractChecklistTemplates(filters?: { contractType?: string; isActive?: boolean }): Promise<ContractChecklistTemplate[]> {
+    const conditions = [];
+    
+    if (filters?.contractType) {
+      conditions.push(eq(contractChecklistTemplates.contractType, filters.contractType));
+    }
+    if (filters?.isActive !== undefined) {
+      conditions.push(eq(contractChecklistTemplates.isActive, filters.isActive));
+    }
+    
+    let query = db.select().from(contractChecklistTemplates);
+    
+    if (conditions.length > 0) {
+      query = query.where(and(...conditions)) as any;
+    }
+    
+    return await query.orderBy(desc(contractChecklistTemplates.isDefault), desc(contractChecklistTemplates.createdAt));
+  }
+
+  async createContractChecklistTemplate(templateData: InsertContractChecklistTemplate): Promise<ContractChecklistTemplate> {
+    const [template] = await db.insert(contractChecklistTemplates).values(templateData).returning();
+    return template;
+  }
+
+  async updateContractChecklistTemplate(id: string, updates: Partial<InsertContractChecklistTemplate>): Promise<ContractChecklistTemplate> {
+    const [template] = await db
+      .update(contractChecklistTemplates)
+      .set({ ...updates, updatedAt: new Date() })
+      .where(eq(contractChecklistTemplates.id, id))
+      .returning();
+    return template;
+  }
+
+  async deleteContractChecklistTemplate(id: string): Promise<void> {
+    await db.delete(contractChecklistTemplates).where(eq(contractChecklistTemplates.id, id));
+  }
+
+  async getContractChecklistTemplateItems(templateId: string): Promise<ContractChecklistTemplateItem[]> {
+    return await db.select().from(contractChecklistTemplateItems)
+      .where(eq(contractChecklistTemplateItems.templateId, templateId))
+      .orderBy(contractChecklistTemplateItems.order);
+  }
+
+  async createContractChecklistTemplateItem(itemData: InsertContractChecklistTemplateItem): Promise<ContractChecklistTemplateItem> {
+    const [item] = await db.insert(contractChecklistTemplateItems).values(itemData).returning();
+    return item;
+  }
+
+  async updateContractChecklistTemplateItem(id: string, updates: Partial<InsertContractChecklistTemplateItem>): Promise<ContractChecklistTemplateItem> {
+    const [item] = await db
+      .update(contractChecklistTemplateItems)
+      .set(updates)
+      .where(eq(contractChecklistTemplateItems.id, id))
+      .returning();
+    return item;
+  }
+
+  async deleteContractChecklistTemplateItem(id: string): Promise<void> {
+    await db.delete(contractChecklistTemplateItems).where(eq(contractChecklistTemplateItems.id, id));
+  }
+
+  async getContractChecklistItems(contractId: string): Promise<ContractChecklistItem[]> {
+    return await db.select().from(contractChecklistItems)
+      .where(eq(contractChecklistItems.contractId, contractId))
+      .orderBy(contractChecklistItems.order);
+  }
+
+  async createContractChecklistItem(itemData: InsertContractChecklistItem): Promise<ContractChecklistItem> {
+    const [item] = await db.insert(contractChecklistItems).values(itemData).returning();
+    return item;
+  }
+
+  async updateContractChecklistItem(id: string, updates: Partial<InsertContractChecklistItem>): Promise<ContractChecklistItem> {
+    const [item] = await db
+      .update(contractChecklistItems)
+      .set(updates)
+      .where(eq(contractChecklistItems.id, id))
+      .returning();
+    return item;
+  }
+
+  async completeContractChecklistItem(id: string, completedBy: string, notes?: string): Promise<ContractChecklistItem> {
+    const [item] = await db
+      .update(contractChecklistItems)
+      .set({
+        isCompleted: true,
+        completedBy,
+        completedAt: new Date(),
+        notes,
+      })
+      .where(eq(contractChecklistItems.id, id))
+      .returning();
+    return item;
+  }
+
+  async deleteContractChecklistItem(id: string): Promise<void> {
+    await db.delete(contractChecklistItems).where(eq(contractChecklistItems.id, id));
+  }
+
+  async initializeContractChecklist(contractId: string, templateId: string): Promise<ContractChecklistItem[]> {
+    const templateItems = await this.getContractChecklistTemplateItems(templateId);
+    
+    const items = await Promise.all(
+      templateItems.map(item =>
+        this.createContractChecklistItem({
+          contractId,
+          templateItemId: item.id,
+          title: item.title,
+          description: item.description,
+          requiredRole: item.requiredRole,
+          order: item.order,
+        })
+      )
+    );
+    
+    return items;
+  }
+
+  // Rental Health Score operations
+  async getRentalHealthScore(contractId: string): Promise<RentalHealthScore | undefined> {
+    const [score] = await db.select().from(rentalHealthScores).where(eq(rentalHealthScores.contractId, contractId));
+    return score;
+  }
+
+  async createRentalHealthScore(scoreData: InsertRentalHealthScore): Promise<RentalHealthScore> {
+    const [score] = await db.insert(rentalHealthScores).values(scoreData).returning();
+    return score;
+  }
+
+  async updateRentalHealthScore(contractId: string, updates: Partial<InsertRentalHealthScore>): Promise<RentalHealthScore> {
+    const [score] = await db
+      .update(rentalHealthScores)
+      .set({ ...updates, lastCalculatedAt: new Date(), updatedAt: new Date() })
+      .where(eq(rentalHealthScores.contractId, contractId))
+      .returning();
+    return score;
+  }
+
+  async calculateRentalHealthScore(contractId: string): Promise<RentalHealthScore> {
+    // Get the contract
+    const contract = await this.getRentalContract(contractId);
+    if (!contract) throw new Error("Contract not found");
+
+    // Initialize scores
+    let paymentScore = 100;
+    let incidentScore = 100;
+    let communicationScore = 100;
+
+    // Check for payment delays (would need payment history tracking)
+    const hasPaymentDelay = false; // TODO: Implement payment history check
+
+    // Check for open incidents (chats with type="rental" and open issues)
+    const conversations = await db.select().from(chatConversations)
+      .where(eq(chatConversations.propertyId, contract.propertyId));
+    const hasOpenIncidents = conversations.length > 5; // Simplified logic
+
+    // Check if near expiry (< 90 days)
+    const daysUntilExpiry = contract.endDate 
+      ? Math.floor((new Date(contract.endDate).getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24))
+      : 365;
+    const isNearExpiry = daysUntilExpiry < 90;
+
+    // Calculate overall score
+    const overallScore = Math.floor((paymentScore + incidentScore + communicationScore) / 3);
+
+    // Determine status
+    let status: "excellent" | "good" | "fair" | "poor" | "critical" = "excellent";
+    if (overallScore < 30) status = "critical";
+    else if (overallScore < 50) status = "poor";
+    else if (overallScore < 70) status = "fair";
+    else if (overallScore < 90) status = "good";
+
+    // Calculate renewal probability
+    const renewalProbability = String(Math.max(0, overallScore - (isNearExpiry ? 0 : 20)));
+
+    const reasons: string[] = [];
+    if (hasPaymentDelay) reasons.push("Payment delays detected");
+    if (hasOpenIncidents) reasons.push("Multiple open incidents");
+    if (isNearExpiry) reasons.push("Contract expiring soon");
+    if (overallScore >= 90) reasons.push("Excellent track record");
+
+    // Update or create score
+    const existingScore = await this.getRentalHealthScore(contractId);
+    
+    if (existingScore) {
+      return await this.updateRentalHealthScore(contractId, {
+        score: overallScore,
+        status,
+        paymentScore,
+        incidentScore,
+        communicationScore,
+        hasPaymentDelay,
+        hasOpenIncidents,
+        isNearExpiry,
+        renewalProbability,
+        reasons,
+      });
+    } else {
+      return await this.createRentalHealthScore({
+        contractId,
+        score: overallScore,
+        status,
+        paymentScore,
+        incidentScore,
+        communicationScore,
+        hasPaymentDelay,
+        hasOpenIncidents,
+        isNearExpiry,
+        renewalProbability,
+        reasons,
+      });
+    }
+  }
+
+  async getRentalHealthScoresByStatus(status: string): Promise<RentalHealthScore[]> {
+    return await db.select().from(rentalHealthScores)
+      .where(eq(rentalHealthScores.status, status as any))
+      .orderBy(rentalHealthScores.score);
+  }
+
+  // Performance Metrics operations
+  async getLeadResponseMetric(leadId: string): Promise<LeadResponseMetric | undefined> {
+    const [metric] = await db.select().from(leadResponseMetrics).where(eq(leadResponseMetrics.leadId, leadId));
+    return metric;
+  }
+
+  async createLeadResponseMetric(metricData: InsertLeadResponseMetric): Promise<LeadResponseMetric> {
+    const [metric] = await db.insert(leadResponseMetrics).values(metricData).returning();
+    return metric;
+  }
+
+  async getContractCycleMetric(contractId: string): Promise<ContractCycleMetric | undefined> {
+    const [metric] = await db.select().from(contractCycleMetrics).where(eq(contractCycleMetrics.contractId, contractId));
+    return metric;
+  }
+
+  async createContractCycleMetric(metricData: InsertContractCycleMetric): Promise<ContractCycleMetric> {
+    const [metric] = await db.insert(contractCycleMetrics).values(metricData).returning();
+    return metric;
+  }
+
+  async updateContractCycleMetric(contractId: string, updates: Partial<InsertContractCycleMetric>): Promise<ContractCycleMetric> {
+    const [metric] = await db
+      .update(contractCycleMetrics)
+      .set(updates)
+      .where(eq(contractCycleMetrics.contractId, contractId))
+      .returning();
+    return metric;
+  }
+
+  // Workflow Event operations
+  async createWorkflowEvent(eventData: InsertWorkflowEvent): Promise<WorkflowEvent> {
+    const [event] = await db.insert(workflowEvents).values(eventData).returning();
+    return event;
+  }
+
+  async getWorkflowEvents(filters?: { eventType?: string; entityType?: string; entityId?: string }): Promise<WorkflowEvent[]> {
+    const conditions = [];
+    
+    if (filters?.eventType) {
+      conditions.push(eq(workflowEvents.eventType, filters.eventType as any));
+    }
+    if (filters?.entityType) {
+      conditions.push(eq(workflowEvents.entityType, filters.entityType));
+    }
+    if (filters?.entityId) {
+      conditions.push(eq(workflowEvents.entityId, filters.entityId));
+    }
+    
+    let query = db.select().from(workflowEvents);
+    
+    if (conditions.length > 0) {
+      query = query.where(and(...conditions)) as any;
+    }
+    
+    return await query.orderBy(desc(workflowEvents.createdAt));
+  }
+
+  // System Alert operations
+  async getSystemAlert(id: string): Promise<SystemAlert | undefined> {
+    const [alert] = await db.select().from(systemAlerts).where(eq(systemAlerts.id, id));
+    return alert;
+  }
+
+  async getSystemAlerts(filters?: { 
+    userId?: string; 
+    status?: string; 
+    priority?: string; 
+    alertType?: string 
+  }): Promise<SystemAlert[]> {
+    const conditions = [];
+    
+    if (filters?.userId) {
+      conditions.push(eq(systemAlerts.userId, filters.userId));
+    }
+    if (filters?.status) {
+      conditions.push(eq(systemAlerts.status, filters.status as any));
+    }
+    if (filters?.priority) {
+      conditions.push(eq(systemAlerts.priority, filters.priority as any));
+    }
+    if (filters?.alertType) {
+      conditions.push(eq(systemAlerts.alertType, filters.alertType));
+    }
+    
+    let query = db.select().from(systemAlerts);
+    
+    if (conditions.length > 0) {
+      query = query.where(and(...conditions)) as any;
+    }
+    
+    return await query.orderBy(desc(systemAlerts.createdAt));
+  }
+
+  async getUserPendingAlerts(userId: string): Promise<SystemAlert[]> {
+    return await db.select().from(systemAlerts)
+      .where(and(
+        eq(systemAlerts.userId, userId),
+        eq(systemAlerts.status, "pending")
+      ))
+      .orderBy(systemAlerts.priority, desc(systemAlerts.createdAt));
+  }
+
+  async createSystemAlert(alertData: InsertSystemAlert): Promise<SystemAlert> {
+    const [alert] = await db.insert(systemAlerts).values(alertData).returning();
+    return alert;
+  }
+
+  async updateSystemAlert(id: string, updates: Partial<InsertSystemAlert>): Promise<SystemAlert> {
+    const [alert] = await db
+      .update(systemAlerts)
+      .set(updates)
+      .where(eq(systemAlerts.id, id))
+      .returning();
+    return alert;
+  }
+
+  async acknowledgeSystemAlert(id: string): Promise<SystemAlert> {
+    const [alert] = await db
+      .update(systemAlerts)
+      .set({
+        status: "acknowledged",
+        acknowledgedAt: new Date(),
+      })
+      .where(eq(systemAlerts.id, id))
+      .returning();
+    return alert;
+  }
+
+  async resolveSystemAlert(id: string): Promise<SystemAlert> {
+    const [alert] = await db
+      .update(systemAlerts)
+      .set({
+        status: "resolved",
+        resolvedAt: new Date(),
+      })
+      .where(eq(systemAlerts.id, id))
+      .returning();
+    return alert;
+  }
+
+  async dismissSystemAlert(id: string): Promise<SystemAlert> {
+    const [alert] = await db
+      .update(systemAlerts)
+      .set({
+        status: "dismissed",
+        dismissedAt: new Date(),
+      })
+      .where(eq(systemAlerts.id, id))
+      .returning();
+    return alert;
+  }
+
+  async deleteSystemAlert(id: string): Promise<void> {
+    await db.delete(systemAlerts).where(eq(systemAlerts.id, id));
+  }
+
+  async cleanupExpiredAlerts(): Promise<number> {
+    const result = await db
+      .delete(systemAlerts)
+      .where(and(
+        eq(systemAlerts.status, "pending"),
+        lte(systemAlerts.expiresAt, new Date())
+      ))
+      .returning({ id: systemAlerts.id });
+    
+    return result.length;
   }
 }
 
