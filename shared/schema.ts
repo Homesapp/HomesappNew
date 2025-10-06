@@ -268,9 +268,12 @@ export const ownerReferralStatusEnum = pgEnum("owner_referral_status", [
   "pendiente_confirmacion",  // Pending confirmation
   "confirmado",              // Confirmed
   "en_revision",             // Under review
-  "aprobado",                // Approved as owner
+  "propiedad_enlistada",     // Property listed
+  "pendiente_aprobacion_admin", // Pending admin approval for commission payment
+  "aprobado",                // Approved (admin approved commission payment)
   "rechazado",               // Rejected
-  "activo",                  // Active (property published)
+  "pagado",                  // Commission paid
+  "cancelado",               // Cancelled
 ]);
 
 export const feedbackTypeEnum = pgEnum("feedback_type", [
@@ -1650,14 +1653,25 @@ export const ownerReferrals = pgTable("owner_referrals", {
   phone: varchar("phone").notNull(),
   whatsappNumber: varchar("whatsapp_number"),
   email: varchar("email").notNull(),
+  emailVerified: boolean("email_verified").notNull().default(false),
+  verificationToken: varchar("verification_token"),
+  verificationTokenExpiry: timestamp("verification_token_expiry"),
   propertyType: varchar("property_type").notNull(), // "private" or "condominium"
   condominiumName: varchar("condominium_name"),
   unitNumber: varchar("unit_number"),
+  propertyAddress: text("property_address"),
+  propertyDescription: text("property_description"),
+  estimatedValue: decimal("estimated_value", { precision: 12, scale: 2 }),
   status: ownerReferralStatusEnum("status").notNull().default("pendiente_confirmacion"),
-  commissionPercent: decimal("commission_percent", { precision: 5, scale: 2 }).notNull(),
+  commissionPercent: decimal("commission_percent", { precision: 5, scale: 2 }).notNull().default("20.00"),
   commissionAmount: decimal("commission_amount", { precision: 12, scale: 2 }),
   commissionPaid: boolean("commission_paid").notNull().default(false),
   commissionPaidAt: timestamp("commission_paid_at"),
+  adminApprovedById: varchar("admin_approved_by_id").references(() => users.id),
+  adminApprovedAt: timestamp("admin_approved_at"),
+  rejectedById: varchar("rejected_by_id").references(() => users.id),
+  rejectedAt: timestamp("rejected_at"),
+  rejectionReason: text("rejection_reason"),
   notes: text("notes"),
   adminNotes: text("admin_notes"),
   linkedOwnerId: varchar("linked_owner_id").references(() => users.id, { onDelete: "set null" }),
@@ -1944,5 +1958,32 @@ export const feedbackRelations = relations(feedback, ({ one }) => ({
   user: one(users, {
     fields: [feedback.userId],
     references: [users.id],
+  }),
+}));
+
+export const ownerReferralsRelations = relations(ownerReferrals, ({ one }) => ({
+  referrer: one(users, {
+    fields: [ownerReferrals.referrerId],
+    references: [users.id],
+    relationName: "referrer",
+  }),
+  linkedProperty: one(properties, {
+    fields: [ownerReferrals.linkedPropertyId],
+    references: [properties.id],
+  }),
+  adminApprovedBy: one(users, {
+    fields: [ownerReferrals.adminApprovedById],
+    references: [users.id],
+    relationName: "adminApprover",
+  }),
+  rejectedBy: one(users, {
+    fields: [ownerReferrals.rejectedById],
+    references: [users.id],
+    relationName: "rejector",
+  }),
+  linkedOwner: one(users, {
+    fields: [ownerReferrals.linkedOwnerId],
+    references: [users.id],
+    relationName: "linkedOwner",
   }),
 }));
