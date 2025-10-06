@@ -5,7 +5,7 @@ import { parse as parseCookie } from "cookie";
 import { storage } from "./storage";
 import { setupAuth, isAuthenticated, requireRole, getSession } from "./replitAuth";
 import { createGoogleMeetEvent, deleteGoogleMeetEvent } from "./googleCalendar";
-import { sendVerificationEmail } from "./resend";
+import { sendVerificationEmail, sendLeadVerificationEmail, sendDuplicateLeadNotification } from "./resend";
 import { processChatbotMessage, generatePropertyRecommendations } from "./chatbot";
 import { authLimiter, registrationLimiter, emailVerificationLimiter, chatbotLimiter } from "./rateLimiters";
 import { sanitizeText, sanitizeHtml, sanitizeObject } from "./sanitize";
@@ -3777,8 +3777,97 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.post("/api/leads", isAuthenticated, requireRole(["master", "admin", "admin_jr", "seller", "management"]), async (req: any, res) => {
     try {
+      const userId = req.user.claims.sub;
+      const currentUser = await storage.getUser(userId);
+      if (!currentUser) {
+        return res.status(404).json({ message: "Usuario no encontrado" });
+      }
+
       const leadData = req.body;
-      const lead = await storage.createLead(leadData);
+      
+      // Obtener configuración del sistema para período de validez
+      const validityConfig = await storage.getSystemConfig("lead_validity_months");
+      const validityMonths = validityConfig ? parseInt(validityConfig.value) : 3;
+      
+      // Calcular fecha de validez
+      const validUntil = new Date();
+      validUntil.setMonth(validUntil.getMonth() + validityMonths);
+      
+      // Verificar si existe un lead activo (no expirado) con el mismo email
+      const existingLead = await storage.getActiveLead(leadData.email);
+      
+      if (existingLead) {
+        // Lead duplicado detectado
+        const originalSeller = await storage.getUser(existingLead.registeredById);
+        
+        // Obtener propiedades ofrecidas al lead por el vendedor original
+        const offersToLead = await storage.getLeadPropertyOffers({ leadId: existingLead.id });
+        const propertyNames = await Promise.all(
+          offersToLead.map(async (offer) => {
+            const property = await storage.getProperty(offer.propertyId);
+            return property?.title || "Propiedad sin nombre";
+          })
+        );
+        
+        // Enviar notificación al vendedor original
+        if (originalSeller && originalSeller.email) {
+          try {
+            await sendDuplicateLeadNotification(
+              originalSeller.email,
+              `${originalSeller.firstName} ${originalSeller.lastName}`,
+              `${existingLead.firstName} ${existingLead.lastName}`,
+              `${currentUser.firstName} ${currentUser.lastName}`,
+              propertyNames
+            );
+          } catch (emailError) {
+            console.error("Error enviando notificación de duplicado:", emailError);
+          }
+        }
+        
+        // Crear notificación en el sistema para el vendedor original
+        await storage.createNotification({
+          userId: existingLead.registeredById,
+          title: "Lead duplicado detectado",
+          message: `El lead ${existingLead.firstName} ${existingLead.lastName} fue registrado nuevamente por ${currentUser.firstName} ${currentUser.lastName}`,
+          type: "lead_duplicate",
+          link: `/leads/${existingLead.id}`,
+        });
+        
+        await createAuditLog(req, "create", "lead", existingLead.id, `Intento de crear lead duplicado: ${leadData.firstName} ${leadData.lastName}`);
+        
+        return res.status(409).json({ 
+          message: "Este lead ya fue registrado y sigue activo",
+          existingLead,
+          isDuplicate: true
+        });
+      }
+      
+      // Crear nuevo lead con fecha de validez
+      const lead = await storage.createLead({
+        ...leadData,
+        registeredById: userId,
+        validUntil,
+        emailVerified: false,
+      });
+      
+      // Generar token de verificación para el email del lead
+      const verificationToken = crypto.randomBytes(32).toString('hex');
+      const verificationLink = `${process.env.REPL_SLUG ? `https://${process.env.REPL_SLUG}.repl.co` : 'http://localhost:5000'}/verify-lead?token=${verificationToken}&email=${encodeURIComponent(lead.email)}`;
+      
+      // Guardar token de verificación en la base de datos (reutilizando tabla de tokens)
+      await storage.createEmailVerificationToken({
+        userId: lead.id, // Usar ID del lead
+        token: verificationToken,
+        expiresAt: new Date(Date.now() + 24 * 60 * 60 * 1000), // 24 horas
+      });
+      
+      // Enviar email de confirmación al lead
+      try {
+        await sendLeadVerificationEmail(lead.email, lead.firstName, verificationLink);
+      } catch (emailError) {
+        console.error("Error enviando email de verificación al lead:", emailError);
+        // No falla la creación del lead si no se puede enviar el email
+      }
       
       await createAuditLog(req, "create", "lead", lead.id, `Lead creado: ${lead.firstName} ${lead.lastName}`);
       
@@ -3851,6 +3940,57 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Error deleting lead:", error);
       res.status(500).json({ message: "Failed to delete lead" });
+    }
+  });
+
+  // Lead email verification route (public)
+  app.get("/api/verify-lead", emailVerificationLimiter, async (req: any, res) => {
+    try {
+      const { token, email } = req.query;
+      
+      if (!token || !email) {
+        return res.status(400).json({ message: "Token y email son requeridos" });
+      }
+      
+      // Buscar el lead por email
+      const lead = await storage.getLeadByEmail(email as string);
+      if (!lead) {
+        return res.status(404).json({ message: "Lead no encontrado" });
+      }
+      
+      // Verificar si ya está verificado
+      if (lead.emailVerified) {
+        return res.status(200).json({ 
+          message: "El email ya fue verificado anteriormente",
+          alreadyVerified: true
+        });
+      }
+      
+      // Obtener el token de verificación
+      const verificationToken = await storage.getEmailVerificationTokenByUserId(lead.id);
+      if (!verificationToken || verificationToken.token !== token) {
+        return res.status(400).json({ message: "Token de verificación inválido" });
+      }
+      
+      // Verificar que no haya expirado
+      if (new Date() > verificationToken.expiresAt) {
+        await storage.deleteEmailVerificationToken(verificationToken.id);
+        return res.status(400).json({ message: "El token ha expirado" });
+      }
+      
+      // Marcar el email del lead como verificado
+      await storage.verifyLeadEmail(lead.id);
+      
+      // Eliminar el token usado
+      await storage.deleteEmailVerificationToken(verificationToken.id);
+      
+      res.json({ 
+        message: "Email verificado exitosamente",
+        success: true
+      });
+    } catch (error) {
+      console.error("Error verifying lead email:", error);
+      res.status(500).json({ message: "Error al verificar el email" });
     }
   });
 

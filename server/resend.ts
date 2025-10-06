@@ -69,3 +69,77 @@ export async function sendVerificationEmail(to: string, verificationCode: string
     throw error;
   }
 }
+
+export async function sendLeadVerificationEmail(to: string, firstName: string, verificationLink: string) {
+  try {
+    const { client, fromEmail } = await getUncachableResendClient();
+    
+    const result = await client.emails.send({
+      from: fromEmail,
+      to,
+      subject: 'Confirma tu interés - HomesApp',
+      html: `
+        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+          <h2 style="color: #1e293b;">Hola ${firstName},</h2>
+          <p>Gracias por tu interés en nuestras propiedades.</p>
+          <p>Para poder ponernos en contacto contigo y enviarte información sobre propiedades que te puedan interesar, por favor confirma tu correo electrónico:</p>
+          <div style="text-align: center; margin: 30px 0;">
+            <a href="${verificationLink}" style="background-color: #3b82f6; color: white; padding: 15px 30px; text-decoration: none; border-radius: 8px; display: inline-block; font-weight: bold;">
+              Confirmar correo electrónico
+            </a>
+          </div>
+          <p style="color: #64748b; font-size: 14px;">O copia y pega este enlace en tu navegador:</p>
+          <p style="color: #3b82f6; font-size: 14px; word-break: break-all;">${verificationLink}</p>
+          <p style="color: #94a3b8; font-size: 12px; margin-top: 30px;">Si no solicitaste información sobre propiedades, puedes ignorar este email.</p>
+        </div>
+      `,
+    });
+    
+    return result;
+  } catch (error) {
+    console.error('Error sending lead verification email:', error);
+    throw error;
+  }
+}
+
+export async function sendDuplicateLeadNotification(
+  to: string,
+  sellerName: string,
+  leadName: string,
+  newSellerName: string,
+  propertiesOffered: string[]
+) {
+  try {
+    const { client, fromEmail } = await getUncachableResendClient();
+    
+    const propertiesList = propertiesOffered.length > 0
+      ? `<ul>${propertiesOffered.map(p => `<li>${p}</li>`).join('')}</ul>`
+      : '<p>No has ofrecido propiedades a este lead aún.</p>';
+    
+    const result = await client.emails.send({
+      from: fromEmail,
+      to,
+      subject: 'Notificación: Lead duplicado detectado - HomesApp',
+      html: `
+        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+          <h2 style="color: #1e293b;">Lead Duplicado Detectado</h2>
+          <p>Hola ${sellerName},</p>
+          <p>Te informamos que el lead <strong>${leadName}</strong> que registraste anteriormente ha sido registrado nuevamente por <strong>${newSellerName}</strong>.</p>
+          
+          <div style="background-color: #fef3c7; padding: 15px; border-radius: 8px; margin: 20px 0;">
+            <p style="margin: 0; color: #92400e;"><strong>Propiedades que has ofrecido a este lead:</strong></p>
+            ${propertiesList}
+          </div>
+          
+          <p>Como fuiste el primero en registrar este lead, mantiene tu seguimiento y comisión potencial.</p>
+          <p style="color: #64748b; font-size: 14px; margin-top: 30px;">Ingresa al sistema para ver más detalles.</p>
+        </div>
+      `,
+    });
+    
+    return result;
+  } catch (error) {
+    console.error('Error sending duplicate lead notification:', error);
+    throw error;
+  }
+}
