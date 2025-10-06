@@ -116,56 +116,76 @@ export default function PublicDashboard() {
         </div>
       </header>
 
-      <div className="container mx-auto px-4 py-6 sm:py-8">
-        {/* Hero Section */}
-        <div className="mb-8 sm:mb-10 text-center">
-          <h1 className="mb-3 sm:mb-4 text-3xl sm:text-4xl md:text-5xl font-bold tracking-tight">
+      {/* Hero Section with Background Image */}
+      <div className="relative h-[70vh] min-h-[500px] w-full overflow-hidden">
+        {/* Background Image with Parallax Effect */}
+        <div 
+          className="absolute inset-0 bg-cover bg-center bg-no-repeat transition-transform duration-1000"
+          style={{
+            backgroundImage: `url(${tulumBeach})`,
+            transform: 'scale(1.1)',
+          }}
+        />
+        
+        {/* Gradient Overlay */}
+        <div className="absolute inset-0 bg-gradient-to-b from-black/60 via-black/40 to-black/70" />
+        
+        {/* Hero Content */}
+        <div className="relative z-10 flex h-full flex-col items-center justify-center px-4 text-center">
+          <h1 className="mb-4 max-w-4xl animate-fadeIn text-4xl font-bold tracking-tight text-white sm:text-5xl md:text-6xl lg:text-7xl">
             {t("public.hero.title")}
           </h1>
-          <p className="mb-4 sm:mb-6 text-base sm:text-lg md:text-xl text-muted-foreground">
+          <p className="mb-8 max-w-2xl animate-fadeIn text-lg text-white/90 sm:text-xl md:text-2xl" style={{animationDelay: '200ms'}}>
             {t("public.hero.subtitle")}
           </p>
           
-          {/* Search Bar */}
-          <div className="mx-auto max-w-4xl">
-            <div className="flex flex-col sm:flex-row gap-2">
-              <div className="relative flex-1">
-                <Search className="absolute left-3 top-1/2 h-4 sm:h-5 w-4 sm:w-5 -translate-y-1/2 text-muted-foreground" />
-                <Input
-                  placeholder={t("public.searchPlaceholder")}
-                  className="h-12 sm:h-14 pl-10 sm:pl-11 text-sm sm:text-base"
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  onKeyDown={(e) => e.key === "Enter" && handleSearch()}
-                  data-testid="input-search"
-                />
-              </div>
-              <div className="flex gap-2">
-                <Button
-                  variant="outline"
-                  className="h-12 sm:h-14 px-3 sm:px-4 flex-1 sm:flex-none"
-                  onClick={() => setShowFilters(!showFilters)}
-                  data-testid="button-toggle-filters"
-                  aria-label={t("public.toggleFilters") || "Toggle filters"}
-                >
-                  <SlidersHorizontal className="h-4 sm:h-5 w-4 sm:w-5" />
-                  <span className="ml-2 sm:hidden">Filtros</span>
-                </Button>
-                <Button
-                  className="h-12 sm:h-14 px-6 sm:px-8 flex-1 sm:flex-none"
-                  onClick={handleSearch}
-                  data-testid="button-search"
-                >
-                  {t("public.searchButton")}
-                </Button>
+          {/* Search Bar - Glassmorphism */}
+          <div className="w-full max-w-4xl animate-slideInUp" style={{animationDelay: '400ms'}}>
+            <div className="backdrop-blur-xl bg-white/10 border border-white/20 rounded-2xl p-3 shadow-2xl">
+              <div className="flex flex-col sm:flex-row gap-2">
+                <div className="relative flex-1">
+                  <Search className="absolute left-3 top-1/2 h-5 w-5 -translate-y-1/2 text-white/70" />
+                  <Input
+                    placeholder={t("public.searchPlaceholder")}
+                    className="h-14 pl-11 text-base bg-white/20 border-white/30 text-white placeholder:text-white/60 focus:bg-white/30 focus:border-white/50"
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    onKeyDown={(e) => e.key === "Enter" && handleSearch()}
+                    data-testid="input-search"
+                  />
+                </div>
+                <div className="flex gap-2">
+                  <Button
+                    variant="outline"
+                    className="h-14 px-4 bg-white/20 border-white/30 text-white hover:bg-white/30 hover:border-white/50"
+                    onClick={() => setShowFilters(!showFilters)}
+                    data-testid="button-toggle-filters"
+                    aria-label={t("public.toggleFilters") || "Toggle filters"}
+                  >
+                    <SlidersHorizontal className="h-5 w-5" />
+                    <span className="ml-2 sm:hidden">Filtros</span>
+                  </Button>
+                  <Button
+                    className="h-14 px-8 bg-white text-primary hover:bg-white/90"
+                    onClick={handleSearch}
+                    data-testid="button-search"
+                  >
+                    {t("public.searchButton")}
+                  </Button>
+                </div>
               </div>
             </div>
+          </div>
+        </div>
+      </div>
 
-            {/* Advanced Filters */}
-            {showFilters && (
-              <div className="mt-4 p-6 bg-card border rounded-lg shadow-sm">
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                  <div className="space-y-2">
+      {/* Main Content */}
+      <div className="container mx-auto px-4 py-8 sm:py-12">
+        {/* Advanced Filters */}
+        {showFilters && (
+          <div className="mb-8 p-6 bg-card border rounded-lg shadow-sm animate-slideInUp">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div className="space-y-2">
                     <label className="text-sm font-medium">{t("public.filterPropertyType")}</label>
                     <Select value={propertyType} onValueChange={setPropertyType}>
                       <SelectTrigger data-testid="select-property-type">
@@ -249,44 +269,42 @@ export default function PublicDashboard() {
                   >
                     {t("public.clearFilters")}
                   </Button>
-                </div>
-              </div>
-            )}
-            
-            {/* Quick Filters */}
-            <div className="mt-4 flex flex-wrap justify-center gap-3">
-              <Button
-                variant="outline"
-                size="lg"
-                className="px-6 hover-elevate active-elevate-2"
-                onClick={() => setLocation("/buscar-propiedades?status=rent")}
-                data-testid="badge-rent"
-              >
-                <Home className="mr-2 h-5 w-5" />
-                {t("public.filter.rent")}
-              </Button>
-              <Button
-                variant="outline"
-                size="lg"
-                className="px-6 hover-elevate active-elevate-2"
-                onClick={() => setLocation("/buscar-propiedades?status=sale")}
-                data-testid="badge-sale"
-              >
-                <TrendingUp className="mr-2 h-5 w-5" />
-                {t("public.filter.sale")}
-              </Button>
-              <Button
-                variant="outline"
-                size="lg"
-                className="px-6 hover-elevate active-elevate-2"
-                onClick={() => setLocation("/buscar-propiedades?featured=true")}
-                data-testid="badge-featured"
-              >
-                <Sparkles className="mr-2 h-5 w-5" />
-                {t("public.filter.featured")}
-              </Button>
             </div>
           </div>
+        )}
+        
+        {/* Quick Filters */}
+        <div className="mb-8 flex flex-wrap justify-center gap-3">
+          <Button
+            variant="outline"
+            size="lg"
+            className="px-6 hover-elevate active-elevate-2"
+            onClick={() => setLocation("/buscar-propiedades?status=rent")}
+            data-testid="badge-rent"
+          >
+            <Home className="mr-2 h-5 w-5" />
+            {t("public.filter.rent")}
+          </Button>
+          <Button
+            variant="outline"
+            size="lg"
+            className="px-6 hover-elevate active-elevate-2"
+            onClick={() => setLocation("/buscar-propiedades?status=sale")}
+            data-testid="badge-sale"
+          >
+            <TrendingUp className="mr-2 h-5 w-5" />
+            {t("public.filter.sale")}
+          </Button>
+          <Button
+            variant="outline"
+            size="lg"
+            className="px-6 hover-elevate active-elevate-2"
+            onClick={() => setLocation("/buscar-propiedades?featured=true")}
+            data-testid="badge-featured"
+          >
+            <Sparkles className="mr-2 h-5 w-5" />
+            {t("public.filter.featured")}
+          </Button>
         </div>
 
         {/* Featured Properties */}
