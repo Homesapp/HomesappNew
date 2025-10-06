@@ -324,6 +324,17 @@ export const calendarEventStatusEnum = pgEnum("calendar_event_status", [
   "cancelled",   // Cancelado
 ]);
 
+export const documentTypeEnum = pgEnum("document_type", [
+  "passport",    // Pasaporte
+  "ine",         // INE Mexicano
+]);
+
+export const documentApprovalStatusEnum = pgEnum("document_approval_status", [
+  "pending",     // Pendiente de revisión
+  "approved",    // Aprobado
+  "rejected",    // Rechazado
+]);
+
 // Users table (required for Replit Auth + extended fields)
 export const users = pgTable("users", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
@@ -341,6 +352,13 @@ export const users = pgTable("users", {
   preferredLanguage: varchar("preferred_language", { length: 2 }).notNull().default("es"),
   hasSeenWelcome: boolean("has_seen_welcome").notNull().default(false),
   lastWelcomeShown: timestamp("last_welcome_shown"),
+  documentType: documentTypeEnum("document_type"),
+  documentUrl: varchar("document_url"),
+  documentApprovalStatus: documentApprovalStatusEnum("document_approval_status"),
+  documentReviewedAt: timestamp("document_reviewed_at"),
+  documentRejectionReason: text("document_rejection_reason"),
+  commissionTermsAccepted: boolean("commission_terms_accepted").notNull().default(false),
+  commissionTermsAcceptedAt: timestamp("commission_terms_accepted_at"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });
