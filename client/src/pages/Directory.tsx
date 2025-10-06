@@ -67,7 +67,9 @@ function ProviderCardWithServices({ provider, onHire }: { provider: any; onHire:
   };
 
   const handleCall = () => {
-    const fullName = `${provider.user.firstName || ""} ${provider.user.lastName || ""}`.trim();
+    const fullName = provider.user 
+      ? `${provider.user.firstName || ""} ${provider.user.lastName || ""}`.trim()
+      : "Proveedor";
     toast({
       title: "Contacto del proveedor",
       description: `Para contactar a ${fullName}, utiliza el chat o envía una solicitud de servicio.`,
@@ -75,7 +77,9 @@ function ProviderCardWithServices({ provider, onHire }: { provider: any; onHire:
   };
 
   const handleHire = () => {
-    const fullName = `${provider.user.firstName || ""} ${provider.user.lastName || ""}`.trim();
+    const fullName = provider.user
+      ? `${provider.user.firstName || ""} ${provider.user.lastName || ""}`.trim()
+      : "Proveedor";
     onHire(provider.id, fullName || "Sin nombre");
   };
 
@@ -88,7 +92,9 @@ function ProviderCardWithServices({ provider, onHire }: { provider: any; onHire:
     }));
   }, [services]);
 
-  const fullName = `${provider.user.firstName || ""} ${provider.user.lastName || ""}`.trim();
+  const fullName = provider.user
+    ? `${provider.user.firstName || ""} ${provider.user.lastName || ""}`.trim()
+    : "Proveedor";
 
   return (
     <ServiceProviderCard
