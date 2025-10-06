@@ -4894,7 +4894,92 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.post("/api/chat/conversations", isAuthenticated, async (req: any, res) => {
     try {
+      const userId = req.user.claims.sub;
+      const currentUser = await storage.getUser(userId);
+      
+      if (!currentUser) {
+        return res.status(404).json({ message: "User not found" });
+      }
+      
       const conversationData = insertChatConversationSchema.parse(req.body);
+      
+      // Get and validate participants from request
+      const participantUserIds = req.body.participants?.map((p: { userId: string }) => p.userId) || [];
+      
+      if (participantUserIds.length === 0) {
+        return res.status(400).json({ message: "Conversations must have participants" });
+      }
+      
+      // Fetch all participants to verify their roles
+      const participantUsers = await Promise.all(
+        participantUserIds.map((uid: string) => storage.getUser(uid))
+      );
+      
+      const validParticipants = participantUsers.filter(u => u !== null);
+      
+      if (validParticipants.length !== participantUserIds.length) {
+        return res.status(400).json({ message: "One or more participants not found" });
+      }
+      
+      // Chat restriction 1: Owners can only chat with clients after rental completion
+      if (conversationData.type === "rental") {
+        const ownerParticipants = validParticipants.filter(p => p!.role === "owner");
+        const clientParticipants = validParticipants.filter(p => p!.role === "cliente");
+        
+        // If both owner and client are participants, verify active rental
+        if (ownerParticipants.length > 0 && clientParticipants.length > 0) {
+          // Rental conversations must have a propertyId
+          if (!conversationData.propertyId) {
+            return res.status(400).json({ 
+              message: "Rental conversations require a property ID" 
+            });
+          }
+          
+          // Get the property to find its owner
+          const property = await storage.getProperty(conversationData.propertyId);
+          if (!property) {
+            return res.status(404).json({ message: "Property not found" });
+          }
+          
+          // Verify one of the owner participants is the property owner
+          const isPropertyOwnerInConversation = ownerParticipants.some(p => p!.id === property.ownerId);
+          if (!isPropertyOwnerInConversation) {
+            return res.status(403).json({ 
+              message: "Rental conversations must include the property owner" 
+            });
+          }
+          
+          // Check if there's an active rental application between the property owner and any client
+          const rentalApps = await storage.getRentalApplications({ propertyId: conversationData.propertyId });
+          const clientIds = clientParticipants.map(p => p!.id);
+          const hasActiveRental = rentalApps.some(
+            app => clientIds.includes(app.clientId) && app.status === "activo"
+          );
+          
+          if (!hasActiveRental) {
+            return res.status(403).json({ 
+              message: "Los propietarios solo pueden chatear con clientes después de completar el proceso de renta" 
+            });
+          }
+        }
+      }
+      
+      // Chat restriction 2: Appointment conversations require concierge involvement
+      if (conversationData.type === "appointment") {
+        const ownerParticipants = validParticipants.filter(p => p!.role === "owner");
+        const clientParticipants = validParticipants.filter(p => p!.role === "cliente");
+        const conciergeParticipants = validParticipants.filter(p => p!.role === "concierge");
+        
+        // If both owner and client are participants, ensure a concierge is also present
+        if (ownerParticipants.length > 0 && clientParticipants.length > 0) {
+          if (conciergeParticipants.length === 0) {
+            return res.status(403).json({ 
+              message: "Las conversaciones de citas entre propietarios y clientes requieren la participación de un conserje" 
+            });
+          }
+        }
+      }
+      
       const conversation = await storage.createChatConversation(conversationData);
       res.status(201).json(conversation);
     } catch (error: any) {
