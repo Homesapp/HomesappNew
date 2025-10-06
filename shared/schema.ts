@@ -403,6 +403,8 @@ export const roleRequests = pgTable("role_requests", {
   userId: varchar("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
   requestedRole: userRoleEnum("requested_role").notNull(),
   status: roleRequestStatusEnum("status").notNull().default("pending"),
+  email: varchar("email", { length: 255 }).notNull(),
+  whatsapp: varchar("whatsapp", { length: 20 }).notNull(),
   reason: text("reason"),
   yearsOfExperience: integer("years_of_experience"),
   experience: text("experience"),
@@ -423,6 +425,8 @@ export const insertRoleRequestSchema = createInsertSchema(roleRequests).omit({
   createdAt: true,
   updatedAt: true,
 }).extend({
+  email: z.string().email("Correo electrónico inválido"),
+  whatsapp: z.string().min(10, "WhatsApp debe tener al menos 10 dígitos"),
   yearsOfExperience: z.number().min(0).optional(),
 });
 
