@@ -309,7 +309,7 @@ export default function PublicDashboard() {
 
         {/* Featured Properties */}
         {featuredProperties.length > 0 && (
-          <div className="mb-10">
+          <div className="mb-10 animate-fadeIn">
             <div className="mb-6 flex items-center justify-between">
               <h2 className="text-3xl font-bold">{t("public.featured.title")}</h2>
               <Button
@@ -389,7 +389,7 @@ export default function PublicDashboard() {
         )}
 
         {/* Promotional Banners Carousel */}
-        <div className="mb-8">
+        <div className="mb-8 animate-fadeIn" style={{animationDelay: '200ms'}}>
           <Carousel
             opts={{
               align: "start",
