@@ -172,6 +172,7 @@ const translations: Record<Language, Record<string, string>> = {
     
     // Client Dashboard
     "clientDashboard.welcome": "Bienvenido,",
+    "clientDashboard.clientFallback": "Cliente",
     "clientDashboard.subtitle": "Aquí está todo lo que necesitas saber sobre tu búsqueda de propiedades",
     "clientDashboard.upcomingAppointments": "Próximas Citas",
     "clientDashboard.favorites": "Favoritos",
@@ -581,6 +582,7 @@ const translations: Record<Language, Record<string, string>> = {
     
     // Client Dashboard
     "clientDashboard.welcome": "Welcome,",
+    "clientDashboard.clientFallback": "Client",
     "clientDashboard.subtitle": "Here's everything you need to know about your property search",
     "clientDashboard.upcomingAppointments": "Upcoming Appointments",
     "clientDashboard.favorites": "Favorites",

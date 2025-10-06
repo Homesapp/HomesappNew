@@ -1,6 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { format } from "date-fns";
-import { es } from "date-fns/locale";
+import { es, enUS } from "date-fns/locale";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -22,6 +22,7 @@ import { useLocation } from "wouter";
 import type { Appointment, Property, User as UserType, Lead } from "@shared/schema";
 import { WelcomeModal } from "@/components/WelcomeModal";
 import { LoadingScreen } from "@/components/ui/loading-screen";
+import { useLanguage } from "@/contexts/LanguageContext";
 
 type AppointmentWithRelations = Appointment & {
   property?: Property;
@@ -40,16 +41,22 @@ const STATUS_COLORS = {
   cancelled: "bg-red-500/10 text-red-700 dark:text-red-400",
 };
 
-const STATUS_LABELS = {
-  pending: "Pendiente",
-  confirmed: "Confirmada",
-  completed: "Completada",
-  cancelled: "Cancelada",
-};
-
 export default function ClientDashboard() {
   const { user, isLoading: isAuthLoading } = useAuth();
   const [, setLocation] = useLocation();
+  const { t, language } = useLanguage();
+  
+  const dateLocale = language === 'es' ? es : enUS;
+  const dateFormat = language === 'es' 
+    ? "dd 'de' MMMM 'de' yyyy 'a las' HH:mm"
+    : "MMMM dd, yyyy 'at' HH:mm";
+  
+  const STATUS_LABELS = {
+    pending: t("clientDashboard.pending"),
+    confirmed: t("clientDashboard.confirmed"),
+    completed: t("clientDashboard.completed"),
+    cancelled: t("clientDashboard.cancelled"),
+  };
 
   const { data: appointments = [], isLoading: appointmentsLoading } = useQuery<AppointmentWithRelations[]>({
     queryKey: ["/api/appointments"],
@@ -97,10 +104,10 @@ export default function ClientDashboard() {
         {/* Header */}
         <div>
           <h1 className="text-3xl font-bold" data-testid="text-dashboard-title">
-            Bienvenido, {user?.firstName || "Cliente"}
+            {t("clientDashboard.welcome")} {user?.firstName || t("clientDashboard.clientFallback")}
           </h1>
           <p className="text-muted-foreground">
-            Aquí está todo lo que necesitas saber sobre tu búsqueda de propiedades
+            {t("clientDashboard.subtitle")}
           </p>
         </div>
 
@@ -108,52 +115,52 @@ export default function ClientDashboard() {
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
           <Card data-testid="card-stat-appointments">
             <CardHeader className="flex flex-row items-center justify-between gap-2 space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Próximas Citas</CardTitle>
+              <CardTitle className="text-sm font-medium">{t("clientDashboard.upcomingAppointments")}</CardTitle>
               <CalendarIcon className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold">{upcomingAppointments.length}</div>
               <p className="text-xs text-muted-foreground">
-                {upcomingAppointments.length === 1 ? 'Cita programada' : 'Citas programadas'}
+                {upcomingAppointments.length === 1 ? t("clientDashboard.appointmentScheduled") : t("clientDashboard.appointmentsScheduled")}
               </p>
             </CardContent>
           </Card>
 
           <Card data-testid="card-stat-favorites">
             <CardHeader className="flex flex-row items-center justify-between gap-2 space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Favoritos</CardTitle>
+              <CardTitle className="text-sm font-medium">{t("clientDashboard.favorites")}</CardTitle>
               <Heart className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold">{favorites.length}</div>
               <p className="text-xs text-muted-foreground">
-                {favorites.length === 1 ? 'Propiedad guardada' : 'Propiedades guardadas'}
+                {favorites.length === 1 ? t("clientDashboard.propertySaved") : t("clientDashboard.propertiesSaved")}
               </p>
             </CardContent>
           </Card>
 
           <Card data-testid="card-stat-opportunities">
             <CardHeader className="flex flex-row items-center justify-between gap-2 space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Oportunidades</CardTitle>
+              <CardTitle className="text-sm font-medium">{t("clientDashboard.opportunities")}</CardTitle>
               <Zap className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold">{myLeads.length}</div>
               <p className="text-xs text-muted-foreground">
-                {myLeads.length === 1 ? 'Oportunidad activa' : 'Oportunidades activas'}
+                {myLeads.length === 1 ? t("clientDashboard.activeOpportunity") : t("clientDashboard.activeOpportunities")}
               </p>
             </CardContent>
           </Card>
 
           <Card data-testid="card-stat-properties">
             <CardHeader className="flex flex-row items-center justify-between gap-2 space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Propiedades Vistas</CardTitle>
+              <CardTitle className="text-sm font-medium">{t("clientDashboard.propertiesViewed")}</CardTitle>
               <TrendingUp className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold">{myAppointments.length}</div>
               <p className="text-xs text-muted-foreground">
-                Visitas realizadas
+                {t("clientDashboard.visitsCompleted")}
               </p>
             </CardContent>
           </Card>
@@ -162,8 +169,8 @@ export default function ClientDashboard() {
         {/* Quick Actions */}
         <Card data-testid="card-quick-actions">
           <CardHeader>
-            <CardTitle>Acciones Rápidas</CardTitle>
-            <CardDescription>¿Qué te gustaría hacer hoy?</CardDescription>
+            <CardTitle>{t("clientDashboard.quickActions")}</CardTitle>
+            <CardDescription>{t("clientDashboard.quickActionsDesc")}</CardDescription>
           </CardHeader>
           <CardContent className="flex flex-wrap gap-3">
             <Button 
@@ -171,7 +178,7 @@ export default function ClientDashboard() {
               data-testid="button-search-properties"
             >
               <Search className="h-4 w-4 mr-2" />
-              Buscar Propiedades
+              {t("clientDashboard.searchProperties")}
             </Button>
             <Button 
               variant="outline"
@@ -179,7 +186,7 @@ export default function ClientDashboard() {
               data-testid="button-view-favorites"
             >
               <Heart className="h-4 w-4 mr-2" />
-              Ver Favoritos
+              {t("clientDashboard.viewFavorites")}
             </Button>
             <Button 
               variant="outline"
@@ -187,7 +194,7 @@ export default function ClientDashboard() {
               data-testid="button-manage-appointments"
             >
               <CalendarIcon className="h-4 w-4 mr-2" />
-              Gestionar Citas
+              {t("clientDashboard.manageAppointments")}
             </Button>
             <Button 
               variant="outline"
@@ -195,7 +202,7 @@ export default function ClientDashboard() {
               data-testid="button-view-opportunities"
             >
               <Zap className="h-4 w-4 mr-2" />
-              Mis Oportunidades
+              {t("clientDashboard.myOpportunities")}
             </Button>
           </CardContent>
         </Card>
@@ -205,8 +212,8 @@ export default function ClientDashboard() {
           <Card data-testid="card-upcoming-appointments">
             <CardHeader className="flex flex-row items-center justify-between gap-2 flex-wrap space-y-0">
               <div>
-                <CardTitle>Próximas Citas</CardTitle>
-                <CardDescription>Tus visitas programadas</CardDescription>
+                <CardTitle>{t("clientDashboard.upcomingAppointments")}</CardTitle>
+                <CardDescription>{t("clientDashboard.scheduledVisits")}</CardDescription>
               </div>
               <Button 
                 variant="outline" 
@@ -214,7 +221,7 @@ export default function ClientDashboard() {
                 onClick={() => setLocation("/mis-citas")}
                 data-testid="button-view-all-appointments"
               >
-                Ver Todas
+                {t("clientDashboard.viewAll")}
               </Button>
             </CardHeader>
             <CardContent className="space-y-4">
@@ -224,7 +231,7 @@ export default function ClientDashboard() {
                     <div className="flex items-start justify-between gap-2">
                       <div className="flex-1 min-w-0">
                         <CardTitle className="text-base font-medium line-clamp-1">
-                          {appointment.property?.title || "Propiedad"}
+                          {appointment.property?.title || t("clientDashboard.property")}
                         </CardTitle>
                         <CardDescription className="line-clamp-1">
                           {appointment.property?.location}
@@ -239,26 +246,26 @@ export default function ClientDashboard() {
                     <div className="flex items-center gap-2 text-sm text-muted-foreground">
                       <Clock className="h-4 w-4" />
                       <span>
-                        {format(new Date(appointment.date), "dd 'de' MMMM 'de' yyyy 'a las' HH:mm", { locale: es })}
+                        {format(new Date(appointment.date), dateFormat, { locale: dateLocale })}
                       </span>
                     </div>
                     <div className="flex items-center gap-2 text-sm text-muted-foreground">
                       {appointment.type === "video" ? (
                         <>
                           <Video className="h-4 w-4" />
-                          <span>Video llamada</span>
+                          <span>{t("clientDashboard.videoCall")}</span>
                         </>
                       ) : (
                         <>
                           <Home className="h-4 w-4" />
-                          <span>Presencial</span>
+                          <span>{t("clientDashboard.inPerson")}</span>
                         </>
                       )}
                     </div>
                     {appointment.concierge && (
                       <div className="flex items-center gap-2 text-sm text-muted-foreground">
                         <User className="h-4 w-4" />
-                        <span>Conserje asignado</span>
+                        <span>{t("clientDashboard.conciergeAssigned")}</span>
                       </div>
                     )}
                     {appointment.meetLink && (
@@ -270,7 +277,7 @@ export default function ClientDashboard() {
                         data-testid={`button-join-meet-${appointment.id}`}
                       >
                         <Video className="h-4 w-4 mr-2" />
-                        Unirse a la videollamada
+                        {t("clientDashboard.joinVideoCall")}
                       </Button>
                     )}
                   </CardContent>
@@ -285,8 +292,8 @@ export default function ClientDashboard() {
           <Card data-testid="card-favorite-properties">
             <CardHeader className="flex flex-row items-center justify-between gap-2 flex-wrap space-y-0">
               <div>
-                <CardTitle>Propiedades Favoritas</CardTitle>
-                <CardDescription>Tus propiedades guardadas</CardDescription>
+                <CardTitle>{t("clientDashboard.favoriteProperties")}</CardTitle>
+                <CardDescription>{t("clientDashboard.savedProperties")}</CardDescription>
               </div>
               <Button 
                 variant="outline" 
@@ -294,7 +301,7 @@ export default function ClientDashboard() {
                 onClick={() => setLocation("/favoritos")}
                 data-testid="button-view-all-favorites"
               >
-                Ver Todas
+                {t("clientDashboard.viewAll")}
               </Button>
             </CardHeader>
             <CardContent>
@@ -343,8 +350,8 @@ export default function ClientDashboard() {
           <Card data-testid="card-active-opportunities">
             <CardHeader className="flex flex-row items-center justify-between gap-2 flex-wrap space-y-0">
               <div>
-                <CardTitle>Oportunidades Activas</CardTitle>
-                <CardDescription>Tus solicitudes en proceso</CardDescription>
+                <CardTitle>{t("clientDashboard.activeOpportunitiesTitle")}</CardTitle>
+                <CardDescription>{t("clientDashboard.requestsInProcess")}</CardDescription>
               </div>
               <Button 
                 variant="outline" 
@@ -352,7 +359,7 @@ export default function ClientDashboard() {
                 onClick={() => setLocation("/mis-oportunidades")}
                 data-testid="button-view-all-opportunities"
               >
-                Ver Todas
+                {t("clientDashboard.viewAll")}
               </Button>
             </CardHeader>
             <CardContent className="space-y-3">
@@ -364,15 +371,15 @@ export default function ClientDashboard() {
                   data-testid={`item-opportunity-${lead.id}`}
                 >
                   <div className="flex-1 min-w-0">
-                    <p className="font-medium line-clamp-1">{lead.propertyTitle || "Propiedad"}</p>
+                    <p className="font-medium line-clamp-1">{lead.propertyTitle || t("clientDashboard.property")}</p>
                     <p className="text-sm text-muted-foreground">{lead.location}</p>
                   </div>
                   <Badge variant="secondary">
-                    {lead.status === "new" && "Nueva"}
-                    {lead.status === "contacted" && "Contactado"}
-                    {lead.status === "qualified" && "Calificado"}
-                    {lead.status === "proposal" && "Propuesta"}
-                    {lead.status === "negotiation" && "Negociación"}
+                    {lead.status === "new" && t("clientDashboard.leadNew")}
+                    {lead.status === "contacted" && t("clientDashboard.leadContacted")}
+                    {lead.status === "qualified" && t("clientDashboard.leadQualified")}
+                    {lead.status === "proposal" && t("clientDashboard.leadProposal")}
+                    {lead.status === "negotiation" && t("clientDashboard.leadNegotiation")}
                   </Badge>
                 </div>
               ))}
@@ -385,16 +392,16 @@ export default function ClientDashboard() {
           <Card data-testid="card-empty-state">
             <CardContent className="flex flex-col items-center justify-center py-12">
               <Search className="h-16 w-16 text-muted-foreground mb-4" />
-              <h3 className="text-lg font-semibold mb-2">¡Comienza tu búsqueda!</h3>
+              <h3 className="text-lg font-semibold mb-2">{t("clientDashboard.emptyStateTitle")}</h3>
               <p className="text-muted-foreground text-center mb-6">
-                Aún no tienes actividad. Explora nuestras propiedades y encuentra tu hogar ideal.
+                {t("clientDashboard.emptyStateDesc")}
               </p>
               <Button 
                 onClick={() => setLocation("/buscar-propiedades")}
                 data-testid="button-start-search"
               >
                 <Search className="h-4 w-4 mr-2" />
-                Explorar Propiedades
+                {t("clientDashboard.exploreProperties")}
               </Button>
             </CardContent>
           </Card>
