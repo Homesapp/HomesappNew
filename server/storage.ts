@@ -49,6 +49,7 @@ import {
   accountantAssignments,
   payoutBatches,
   incomeTransactions,
+  changelogs,
   type User,
   type Colony,
   type InsertColony,
@@ -147,6 +148,8 @@ import {
   type InsertPayoutBatch,
   type IncomeTransaction,
   type InsertIncomeTransaction,
+  type Changelog,
+  type InsertChangelog,
   type InsertAppointmentReview,
   type ConciergeReview,
   type InsertConciergeReview,
@@ -542,6 +545,13 @@ export interface IStorage {
     count: number;
     avgAmount: string;
   }>>;
+
+  // Changelog operations
+  getChangelog(id: string): Promise<Changelog | undefined>;
+  getAllChangelogs(): Promise<Changelog[]>;
+  createChangelog(changelog: InsertChangelog): Promise<Changelog>;
+  updateChangelog(id: string, updates: Partial<InsertChangelog>): Promise<Changelog>;
+  deleteChangelog(id: string): Promise<void>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -3300,6 +3310,34 @@ export class DatabaseStorage implements IStorage {
       count: Number(r.count) || 0,
       avgAmount: r.avgAmount || '0',
     }));
+  }
+
+  // Changelog operations
+  async getChangelog(id: string): Promise<Changelog | undefined> {
+    const [changelog] = await db.select().from(changelogs).where(eq(changelogs.id, id));
+    return changelog;
+  }
+
+  async getAllChangelogs(): Promise<Changelog[]> {
+    return await db.select().from(changelogs).orderBy(desc(changelogs.createdAt));
+  }
+
+  async createChangelog(changelogData: InsertChangelog): Promise<Changelog> {
+    const [changelog] = await db.insert(changelogs).values(changelogData).returning();
+    return changelog;
+  }
+
+  async updateChangelog(id: string, updates: Partial<InsertChangelog>): Promise<Changelog> {
+    const [changelog] = await db
+      .update(changelogs)
+      .set(updates)
+      .where(eq(changelogs.id, id))
+      .returning();
+    return changelog;
+  }
+
+  async deleteChangelog(id: string): Promise<void> {
+    await db.delete(changelogs).where(eq(changelogs.id, id));
   }
 }
 
