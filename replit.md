@@ -2,7 +2,7 @@
 
 ## Overview
 
-HomesApp is a comprehensive SaaS platform for real estate property management, primarily focused on the Tulum, Quintana Roo market. It streamlines operations for various user roles (master, admin, seller, owner, client) through features like property management, appointment scheduling, client presentations, service coordination, and offer processing. The platform aims to enhance user experience with a professional, data-dense dashboard, role-based access, Google Calendar integration, a service provider marketplace, property submission with digital agreement signing, and a full back office for offer management. The business vision is to dominate the real estate property management sector in Tulum.
+HomesApp is a comprehensive SaaS platform for real estate property management, primarily focused on the Tulum, Quintana Roo market. It streamlines operations for various user roles (master, admin, seller, owner, client) through features like property management, dual-type appointment scheduling, client presentations, service coordination, and offer processing. The platform aims to enhance user experience with a professional, data-dense dashboard, role-based access, Google Calendar integration, configurable business hours, concierge time-blocking, a service provider marketplace, property submission with digital agreement signing, and a full back office for offer management. The business vision is to dominate the real estate property management sector in Tulum.
 
 ## User Preferences
 
@@ -43,6 +43,11 @@ Administrative fees: $2,500 MXN for personal use contracts or $3,800 MXN for sub
 
 ### Key Features and Workflows
 
+*   **Dual-Type Appointment Scheduling**: Supports two appointment modes:
+    - **Individual**: 1-hour slots for single property visits (8 slots per day per concierge)
+    - **Tour**: 30-minute slots per property, allowing clients to book tours of multiple properties (max 4) sequentially with a shared tourGroupId
+    - **Business Hours Configuration**: Admin-configurable business hours (default: 10am-6pm Monday-Saturday)
+    - **Concierge Time-Blocking**: Concierges can block personal time slots to manage availability, but cannot cancel confirmed appointments
 *   **Property Management**: Includes a property approval workflow, owner-submitted change requests, owner settings for appointment auto-approval, and sublease functionality. All properties are standardized to Tulum location.
 *   **Property Submission**: A streamlined 4-step wizard with automatic draft saving, digital agreement signing using admin-managed templates, and integration with approved condominium listings. The wizard consolidates: (1) Operation Type + Basic Info, (2) Location + Physical Details, (3) Multimedia, (4) Commercial Terms + Final Review. Property upload is only accessible from within "Mis Propiedades" page, not from the sidebar.
 *   **Condominium Workflow**: User-requested condominiums require admin approval, with 396 pre-approved Tulum condominiums in the system.

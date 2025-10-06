@@ -3,6 +3,7 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { insertAppointmentSchema, type InsertAppointment, type Appointment } from "@shared/schema";
 import { format } from "date-fns";
+import { z } from "zod";
 import {
   Dialog,
   DialogContent,
@@ -31,13 +32,16 @@ import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Badge } from "@/components/ui/badge";
 import { useCreateAppointment, useUpdateAppointment } from "@/hooks/useAppointments";
 import { useProperties } from "@/hooks/useProperties";
 import { useUsersByRole } from "@/hooks/useUsers";
 import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
-import { CalendarIcon, Loader2, Link as LinkIcon } from "lucide-react";
+import { CalendarIcon, Loader2, Link as LinkIcon, X } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { nanoid } from "nanoid";
 
 interface AppointmentFormDialogProps {
   open: boolean;
@@ -60,6 +64,8 @@ export function AppointmentFormDialog({
   const { data: concierges } = useUsersByRole("concierge");
   
   const [time, setTime] = useState("10:00");
+  const [appointmentMode, setAppointmentMode] = useState<"individual" | "tour">("individual");
+  const [selectedProperties, setSelectedProperties] = useState<string[]>([]);
 
   const form = useForm<InsertAppointment>({
     resolver: zodResolver(insertAppointmentSchema),
@@ -69,6 +75,7 @@ export function AppointmentFormDialog({
       conciergeId: undefined,
       date: new Date(),
       type: "in-person",
+      mode: "individual",
       status: "pending",
       notes: "",
       meetLink: undefined,
@@ -85,11 +92,14 @@ export function AppointmentFormDialog({
         conciergeId: appointment.conciergeId || undefined,
         date: appointmentDate,
         type: appointment.type,
+        mode: appointment.mode || "individual",
         status: appointment.status,
         notes: appointment.notes || "",
         meetLink: appointment.meetLink || undefined,
         googleEventId: appointment.googleEventId || undefined,
       });
+      setAppointmentMode(appointment.mode || "individual");
+      setSelectedProperties([appointment.propertyId]);
       setTime(format(appointmentDate, "HH:mm"));
     } else if (mode === "create") {
       form.reset({
@@ -98,66 +108,150 @@ export function AppointmentFormDialog({
         conciergeId: undefined,
         date: new Date(),
         type: "in-person",
+        mode: "individual",
         status: "pending",
         notes: "",
         meetLink: undefined,
         googleEventId: undefined,
       });
+      setAppointmentMode("individual");
+      setSelectedProperties([]);
       setTime("10:00");
     }
   }, [appointment, mode, form, user]);
 
+  const handleFormSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    
+    // Validar selección de propiedades según el modo
+    if (appointmentMode === "individual" && selectedProperties.length !== 1) {
+      toast({
+        title: "Error de validación",
+        description: "Debes seleccionar exactamente una propiedad para cita individual",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (appointmentMode === "tour") {
+      if (selectedProperties.length === 0) {
+        toast({
+          title: "Error de validación",
+          description: "Debes seleccionar al menos una propiedad para el tour",
+          variant: "destructive",
+        });
+        return;
+      }
+      if (selectedProperties.length > 4) {
+        toast({
+          title: "Error de validación",
+          description: "Máximo 4 propiedades por tour",
+          variant: "destructive",
+        });
+        return;
+      }
+      // Establecer propertyId para pasar la validación del schema (usaremos la primera propiedad)
+      form.setValue("propertyId", selectedProperties[0]);
+    }
+    
+    // Ejecutar la validación y submit del form
+    await form.handleSubmit(onSubmit)();
+  };
+
   const onSubmit = async (data: InsertAppointment) => {
     try {
+
       const [hours, minutes] = time.split(":").map(Number);
       const appointmentDate = new Date(data.date);
       appointmentDate.setHours(hours, minutes, 0, 0);
 
-      const appointmentData = {
-        ...data,
-        date: appointmentDate,
-        clientId: user?.id || data.clientId,
-      };
-
       if (mode === "edit" && appointment) {
+        // Edit mode: solo actualizar la cita existente
+        const appointmentData = {
+          ...data,
+          propertyId: selectedProperties[0],
+          date: appointmentDate,
+          mode: appointmentMode,
+          clientId: user?.id || data.clientId,
+        };
+        
         await updateMutation.mutateAsync({ id: appointment.id, data: appointmentData });
         toast({
           title: "Cita actualizada",
           description: "La cita ha sido actualizada exitosamente",
         });
       } else {
-        const result = await createMutation.mutateAsync(appointmentData);
-        
-        if (result.meetLink && data.type === "video") {
-          toast({
-            title: "Cita creada con videollamada",
-            description: (
-              <div className="space-y-2">
-                <p>La cita ha sido creada exitosamente</p>
-                <div className="flex items-center gap-2 p-2 bg-muted rounded-md">
-                  <LinkIcon className="h-4 w-4" />
-                  <a 
-                    href={result.meetLink} 
-                    target="_blank" 
-                    rel="noopener noreferrer"
-                    className="text-sm text-primary hover:underline"
-                  >
-                    {result.meetLink}
-                  </a>
+        // Create mode: crear una o múltiples citas según el modo
+        if (appointmentMode === "individual") {
+          // Crear una sola cita
+          const appointmentData = {
+            ...data,
+            propertyId: selectedProperties[0],
+            date: appointmentDate,
+            mode: "individual" as const,
+            clientId: user?.id || data.clientId,
+          };
+          
+          const result = await createMutation.mutateAsync(appointmentData);
+          
+          if (result.meetLink && data.type === "video") {
+            toast({
+              title: "Cita creada con videollamada",
+              description: (
+                <div className="space-y-2">
+                  <p>La cita ha sido creada exitosamente</p>
+                  <div className="flex items-center gap-2 p-2 bg-muted rounded-md">
+                    <LinkIcon className="h-4 w-4" />
+                    <a 
+                      href={result.meetLink} 
+                      target="_blank" 
+                      rel="noopener noreferrer"
+                      className="text-sm text-primary hover:underline"
+                    >
+                      {result.meetLink}
+                    </a>
+                  </div>
                 </div>
-              </div>
-            ),
-          });
+              ),
+            });
+          } else {
+            toast({
+              title: "Cita creada",
+              description: "La cita ha sido creada exitosamente",
+            });
+          }
         } else {
+          // Crear tour: múltiples citas con el mismo tourGroupId
+          const tourGroupId = nanoid();
+          let currentTime = new Date(appointmentDate);
+          
+          for (let i = 0; i < selectedProperties.length; i++) {
+            const appointmentData = {
+              ...data,
+              propertyId: selectedProperties[i],
+              date: new Date(currentTime),
+              mode: "tour" as const,
+              tourGroupId,
+              clientId: user?.id || data.clientId,
+            };
+            
+            await createMutation.mutateAsync(appointmentData);
+            // Añadir 30 minutos para la siguiente propiedad
+            currentTime = new Date(currentTime.getTime() + 30 * 60 * 1000);
+          }
+          
+          const totalMinutes = selectedProperties.length * 30;
           toast({
-            title: "Cita creada",
-            description: "La cita ha sido creada exitosamente",
+            title: "Tour creado",
+            description: `Se han creado ${selectedProperties.length} citas para el tour (${totalMinutes} minutos total)`,
           });
         }
       }
       
       onOpenChange(false);
       form.reset();
+      setSelectedProperties([]);
+      setAppointmentMode("individual");
     } catch (error) {
       console.error("Form submission error:", error);
       toast({
@@ -185,31 +279,125 @@ export function AppointmentFormDialog({
         </DialogHeader>
 
         <Form {...form}>
-          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
-            <FormField
-              control={form.control}
-              name="propertyId"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Propiedad *</FormLabel>
-                  <Select onValueChange={field.onChange} value={field.value} disabled={loadingProperties}>
-                    <FormControl>
-                      <SelectTrigger data-testid="select-property">
-                        <SelectValue placeholder="Seleccionar propiedad" />
-                      </SelectTrigger>
-                    </FormControl>
+          <form onSubmit={handleFormSubmit} className="space-y-4">
+            {/* Selector de modo de cita - solo en create mode */}
+            {mode === "create" && (
+              <FormItem className="space-y-3">
+                <FormLabel>Modo de Cita *</FormLabel>
+                <RadioGroup
+                  onValueChange={(value) => {
+                    setAppointmentMode(value as "individual" | "tour");
+                    setSelectedProperties([]);
+                    form.setValue("mode", value as "individual" | "tour");
+                    form.setValue("propertyId", "");
+                  }}
+                  value={appointmentMode}
+                  className="flex gap-4"
+                  data-testid="radio-appointment-mode"
+                >
+                  <div className="flex items-center space-x-2 space-y-0">
+                    <RadioGroupItem value="individual" data-testid="radio-mode-individual" />
+                    <label className="font-normal cursor-pointer">
+                      Individual (1 hora)
+                    </label>
+                  </div>
+                  <div className="flex items-center space-x-2 space-y-0">
+                    <RadioGroupItem value="tour" data-testid="radio-mode-tour" />
+                    <label className="font-normal cursor-pointer">
+                      Tour (30 min por propiedad)
+                    </label>
+                  </div>
+                </RadioGroup>
+              </FormItem>
+            )}
+
+            {/* Selector de propiedades */}
+            {appointmentMode === "individual" ? (
+              <FormField
+                control={form.control}
+                name="propertyId"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Propiedad *</FormLabel>
+                    <Select 
+                      onValueChange={(value) => {
+                        field.onChange(value);
+                        setSelectedProperties([value]);
+                      }} 
+                      value={selectedProperties[0] || ""} 
+                      disabled={loadingProperties}
+                    >
+                      <FormControl>
+                        <SelectTrigger data-testid="select-property">
+                          <SelectValue placeholder="Seleccionar propiedad" />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        {properties?.map((property) => (
+                          <SelectItem key={property.id} value={property.id}>
+                            {property.title} - {property.location}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            ) : (
+              <FormItem>
+                <FormLabel>Propiedades del Tour * (Máximo 4)</FormLabel>
+                <div className="space-y-2">
+                  {selectedProperties.length > 0 && (
+                    <div className="flex flex-wrap gap-2 p-2 border rounded-md bg-muted/50">
+                      {selectedProperties.map((propId, index) => {
+                        const property = properties?.find(p => p.id === propId);
+                        return (
+                          <Badge key={propId} variant="secondary" className="gap-2" data-testid={`badge-tour-property-${index}`}>
+                            {index + 1}. {property?.title}
+                            <X
+                              className="h-3 w-3 cursor-pointer hover:text-destructive"
+                              onClick={() => setSelectedProperties(prev => prev.filter(id => id !== propId))}
+                              data-testid={`button-remove-property-${index}`}
+                            />
+                          </Badge>
+                        );
+                      })}
+                    </div>
+                  )}
+                  <Select 
+                    onValueChange={(value) => {
+                      if (!selectedProperties.includes(value) && selectedProperties.length < 4) {
+                        setSelectedProperties(prev => [...prev, value]);
+                      }
+                    }}
+                    value=""
+                    disabled={loadingProperties || selectedProperties.length >= 4}
+                  >
+                    <SelectTrigger data-testid="select-tour-properties">
+                      <SelectValue placeholder={
+                        selectedProperties.length >= 4 
+                          ? "Máximo 4 propiedades alcanzado"
+                          : `Agregar propiedad (${selectedProperties.length}/4)`
+                      } />
+                    </SelectTrigger>
                     <SelectContent>
-                      {properties?.map((property) => (
+                      {properties?.filter(p => !selectedProperties.includes(p.id)).map((property) => (
                         <SelectItem key={property.id} value={property.id}>
                           {property.title} - {property.location}
                         </SelectItem>
                       ))}
                     </SelectContent>
                   </Select>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
+                  {selectedProperties.length > 0 && (
+                    <p className="text-sm text-muted-foreground">
+                      Duración total del tour: {selectedProperties.length * 30} minutos
+                    </p>
+                  )}
+                </div>
+                <FormMessage />
+              </FormItem>
+            )}
 
             <div className="grid grid-cols-2 gap-4">
               <FormField
