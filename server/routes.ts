@@ -202,6 +202,52 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Initialize business hours with default values if not exists
   await storage.initializeBusinessHours();
 
+  // Special route to create initial admin user (only works once)
+  app.post("/api/setup-admin", async (req: any, res) => {
+    try {
+      const { setupKey, username, password } = req.body;
+      
+      // Simple security check - setup key must match
+      if (setupKey !== "HomesApp2024Setup") {
+        return res.status(403).json({ message: "Invalid setup key" });
+      }
+
+      // Check if any admin already exists
+      const existingAdmins = await storage.getAllAdmins();
+      if (existingAdmins.length > 0) {
+        return res.status(400).json({ message: "Admin users already exist. This endpoint can only be used once." });
+      }
+
+      const adminUsername = username || "admin";
+      const adminPassword = password || "admin123";
+
+      // Hash password
+      const passwordHash = await bcrypt.hash(adminPassword, 10);
+
+      // Create admin
+      const admin = await storage.createAdmin({
+        username: adminUsername,
+        passwordHash,
+        email: `${adminUsername}@homesapp.com`,
+        firstName: "Admin",
+        lastName: "User",
+        role: "master",
+        isActive: true,
+      });
+
+      res.json({
+        success: true,
+        message: "Admin user created successfully",
+        username: admin.username,
+        email: admin.email,
+        note: "You can now login at /login with the provided credentials"
+      });
+    } catch (error) {
+      console.error("Error creating initial admin:", error);
+      res.status(500).json({ message: "Failed to create admin user" });
+    }
+  });
+
   // Auth routes
   app.get("/api/auth/user", isAuthenticated, async (req: any, res) => {
     try {
