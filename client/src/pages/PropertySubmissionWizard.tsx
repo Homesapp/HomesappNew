@@ -9,15 +9,12 @@ import { useToast } from "@/hooks/use-toast";
 import { ChevronLeft, ChevronRight, Save } from "lucide-react";
 import type { PropertySubmissionDraft } from "@shared/schema";
 
-import Step1PropertyType from "@/components/wizard/Step1PropertyType";
-import Step2BasicInfo from "@/components/wizard/Step2BasicInfo";
-import Step3Location from "@/components/wizard/Step3Location";
-import Step4Details from "@/components/wizard/Step4Details";
-import Step5Media from "@/components/wizard/Step5Media";
-import Step6Terms from "@/components/wizard/Step6Terms";
-import Step7Review from "@/components/wizard/Step7Review";
+import Step1BasicInfo from "@/components/wizard/Step1BasicInfo";
+import Step2LocationDetails from "@/components/wizard/Step2LocationDetails";
+import Step3Media from "@/components/wizard/Step5Media";
+import Step4TermsReview from "@/components/wizard/Step4TermsReview";
 
-const TOTAL_STEPS = 7;
+const TOTAL_STEPS = 4;
 
 type WizardData = {
   isForRent: boolean;
@@ -173,7 +170,7 @@ export default function PropertySubmissionWizard() {
     switch (currentStep) {
       case 1:
         return (
-          <Step1PropertyType
+          <Step1BasicInfo
             data={wizardData}
             onUpdate={updateWizardData}
             onNext={(stepData) => handleNext(stepData)}
@@ -181,7 +178,7 @@ export default function PropertySubmissionWizard() {
         );
       case 2:
         return (
-          <Step2BasicInfo
+          <Step2LocationDetails
             data={wizardData}
             onUpdate={updateWizardData}
             onNext={(stepData) => handleNext(stepData)}
@@ -190,7 +187,7 @@ export default function PropertySubmissionWizard() {
         );
       case 3:
         return (
-          <Step3Location
+          <Step3Media
             data={wizardData}
             onUpdate={updateWizardData}
             onNext={(stepData) => handleNext(stepData)}
@@ -199,36 +196,10 @@ export default function PropertySubmissionWizard() {
         );
       case 4:
         return (
-          <Step4Details
-            data={wizardData}
-            onUpdate={updateWizardData}
-            onNext={(stepData) => handleNext(stepData)}
-            onPrevious={handlePrevious}
-          />
-        );
-      case 5:
-        return (
-          <Step5Media
-            data={wizardData}
-            onUpdate={updateWizardData}
-            onNext={(stepData) => handleNext(stepData)}
-            onPrevious={handlePrevious}
-          />
-        );
-      case 6:
-        return (
-          <Step6Terms
-            data={wizardData}
-            onUpdate={updateWizardData}
-            onNext={(stepData) => handleNext(stepData)}
-            onPrevious={handlePrevious}
-          />
-        );
-      case 7:
-        return (
-          <Step7Review
+          <Step4TermsReview
             data={wizardData}
             draftId={draftId}
+            onUpdate={updateWizardData}
             onPrevious={handlePrevious}
           />
         );

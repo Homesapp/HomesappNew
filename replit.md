@@ -44,10 +44,10 @@ Administrative fees: $2,500 MXN for personal use contracts or $3,800 MXN for sub
 ### Key Features and Workflows
 
 *   **Property Management**: Includes a property approval workflow, owner-submitted change requests, owner settings for appointment auto-approval, and sublease functionality. All properties are standardized to Tulum location.
-*   **Property Submission**: A multi-step wizard with automatic draft saving, digital agreement signing using admin-managed templates, and integration with approved condominium listings.
+*   **Property Submission**: A streamlined 4-step wizard with automatic draft saving, digital agreement signing using admin-managed templates, and integration with approved condominium listings. The wizard consolidates: (1) Operation Type + Basic Info, (2) Location + Physical Details, (3) Multimedia, (4) Commercial Terms + Final Review. Property upload is only accessible from within "Mis Propiedades" page, not from the sidebar.
 *   **Condominium Workflow**: User-requested condominiums require admin approval, with 396 pre-approved Tulum condominiums in the system.
 *   **Client Dashboard**: Provides a comprehensive overview with personalized welcome, quick stats, quick actions, and appointment management with Google Calendar integration.
-*   **User Experience**: Features an Airbnb-style role switching, full i18n support with language persistence, a WebSocket-based real-time chat system, enhanced presentation cards, granular email notification preferences, and device-based profile picture uploads.
+*   **User Experience**: Features an Airbnb-style role switching, full i18n support with language persistence, a WebSocket-based real-time chat system, enhanced presentation cards, granular email notification preferences, and device-based profile picture uploads. Simplified navigation with streamlined sidebar menu (reduced from 23+ to 15 essential items for cleaner UX).
 *   **Public Dashboard**: An Airbnb-inspired design adapting for authenticated vs. non-authenticated users, with dual pricing support (rental/sale), improved property listing displays, advanced search filters, and promotional banners.
 *   **Virtual Assistant (MARCO)**: An intelligent, humanized chatbot powered by OpenAI GPT-5 that guides clients through property search, suggests presentation cards, and coordinates appointments. It's configurable by admins and internationalized.
 *   **Referral System**: Secure, role-based referral filtering ensures users only see their own referrals, with admins having full visibility.
