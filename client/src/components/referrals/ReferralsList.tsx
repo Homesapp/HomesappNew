@@ -154,8 +154,9 @@ export function ReferralsList({ type, referrals }: ReferralsListProps) {
   }
 
   return (
-    <div className="grid gap-4 md:grid-cols-2">
-      {referrals.map((referral) => {
+    <>
+      <div className="grid gap-4 md:grid-cols-2">
+        {referrals.map((referral) => {
         const status = referral.status;
         const statusInfo = statusLabels[status] || { es: status, en: status, variant: "outline" as const };
         const isOwner = type === "owner";
