@@ -17,14 +17,29 @@ export interface CommissionCalculationResult {
 }
 
 export function calculateCommissionMonths(leaseDurationMonths: number): number {
-  if (leaseDurationMonths >= 1 && leaseDurationMonths <= 6) {
-    return 1.0;
-  } else if (leaseDurationMonths >= 7 && leaseDurationMonths <= 11) {
-    return 1.2;
-  } else if (leaseDurationMonths >= 12) {
+  // Según términos del contrato de propietario:
+  if (leaseDurationMonths >= 60) {
+    // 5 años o más = 3 meses de renta
+    return 3.0;
+  } else if (leaseDurationMonths >= 48) {
+    // 4 años = 2.5 meses de renta
+    return 2.5;
+  } else if (leaseDurationMonths >= 36) {
+    // 3 años = 2 meses de renta
+    return 2.0;
+  } else if (leaseDurationMonths >= 24) {
+    // 2 años = 1.5 meses de renta
     return 1.5;
+  } else if (leaseDurationMonths >= 12) {
+    // 1 año = 1 mes de renta
+    return 1.0;
+  } else if (leaseDurationMonths >= 6) {
+    // 6 meses = 1/2 mes de renta
+    return 0.5;
+  } else {
+    // Menos de 6 meses = modalidad vacacional (se maneja por separado con 15%)
+    return 0;
   }
-  return 1.0;
 }
 
 export function calculateRentalCommissions(input: CommissionCalculationInput): CommissionCalculationResult {
@@ -34,8 +49,18 @@ export function calculateRentalCommissions(input: CommissionCalculationInput): C
     throw new Error("Referral percent must be between 0 and 100");
   }
   
-  const commissionMonths = calculateCommissionMonths(leaseDurationMonths);
-  const totalCommissionAmount = monthlyRent * commissionMonths;
+  let totalCommissionAmount: number;
+  let commissionMonths: number;
+  
+  // Modalidad vacacional: menos de 6 meses = 15% del total de la reserva
+  if (leaseDurationMonths < 6) {
+    const totalReservationAmount = monthlyRent * leaseDurationMonths;
+    totalCommissionAmount = totalReservationAmount * 0.15;
+    commissionMonths = 0.15 * leaseDurationMonths; // Para registro
+  } else {
+    commissionMonths = calculateCommissionMonths(leaseDurationMonths);
+    totalCommissionAmount = monthlyRent * commissionMonths;
+  }
   
   let sellerPercent: number;
   let referralPercentActual: number;
