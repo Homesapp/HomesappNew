@@ -27,6 +27,11 @@ Preferred communication style: Simple, everyday language.
   - Property details: bedrooms, bathrooms, amenities
   - Modality labels: Rent/Renta, Sale/Venta, Rent or Sale/Renta o Venta
   - Match counters with proper pluralization
+- Complete sidebar internationalization (October 2025)
+  - Added 40+ translation keys (sidebar.*) for all menu items and sections
+  - All navigation items use titleKey property for consistent translation
+  - Section labels fully translated: Principal/Main, Administración/Administration, Servicios/Services
+  - Role-based menus properly localized for all user types
 - All UI text now properly internationalized
 
 ### Sidebar Improvements
@@ -41,6 +46,13 @@ Preferred communication style: Simple, everyday language.
 - RESTful API endpoints for all review types
 - Storage layer methods with filtering capabilities
 - See TEST_ACCOUNTS.md for detailed role-based review functionality
+
+### Promotional Banner Enhancements
+- Updated PublicDashboard promotional banners with relevant stock imagery (October 2025)
+  - Owner banner: professional property management dashboard image
+  - Service provider banner: service team performing maintenance work
+  - Affiliate banner: business partnership and referral network concept
+- Images now clearly represent each banner's purpose and message
 
 ### Bug Fixes
 - Fixed toggle-active endpoint for presentation cards to properly toggle state instead of always activating
@@ -114,7 +126,7 @@ A comprehensive financial tracking and payout management system for commissions,
 *   **Condominium Workflow**: User-requested condominiums require admin approval. The system includes 396 pre-approved Tulum condominiums.
 *   **Client Dashboard**: A comprehensive overview for clients with personalized welcome, quick stats (appointments, favorites, opportunities, viewed properties), quick actions, and conditional sections. Includes appointment management with Google Calendar integration.
 *   **User Experience**: Features an Airbnb-style role switching, full i18n support with language persistence across authentication, a WebSocket-based real-time chat system with secure authentication, enhanced presentation cards, granular email notification preferences, and device-based profile picture uploads.
-*   **Public Dashboard**: An Airbnb-inspired design adapting for authenticated vs. non-authenticated users, with dual pricing support (rental/sale), improved property listing displays, and advanced search filters (property type, colony, condominium name).
+*   **Public Dashboard**: An Airbnb-inspired design adapting for authenticated vs. non-authenticated users, with dual pricing support (rental/sale), improved property listing displays, and advanced search filters (property type, colony, condominium name). Features promotional banners with relevant imagery for property owners, service providers, and affiliate/referral programs.
 *   **Virtual Assistant (MARCO)**: An intelligent, humanized chatbot named MARCO that guides clients through property search, suggests presentation cards, and coordinates appointments. It's configurable by admins (name, prompt, welcome, active status) and uses OpenAI GPT-5. Chatbot is internationalized (Marco-IA/Marco-AI).
 *   **Referral System**: Secure, role-based referral filtering ensures users only see their own referrals, with admins having full visibility.
 *   **Welcome Modals**: First-time welcome modals for clients and property owners to introduce features, controlled by a `hasSeenWelcome` flag.
