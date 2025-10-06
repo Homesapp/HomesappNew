@@ -79,13 +79,16 @@ export default function PublicDashboard() {
       <header className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
         <div className="container mx-auto flex h-16 items-center justify-between px-4">
           <div className="flex items-center">
-            <img src={logoIcon} alt="HomesApp" className="h-16 w-auto" />
+            <img src={logoIcon} alt="HomesApp" className="h-10 sm:h-12 md:h-14 w-auto" />
           </div>
-          <div className="flex items-center gap-2">
-            <LanguageToggle />
-            <ThemeToggle />
+          <div className="flex items-center gap-1 sm:gap-2">
+            <div className="hidden sm:flex items-center gap-2">
+              <LanguageToggle />
+              <ThemeToggle />
+            </div>
             <Button
               variant="ghost"
+              size="sm"
               onClick={() => setLocation("/login")}
               data-testid="button-login"
             >
@@ -93,56 +96,63 @@ export default function PublicDashboard() {
             </Button>
             <Button
               variant="default"
+              size="sm"
               onClick={() => setLocation("/register")}
               data-testid="button-register"
             >
               {t("public.register")}
             </Button>
+            <div className="sm:hidden flex items-center gap-1 ml-1">
+              <LanguageToggle />
+              <ThemeToggle />
+            </div>
           </div>
         </div>
       </header>
 
-      <div className="container mx-auto px-4 py-8">
+      <div className="container mx-auto px-4 py-6 sm:py-8">
         {/* Hero Section */}
-        <div className="mb-10 text-center">
-          <h1 className="mb-4 text-5xl font-bold tracking-tight">
+        <div className="mb-8 sm:mb-10 text-center">
+          <h1 className="mb-3 sm:mb-4 text-3xl sm:text-4xl md:text-5xl font-bold tracking-tight">
             {t("public.hero.title")}
           </h1>
-          <p className="mb-6 text-xl text-muted-foreground">
+          <p className="mb-4 sm:mb-6 text-base sm:text-lg md:text-xl text-muted-foreground">
             {t("public.hero.subtitle")}
           </p>
           
           {/* Search Bar */}
           <div className="mx-auto max-w-4xl">
-            <div className="flex gap-2">
+            <div className="flex flex-col sm:flex-row gap-2">
               <div className="relative flex-1">
-                <Search className="absolute left-3 top-1/2 h-5 w-5 -translate-y-1/2 text-muted-foreground" />
+                <Search className="absolute left-3 top-1/2 h-4 sm:h-5 w-4 sm:w-5 -translate-y-1/2 text-muted-foreground" />
                 <Input
                   placeholder={t("public.searchPlaceholder")}
-                  className="h-14 pl-11 text-base"
+                  className="h-12 sm:h-14 pl-10 sm:pl-11 text-sm sm:text-base"
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
                   onKeyDown={(e) => e.key === "Enter" && handleSearch()}
                   data-testid="input-search"
                 />
               </div>
-              <Button
-                variant="outline"
-                size="lg"
-                className="h-14 px-4"
-                onClick={() => setShowFilters(!showFilters)}
-                data-testid="button-toggle-filters"
-              >
-                <SlidersHorizontal className="h-5 w-5" />
-              </Button>
-              <Button
-                size="lg"
-                className="h-14 px-8"
-                onClick={handleSearch}
-                data-testid="button-search"
-              >
-                {t("public.searchButton")}
-              </Button>
+              <div className="flex gap-2">
+                <Button
+                  variant="outline"
+                  className="h-12 sm:h-14 px-3 sm:px-4 flex-1 sm:flex-none"
+                  onClick={() => setShowFilters(!showFilters)}
+                  data-testid="button-toggle-filters"
+                  aria-label={t("public.toggleFilters") || "Toggle filters"}
+                >
+                  <SlidersHorizontal className="h-4 sm:h-5 w-4 sm:w-5" />
+                  <span className="ml-2 sm:hidden">Filtros</span>
+                </Button>
+                <Button
+                  className="h-12 sm:h-14 px-6 sm:px-8 flex-1 sm:flex-none"
+                  onClick={handleSearch}
+                  data-testid="button-search"
+                >
+                  {t("public.searchButton")}
+                </Button>
+              </div>
             </div>
 
             {/* Advanced Filters */}
