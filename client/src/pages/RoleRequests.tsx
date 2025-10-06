@@ -210,6 +210,24 @@ export default function RoleRequests() {
                   </div>
                 </CardHeader>
                 <CardContent className="space-y-4">
+                  <div className="bg-muted/50 p-3 rounded-md space-y-2">
+                    <Label className="text-sm font-semibold">Información de contacto:</Label>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                      <div>
+                        <p className="text-xs text-muted-foreground">Email:</p>
+                        <p className="text-sm font-medium" data-testid={`text-email-${request.id}`}>
+                          {request.email}
+                        </p>
+                      </div>
+                      <div>
+                        <p className="text-xs text-muted-foreground">WhatsApp:</p>
+                        <p className="text-sm font-medium" data-testid={`text-whatsapp-${request.id}`}>
+                          {request.whatsapp}
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+
                   {request.reason && (
                     <div>
                       <Label className="text-sm font-semibold">Razón:</Label>
