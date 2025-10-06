@@ -1,0 +1,2361 @@
+{
+  "timestamp": "2025-10-06T19:58:31.204Z",
+  "total": 396,
+  "toUpdate": 391,
+  "notInMapping": 5,
+  "updates": [
+    {
+      "id": "b1ebe813-7f28-4c2c-9934-adbb85d427b6",
+      "name": "Ahal 1",
+      "currentZone": null,
+      "newZone": "Holistika"
+    },
+    {
+      "id": "675b4657-813b-41dc-a6a1-6c57abe882d7",
+      "name": "Ahal 2",
+      "currentZone": null,
+      "newZone": "Holistika"
+    },
+    {
+      "id": "6675577f-8184-43da-bc3d-5cdb52f12529",
+      "name": "Ahal I",
+      "currentZone": null,
+      "newZone": "Holistika"
+    },
+    {
+      "id": "ef960fb9-5957-4df0-b9d0-86cdb6d85121",
+      "name": "Ahal II",
+      "currentZone": null,
+      "newZone": "Holistika"
+    },
+    {
+      "id": "3aff4080-9d35-4818-960a-1d78d2bb83ab",
+      "name": "Aldea Ka an",
+      "currentZone": null,
+      "newZone": "Riviera Tulum"
+    },
+    {
+      "id": "156ba8d9-9f37-43ac-8e97-5081c43a6a55",
+      "name": "Aldea Savia",
+      "currentZone": null,
+      "newZone": "Region 12"
+    },
+    {
+      "id": "1b56554c-a6c6-4480-8d7c-2a38fbea741e",
+      "name": "Aldea Savia F1",
+      "currentZone": null,
+      "newZone": "Region 12"
+    },
+    {
+      "id": "225e6619-1d4b-4bc8-936b-98798550d31a",
+      "name": "Aldea Savia F2",
+      "currentZone": null,
+      "newZone": "Region 12"
+    },
+    {
+      "id": "12eca211-c319-41dd-b5cf-44b9d954f6a7",
+      "name": "Allegranza",
+      "currentZone": null,
+      "newZone": "Playa Del Carmen"
+    },
+    {
+      "id": "e3d8441f-4fc7-4dad-8793-5b704d9d9071",
+      "name": "Alma",
+      "currentZone": null,
+      "newZone": "Villas Tulum"
+    },
+    {
+      "id": "8a64db60-9f6a-43b4-bda8-c988ce4e97d2",
+      "name": "Almendro",
+      "currentZone": null,
+      "newZone": "Selva Norte"
+    },
+    {
+      "id": "4bdb7697-659e-42bd-b9ad-14fff2e97922",
+      "name": "Amar Tulum",
+      "currentZone": null,
+      "newZone": "Holistika"
+    },
+    {
+      "id": "ee567105-7323-4dd7-a9c2-cbaa290a17b4",
+      "name": "Amira District",
+      "currentZone": null,
+      "newZone": "Zona hotelera"
+    },
+    {
+      "id": "371f0bcd-2b5c-4869-9b10-cfe944b1673a",
+      "name": "Anah suites",
+      "currentZone": null,
+      "newZone": "Bahia Principe"
+    },
+    {
+      "id": "88dda8d3-255d-41c3-93d9-7efb084b8230",
+      "name": "Anah Suites",
+      "currentZone": null,
+      "newZone": "Bahia Principe"
+    },
+    {
+      "id": "042fabf7-3811-47c6-a1a3-27c68a35f261",
+      "name": "Anah Village",
+      "currentZone": null,
+      "newZone": "Bahia Principe"
+    },
+    {
+      "id": "813fb0a9-23d7-43ee-98e0-04099bba1ac4",
+      "name": "Anayansi",
+      "currentZone": null,
+      "newZone": "Riviera Tulum"
+    },
+    {
+      "id": "5a05ace4-1f5b-4741-ac4c-d5cdbccf470b",
+      "name": "Angelique",
+      "currentZone": null,
+      "newZone": "Region 15"
+    },
+    {
+      "id": "4868aefd-fe02-4a44-a20a-34b6ea09940e",
+      "name": "Areia",
+      "currentZone": null,
+      "newZone": "Region 15"
+    },
+    {
+      "id": "71524d4f-eae3-4384-8a5c-35aa9f65c7c2",
+      "name": "Areia Fase 2",
+      "currentZone": null,
+      "newZone": "Region 15"
+    },
+    {
+      "id": "51852d84-55d1-47ca-8560-b3539493ca1e",
+      "name": "Areia Fase 3",
+      "currentZone": null,
+      "newZone": "Region 15"
+    },
+    {
+      "id": "ed3e8f16-84bc-40ae-8b52-13f1b47fcdc6",
+      "name": "Atia",
+      "currentZone": null,
+      "newZone": "Region 15"
+    },
+    {
+      "id": "53b66aa6-6ebb-4a1e-91cb-45d9e1363a85",
+      "name": "Atman Residences",
+      "currentZone": null,
+      "newZone": "Region 15"
+    },
+    {
+      "id": "fffa94e2-c90b-4eb6-9989-0d5457527248",
+      "name": "Bakal",
+      "currentZone": null,
+      "newZone": "Centro"
+    },
+    {
+      "id": "d32eb24d-defb-498b-9d1a-a39058a8fe61",
+      "name": "Beel 19",
+      "currentZone": null,
+      "newZone": "Playa Del Carmen"
+    },
+    {
+      "id": "ba9397ee-9e7c-47cc-b2b8-5e76dcaefd01",
+      "name": "Bo's Home",
+      "currentZone": null,
+      "newZone": "Av coba"
+    },
+    {
+      "id": "28523677-b3af-4aa3-9b21-7bfdb3493fd0",
+      "name": "Canopia",
+      "currentZone": null,
+      "newZone": "Region 8"
+    },
+    {
+      "id": "6d1d8f55-23dc-447f-bdd1-6368129845ec",
+      "name": "Casa Amal",
+      "currentZone": null,
+      "newZone": "Region 15"
+    },
+    {
+      "id": "a9054684-23d5-4852-95fb-c6c91a0958db",
+      "name": "Casa Amor",
+      "currentZone": null,
+      "newZone": "Zona hotelera"
+    },
+    {
+      "id": "ef6bbe48-7675-4b20-8909-5930342eb33e",
+      "name": "Casa Ana",
+      "currentZone": null,
+      "newZone": "Muyil"
+    },
+    {
+      "id": "be93e643-9e6b-4de6-afec-d12d33f26f87",
+      "name": "Casa Ananta",
+      "currentZone": null,
+      "newZone": "Region 15"
+    },
+    {
+      "id": "077c253b-ddca-4c5e-b634-68cf7df60405",
+      "name": "Casa Aneli",
+      "currentZone": null,
+      "newZone": "Cenote Caracol"
+    },
+    {
+      "id": "29f0a33e-3b7c-4f24-9809-baf6246448f2",
+      "name": "Casa Arekas",
+      "currentZone": null,
+      "newZone": "km 8 Tulum/Coba"
+    },
+    {
+      "id": "04817483-2df9-46d0-8931-e82941ab7ba0",
+      "name": "Casa Blanca",
+      "currentZone": null,
+      "newZone": "Tumben kaa"
+    },
+    {
+      "id": "6558bbb3-85aa-4de5-b9b3-44f0e3ba1843",
+      "name": "ALDEA TULUM PLUS",
+      "currentZone": "Aldea Tulum",
+      "newZone": "Aldea Tulum"
+    },
+    {
+      "id": "e1d55cf8-121e-4d09-bbb6-e34e613c92cf",
+      "name": "Aldea F2",
+      "currentZone": "Aldea Tulum",
+      "newZone": "Aldea Tulum"
+    },
+    {
+      "id": "161517dc-7825-4679-a327-d5e7ea1809f3",
+      "name": "Aldea Tulum",
+      "currentZone": "Aldea Tulum",
+      "newZone": "Aldea Tulum"
+    },
+    {
+      "id": "e7467695-b4e0-4e52-8cae-d3f1eeea5006",
+      "name": "Aldea Tulum Plus",
+      "currentZone": "Aldea Tulum",
+      "newZone": "Aldea Tulum"
+    },
+    {
+      "id": "ae5bd482-d364-475d-a028-d2a923bb0f5a",
+      "name": "Aldea tulum",
+      "currentZone": "Aldea Tulum",
+      "newZone": "Aldea Tulum"
+    },
+    {
+      "id": "4a201eb0-c9d2-48cb-852d-a52cf53d0305",
+      "name": "Aldea tulum F3",
+      "currentZone": "Aldea Tulum",
+      "newZone": "Aldea Tulum"
+    },
+    {
+      "id": "5ecd6d75-0643-4f3a-9eef-88c59d9428da",
+      "name": "aldea tulum",
+      "currentZone": "Aldea Tulum",
+      "newZone": "Aldea Tulum"
+    },
+    {
+      "id": "a042d208-6e09-44fe-984b-e3aa79d67848",
+      "name": "Adora",
+      "currentZone": "Kukulkan",
+      "newZone": "Kukulkan"
+    },
+    {
+      "id": "3ff766d1-5d33-4ee8-9b83-44e2823faa4a",
+      "name": "AAK",
+      "currentZone": "Region 15",
+      "newZone": "Region 15"
+    },
+    {
+      "id": "d8b4ce3e-caf7-49ef-8b7c-2aa8b62173eb",
+      "name": "Acinte by Endémico",
+      "currentZone": "La Veleta",
+      "newZone": "La Veleta"
+    },
+    {
+      "id": "c26ae189-90cc-4b50-a3b4-95f13d79da87",
+      "name": "Asana",
+      "currentZone": "La Veleta",
+      "newZone": "La Veleta"
+    },
+    {
+      "id": "fd58a88c-876f-4856-b9cb-eff683c7ab2b",
+      "name": "Atipika",
+      "currentZone": "La Veleta",
+      "newZone": "La Veleta"
+    },
+    {
+      "id": "bd8fb3ec-f3c3-4fae-b58b-496c8b5776ca",
+      "name": "Baay",
+      "currentZone": "La Veleta",
+      "newZone": "La Veleta"
+    },
+    {
+      "id": "e72163cc-90b0-4f6c-95ce-a6cbe8d0ad91",
+      "name": "Balba",
+      "currentZone": "La Veleta",
+      "newZone": "La Veleta"
+    },
+    {
+      "id": "db77578b-9ff1-4722-962c-75aca963a7f5",
+      "name": "Boni Gardens",
+      "currentZone": "La Veleta",
+      "newZone": "La Veleta"
+    },
+    {
+      "id": "d6b98df0-14a1-4145-900e-18a094410dba",
+      "name": "Cacao",
+      "currentZone": "La Veleta",
+      "newZone": "La Veleta"
+    },
+    {
+      "id": "46090446-218d-4bcd-a734-b814557e5420",
+      "name": "Cacao Tulum",
+      "currentZone": "La Veleta",
+      "newZone": "La Veleta"
+    },
+    {
+      "id": "97c85a01-5111-42c8-8598-f050664c5062",
+      "name": "Casa 1",
+      "currentZone": "La Veleta",
+      "newZone": "La Veleta"
+    },
+    {
+      "id": "a6108616-dd0e-47e1-b6fc-4e0003870f78",
+      "name": "Casa armonia",
+      "currentZone": "La Veleta",
+      "newZone": "La Veleta"
+    },
+    {
+      "id": "ad8dd4a9-027c-44dd-9ba4-b07ef3cd4645",
+      "name": "Aflora",
+      "currentZone": "Aldea Zama",
+      "newZone": "Aldea Zama"
+    },
+    {
+      "id": "3d16392e-8c17-4db4-8a41-d0612b80d84d",
+      "name": "Agua de mar",
+      "currentZone": "Aldea Zama",
+      "newZone": "Aldea Zama"
+    },
+    {
+      "id": "a400a552-bb01-4cd8-98cd-57f454d244ae",
+      "name": "Aguasanta",
+      "currentZone": "Aldea Zama",
+      "newZone": "Aldea Zama"
+    },
+    {
+      "id": "46e31de4-4b4b-4bf0-a2ca-ed2683d996f9",
+      "name": "Akua Tulum",
+      "currentZone": "Aldea Zama",
+      "newZone": "Aldea Zama"
+    },
+    {
+      "id": "f896eb79-2409-4fef-b010-b6067b239007",
+      "name": "Alma de Flores",
+      "currentZone": "Aldea Zama",
+      "newZone": "Aldea Zama"
+    },
+    {
+      "id": "8a6328b5-2e2b-4cf9-be40-d98f5b87f81d",
+      "name": "Amelia",
+      "currentZone": "Aldea Zama",
+      "newZone": "Aldea Zama"
+    },
+    {
+      "id": "d43bcadc-4c23-416a-a2bc-0e2cabcfee10",
+      "name": "Amira central",
+      "currentZone": "Aldea Zama",
+      "newZone": "Aldea Zama"
+    },
+    {
+      "id": "10687fa7-e938-4450-9834-c940bacd040c",
+      "name": "Anemona",
+      "currentZone": "Aldea Zama",
+      "newZone": "Aldea Zama"
+    },
+    {
+      "id": "8aecddce-b0e1-4dc2-9f9f-b4703d17259e",
+      "name": "Arba I",
+      "currentZone": "Aldea Zama",
+      "newZone": "Aldea Zama"
+    },
+    {
+      "id": "2b22f246-a936-46f4-8f25-64280ba2c06d",
+      "name": "Arba II",
+      "currentZone": "Aldea Zama",
+      "newZone": "Aldea Zama"
+    },
+    {
+      "id": "87c196b7-611e-4de1-8913-efa539e7cbcb",
+      "name": "Artia",
+      "currentZone": "Aldea Zama",
+      "newZone": "Aldea Zama"
+    },
+    {
+      "id": "81242958-eadd-4e42-9880-0b71b6602571",
+      "name": "Aru Tulum",
+      "currentZone": "Aldea Zama",
+      "newZone": "Aldea Zama"
+    },
+    {
+      "id": "a0706a72-be56-438f-951b-c356d5d04f18",
+      "name": "Azara",
+      "currentZone": "Aldea Zama",
+      "newZone": "Aldea Zama"
+    },
+    {
+      "id": "739c945e-bf8e-4bb7-8222-e4c84ae72275",
+      "name": "Bonita Love and Explore",
+      "currentZone": "Aldea Zama",
+      "newZone": "Aldea Zama"
+    },
+    {
+      "id": "e5416715-efbe-49cd-aa01-aceb26fa49c9",
+      "name": "Brava Towers",
+      "currentZone": "Aldea Zama",
+      "newZone": "Aldea Zama"
+    },
+    {
+      "id": "36a5529e-4df5-4287-844b-6ec07117e081",
+      "name": "Bungalows village",
+      "currentZone": "Aldea Zama",
+      "newZone": "Aldea Zama"
+    },
+    {
+      "id": "99a90bd4-f32f-4d67-a900-b82cc99cbdbb",
+      "name": "Calakmul",
+      "currentZone": "Aldea Zama",
+      "newZone": "Aldea Zama"
+    },
+    {
+      "id": "d109ec55-2ebc-49cb-b2d1-aea2e9e67eca",
+      "name": "Casa Boho",
+      "currentZone": null,
+      "newZone": "Centro"
+    },
+    {
+      "id": "55dd5290-1b9d-4074-a4ae-4e055688b005",
+      "name": "Casa Camel",
+      "currentZone": null,
+      "newZone": "Region 11"
+    },
+    {
+      "id": "09f2df24-58af-49c8-802d-302b27c1860a",
+      "name": "Casa Chemuyil",
+      "currentZone": null,
+      "newZone": "Chemuyil"
+    },
+    {
+      "id": "7c34fb34-a3e1-4c85-a7ea-8ffb23c1bc11",
+      "name": "Casa Coral",
+      "currentZone": null,
+      "newZone": "Region 11"
+    },
+    {
+      "id": "79762596-fb7c-4717-abab-e9724d5e4884",
+      "name": "Casa Flip",
+      "currentZone": null,
+      "newZone": "Riviera Tulum"
+    },
+    {
+      "id": "ced0dd27-d4d4-4bc8-bc9a-181bbecb78e8",
+      "name": "Casa Fran",
+      "currentZone": null,
+      "newZone": "Riviera Tulum"
+    },
+    {
+      "id": "d53a0e21-bdd2-4503-8744-f7ba81b2f888",
+      "name": "Casa Giselle",
+      "currentZone": null,
+      "newZone": "Cenote Caracol"
+    },
+    {
+      "id": "7d9f30cf-5433-4a93-b668-d883fb365ea4",
+      "name": "Casa Jaguares",
+      "currentZone": null,
+      "newZone": "Villas Tulum"
+    },
+    {
+      "id": "a7b4597c-64cb-4a2b-89dd-cd4a2e9bf06f",
+      "name": "Casa Laguna",
+      "currentZone": null,
+      "newZone": "Region 15"
+    },
+    {
+      "id": "a26da3db-c62c-47b1-8e70-2117120697f2",
+      "name": "Casa Lagunas",
+      "currentZone": null,
+      "newZone": "Tumben kaa"
+    },
+    {
+      "id": "c190321e-6e6c-4a98-b0d1-74a5deaadf24",
+      "name": "Casa Lili",
+      "currentZone": null,
+      "newZone": "Riviera Tulum"
+    },
+    {
+      "id": "0093e02b-d3c2-47cb-a3c3-aa30e0a236b2",
+      "name": "Casa Malix",
+      "currentZone": null,
+      "newZone": "Tumben kaa"
+    },
+    {
+      "id": "3f35c24a-8d51-457d-8dff-b00d99ada5ba",
+      "name": "Casa Marta",
+      "currentZone": null,
+      "newZone": "Riviera Tulum"
+    },
+    {
+      "id": "eb292770-ffa3-4647-96b1-7ee199294193",
+      "name": "Casa Melodia",
+      "currentZone": null,
+      "newZone": "Riviera Tulum"
+    },
+    {
+      "id": "eab05d9d-49f7-4a6a-a08e-169eb9f6a1d1",
+      "name": "Casa Mono",
+      "currentZone": null,
+      "newZone": "Holistika"
+    },
+    {
+      "id": "d0b08c40-ae92-4a34-a960-1a5005be9667",
+      "name": "Casa Nance",
+      "currentZone": null,
+      "newZone": "Riviera Tulum"
+    },
+    {
+      "id": "3f71d4fa-71ce-451a-b3db-7229c556ac4b",
+      "name": "Casa Noni",
+      "currentZone": null,
+      "newZone": "Holistika"
+    },
+    {
+      "id": "cfd9c8da-87c2-4022-be2d-567387007772",
+      "name": "Casa Olivia",
+      "currentZone": null,
+      "newZone": "Macario Gomez"
+    },
+    {
+      "id": "e157d3b6-b62c-48eb-b0d6-b052a4d97934",
+      "name": "Casa Pala",
+      "currentZone": null,
+      "newZone": "Region 15"
+    },
+    {
+      "id": "6da1e176-71f3-47be-a27d-b89999ee1521",
+      "name": "Casa Paradise",
+      "currentZone": null,
+      "newZone": "Riviera Tulum"
+    },
+    {
+      "id": "9e57ef84-4312-42b7-bd98-395e3323e676",
+      "name": "Casa Pocahontas",
+      "currentZone": null,
+      "newZone": "Riviera Tulum"
+    },
+    {
+      "id": "6a30e130-8dc0-432b-920a-26eb7294ef1d",
+      "name": "Casa Privada",
+      "currentZone": null,
+      "newZone": "Yax-Kin"
+    },
+    {
+      "id": "21173aeb-8c5f-4ab1-91df-8bf1699a4456",
+      "name": "Casa Risueña",
+      "currentZone": null,
+      "newZone": "Holistika"
+    },
+    {
+      "id": "a5fb5f9a-530d-4d09-b1ec-1a223e470976",
+      "name": "Casa Risueña PA",
+      "currentZone": null,
+      "newZone": "Holistika"
+    },
+    {
+      "id": "3bb66b81-f9aa-4b3a-b785-b5f34c03b6d3",
+      "name": "Casa Risueña PB",
+      "currentZone": null,
+      "newZone": "Holistika"
+    },
+    {
+      "id": "d017e0cf-1f81-427c-bf36-40983084585e",
+      "name": "Casa Riviera Tulum (sin muebles)",
+      "currentZone": null,
+      "newZone": "Riviera Tulum"
+    },
+    {
+      "id": "12eaca2f-c25a-4c67-a4e1-c51f36602c06",
+      "name": "Casa Sylvia",
+      "currentZone": null,
+      "newZone": "Macario Gomez"
+    },
+    {
+      "id": "102325c9-063c-449b-aff4-f5d2f34a2345",
+      "name": "Casa Tepy",
+      "currentZone": null,
+      "newZone": "Xuul Ka"
+    },
+    {
+      "id": "736d9054-390c-4ecf-bf46-e8d60f51ae06",
+      "name": "Casa Tigrillo",
+      "currentZone": null,
+      "newZone": "Tumben kaa"
+    },
+    {
+      "id": "8a113a7a-b9a5-4390-a2f1-5030f41f3b92",
+      "name": "Casa Toh (Surenna)",
+      "currentZone": null,
+      "newZone": "Region 12"
+    },
+    {
+      "id": "d9f84726-93a5-4ed6-a477-6e144958897f",
+      "name": "Casa Venado",
+      "currentZone": null,
+      "newZone": "Tumben kaa"
+    },
+    {
+      "id": "bdf6e7f8-4b13-4986-a3ba-f95f903a7934",
+      "name": "Casitas",
+      "currentZone": null,
+      "newZone": "Tumben kaa"
+    },
+    {
+      "id": "c2e37722-1cc0-480a-8eb1-71dc409d1649",
+      "name": "ceiba",
+      "currentZone": null,
+      "newZone": "Selva Norte"
+    },
+    {
+      "id": "bdb5784c-9264-4315-aa57-8b1bc951639d",
+      "name": "Condominio Baalam",
+      "currentZone": null,
+      "newZone": "Bahia Principe"
+    },
+    {
+      "id": "beccb817-2731-4bba-83f5-b48494d583d1",
+      "name": "Copal",
+      "currentZone": null,
+      "newZone": "Selva Norte"
+    },
+    {
+      "id": "c7e3cf02-2828-438d-8626-09c6d8e74209",
+      "name": "Distrito la selva",
+      "currentZone": null,
+      "newZone": "Tumben kaa"
+    },
+    {
+      "id": "68099e5d-af25-4c00-9651-c0c9e9e63054",
+      "name": "Distrito La Selva",
+      "currentZone": null,
+      "newZone": "Tumben kaa"
+    },
+    {
+      "id": "6b8f6abc-7824-48fc-8c35-1c7ee199109d",
+      "name": "Downtown",
+      "currentZone": null,
+      "newZone": "Bahia Principe"
+    },
+    {
+      "id": "7acfdcc1-5ba7-48bd-a286-d87d01a08f12",
+      "name": "Edena by tao",
+      "currentZone": null,
+      "newZone": "Av coba"
+    },
+    {
+      "id": "f32749c0-9796-4b13-8846-44cc7df1b11f",
+      "name": "Edena by Tao",
+      "currentZone": null,
+      "newZone": "Av coba"
+    },
+    {
+      "id": "a3fe25c7-721f-4435-a7cb-b5c6fecb5b27",
+      "name": "Edena by TAO",
+      "currentZone": null,
+      "newZone": "Av coba"
+    },
+    {
+      "id": "f2fbdb76-b38d-48fb-b9d3-4fe415e9f53c",
+      "name": "Edifcio Jabali",
+      "currentZone": null,
+      "newZone": "Tumben kaa"
+    },
+    {
+      "id": "ba6724a7-5a2e-4434-8330-4e7eb700abbb",
+      "name": "Edificio BAHA",
+      "currentZone": null,
+      "newZone": "Centro"
+    },
+    {
+      "id": "416105bb-bceb-474f-befe-310e870ad805",
+      "name": "CASA LAURA",
+      "currentZone": "La Veleta",
+      "newZone": "La Veleta"
+    },
+    {
+      "id": "aa6c8494-61d0-499e-94d1-0542d72dd726",
+      "name": "CASA ROLIS",
+      "currentZone": "La Veleta",
+      "newZone": "La Veleta"
+    },
+    {
+      "id": "f454b923-25ee-4ffc-94ea-0165e2f7cd06",
+      "name": "Casa Imox",
+      "currentZone": "La Veleta",
+      "newZone": "La Veleta"
+    },
+    {
+      "id": "b6f66f42-9b69-4705-8c41-f52243f2ded0",
+      "name": "Casa Libelula",
+      "currentZone": "La Veleta",
+      "newZone": "La Veleta"
+    },
+    {
+      "id": "8f6adf2a-a58d-4b7b-baf4-fa7f8997ab9e",
+      "name": "Casa Purusha",
+      "currentZone": "La Veleta",
+      "newZone": "La Veleta"
+    },
+    {
+      "id": "1db740f4-ce86-4534-9baa-07be808b7bb1",
+      "name": "Casa Selva",
+      "currentZone": "La Veleta",
+      "newZone": "La Veleta"
+    },
+    {
+      "id": "5ae3e0e2-fc94-433f-b1bc-643025dec9ae",
+      "name": "Casa Veleta",
+      "currentZone": "La Veleta",
+      "newZone": "La Veleta"
+    },
+    {
+      "id": "76b91a45-373d-4ce9-b6fa-906a40eb1848",
+      "name": "Casa Veleta 6BR",
+      "currentZone": "La Veleta",
+      "newZone": "La Veleta"
+    },
+    {
+      "id": "81354e84-808c-4f3d-9559-94a0347308e4",
+      "name": "Casa en La Veleta",
+      "currentZone": "La Veleta",
+      "newZone": "La Veleta"
+    },
+    {
+      "id": "25d5ebcf-5620-4ffe-bb87-8d5d382975fd",
+      "name": "Casa privada en la veleta",
+      "currentZone": "La Veleta",
+      "newZone": "La Veleta"
+    },
+    {
+      "id": "74c1f742-71ba-4911-b10e-1e2ee38b2292",
+      "name": "Central Park",
+      "currentZone": "La Veleta",
+      "newZone": "La Veleta"
+    },
+    {
+      "id": "03716322-981f-4d16-acc3-dca1285bb9b7",
+      "name": "Central Park Lagunas",
+      "currentZone": "La Veleta",
+      "newZone": "La Veleta"
+    },
+    {
+      "id": "6c72ec21-d055-4dc0-b477-638851147b9b",
+      "name": "Coco Village",
+      "currentZone": "La Veleta",
+      "newZone": "La Veleta"
+    },
+    {
+      "id": "c10f574f-b8ca-45ad-98c6-64e0c2ab2a89",
+      "name": "Condo Los amigos 3",
+      "currentZone": "La Veleta",
+      "newZone": "La Veleta"
+    },
+    {
+      "id": "a3a76b67-8722-43d6-b488-69fc872f9031",
+      "name": "Condos Che 721",
+      "currentZone": "La Veleta",
+      "newZone": "La Veleta"
+    },
+    {
+      "id": "a32f3c40-194e-45f5-a61a-d77842d0cf75",
+      "name": "Condos Ocho",
+      "currentZone": "La Veleta",
+      "newZone": "La Veleta"
+    },
+    {
+      "id": "a57a904f-c775-472a-ae64-faeb93045ebf",
+      "name": "Cuatro Cielos Tulum",
+      "currentZone": "La Veleta",
+      "newZone": "La Veleta"
+    },
+    {
+      "id": "b9248a2f-280c-4242-b19a-5a0eaa86e7eb",
+      "name": "DK Tulum",
+      "currentZone": "La Veleta",
+      "newZone": "La Veleta"
+    },
+    {
+      "id": "14874886-7427-40af-b161-2a886cf2ee7b",
+      "name": "Edificio Baay",
+      "currentZone": "La Veleta",
+      "newZone": "La Veleta"
+    },
+    {
+      "id": "64509df9-d62d-4d5b-938e-d1c853b15c86",
+      "name": "Casa Jaax",
+      "currentZone": "Aldea Zama",
+      "newZone": "Aldea Zama"
+    },
+    {
+      "id": "e160cf86-4c5c-4395-aa9c-1e2451bca439",
+      "name": "Casa Kuk",
+      "currentZone": "Aldea Zama",
+      "newZone": "Aldea Zama"
+    },
+    {
+      "id": "5074c1c1-9883-430a-8fb0-4d372f53e5d5",
+      "name": "Casa Melón",
+      "currentZone": "Aldea Zama",
+      "newZone": "Aldea Zama"
+    },
+    {
+      "id": "82ca1fee-0a16-4a0c-9cd3-eccb80400cdc",
+      "name": "Casa Nirvana",
+      "currentZone": "Aldea Zama",
+      "newZone": "Aldea Zama"
+    },
+    {
+      "id": "25a4e917-009b-4ea0-b2d4-b3170471b6f2",
+      "name": "Casa Yaax",
+      "currentZone": "Aldea Zama",
+      "newZone": "Aldea Zama"
+    },
+    {
+      "id": "c274ec45-37a8-4e8e-a7c9-cb4be3809788",
+      "name": "Chen",
+      "currentZone": "Aldea Zama",
+      "newZone": "Aldea Zama"
+    },
+    {
+      "id": "9a2287a6-0d7e-4b96-a2d3-030a273250bf",
+      "name": "Chen Luum",
+      "currentZone": "Aldea Zama",
+      "newZone": "Aldea Zama"
+    },
+    {
+      "id": "a19a7f05-d89d-4cde-b17d-9c409427a25d",
+      "name": "Coba ll",
+      "currentZone": "Aldea Zama",
+      "newZone": "Aldea Zama"
+    },
+    {
+      "id": "7b76a8cc-20e5-4fa8-93ce-1171c3c62a12",
+      "name": "Edificio Jabali",
+      "currentZone": null,
+      "newZone": "Tumben kaa"
+    },
+    {
+      "id": "2395fd1c-fe47-4361-8895-5b2045638bc6",
+      "name": "Entorno Tulum",
+      "currentZone": null,
+      "newZone": "Region 15"
+    },
+    {
+      "id": "7b371428-afc9-41e5-ac97-bf2f20edfc0e",
+      "name": "Gardens by coba",
+      "currentZone": null,
+      "newZone": "Av coba"
+    },
+    {
+      "id": "afcc6932-806a-43a0-b6cd-1692d8e253d8",
+      "name": "Gardens by Coba",
+      "currentZone": null,
+      "newZone": "Av coba"
+    },
+    {
+      "id": "e1ef5b0a-a09a-4a0a-b57e-2076bd5e23f7",
+      "name": "G. Sirenis ed. La selva",
+      "currentZone": null,
+      "newZone": "Gran Sirenis"
+    },
+    {
+      "id": "2607217d-e70e-430b-b8c9-2e7a6cf5a25b",
+      "name": "Habitaciones",
+      "currentZone": null,
+      "newZone": "Zona hotelera"
+    },
+    {
+      "id": "d9c7beaa-c498-46ac-969e-9577fef2f43f",
+      "name": "Hacienda Tuuk Torre Yah",
+      "currentZone": null,
+      "newZone": "Centro"
+    },
+    {
+      "id": "180952a1-06c4-4771-91e6-4952df288f32",
+      "name": "Hibisco",
+      "currentZone": null,
+      "newZone": "Selva Norte"
+    },
+    {
+      "id": "4e327e0b-737e-4e3c-a4d5-d03e6827792a",
+      "name": "Homes",
+      "currentZone": null,
+      "newZone": "Villas Tulum"
+    },
+    {
+      "id": "3992bc24-a4fa-4ad0-9ead-512f870c4cff",
+      "name": "Hostal Tzunum",
+      "currentZone": null,
+      "newZone": "Centro"
+    },
+    {
+      "id": "945a6575-fca2-4868-9976-33e0accf1129",
+      "name": "Hotel Kassia",
+      "currentZone": null,
+      "newZone": "Centro"
+    },
+    {
+      "id": "822132c5-95f3-47e9-83a6-19172fdc26ec",
+      "name": "Humana",
+      "currentZone": null,
+      "newZone": "Av coba"
+    },
+    {
+      "id": "2d6de553-0b2c-404d-bc18-c7cebcb0136d",
+      "name": "Jabali",
+      "currentZone": null,
+      "newZone": "Tumben kaa"
+    },
+    {
+      "id": "e037ffd7-e553-4a28-86d3-c5b970bb4418",
+      "name": "Jade",
+      "currentZone": null,
+      "newZone": "Region 15"
+    },
+    {
+      "id": "90bb26a7-7050-4ddf-ba64-888e36e4af53",
+      "name": "Jungle paradise",
+      "currentZone": null,
+      "newZone": "Region 15"
+    },
+    {
+      "id": "b8249825-b298-4882-8cf6-47c940eacc45",
+      "name": "Ka An",
+      "currentZone": null,
+      "newZone": "Tumben kaa"
+    },
+    {
+      "id": "d7d92ad9-e609-412b-a658-18bd8e67a434",
+      "name": "Ka An Tulum",
+      "currentZone": null,
+      "newZone": "Tumben kaa"
+    },
+    {
+      "id": "74a5bc96-00d8-42c6-94b1-33b22f820f5f",
+      "name": "Kalmuk",
+      "currentZone": null,
+      "newZone": "Centro"
+    },
+    {
+      "id": "0ecc8823-08f6-4ff1-8410-76bf81e0d338",
+      "name": "Kayum",
+      "currentZone": null,
+      "newZone": "Selva Norte"
+    },
+    {
+      "id": "0f4b38d9-5158-4391-b67d-f855b660acbb",
+      "name": "Keystone",
+      "currentZone": null,
+      "newZone": "Riviera Tulum"
+    },
+    {
+      "id": "6c0246a4-18c8-4547-8093-639097943f41",
+      "name": "Kiimak",
+      "currentZone": null,
+      "newZone": "Centro"
+    },
+    {
+      "id": "9c3b85d5-465c-4664-a57b-82b2d1b7aa8a",
+      "name": "Kiimak Tulum",
+      "currentZone": null,
+      "newZone": "Centro"
+    },
+    {
+      "id": "f163e727-70e6-4302-9795-15b5610aba5b",
+      "name": "Koah",
+      "currentZone": null,
+      "newZone": "Region 15"
+    },
+    {
+      "id": "92de4248-5913-4755-b324-079600e5f5b0",
+      "name": "Limas Tulum",
+      "currentZone": null,
+      "newZone": "Limas"
+    },
+    {
+      "id": "53a0cf67-61d0-4533-92c9-ddb89e36ac31",
+      "name": "Local comercial",
+      "currentZone": null,
+      "newZone": "Xuul ka"
+    },
+    {
+      "id": "9cb261e7-7a2a-4818-8379-df671ef1eb69",
+      "name": "Locales Plaza Hexa",
+      "currentZone": null,
+      "newZone": "Centro"
+    },
+    {
+      "id": "3257b562-953c-4edd-b62b-c84ee0e37add",
+      "name": "Loft Mayapax",
+      "currentZone": null,
+      "newZone": "Tumben kaa"
+    },
+    {
+      "id": "ba7dc8f4-48de-42de-912f-0ae5beb64b5c",
+      "name": "Luz Tulum",
+      "currentZone": null,
+      "newZone": "Tumben kaa"
+    },
+    {
+      "id": "345f4a68-8c4f-44a8-8b76-67d63ff6069b",
+      "name": "Macario Gomez",
+      "currentZone": null,
+      "newZone": "Macario Gomez"
+    },
+    {
+      "id": "79de74f3-64f5-4929-ae1b-ef394ea60286",
+      "name": "Majaro",
+      "currentZone": null,
+      "newZone": "Region 15"
+    },
+    {
+      "id": "f2b6ea36-5ad6-47bd-8dd1-bff03d72fcc3",
+      "name": "Mama Blue",
+      "currentZone": null,
+      "newZone": "Centro"
+    },
+    {
+      "id": "4f54acc4-932c-4fd3-b6b3-4058e11dec85",
+      "name": "Maria tulum",
+      "currentZone": null,
+      "newZone": "Centro"
+    },
+    {
+      "id": "9c2603a6-4ef0-4772-9baf-b3a8c2e45a71",
+      "name": "Maria Tulum",
+      "currentZone": null,
+      "newZone": "Centro"
+    },
+    {
+      "id": "be28a097-c9b2-4880-80ce-a7077f8e4de4",
+      "name": "Mayapax",
+      "currentZone": null,
+      "newZone": "Centro"
+    },
+    {
+      "id": "cd806ae5-a4f6-44fa-ab0d-2b7281c618bc",
+      "name": "Menesse",
+      "currentZone": null,
+      "newZone": "Centro"
+    },
+    {
+      "id": "1ebc0307-91f8-47bd-bdcd-b1d54be58f8a",
+      "name": "Miel y almendra",
+      "currentZone": null,
+      "newZone": "Tumben kaa"
+    },
+    {
+      "id": "4283a3f8-365b-4ba7-b389-acafa074fd68",
+      "name": "Miel y Almendras",
+      "currentZone": null,
+      "newZone": "Tumben kaa"
+    },
+    {
+      "id": "2e08ff26-f612-4483-8e83-ed06138bc9e4",
+      "name": "Loch Condo",
+      "currentZone": "Kukulkan",
+      "newZone": "Kukulkan"
+    },
+    {
+      "id": "91f2737a-e917-4aa2-86f8-e6db661c17ef",
+      "name": "ESTUDIO SKY",
+      "currentZone": "La Veleta",
+      "newZone": "La Veleta"
+    },
+    {
+      "id": "db8a7e98-2485-4de0-a33a-b7de64e2d443",
+      "name": "Edificio Zoe",
+      "currentZone": "La Veleta",
+      "newZone": "La Veleta"
+    },
+    {
+      "id": "51116db0-23e5-48d8-b1dd-7d16b22231ff",
+      "name": "Elementus",
+      "currentZone": "La Veleta",
+      "newZone": "La Veleta"
+    },
+    {
+      "id": "a7bba2b7-5f15-443c-9efa-5109cc5c1842",
+      "name": "Erena",
+      "currentZone": "La Veleta",
+      "newZone": "La Veleta"
+    },
+    {
+      "id": "679068ac-7cc3-45b8-8bfa-5fc2e7f73d7d",
+      "name": "Erena Tulum",
+      "currentZone": "La Veleta",
+      "newZone": "La Veleta"
+    },
+    {
+      "id": "4f62a146-f19e-403e-ae8d-4c8c072442db",
+      "name": "Gautama",
+      "currentZone": "La Veleta",
+      "newZone": "La Veleta"
+    },
+    {
+      "id": "7543cffd-27e7-474c-9bfe-b0c7045b1f12",
+      "name": "Halaken",
+      "currentZone": "La Veleta",
+      "newZone": "La Veleta"
+    },
+    {
+      "id": "b5dfeff8-63c6-4f73-b720-c448b672d8d9",
+      "name": "Heaven",
+      "currentZone": "La Veleta",
+      "newZone": "La Veleta"
+    },
+    {
+      "id": "87115baf-9835-48e4-9720-1d14809b204d",
+      "name": "Jungle Chic",
+      "currentZone": "La Veleta",
+      "newZone": "La Veleta"
+    },
+    {
+      "id": "0e350753-ffe5-4b4f-b30f-e8883e6a5231",
+      "name": "Kaatal Oox",
+      "currentZone": "La Veleta",
+      "newZone": "La Veleta"
+    },
+    {
+      "id": "f56079cc-93cf-46af-ad26-4d6267941198",
+      "name": "Kamil Ha",
+      "currentZone": "La Veleta",
+      "newZone": "La Veleta"
+    },
+    {
+      "id": "b090860a-1cb9-42ac-b625-e2526a5706e3",
+      "name": "Kanta",
+      "currentZone": "Region 15",
+      "newZone": "Region 15"
+    },
+    {
+      "id": "b4be3dcf-8666-47f2-a3eb-9ed88ce9c3dd",
+      "name": "Kasa Mate",
+      "currentZone": "La Veleta",
+      "newZone": "La Veleta"
+    },
+    {
+      "id": "23722f4e-b049-4ca8-a6ae-a76f31fd1c97",
+      "name": "La Veleta Luxury",
+      "currentZone": "La Veleta",
+      "newZone": "La Veleta"
+    },
+    {
+      "id": "c2bd36f1-b9b2-46f4-9cbb-7c416942d405",
+      "name": "Lighthouse",
+      "currentZone": "La Veleta",
+      "newZone": "La Veleta"
+    },
+    {
+      "id": "64b56131-14f5-4b27-ab8d-8e083060482f",
+      "name": "Luxury Condo",
+      "currentZone": "La Veleta",
+      "newZone": "La Veleta"
+    },
+    {
+      "id": "21c53500-bbd2-43cc-a851-da2a80d6ab05",
+      "name": "Magnolias",
+      "currentZone": "La Veleta",
+      "newZone": "La Veleta"
+    },
+    {
+      "id": "1faa8dd5-c351-4689-88fc-2e4606f584fc",
+      "name": "Maia",
+      "currentZone": "La Veleta",
+      "newZone": "La Veleta"
+    },
+    {
+      "id": "6d550f22-abf3-4ac0-8333-1b0b179be538",
+      "name": "Estela Tulum",
+      "currentZone": "Aldea Zama",
+      "newZone": "Aldea Zama"
+    },
+    {
+      "id": "653f454d-f4ea-4f53-ada9-c10fb543e91c",
+      "name": "Eve Residences",
+      "currentZone": "Aldea Zama",
+      "newZone": "Aldea Zama"
+    },
+    {
+      "id": "bd067109-4705-494d-8662-2b28e3074849",
+      "name": "Gaia",
+      "currentZone": "Aldea Zama",
+      "newZone": "Aldea Zama"
+    },
+    {
+      "id": "4218c832-cc68-4ed3-a0e9-5f8e832e90ed",
+      "name": "Ik Zama",
+      "currentZone": "Aldea Zama",
+      "newZone": "Aldea Zama"
+    },
+    {
+      "id": "37f4b682-f9b8-471f-abb2-bde62eaa1b47",
+      "name": "Itza 1",
+      "currentZone": "Aldea Zama",
+      "newZone": "Aldea Zama"
+    },
+    {
+      "id": "af688f3d-a5f9-44b6-88e5-f6d6e2c4a117",
+      "name": "Katia Residence",
+      "currentZone": "Aldea Zama",
+      "newZone": "Aldea Zama"
+    },
+    {
+      "id": "1a4f0391-eebf-425a-a4d8-080692c4a469",
+      "name": "Kune",
+      "currentZone": "Aldea Zama",
+      "newZone": "Aldea Zama"
+    },
+    {
+      "id": "cf8f2306-352e-4f82-bba5-74a17c8a0219",
+      "name": "Kuukum",
+      "currentZone": "Aldea Zama",
+      "newZone": "Aldea Zama"
+    },
+    {
+      "id": "4e437a9d-d175-4df5-8168-c76d94ee2c63",
+      "name": "Lik Zama",
+      "currentZone": "Aldea Zama",
+      "newZone": "Aldea Zama"
+    },
+    {
+      "id": "e6c026c4-c997-45d2-aac7-e3dcf3f6019a",
+      "name": "Locales Zama",
+      "currentZone": "Aldea Zama",
+      "newZone": "Aldea Zama"
+    },
+    {
+      "id": "2d7a9ffc-dcde-4bab-9277-8e4c154bbf27",
+      "name": "Loft Andador Kaan",
+      "currentZone": "Aldea Zama",
+      "newZone": "Aldea Zama"
+    },
+    {
+      "id": "bc6f0af3-bc70-448a-9511-af428b61c8b7",
+      "name": "Luxury Apartment crypto",
+      "currentZone": "Aldea Zama",
+      "newZone": "Aldea Zama"
+    },
+    {
+      "id": "c408dee0-15c2-4f29-8b96-1c8add196f9b",
+      "name": "Macondo",
+      "currentZone": "Aldea Zama",
+      "newZone": "Aldea Zama"
+    },
+    {
+      "id": "de845985-af8c-4dd4-92f8-07eef4aa4f2b",
+      "name": "Mareas Condo",
+      "currentZone": "Aldea Zama",
+      "newZone": "Aldea Zama"
+    },
+    {
+      "id": "528e1332-498f-4c3d-9599-a7bd61803224",
+      "name": "Mirak",
+      "currentZone": "Aldea Zama",
+      "newZone": "Aldea Zama"
+    },
+    {
+      "id": "217cf5ed-b7f1-4656-8dbc-1e3ba0c34577",
+      "name": "Mistiq Gardens I",
+      "currentZone": null,
+      "newZone": "Region 15"
+    },
+    {
+      "id": "90584b28-a98c-4de6-a826-72883cf1babe",
+      "name": "Mistiq Gardens II",
+      "currentZone": null,
+      "newZone": "Region 15"
+    },
+    {
+      "id": "b7927f68-6db5-4eca-963f-af577c7904a0",
+      "name": "mistiq gardens l",
+      "currentZone": null,
+      "newZone": "Region 15"
+    },
+    {
+      "id": "2293bc82-b5de-4473-a755-3ab46d16501a",
+      "name": "Mistiq gardens l",
+      "currentZone": null,
+      "newZone": "Region 15"
+    },
+    {
+      "id": "d481a5f1-35db-4ea9-8044-cff8da8e6b52",
+      "name": "Mistiq Gardens ll",
+      "currentZone": null,
+      "newZone": "Region 15"
+    },
+    {
+      "id": "e526e588-87e3-49c3-8e08-6617f6bd4544",
+      "name": "Mistiq Temple I",
+      "currentZone": null,
+      "newZone": "Region 15"
+    },
+    {
+      "id": "4ff1ff57-9fab-48f1-ae7c-c42ef89bcc5b",
+      "name": "Mistiq Temple II",
+      "currentZone": null,
+      "newZone": "Region 15"
+    },
+    {
+      "id": "f27788aa-c264-4265-b064-73c0a0d37bfb",
+      "name": "Mistiq Temple l",
+      "currentZone": null,
+      "newZone": "Region 15"
+    },
+    {
+      "id": "34ce8bdc-2a08-4c44-a1fe-0c2de6378d77",
+      "name": "Mistiq temple ll",
+      "currentZone": null,
+      "newZone": "Region 15"
+    },
+    {
+      "id": "450b50af-dbb9-4915-a0f0-cdc0bd221f10",
+      "name": "Mistiq Temple ll",
+      "currentZone": null,
+      "newZone": "Region 15"
+    },
+    {
+      "id": "d9f7033a-553b-4a5d-862c-bbb25da1a5d8",
+      "name": "Mistiq Villas",
+      "currentZone": null,
+      "newZone": "Region 15"
+    },
+    {
+      "id": "8fb80e4d-306f-46b6-baa5-bfec689748a9",
+      "name": "Mun Townhouse",
+      "currentZone": null,
+      "newZone": "Mun Tulum"
+    },
+    {
+      "id": "9613630e-a7f1-4c98-8679-b8daf65650a8",
+      "name": "Mun Tulum",
+      "currentZone": null,
+      "newZone": "Mun Tulum"
+    },
+    {
+      "id": "e8a917bf-8ae2-464d-8af8-51a493c5a339",
+      "name": "Muuk",
+      "currentZone": null,
+      "newZone": "Region 15"
+    },
+    {
+      "id": "55c11011-fbc1-4e32-afef-808b343b8968",
+      "name": "Neo +",
+      "currentZone": null,
+      "newZone": "Region 15"
+    },
+    {
+      "id": "8217e6d0-3ed3-42a3-b5db-1f362b9918f5",
+      "name": "Nook",
+      "currentZone": null,
+      "newZone": "Region 8"
+    },
+    {
+      "id": "18a7b41f-00c9-4c9e-b322-744e0fe0783a",
+      "name": "Paam cheel",
+      "currentZone": null,
+      "newZone": "Villas Tulum"
+    },
+    {
+      "id": "18ce5e44-9349-442c-9c6b-b3076db68417",
+      "name": "Paam Cheel",
+      "currentZone": null,
+      "newZone": "Villas Tulum"
+    },
+    {
+      "id": "f3a58207-b2df-4732-800d-d3acf372a390",
+      "name": "PalAlma Tierra",
+      "currentZone": null,
+      "newZone": "Region 15"
+    },
+    {
+      "id": "dbfc0040-21c8-4450-b312-d9843773c406",
+      "name": "Paraiso Chaak",
+      "currentZone": null,
+      "newZone": "Villas Tulum"
+    },
+    {
+      "id": "32323859-ea4c-4974-b1c0-c233eab72cd1",
+      "name": "Piedra de mar",
+      "currentZone": null,
+      "newZone": "Akumal"
+    },
+    {
+      "id": "e425443f-a830-4e60-8c4e-962920ac97e1",
+      "name": "Playazul",
+      "currentZone": null,
+      "newZone": "Playa Del Carmen"
+    },
+    {
+      "id": "e1d64ace-c5a3-4e35-b380-43ab83ecedb1",
+      "name": "Recinto",
+      "currentZone": null,
+      "newZone": "Region 8"
+    },
+    {
+      "id": "2fe3bfe8-a0cc-4216-9f23-246cb4bc6521",
+      "name": "Residencial",
+      "currentZone": null,
+      "newZone": "Riviera Tulum"
+    },
+    {
+      "id": "30ca5673-6e8d-4ba4-83af-e90eab748430",
+      "name": "Restaurant",
+      "currentZone": null,
+      "newZone": "Zona hotelera"
+    },
+    {
+      "id": "0fe59ba3-6e7a-4378-a4d4-07fbc63aa064",
+      "name": "Reverence",
+      "currentZone": null,
+      "newZone": "Region 15"
+    },
+    {
+      "id": "0ff7a889-2b01-4a5e-8b3c-80525cf554fb",
+      "name": "Riviera",
+      "currentZone": null,
+      "newZone": "Riviera Tulum"
+    },
+    {
+      "id": "00d125fb-7493-402c-8c1c-6bf7586de993",
+      "name": "Riviera Tulum",
+      "currentZone": null,
+      "newZone": "Riviera Tulum"
+    },
+    {
+      "id": "e3e7e4d5-99da-4e78-8104-0b2e1b5dc5a8",
+      "name": "Samsara",
+      "currentZone": null,
+      "newZone": "Centro"
+    },
+    {
+      "id": "bd12bd71-2e88-44f1-8bda-f6d935ff17b2",
+      "name": "Santamar by tao",
+      "currentZone": null,
+      "newZone": "Akumal"
+    },
+    {
+      "id": "e1ac4de8-bf79-493c-ae86-c979e0de4842",
+      "name": "Satori",
+      "currentZone": null,
+      "newZone": "Region 15"
+    },
+    {
+      "id": "851e8c23-6c36-47e3-96cb-46f6cc023ebc",
+      "name": "Selva Maya",
+      "currentZone": null,
+      "newZone": "Villas Tulum"
+    },
+    {
+      "id": "a07f221e-3be8-428f-b0e0-de03a168c83a",
+      "name": "Selva norte",
+      "currentZone": null,
+      "newZone": "Selva Norte"
+    },
+    {
+      "id": "bcd23538-457b-4b20-9b2e-c856a3d475b8",
+      "name": "Selva Norte",
+      "currentZone": null,
+      "newZone": "Selva Norte"
+    },
+    {
+      "id": "ed3f5e1d-f418-40ee-9594-912791ff7069",
+      "name": "Mz 65 ed B2 dto 302",
+      "currentZone": "Aldea Tulum",
+      "newZone": "Aldea Tulum"
+    },
+    {
+      "id": "57be8cb4-ebb7-4be2-bbd6-b8b16cd84ab4",
+      "name": "Mza.22 Ed. R1 Dpto 202",
+      "currentZone": "Aldea Tulum",
+      "newZone": "Aldea Tulum"
+    },
+    {
+      "id": "727e51bc-c027-4e1b-8378-45a09f7a9afb",
+      "name": "Mistiq",
+      "currentZone": "Kukulkan",
+      "newZone": "Kukulkan"
+    },
+    {
+      "id": "bbc8ae18-c623-478b-aed0-f3bf05d399b4",
+      "name": "Mistiq Tulum",
+      "currentZone": "Kukulkan",
+      "newZone": "Kukulkan"
+    },
+    {
+      "id": "84ffdd33-481f-42de-bad2-a1c87de7601b",
+      "name": "Naia",
+      "currentZone": "Kukulkan",
+      "newZone": "Kukulkan"
+    },
+    {
+      "id": "481cc94d-564c-429d-98d9-112d6c785d46",
+      "name": "NaiaTulum",
+      "currentZone": "Kukulkan",
+      "newZone": "Kukulkan"
+    },
+    {
+      "id": "a44fa657-d408-4d47-9f57-25f5d7c7d0ec",
+      "name": "Noil Villas",
+      "currentZone": "Kukulkan",
+      "newZone": "Kukulkan"
+    },
+    {
+      "id": "d04b2722-7f43-41a4-98c3-0c451f70a917",
+      "name": "Mulatte",
+      "currentZone": "La Veleta",
+      "newZone": "La Veleta"
+    },
+    {
+      "id": "91e3e029-6170-44d5-b5a8-5418fe258536",
+      "name": "Naab",
+      "currentZone": "La Veleta",
+      "newZone": "La Veleta"
+    },
+    {
+      "id": "6cac6ec5-ecab-46ed-a290-14a2d456f625",
+      "name": "Nayal",
+      "currentZone": "La Veleta",
+      "newZone": "La Veleta"
+    },
+    {
+      "id": "ed669d0a-9e51-43d5-9411-4a319c1be457",
+      "name": "Nequén",
+      "currentZone": "La Veleta",
+      "newZone": "La Veleta"
+    },
+    {
+      "id": "3bff24af-e594-49a0-b1ad-5d10c8dd2744",
+      "name": "Noil Residences",
+      "currentZone": "Region 15",
+      "newZone": "Region 15"
+    },
+    {
+      "id": "9ba794a8-c8ed-4810-8d6c-c2049116a922",
+      "name": "Palalma Casa",
+      "currentZone": "La Veleta",
+      "newZone": "La Veleta"
+    },
+    {
+      "id": "b98599f4-955c-4981-9690-a8d958a76e49",
+      "name": "Palalma Tierra",
+      "currentZone": "Region 15",
+      "newZone": "Region 15"
+    },
+    {
+      "id": "fb80e039-ca8c-4dbb-9a98-79ca48ceedf7",
+      "name": "Palalma casa",
+      "currentZone": "La Veleta",
+      "newZone": "La Veleta"
+    },
+    {
+      "id": "6a342c56-67ad-4e71-8d2c-64859e06537f",
+      "name": "Panoramic",
+      "currentZone": "La Veleta",
+      "newZone": "La Veleta"
+    },
+    {
+      "id": "da434b7e-e8a7-4862-8960-a3a28e2c5d49",
+      "name": "Piaf",
+      "currentZone": "La Veleta",
+      "newZone": "La Veleta"
+    },
+    {
+      "id": "949269d9-48f9-47d3-96b7-888e16ae1538",
+      "name": "Rama",
+      "currentZone": "La Veleta",
+      "newZone": "La Veleta"
+    },
+    {
+      "id": "a6a8136a-8682-4cea-9421-c110b5b3ad6a",
+      "name": "Rio de Plata",
+      "currentZone": "La Veleta",
+      "newZone": "La Veleta"
+    },
+    {
+      "id": "781c6a7b-1bdf-4bdd-88cc-c17715132eef",
+      "name": "Rosa de Plata",
+      "currentZone": "La Veleta",
+      "newZone": "La Veleta"
+    },
+    {
+      "id": "ba90a56a-ff93-47d8-9095-8d19ad9c93d3",
+      "name": "Sands Tulum",
+      "currentZone": "La Veleta",
+      "newZone": "La Veleta"
+    },
+    {
+      "id": "65b64fc1-b053-4232-80f8-f3fe45303545",
+      "name": "Santal",
+      "currentZone": "La Veleta",
+      "newZone": "La Veleta"
+    },
+    {
+      "id": "e8dcf587-b29d-47e4-9b2f-3221bb646411",
+      "name": "Naj Tulum",
+      "currentZone": "Aldea Zama",
+      "newZone": "Aldea Zama"
+    },
+    {
+      "id": "63fdbc6a-795f-457c-8e5c-ce5a38a47b0b",
+      "name": "Oceano",
+      "currentZone": "Aldea Zama",
+      "newZone": "Aldea Zama"
+    },
+    {
+      "id": "bfffd9f2-7e2e-4d40-8339-2d12d07dfa71",
+      "name": "Omara",
+      "currentZone": "Aldea Zama",
+      "newZone": "Aldea Zama"
+    },
+    {
+      "id": "1d01882d-7feb-4fd3-8d17-1923db82ac51",
+      "name": "Ophelia",
+      "currentZone": "Aldea Zama",
+      "newZone": "Aldea Zama"
+    },
+    {
+      "id": "7fa2517e-16e5-4099-b174-5897d2ecf170",
+      "name": "Paramar Black",
+      "currentZone": "Aldea Zama",
+      "newZone": "Aldea Zama"
+    },
+    {
+      "id": "c62ed111-c128-4222-9cb2-67c935663a8b",
+      "name": "Paramar VE",
+      "currentZone": "Aldea Zama",
+      "newZone": "Aldea Zama"
+    },
+    {
+      "id": "b911cf0d-a4d0-40fb-9da9-292bb49a3b97",
+      "name": "Paramar Ve",
+      "currentZone": "Aldea Zama",
+      "newZone": "Aldea Zama"
+    },
+    {
+      "id": "6d1b8303-829d-4548-88ac-bd882711eec7",
+      "name": "Paramar viva",
+      "currentZone": "Aldea Zama",
+      "newZone": "Aldea Zama"
+    },
+    {
+      "id": "1d3268fc-aaeb-47e7-9029-f54912dc6781",
+      "name": "Parque Zama",
+      "currentZone": "Aldea Zama",
+      "newZone": "Aldea Zama"
+    },
+    {
+      "id": "9a056d29-4613-45b3-adc4-1e25aeb513f4",
+      "name": "Parques Zama",
+      "currentZone": "Aldea Zama",
+      "newZone": "Aldea Zama"
+    },
+    {
+      "id": "54ffab8c-e6a0-4d74-ba67-4d5ef6dd71ed",
+      "name": "Phimai",
+      "currentZone": "Aldea Zama",
+      "newZone": "Aldea Zama"
+    },
+    {
+      "id": "793ccc07-7398-450a-832d-b54f56617422",
+      "name": "Quinto Sol",
+      "currentZone": "Aldea Zama",
+      "newZone": "Aldea Zama"
+    },
+    {
+      "id": "419fc011-28c9-46a3-bb8e-fd37e6c74034",
+      "name": "Quinto sol",
+      "currentZone": "Aldea Zama",
+      "newZone": "Aldea Zama"
+    },
+    {
+      "id": "be3a717b-4a38-4b61-aab4-7e949fc7591c",
+      "name": "Sanctuary Residence",
+      "currentZone": "Aldea Zama",
+      "newZone": "Aldea Zama"
+    },
+    {
+      "id": "d09987b9-f778-4a77-9457-b40c57d52cf1",
+      "name": "Siete Gotas",
+      "currentZone": null,
+      "newZone": "Akumal"
+    },
+    {
+      "id": "45a5b231-e0b0-4011-af5f-e4ec1c40eb42",
+      "name": "Sirenis",
+      "currentZone": null,
+      "newZone": "Gran Sirenis"
+    },
+    {
+      "id": "3e5fa886-6bc9-4e9d-91ad-27bf1c8b86fa",
+      "name": "Siwa",
+      "currentZone": null,
+      "newZone": "Region 15"
+    },
+    {
+      "id": "af9a97b6-edf4-4ec7-9221-dff6fefc13dc",
+      "name": "Solemn",
+      "currentZone": null,
+      "newZone": "Region 15"
+    },
+    {
+      "id": "c4666fe9-8dc5-4f7a-a302-a3af78a1f4f1",
+      "name": "Tao TSE",
+      "currentZone": null,
+      "newZone": "Bahia Principe"
+    },
+    {
+      "id": "b6348a09-6839-4f67-ac3a-2bf2aba2b80d",
+      "name": "Tejon",
+      "currentZone": null,
+      "newZone": "Tumben kaa"
+    },
+    {
+      "id": "875b72c0-ae52-4bbe-bdf4-2f1eca3abbcf",
+      "name": "Tierra Santa",
+      "currentZone": null,
+      "newZone": "Centro"
+    },
+    {
+      "id": "fffbae2c-3677-4268-9c66-30e4306396ea",
+      "name": "Tuane",
+      "currentZone": null,
+      "newZone": "Villas Tulum"
+    },
+    {
+      "id": "c796e35a-587d-40e6-9043-8b1b711955c6",
+      "name": "Tuk",
+      "currentZone": null,
+      "newZone": "Centro"
+    },
+    {
+      "id": "9f0ba559-97eb-40c7-b0c9-14f2b4d42c48",
+      "name": "Tuk Tulum",
+      "currentZone": null,
+      "newZone": "Centro"
+    },
+    {
+      "id": "0b87ff81-25d0-4f6e-bd99-2b6813a6d7d1",
+      "name": "Tuk Viento",
+      "currentZone": null,
+      "newZone": "Centro"
+    },
+    {
+      "id": "0e58f635-645e-42a9-9789-0c004e8c3a08",
+      "name": "Tuk Vientos",
+      "currentZone": null,
+      "newZone": "Centro"
+    },
+    {
+      "id": "65bccfe4-d879-4236-bd4d-579712f46cc3",
+      "name": "Tulix",
+      "currentZone": null,
+      "newZone": "Tumben kaa"
+    },
+    {
+      "id": "eaa82463-e2c9-474d-9d14-84630c37de09",
+      "name": "Vida Tulum",
+      "currentZone": null,
+      "newZone": "Tumben kaa"
+    },
+    {
+      "id": "cb2fbe28-fd39-40ae-a197-fc31d804ce56",
+      "name": "Villaggio Montorso",
+      "currentZone": null,
+      "newZone": "Tumben kaa"
+    },
+    {
+      "id": "8cec0004-c32a-42bc-bd08-6ec52ab2224f",
+      "name": "Villa Guacamaya",
+      "currentZone": null,
+      "newZone": "Holistika"
+    },
+    {
+      "id": "d074bc87-bb32-40cb-885e-ea47d7834302",
+      "name": "VILLAS TULUM",
+      "currentZone": null,
+      "newZone": "Villas Tulum"
+    },
+    {
+      "id": "327e132f-74b4-41c8-9366-485f25ccab67",
+      "name": "Villa Tao",
+      "currentZone": null,
+      "newZone": "Akumal"
+    },
+    {
+      "id": "f282ebc2-356e-4ee3-b964-c94a88980d31",
+      "name": "Villa Tumben Kaa",
+      "currentZone": null,
+      "newZone": "Tumben kaa"
+    },
+    {
+      "id": "117d03e7-2296-463d-bc6e-9a4b2fe96762",
+      "name": "Villa Tuunich",
+      "currentZone": null,
+      "newZone": "Holistika"
+    },
+    {
+      "id": "ea48af62-d8b3-43a8-9946-38d6135d2adb",
+      "name": "Ware House Black",
+      "currentZone": null,
+      "newZone": "Riviera Tulum"
+    },
+    {
+      "id": "8e37b6b8-2419-4fd4-aa7a-c6c23df8c5f1",
+      "name": "Xibalba",
+      "currentZone": null,
+      "newZone": "Region 15"
+    },
+    {
+      "id": "d800bce5-84ee-4483-8bee-004c80447f03",
+      "name": "Xunik",
+      "currentZone": null,
+      "newZone": "Tumben kaa"
+    },
+    {
+      "id": "2d7f0995-5d9d-4c25-b833-db3bee4cf8a0",
+      "name": "Xun Kari",
+      "currentZone": null,
+      "newZone": "Yax-Kin"
+    },
+    {
+      "id": "d00c6ebf-e607-4f99-a266-84444e7a25be",
+      "name": "Zizal",
+      "currentZone": null,
+      "newZone": "Region 15"
+    },
+    {
+      "id": "31cd88ad-06d8-4f15-9cc1-364893ed0162",
+      "name": "Mza 24 lt1 uc2 C. 302 J2",
+      "currentZone": "Aldea Tulum",
+      "newZone": "Aldea Tulum"
+    },
+    {
+      "id": "35d1617f-31e4-4b04-93f9-f97bba49aeb3",
+      "name": "Blue Luxury",
+      "currentZone": "La Veleta",
+      "newZone": "La Veleta"
+    },
+    {
+      "id": "9263305e-058d-4f84-b7dd-d391b55a6f7e",
+      "name": "Chaac",
+      "currentZone": "Region 15",
+      "newZone": "Region 15"
+    },
+    {
+      "id": "ebbd158c-cc80-4539-93bf-1e82d51e0001",
+      "name": "La coordenada perfecta",
+      "currentZone": "Kukulkan",
+      "newZone": "Kukulkan"
+    },
+    {
+      "id": "c89d3695-9497-43bd-b5a2-31dc61b891eb",
+      "name": "Selva Tulum",
+      "currentZone": "La Veleta",
+      "newZone": "La Veleta"
+    },
+    {
+      "id": "25d54b7a-c754-426c-a351-8fde4955cb88",
+      "name": "Seremonia",
+      "currentZone": "La Veleta",
+      "newZone": "La Veleta"
+    },
+    {
+      "id": "7bbfe9c6-7261-4605-a8ac-4e109c63b960",
+      "name": "Seremonia Selva",
+      "currentZone": "La Veleta",
+      "newZone": "La Veleta"
+    },
+    {
+      "id": "2218cd58-e995-48d2-8e14-dc045cd745d3",
+      "name": "Siddartha",
+      "currentZone": "La Veleta",
+      "newZone": "La Veleta"
+    },
+    {
+      "id": "ead6ca6c-5e1c-41d1-9687-11dd98e89a6d",
+      "name": "Sky Tulum",
+      "currentZone": "La Veleta",
+      "newZone": "La Veleta"
+    },
+    {
+      "id": "8404c65c-61db-4dc2-aec5-05e82b52bcbb",
+      "name": "Smart depas",
+      "currentZone": "La Veleta",
+      "newZone": "La Veleta"
+    },
+    {
+      "id": "d7f49418-90cf-466d-8e30-f1a23b852c75",
+      "name": "Sukha",
+      "currentZone": "La Veleta",
+      "newZone": "La Veleta"
+    },
+    {
+      "id": "08f93358-8ad7-4791-af8f-6ad21d50ea1d",
+      "name": "Surya",
+      "currentZone": "La Veleta",
+      "newZone": "La Veleta"
+    },
+    {
+      "id": "02413f4f-7c78-4a06-b7c6-8f58d4a3fd64",
+      "name": "Tanik Hotel",
+      "currentZone": "La Veleta",
+      "newZone": "La Veleta"
+    },
+    {
+      "id": "ec70bb0c-9b7b-4080-8391-6a100432e437",
+      "name": "The secret garden",
+      "currentZone": "La Veleta",
+      "newZone": "La Veleta"
+    },
+    {
+      "id": "793549fa-5c95-428c-973c-884d0f26fe98",
+      "name": "Tierra Blanca",
+      "currentZone": "La Veleta",
+      "newZone": "La Veleta"
+    },
+    {
+      "id": "5d3224ed-fabf-4978-baf4-1365dba78e31",
+      "name": "Tzunum",
+      "currentZone": "La Veleta",
+      "newZone": "La Veleta"
+    },
+    {
+      "id": "30b2974d-49cd-4e20-ab7d-6a2126ab6b43",
+      "name": "Villa Cielo Tulum",
+      "currentZone": "La Veleta",
+      "newZone": "La Veleta"
+    },
+    {
+      "id": "8a793c3e-330e-4959-87e3-3156e87b5076",
+      "name": "Villa El Canto",
+      "currentZone": "La Veleta",
+      "newZone": "La Veleta"
+    },
+    {
+      "id": "6aea6386-f325-4888-a24e-4938bab96a81",
+      "name": "Villa Lool",
+      "currentZone": "La Veleta",
+      "newZone": "La Veleta"
+    },
+    {
+      "id": "6b1a0ca8-e667-4d00-a387-42535f137125",
+      "name": "Villa Penelopa",
+      "currentZone": "La Veleta",
+      "newZone": "La Veleta"
+    },
+    {
+      "id": "22f2653e-8072-4797-a000-eee63d03cbe7",
+      "name": "Villa sam",
+      "currentZone": "La Veleta",
+      "newZone": "La Veleta"
+    },
+    {
+      "id": "4ce7f773-082b-41ea-9036-71773787a7ba",
+      "name": "Villas Kuxtal",
+      "currentZone": "La Veleta",
+      "newZone": "La Veleta"
+    },
+    {
+      "id": "26ed8eca-6b32-4cf1-af8a-1d3d4381a9b2",
+      "name": "Xamira",
+      "currentZone": "La Veleta",
+      "newZone": "La Veleta"
+    },
+    {
+      "id": "23533181-8a67-4779-853f-5dc29ebbf4db",
+      "name": "Xeiba",
+      "currentZone": "La Veleta",
+      "newZone": "La Veleta"
+    },
+    {
+      "id": "f4796cbd-a501-4d9c-9d40-4936d092717b",
+      "name": "Xiimbal",
+      "currentZone": "La Veleta",
+      "newZone": "La Veleta"
+    },
+    {
+      "id": "f536e168-66d2-424d-8f1d-fb191e6e7184",
+      "name": "Xintok",
+      "currentZone": "La Veleta",
+      "newZone": "La Veleta"
+    },
+    {
+      "id": "37385c68-b88c-480d-bf1e-7d607728bb14",
+      "name": "Zanza Studios",
+      "currentZone": "La Veleta",
+      "newZone": "La Veleta"
+    },
+    {
+      "id": "c415e2bd-9450-414f-8442-cf0fd8c58245",
+      "name": "Zen",
+      "currentZone": "La Veleta",
+      "newZone": "La Veleta"
+    },
+    {
+      "id": "a8b47655-1982-4c2c-8ff5-13873a5f2fab",
+      "name": "Zena Liza",
+      "currentZone": "La Veleta",
+      "newZone": "La Veleta"
+    },
+    {
+      "id": "0e9a459c-9f39-41d5-9d9b-fc3eef570132",
+      "name": "Zona Nove",
+      "currentZone": "La Veleta",
+      "newZone": "La Veleta"
+    },
+    {
+      "id": "19de6116-78b1-4e27-998d-dfb4b38aef3e",
+      "name": "Town Center",
+      "currentZone": "Aldea Zama",
+      "newZone": "Aldea Zama"
+    },
+    {
+      "id": "31e71a94-314e-46f4-ad1a-e1c33a5e6e7f",
+      "name": "Vientos Tulum",
+      "currentZone": "Aldea Zama",
+      "newZone": "Aldea Zama"
+    },
+    {
+      "id": "8e2b394e-efd0-4b73-bff4-c5460fa19dae",
+      "name": "Villa G",
+      "currentZone": "Aldea Zama",
+      "newZone": "Aldea Zama"
+    },
+    {
+      "id": "3367ff45-28e7-4d65-a202-4a7c6cbe0930",
+      "name": "Yaxiik",
+      "currentZone": "Aldea Zama",
+      "newZone": "Aldea Zama"
+    },
+    {
+      "id": "8d3b9978-572d-47dd-a88a-9a10c0382a37",
+      "name": "Zama 120",
+      "currentZone": "Aldea Zama",
+      "newZone": "Aldea Zama"
+    },
+    {
+      "id": "d9f1ee59-1300-4609-904a-fb118ecd94a1",
+      "name": "Zama Tower",
+      "currentZone": "Aldea Zama",
+      "newZone": "Aldea Zama"
+    },
+    {
+      "id": "34611020-b18f-4f5b-abd6-b81ece468ccf",
+      "name": "Zama Village",
+      "currentZone": "Aldea Zama",
+      "newZone": "Aldea Zama"
+    },
+    {
+      "id": "f0db21dc-ab5d-4812-a7fa-85f603e3289a",
+      "name": "Zambo",
+      "currentZone": "Aldea Zama",
+      "newZone": "Aldea Zama"
+    },
+    {
+      "id": "6d88c2b0-24ff-4a93-a40d-e1f363618cf9",
+      "name": "Zambo - Luum zama",
+      "currentZone": "Aldea Zama",
+      "newZone": "Aldea Zama"
+    },
+    {
+      "id": "4324835a-14bc-4a12-a2a4-731fe0e19a34",
+      "name": "solum",
+      "currentZone": "Aldea Zama",
+      "newZone": "Aldea Zama"
+    },
+    {
+      "id": "333bc8d0-1a57-4cdb-825a-9246ebb5111a",
+      "name": "Naia Tulum",
+      "currentZone": "Kukulkan",
+      "newZone": "Kukulkan"
+    },
+    {
+      "id": "d07655ca-231b-44b1-abf6-35a9ed52c91b",
+      "name": "Asana Leaf",
+      "currentZone": "La Veleta",
+      "newZone": "La Veleta"
+    },
+    {
+      "id": "835df365-e777-43e2-a5f9-4a50be1a4a66",
+      "name": "Casa Chehchen",
+      "currentZone": "La Veleta",
+      "newZone": "La Veleta"
+    },
+    {
+      "id": "580c7788-4670-4814-852e-0100ec4af0ec",
+      "name": "Casa Rosi",
+      "currentZone": "La Veleta",
+      "newZone": "La Veleta"
+    },
+    {
+      "id": "0e7e3884-2f65-4808-8b54-7384c794c103",
+      "name": "Casa Veleta Flores",
+      "currentZone": "La Veleta",
+      "newZone": "La Veleta"
+    },
+    {
+      "id": "cdd06f68-32ba-4d33-af1b-c7a02927c44f",
+      "name": "Che Condo",
+      "currentZone": "La Veleta",
+      "newZone": "La Veleta"
+    },
+    {
+      "id": "c738310e-e925-464e-883f-42c2e0671369",
+      "name": "Waves",
+      "currentZone": "Kukulkan",
+      "newZone": "Kukulkan"
+    },
+    {
+      "id": "a22b9ac7-fe47-4b54-ba58-11cad92f808c",
+      "name": "Buena Vida",
+      "currentZone": "La Veleta",
+      "newZone": "La Veleta"
+    },
+    {
+      "id": "64593644-7217-4ea7-9eaf-da44a20d5da8",
+      "name": "Casa 4 Recamaras",
+      "currentZone": "La Veleta",
+      "newZone": "La Veleta"
+    },
+    {
+      "id": "4e4b13d2-c237-4016-9cbe-d6282e610550",
+      "name": "Cordelia",
+      "currentZone": "La Veleta",
+      "newZone": "La Veleta"
+    },
+    {
+      "id": "90991bca-6f4a-4879-8060-391263b49ab6",
+      "name": "El Nido",
+      "currentZone": "La Veleta",
+      "newZone": "La Veleta"
+    },
+    {
+      "id": "48eb3c50-c7e5-466d-a249-02572895f6bd",
+      "name": "Etnica Ku",
+      "currentZone": "La Veleta",
+      "newZone": "La Veleta"
+    },
+    {
+      "id": "d3f6e532-4455-46e4-9258-3b57febfd1e7",
+      "name": "Heavens Lagoon",
+      "currentZone": "La Veleta",
+      "newZone": "La Veleta"
+    },
+    {
+      "id": "df29b252-5a5a-4176-8f90-7ccd65acf8ca",
+      "name": "Kantuun",
+      "currentZone": "La Veleta",
+      "newZone": "La Veleta"
+    },
+    {
+      "id": "df773f10-db89-46d7-bb19-bca6ef386fc8",
+      "name": "Lool Village",
+      "currentZone": "La Veleta",
+      "newZone": "La Veleta"
+    },
+    {
+      "id": "b1f6d1b1-88d1-471e-96fc-69f875dba577",
+      "name": "Naia Naay",
+      "currentZone": "La Veleta",
+      "newZone": "La Veleta"
+    },
+    {
+      "id": "d13e52dd-84a7-41c0-8408-a3acbcc3b480",
+      "name": "Oasis Yaaxlum",
+      "currentZone": "La Veleta",
+      "newZone": "La Veleta"
+    },
+    {
+      "id": "59dd16ed-756f-41a3-83a6-6b2628fe1197",
+      "name": "Palalma tierra",
+      "currentZone": "La Veleta",
+      "newZone": "Region 15"
+    },
+    {
+      "id": "e1c40c89-9801-4638-a81a-a3bc296e0ee4",
+      "name": "Rosa de Piedra",
+      "currentZone": "La Veleta",
+      "newZone": "La Veleta"
+    },
+    {
+      "id": "93588b41-a0e7-4d01-b3ef-d90b2cd61e5a",
+      "name": "Seremonia Origen",
+      "currentZone": "La Veleta",
+      "newZone": "La Veleta"
+    },
+    {
+      "id": "6d19ae4a-3c2f-47d6-9389-4c4c2a5230f8",
+      "name": "Smart Depas",
+      "currentZone": "La Veleta",
+      "newZone": "La Veleta"
+    },
+    {
+      "id": "e344b313-6f41-4fa9-b82c-5dcc6d6c0892",
+      "name": "Terra Ego",
+      "currentZone": "La Veleta",
+      "newZone": "La Veleta"
+    },
+    {
+      "id": "abe5474b-fd5a-4bf7-9d21-e45475fbe163",
+      "name": "Via Aqua",
+      "currentZone": "La Veleta",
+      "newZone": "La Veleta"
+    },
+    {
+      "id": "8037a8fb-d975-471f-aa14-8060572a2c2e",
+      "name": "Villa Vidrio",
+      "currentZone": "La Veleta",
+      "newZone": "La Veleta"
+    },
+    {
+      "id": "d0b92618-58ec-40b2-929d-890aa328ecf9",
+      "name": "Xamira Fase 1",
+      "currentZone": "La Veleta",
+      "newZone": "La Veleta"
+    },
+    {
+      "id": "0d452d35-a4a5-4b32-9393-71c2a740211e",
+      "name": "Xperience Residences",
+      "currentZone": "La Veleta",
+      "newZone": "La Veleta"
+    },
+    {
+      "id": "dd7518e2-f8f3-4d34-969e-1de2a4377ca8",
+      "name": "Akua Reserve",
+      "currentZone": "Aldea Zama",
+      "newZone": "Aldea Zama"
+    },
+    {
+      "id": "d807bb65-0ccc-4fd7-8e9c-ab5fb00d5317",
+      "name": "Amira Central",
+      "currentZone": "Aldea Zama",
+      "newZone": "Aldea Zama"
+    },
+    {
+      "id": "0ada1a75-91ed-4b3c-976b-3639be4dae6c",
+      "name": "Art House",
+      "currentZone": "Aldea Zama",
+      "newZone": "Aldea Zama"
+    },
+    {
+      "id": "d9023455-9602-4980-be92-270e51c3a968",
+      "name": "Bonita Love And Explore",
+      "currentZone": "Aldea Zama",
+      "newZone": "Aldea Zama"
+    },
+    {
+      "id": "a63f4472-2e09-4f5c-82b0-49f61c8bcf0d",
+      "name": "Carmela",
+      "currentZone": "Aldea Zama",
+      "newZone": "Aldea Zama"
+    },
+    {
+      "id": "9a60d122-58a1-462b-8b74-f22e2ff58312",
+      "name": "Casa Chacah",
+      "currentZone": "Aldea Zama",
+      "newZone": "Aldea Zama"
+    },
+    {
+      "id": "bf9d220c-7bc1-4b8b-9bdc-9d4b7cfc74f3",
+      "name": "Casa Natura",
+      "currentZone": "Aldea Zama",
+      "newZone": "Aldea Zama"
+    },
+    {
+      "id": "108ce6f4-80fa-4ca4-94cb-d450d780d83b",
+      "name": "Coati",
+      "currentZone": "Aldea Zama",
+      "newZone": "Aldea Zama"
+    },
+    {
+      "id": "93e9f7e7-2e8a-4602-8a9e-ea55a3e4624f",
+      "name": "Estudio en renta",
+      "currentZone": "Aldea Zama",
+      "newZone": "Aldea Zama"
+    },
+    {
+      "id": "3c3ec61c-8183-4e61-a707-f5960a560fac",
+      "name": "Katia",
+      "currentZone": "Aldea Zama",
+      "newZone": "Aldea Zama"
+    },
+    {
+      "id": "ddd6012a-ac0e-467c-a961-199940414098",
+      "name": "La Privada",
+      "currentZone": "Aldea Zama",
+      "newZone": "Aldea Zama"
+    },
+    {
+      "id": "a5dc397b-8bd2-4223-9e4a-aee66ce4e8df",
+      "name": "Luna Residence",
+      "currentZone": "Aldea Zama",
+      "newZone": "Aldea Zama"
+    },
+    {
+      "id": "9c31c3f5-c1a8-4624-afd0-d6c93b7e7d7c",
+      "name": "Miraluna",
+      "currentZone": "Aldea Zama",
+      "newZone": "Aldea Zama"
+    },
+    {
+      "id": "0b668f29-25e6-44f1-b32b-57b05010437c",
+      "name": "Origen Jungle",
+      "currentZone": "Aldea Zama",
+      "newZone": "Aldea Zama"
+    },
+    {
+      "id": "f2519b61-87a3-4caa-aa80-512667b53b41",
+      "name": "Paramar Viva",
+      "currentZone": "Aldea Zama",
+      "newZone": "Aldea Zama"
+    },
+    {
+      "id": "318dc8aa-5a14-4ff2-bd15-07f74042fdca",
+      "name": "Querido Tulum",
+      "currentZone": "Aldea Zama",
+      "newZone": "Aldea Zama"
+    },
+    {
+      "id": "6ebde1ef-ee48-4784-b64c-bd177b50d73c",
+      "name": "Tao",
+      "currentZone": "Aldea Zama",
+      "newZone": "Aldea Zama"
+    },
+    {
+      "id": "8117e696-9b69-46cc-a3cc-6bbd68712eff",
+      "name": "Yakuntik",
+      "currentZone": "Aldea Zama",
+      "newZone": "Aldea Zama"
+    },
+    {
+      "id": "bf26bfea-8662-4762-a64c-e0c1157648fe",
+      "name": "Zama Tower Premium",
+      "currentZone": "Aldea Zama",
+      "newZone": "Aldea Zama"
+    }
+  ],
+  "notInMappingList": [
+    "Condominio",
+    "Maya Luxury Residences",
+    "Tulum Gardens",
+    "Test Condo Con Propiedades",
+    "Test Condo Sin Propiedades"
+  ]
+}
