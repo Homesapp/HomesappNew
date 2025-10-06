@@ -2,15 +2,20 @@ import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useMutation } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage, FormDescription } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { ChevronLeft, ChevronRight, Plus } from "lucide-react";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
+import { ChevronLeft, ChevronRight, Plus, Check, ChevronsUpDown } from "lucide-react";
 import { SuggestColonyDialog } from "@/components/SuggestColonyDialog";
 import { SuggestCondominiumDialog } from "@/components/SuggestCondominiumDialog";
 import { useLanguage } from "@/contexts/LanguageContext";
+import { useToast } from "@/hooks/use-toast";
+import { apiRequest } from "@/lib/queryClient";
+import { cn } from "@/lib/utils";
 import type { Colony, Condominium } from "@shared/schema";
 
 const locationSchema = z.object({
@@ -37,8 +42,11 @@ type Step3Props = {
 
 export default function Step3Location({ data, onUpdate, onNext, onPrevious }: Step3Props) {
   const { t } = useLanguage();
+  const { toast } = useToast();
   const [showColonyDialog, setShowColonyDialog] = useState(false);
   const [showCondoDialog, setShowCondoDialog] = useState(false);
+  const [openCondoCombobox, setOpenCondoCombobox] = useState(false);
+  const [condoSearchValue, setCondoSearchValue] = useState("");
 
   // Fetch approved colonies
   const { data: colonies = [] } = useQuery<Colony[]>({
@@ -48,6 +56,13 @@ export default function Step3Location({ data, onUpdate, onNext, onPrevious }: St
   // Fetch approved condominiums
   const { data: condominiums = [] } = useQuery<Condominium[]>({
     queryKey: ["/api/condominiums/approved"],
+  });
+
+  // Mutation para crear sugerencia de condominio automáticamente
+  const createCondoSuggestion = useMutation({
+    mutationFn: async (name: string) => {
+      return await apiRequest("POST", "/api/condominiums", { name });
+    },
   });
 
   const form = useForm<LocationForm>({
@@ -66,7 +81,40 @@ export default function Step3Location({ data, onUpdate, onNext, onPrevious }: St
     },
   });
 
-  const onSubmit = (formData: LocationForm) => {
+  const onSubmit = async (formData: LocationForm) => {
+    let pendingCondoName: string | undefined = undefined;
+    
+    // Si hay un condominiumId, verificar si es un ID existente o un nombre nuevo
+    if (formData.condominiumId && formData.condominiumId.trim() !== "") {
+      const existingCondo = condominiums.find(c => c.id === formData.condominiumId);
+      
+      // Si no es un ID existente, significa que el usuario escribió un nombre nuevo
+      if (!existingCondo) {
+        const newCondoName = formData.condominiumId;
+        pendingCondoName = newCondoName;
+        
+        try {
+          // Crear sugerencia automáticamente sin bloquear el flujo
+          await createCondoSuggestion.mutateAsync(newCondoName);
+          toast({
+            title: "Sugerencia enviada",
+            description: `El condominio "${newCondoName}" ha sido enviado para aprobación del administrador. Se guardará tu selección.`,
+          });
+          // Mantener el nombre para que el usuario lo vea en revisión
+          // Se limpiará cuando la propiedad se cree (ya que aún no está aprobado)
+        } catch (error: any) {
+          // Si falla, mostrar error informativo pero permitir continuar
+          console.error("Error creating condo suggestion:", error);
+          const errorMsg = error?.message || "Error desconocido";
+          toast({
+            title: "No se pudo enviar la sugerencia",
+            description: `El condominio "${newCondoName}" no pudo ser sugerido (${errorMsg}). Puedes continuar y el condominio quedará como texto.`,
+            variant: "destructive",
+          });
+        }
+      }
+    }
+
     // Transform empty strings to undefined for optional fields
     const cleanedData = {
       ...formData,
@@ -76,6 +124,7 @@ export default function Step3Location({ data, onUpdate, onNext, onPrevious }: St
       googleMapsUrl: formData.googleMapsUrl && formData.googleMapsUrl.trim() !== "" ? formData.googleMapsUrl : undefined,
       latitude: formData.latitude && formData.latitude.trim() !== "" ? formData.latitude : undefined,
       longitude: formData.longitude && formData.longitude.trim() !== "" ? formData.longitude : undefined,
+      pendingCondoName, // Guardar el nombre del condominio pendiente
     };
     onNext({ locationInfo: cleanedData });
   };
@@ -220,45 +269,101 @@ export default function Step3Location({ data, onUpdate, onNext, onPrevious }: St
             control={form.control}
             name="condominiumId"
             render={({ field }) => (
-              <FormItem>
+              <FormItem className="flex flex-col">
                 <FormLabel>{t("public.filterCondo")} (Opcional)</FormLabel>
-                <div className="flex gap-2">
-                  <Select
-                    value={field.value || ""}
-                    onValueChange={field.onChange}
-                  >
+                <Popover open={openCondoCombobox} onOpenChange={setOpenCondoCombobox}>
+                  <PopoverTrigger asChild>
                     <FormControl>
-                      <SelectTrigger data-testid="select-condominium">
-                        <SelectValue placeholder={t("public.filterCondoPlaceholder")} />
-                      </SelectTrigger>
+                      <Button
+                        variant="outline"
+                        role="combobox"
+                        aria-expanded={openCondoCombobox}
+                        className={cn(
+                          "w-full justify-between",
+                          !field.value && "text-muted-foreground"
+                        )}
+                        data-testid="select-condominium"
+                      >
+                        {field.value
+                          ? condominiums.find((condo) => condo.id === field.value)?.name || field.value
+                          : t("public.filterCondoPlaceholder")}
+                        <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                      </Button>
                     </FormControl>
-                    <SelectContent>
-                      <SelectItem value="" data-testid="option-no-condo">
-                        {t("public.filterAllCondos")}
-                      </SelectItem>
-                      {condominiums.map((condo) => (
-                        <SelectItem
-                          key={condo.id}
-                          value={condo.id}
-                          data-testid={`option-condo-${condo.id}`}
-                        >
-                          {condo.name}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="icon"
-                    onClick={() => setShowCondoDialog(true)}
-                    data-testid="button-suggest-condominium"
-                  >
-                    <Plus className="w-4 h-4" />
-                  </Button>
-                </div>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-full p-0" align="start">
+                    <Command>
+                      <CommandInput 
+                        placeholder="Buscar o escribir condominio..." 
+                        value={condoSearchValue}
+                        onValueChange={setCondoSearchValue}
+                        data-testid="input-search-condominium"
+                      />
+                      <CommandList>
+                        <CommandEmpty>
+                          <div className="py-2 text-center text-sm">
+                            <p className="text-muted-foreground mb-2">No se encontró el condominio</p>
+                            <Button
+                              type="button"
+                              size="sm"
+                              onClick={() => {
+                                if (condoSearchValue.trim()) {
+                                  field.onChange(condoSearchValue.trim());
+                                  setOpenCondoCombobox(false);
+                                  setCondoSearchValue("");
+                                }
+                              }}
+                              data-testid="button-use-new-condo"
+                            >
+                              Usar "{condoSearchValue}"
+                            </Button>
+                          </div>
+                        </CommandEmpty>
+                        <CommandGroup>
+                          <CommandItem
+                            value=""
+                            onSelect={() => {
+                              field.onChange("");
+                              setOpenCondoCombobox(false);
+                              setCondoSearchValue("");
+                            }}
+                            data-testid="option-no-condo"
+                          >
+                            <Check
+                              className={cn(
+                                "mr-2 h-4 w-4",
+                                !field.value ? "opacity-100" : "opacity-0"
+                              )}
+                            />
+                            {t("public.filterAllCondos")}
+                          </CommandItem>
+                          {condominiums.map((condo) => (
+                            <CommandItem
+                              key={condo.id}
+                              value={condo.name}
+                              onSelect={() => {
+                                field.onChange(condo.id);
+                                setOpenCondoCombobox(false);
+                                setCondoSearchValue("");
+                              }}
+                              data-testid={`option-condo-${condo.id}`}
+                            >
+                              <Check
+                                className={cn(
+                                  "mr-2 h-4 w-4",
+                                  field.value === condo.id ? "opacity-100" : "opacity-0"
+                                )}
+                              />
+                              {condo.name}
+                            </CommandItem>
+                          ))}
+                        </CommandGroup>
+                      </CommandList>
+                    </Command>
+                  </PopoverContent>
+                </Popover>
                 <FormDescription>
-                  {t("suggestion.notFound")} {t("suggestion.suggestButton")}
+                  Selecciona un condominio existente o escribe uno nuevo. Los nuevos condominios serán enviados para aprobación.
                 </FormDescription>
                 <FormMessage />
               </FormItem>
