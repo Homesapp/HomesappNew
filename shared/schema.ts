@@ -172,6 +172,16 @@ export const changeRequestStatusEnum = pgEnum("change_request_status", [
   "rejected",  // Rechazado
 ]);
 
+export const changelogCategoryEnum = pgEnum("changelog_category", [
+  "feature",      // Nueva funcionalidad
+  "enhancement",  // Mejora de funcionalidad existente
+  "bugfix",       // Corrección de errores
+  "security",     // Mejoras de seguridad
+  "performance",  // Optimizaciones de rendimiento
+  "ui",           // Cambios de interfaz
+  "database",     // Cambios en base de datos
+]);
+
 export const ownerApprovalStatusEnum = pgEnum("owner_approval_status", [
   "pending",   // Pendiente de aprobación
   "approved",  // Aprobado
@@ -1872,6 +1882,25 @@ export const insertIncomeTransactionSchema = createInsertSchema(incomeTransactio
 
 export type InsertIncomeTransaction = z.infer<typeof insertIncomeTransactionSchema>;
 export type IncomeTransaction = typeof incomeTransactions.$inferSelect;
+
+// Changelogs table - tracks all system implementations and changes
+export const changelogs = pgTable("changelogs", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  version: varchar("version"),
+  title: varchar("title", { length: 255 }).notNull(),
+  description: text("description").notNull(),
+  category: changelogCategoryEnum("category").notNull(),
+  implementedBy: varchar("implemented_by"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+export const insertChangelogSchema = createInsertSchema(changelogs).omit({
+  id: true,
+  createdAt: true,
+});
+
+export type InsertChangelog = z.infer<typeof insertChangelogSchema>;
+export type Changelog = typeof changelogs.$inferSelect;
 
 // Relations
 export const usersRelations = relations(users, ({ many }) => ({
