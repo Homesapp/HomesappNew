@@ -102,18 +102,6 @@ export async function sendLeadVerificationEmail(to: string, firstName: string, v
   }
 }
 
-export async function sendDuplicateLeadNotification(
-  to: string,
-  sellerName: string,
-  leadName: string,
-  newSellerName: string,
-  propertiesOffered: string[]
-) {
-  try {
-    const { client, fromEmail } = await getUncachableResendClient();
-    
-    const propertiesList = propertiesOffered.length > 0
-      ? `<ul>${propertiesOffered.map(p => `<li>${p}</li>`).join('')}</ul>`
       : '<p>No has ofrecido propiedades a este lead aún.</p>';
     
     const result = await client.emails.send({
