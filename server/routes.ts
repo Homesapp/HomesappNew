@@ -5,6 +5,7 @@ import { parse as parseCookie } from "cookie";
 import { storage } from "./storage";
 import { setupAuth, isAuthenticated, requireRole, getSession } from "./replitAuth";
 import { createGoogleMeetEvent, deleteGoogleMeetEvent } from "./googleCalendar";
+import { calculateRentalCommissions } from "./commissionCalculator";
 import { sendVerificationEmail, sendLeadVerificationEmail, sendDuplicateLeadNotification, sendOwnerReferralVerificationEmail, sendOwnerReferralApprovedNotification } from "./resend";
 import { processChatbotMessage, generatePropertyRecommendations } from "./chatbot";
 import { authLimiter, registrationLimiter, emailVerificationLimiter, chatbotLimiter } from "./rateLimiters";
@@ -46,6 +47,7 @@ import {
   createPropertyChangeRequestSchema,
   updateOwnerSettingsSchema,
   insertRentalApplicationSchema,
+  insertRentalContractSchema,
   createInspectionReportSchema,
   updateInspectionReportSchema,
   insertNotificationSchema,
@@ -5918,6 +5920,212 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Error deleting rental application:", error);
       res.status(500).json({ message: "Failed to delete rental application" });
+    }
+  });
+
+  // Rental Contract routes
+  app.get("/api/rental-contracts", isAuthenticated, async (req, res) => {
+    try {
+      const { status, propertyId, tenantId, sellerId } = req.query;
+      const filters: any = {};
+      if (status) filters.status = status;
+      if (propertyId) filters.propertyId = propertyId;
+      if (tenantId) filters.tenantId = tenantId;
+      if (sellerId) filters.sellerId = sellerId;
+
+      const contracts = await storage.getRentalContracts(filters);
+      res.json(contracts);
+    } catch (error) {
+      console.error("Error fetching rental contracts:", error);
+      res.status(500).json({ message: "Failed to fetch rental contracts" });
+    }
+  });
+
+  app.get("/api/rental-contracts/:id", isAuthenticated, async (req, res) => {
+    try {
+      const { id } = req.params;
+      const contract = await storage.getRentalContract(id);
+      if (!contract) {
+        return res.status(404).json({ message: "Rental contract not found" });
+      }
+      res.json(contract);
+    } catch (error) {
+      console.error("Error fetching rental contract:", error);
+      res.status(500).json({ message: "Failed to fetch rental contract" });
+    }
+  });
+
+  app.post("/api/rental-contracts/calculate-commission", isAuthenticated, async (req, res) => {
+    try {
+      const { monthlyRent, leaseDurationMonths, propertyId } = req.body;
+      
+      if (!monthlyRent || !leaseDurationMonths) {
+        return res.status(400).json({ message: "monthlyRent and leaseDurationMonths are required" });
+      }
+
+      let hasReferral = false;
+      let referralPercent = 20;
+
+      if (propertyId) {
+        const property = await storage.getProperty(propertyId);
+        if (property?.referralPartnerId) {
+          hasReferral = true;
+          referralPercent = parseFloat(property.referralPercent || "20");
+        }
+      }
+
+      const commissions = calculateRentalCommissions({
+        monthlyRent: parseFloat(monthlyRent),
+        leaseDurationMonths: parseInt(leaseDurationMonths),
+        hasReferral,
+        referralPercent,
+      });
+
+      res.json(commissions);
+    } catch (error) {
+      console.error("Error calculating commission:", error);
+      res.status(500).json({ message: "Failed to calculate commission" });
+    }
+  });
+
+  app.post("/api/rental-contracts", isAuthenticated, async (req: any, res) => {
+    try {
+      const { propertyId, monthlyRent, leaseDurationMonths, ...otherData } = req.body;
+
+      const property = await storage.getProperty(propertyId);
+      if (!property) {
+        return res.status(404).json({ message: "Property not found" });
+      }
+
+      const hasReferral = !!property.referralPartnerId;
+      const referralPercent = parseFloat(property.referralPercent || "20");
+
+      const commissions = calculateRentalCommissions({
+        monthlyRent: parseFloat(monthlyRent),
+        leaseDurationMonths: parseInt(leaseDurationMonths),
+        hasReferral,
+        referralPercent,
+      });
+
+      const contractData = insertRentalContractSchema.parse({
+        ...otherData,
+        propertyId,
+        monthlyRent: monthlyRent.toString(),
+        leaseDurationMonths: parseInt(leaseDurationMonths),
+        totalCommissionMonths: commissions.totalCommissionMonths.toString(),
+        totalCommissionAmount: commissions.totalCommissionAmount.toString(),
+        sellerCommissionPercent: commissions.sellerCommissionPercent.toString(),
+        referralCommissionPercent: commissions.referralCommissionPercent.toString(),
+        homesappCommissionPercent: commissions.homesappCommissionPercent.toString(),
+        sellerCommissionAmount: commissions.sellerCommissionAmount.toString(),
+        referralCommissionAmount: commissions.referralCommissionAmount.toString(),
+        homesappCommissionAmount: commissions.homesappCommissionAmount.toString(),
+        referralPartnerId: property.referralPartnerId || null,
+      });
+
+      const contract = await storage.createRentalContract(contractData);
+
+      await createAuditLog(
+        req,
+        "create",
+        "rental_contract",
+        contract.id,
+        `Contrato de renta creado - Estado: ${contract.status}, Renta: $${monthlyRent}`
+      );
+
+      res.status(201).json(contract);
+    } catch (error) {
+      console.error("Error creating rental contract:", error);
+      res.status(400).json({ message: error.message || "Failed to create rental contract" });
+    }
+  });
+
+  app.patch("/api/rental-contracts/:id", isAuthenticated, async (req: any, res) => {
+    try {
+      const { id } = req.params;
+      const contract = await storage.updateRentalContract(id, req.body);
+
+      await createAuditLog(
+        req,
+        "update",
+        "rental_contract",
+        id,
+        `Contrato de renta actualizado - Estado: ${contract.status}`
+      );
+
+      res.json(contract);
+    } catch (error) {
+      console.error("Error updating rental contract:", error);
+      res.status(500).json({ message: "Failed to update rental contract" });
+    }
+  });
+
+  app.patch("/api/rental-contracts/:id/status", isAuthenticated, async (req: any, res) => {
+    try {
+      const { id } = req.params;
+      const { status } = req.body;
+
+      if (!status) {
+        return res.status(400).json({ message: "Status is required" });
+      }
+
+      const additionalData: any = {};
+      const now = new Date();
+
+      if (status === "apartado") {
+        additionalData.apartadoDate = now;
+      } else if (status === "firmado") {
+        additionalData.contractSignedDate = now;
+      } else if (status === "check_in") {
+        additionalData.checkInDate = now;
+        additionalData.payoutReleasedAt = now;
+      }
+
+      const contract = await storage.updateRentalContractStatus(id, status, additionalData);
+
+      await createAuditLog(
+        req,
+        "update",
+        "rental_contract",
+        id,
+        `Estado de contrato cambiado a: ${status}`
+      );
+
+      res.json(contract);
+    } catch (error) {
+      console.error("Error updating rental contract status:", error);
+      res.status(500).json({ message: "Failed to update rental contract status" });
+    }
+  });
+
+  app.delete("/api/rental-contracts/:id", isAuthenticated, async (req: any, res) => {
+    try {
+      const { id } = req.params;
+      const userId = req.user.claims.sub;
+      const user = await storage.getUser(userId);
+
+      if (!user || !["master", "admin", "admin_jr"].includes(user.role)) {
+        return res.status(403).json({ message: "Forbidden" });
+      }
+
+      const contract = await storage.getRentalContract(id);
+      if (!contract) {
+        return res.status(404).json({ message: "Rental contract not found" });
+      }
+
+      await createAuditLog(
+        req,
+        "delete",
+        "rental_contract",
+        id,
+        `Contrato de renta eliminado - Estado: ${contract.status}`
+      );
+
+      await storage.deleteRentalContract(id);
+      res.status(204).send();
+    } catch (error) {
+      console.error("Error deleting rental contract:", error);
+      res.status(500).json({ message: "Failed to delete rental contract" });
     }
   });
 
