@@ -127,7 +127,6 @@ export function RoleToggle() {
   const isOwner = user.role === "owner";
   const isClient = user.role === "cliente";
   const isCollapsed = state === "collapsed";
-  const hasAdditionalRole = !!user.additionalRole;
   
   const CurrentIcon = ROLE_ICONS[user.role] || User;
   const currentRoleName = ROLE_NAMES[user.role] || user.role;
