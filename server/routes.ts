@@ -5511,6 +5511,91 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Admin: Get all referrals with user information
+  app.get("/api/admin/referrals/all", isAuthenticated, requireRole(["master", "admin", "admin_jr"]), async (req: any, res) => {
+    try {
+      const { userId, type, status } = req.query;
+      
+      let clientReferrals: any[] = [];
+      let ownerReferrals: any[] = [];
+
+      if (!type || type === "client") {
+        const clientFilters: any = {};
+        if (userId) clientFilters.referrerId = userId;
+        if (status) clientFilters.status = status;
+        clientReferrals = await storage.getClientReferrals(clientFilters);
+      }
+
+      if (!type || type === "owner") {
+        const ownerFilters: any = {};
+        if (userId) ownerFilters.referrerId = userId;
+        if (status) ownerFilters.status = status;
+        ownerReferrals = await storage.getOwnerReferrals(ownerFilters);
+      }
+
+      // Get unique user IDs
+      const userIds = new Set([
+        ...clientReferrals.map(r => r.referrerId),
+        ...ownerReferrals.map(r => r.referrerId),
+      ]);
+
+      // Fetch user information
+      const users = await Promise.all(
+        Array.from(userIds).map(id => storage.getUser(id as string))
+      );
+
+      const usersMap = new Map(
+        users.filter(u => u).map(u => [u!.id, u])
+      );
+
+      // Group referrals by user
+      const referralsByUser = new Map();
+
+      for (const referral of clientReferrals) {
+        if (!referralsByUser.has(referral.referrerId)) {
+          const user = usersMap.get(referral.referrerId);
+          referralsByUser.set(referral.referrerId, {
+            user: {
+              id: user?.id,
+              firstName: user?.firstName,
+              lastName: user?.lastName,
+              email: user?.email,
+              role: user?.role,
+              profileImageUrl: user?.profileImageUrl,
+            },
+            clientReferrals: [],
+            ownerReferrals: [],
+          });
+        }
+        referralsByUser.get(referral.referrerId).clientReferrals.push(referral);
+      }
+
+      for (const referral of ownerReferrals) {
+        if (!referralsByUser.has(referral.referrerId)) {
+          const user = usersMap.get(referral.referrerId);
+          referralsByUser.set(referral.referrerId, {
+            user: {
+              id: user?.id,
+              firstName: user?.firstName,
+              lastName: user?.lastName,
+              email: user?.email,
+              role: user?.role,
+              profileImageUrl: user?.profileImageUrl,
+            },
+            clientReferrals: [],
+            ownerReferrals: [],
+          });
+        }
+        referralsByUser.get(referral.referrerId).ownerReferrals.push(referral);
+      }
+
+      res.json(Array.from(referralsByUser.values()));
+    } catch (error) {
+      console.error("Error fetching all referrals:", error);
+      res.status(500).json({ message: "Failed to fetch referrals" });
+    }
+  });
+
   // Client Referral routes
   app.get("/api/referrals/clients", isAuthenticated, async (req: any, res) => {
     try {
