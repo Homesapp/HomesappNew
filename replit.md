@@ -26,6 +26,8 @@ A comprehensive bidirectional review system enables feedback between users for p
 
 A financial tracking and payout management system handles commissions, referrals, and rental income. This includes `rentalCommissionConfigs`, `accountantAssignments`, `payoutBatches`, and `incomeTransactions` tables, with a workflow for accountants to create transactions and batches, and admins to approve them. Access control is role-based, ensuring data isolation for accountants.
 
+A comprehensive rental contract and commission management system tracks the complete rental lifecycle from reservation (apartado) to check-in and payment release. The `rentalContracts` table stores contract details, commission calculations, and lifecycle timestamps. Commission calculations are automated based on lease duration (1-6 months = 1.0x rent, 7-11 months = 1.2x rent, 12+ months = 1.5x rent) and referral status. Without referral: 50/50 split (Seller 50%, HomesApp 50%). With referral: customizable percentage (default 20%) split equally between seller reduction and HomesApp reduction (e.g., 20% referral = Seller 40%, Referral 20%, HomesApp 40%). Properties track referral partners via `referralPartnerId` and `referralPercent` fields.
+
 ### Key Features and Workflows
 
 *   **Property Management**: Includes a property approval workflow, owner-submitted change requests, owner settings for appointment auto-approval, and sublease functionality. All properties are standardized to Tulum location.
