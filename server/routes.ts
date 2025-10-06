@@ -107,24 +107,41 @@ function hasAdminPrivileges(userRole: string): boolean {
 }
 
 // Middleware to require full admin privileges
-function requireFullAdmin(req: any, res: any, next: any) {
+async function requireFullAdmin(req: any, res: any, next: any) {
   const user = req.user;
   if (!user) {
     return res.status(401).json({ message: "Unauthorized" });
   }
   
-  const userId = user.claims.sub;
-  storage.getUser(userId).then(dbUser => {
-    if (!dbUser || !hasFullAdminPrivileges(dbUser.role)) {
+  try {
+    let userRole: string | null = null;
+    
+    // Check if it's an admin user (from admin_users table)
+    if (user.adminAuth && req.session?.adminUser) {
+      userRole = req.session.adminUser.role;
+    } else {
+      // Regular user from users table
+      const userId = user.claims.sub;
+      const dbUser = await storage.getUser(userId);
+      if (!dbUser) {
+        return res.status(403).json({ 
+          message: "Forbidden: This action requires full administrator privileges" 
+        });
+      }
+      userRole = dbUser.role;
+    }
+    
+    if (!userRole || !hasFullAdminPrivileges(userRole)) {
       return res.status(403).json({ 
         message: "Forbidden: This action requires full administrator privileges" 
       });
     }
+    
     next();
-  }).catch(error => {
+  } catch (error) {
     console.error("Error checking admin privileges:", error);
     res.status(500).json({ message: "Internal server error" });
-  });
+  }
 }
 
 // Middleware to require accountant or admin role
@@ -1105,8 +1122,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       // Update role request status
-      // Only pass reviewerId if it's an OIDC user (exists in users table)
-      const reviewerIdToSave = req.user?.claims?.sub || null;
+      // Only pass reviewerId if it's an OIDC user (not admin or local auth)
+      // Admin users are in admin_users table, not users table
+      const reviewerIdToSave = (!req.user?.adminAuth && !req.user?.localAuth) ? req.user?.claims?.sub : null;
       const updatedRequest = await storage.updateRoleRequestStatus(
         id,
         "approved",
@@ -1152,8 +1170,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       // Update role request status
-      // Only pass reviewerId if it's an OIDC user (exists in users table)
-      const reviewerIdToSave = req.user?.claims?.sub || null;
+      // Only pass reviewerId if it's an OIDC user (not admin or local auth)
+      // Admin users are in admin_users table, not users table
+      const reviewerIdToSave = (!req.user?.adminAuth && !req.user?.localAuth) ? req.user?.claims?.sub : null;
       const updatedRequest = await storage.updateRoleRequestStatus(
         id,
         "rejected",
@@ -2436,10 +2455,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Approve and apply changes in transaction
       await db.transaction(async (tx) => {
         // Approve change request and apply changes (cascade logic in storage)
+        // Only pass reviewerId if it's an OIDC user (not admin or local auth)
+        const reviewerIdToSave = (!req.user?.adminAuth && !req.user?.localAuth) ? req.user?.claims?.sub : null;
         const updated = await storage.updatePropertyChangeRequestStatus(
           id,
           "approved",
-          reviewerId,
+          reviewerIdToSave,
           reviewNotes
         );
 
@@ -2476,10 +2497,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
         });
       }
 
+      // Only pass reviewerId if it's an OIDC user (not admin or local auth)
+      const reviewerIdToSave = (!req.user?.adminAuth && !req.user?.localAuth) ? req.user?.claims?.sub : null;
       const updated = await storage.updatePropertyChangeRequestStatus(
         id,
         "rejected",
-        reviewerId,
+        reviewerIdToSave,
         reviewNotes
       );
 
