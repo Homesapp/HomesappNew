@@ -38,6 +38,7 @@ import Directory from "@/pages/Directory";
 import PresentationCards from "@/pages/PresentationCards";
 import Backoffice from "@/pages/Backoffice";
 import Users from "@/pages/Users";
+import UserManagement from "@/pages/UserManagement";
 import Clients from "@/pages/Clients";
 import Budgets from "@/pages/Budgets";
 import Tasks from "@/pages/Tasks";
@@ -233,6 +234,7 @@ function AuthenticatedApp() {
               <Route path="/presupuestos" component={Budgets} />
               <Route path="/tareas" component={Tasks} />
               <Route path="/backoffice" component={Backoffice} />
+              <Route path="/admin/users" component={UserManagement} />
               <Route path="/users" component={Users} />
               <Route path="/clientes" component={Clients} />
               <Route path="/notificaciones" component={Notifications} />

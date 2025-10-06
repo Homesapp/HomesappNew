@@ -7,7 +7,11 @@ import {
   SidebarMenu,
   SidebarMenuButton,
   SidebarMenuItem,
+  SidebarMenuSub,
+  SidebarMenuSubItem,
+  SidebarMenuSubButton,
   SidebarFooter,
+  useSidebar,
 } from "@/components/ui/sidebar";
 import {
   Home,
@@ -32,7 +36,6 @@ import {
   User,
   HelpCircle,
   Plus,
-  UserPlus,
   Zap,
   Bot,
   Share2,
@@ -40,6 +43,10 @@ import {
   DollarSign,
   MapPin,
   BookOpen,
+  ChevronDown,
+  Building,
+  Cog,
+  MessagesSquare,
 } from "lucide-react";
 import logoUrl from "@assets/H mes (500 x 300 px)_1759672952263.png";
 import logoIconUrl from "@assets/Sin título (6 x 6 cm)_1759706217639.png";
@@ -47,7 +54,12 @@ import { Link, useLocation } from "wouter";
 import { RoleToggle } from "@/components/RoleToggle";
 import { Button } from "@/components/ui/button";
 import { useLanguage } from "@/contexts/LanguageContext";
-import { useSidebar } from "@/components/ui/sidebar";
+import {
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger,
+} from "@/components/ui/collapsible";
+import { useState, useEffect } from "react";
 
 export type UserRole = "master" | "admin" | "admin_jr" | "seller" | "owner" | "management" | "concierge" | "provider" | "cliente" | "abogado" | "contador" | "agente_servicios_especiales";
 
@@ -74,6 +86,13 @@ export function AppSidebar({ userRole }: AppSidebarProps) {
   const [location] = useLocation();
   const { t } = useLanguage();
   const { state } = useSidebar();
+
+  const [openGroups, setOpenGroups] = useState({
+    usersAndRoles: false,
+    properties: false,
+    config: false,
+    community: false,
+  });
 
   const mainItems = [
     { titleKey: "sidebar.home", url: "/", icon: Home, roles: ["master", "admin", "admin_jr", "seller", "management", "concierge", "provider", "cliente"] },
@@ -103,24 +122,34 @@ export function AppSidebar({ userRole }: AppSidebarProps) {
     { titleKey: "sidebar.contracts", url: "/contratos", icon: FileText, roles: ["cliente", "owner", "abogado"] },
   ];
 
-  const adminItems = [
+  const adminSingleItems = [
     { titleKey: "sidebar.adminDashboard", url: "/admin/dashboard", icon: Home, roles: ["master", "admin", "admin_jr"] },
     { titleKey: "sidebar.adminCalendar", url: "/admin/calendario", icon: Calendar, roles: ["master", "admin", "admin_jr"] },
     { titleKey: "sidebar.backoffice", url: "/backoffice", icon: FolderKanban, roles: ["master", "admin", "admin_jr", "management", "concierge", "provider"] },
+    { titleKey: "sidebar.incomeDashboard", url: "/admin/income", icon: DollarSign, roles: ["master", "admin"] },
+  ];
+
+  const usersAndRolesGroup = [
+    { titleKey: "sidebar.userManagement", url: "/admin/users", icon: UserCog, roles: ["master", "admin"] },
+    { titleKey: "sidebar.permissions", url: "/permissions", icon: Settings, roles: ["master", "admin"] },
+  ];
+
+  const propertiesGroup = [
     { titleKey: "sidebar.changeRequests", url: "/admin/change-requests", icon: FileEdit, roles: ["master", "admin", "admin_jr"] },
     { titleKey: "sidebar.inspectionReports", url: "/admin/inspection-reports", icon: ClipboardCheck, roles: ["master", "admin", "admin_jr"] },
-    { titleKey: "sidebar.agreementTemplates", url: "/admin/agreement-templates", icon: FileText, roles: ["master", "admin"] },
     { titleKey: "sidebar.condominiums", url: "/admin/condominiums", icon: Building2, roles: ["master", "admin", "admin_jr"] },
     { titleKey: "sidebar.suggestions", url: "/admin/suggestions", icon: MapPin, roles: ["master", "admin", "admin_jr"] },
-    { titleKey: "sidebar.adminReferrals", url: "/admin/referidos", icon: Share2, roles: ["master", "admin", "admin_jr"] },
+  ];
+
+  const configGroup = [
+    { titleKey: "sidebar.agreementTemplates", url: "/admin/agreement-templates", icon: FileText, roles: ["master", "admin"] },
     { titleKey: "sidebar.chatbotConfig", url: "/admin/chatbot-config", icon: Bot, roles: ["master", "admin"] },
-    { titleKey: "sidebar.feedbackManagement", url: "/admin/feedback", icon: MessageSquare, roles: ["master", "admin", "admin_jr"] },
-    { titleKey: "sidebar.roleRequests", url: "/admin/role-requests", icon: UserCog, roles: ["master", "admin"] },
-    { titleKey: "sidebar.createUser", url: "/admin/create-user", icon: UserPlus, roles: ["master", "admin"] },
-    { titleKey: "sidebar.userManagement", url: "/users", icon: UserCog, roles: ["master", "admin"] },
-    { titleKey: "sidebar.permissions", url: "/permissions", icon: Settings, roles: ["master", "admin"] },
-    { titleKey: "sidebar.incomeDashboard", url: "/admin/income", icon: DollarSign, roles: ["master", "admin"] },
     { titleKey: "sidebar.changelog", url: "/admin/changelog", icon: BookOpen, roles: ["master", "admin"] },
+  ];
+
+  const communityGroup = [
+    { titleKey: "sidebar.feedbackManagement", url: "/admin/feedback", icon: MessageSquare, roles: ["master", "admin", "admin_jr"] },
+    { titleKey: "sidebar.adminReferrals", url: "/admin/referidos", icon: Share2, roles: ["master", "admin", "admin_jr"] },
   ];
 
   const serviceItems = [
@@ -128,7 +157,6 @@ export function AppSidebar({ userRole }: AppSidebarProps) {
     { titleKey: "sidebar.myServices", url: "/my-services", icon: CreditCard, roles: ["provider"] },
   ];
 
-  // For users without a role, show only basic navigation items (no privileged routes)
   const basicItems = [
     { titleKey: "sidebar.home", url: "/", icon: Home },
     { titleKey: "sidebar.notifications", url: "/notificaciones", icon: Bell },
@@ -140,12 +168,49 @@ export function AppSidebar({ userRole }: AppSidebarProps) {
   const filteredMain = userRole 
     ? mainItems.filter((item) => item.roles.includes(userRole))
     : basicItems;
-  const filteredAdmin = userRole 
-    ? adminItems.filter((item) => item.roles.includes(userRole))
+  
+  const filteredAdminSingle = userRole 
+    ? adminSingleItems.filter((item) => item.roles.includes(userRole))
     : [];
+
+  const filteredUsersAndRoles = userRole 
+    ? usersAndRolesGroup.filter((item) => item.roles.includes(userRole))
+    : [];
+
+  const filteredProperties = userRole 
+    ? propertiesGroup.filter((item) => item.roles.includes(userRole))
+    : [];
+
+  const filteredConfig = userRole 
+    ? configGroup.filter((item) => item.roles.includes(userRole))
+    : [];
+
+  const filteredCommunity = userRole 
+    ? communityGroup.filter((item) => item.roles.includes(userRole))
+    : [];
+
   const filteredService = userRole 
     ? serviceItems.filter((item) => item.roles.includes(userRole))
     : [];
+
+  const hasAdminItems = filteredAdminSingle.length > 0 || 
+                        filteredUsersAndRoles.length > 0 || 
+                        filteredProperties.length > 0 || 
+                        filteredConfig.length > 0 || 
+                        filteredCommunity.length > 0;
+
+  const isGroupActive = (items: typeof usersAndRolesGroup) => {
+    return items.some(item => location === item.url || location.startsWith(item.url + '/'));
+  };
+
+  useEffect(() => {
+    setOpenGroups({
+      usersAndRoles: isGroupActive(usersAndRolesGroup),
+      properties: isGroupActive(propertiesGroup),
+      config: isGroupActive(configGroup),
+      community: isGroupActive(communityGroup),
+    });
+  }, [location]);
 
   return (
     <Sidebar collapsible="icon">
@@ -189,12 +254,12 @@ export function AppSidebar({ userRole }: AppSidebarProps) {
           </SidebarGroup>
         )}
 
-        {filteredAdmin.length > 0 && (
+        {hasAdminItems && (
           <SidebarGroup>
             <SidebarGroupLabel>{t("sidebar.administration")}</SidebarGroupLabel>
             <SidebarGroupContent>
               <SidebarMenu>
-                {filteredAdmin.map((item) => (
+                {filteredAdminSingle.map((item) => (
                   <SidebarMenuItem key={item.titleKey}>
                     <SidebarMenuButton asChild isActive={location === item.url}>
                       <Link href={item.url} data-testid={`link-${item.titleKey.toLowerCase()}`}>
@@ -204,6 +269,130 @@ export function AppSidebar({ userRole }: AppSidebarProps) {
                     </SidebarMenuButton>
                   </SidebarMenuItem>
                 ))}
+
+                {filteredUsersAndRoles.length > 0 && (
+                  <Collapsible 
+                    open={openGroups.usersAndRoles}
+                    onOpenChange={(open) => setOpenGroups(prev => ({ ...prev, usersAndRoles: open }))}
+                    className="group/collapsible">
+                    <SidebarMenuItem>
+                      <CollapsibleTrigger asChild>
+                        <SidebarMenuButton data-testid="collapsible-users-roles">
+                          <UserCog />
+                          <span>Usuarios y Roles</span>
+                          <ChevronDown className="ml-auto transition-transform group-data-[state=open]/collapsible:rotate-180" />
+                        </SidebarMenuButton>
+                      </CollapsibleTrigger>
+                      <CollapsibleContent>
+                        <SidebarMenuSub>
+                          {filteredUsersAndRoles.map((item) => (
+                            <SidebarMenuSubItem key={item.titleKey}>
+                              <SidebarMenuSubButton asChild isActive={location === item.url}>
+                                <Link href={item.url} data-testid={`link-${item.titleKey.toLowerCase()}`}>
+                                  <item.icon />
+                                  <span>{t(item.titleKey)}</span>
+                                </Link>
+                              </SidebarMenuSubButton>
+                            </SidebarMenuSubItem>
+                          ))}
+                        </SidebarMenuSub>
+                      </CollapsibleContent>
+                    </SidebarMenuItem>
+                  </Collapsible>
+                )}
+
+                {filteredProperties.length > 0 && (
+                  <Collapsible 
+                    open={openGroups.properties}
+                    onOpenChange={(open) => setOpenGroups(prev => ({ ...prev, properties: open }))}
+                    className="group/collapsible">
+                    <SidebarMenuItem>
+                      <CollapsibleTrigger asChild>
+                        <SidebarMenuButton data-testid="collapsible-properties">
+                          <Building />
+                          <span>Propiedades</span>
+                          <ChevronDown className="ml-auto transition-transform group-data-[state=open]/collapsible:rotate-180" />
+                        </SidebarMenuButton>
+                      </CollapsibleTrigger>
+                      <CollapsibleContent>
+                        <SidebarMenuSub>
+                          {filteredProperties.map((item) => (
+                            <SidebarMenuSubItem key={item.titleKey}>
+                              <SidebarMenuSubButton asChild isActive={location === item.url}>
+                                <Link href={item.url} data-testid={`link-${item.titleKey.toLowerCase()}`}>
+                                  <item.icon />
+                                  <span>{t(item.titleKey)}</span>
+                                </Link>
+                              </SidebarMenuSubButton>
+                            </SidebarMenuSubItem>
+                          ))}
+                        </SidebarMenuSub>
+                      </CollapsibleContent>
+                    </SidebarMenuItem>
+                  </Collapsible>
+                )}
+
+                {filteredConfig.length > 0 && (
+                  <Collapsible 
+                    open={openGroups.config}
+                    onOpenChange={(open) => setOpenGroups(prev => ({ ...prev, config: open }))}
+                    className="group/collapsible">
+                    <SidebarMenuItem>
+                      <CollapsibleTrigger asChild>
+                        <SidebarMenuButton data-testid="collapsible-config">
+                          <Cog />
+                          <span>Configuración</span>
+                          <ChevronDown className="ml-auto transition-transform group-data-[state=open]/collapsible:rotate-180" />
+                        </SidebarMenuButton>
+                      </CollapsibleTrigger>
+                      <CollapsibleContent>
+                        <SidebarMenuSub>
+                          {filteredConfig.map((item) => (
+                            <SidebarMenuSubItem key={item.titleKey}>
+                              <SidebarMenuSubButton asChild isActive={location === item.url}>
+                                <Link href={item.url} data-testid={`link-${item.titleKey.toLowerCase()}`}>
+                                  <item.icon />
+                                  <span>{t(item.titleKey)}</span>
+                                </Link>
+                              </SidebarMenuSubButton>
+                            </SidebarMenuSubItem>
+                          ))}
+                        </SidebarMenuSub>
+                      </CollapsibleContent>
+                    </SidebarMenuItem>
+                  </Collapsible>
+                )}
+
+                {filteredCommunity.length > 0 && (
+                  <Collapsible 
+                    open={openGroups.community}
+                    onOpenChange={(open) => setOpenGroups(prev => ({ ...prev, community: open }))}
+                    className="group/collapsible">
+                    <SidebarMenuItem>
+                      <CollapsibleTrigger asChild>
+                        <SidebarMenuButton data-testid="collapsible-community">
+                          <MessagesSquare />
+                          <span>Comunidad</span>
+                          <ChevronDown className="ml-auto transition-transform group-data-[state=open]/collapsible:rotate-180" />
+                        </SidebarMenuButton>
+                      </CollapsibleTrigger>
+                      <CollapsibleContent>
+                        <SidebarMenuSub>
+                          {filteredCommunity.map((item) => (
+                            <SidebarMenuSubItem key={item.titleKey}>
+                              <SidebarMenuSubButton asChild isActive={location === item.url}>
+                                <Link href={item.url} data-testid={`link-${item.titleKey.toLowerCase()}`}>
+                                  <item.icon />
+                                  <span>{t(item.titleKey)}</span>
+                                </Link>
+                              </SidebarMenuSubButton>
+                            </SidebarMenuSubItem>
+                          ))}
+                        </SidebarMenuSub>
+                      </CollapsibleContent>
+                    </SidebarMenuItem>
+                  </Collapsible>
+                )}
               </SidebarMenu>
             </SidebarGroupContent>
           </SidebarGroup>
