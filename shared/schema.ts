@@ -145,6 +145,16 @@ export const rentalApplicationStatusEnum = pgEnum("rental_application_status", [
   "cancelado",
 ]);
 
+export const rentalContractStatusEnum = pgEnum("rental_contract_status", [
+  "draft",           // Borrador
+  "apartado",        // Apartado con depósito
+  "firmado",         // Contrato firmado por ambas partes
+  "check_in",        // Cliente hizo check-in
+  "activo",          // Contrato activo
+  "completado",      // Contrato completado
+  "cancelado",       // Cancelado
+]);
+
 export const propertyApprovalStatusEnum = pgEnum("property_approval_status", [
   "draft",              // Borrador, aún no enviada
   "pending_review",     // Enviada, esperando revisión inicial
@@ -523,6 +533,8 @@ export const properties = pgTable("properties", {
   reviewCount: integer("review_count").notNull().default(0),
   featured: boolean("featured").notNull().default(false),
   allowsSubleasing: boolean("allows_subleasing").notNull().default(false),
+  referralPartnerId: varchar("referral_partner_id").references(() => users.id), // Socio que refirió la propiedad
+  referralPercent: decimal("referral_percent", { precision: 5, scale: 2 }).default("20.00"), // Porcentaje del referido (default 20%)
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });
@@ -706,6 +718,66 @@ export const insertRentalApplicationSchema = createInsertSchema(rentalApplicatio
 
 export type InsertRentalApplication = z.infer<typeof insertRentalApplicationSchema>;
 export type RentalApplication = typeof rentalApplications.$inferSelect;
+
+// Rental Contracts table - Contratos de arrendamiento con comisiones
+export const rentalContracts = pgTable("rental_contracts", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  rentalApplicationId: varchar("rental_application_id").references(() => rentalApplications.id, { onDelete: "cascade" }),
+  propertyId: varchar("property_id").notNull().references(() => properties.id, { onDelete: "cascade" }),
+  tenantId: varchar("tenant_id").notNull().references(() => users.id, { onDelete: "cascade" }), // Inquilino
+  ownerId: varchar("owner_id").notNull().references(() => users.id, { onDelete: "cascade" }), // Propietario
+  sellerId: varchar("seller_id").references(() => users.id), // Vendedor que cerró la renta
+  status: rentalContractStatusEnum("status").notNull().default("draft"),
+  
+  // Términos del contrato
+  monthlyRent: decimal("monthly_rent", { precision: 12, scale: 2 }).notNull(), // Precio de renta mensual acordado
+  leaseDurationMonths: integer("lease_duration_months").notNull(), // Duración en meses
+  depositAmount: decimal("deposit_amount", { precision: 12, scale: 2 }), // Depósito del apartado
+  administrativeFee: decimal("administrative_fee", { precision: 12, scale: 2 }), // Costo administrativo ($2,500 o $3,800 MXN)
+  isForSublease: boolean("is_for_sublease").notNull().default(false), // Si es para subarrendar
+  
+  // Comisiones calculadas
+  totalCommissionMonths: decimal("total_commission_months", { precision: 5, scale: 2 }).notNull(), // Meses de comisión según duración
+  totalCommissionAmount: decimal("total_commission_amount", { precision: 12, scale: 2 }).notNull(), // Monto total de comisión
+  
+  // Distribución de comisiones (porcentajes)
+  sellerCommissionPercent: decimal("seller_commission_percent", { precision: 5, scale: 2 }).notNull(), // % del vendedor
+  referralCommissionPercent: decimal("referral_commission_percent", { precision: 5, scale: 2 }).default("0"), // % del referido
+  homesappCommissionPercent: decimal("homesapp_commission_percent", { precision: 5, scale: 2 }).notNull(), // % de HomesApp
+  
+  // Montos de comisiones
+  sellerCommissionAmount: decimal("seller_commission_amount", { precision: 12, scale: 2 }).notNull(),
+  referralCommissionAmount: decimal("referral_commission_amount", { precision: 12, scale: 2 }).default("0"),
+  homesappCommissionAmount: decimal("homesapp_commission_amount", { precision: 12, scale: 2 }).notNull(),
+  
+  // Referido de la propiedad (si aplica)
+  referralPartnerId: varchar("referral_partner_id").references(() => users.id), // ID del socio referido
+  
+  // Fechas importantes
+  apartadoDate: timestamp("apartado_date"), // Fecha cuando se hizo el apartado
+  contractSignedDate: timestamp("contract_signed_date"), // Fecha de firma del contrato
+  checkInDate: timestamp("check_in_date"), // Fecha de check-in
+  leaseStartDate: timestamp("lease_start_date").notNull(), // Inicio del arrendamiento
+  leaseEndDate: timestamp("lease_end_date").notNull(), // Fin del arrendamiento
+  payoutReleasedAt: timestamp("payout_released_at"), // Fecha cuando se liberaron los pagos a vendedores
+  
+  // Términos y condiciones
+  ownerTermsSignedAt: timestamp("owner_terms_signed_at"), // Propietario firmó términos
+  tenantTermsSignedAt: timestamp("tenant_terms_signed_at"), // Inquilino firmó términos
+  
+  notes: text("notes"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
+export const insertRentalContractSchema = createInsertSchema(rentalContracts).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export type InsertRentalContract = z.infer<typeof insertRentalContractSchema>;
+export type RentalContract = typeof rentalContracts.$inferSelect;
 
 // Appointments table
 export const appointments = pgTable("appointments", {

@@ -730,17 +730,29 @@ export async function registerRoutes(app: Express): Promise<Server> {
       });
 
       // Send verification email
+      let emailSent = false;
+      let emailError: string | null = null;
+      
       try {
-        await sendVerificationEmail(user.email, verificationCode);
-      } catch (emailError) {
-        console.error("Error sending verification email:", emailError);
+        console.log(`Attempting to send verification email to ${user.email} with code ${verificationCode}`);
+        const emailResult = await sendVerificationEmail(user.email, verificationCode);
+        console.log("Verification email sent successfully:", JSON.stringify(emailResult, null, 2));
+        emailSent = true;
+      } catch (error) {
+        console.error("Error sending verification email:", error);
+        emailError = error instanceof Error ? error.message : String(error);
+        console.error("Email error details:", emailError);
         // Don't fail registration if email fails
       }
 
       res.status(201).json({
-        message: "Cuenta creada exitosamente. Por favor verifica tu email.",
+        message: emailSent 
+          ? "Cuenta creada exitosamente. Por favor verifica tu email." 
+          : "Cuenta creada exitosamente. El correo de verificación será enviado pronto.",
         userId: user.id,
         email: user.email,
+        emailSent,
+        ...(emailError && { emailError })
       });
     } catch (error) {
       console.error("Error during registration:", error);
