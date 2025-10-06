@@ -264,6 +264,44 @@ export default function Apply() {
                   <form onSubmit={sellerForm.handleSubmit(onSellerSubmit)} className="space-y-6">
                     <FormField
                       control={sellerForm.control}
+                      name="email"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Correo electrónico *</FormLabel>
+                          <FormControl>
+                            <Input
+                              type="email"
+                              placeholder="tucorreo@ejemplo.com"
+                              {...field}
+                              data-testid="input-seller-email"
+                            />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+
+                    <FormField
+                      control={sellerForm.control}
+                      name="whatsapp"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>WhatsApp *</FormLabel>
+                          <FormControl>
+                            <Input
+                              type="tel"
+                              placeholder="+52 998 123 4567"
+                              {...field}
+                              data-testid="input-seller-whatsapp"
+                            />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+
+                    <FormField
+                      control={sellerForm.control}
                       name="reason"
                       render={({ field }) => (
                         <FormItem>
