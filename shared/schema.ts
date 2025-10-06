@@ -60,6 +60,11 @@ export const appointmentTypeEnum = pgEnum("appointment_type", [
   "video",
 ]);
 
+export const appointmentModeEnum = pgEnum("appointment_mode", [
+  "individual", // Cita individual de 1 hora
+  "tour", // Tour de propiedades de 30 min cada una
+]);
+
 export const appointmentStatusEnum = pgEnum("appointment_status", [
   "pending",
   "confirmed",
@@ -888,6 +893,8 @@ export const appointments = pgTable("appointments", {
   opportunityRequestId: varchar("opportunity_request_id").references(() => rentalOpportunityRequests.id, { onDelete: "set null" }), // Link to SOR
   date: timestamp("date").notNull(),
   type: appointmentTypeEnum("type").notNull(),
+  mode: appointmentModeEnum("mode").notNull().default("individual"), // individual (1hr) or tour (30min/property)
+  tourGroupId: varchar("tour_group_id"), // Groups multiple appointments in same tour
   status: appointmentStatusEnum("status").notNull().default("pending"),
   ownerApprovalStatus: ownerApprovalStatusEnum("owner_approval_status").notNull().default("pending"),
   ownerApprovedAt: timestamp("owner_approved_at"),
@@ -908,6 +915,46 @@ export const insertAppointmentSchema = createInsertSchema(appointments).omit({
 
 export type InsertAppointment = z.infer<typeof insertAppointmentSchema>;
 export type Appointment = typeof appointments.$inferSelect;
+
+// Business Hours Configuration - Horarios de atención
+export const businessHours = pgTable("business_hours", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  dayOfWeek: integer("day_of_week").notNull(), // 0=Sunday, 1=Monday, ..., 6=Saturday
+  isOpen: boolean("is_open").notNull().default(true),
+  openTime: varchar("open_time").notNull().default("10:00"), // formato HH:mm
+  closeTime: varchar("close_time").notNull().default("18:00"), // formato HH:mm
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
+export const insertBusinessHoursSchema = createInsertSchema(businessHours).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export type InsertBusinessHours = z.infer<typeof insertBusinessHoursSchema>;
+export type BusinessHours = typeof businessHours.$inferSelect;
+
+// Concierge Blocked Slots - Horarios bloqueados por conserjes
+export const conciergeBlockedSlots = pgTable("concierge_blocked_slots", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  conciergeId: varchar("concierge_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  startTime: timestamp("start_time").notNull(),
+  endTime: timestamp("end_time").notNull(),
+  reason: text("reason"), // Motivo opcional del bloqueo
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
+export const insertConciergeBlockedSlotSchema = createInsertSchema(conciergeBlockedSlots).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export type InsertConciergeBlockedSlot = z.infer<typeof insertConciergeBlockedSlotSchema>;
+export type ConciergeBlockedSlot = typeof conciergeBlockedSlots.$inferSelect;
 
 // Calendar Events table - for maintenance, cleaning, inspections, etc.
 export const calendarEvents = pgTable("calendar_events", {

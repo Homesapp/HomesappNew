@@ -4,6 +4,8 @@ import {
   colonies,
   condominiums,
   appointments,
+  businessHours,
+  conciergeBlockedSlots,
   calendarEvents,
   propertyReviews,
   appointmentReviews,
@@ -72,6 +74,10 @@ import {
   type InsertProperty,
   type Appointment,
   type InsertAppointment,
+  type BusinessHours,
+  type InsertBusinessHours,
+  type ConciergeBlockedSlot,
+  type InsertConciergeBlockedSlot,
   type CalendarEvent,
   type InsertCalendarEvent,
   type PresentationCard,
@@ -291,6 +297,19 @@ export interface IStorage {
   createCalendarEvent(event: InsertCalendarEvent): Promise<CalendarEvent>;
   updateCalendarEvent(id: string, updates: Partial<InsertCalendarEvent>): Promise<CalendarEvent>;
   deleteCalendarEvent(id: string): Promise<void>;
+  
+  // Business Hours operations
+  getBusinessHours(): Promise<BusinessHours[]>;
+  getBusinessHoursByDay(dayOfWeek: number): Promise<BusinessHours | undefined>;
+  upsertBusinessHours(hours: InsertBusinessHours): Promise<BusinessHours>;
+  initializeBusinessHours(): Promise<void>;
+  
+  // Concierge Blocked Slots operations
+  getConciergeBlockedSlot(id: string): Promise<ConciergeBlockedSlot | undefined>;
+  getConciergeBlockedSlots(conciergeId: string): Promise<ConciergeBlockedSlot[]>;
+  getConciergeBlockedSlotsByDateRange(conciergeId: string, startDate: Date, endDate: Date): Promise<ConciergeBlockedSlot[]>;
+  createConciergeBlockedSlot(slot: InsertConciergeBlockedSlot): Promise<ConciergeBlockedSlot>;
+  deleteConciergeBlockedSlot(id: string): Promise<void>;
   
   // Property Review operations
   getPropertyReview(id: string): Promise<PropertyReview | undefined>;
@@ -1364,6 +1383,91 @@ export class DatabaseStorage implements IStorage {
 
   async deleteCalendarEvent(id: string): Promise<void> {
     await db.delete(calendarEvents).where(eq(calendarEvents.id, id));
+  }
+
+  // Business Hours operations
+  async getBusinessHours(): Promise<BusinessHours[]> {
+    return await db.select().from(businessHours).orderBy(businessHours.dayOfWeek);
+  }
+
+  async getBusinessHoursByDay(dayOfWeek: number): Promise<BusinessHours | undefined> {
+    const [hours] = await db.select().from(businessHours).where(eq(businessHours.dayOfWeek, dayOfWeek));
+    return hours;
+  }
+
+  async upsertBusinessHours(hours: InsertBusinessHours): Promise<BusinessHours> {
+    const existing = await this.getBusinessHoursByDay(hours.dayOfWeek);
+    
+    if (existing) {
+      const [updated] = await db
+        .update(businessHours)
+        .set({ ...hours, updatedAt: new Date() })
+        .where(eq(businessHours.id, existing.id))
+        .returning();
+      return updated;
+    } else {
+      const [created] = await db.insert(businessHours).values(hours).returning();
+      return created;
+    }
+  }
+
+  async initializeBusinessHours(): Promise<void> {
+    const existing = await this.getBusinessHours();
+    if (existing.length > 0) return;
+
+    // Initialize default hours: Monday-Saturday 10:00-18:00, Sunday closed
+    const defaultHours: InsertBusinessHours[] = [
+      { dayOfWeek: 0, isOpen: false, openTime: "10:00", closeTime: "18:00" }, // Sunday
+      { dayOfWeek: 1, isOpen: true, openTime: "10:00", closeTime: "18:00" },  // Monday
+      { dayOfWeek: 2, isOpen: true, openTime: "10:00", closeTime: "18:00" },  // Tuesday
+      { dayOfWeek: 3, isOpen: true, openTime: "10:00", closeTime: "18:00" },  // Wednesday
+      { dayOfWeek: 4, isOpen: true, openTime: "10:00", closeTime: "18:00" },  // Thursday
+      { dayOfWeek: 5, isOpen: true, openTime: "10:00", closeTime: "18:00" },  // Friday
+      { dayOfWeek: 6, isOpen: true, openTime: "10:00", closeTime: "18:00" },  // Saturday
+    ];
+
+    await db.insert(businessHours).values(defaultHours);
+  }
+
+  // Concierge Blocked Slots operations
+  async getConciergeBlockedSlot(id: string): Promise<ConciergeBlockedSlot | undefined> {
+    const [slot] = await db.select().from(conciergeBlockedSlots).where(eq(conciergeBlockedSlots.id, id));
+    return slot;
+  }
+
+  async getConciergeBlockedSlots(conciergeId: string): Promise<ConciergeBlockedSlot[]> {
+    return await db
+      .select()
+      .from(conciergeBlockedSlots)
+      .where(eq(conciergeBlockedSlots.conciergeId, conciergeId))
+      .orderBy(conciergeBlockedSlots.startTime);
+  }
+
+  async getConciergeBlockedSlotsByDateRange(
+    conciergeId: string,
+    startDate: Date,
+    endDate: Date
+  ): Promise<ConciergeBlockedSlot[]> {
+    return await db
+      .select()
+      .from(conciergeBlockedSlots)
+      .where(
+        and(
+          eq(conciergeBlockedSlots.conciergeId, conciergeId),
+          gte(conciergeBlockedSlots.startTime, startDate),
+          lte(conciergeBlockedSlots.endTime, endDate)
+        )
+      )
+      .orderBy(conciergeBlockedSlots.startTime);
+  }
+
+  async createConciergeBlockedSlot(slot: InsertConciergeBlockedSlot): Promise<ConciergeBlockedSlot> {
+    const [created] = await db.insert(conciergeBlockedSlots).values(slot).returning();
+    return created;
+  }
+
+  async deleteConciergeBlockedSlot(id: string): Promise<void> {
+    await db.delete(conciergeBlockedSlots).where(eq(conciergeBlockedSlots.id, id));
   }
 
   // Property Review operations
