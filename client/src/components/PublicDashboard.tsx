@@ -651,23 +651,69 @@ export default function PublicDashboard() {
             ))}
           </div>
         </div>
-
-        {/* CTA Section */}
-        <div className="mt-16 rounded-lg bg-primary p-12 text-center text-primary-foreground">
-          <h2 className="mb-4 text-3xl font-bold">{t("public.cta.title")}</h2>
-          <p className="mb-8 text-lg opacity-90">
-            {t("public.cta.subtitle")}
-          </p>
-          <Button
-            size="lg"
-            variant="secondary"
-            onClick={() => setLocation("/register")}
-            data-testid="button-cta-register"
-          >
-            {t("public.cta.button")}
-          </Button>
-        </div>
       </div>
+
+      {/* Footer */}
+      <footer className="border-t bg-card mt-16">
+        <div className="container mx-auto px-4 py-8">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+            {/* Información de contacto */}
+            <div>
+              <h3 className="font-semibold mb-4">Contacto</h3>
+              <div className="space-y-2 text-sm text-muted-foreground">
+                <p>Email: administracion@tulumrentalhomes.com.mx</p>
+                <p>Teléfono: +52 984 321 3385</p>
+              </div>
+            </div>
+
+            {/* Redes sociales */}
+            <div>
+              <h3 className="font-semibold mb-4">Síguenos</h3>
+              <div className="space-y-2 text-sm">
+                <a 
+                  href="https://www.facebook.com/share/1B5kd6EAnQ/" 
+                  target="_blank" 
+                  rel="noopener noreferrer"
+                  className="block text-muted-foreground hover:text-foreground transition-colors"
+                >
+                  Facebook
+                </a>
+                <a 
+                  href="https://www.instagram.com/tulum.rental.homes" 
+                  target="_blank" 
+                  rel="noopener noreferrer"
+                  className="block text-muted-foreground hover:text-foreground transition-colors"
+                >
+                  Instagram: @tulum.rental.homes
+                </a>
+              </div>
+            </div>
+
+            {/* Legal */}
+            <div>
+              <h3 className="font-semibold mb-4">Legal</h3>
+              <div className="space-y-2 text-sm">
+                <button 
+                  onClick={() => setLocation("/terminos")}
+                  className="block text-muted-foreground hover:text-foreground transition-colors text-left"
+                >
+                  Términos y Condiciones
+                </button>
+                <button 
+                  onClick={() => setLocation("/privacidad")}
+                  className="block text-muted-foreground hover:text-foreground transition-colors text-left"
+                >
+                  Política de Privacidad
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <div className="mt-8 pt-8 border-t text-center text-sm text-muted-foreground">
+            <p>&copy; {new Date().getFullYear()} Tulum Rental Homes. Todos los derechos reservados.</p>
+          </div>
+        </div>
+      </footer>
     </div>
   );
 }
