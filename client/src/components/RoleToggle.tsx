@@ -69,7 +69,7 @@ export function RoleToggle() {
   });
 
   const switchRoleMutation = useMutation({
-    mutationFn: async (newRole: "owner" | "cliente") => {
+    mutationFn: async (newRole: string) => {
       return apiRequest("PATCH", "/api/users/switch-role", { role: newRole });
     },
     onSuccess: () => {
@@ -118,9 +118,11 @@ export function RoleToggle() {
 
   if (!user) return null;
 
-  // Only show for users who can switch between owner and cliente
-  const canSwitch = user.role === "owner" || user.role === "cliente";
-  if (!canSwitch) return null;
+  // Show for users who have owner/cliente roles or an additional approved role
+  const hasOwnerClienteRole = user.role === "owner" || user.role === "cliente";
+  const hasAdditionalRole = !!user.additionalRole;
+  
+  if (!hasOwnerClienteRole && !hasAdditionalRole) return null;
 
   const isOwner = user.role === "owner";
   const isClient = user.role === "cliente";

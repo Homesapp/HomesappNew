@@ -232,6 +232,8 @@ function AuthenticatedApp() {
               <Route path="/admin/feedback" component={AdminFeedback} />
               <Route path="/permissions" component={Permissions} />
               <Route path="/contratos" component={Contracts} />
+              <Route path="/terminos" component={Terms} />
+              <Route path="/privacidad" component={Privacy} />
               <Route component={NotFound} />
             </Switch>
           </main>
