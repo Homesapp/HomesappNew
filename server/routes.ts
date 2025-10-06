@@ -1711,9 +1711,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(403).json({ message: "Forbidden" });
       }
 
-      const propertyData = insertPropertySchema.parse({
+      const sanitizedBody = {
         ...req.body,
-        ownerId: req.body.ownerId || userId,
+        title: sanitizeText(req.body.title),
+        description: sanitizeHtml(req.body.description),
+        location: sanitizeText(req.body.location),
+      };
+
+      const propertyData = insertPropertySchema.parse({
+        ...sanitizedBody,
+        ownerId: sanitizedBody.ownerId || userId,
       });
       
       const property = await storage.createProperty(propertyData);
@@ -1749,7 +1756,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(403).json({ message: "Forbidden" });
       }
 
-      const updatedProperty = await storage.updateProperty(id, req.body);
+      const sanitizedBody = {
+        ...req.body,
+        title: req.body.title ? sanitizeText(req.body.title) : undefined,
+        description: req.body.description ? sanitizeHtml(req.body.description) : undefined,
+        location: req.body.location ? sanitizeText(req.body.location) : undefined,
+      };
+
+      const updatedProperty = await storage.updateProperty(id, sanitizedBody);
       
       // Log property update
       await createAuditLog(
@@ -3195,7 +3209,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         .update(offers)
         .set({
           counterOfferAmount: counterOfferAmount.toString(),
-          counterOfferNotes: counterOfferNotes || null,
+          counterOfferNotes: counterOfferNotes ? sanitizeText(counterOfferNotes) : null,
           status: "countered",
           updatedAt: new Date()
         })
@@ -3328,7 +3342,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         .update(offers)
         .set({
           status: "rejected",
-          counterOfferNotes: notes || null,
+          counterOfferNotes: notes ? sanitizeText(notes) : null,
           updatedAt: new Date()
         })
         .where(eq(offers.id, offerId))
@@ -5503,7 +5517,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.post("/api/chat/messages", isAuthenticated, async (req: any, res) => {
     try {
-      const messageData = insertChatMessageSchema.parse(req.body);
+      const sanitizedBody = {
+        ...req.body,
+        content: sanitizeText(req.body.content),
+      };
+      const messageData = insertChatMessageSchema.parse(sanitizedBody);
       const message = await storage.createChatMessage(messageData);
       
       // Broadcast message to all connected clients in this conversation
@@ -5918,7 +5936,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(401).json({ message: "Usuario no autenticado" });
       }
 
-      const validationResult = insertFeedbackSchema.safeParse(req.body);
+      const sanitizedBody = {
+        ...req.body,
+        title: sanitizeText(req.body.title),
+        description: sanitizeHtml(req.body.description),
+      };
+
+      const validationResult = insertFeedbackSchema.safeParse(sanitizedBody);
       if (!validationResult.success) {
         return res.status(400).json({
           message: "Datos inválidos",
