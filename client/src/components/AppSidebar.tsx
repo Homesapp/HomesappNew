@@ -37,6 +37,7 @@ import {
   Bot,
   Share2,
   MessageSquare,
+  DollarSign,
 } from "lucide-react";
 import logoUrl from "@assets/H mes (500 x 300 px)_1759672952263.png";
 import logoIconUrl from "@assets/Sin título (6 x 6 cm)_1759706217639.png";
@@ -105,6 +106,7 @@ export function AppSidebar({ userRole }: AppSidebarProps) {
     { title: "Tareas", url: "/tareas", icon: ListTodo, roles: ["master", "admin", "admin_jr", "management", "concierge"] },
     { title: "Clientes", url: "/clientes", icon: Users, roles: ["master", "admin", "admin_jr", "seller"] },
     { title: "Tarjetas", url: "/presentation-cards", icon: ClipboardList, roles: ["master", "admin", "admin_jr", "seller", "cliente"] },
+    { title: "Gestión de Ingresos", url: "/accountant/income", icon: DollarSign, roles: ["contador"] },
   ];
 
   const adminItems = [
@@ -119,6 +121,7 @@ export function AppSidebar({ userRole }: AppSidebarProps) {
     { title: "Crear Usuario", url: "/admin/create-user", icon: UserPlus, roles: ["master", "admin"] },
     { title: "Gestión Usuarios", url: "/users", icon: UserCog, roles: ["master", "admin"] },
     { title: "Permisos", url: "/permissions", icon: Settings, roles: ["master", "admin"] },
+    { title: "Dashboard de Ingresos", url: "/admin/income", icon: DollarSign, roles: ["master", "admin"] },
   ];
 
   const serviceItems = [

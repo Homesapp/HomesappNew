@@ -61,6 +61,8 @@ import CreateUser from "@/pages/CreateUser";
 import Referrals from "@/pages/Referrals";
 import Feedback from "@/pages/Feedback";
 import AdminFeedback from "@/pages/AdminFeedback";
+import AccountantIncome from "@/pages/AccountantIncome";
+import AdminIncome from "@/pages/AdminIncome";
 import NotFound from "@/pages/not-found";
 
 function AuthenticatedApp() {
@@ -191,6 +193,8 @@ function AuthenticatedApp() {
               <Route path="/admin/condominiums" component={AdminCondominiums} />
               <Route path="/admin/chatbot-config" component={AdminChatbotConfig} />
               <Route path="/admin/create-user" component={CreateUser} />
+              <Route path="/admin/income" component={AdminIncome} />
+              <Route path="/accountant/income" component={AccountantIncome} />
               <Route path="/leads" component={LeadsKanban} />
               <Route path="/rentas" component={RentalsKanban} />
               <Route path="/properties" component={Properties} />
