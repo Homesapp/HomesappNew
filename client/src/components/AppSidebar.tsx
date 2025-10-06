@@ -38,6 +38,7 @@ import {
   Share2,
   MessageSquare,
   DollarSign,
+  MapPin,
 } from "lucide-react";
 import logoUrl from "@assets/H mes (500 x 300 px)_1759672952263.png";
 import logoIconUrl from "@assets/Sin título (6 x 6 cm)_1759706217639.png";
