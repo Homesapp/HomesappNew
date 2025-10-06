@@ -335,6 +335,55 @@ export const documentApprovalStatusEnum = pgEnum("document_approval_status", [
   "rejected",    // Rechazado
 ]);
 
+// Lead Quality Enum
+export const leadQualityEnum = pgEnum("lead_quality", [
+  "hot",     // Alta probabilidad de conversión
+  "warm",    // Probabilidad media
+  "cold",    // Baja probabilidad
+]);
+
+// Workflow Event Type Enum
+export const workflowEventTypeEnum = pgEnum("workflow_event_type", [
+  "lead_created",
+  "lead_assigned",
+  "appointment_scheduled",
+  "appointment_completed",
+  "offer_submitted",
+  "offer_accepted",
+  "contract_signed",
+  "check_in_completed",
+  "rental_started",
+  "payment_overdue",
+  "contract_expiring",
+  "task_assigned",
+  "task_overdue",
+]);
+
+// Alert Priority Enum
+export const alertPriorityEnum = pgEnum("alert_priority", [
+  "low",
+  "medium",
+  "high",
+  "critical",
+]);
+
+// Alert Status Enum
+export const alertStatusEnum = pgEnum("alert_status", [
+  "pending",
+  "acknowledged",
+  "resolved",
+  "dismissed",
+]);
+
+// Health Score Status Enum
+export const healthScoreStatusEnum = pgEnum("health_score_status", [
+  "excellent",   // 90-100
+  "good",        // 70-89
+  "fair",        // 50-69
+  "poor",        // 30-49
+  "critical",    // 0-29
+]);
+
 // Users table (required for Replit Auth + extended fields)
 export const users = pgTable("users", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
@@ -1941,6 +1990,261 @@ export const insertChangelogSchema = createInsertSchema(changelogs).omit({
 
 export type InsertChangelog = z.infer<typeof insertChangelogSchema>;
 export type Changelog = typeof changelogs.$inferSelect;
+
+// SLA Configurations table - Define SLAs for different processes
+export const slaConfigurations = pgTable("sla_configurations", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  processName: varchar("process_name").notNull().unique(), // e.g., "lead_first_response", "contract_approval"
+  targetMinutes: integer("target_minutes").notNull(), // Tiempo objetivo en minutos
+  warningMinutes: integer("warning_minutes").notNull(), // Tiempo de advertencia antes del vencimiento
+  description: text("description"),
+  isActive: boolean("is_active").notNull().default(true),
+  createdBy: varchar("created_by").references(() => users.id),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
+export const insertSlaConfigurationSchema = createInsertSchema(slaConfigurations).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export type InsertSlaConfiguration = z.infer<typeof insertSlaConfigurationSchema>;
+export type SlaConfiguration = typeof slaConfigurations.$inferSelect;
+
+// Lead Scoring Rules table
+export const leadScoringRules = pgTable("lead_scoring_rules", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  name: varchar("name").notNull(),
+  description: text("description"),
+  criteriaField: varchar("criteria_field").notNull(), // e.g., "budget", "moveInDate", "source"
+  criteriaOperator: varchar("criteria_operator").notNull(), // e.g., "greater_than", "equals", "contains"
+  criteriaValue: text("criteria_value").notNull(),
+  scorePoints: integer("score_points").notNull(), // Puntos a sumar/restar
+  isActive: boolean("is_active").notNull().default(true),
+  priority: integer("priority").notNull().default(0), // Orden de evaluación
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
+export const insertLeadScoringRuleSchema = createInsertSchema(leadScoringRules).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export type InsertLeadScoringRule = z.infer<typeof insertLeadScoringRuleSchema>;
+export type LeadScoringRule = typeof leadScoringRules.$inferSelect;
+
+// Lead Scores table - calculated scores for leads
+export const leadScores = pgTable("lead_scores", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  leadId: varchar("lead_id").notNull().references(() => leads.id, { onDelete: "cascade" }),
+  score: integer("score").notNull().default(0), // Puntaje total
+  quality: leadQualityEnum("quality").notNull(), // hot/warm/cold
+  reasons: text("reasons").array().default(sql`ARRAY[]::text[]`), // Razones del score
+  lastCalculatedAt: timestamp("last_calculated_at").defaultNow().notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+export const insertLeadScoreSchema = createInsertSchema(leadScores).omit({
+  id: true,
+  createdAt: true,
+});
+
+export type InsertLeadScore = z.infer<typeof insertLeadScoreSchema>;
+export type LeadScore = typeof leadScores.$inferSelect;
+
+// Contract Checklist Templates table
+export const contractChecklistTemplates = pgTable("contract_checklist_templates", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  name: varchar("name").notNull(),
+  description: text("description"),
+  contractType: varchar("contract_type").notNull(), // "rental", "sale"
+  isDefault: boolean("is_default").notNull().default(false),
+  isActive: boolean("is_active").notNull().default(true),
+  createdBy: varchar("created_by").references(() => users.id),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
+export const insertContractChecklistTemplateSchema = createInsertSchema(contractChecklistTemplates).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export type InsertContractChecklistTemplate = z.infer<typeof insertContractChecklistTemplateSchema>;
+export type ContractChecklistTemplate = typeof contractChecklistTemplates.$inferSelect;
+
+// Contract Checklist Template Items table
+export const contractChecklistTemplateItems = pgTable("contract_checklist_template_items", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  templateId: varchar("template_id").notNull().references(() => contractChecklistTemplates.id, { onDelete: "cascade" }),
+  title: varchar("title").notNull(),
+  description: text("description"),
+  requiredRole: userRoleEnum("required_role"), // Rol que debe completar este paso
+  order: integer("order").notNull(), // Orden de ejecución
+  isOptional: boolean("is_optional").notNull().default(false),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+export const insertContractChecklistTemplateItemSchema = createInsertSchema(contractChecklistTemplateItems).omit({
+  id: true,
+  createdAt: true,
+});
+
+export type InsertContractChecklistTemplateItem = z.infer<typeof insertContractChecklistTemplateItemSchema>;
+export type ContractChecklistTemplateItem = typeof contractChecklistTemplateItems.$inferSelect;
+
+// Contract Checklist Items table - Instance of checklist for a specific contract
+export const contractChecklistItems = pgTable("contract_checklist_items", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  contractId: varchar("contract_id").notNull().references(() => rentalContracts.id, { onDelete: "cascade" }),
+  templateItemId: varchar("template_item_id").references(() => contractChecklistTemplateItems.id),
+  title: varchar("title").notNull(),
+  description: text("description"),
+  requiredRole: userRoleEnum("required_role"),
+  order: integer("order").notNull(),
+  isCompleted: boolean("is_completed").notNull().default(false),
+  completedBy: varchar("completed_by").references(() => users.id),
+  completedAt: timestamp("completed_at"),
+  notes: text("notes"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+export const insertContractChecklistItemSchema = createInsertSchema(contractChecklistItems).omit({
+  id: true,
+  createdAt: true,
+});
+
+export type InsertContractChecklistItem = z.infer<typeof insertContractChecklistItemSchema>;
+export type ContractChecklistItem = typeof contractChecklistItems.$inferSelect;
+
+// Rental Health Scores table
+export const rentalHealthScores = pgTable("rental_health_scores", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  contractId: varchar("contract_id").notNull().unique().references(() => rentalContracts.id, { onDelete: "cascade" }),
+  score: integer("score").notNull().default(100), // 0-100
+  status: healthScoreStatusEnum("status").notNull(),
+  // Factores que afectan el score
+  paymentScore: integer("payment_score").notNull().default(100), // Basado en historial de pagos
+  incidentScore: integer("incident_score").notNull().default(100), // Basado en incidentes reportados
+  communicationScore: integer("communication_score").notNull().default(100), // Basado en respuesta en chats
+  // Banderas de riesgo
+  hasPaymentDelay: boolean("has_payment_delay").notNull().default(false),
+  hasOpenIncidents: boolean("has_open_incidents").notNull().default(false),
+  isNearExpiry: boolean("is_near_expiry").notNull().default(false), // < 90 días para expirar
+  // Probabilidad de renovación
+  renewalProbability: decimal("renewal_probability", { precision: 5, scale: 2 }), // 0-100%
+  reasons: text("reasons").array().default(sql`ARRAY[]::text[]`),
+  lastCalculatedAt: timestamp("last_calculated_at").defaultNow().notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
+export const insertRentalHealthScoreSchema = createInsertSchema(rentalHealthScores).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export type InsertRentalHealthScore = z.infer<typeof insertRentalHealthScoreSchema>;
+export type RentalHealthScore = typeof rentalHealthScores.$inferSelect;
+
+// Lead Response Metrics table
+export const leadResponseMetrics = pgTable("lead_response_metrics", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  leadId: varchar("lead_id").notNull().references(() => leads.id, { onDelete: "cascade" }),
+  assignedTo: varchar("assigned_to").references(() => users.id),
+  firstResponseAt: timestamp("first_response_at"),
+  responseTimeMinutes: integer("response_time_minutes"), // Tiempo hasta primera respuesta
+  slaTargetMinutes: integer("sla_target_minutes"),
+  metSla: boolean("met_sla"), // Si cumplió o no el SLA
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+export const insertLeadResponseMetricSchema = createInsertSchema(leadResponseMetrics).omit({
+  id: true,
+  createdAt: true,
+});
+
+export type InsertLeadResponseMetric = z.infer<typeof insertLeadResponseMetricSchema>;
+export type LeadResponseMetric = typeof leadResponseMetrics.$inferSelect;
+
+// Contract Cycle Metrics table
+export const contractCycleMetrics = pgTable("contract_cycle_metrics", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  contractId: varchar("contract_id").notNull().references(() => rentalContracts.id, { onDelete: "cascade" }),
+  offerSubmittedAt: timestamp("offer_submitted_at"),
+  contractCreatedAt: timestamp("contract_created_at"),
+  ownerSignedAt: timestamp("owner_signed_at"),
+  tenantSignedAt: timestamp("tenant_signed_at"),
+  checkInAt: timestamp("check_in_at"),
+  // Tiempos de ciclo en minutos
+  offerToContractMinutes: integer("offer_to_contract_minutes"),
+  contractToSignaturesMinutes: integer("contract_to_signatures_minutes"),
+  signaturesToCheckInMinutes: integer("signatures_to_check_in_minutes"),
+  totalCycleMinutes: integer("total_cycle_minutes"),
+  slaTargetMinutes: integer("sla_target_minutes"),
+  metSla: boolean("met_sla"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+export const insertContractCycleMetricSchema = createInsertSchema(contractCycleMetrics).omit({
+  id: true,
+  createdAt: true,
+});
+
+export type InsertContractCycleMetric = z.infer<typeof insertContractCycleMetricSchema>;
+export type ContractCycleMetric = typeof contractCycleMetrics.$inferSelect;
+
+// Workflow Events table - Log of automated events
+export const workflowEvents = pgTable("workflow_events", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  eventType: workflowEventTypeEnum("event_type").notNull(),
+  entityType: varchar("entity_type").notNull(), // "lead", "contract", "appointment", etc.
+  entityId: varchar("entity_id").notNull(),
+  triggeredBy: varchar("triggered_by").references(() => users.id), // Usuario que disparó el evento (null si automático)
+  metadata: jsonb("metadata"), // Datos adicionales del evento
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+export const insertWorkflowEventSchema = createInsertSchema(workflowEvents).omit({
+  id: true,
+  createdAt: true,
+});
+
+export type InsertWorkflowEvent = z.infer<typeof insertWorkflowEventSchema>;
+export type WorkflowEvent = typeof workflowEvents.$inferSelect;
+
+// System Alerts table - Automated alerts for users
+export const systemAlerts = pgTable("system_alerts", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: varchar("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  title: varchar("title").notNull(),
+  message: text("message").notNull(),
+  priority: alertPriorityEnum("priority").notNull().default("medium"),
+  status: alertStatusEnum("status").notNull().default("pending"),
+  alertType: varchar("alert_type").notNull(), // "sla_warning", "task_overdue", "payment_due", etc.
+  relatedEntityType: varchar("related_entity_type"), // "lead", "contract", "task", etc.
+  relatedEntityId: varchar("related_entity_id"),
+  actionUrl: varchar("action_url"), // URL para resolver la alerta
+  acknowledgedAt: timestamp("acknowledged_at"),
+  resolvedAt: timestamp("resolved_at"),
+  dismissedAt: timestamp("dismissed_at"),
+  expiresAt: timestamp("expires_at"), // Las alertas pueden expirar automáticamente
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+export const insertSystemAlertSchema = createInsertSchema(systemAlerts).omit({
+  id: true,
+  createdAt: true,
+});
+
+export type InsertSystemAlert = z.infer<typeof insertSystemAlertSchema>;
+export type SystemAlert = typeof systemAlerts.$inferSelect;
 
 // Relations
 export const usersRelations = relations(users, ({ many }) => ({
