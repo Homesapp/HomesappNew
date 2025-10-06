@@ -9,6 +9,7 @@ import { sendVerificationEmail } from "./resend";
 import { processChatbotMessage, generatePropertyRecommendations } from "./chatbot";
 import { authLimiter, registrationLimiter, emailVerificationLimiter, chatbotLimiter } from "./rateLimiters";
 import { sanitizeText, sanitizeHtml, sanitizeObject } from "./sanitize";
+import { handleGenericError, handleZodError } from "./errorHandling";
 import bcrypt from "bcryptjs";
 import crypto from "crypto";
 import { z } from "zod";
@@ -1736,8 +1737,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       res.status(201).json(property);
     } catch (error: any) {
-      console.error("Error creating property:", error);
-      res.status(400).json({ message: error.message || "Failed to create property" });
+      return handleGenericError(res, error, "al crear la propiedad");
     }
   });
 
@@ -1775,9 +1775,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       );
       
       res.json(updatedProperty);
-    } catch (error) {
-      console.error("Error updating property:", error);
-      res.status(500).json({ message: "Failed to update property" });
+    } catch (error: any) {
+      return handleGenericError(res, error, "al actualizar la propiedad");
     }
   });
 
@@ -1807,9 +1806,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       await storage.deleteProperty(id);
       res.status(204).send();
-    } catch (error) {
-      console.error("Error deleting property:", error);
-      res.status(500).json({ message: "Failed to delete property" });
+    } catch (error: any) {
+      return handleGenericError(res, error, "al eliminar la propiedad");
     }
   });
 
