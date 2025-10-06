@@ -142,7 +142,7 @@ import {
   type InsertClientReview,
 } from "@shared/schema";
 import { db } from "./db";
-import { eq, and, or, gte, lte, ilike, desc, sql, isNull } from "drizzle-orm";
+import { eq, and, or, gte, lte, ilike, desc, sql, isNull, count } from "drizzle-orm";
 
 export interface IStorage {
   // User operations
@@ -191,6 +191,7 @@ export interface IStorage {
   updateCondominiumStatus(id: string, approvalStatus: string): Promise<Condominium>;
   updateCondominium(id: string, updates: Partial<InsertCondominium>): Promise<Condominium>;
   toggleCondominiumActive(id: string, active: boolean): Promise<Condominium>;
+  countPropertiesByCondominium(condominiumId: string): Promise<number>;
   deleteCondominium(id: string): Promise<void>;
   
   // Property operations
@@ -793,6 +794,14 @@ export class DatabaseStorage implements IStorage {
       .where(eq(condominiums.id, id))
       .returning();
     return condominium;
+  }
+
+  async countPropertiesByCondominium(condominiumId: string): Promise<number> {
+    const result = await db
+      .select({ count: count() })
+      .from(properties)
+      .where(eq(properties.condominiumId, condominiumId));
+    return result[0]?.count || 0;
   }
 
   async deleteCondominium(id: string): Promise<void> {
