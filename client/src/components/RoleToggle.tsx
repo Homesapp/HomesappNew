@@ -96,6 +96,8 @@ const ROLE_DESCRIPTIONS: Record<string, { question: string; placeholder: string 
 
 const roleApplicationSchema = z.object({
   requestedRole: z.string().min(1, "Debes seleccionar un rol"),
+  email: z.string().email("Correo electrónico inválido"),
+  whatsapp: z.string().min(10, "WhatsApp debe tener al menos 10 dígitos"),
   reason: z.string().min(20, "Explica brevemente por qué necesitas este rol (mínimo 20 caracteres)"),
   experience: z.string().min(50, "Describe tu experiencia en detalle (mínimo 50 caracteres)"),
   yearsOfExperience: z.coerce.number().min(0, "Años de experiencia debe ser un número positivo"),
@@ -119,6 +121,8 @@ export function RoleToggle() {
     resolver: zodResolver(roleApplicationSchema),
     defaultValues: {
       requestedRole: "",
+      email: "",
+      whatsapp: "",
       reason: "",
       experience: "",
       yearsOfExperience: 0,
@@ -153,6 +157,8 @@ export function RoleToggle() {
       return apiRequest("POST", "/api/role-requests", {
         userId: user?.id,
         requestedRole: data.requestedRole,
+        email: data.email,
+        whatsapp: data.whatsapp,
         reason: data.reason,
         yearsOfExperience: data.yearsOfExperience,
         experience: data.experience,
@@ -318,6 +324,50 @@ export function RoleToggle() {
                         ))}
                       </SelectContent>
                     </Select>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={form.control}
+                name="email"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Correo electrónico *</FormLabel>
+                    <FormControl>
+                      <Input
+                        type="email"
+                        placeholder="tucorreo@ejemplo.com"
+                        {...field}
+                        data-testid="input-email"
+                      />
+                    </FormControl>
+                    <FormDescription>
+                      Correo donde podamos contactarte
+                    </FormDescription>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={form.control}
+                name="whatsapp"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>WhatsApp *</FormLabel>
+                    <FormControl>
+                      <Input
+                        type="tel"
+                        placeholder="+52 998 123 4567"
+                        {...field}
+                        data-testid="input-whatsapp"
+                      />
+                    </FormControl>
+                    <FormDescription>
+                      Número de WhatsApp con código de país (ej: +52 para México)
+                    </FormDescription>
                     <FormMessage />
                   </FormItem>
                 )}
