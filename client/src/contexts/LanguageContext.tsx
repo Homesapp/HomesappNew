@@ -991,6 +991,339 @@ const translations: Record<Language, Record<string, string>> = {
     "help.support.title": "Support",
     "help.support.desc": "Need additional help? Contact the support team through the messaging system or reach out to your administrator.",
     
+    // Help Page - Extended Content
+    "help.page.title": "Help Center",
+    "help.page.subtitle": "Comprehensive guides and tutorials for all user roles",
+    "help.page.selectRole": "Select Your Role",
+    "help.page.selectRoleDesc": "Choose a role to view specific help content and tutorials",
+    "help.video.placeholder": "Video tutorial will be available here",
+    "help.video.tutorial": "Video Tutorial",
+    "help.steps.title": "Step by Step:",
+    "help.support.contactDesc": "If you need additional assistance, use our support channels:",
+    "help.support.chat": "Chat with support",
+    "help.support.feedback": "Send feedback",
+    
+    // Role Names
+    "help.roles.cliente": "Client",
+    "help.roles.owner": "Property Owner",
+    "help.roles.seller": "Seller",
+    "help.roles.concierge": "Concierge",
+    "help.roles.provider": "Service Provider",
+    "help.roles.admin": "Administrator",
+    "help.roles.abogado": "Lawyer",
+    "help.roles.contador": "Accountant",
+    "help.roles.agente": "Service Agent",
+    
+    // CLIENT HELP CONTENT
+    "help.cliente.overview.title": "Welcome to the Client Help Center",
+    "help.cliente.overview.desc": "As a client, you have access to search properties, schedule appointments, save favorites, create presentation cards, and communicate with owners and agents. This guide will help you make the most of all available features.",
+    
+    // Client - Search
+    "help.cliente.search.title": "Property Search",
+    "help.cliente.search.desc": "Learn how to find your ideal property using our advanced search system",
+    "help.cliente.search.howTo.title": "How to Search for Properties",
+    "help.cliente.search.howTo.content": "Our search system allows you to find properties in Tulum using multiple criteria. You can search by location, property type, price range, number of bedrooms and bathrooms, and specific amenities. The platform shows you results in real-time with detailed information about each property.",
+    "help.cliente.search.step1": "Access 'Search Properties' from the main menu",
+    "help.cliente.search.step2": "Use the filters on the left to refine your search: price, bedrooms, bathrooms, property type, etc.",
+    "help.cliente.search.step3": "Review the property cards showing images, prices, and key features",
+    "help.cliente.search.step4": "Click 'View Details' on any property to see complete information, additional photos, and schedule an appointment",
+    "help.cliente.search.filters.title": "Using Advanced Filters",
+    "help.cliente.search.filters.content": "Filters help you find exactly what you're looking for. You can combine multiple filters to narrow your search. All filters are optional and can be cleared at any time to broaden your results.",
+    "help.cliente.search.filters.step1": "Select price range using the slider or manual input",
+    "help.cliente.search.filters.step2": "Choose number of bedrooms, bathrooms, and property type",
+    "help.cliente.search.filters.step3": "Select specific amenities like pool, parking, security, etc.",
+    
+    // Client - Appointments
+    "help.cliente.appointments.title": "Appointment Management",
+    "help.cliente.appointments.desc": "Schedule and manage visits to properties",
+    "help.cliente.appointments.schedule.title": "How to Schedule an Appointment",
+    "help.cliente.appointments.schedule.content": "You can schedule two types of appointments: in-person visits or video calls. In-person visits can be attended by an assigned concierge, while video calls allow you to see the property remotely through Google Meet.",
+    "help.cliente.appointments.schedule.step1": "From any property detail page, click 'Schedule Appointment'",
+    "help.cliente.appointments.schedule.step2": "Choose the type of visit: in-person or video call",
+    "help.cliente.appointments.schedule.step3": "Select an available date and time from the calendar",
+    "help.cliente.appointments.schedule.step4": "Confirm the appointment - you'll receive email confirmation and Google Calendar invitation",
+    "help.cliente.appointments.manage.title": "Managing Your Appointments",
+    "help.cliente.appointments.manage.content": "View all your appointments in 'My Appointments'. You can see appointment status (pending, confirmed, completed, cancelled), join video calls when the time comes, and leave reviews after visits. You can also chat with the concierge or property owner about appointment details.",
+    
+    // Client - Favorites
+    "help.cliente.favorites.title": "Favorite Properties",
+    "help.cliente.favorites.desc": "Save and organize properties you're interested in",
+    "help.cliente.favorites.add.title": "How to Save Favorites",
+    "help.cliente.favorites.add.content": "Save properties you like to easily find them later. Your favorites are private and you can add or remove properties at any time. Use favorites to create your shortlist of properties to visit.",
+    "help.cliente.favorites.add.step1": "Click the heart icon on any property card or detail page",
+    "help.cliente.favorites.add.step2": "Access all your saved properties from 'Favorites' in the menu",
+    "help.cliente.favorites.add.step3": "Compare properties, take notes, and schedule visits from your favorites list",
+    
+    // Client - Cards
+    "help.cliente.cards.title": "Presentation Cards",
+    "help.cliente.cards.desc": "Create profiles of your ideal property to receive automatic matches",
+    "help.cliente.cards.create.title": "Creating a Presentation Card",
+    "help.cliente.cards.create.content": "Presentation cards are profiles that describe your ideal property. The system automatically matches properties that fit your criteria. You can create up to 3 active cards to cover different scenarios (e.g., one for vacation rental, one for long-term rental, one for purchase).",
+    "help.cliente.cards.create.step1": "Go to 'Presentation Cards' and click 'New Card'",
+    "help.cliente.cards.create.step2": "Complete your preferences: budget, bedrooms, bathrooms, location, amenities",
+    "help.cliente.cards.create.step3": "Save and activate your card - the system will show matching properties automatically",
+    
+    // Client - Chat
+    "help.cliente.chat.title": "Messaging System",
+    "help.cliente.chat.desc": "Communicate with owners, agents, and concierges",
+    "help.cliente.chat.howTo.title": "Using the Chat",
+    "help.cliente.chat.howTo.content": "The chat system allows real-time communication with property owners, sellers, and concierges. You can discuss property details, schedule appointments, and get answers to your questions instantly.",
+    "help.cliente.chat.howTo.step1": "Access 'Messages' from the main menu",
+    "help.cliente.chat.howTo.step2": "Click on an existing conversation or start a new one from a property page",
+    "help.cliente.chat.howTo.step3": "Send messages, share information, and receive real-time responses",
+    
+    // OWNER HELP CONTENT
+    "help.owner.overview.title": "Welcome to the Owner Help Center",
+    "help.owner.overview.desc": "As a property owner, you can publish and manage your properties, handle appointments, work with service providers, view contracts, and track your income. This guide covers all the tools available to you.",
+    
+    // Owner - Properties
+    "help.owner.properties.title": "Property Management",
+    "help.owner.properties.desc": "Publish, update, and manage your properties",
+    "help.owner.properties.upload.title": "Publishing a New Property",
+    "help.owner.properties.upload.content": "The property submission process is a step-by-step wizard that guides you through uploading property details, photos, and documents. All properties must be approved by an administrator before becoming visible to clients. You can also sign digital agreements as part of the submission process.",
+    "help.owner.properties.upload.step1": "Click 'Upload Property' from the menu",
+    "help.owner.properties.upload.step2": "Complete each step: basic info, location, details, amenities, photos",
+    "help.owner.properties.upload.step3": "Sign required agreements digitally",
+    "help.owner.properties.upload.step4": "Submit for admin approval - you'll be notified when it's published",
+    "help.owner.properties.manage.title": "Managing Existing Properties",
+    "help.owner.properties.manage.content": "From 'My Properties', you can view all your listings, edit information, update photos, change prices, and manage availability. You can see how many views, favorites, and appointments each property has received.",
+    "help.owner.properties.changeRequests.title": "Requesting Property Changes",
+    "help.owner.properties.changeRequests.content": "If you need to make changes to an already-published property, submit a change request that will be reviewed by an administrator. This ensures all property information remains accurate and up-to-date.",
+    
+    // Owner - Appointments
+    "help.owner.appointments.title": "Visit Management",
+    "help.owner.appointments.desc": "Control and manage property visit appointments",
+    "help.owner.appointments.autoApprove.title": "Auto-Approval Settings",
+    "help.owner.appointments.autoApprove.content": "You can configure each property to automatically approve appointment requests or require manual approval. Auto-approval speeds up the process for clients, while manual approval gives you more control.",
+    "help.owner.appointments.autoApprove.step1": "Go to property settings from 'My Properties'",
+    "help.owner.appointments.autoApprove.step2": "Enable or disable 'Auto-approve appointments' for each property",
+    "help.owner.appointments.manage.title": "Managing Appointments",
+    "help.owner.appointments.manage.content": "View all appointment requests in 'Visit Management'. You can approve, reject, or reschedule appointments. Assign concierges to handle visits on your behalf. After appointments, review feedback from visitors.",
+    
+    // Owner - Staff
+    "help.owner.staff.title": "Staff Management",
+    "help.owner.staff.desc": "Assign and manage staff for your properties",
+    "help.owner.staff.assign.title": "Assigning Staff",
+    "help.owner.staff.assign.content": "You can assign concierges and other staff members to your properties to help manage appointments and property maintenance. Staff assignments are property-specific and can be updated at any time.",
+    "help.owner.staff.assign.step1": "Go to a property's settings",
+    "help.owner.staff.assign.step2": "Navigate to the 'Staff' section",
+    "help.owner.staff.assign.step3": "Add concierges or other staff members from the available list",
+    
+    // Owner - Contracts
+    "help.owner.contracts.title": "Contract Management",
+    "help.owner.contracts.desc": "View and manage rental contracts for your properties",
+    "help.owner.contracts.view.title": "Viewing Active Contracts",
+    "help.owner.contracts.view.content": "The 'Contracts' section shows all active rental agreements for your properties. You can see contract details, tenant information, payment status, and contract duration. Track when contracts are approaching expiration to plan for renewals.",
+    "help.owner.contracts.documents.title": "Contract Documents",
+    "help.owner.contracts.documents.content": "All signed contracts and related documents are securely stored and accessible from the contract details page. You can download, view, and share documents as needed. Upload additional documents like payment receipts and service records.",
+    "help.owner.contracts.payments.title": "Payment Tracking",
+    "help.owner.contracts.payments.content": "Upload proof of received payments from tenants. Track rent payments, security deposits, and any additional charges. The system maintains a complete payment history for each contract.",
+    "help.owner.contracts.services.title": "Extraordinary Services",
+    "help.owner.contracts.services.content": "Request specialized services for your rented properties through our Service Agents. Services include repairs, maintenance, deep cleaning, landscaping, and more. Track service requests from quotation to completion, and rate service quality. All service history is linked to each contract for easy reference.",
+    
+    // Owner - Directory
+    "help.owner.directory.title": "Service Provider Directory",
+    "help.owner.directory.desc": "Find and hire trusted service providers",
+    "help.owner.directory.find.title": "Finding Service Providers",
+    "help.owner.directory.find.content": "Browse our directory of verified service providers for property maintenance, repairs, cleaning, landscaping, and more. View provider profiles, services offered, ratings, and availability. Contact providers directly through the platform to request quotes and schedule services.",
+    
+    // SELLER HELP CONTENT
+    "help.seller.overview.title": "Welcome to the Seller Help Center",
+    "help.seller.overview.desc": "As a seller, you manage leads, track rental opportunities, and earn commissions. This guide covers your CRM tools, rental pipeline management, and income tracking.",
+    
+    // Seller - Leads
+    "help.seller.leads.title": "Lead Management",
+    "help.seller.leads.desc": "Manage and convert leads into clients",
+    "help.seller.leads.manage.title": "Managing Your Leads",
+    "help.seller.leads.manage.content": "The Leads CRM is a kanban board that helps you track potential clients through the sales pipeline. Leads progress through stages: New, Contacted, Qualified, Proposal, Negotiation, and Won/Lost. Drag and drop leads between stages, add notes, schedule follow-ups, and track conversion rates.",
+    "help.seller.leads.manage.step1": "Access 'CRM - Leads' from the menu",
+    "help.seller.leads.manage.step2": "Review new leads and make initial contact",
+    "help.seller.leads.manage.step3": "Move leads through the pipeline as they progress",
+    "help.seller.leads.convert.title": "Converting Leads to Clients",
+    "help.seller.leads.convert.content": "When a lead signs a rental contract, they become a client and generate a commission for you. Track conversion metrics, identify successful strategies, and optimize your sales process.",
+    
+    // Seller - Rentals
+    "help.seller.rentals.title": "Rental Pipeline",
+    "help.seller.rentals.desc": "Track rental opportunities from interest to contract signing",
+    "help.seller.rentals.kanban.title": "Using the Rentals Kanban",
+    "help.seller.rentals.kanban.content": "The Rentals Kanban shows the complete lifecycle of each rental opportunity: Interest, Viewing Scheduled, Viewed, Proposal, Negotiation, Apartado (Reserved), Documents, Contract Signed, Check-in. Each stage represents a milestone in the rental process. Update statuses in real-time as deals progress.",
+    "help.seller.rentals.process.title": "Rental Process Workflow",
+    "help.seller.rentals.process.content": "Guide clients through each stage: schedule property viewings, prepare proposals, negotiate terms, collect deposits (apartado), gather required documents, coordinate contract signing, and schedule check-in. The platform tracks all communications, documents, and actions for complete audit trail.",
+    
+    // Seller - Income
+    "help.seller.income.title": "Income Tracking",
+    "help.seller.income.desc": "View your earnings and commission breakdowns",
+    "help.seller.income.view.title": "Viewing Your Income",
+    "help.seller.income.view.content": "Access 'My Income' to see your total earnings, pending commissions, and payment history. Income becomes visible when contracts reach 'Apartado' status, but payment is released only at tenant check-in.",
+    "help.seller.income.commissions.title": "Commission Structure",
+    "help.seller.income.commissions.content": "Commission rates vary based on lease duration: 5+ years = 3 months rent, 4 years = 2.5 months, 3 years = 2 months, 2 years = 1.5 months, 1 year = 1 month, 6 months = 0.5 months, Under 6 months = 15% of total. Commissions are split between seller, HomesApp, and any referral partners.",
+    
+    // CONCIERGE HELP CONTENT
+    "help.concierge.overview.title": "Welcome to the Concierge Help Center",
+    "help.concierge.overview.desc": "As a concierge, you handle property visits, meet with clients, report visit outcomes, and provide feedback. This guide covers managing appointments and delivering quality service.",
+    
+    // Concierge - Appointments
+    "help.concierge.appointments.title": "Appointment Management",
+    "help.concierge.appointments.desc": "View and manage assigned property visits",
+    "help.concierge.appointments.view.title": "Viewing Your Appointments",
+    "help.concierge.appointments.view.content": "Access 'Appointments' to see all visits assigned to you. View appointment details including property information, client contact info, appointment date/time, and special requests. Appointments show status: pending confirmation, confirmed, completed, or cancelled.",
+    "help.concierge.appointments.report.title": "Reporting Visit Outcomes",
+    "help.concierge.appointments.report.content": "After each visit, report the outcome and any important observations. Did the client arrive on time? Were they interested? Any concerns about the property? Your reports help owners and sellers track client interest and property conditions.",
+    "help.concierge.appointments.report.step1": "Open the completed appointment",
+    "help.concierge.appointments.report.step2": "Click 'Report Visit' and complete the form",
+    "help.concierge.appointments.report.step3": "Submit your report - it will be shared with the owner and assigned seller",
+    
+    // Concierge - Reviews
+    "help.concierge.reviews.title": "Client Reviews",
+    "help.concierge.reviews.desc": "Leave feedback about client interactions",
+    "help.concierge.reviews.leave.title": "Leaving Client Reviews",
+    "help.concierge.reviews.leave.content": "After property visits, you can leave reviews about clients. Rate punctuality, seriousness of interest, and professionalism. These reviews help sellers qualify leads and prioritize serious buyers. Your feedback is confidential and visible only to HomesApp staff.",
+    
+    // Concierge - Chat
+    "help.concierge.chat.title": "Client Communication",
+    "help.concierge.chat.desc": "Communicate with clients about appointments",
+    "help.concierge.chat.clients.title": "Chatting with Clients",
+    "help.concierge.chat.clients.content": "Use the messaging system to coordinate with clients before and during property visits. Confirm appointment times, provide directions, answer questions about the property, and follow up after visits.",
+    
+    // PROVIDER HELP CONTENT
+    "help.provider.overview.title": "Welcome to the Service Provider Help Center",
+    "help.provider.overview.desc": "As a service provider, you can showcase your services, receive booking requests, and earn income through the platform. This guide covers setting up your profile, managing your service catalog, and handling bookings.",
+    
+    // Provider - Profile
+    "help.provider.profile.title": "Provider Profile",
+    "help.provider.profile.desc": "Create and manage your professional profile",
+    "help.provider.profile.setup.title": "Setting Up Your Profile",
+    "help.provider.profile.setup.content": "Your profile is your storefront on HomesApp. Include detailed information about your business, specialties, service areas, experience, and certifications. Upload high-quality photos of your work, certifications, and team. A complete, professional profile increases trust and booking rates.",
+    "help.provider.profile.setup.step1": "Access 'Profile' and complete all sections",
+    "help.provider.profile.setup.step2": "Upload portfolio photos showcasing your best work",
+    "help.provider.profile.setup.step3": "Add certifications, licenses, and insurance information",
+    
+    // Provider - Services
+    "help.provider.services.title": "Service Catalog",
+    "help.provider.services.desc": "Create and manage your service offerings",
+    "help.provider.services.add.title": "Adding Services",
+    "help.provider.services.add.content": "List all services you offer with detailed descriptions, typical pricing, duration, and any special requirements. Clients can browse your services and request quotes. Keep your service catalog up-to-date with current offerings and prices.",
+    "help.provider.services.manage.title": "Managing Services",
+    "help.provider.services.manage.content": "Edit service details, update pricing, add new services, or remove discontinued ones. Services can be marked as 'Featured' to appear prominently in your profile. Track which services receive the most interest to optimize your offerings.",
+    
+    // Provider - Bookings
+    "help.provider.bookings.title": "Booking Management",
+    "help.provider.bookings.desc": "Handle service requests and bookings",
+    "help.provider.bookings.receive.title": "Receiving Booking Requests",
+    "help.provider.bookings.receive.content": "When clients request your services, you receive booking requests with details about the job, preferred dates, and client contact information. Review requests promptly and respond with quotes, availability, and any clarifying questions.",
+    "help.provider.bookings.complete.title": "Completing Services",
+    "help.provider.bookings.complete.content": "After completing a service, mark it as complete in the system. Clients can leave reviews and ratings. Positive reviews build your reputation and attract more clients. Track completed services and earnings in your provider dashboard.",
+    
+    // ADMIN HELP CONTENT
+    "help.admin.overview.title": "Welcome to the Administrator Help Center",
+    "help.admin.overview.desc": "As an administrator, you have full access to manage users, properties, contracts, finances, and system configuration. This comprehensive guide covers all administrative functions.",
+    
+    // Admin - Users
+    "help.admin.users.title": "User Management",
+    "help.admin.users.desc": "Manage user accounts and roles",
+    "help.admin.users.manage.title": "Managing Users",
+    "help.admin.users.manage.content": "Access 'User Management' to view, create, edit, and manage all user accounts. Search users by name, email, or role. View user activity, permissions, and account status. Administrators can create new users, assign roles, reset passwords, and deactivate accounts when necessary.",
+    "help.admin.users.roles.title": "Role Assignment",
+    "help.admin.users.roles.content": "Assign and modify user roles: Client, Owner, Seller, Concierge, Provider, Lawyer, Accountant, Service Agent, Management, Admin, Admin Jr, or Master. Each role has specific permissions. Review role requests from users who want to become sellers or providers. Changes take effect immediately.",
+    
+    // Admin - Properties
+    "help.admin.properties.title": "Property Administration",
+    "help.admin.properties.desc": "Approve and manage property listings",
+    "help.admin.properties.approve.title": "Approving Properties",
+    "help.admin.properties.approve.content": "Review all submitted properties before they appear on the platform. Check photos, descriptions, pricing, and legal compliance. Approve high-quality listings and request changes or reject properties that don't meet standards. Properties in review show status: Initial Review, Inspection Scheduled, or Approved/Rejected.",
+    "help.admin.properties.changeRequests.title": "Reviewing Change Requests",
+    "help.admin.properties.changeRequests.content": "Owners submit change requests to update published properties. Review requested changes to ensure accuracy and compliance. Approve legitimate updates and reject inappropriate changes. All changes are logged for audit purposes.",
+    
+    // Admin - Contracts
+    "help.admin.contracts.title": "Contract Management",
+    "help.admin.contracts.desc": "Oversee all rental contracts and agreements",
+    "help.admin.contracts.manage.title": "Managing Contracts",
+    "help.admin.contracts.manage.content": "View all active and historical rental contracts across the platform. Monitor contract status, payment compliance, renewal timelines, and any issues. Access all contract documents, payment records, and communication history. Intervene when needed to resolve disputes or issues.",
+    "help.admin.contracts.monitoring.title": "Contract Monitoring",
+    "help.admin.contracts.monitoring.content": "Monitor contracts approaching expiration to coordinate renewal discussions. Track payment compliance and follow up on late payments. Review service requests and ensure quality standards. Generate reports on contract metrics, revenue, and retention rates.",
+    
+    // Admin - Income
+    "help.admin.income.title": "Financial Management",
+    "help.admin.income.desc": "Manage income, commissions, and payouts",
+    "help.admin.income.overview.title": "Income Overview",
+    "help.admin.income.overview.content": "Access comprehensive financial dashboards showing total revenue, commissions owed, pending payouts, and historical trends. Review income by seller, property, and contract. Approve payout batches created by accountants. Export financial reports for analysis and accounting.",
+    
+    // Admin - Configuration
+    "help.admin.config.title": "System Configuration",
+    "help.admin.config.desc": "Configure platform settings and features",
+    "help.admin.config.system.title": "System Settings",
+    "help.admin.config.system.content": "Configure system-wide settings including notification preferences, email templates, agreement templates, commission structures, service categories, and platform policies. Changes affect all users and should be made carefully. Test configuration changes before applying to production.",
+    
+    // LAWYER HELP CONTENT
+    "help.abogado.overview.title": "Welcome to the Lawyer Help Center",
+    "help.abogado.overview.desc": "As a lawyer, you manage legal agreements, review contracts, ensure compliance, and coordinate contract signing. This guide covers legal document management and contract workflows.",
+    
+    // Lawyer - Contracts
+    "help.abogado.contracts.title": "Contract Management",
+    "help.abogado.contracts.desc": "Review and manage rental contracts",
+    "help.abogado.contracts.review.title": "Reviewing Contracts",
+    "help.abogado.contracts.review.content": "Review all rental contracts for legal compliance, completeness, and accuracy. Verify all required clauses are present, terms are clear, and rights are protected for all parties. Flag any issues or missing information before contracts are signed.",
+    "help.abogado.contracts.templates.title": "Agreement Templates",
+    "help.abogado.contracts.templates.content": "Manage standardized agreement templates used across the platform. Update templates to reflect legal requirements, best practices, and policy changes. Ensure templates comply with local regulations and protect all parties' interests.",
+    "help.abogado.contracts.signatures.title": "Digital Signatures",
+    "help.abogado.contracts.signatures.content": "Coordinate the digital signing process for contracts. Verify identity of signatories, ensure all parties have reviewed documents, and confirm signatures are valid and binding. Track signature status and follow up on pending signatures.",
+    
+    // Lawyer - Agreements
+    "help.abogado.agreements.title": "Property Agreements",
+    "help.abogado.agreements.desc": "Manage property submission agreements",
+    "help.abogado.agreements.manage.title": "Managing Agreements",
+    "help.abogado.agreements.manage.content": "When owners submit properties, they must sign agreements with HomesApp. Review these agreements, ensure they're properly executed, and maintain records. These agreements cover terms of service, commissions, responsibilities, and dispute resolution.",
+    
+    // ACCOUNTANT HELP CONTENT
+    "help.contador.overview.title": "Welcome to the Accountant Help Center",
+    "help.contador.overview.desc": "As an accountant, you manage income tracking, create payment batches, record transactions, and generate financial reports. This guide covers the financial management system.",
+    
+    // Accountant - Income
+    "help.contador.income.title": "Income Management",
+    "help.contador.income.desc": "Track and manage all income transactions",
+    "help.contador.income.transactions.title": "Recording Transactions",
+    "help.contador.income.transactions.content": "Record all income transactions including rental commissions, referral fees, administrative fees, and service charges. Each transaction includes amount, date, type, associated contract, and recipient. Maintain accurate records for accounting and tax purposes.",
+    "help.contador.income.batches.title": "Creating Payout Batches",
+    "help.contador.income.batches.content": "Group multiple transactions into payout batches for efficient payment processing. Select transactions by seller, date range, or status. Review batch totals and verify accuracy before submitting for admin approval.",
+    "help.contador.income.batches.step1": "Access 'Income Management' and select 'Create Batch'",
+    "help.contador.income.batches.step2": "Select transactions to include based on criteria",
+    "help.contador.income.batches.step3": "Submit batch for administrator approval and payment processing",
+    
+    // Accountant - Reports
+    "help.contador.reports.title": "Financial Reports",
+    "help.contador.reports.desc": "Generate financial reports and analytics",
+    "help.contador.reports.generate.title": "Generating Reports",
+    "help.contador.reports.generate.content": "Create detailed financial reports for any date range. Reports include income by source, commissions by seller, property performance, referral earnings, and tax documentation. Export reports in multiple formats (PDF, Excel, CSV) for further analysis or filing.",
+    
+    // SERVICE AGENT HELP CONTENT
+    "help.agente.overview.title": "Welcome to the Service Agent Help Center",
+    "help.agente.overview.desc": "As a Service Agent, you coordinate extraordinary services for rented properties, work with service providers, ensure quality, and maintain client satisfaction. This guide covers the complete service request workflow.",
+    
+    // Service Agent - Requests
+    "help.agente.requests.title": "Service Request Management",
+    "help.agente.requests.desc": "Handle service requests from clients and owners",
+    "help.agente.requests.receive.title": "Receiving Service Requests",
+    "help.agente.requests.receive.content": "Service requests come from clients or owners who need repairs, maintenance, cleaning, or other services for rented properties. Requests include property details, problem description, urgency level, and contact information. Review requests promptly and prioritize based on urgency.",
+    "help.agente.requests.process.title": "Processing Service Requests",
+    "help.agente.requests.process.content": "Follow the complete service workflow from request to completion. Each step is tracked in the system for transparency and accountability. Communicate regularly with all parties to ensure smooth service delivery.",
+    "help.agente.requests.process.step1": "Review service request and assess requirements",
+    "help.agente.requests.process.step2": "Contact qualified service providers for quotes",
+    "help.agente.requests.process.step3": "Present quotes to client/owner for approval",
+    "help.agente.requests.process.step4": "Schedule service with approved provider",
+    "help.agente.requests.process.step5": "Follow up on service completion and quality",
+    
+    // Service Agent - Providers
+    "help.agente.providers.title": "Provider Coordination",
+    "help.agente.providers.desc": "Work with service providers to deliver quality services",
+    "help.agente.providers.coordinate.title": "Coordinating with Providers",
+    "help.agente.providers.coordinate.content": "Build relationships with reliable service providers across all categories. Maintain a curated list of trusted providers for quick response. Coordinate schedules, communicate requirements clearly, and ensure providers have property access and necessary information.",
+    
+    // Service Agent - Quality
+    "help.agente.quality.title": "Quality Assurance",
+    "help.agente.quality.desc": "Ensure service quality and customer satisfaction",
+    "help.agente.quality.ensure.title": "Ensuring Quality",
+    "help.agente.quality.ensure.content": "Follow up after service completion to verify satisfaction. Request photos or documentation of completed work. Address any issues or complaints promptly. Collect feedback from clients and owners to maintain high service standards. Remove underperforming providers from your network.",
+    
     // Sidebar
     "sidebar.main": "Main",
     "sidebar.administration": "Administration",
