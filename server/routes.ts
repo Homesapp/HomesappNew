@@ -1846,6 +1846,59 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // System Configuration routes (master only)
+  app.get("/api/system-config", isAuthenticated, requireRole(["master"]), async (req, res) => {
+    try {
+      const configs = await storage.getAllSystemConfigs();
+      res.json(configs);
+    } catch (error) {
+      console.error("Error fetching system configurations:", error);
+      res.status(500).json({ message: "Error al obtener configuraciones del sistema" });
+    }
+  });
+
+  app.get("/api/system-config/:key", isAuthenticated, requireRole(["master"]), async (req, res) => {
+    try {
+      const { key } = req.params;
+      const config = await storage.getSystemConfig(key);
+      
+      if (!config) {
+        return res.status(404).json({ message: "Configuración no encontrada" });
+      }
+      
+      res.json(config);
+    } catch (error) {
+      console.error("Error fetching system configuration:", error);
+      res.status(500).json({ message: "Error al obtener configuración del sistema" });
+    }
+  });
+
+  app.put("/api/system-config/:key", isAuthenticated, requireRole(["master"]), async (req: any, res) => {
+    try {
+      const { key } = req.params;
+      const { value, description } = req.body;
+      
+      if (!value) {
+        return res.status(400).json({ message: "Valor es requerido" });
+      }
+      
+      const userId = req.user.claims.sub;
+      const config = await storage.upsertSystemConfig({
+        key,
+        value,
+        description: description || null,
+        updatedBy: userId,
+      });
+      
+      await createAuditLog(req, "update", "system_config", key, `Configuración actualizada: ${key} = ${value}`);
+      
+      res.json(config);
+    } catch (error: any) {
+      console.error("Error updating system configuration:", error);
+      res.status(400).json({ message: error.message || "Error al actualizar configuración del sistema" });
+    }
+  });
+
   // Property routes
   app.get("/api/properties", async (req, res) => {
     try {
@@ -3994,6 +4047,79 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Route to offer properties to leads (seller only)
+  app.post("/api/leads/:leadId/offer-property", isAuthenticated, requireRole(["seller", "master", "admin"]), async (req: any, res) => {
+    try {
+      const { leadId } = req.params;
+      const { propertyId } = req.body;
+      const userId = req.user.claims.sub;
+      
+      if (!propertyId) {
+        return res.status(400).json({ message: "ID de propiedad es requerido" });
+      }
+      
+      // Verificar que el lead existe
+      const lead = await storage.getLead(leadId);
+      if (!lead) {
+        return res.status(404).json({ message: "Lead no encontrado" });
+      }
+      
+      // Verificar que la propiedad existe
+      const property = await storage.getProperty(propertyId);
+      if (!property) {
+        return res.status(404).json({ message: "Propiedad no encontrada" });
+      }
+      
+      // Crear el registro de oferta de propiedad
+      const offer = await storage.createLeadPropertyOffer({
+        leadId,
+        propertyId,
+        offeredById: userId,
+      });
+      
+      await createAuditLog(req, "create", "lead_property_offer", offer.id, `Propiedad ${property.title} ofrecida a lead ${lead.firstName} ${lead.lastName}`);
+      
+      res.status(201).json({ 
+        message: "Propiedad ofrecida al lead exitosamente",
+        offer
+      });
+    } catch (error: any) {
+      console.error("Error offering property to lead:", error);
+      res.status(400).json({ message: error.message || "Error al ofrecer propiedad al lead" });
+    }
+  });
+
+  // Route to get properties offered to a lead
+  app.get("/api/leads/:leadId/offered-properties", isAuthenticated, requireRole(["seller", "master", "admin", "management"]), async (req, res) => {
+    try {
+      const { leadId } = req.params;
+      
+      const offers = await storage.getLeadPropertyOffers({ leadId });
+      
+      // Enrich with property details
+      const enrichedOffers = await Promise.all(
+        offers.map(async (offer) => {
+          const property = await storage.getProperty(offer.propertyId);
+          const offeredBy = await storage.getUser(offer.offeredById);
+          return {
+            ...offer,
+            property,
+            offeredBy: offeredBy ? { 
+              id: offeredBy.id, 
+              firstName: offeredBy.firstName, 
+              lastName: offeredBy.lastName 
+            } : null
+          };
+        })
+      );
+      
+      res.json(enrichedOffers);
+    } catch (error) {
+      console.error("Error fetching offered properties:", error);
+      res.status(500).json({ message: "Error al obtener propiedades ofrecidas" });
+    }
+  });
+
   // Appointment routes
   app.get("/api/appointments", isAuthenticated, async (req, res) => {
     try {
@@ -5920,6 +6046,25 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ message: "One or more participants not found" });
       }
       
+      // Chat restriction 0: Sellers can only chat with leads whose email is verified
+      if (conversationData.type === "lead") {
+        const sellerParticipants = validParticipants.filter(p => p!.role === "seller");
+        
+        if (sellerParticipants.length > 0 && conversationData.leadId) {
+          // Verify the lead's email is verified
+          const lead = await storage.getLead(conversationData.leadId);
+          if (!lead) {
+            return res.status(404).json({ message: "Lead no encontrado" });
+          }
+          
+          if (!lead.emailVerified) {
+            return res.status(403).json({ 
+              message: "No puedes chatear con este lead hasta que verifique su correo electrónico" 
+            });
+          }
+        }
+      }
+
       // Chat restriction 1: Owners can only chat with clients after rental completion
       if (conversationData.type === "rental") {
         const ownerParticipants = validParticipants.filter(p => p!.role === "owner");
