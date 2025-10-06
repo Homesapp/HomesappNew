@@ -65,6 +65,7 @@ import {
   insertAccountantAssignmentSchema,
   insertPayoutBatchSchema,
   insertIncomeTransactionSchema,
+  insertChangelogSchema,
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, and, inArray, desc } from "drizzle-orm";
@@ -7727,6 +7728,95 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error: any) {
       console.error("Error fetching income reports:", error);
       res.status(500).json({ message: "Failed to fetch income reports" });
+    }
+  });
+
+  // Changelog routes (Admin only)
+  app.get("/api/changelogs", isAuthenticated, requireFullAdmin, async (req, res) => {
+    try {
+      const changelogs = await storage.getAllChangelogs();
+      res.json(changelogs);
+    } catch (error: any) {
+      console.error("Error fetching changelogs:", error);
+      res.status(500).json({ message: "Failed to fetch changelogs" });
+    }
+  });
+
+  app.get("/api/changelogs/:id", isAuthenticated, requireFullAdmin, async (req, res) => {
+    try {
+      const changelog = await storage.getChangelog(req.params.id);
+      if (!changelog) {
+        return res.status(404).json({ message: "Changelog not found" });
+      }
+      res.json(changelog);
+    } catch (error: any) {
+      console.error("Error fetching changelog:", error);
+      res.status(500).json({ message: "Failed to fetch changelog" });
+    }
+  });
+
+  app.post("/api/changelogs", isAuthenticated, requireFullAdmin, async (req, res) => {
+    try {
+      const validationResult = insertChangelogSchema.safeParse(req.body);
+      if (!validationResult.success) {
+        return res.status(400).json({ 
+          message: "Invalid changelog data", 
+          errors: validationResult.error.errors 
+        });
+      }
+
+      const changelog = await storage.createChangelog(validationResult.data);
+
+      await logAuditAction(
+        req,
+        "create",
+        "changelog",
+        changelog.id,
+        `Created changelog: ${changelog.title}`
+      );
+
+      res.status(201).json(changelog);
+    } catch (error: any) {
+      console.error("Error creating changelog:", error);
+      res.status(500).json({ message: "Failed to create changelog" });
+    }
+  });
+
+  app.patch("/api/changelogs/:id", isAuthenticated, requireFullAdmin, async (req, res) => {
+    try {
+      const changelog = await storage.updateChangelog(req.params.id, req.body);
+
+      await logAuditAction(
+        req,
+        "update",
+        "changelog",
+        changelog.id,
+        `Updated changelog: ${changelog.title}`
+      );
+
+      res.json(changelog);
+    } catch (error: any) {
+      console.error("Error updating changelog:", error);
+      res.status(500).json({ message: "Failed to update changelog" });
+    }
+  });
+
+  app.delete("/api/changelogs/:id", isAuthenticated, requireFullAdmin, async (req, res) => {
+    try {
+      await storage.deleteChangelog(req.params.id);
+
+      await logAuditAction(
+        req,
+        "delete",
+        "changelog",
+        req.params.id,
+        "Deleted changelog"
+      );
+
+      res.json({ message: "Changelog deleted successfully" });
+    } catch (error: any) {
+      console.error("Error deleting changelog:", error);
+      res.status(500).json({ message: "Failed to delete changelog" });
     }
   });
 
