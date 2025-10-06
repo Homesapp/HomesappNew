@@ -106,8 +106,8 @@ export function AppSidebar({ userRole }: AppSidebarProps) {
     { titleKey: "sidebar.calendar", url: "/calendario", icon: Calendar, roles: ["master", "admin", "admin_jr"] },
     { titleKey: "sidebar.budgets", url: "/presupuestos", icon: FileText, roles: ["master", "admin", "admin_jr", "owner", "management", "provider"] },
     { titleKey: "sidebar.tasks", url: "/tareas", icon: ListTodo, roles: ["master", "admin", "admin_jr", "management", "concierge"] },
-    { titleKey: "sidebar.clients", url: "/clientes", icon: Users, roles: ["master", "admin", "admin_jr", "seller"] },
-    { titleKey: "sidebar.cards", url: "/presentation-cards", icon: ClipboardList, roles: ["master", "admin", "admin_jr", "seller", "cliente"] },
+    { titleKey: "sidebar.clients", url: "/clientes", icon: Users, roles: ["master", "admin", "admin_jr"] },
+    { titleKey: "sidebar.cards", url: "/presentation-cards", icon: ClipboardList, roles: ["master", "admin", "admin_jr", "cliente"] },
     { titleKey: "sidebar.incomeManagement", url: "/accountant/income", icon: DollarSign, roles: ["contador"] },
     { titleKey: "sidebar.contracts", url: "/contratos", icon: FileText, roles: ["cliente", "owner", "abogado"] },
   ];
@@ -115,7 +115,7 @@ export function AppSidebar({ userRole }: AppSidebarProps) {
   const adminItems = [
     { titleKey: "sidebar.adminDashboard", url: "/admin/dashboard", icon: Home, roles: ["master", "admin", "admin_jr"] },
     { titleKey: "sidebar.adminCalendar", url: "/admin/calendario", icon: Calendar, roles: ["master", "admin", "admin_jr"] },
-    { titleKey: "sidebar.backoffice", url: "/backoffice", icon: FolderKanban, roles: ["master", "admin", "admin_jr", "seller", "management", "concierge", "provider"] },
+    { titleKey: "sidebar.backoffice", url: "/backoffice", icon: FolderKanban, roles: ["master", "admin", "admin_jr", "management", "concierge", "provider"] },
     { titleKey: "sidebar.changeRequests", url: "/admin/change-requests", icon: FileEdit, roles: ["master", "admin", "admin_jr"] },
     { titleKey: "sidebar.inspectionReports", url: "/admin/inspection-reports", icon: ClipboardCheck, roles: ["master", "admin", "admin_jr"] },
     { titleKey: "sidebar.agreementTemplates", url: "/admin/agreement-templates", icon: FileText, roles: ["master", "admin"] },
