@@ -68,9 +68,22 @@ Preferred communication style: Simple, everyday language.
 - Forms use React Hook Form with Zod validation
 - Success state shows confirmation message with navigation back to home
 
+### Role Request System Enhancement (October 2025)
+- **Mandatory Contact Information**: Role request applications now require email and WhatsApp contact information
+  - Added `email` (VARCHAR 255, NOT NULL) and `whatsapp` (VARCHAR 20, NOT NULL) fields to role_requests table
+  - Added `yearsOfExperience` (INTEGER) field for structured experience data
+  - Enhanced form validation: email format validation, WhatsApp minimum 10 characters
+  - Admin UI displays contact information prominently in highlighted section for easy access
+  - Full validation on both frontend (Zod) and backend (insert schema)
+- **Structured Experience Data**: Years of experience stored separately from description
+  - Numeric field for years of experience (not embedded in text)
+  - Separate fields for experience description and additional information
+  - Admin review page displays years and description independently
+
 ### Bug Fixes
 - Fixed toggle-active endpoint for presentation cards to properly toggle state instead of always activating
 - Endpoint now checks existing state before toggling, preventing "card not found" errors
+- Fixed reviewedBy field in role requests to be optional (prevents foreign key errors for admin users)
 
 ## System Architecture
 
