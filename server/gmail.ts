@@ -48,20 +48,20 @@ export async function getUncachableGmailClient() {
 }
 
 function createEmailMessage(to: string, subject: string, htmlContent: string): string {
-  // Simple approach: use a subject without special characters for better compatibility
-  const simpleSubject = 'Codigo de verificacion - HomesApp';
+  // Encode subject using RFC 2047 MIME encoded-word format for UTF-8
+  const encodedSubject = `=?utf-8?B?${Buffer.from(subject).toString('base64')}?=`;
   
   const emailLines = [
-    `To: ${to}`,
     'From: HomesApp <me>',
-    'Content-Type: text/html; charset=utf-8',
+    `To: ${to}`,
+    'Content-Type: text/html; charset=UTF-8',
     'MIME-Version: 1.0',
-    `Subject: ${simpleSubject}`,
+    `Subject: ${encodedSubject}`,
     '',
     htmlContent
   ];
   
-  const email = emailLines.join('\r\n');
+  const email = emailLines.join('\n');
   return Buffer.from(email).toString('base64').replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
 }
 
