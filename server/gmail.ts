@@ -73,20 +73,20 @@ export async function sendVerificationEmail(to: string, verificationCode: string
     const htmlContent = `
       <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
         <h2 style="color: #1e293b;">Bienvenido a HomesApp</h2>
-        <p>Gracias por registrarte en nuestra plataforma de gestión inmobiliaria.</p>
-        <p>Tu código de verificación es:</p>
+        <p>Gracias por registrarte en nuestra plataforma de gestion inmobiliaria.</p>
+        <p>Tu codigo de verificacion es:</p>
         <div style="text-align: center; margin: 30px 0;">
           <div style="background-color: #f1f5f9; padding: 20px; border-radius: 8px; display: inline-block;">
             <span style="font-size: 32px; font-weight: bold; letter-spacing: 8px; color: #1e293b;">${verificationCode}</span>
           </div>
         </div>
-        <p>Ingresa este código en la página de verificación para activar tu cuenta.</p>
-        <p style="color: #64748b; font-size: 14px; margin-top: 30px;">Este código expirará en 15 minutos.</p>
+        <p>Ingresa este codigo en la pagina de verificacion para activar tu cuenta.</p>
+        <p style="color: #64748b; font-size: 14px; margin-top: 30px;">Este codigo expirara en 15 minutos.</p>
         <p style="color: #94a3b8; font-size: 12px; margin-top: 30px;">Si no creaste esta cuenta, puedes ignorar este email.</p>
       </div>
     `;
     
-    const encodedMessage = createEmailMessage(to, 'Código de verificación - HomesApp', htmlContent);
+    const encodedMessage = createEmailMessage(to, 'Codigo de verificacion - HomesApp', htmlContent);
     
     const result = await gmail.users.messages.send({
       userId: 'me',
