@@ -5,7 +5,7 @@ import { parse as parseCookie } from "cookie";
 import { storage } from "./storage";
 import { setupAuth, isAuthenticated, requireRole, getSession } from "./replitAuth";
 import { createGoogleMeetEvent, deleteGoogleMeetEvent } from "./googleCalendar";
-import { sendVerificationEmail, sendLeadVerificationEmail, sendDuplicateLeadNotification } from "./resend";
+import { sendVerificationEmail, sendLeadVerificationEmail, sendDuplicateLeadNotification, sendOwnerReferralVerificationEmail, sendOwnerReferralApprovedNotification } from "./resend";
 import { processChatbotMessage, generatePropertyRecommendations } from "./chatbot";
 import { authLimiter, registrationLimiter, emailVerificationLimiter, chatbotLimiter } from "./rateLimiters";
 import { sanitizeText, sanitizeHtml, sanitizeObject } from "./sanitize";
@@ -4093,6 +4093,59 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Owner referral email verification route (public)
+  app.get("/api/verify-owner-referral/:token", emailVerificationLimiter, async (req: any, res) => {
+    try {
+      const { token } = req.params;
+      
+      if (!token) {
+        return res.status(400).json({ message: "Token es requerido" });
+      }
+      
+      // Buscar el referido por token
+      const referral = await storage.getOwnerReferralByVerificationToken(token);
+      if (!referral) {
+        return res.status(404).json({ message: "Token de verificación inválido o expirado" });
+      }
+      
+      // Verificar si ya está verificado
+      if (referral.emailVerified) {
+        return res.status(200).json({ 
+          message: "El email ya fue verificado anteriormente",
+          alreadyVerified: true,
+          referral: {
+            id: referral.id,
+            firstName: referral.firstName,
+            lastName: referral.lastName,
+            propertyAddress: referral.propertyAddress
+          }
+        });
+      }
+      
+      // Verificar que no haya expirado
+      if (referral.verificationTokenExpiry && new Date() > referral.verificationTokenExpiry) {
+        return res.status(400).json({ message: "El token ha expirado" });
+      }
+      
+      // Marcar el email del referido como verificado
+      const updatedReferral = await storage.verifyOwnerReferralEmail(referral.id);
+      
+      res.json({ 
+        message: "Email verificado exitosamente. Un administrador revisará tu solicitud pronto.",
+        success: true,
+        referral: {
+          id: updatedReferral.id,
+          firstName: updatedReferral.firstName,
+          lastName: updatedReferral.lastName,
+          propertyAddress: updatedReferral.propertyAddress
+        }
+      });
+    } catch (error) {
+      console.error("Error verifying owner referral email:", error);
+      res.status(500).json({ message: "Error al verificar el email" });
+    }
+  });
+
   // Route to offer properties to leads (seller only)
   app.post("/api/leads/:leadId/offer-property", isAuthenticated, requireRole(["seller", "master", "admin"]), async (req: any, res) => {
     try {
@@ -4190,6 +4243,195 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Error fetching offered properties:", error);
       res.status(500).json({ message: "Error al obtener propiedades ofrecidas" });
+    }
+  });
+
+  // Owner Referral routes
+  
+  // POST /api/owner-referrals - Create new owner referral (sellers only)
+  app.post("/api/owner-referrals", isAuthenticated, requireRole(["seller"]), async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const currentUser = await storage.getUser(userId);
+      
+      if (!currentUser) {
+        return res.status(404).json({ message: "Usuario no encontrado" });
+      }
+      
+      const referralData = {
+        ...req.body,
+        referrerId: userId,
+        commissionPercent: req.body.commissionPercent || "20.00",
+      };
+      
+      // Generate verification token
+      const verificationToken = crypto.randomUUID();
+      const verificationTokenExpiry = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000); // 7 days
+      
+      const ownerReferral = await storage.createOwnerReferral({
+        ...referralData,
+        verificationToken,
+        verificationTokenExpiry,
+      });
+      
+      // Send verification email to owner
+      const verificationLink = `${process.env.REPLIT_DEV_DOMAIN || 'http://localhost:5000'}/verify-owner-referral/${verificationToken}`;
+      const sellerName = `${currentUser.firstName || ''} ${currentUser.lastName || ''}`.trim();
+      
+      await sendOwnerReferralVerificationEmail(
+        ownerReferral.email,
+        ownerReferral.firstName,
+        sellerName,
+        ownerReferral.propertyAddress || 'Propiedad referida',
+        verificationLink
+      );
+      
+      await createAuditLog(req, "create", "owner_referral", ownerReferral.id, `Referido de propietario creado: ${ownerReferral.firstName} ${ownerReferral.lastName}`);
+      
+      res.status(201).json({ 
+        message: "Referido de propietario creado. Se ha enviado un email de verificación al propietario.",
+        ownerReferral 
+      });
+    } catch (error: any) {
+      console.error("Error creating owner referral:", error);
+      res.status(400).json({ message: error.message || "Error al crear referido de propietario" });
+    }
+  });
+  
+  // GET /api/owner-referrals - Get owner referrals
+  app.get("/api/owner-referrals", isAuthenticated, requireRole(["seller", "master", "admin", "admin_jr"]), async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const currentUser = await storage.getUser(userId);
+      
+      if (!currentUser) {
+        return res.status(404).json({ message: "Usuario no encontrado" });
+      }
+      
+      let referrals;
+      
+      if (currentUser.role === "seller") {
+        // Sellers can only see their own referrals
+        referrals = await storage.getOwnerReferrals({ referrerId: userId });
+      } else {
+        // Admins can see all referrals
+        const filters: any = {};
+        if (req.query.status) {
+          filters.status = req.query.status;
+        }
+        if (req.query.referrerId) {
+          filters.referrerId = req.query.referrerId;
+        }
+        referrals = await storage.getOwnerReferrals(filters);
+      }
+      
+      res.json(referrals);
+    } catch (error) {
+      console.error("Error fetching owner referrals:", error);
+      res.status(500).json({ message: "Error al obtener referidos de propietarios" });
+    }
+  });
+  
+  // GET /api/owner-referrals/:id - Get specific owner referral
+  app.get("/api/owner-referrals/:id", isAuthenticated, requireRole(["seller", "master", "admin", "admin_jr"]), async (req: any, res) => {
+    try {
+      const { id } = req.params;
+      const userId = req.user.claims.sub;
+      const currentUser = await storage.getUser(userId);
+      
+      if (!currentUser) {
+        return res.status(404).json({ message: "Usuario no encontrado" });
+      }
+      
+      const referral = await storage.getOwnerReferral(id);
+      
+      if (!referral) {
+        return res.status(404).json({ message: "Referido no encontrado" });
+      }
+      
+      // Sellers can only see their own referrals
+      if (currentUser.role === "seller" && referral.referrerId !== userId) {
+        return res.status(403).json({ message: "No tienes permiso para ver este referido" });
+      }
+      
+      res.json(referral);
+    } catch (error) {
+      console.error("Error fetching owner referral:", error);
+      res.status(500).json({ message: "Error al obtener referido de propietario" });
+    }
+  });
+  
+  // PATCH /api/owner-referrals/:id/approve - Approve owner referral (admin only)
+  app.patch("/api/owner-referrals/:id/approve", isAuthenticated, requireRole(["master", "admin"]), async (req: any, res) => {
+    try {
+      const { id } = req.params;
+      const { commissionAmount } = req.body;
+      const userId = req.user.claims.sub;
+      
+      const referral = await storage.getOwnerReferral(id);
+      
+      if (!referral) {
+        return res.status(404).json({ message: "Referido no encontrado" });
+      }
+      
+      if (!referral.emailVerified) {
+        return res.status(400).json({ message: "El email del propietario debe ser verificado antes de aprobar" });
+      }
+      
+      const updatedReferral = await storage.approveOwnerReferralByAdmin(id, userId, commissionAmount);
+      
+      // Send notification to seller
+      const seller = await storage.getUser(referral.referrerId);
+      if (seller && seller.email) {
+        await sendOwnerReferralApprovedNotification(
+          seller.email,
+          `${seller.firstName || ''} ${seller.lastName || ''}`.trim(),
+          `${referral.firstName} ${referral.lastName}`,
+          referral.propertyAddress || 'Propiedad referida',
+          commissionAmount || referral.commissionAmount || '0.00'
+        );
+      }
+      
+      await createAuditLog(req, "update", "owner_referral", id, `Referido de propietario aprobado con comisión de $${commissionAmount || referral.commissionAmount}`);
+      
+      res.json({ 
+        message: "Referido aprobado exitosamente. Se ha notificado al vendedor.",
+        ownerReferral: updatedReferral 
+      });
+    } catch (error: any) {
+      console.error("Error approving owner referral:", error);
+      res.status(400).json({ message: error.message || "Error al aprobar referido" });
+    }
+  });
+  
+  // PATCH /api/owner-referrals/:id/reject - Reject owner referral (admin only)
+  app.patch("/api/owner-referrals/:id/reject", isAuthenticated, requireRole(["master", "admin"]), async (req: any, res) => {
+    try {
+      const { id } = req.params;
+      const { rejectionReason } = req.body;
+      const userId = req.user.claims.sub;
+      
+      if (!rejectionReason) {
+        return res.status(400).json({ message: "Se requiere una razón de rechazo" });
+      }
+      
+      const referral = await storage.getOwnerReferral(id);
+      
+      if (!referral) {
+        return res.status(404).json({ message: "Referido no encontrado" });
+      }
+      
+      const updatedReferral = await storage.rejectOwnerReferralByAdmin(id, userId, rejectionReason);
+      
+      await createAuditLog(req, "update", "owner_referral", id, `Referido de propietario rechazado: ${rejectionReason}`);
+      
+      res.json({ 
+        message: "Referido rechazado exitosamente",
+        ownerReferral: updatedReferral 
+      });
+    } catch (error: any) {
+      console.error("Error rejecting owner referral:", error);
+      res.status(400).json({ message: error.message || "Error al rechazar referido" });
     }
   });
 

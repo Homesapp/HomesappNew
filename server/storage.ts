@@ -325,10 +325,14 @@ export interface IStorage {
   
   // Owner Referral operations
   getOwnerReferral(id: string): Promise<OwnerReferral | undefined>;
-  getOwnerReferrals(filters?: { referrerId?: string; status?: string }): Promise<OwnerReferral[]>;
+  getOwnerReferrals(filters?: { referrerId?: string; status?: string; sellerView?: string }): Promise<OwnerReferral[]>;
   createOwnerReferral(referral: InsertOwnerReferral): Promise<OwnerReferral>;
   updateOwnerReferral(id: string, updates: Partial<InsertOwnerReferral>): Promise<OwnerReferral>;
   updateOwnerReferralStatus(id: string, status: string): Promise<OwnerReferral>;
+  getOwnerReferralByVerificationToken(token: string): Promise<OwnerReferral | undefined>;
+  verifyOwnerReferralEmail(id: string): Promise<OwnerReferral>;
+  approveOwnerReferralByAdmin(id: string, adminId: string, commissionAmount?: string): Promise<OwnerReferral>;
+  rejectOwnerReferralByAdmin(id: string, adminId: string, rejectionReason: string): Promise<OwnerReferral>;
   
   // Offer operations
   getOffer(id: string): Promise<Offer | undefined>;
@@ -1734,6 +1738,64 @@ export class DatabaseStorage implements IStorage {
     const [referral] = await db
       .update(ownerReferrals)
       .set({ status: status as any, updatedAt: new Date() })
+      .where(eq(ownerReferrals.id, id))
+      .returning();
+    return referral;
+  }
+
+  async getOwnerReferralByVerificationToken(token: string): Promise<OwnerReferral | undefined> {
+    const [referral] = await db
+      .select()
+      .from(ownerReferrals)
+      .where(eq(ownerReferrals.verificationToken, token));
+    return referral;
+  }
+
+  async verifyOwnerReferralEmail(id: string): Promise<OwnerReferral> {
+    const [referral] = await db
+      .update(ownerReferrals)
+      .set({
+        emailVerified: true,
+        verificationToken: null,
+        verificationTokenExpiry: null,
+        status: 'confirmado' as any,
+        updatedAt: new Date()
+      })
+      .where(eq(ownerReferrals.id, id))
+      .returning();
+    return referral;
+  }
+
+  async approveOwnerReferralByAdmin(id: string, adminId: string, commissionAmount?: string): Promise<OwnerReferral> {
+    const updates: any = {
+      status: 'aprobado' as any,
+      adminApprovedById: adminId,
+      adminApprovedAt: new Date(),
+      updatedAt: new Date()
+    };
+    
+    if (commissionAmount) {
+      updates.commissionAmount = commissionAmount;
+    }
+    
+    const [referral] = await db
+      .update(ownerReferrals)
+      .set(updates)
+      .where(eq(ownerReferrals.id, id))
+      .returning();
+    return referral;
+  }
+
+  async rejectOwnerReferralByAdmin(id: string, adminId: string, rejectionReason: string): Promise<OwnerReferral> {
+    const [referral] = await db
+      .update(ownerReferrals)
+      .set({
+        status: 'rechazado' as any,
+        rejectedById: adminId,
+        rejectedAt: new Date(),
+        rejectionReason,
+        updatedAt: new Date()
+      })
       .where(eq(ownerReferrals.id, id))
       .returning();
     return referral;
