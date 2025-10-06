@@ -1,17 +1,26 @@
+import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
+import { useQuery } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
-import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
+import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage, FormDescription } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
-import { ChevronLeft, ChevronRight } from "lucide-react";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { ChevronLeft, ChevronRight, Plus } from "lucide-react";
+import { SuggestColonyDialog } from "@/components/SuggestColonyDialog";
+import { SuggestCondominiumDialog } from "@/components/SuggestCondominiumDialog";
+import { useLanguage } from "@/contexts/LanguageContext";
+import type { Colony, Condominium } from "@shared/schema";
 
 const locationSchema = z.object({
   address: z.string().min(5, "La dirección debe tener al menos 5 caracteres"),
   city: z.string().min(2, "La ciudad es requerida"),
   state: z.string().min(2, "El estado es requerido"),
   zipCode: z.string().min(4, "El código postal debe tener al menos 4 caracteres"),
-  neighborhood: z.string().optional(),
+  colonyId: z.string().optional(),
+  condominiumId: z.string().optional(),
+  unitNumber: z.string().optional(),
   googleMapsUrl: z.string().url("Debe ser una URL válida").optional().or(z.literal("")),
   latitude: z.string().optional(),
   longitude: z.string().optional(),
@@ -27,6 +36,20 @@ type Step3Props = {
 };
 
 export default function Step3Location({ data, onUpdate, onNext, onPrevious }: Step3Props) {
+  const { t } = useLanguage();
+  const [showColonyDialog, setShowColonyDialog] = useState(false);
+  const [showCondoDialog, setShowCondoDialog] = useState(false);
+
+  // Fetch approved colonies
+  const { data: colonies = [] } = useQuery<Colony[]>({
+    queryKey: ["/api/colonies/approved"],
+  });
+
+  // Fetch approved condominiums
+  const { data: condominiums = [] } = useQuery<Condominium[]>({
+    queryKey: ["/api/condominiums/approved"],
+  });
+
   const form = useForm<LocationForm>({
     resolver: zodResolver(locationSchema),
     defaultValues: {
@@ -34,7 +57,9 @@ export default function Step3Location({ data, onUpdate, onNext, onPrevious }: St
       city: data.locationInfo?.city || "",
       state: data.locationInfo?.state || "",
       zipCode: data.locationInfo?.zipCode || "",
-      neighborhood: data.locationInfo?.neighborhood || "",
+      colonyId: data.locationInfo?.colonyId || "",
+      condominiumId: data.locationInfo?.condominiumId || "",
+      unitNumber: data.locationInfo?.unitNumber || "",
       googleMapsUrl: data.locationInfo?.googleMapsUrl || "",
       latitude: data.locationInfo?.latitude || "",
       longitude: data.locationInfo?.longitude || "",
@@ -114,43 +139,142 @@ export default function Step3Location({ data, onUpdate, onNext, onPrevious }: St
             />
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <FormField
-              control={form.control}
-              name="zipCode"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Código Postal</FormLabel>
-                  <FormControl>
-                    <Input
-                      placeholder="Ej: 12345"
-                      {...field}
-                      data-testid="input-zipcode"
-                    />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
+          <FormField
+            control={form.control}
+            name="zipCode"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Código Postal</FormLabel>
+                <FormControl>
+                  <Input
+                    placeholder="Ej: 12345"
+                    {...field}
+                    data-testid="input-zipcode"
+                  />
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
 
-            <FormField
-              control={form.control}
-              name="neighborhood"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Colonia (Opcional)</FormLabel>
-                  <FormControl>
-                    <Input
-                      placeholder="Ej: Centro"
-                      {...field}
-                      data-testid="input-neighborhood"
-                    />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-          </div>
+          <FormField
+            control={form.control}
+            name="colonyId"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>{t("public.filterColony")} (Opcional)</FormLabel>
+                <div className="flex gap-2">
+                  <Select
+                    value={field.value || ""}
+                    onValueChange={field.onChange}
+                  >
+                    <FormControl>
+                      <SelectTrigger data-testid="select-colony">
+                        <SelectValue placeholder={t("public.filterColonyPlaceholder")} />
+                      </SelectTrigger>
+                    </FormControl>
+                    <SelectContent>
+                      <SelectItem value="" data-testid="option-no-colony">
+                        {t("public.filterAllColonies")}
+                      </SelectItem>
+                      {colonies.map((colony) => (
+                        <SelectItem
+                          key={colony.id}
+                          value={colony.id}
+                          data-testid={`option-colony-${colony.id}`}
+                        >
+                          {colony.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="icon"
+                    onClick={() => setShowColonyDialog(true)}
+                    data-testid="button-suggest-colony"
+                  >
+                    <Plus className="w-4 h-4" />
+                  </Button>
+                </div>
+                <FormDescription>
+                  {t("suggestion.notFound")} {t("suggestion.suggestButton")}
+                </FormDescription>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+
+          <FormField
+            control={form.control}
+            name="condominiumId"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>{t("public.filterCondo")} (Opcional)</FormLabel>
+                <div className="flex gap-2">
+                  <Select
+                    value={field.value || ""}
+                    onValueChange={field.onChange}
+                  >
+                    <FormControl>
+                      <SelectTrigger data-testid="select-condominium">
+                        <SelectValue placeholder={t("public.filterCondoPlaceholder")} />
+                      </SelectTrigger>
+                    </FormControl>
+                    <SelectContent>
+                      <SelectItem value="" data-testid="option-no-condo">
+                        {t("public.filterAllCondos")}
+                      </SelectItem>
+                      {condominiums.map((condo) => (
+                        <SelectItem
+                          key={condo.id}
+                          value={condo.id}
+                          data-testid={`option-condo-${condo.id}`}
+                        >
+                          {condo.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="icon"
+                    onClick={() => setShowCondoDialog(true)}
+                    data-testid="button-suggest-condominium"
+                  >
+                    <Plus className="w-4 h-4" />
+                  </Button>
+                </div>
+                <FormDescription>
+                  {t("suggestion.notFound")} {t("suggestion.suggestButton")}
+                </FormDescription>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+
+          <FormField
+            control={form.control}
+            name="unitNumber"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Número de Unidad (Opcional)</FormLabel>
+                <FormControl>
+                  <Input
+                    placeholder="Ej: 101, A-5..."
+                    {...field}
+                    data-testid="input-unit-number"
+                  />
+                </FormControl>
+                <FormDescription>
+                  Si la propiedad está en un condominio, especifica el número de unidad
+                </FormDescription>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
 
           <FormField
             control={form.control}
@@ -187,6 +311,15 @@ export default function Step3Location({ data, onUpdate, onNext, onPrevious }: St
           </div>
         </form>
       </Form>
+
+      <SuggestColonyDialog
+        open={showColonyDialog}
+        onOpenChange={setShowColonyDialog}
+      />
+      <SuggestCondominiumDialog
+        open={showCondoDialog}
+        onOpenChange={setShowCondoDialog}
+      />
     </div>
   );
 }
