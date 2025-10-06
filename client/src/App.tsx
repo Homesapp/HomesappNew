@@ -58,6 +58,7 @@ import OwnerDashboard from "@/pages/OwnerDashboard";
 import AdminDashboard from "@/pages/AdminDashboard";
 import AdminProfile from "@/pages/AdminProfile";
 import ClientDashboard from "@/pages/ClientDashboard";
+import Changelog from "@/pages/Changelog";
 import Notifications from "@/pages/Notifications";
 import Chat from "@/pages/Chat";
 import Profile from "@/pages/Profile";
@@ -214,6 +215,7 @@ function AuthenticatedApp() {
               <Route path="/admin/chatbot-config" component={AdminChatbotConfig} />
               <Route path="/admin/create-user" component={CreateUser} />
               <Route path="/admin/income" component={AdminIncome} />
+              <Route path="/admin/changelog" component={Changelog} />
               <Route path="/accountant/income" component={AccountantIncome} />
               <Route path="/mis-ingresos" component={MyIncome} />
               <Route path="/leads" component={LeadsKanban} />
