@@ -20,10 +20,10 @@ import {
 } from "@/components/ui/carousel";
 import Autoplay from "embla-carousel-autoplay";
 import logoIcon from "@assets/H mes (500 x 300 px)_1759672952263.png";
-import tulumProperty1 from "@assets/stock_images/tulum_mexico_luxury__2d50d3ea.jpg";
+import tulumProperty1 from "@assets/stock_images/professional_propert_60662322.jpg";
 import tulumBeach from "@assets/stock_images/tulum_mexico_beach_t_21c511ca.jpg";
-import serviceProvider from "@assets/stock_images/professional_service_ac32cdb7.jpg";
-import affiliateImage from "@assets/stock_images/professional_service_dabc3389.jpg";
+import serviceProvider from "@assets/stock_images/professional_service_1ed9483b.jpg";
+import affiliateImage from "@assets/stock_images/real_estate_agent_re_8e083057.jpg";
 
 export default function PublicDashboard() {
   const [, setLocation] = useLocation();
