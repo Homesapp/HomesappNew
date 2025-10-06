@@ -227,22 +227,6 @@ export const isAuthenticated: RequestHandler = async (req: any, res, next) => {
 
   const now = Math.floor(Date.now() / 1000);
   if (now <= user.expires_at) {
-    // Verify that the Replit Auth user exists in the database
-    try {
-      const userId = user.claims?.sub;
-      if (userId) {
-        const dbUser = await storage.getUser(userId);
-        if (!dbUser) {
-          // User is authenticated but doesn't exist in database - this shouldn't normally happen
-          // but can occur if the user was deleted or never properly created
-          console.warn(`Authenticated user ${userId} not found in database - rejecting`);
-          return res.status(401).json({ message: "Unauthorized: user not found" });
-        }
-      }
-    } catch (error) {
-      console.error("Error verifying user existence:", error);
-      // Continue anyway to avoid breaking existing functionality
-    }
     return next();
   }
 

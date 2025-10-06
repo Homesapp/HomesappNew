@@ -132,15 +132,15 @@ export default function PublicDashboard() {
         
         {/* Hero Content */}
         <div className="relative z-10 flex h-full flex-col items-center justify-center px-4 text-center">
-          <h1 className="mb-4 max-w-4xl animate-fadeIn text-4xl font-bold tracking-tight text-white sm:text-5xl md:text-6xl lg:text-7xl">
+          <h1 className="mb-4 max-w-4xl text-4xl font-bold tracking-tight text-white sm:text-5xl md:text-6xl lg:text-7xl">
             {t("public.hero.title")}
           </h1>
-          <p className="mb-8 max-w-2xl animate-fadeIn text-lg text-white/90 sm:text-xl md:text-2xl" style={{animationDelay: '200ms'}}>
+          <p className="mb-8 max-w-2xl text-lg text-white/90 sm:text-xl md:text-2xl">
             {t("public.hero.subtitle")}
           </p>
           
           {/* Search Bar - Glassmorphism */}
-          <div className="w-full max-w-4xl animate-slideInUp" style={{animationDelay: '400ms'}}>
+          <div className="w-full max-w-4xl">
             <div className="backdrop-blur-xl bg-white/10 border border-white/20 rounded-2xl p-3 shadow-2xl">
               <div className="flex flex-col sm:flex-row gap-2">
                 <div className="relative flex-1">
@@ -183,7 +183,7 @@ export default function PublicDashboard() {
       <div className="container mx-auto px-4 py-8 sm:py-12">
         {/* Advanced Filters */}
         {showFilters && (
-          <div className="mb-8 p-6 bg-card border rounded-lg shadow-sm animate-slideInUp">
+          <div className="mb-8 p-6 bg-card border rounded-lg shadow-sm">
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               <div className="space-y-2">
                     <label className="text-sm font-medium">{t("public.filterPropertyType")}</label>
@@ -309,7 +309,7 @@ export default function PublicDashboard() {
 
         {/* Featured Properties */}
         {featuredProperties.length > 0 && (
-          <div className="mb-10 animate-fadeIn">
+          <div className="mb-10">
             <div className="mb-6 flex items-center justify-between">
               <h2 className="text-3xl font-bold">{t("public.featured.title")}</h2>
               <Button
@@ -389,7 +389,7 @@ export default function PublicDashboard() {
         )}
 
         {/* Promotional Banners Carousel */}
-        <div className="mb-8 animate-fadeIn" style={{animationDelay: '200ms'}}>
+        <div className="mb-8">
           <Carousel
             opts={{
               align: "start",
