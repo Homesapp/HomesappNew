@@ -4098,6 +4098,23 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       await createAuditLog(req, "create", "lead", lead.id, `Lead creado: ${lead.firstName} ${lead.lastName}`);
       
+      // Calculate lead score automatically
+      try {
+        await storage.calculateLeadScore(lead.id);
+        
+        // Create workflow event
+        await storage.createWorkflowEvent({
+          eventType: "lead_created",
+          entityType: "lead",
+          entityId: lead.id,
+          userId: userId,
+          metadata: { firstName: lead.firstName, lastName: lead.lastName, source: lead.source },
+        });
+      } catch (scoringError) {
+        console.error("Error calculating lead score:", scoringError);
+        // Don't fail lead creation if scoring fails
+      }
+      
       res.status(201).json(lead);
     } catch (error: any) {
       console.error("Error creating lead:", error);
@@ -4129,6 +4146,22 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const updatedLead = await storage.updateLead(id, updates);
       
       await createAuditLog(req, "update", "lead", id, `Lead actualizado: ${updatedLead.firstName} ${updatedLead.lastName}`);
+      
+      // Recalculate lead score after update
+      try {
+        await storage.calculateLeadScore(id);
+        
+        // Create workflow event
+        await storage.createWorkflowEvent({
+          eventType: "lead_updated",
+          entityType: "lead",
+          entityId: id,
+          userId: userId,
+          metadata: { updates: Object.keys(updates) },
+        });
+      } catch (scoringError) {
+        console.error("Error recalculating lead score:", scoringError);
+      }
       
       res.json(updatedLead);
     } catch (error: any) {
@@ -4165,6 +4198,35 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const updatedLead = await storage.updateLeadStatus(id, status);
       
       await createAuditLog(req, "update", "lead", id, `Estado de lead actualizado a: ${status}`);
+      
+      // Recalculate lead score after status change
+      try {
+        await storage.calculateLeadScore(id);
+        
+        // Create workflow event for status change
+        await storage.createWorkflowEvent({
+          eventType: "lead_status_changed",
+          entityType: "lead",
+          entityId: id,
+          userId: userId,
+          metadata: { newStatus: status, previousStatus: existingLead.status },
+        });
+        
+        // Check if we need to create alerts based on status change
+        if (status === "perdido") {
+          await storage.createSystemAlert({
+            userId: existingLead.registeredById,
+            alertType: "lead_lost",
+            priority: "medium",
+            title: "Lead perdido",
+            message: `El lead ${updatedLead.firstName} ${updatedLead.lastName} ha sido marcado como perdido`,
+            relatedEntityType: "lead",
+            relatedEntityId: id,
+          });
+        }
+      } catch (error) {
+        console.error("Error in lead status change automation:", error);
+      }
       
       res.json(updatedLead);
     } catch (error: any) {
@@ -6254,6 +6316,22 @@ export async function registerRoutes(app: Express): Promise<Server> {
         `Contrato de renta creado - Estado: ${contract.status}, Renta: $${monthlyRent}`
       );
 
+      // Calculate rental health score automatically
+      try {
+        await storage.calculateRentalHealthScore(contract.id);
+        
+        // Create workflow event
+        await storage.createWorkflowEvent({
+          eventType: "contract_created",
+          entityType: "contract",
+          entityId: contract.id,
+          userId: req.user.claims.sub,
+          metadata: { propertyId, status: contract.status, monthlyRent: monthlyRent.toString() },
+        });
+      } catch (error) {
+        console.error("Error in contract creation automation:", error);
+      }
+
       res.status(201).json(contract);
     } catch (error) {
       console.error("Error creating rental contract:", error);
@@ -6273,6 +6351,22 @@ export async function registerRoutes(app: Express): Promise<Server> {
         id,
         `Contrato de renta actualizado - Estado: ${contract.status}`
       );
+
+      // Recalculate rental health score
+      try {
+        await storage.calculateRentalHealthScore(id);
+        
+        // Create workflow event
+        await storage.createWorkflowEvent({
+          eventType: "contract_updated",
+          entityType: "contract",
+          entityId: id,
+          userId: req.user.claims.sub,
+          metadata: { updates: Object.keys(req.body) },
+        });
+      } catch (error) {
+        console.error("Error in contract update automation:", error);
+      }
 
       res.json(contract);
     } catch (error) {
@@ -6311,6 +6405,48 @@ export async function registerRoutes(app: Express): Promise<Server> {
         id,
         `Estado de contrato cambiado a: ${status}`
       );
+
+      // Recalculate rental health score and create alerts
+      try {
+        const healthScore = await storage.calculateRentalHealthScore(id);
+        
+        // Create workflow event
+        await storage.createWorkflowEvent({
+          eventType: "contract_status_changed",
+          entityType: "contract",
+          entityId: id,
+          userId: req.user.claims.sub,
+          metadata: { newStatus: status },
+        });
+
+        // Create alerts based on health score
+        if (healthScore.status === "critical" || healthScore.status === "poor") {
+          await storage.createSystemAlert({
+            userId: req.user.claims.sub,
+            alertType: "rental_health_low",
+            priority: healthScore.status === "critical" ? "high" : "medium",
+            title: `Salud de Contrato ${healthScore.status === "critical" ? "Crítica" : "Baja"}`,
+            message: `El contrato de renta requiere atención: score ${healthScore.score}/100`,
+            relatedEntityType: "contract",
+            relatedEntityId: id,
+          });
+        }
+
+        // Alert for contracts near expiry
+        if (healthScore.isNearExpiry && status === "check_in") {
+          await storage.createSystemAlert({
+            userId: req.user.claims.sub,
+            alertType: "contract_expiring_soon",
+            priority: "high",
+            title: "Contrato próximo a vencer",
+            message: `El contrato de renta vence pronto. Considerar renovación.`,
+            relatedEntityType: "contract",
+            relatedEntityId: id,
+          });
+        }
+      } catch (error) {
+        console.error("Error in contract status automation:", error);
+      }
 
       res.json(contract);
     } catch (error) {

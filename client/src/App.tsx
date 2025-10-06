@@ -73,6 +73,8 @@ import AccountantIncome from "@/pages/AccountantIncome";
 import AdminIncome from "@/pages/AdminIncome";
 import MyIncome from "@/pages/MyIncome";
 import Permissions from "@/pages/Permissions";
+import AdminSLAConfig from "@/pages/AdminSLAConfig";
+import AdminLeadScoring from "@/pages/AdminLeadScoring";
 import Contracts from "@/pages/Contracts";
 import RoleRequests from "@/pages/RoleRequests";
 import Terms from "@/pages/Terms";
@@ -241,6 +243,8 @@ function AuthenticatedApp() {
               <Route path="/feedback" component={Feedback} />
               <Route path="/admin/feedback" component={AdminFeedback} />
               <Route path="/admin/role-requests" component={RoleRequests} />
+              <Route path="/admin/sla-config" component={AdminSLAConfig} />
+              <Route path="/admin/lead-scoring" component={AdminLeadScoring} />
               <Route path="/permissions" component={Permissions} />
               <Route path="/contratos" component={Contracts} />
               <Route path="/ayuda" component={Help} />
