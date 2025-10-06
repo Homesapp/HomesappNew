@@ -175,10 +175,12 @@ export interface IStorage {
   
   // Colony operations
   getColony(id: string): Promise<Colony | undefined>;
-  getColonies(filters?: { active?: boolean }): Promise<Colony[]>;
+  getColonies(filters?: { active?: boolean; approvalStatus?: string }): Promise<Colony[]>;
   getActiveColonies(): Promise<Colony[]>;
+  getApprovedColonies(): Promise<Colony[]>;
   createColony(colony: InsertColony): Promise<Colony>;
   updateColony(id: string, updates: Partial<InsertColony>): Promise<Colony>;
+  updateColonyStatus(id: string, approvalStatus: string): Promise<Colony>;
   deleteColony(id: string): Promise<void>;
   
   // Condominium operations
@@ -673,11 +675,19 @@ export class DatabaseStorage implements IStorage {
     return colony;
   }
 
-  async getColonies(filters?: { active?: boolean }): Promise<Colony[]> {
+  async getColonies(filters?: { active?: boolean; approvalStatus?: string }): Promise<Colony[]> {
     let query = db.select().from(colonies);
+    const conditions = [];
     
     if (filters?.active !== undefined) {
-      query = query.where(eq(colonies.active, filters.active)) as any;
+      conditions.push(eq(colonies.active, filters.active));
+    }
+    if (filters?.approvalStatus) {
+      conditions.push(eq(colonies.approvalStatus, filters.approvalStatus as any));
+    }
+
+    if (conditions.length > 0) {
+      query = query.where(and(...conditions)) as any;
     }
 
     return await query.orderBy(colonies.name);
@@ -691,6 +701,14 @@ export class DatabaseStorage implements IStorage {
       .orderBy(colonies.name);
   }
 
+  async getApprovedColonies(): Promise<Colony[]> {
+    return await db
+      .select()
+      .from(colonies)
+      .where(eq(colonies.approvalStatus, "approved"))
+      .orderBy(colonies.name);
+  }
+
   async createColony(colonyData: InsertColony): Promise<Colony> {
     const [colony] = await db.insert(colonies).values(colonyData).returning();
     return colony;
@@ -700,6 +718,15 @@ export class DatabaseStorage implements IStorage {
     const [colony] = await db
       .update(colonies)
       .set({ ...updates, updatedAt: new Date() })
+      .where(eq(colonies.id, id))
+      .returning();
+    return colony;
+  }
+
+  async updateColonyStatus(id: string, approvalStatus: string): Promise<Colony> {
+    const [colony] = await db
+      .update(colonies)
+      .set({ approvalStatus: approvalStatus as any, updatedAt: new Date() })
       .where(eq(colonies.id, id))
       .returning();
     return colony;
