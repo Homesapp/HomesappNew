@@ -30,6 +30,10 @@ export function calculateCommissionMonths(leaseDurationMonths: number): number {
 export function calculateRentalCommissions(input: CommissionCalculationInput): CommissionCalculationResult {
   const { monthlyRent, leaseDurationMonths, referralPercent = 20, hasReferral } = input;
   
+  if (referralPercent < 0 || referralPercent > 100) {
+    throw new Error("Referral percent must be between 0 and 100");
+  }
+  
   const commissionMonths = calculateCommissionMonths(leaseDurationMonths);
   const totalCommissionAmount = monthlyRent * commissionMonths;
   
