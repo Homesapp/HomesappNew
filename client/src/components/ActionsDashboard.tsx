@@ -29,12 +29,12 @@ interface ActionsDashboardProps {
 
 export function ActionsDashboard({ role, userId }: ActionsDashboardProps) {
   const { data: pendingActions, isLoading: loadingActions } = useQuery<PendingAction[]>({
-    queryKey: ["/api/dashboard/pending-actions", role],
+    queryKey: ["/api/dashboard/pending-actions", userId, role],
     enabled: !!userId,
   });
 
   const { data: metrics, isLoading: loadingMetrics } = useQuery<MetricCard[]>({
-    queryKey: ["/api/dashboard/metrics", role],
+    queryKey: ["/api/dashboard/metrics", userId, role],
     enabled: !!userId,
   });
 

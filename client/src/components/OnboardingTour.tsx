@@ -9,22 +9,23 @@ interface OnboardingTourProps {
 export function OnboardingTour({ role }: OnboardingTourProps) {
   const [run, setRun] = useState(false);
   const { user } = useAuth();
+  const userId = user?.id;
 
   useEffect(() => {
-    if (user) {
-      const hasSeenOnboarding = localStorage.getItem(`onboarding-seen-${role}`);
+    if (user && userId) {
+      const hasSeenOnboarding = localStorage.getItem(`onboarding-seen-${userId}-${role}`);
       if (!hasSeenOnboarding) {
         setTimeout(() => setRun(true), 1000);
       }
     }
-  }, [user, role]);
+  }, [user, userId, role]);
 
   const handleJoyrideCallback = (data: CallBackProps) => {
     const { status } = data;
     
-    if (status === STATUS.FINISHED || status === STATUS.SKIPPED) {
+    if ((status === STATUS.FINISHED || status === STATUS.SKIPPED) && userId) {
       setRun(false);
-      localStorage.setItem(`onboarding-seen-${role}`, "true");
+      localStorage.setItem(`onboarding-seen-${userId}-${role}`, "true");
     }
   };
 
