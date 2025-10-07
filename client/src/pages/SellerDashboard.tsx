@@ -138,11 +138,11 @@ export default function SellerDashboard() {
                 {recentLeads.map((lead) => (
                   <div
                     key={lead.id}
-                    className="flex items-center justify-between gap-4 p-4 border rounded-lg hover-elevate"
+                    className="flex flex-col md:flex-row md:items-center md:justify-between gap-3 p-4 border rounded-lg hover-elevate"
                     data-testid={`card-lead-${lead.id}`}
                   >
                     <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-2">
+                      <div className="flex items-center gap-2 flex-wrap">
                         <h3 className="font-medium truncate" data-testid={`text-lead-name-${lead.id}`}>
                           {lead.firstName} {lead.lastName}
                         </h3>
@@ -158,7 +158,7 @@ export default function SellerDashboard() {
                           </Badge>
                         )}
                       </div>
-                      <div className="flex items-center gap-4 mt-1 text-sm text-muted-foreground">
+                      <div className="flex items-center gap-4 mt-1 text-sm text-muted-foreground flex-wrap">
                         <span className="flex items-center gap-1">
                           <Mail className="h-3 w-3" />
                           {lead.email}
@@ -172,7 +172,7 @@ export default function SellerDashboard() {
                       </p>
                     </div>
                     <Link href={`/leads?leadId=${lead.id}`}>
-                      <Button variant="ghost" size="sm" data-testid={`button-view-lead-${lead.id}`}>
+                      <Button variant="ghost" size="sm" className="w-full md:w-auto" data-testid={`button-view-lead-${lead.id}`}>
                         Ver detalles
                       </Button>
                     </Link>

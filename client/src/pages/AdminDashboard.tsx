@@ -126,9 +126,9 @@ export default function AdminDashboard() {
           </CardHeader>
           <CardContent className="space-y-3">
             {pendingChangeRequests.length > 0 && (
-              <div className="flex items-center justify-between p-3 bg-muted rounded-md">
+              <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3 p-3 bg-muted rounded-md">
                 <div className="flex items-center gap-3">
-                  <FileEdit className="h-5 w-5 text-primary" />
+                  <FileEdit className="h-5 w-5 text-primary flex-shrink-0" />
                   <div>
                     <p className="font-medium">Solicitudes de cambio</p>
                     <p className="text-sm text-muted-foreground">
@@ -137,7 +137,7 @@ export default function AdminDashboard() {
                   </div>
                 </div>
                 <Link href="/admin/change-requests">
-                  <Button size="sm" data-testid="button-view-change-requests">
+                  <Button size="sm" className="w-full md:w-auto" data-testid="button-view-change-requests">
                     Revisar
                     <ArrowRight className="ml-2 h-4 w-4" />
                   </Button>
@@ -146,9 +146,9 @@ export default function AdminDashboard() {
             )}
 
             {pendingInspections.length > 0 && (
-              <div className="flex items-center justify-between p-3 bg-muted rounded-md">
+              <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3 p-3 bg-muted rounded-md">
                 <div className="flex items-center gap-3">
-                  <ClipboardCheck className="h-5 w-5 text-primary" />
+                  <ClipboardCheck className="h-5 w-5 text-primary flex-shrink-0" />
                   <div>
                     <p className="font-medium">Reportes de inspección</p>
                     <p className="text-sm text-muted-foreground">
@@ -157,7 +157,7 @@ export default function AdminDashboard() {
                   </div>
                 </div>
                 <Link href="/admin/inspection-reports">
-                  <Button size="sm" data-testid="button-view-inspections">
+                  <Button size="sm" className="w-full md:w-auto" data-testid="button-view-inspections">
                     Revisar
                     <ArrowRight className="ml-2 h-4 w-4" />
                   </Button>
@@ -166,9 +166,9 @@ export default function AdminDashboard() {
             )}
 
             {pendingReview > 0 && (
-              <div className="flex items-center justify-between p-3 bg-muted rounded-md">
+              <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3 p-3 bg-muted rounded-md">
                 <div className="flex items-center gap-3">
-                  <Clock className="h-5 w-5 text-primary" />
+                  <Clock className="h-5 w-5 text-primary flex-shrink-0" />
                   <div>
                     <p className="font-medium">Propiedades en revisión</p>
                     <p className="text-sm text-muted-foreground">
@@ -177,7 +177,7 @@ export default function AdminDashboard() {
                   </div>
                 </div>
                 <Link href="/properties">
-                  <Button size="sm" variant="outline" data-testid="button-view-properties">
+                  <Button size="sm" variant="outline" className="w-full md:w-auto" data-testid="button-view-properties">
                     Ver propiedades
                   </Button>
                 </Link>
