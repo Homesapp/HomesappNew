@@ -556,7 +556,23 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.patch("/api/users/:id/role", isAuthenticated, requireRole(["master"]), async (req: any, res) => {
     try {
       const { id } = req.params;
-      const { role } = req.body;
+      
+      // Validate role with Zod
+      const roleSchema = z.object({
+        role: z.enum(["cliente", "owner", "seller", "admin", "admin_jr", "master", "accountant"], {
+          errorMap: () => ({ message: "Rol inválido" })
+        })
+      });
+      
+      const validationResult = roleSchema.safeParse(req.body);
+      if (!validationResult.success) {
+        return res.status(400).json({ 
+          message: "Datos inválidos",
+          errors: validationResult.error.errors 
+        });
+      }
+      
+      const { role } = validationResult.data;
       const user = await storage.updateUserRole(id, role);
       
       // Log the role update action
@@ -579,7 +595,21 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.patch("/api/users/switch-role", isAuthenticated, async (req: any, res) => {
     try {
       const userId = req.user.claims.sub;
-      const { role } = req.body;
+      
+      // Validate role with Zod
+      const switchRoleSchema = z.object({
+        role: z.string().min(1, "El rol es requerido")
+      });
+      
+      const validationResult = switchRoleSchema.safeParse(req.body);
+      if (!validationResult.success) {
+        return res.status(400).json({ 
+          message: "Datos inválidos",
+          errors: validationResult.error.errors 
+        });
+      }
+      
+      const { role } = validationResult.data;
 
       // Get current user data to check their approved roles
       const currentUser = await storage.getUser(userId);
@@ -596,6 +626,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!isBaseRole && !isApprovedAdditionalRole) {
         return res.status(400).json({ 
           message: "Solo puedes cambiar a roles que tienes aprobados" 
+        });
+      }
+      
+      // Additional validation: ensure role is in valid set
+      const validRoles = ["cliente", "owner", "seller", "admin", "admin_jr", "master", "accountant"];
+      if (!validRoles.includes(role)) {
+        return res.status(400).json({ 
+          message: "Rol inválido" 
         });
       }
 
@@ -1491,15 +1529,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post("/api/admin/colonies", isAuthenticated, async (req: any, res) => {
+  app.post("/api/admin/colonies", isAuthenticated, requireRole(["master", "admin", "admin_jr"]), async (req: any, res) => {
     try {
-      const userId = req.user.claims.sub;
-      const user = await storage.getUser(userId);
-
-      if (!user || !["master", "admin", "admin_jr"].includes(user.role)) {
-        return res.status(403).json({ message: "Forbidden" });
-      }
-      
       // Validate request body with Zod
       const colonySchema = z.object({
         name: z.string().min(1, "El nombre de la colonia es requerido"),
@@ -1532,15 +1563,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.patch("/api/admin/colonies/:id", isAuthenticated, async (req: any, res) => {
+  app.patch("/api/admin/colonies/:id", isAuthenticated, requireRole(["master", "admin", "admin_jr"]), async (req: any, res) => {
     try {
-      const userId = req.user.claims.sub;
-      const user = await storage.getUser(userId);
       const { id } = req.params;
-
-      if (!user || !["master", "admin", "admin_jr"].includes(user.role)) {
-        return res.status(403).json({ message: "Forbidden" });
-      }
 
       const colonySchema = z.object({
         name: z.string().optional(),
@@ -1573,15 +1598,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.delete("/api/admin/colonies/:id", isAuthenticated, async (req: any, res) => {
+  app.delete("/api/admin/colonies/:id", isAuthenticated, requireRole(["master", "admin", "admin_jr"]), async (req: any, res) => {
     try {
-      const userId = req.user.claims.sub;
-      const user = await storage.getUser(userId);
       const { id } = req.params;
-
-      if (!user || !["master", "admin", "admin_jr"].includes(user.role)) {
-        return res.status(403).json({ message: "Forbidden" });
-      }
 
       await storage.deleteColony(id);
 
@@ -7001,7 +7020,21 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.delete("/api/permissions", isAuthenticated, requireRole(["master", "admin"]), async (req, res) => {
     try {
-      const { userId, permission } = req.body;
+      // Validate request body with Zod
+      const removePermissionSchema = z.object({
+        userId: z.string().min(1, "El ID del usuario es requerido"),
+        permission: z.string().min(1, "El permiso es requerido")
+      });
+      
+      const validationResult = removePermissionSchema.safeParse(req.body);
+      if (!validationResult.success) {
+        return res.status(400).json({ 
+          message: "Datos inválidos",
+          errors: validationResult.error.errors 
+        });
+      }
+      
+      const { userId, permission } = validationResult.data;
       await storage.removePermission(userId, permission);
       res.status(204).send();
     } catch (error) {
