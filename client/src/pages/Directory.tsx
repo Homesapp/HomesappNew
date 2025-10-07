@@ -31,7 +31,7 @@ function ProviderCardWithServices({ provider, onHire }: { provider: any; onHire:
     mutationFn: async () => {
       if (!user) throw new Error("Usuario no autenticado");
       
-      const fullName = `${provider.user.firstName || ""} ${provider.user.lastName || ""}`.trim();
+      const fullName = `${provider.user?.firstName || ""} ${provider.user?.lastName || ""}`.trim();
       
       const conversation = await apiRequest("POST", "/api/chat/conversations", {
         type: "internal",
@@ -68,7 +68,7 @@ function ProviderCardWithServices({ provider, onHire }: { provider: any; onHire:
 
   const handleCall = () => {
     const fullName = provider.user 
-      ? `${provider.user.firstName || ""} ${provider.user.lastName || ""}`.trim()
+      ? `${provider.user?.firstName || ""} ${provider.user?.lastName || ""}`.trim()
       : "Proveedor";
     toast({
       title: "Contacto del proveedor",
@@ -78,7 +78,7 @@ function ProviderCardWithServices({ provider, onHire }: { provider: any; onHire:
 
   const handleHire = () => {
     const fullName = provider.user
-      ? `${provider.user.firstName || ""} ${provider.user.lastName || ""}`.trim()
+      ? `${provider.user?.firstName || ""} ${provider.user?.lastName || ""}`.trim()
       : "Proveedor";
     onHire(provider.id, fullName || "Sin nombre");
   };
@@ -93,14 +93,14 @@ function ProviderCardWithServices({ provider, onHire }: { provider: any; onHire:
   }, [services]);
 
   const fullName = provider.user
-    ? `${provider.user.firstName || ""} ${provider.user.lastName || ""}`.trim()
+    ? `${provider.user?.firstName || ""} ${provider.user?.lastName || ""}`.trim()
     : "Proveedor";
 
   return (
     <ServiceProviderCard
       id={provider.id}
       name={fullName || "Sin nombre"}
-      avatar={provider.user.profileImageUrl || undefined}
+      avatar={provider.user?.profileImageUrl || undefined}
       specialty={provider.specialty}
       rating={Number(provider.rating) || 0}
       reviewCount={provider.reviewCount || 0}
@@ -140,7 +140,7 @@ export default function Directory() {
     
     const query = searchQuery.toLowerCase();
     return providers.filter((p) => {
-      const fullName = `${p.user.firstName || ""} ${p.user.lastName || ""}`.toLowerCase();
+      const fullName = `${p.user?.firstName || ""} ${p.user?.lastName || ""}`.toLowerCase();
       return (
         fullName.includes(query) ||
         p.specialty.toLowerCase().includes(query)

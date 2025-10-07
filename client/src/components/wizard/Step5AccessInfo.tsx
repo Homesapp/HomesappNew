@@ -53,8 +53,8 @@ type Step5Props = {
 
 export default function Step5AccessInfo({ data, onUpdate, onNext, onPrevious }: Step5Props) {
   const form = useForm<AccessInfoForm>({
-    resolver: zodResolver(accessInfoSchema.optional()),
-    defaultValues: data.accessInfo || {
+    resolver: zodResolver(accessInfoSchema),
+    defaultValues: data?.accessInfo || {
       accessType: "unattended" as const,
       method: "lockbox" as const,
       lockboxCode: "",
