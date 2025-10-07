@@ -6,8 +6,8 @@ import { storage } from "../storage";
  * Admin and Master roles can access all resources
  */
 export const requireResourceOwnership = (
-  resourceType: 'appointment' | 'offer' | 'property' | 'rental-contract' | 'rental-application' | 'service-provider' | 'service' | 'service-booking' | 'presentation-card' | 'notification' | 'budget' | 'task' | 'conversation',
-  ownerField: 'clientId' | 'ownerId' | 'sellerId' | 'tenantId' | 'applicantId' | 'userId' | 'providerId' | 'staffId' | 'assignedToId' = 'ownerId'
+  resourceType: 'appointment' | 'offer' | 'property' | 'rental-contract' | 'rental-application' | 'service-provider' | 'service' | 'service-booking' | 'presentation-card' | 'notification' | 'budget' | 'task' | 'conversation' | 'property-draft' | 'favorite' | 'blocked-slot' | 'property-recommendation' | 'auto-suggestion' | 'checklist-item' | 'alert',
+  ownerField: 'clientId' | 'ownerId' | 'sellerId' | 'tenantId' | 'applicantId' | 'userId' | 'providerId' | 'staffId' | 'assignedToId' | 'conciergeId' = 'ownerId'
 ): RequestHandler => {
   return async (req: any, res: any, next: any) => {
     try {
@@ -70,6 +70,27 @@ export const requireResourceOwnership = (
           break;
         case 'conversation':
           resource = await storage.getChatConversation(resourceId);
+          break;
+        case 'property-draft':
+          resource = await storage.getPropertySubmissionDraft(resourceId);
+          break;
+        case 'favorite':
+          resource = await storage.getFavorite(resourceId);
+          break;
+        case 'blocked-slot':
+          resource = await storage.getConciergeBlockedSlot(resourceId);
+          break;
+        case 'property-recommendation':
+          resource = await storage.getPropertyRecommendation(resourceId);
+          break;
+        case 'auto-suggestion':
+          resource = await storage.getAutoSuggestion(resourceId);
+          break;
+        case 'checklist-item':
+          resource = await storage.getContractChecklistItem(resourceId);
+          break;
+        case 'alert':
+          resource = await storage.getSystemAlert(resourceId);
           break;
         default:
           return res.status(400).json({ message: "Invalid resource type" });
@@ -187,6 +208,37 @@ export const requireResourceOwnership = (
         if (!isParticipant) {
           return res.status(403).json({ 
             message: "Forbidden: You don't have permission to modify this conversation" 
+          });
+        }
+      }
+      // For checklist items, verify contract ownership
+      else if (resourceType === 'checklist-item') {
+        const item = resource;
+        const contract = await storage.getRentalContract(item.contractId);
+        
+        if (!contract) {
+          return res.status(404).json({ message: "Rental contract not found" });
+        }
+        
+        // Check if user is a stakeholder in the contract
+        const isOwner = contract.ownerId === userId;
+        const isTenant = contract.tenantId === userId;
+        const isSeller = contract.sellerId === userId;
+        
+        if (!isOwner && !isTenant && !isSeller) {
+          return res.status(403).json({ 
+            message: "Forbidden: You don't have permission to modify this checklist item" 
+          });
+        }
+      }
+      // For property recommendations, allow both client (recipient) and seller
+      else if (resourceType === 'property-recommendation') {
+        const isClient = resource.clientId === userId;
+        const isSeller = resource.sellerId === userId;
+        
+        if (!isClient && !isSeller) {
+          return res.status(403).json({ 
+            message: "Forbidden: You don't have permission to modify this property recommendation" 
           });
         }
       }

@@ -3366,19 +3366,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.patch("/api/property-submission-drafts/:id", isAuthenticated, async (req: any, res) => {
+  app.patch("/api/property-submission-drafts/:id", isAuthenticated, requireResourceOwnership('property-draft', 'userId'), async (req: any, res) => {
     try {
       const { id } = req.params;
       const userId = req.user.claims.sub;
-      
-      const existing = await storage.getPropertySubmissionDraft(id);
-      if (!existing) {
-        return res.status(404).json({ message: "Borrador no encontrado" });
-      }
-      
-      if (existing.userId !== userId) {
-        return res.status(403).json({ message: "No autorizado" });
-      }
 
       const validationResult = insertPropertySubmissionDraftSchema.partial().safeParse(req.body);
       if (!validationResult.success) {
@@ -3412,19 +3403,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.delete("/api/property-submission-drafts/:id", isAuthenticated, async (req: any, res) => {
+  app.delete("/api/property-submission-drafts/:id", isAuthenticated, requireResourceOwnership('property-draft', 'userId'), async (req: any, res) => {
     try {
       const { id } = req.params;
       const userId = req.user.claims.sub;
-      
-      const existing = await storage.getPropertySubmissionDraft(id);
-      if (!existing) {
-        return res.status(404).json({ message: "Borrador no encontrado" });
-      }
-      
-      if (existing.userId !== userId) {
-        return res.status(403).json({ message: "No autorizado" });
-      }
 
       await storage.deletePropertySubmissionDraft(id);
       
@@ -5387,7 +5369,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.delete("/api/concierge-blocked-slots/:id", isAuthenticated, async (req: any, res) => {
+  app.delete("/api/concierge-blocked-slots/:id", isAuthenticated, requireResourceOwnership('blocked-slot', 'conciergeId'), async (req: any, res) => {
     try {
       const userId = req.user?.claims?.sub || req.session?.adminUser?.id;
       if (!userId) {
@@ -5704,7 +5686,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Activate/deactivate presentation card
-  app.patch("/api/presentation-cards/:id/toggle-active", isAuthenticated, async (req: any, res) => {
+  app.patch("/api/presentation-cards/:id/toggle-active", isAuthenticated, requireResourceOwnership('presentation-card', 'clientId'), async (req: any, res) => {
     try {
       const userId = req.user.claims.sub;
       const { id } = req.params;
@@ -5811,7 +5793,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.patch("/api/property-recommendations/:id/mark-read", isAuthenticated, async (req: any, res) => {
+  app.patch("/api/property-recommendations/:id/mark-read", isAuthenticated, requireResourceOwnership('property-recommendation', 'clientId'), async (req: any, res) => {
     try {
       const userId = req.user.claims.sub;
       const { id } = req.params;
@@ -5835,7 +5817,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.patch("/api/property-recommendations/:id/set-interest", isAuthenticated, async (req: any, res) => {
+  app.patch("/api/property-recommendations/:id/set-interest", isAuthenticated, requireResourceOwnership('property-recommendation', 'clientId'), async (req: any, res) => {
     try {
       const userId = req.user.claims.sub;
       const { id } = req.params;
@@ -5898,7 +5880,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.patch("/api/auto-suggestions/:id/mark-read", isAuthenticated, async (req: any, res) => {
+  app.patch("/api/auto-suggestions/:id/mark-read", isAuthenticated, requireResourceOwnership('auto-suggestion', 'clientId'), async (req: any, res) => {
     try {
       const userId = req.user.claims.sub;
       const { id } = req.params;
@@ -5922,7 +5904,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.patch("/api/auto-suggestions/:id/set-interest", isAuthenticated, async (req: any, res) => {
+  app.patch("/api/auto-suggestions/:id/set-interest", isAuthenticated, requireResourceOwnership('auto-suggestion', 'clientId'), async (req: any, res) => {
     try {
       const userId = req.user.claims.sub;
       const { id } = req.params;
@@ -9111,7 +9093,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.patch("/api/contract-checklist-items/:id", isAuthenticated, async (req, res) => {
+  app.patch("/api/contract-checklist-items/:id", isAuthenticated, requireResourceOwnership('checklist-item'), async (req, res) => {
     try {
       const item = await storage.updateContractChecklistItem(req.params.id, req.body);
       res.json(item);
@@ -9267,7 +9249,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.patch("/api/alerts/:id/acknowledge", isAuthenticated, async (req, res) => {
+  app.patch("/api/alerts/:id/acknowledge", isAuthenticated, requireResourceOwnership('alert', 'userId'), async (req, res) => {
     try {
       const alert = await storage.acknowledgeSystemAlert(req.params.id);
       res.json(alert);
@@ -9277,7 +9259,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.patch("/api/alerts/:id/resolve", isAuthenticated, async (req, res) => {
+  app.patch("/api/alerts/:id/resolve", isAuthenticated, requireResourceOwnership('alert', 'userId'), async (req, res) => {
     try {
       const alert = await storage.resolveSystemAlert(req.params.id);
       res.json(alert);
@@ -9287,7 +9269,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.patch("/api/alerts/:id/dismiss", isAuthenticated, async (req, res) => {
+  app.patch("/api/alerts/:id/dismiss", isAuthenticated, requireResourceOwnership('alert', 'userId'), async (req, res) => {
     try {
       const alert = await storage.dismissSystemAlert(req.params.id);
       res.json(alert);
@@ -9297,7 +9279,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.delete("/api/alerts/:id", isAuthenticated, async (req, res) => {
+  app.delete("/api/alerts/:id", isAuthenticated, requireResourceOwnership('alert', 'userId'), async (req, res) => {
     try {
       await storage.deleteSystemAlert(req.params.id);
       res.json({ message: "Alert deleted successfully" });

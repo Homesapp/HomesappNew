@@ -3977,6 +3977,11 @@ export class DatabaseStorage implements IStorage {
     return item;
   }
 
+  async getContractChecklistItem(id: string): Promise<ContractChecklistItem | undefined> {
+    const [item] = await db.select().from(contractChecklistItems).where(eq(contractChecklistItems.id, id));
+    return item;
+  }
+
   async deleteContractChecklistItem(id: string): Promise<void> {
     await db.delete(contractChecklistItems).where(eq(contractChecklistItems.id, id));
   }
@@ -4269,6 +4274,16 @@ export class DatabaseStorage implements IStorage {
       .returning({ id: systemAlerts.id });
     
     return result.length;
+  }
+
+  async getPropertyRecommendation(id: string): Promise<PropertyRecommendation | undefined> {
+    const [recommendation] = await db.select().from(propertyRecommendations).where(eq(propertyRecommendations.id, id));
+    return recommendation;
+  }
+
+  async getAutoSuggestion(id: string): Promise<AutoSuggestion | undefined> {
+    const [suggestion] = await db.select().from(autoSuggestions).where(eq(autoSuggestions.id, id));
+    return suggestion;
   }
 }
 
