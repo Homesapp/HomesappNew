@@ -231,25 +231,29 @@ export default function AdminChangeRequests() {
                       Campos modificados:
                     </h4>
                     <div className="space-y-2">
-                      {Object.entries(request.changedFields as Record<string, any>).map(([field, changes]) => (
-                        <div
-                          key={field}
-                          className="bg-muted p-3 rounded-md space-y-1"
-                          data-testid={`field-change-${field}`}
-                        >
-                          <div className="font-medium text-sm">{formatFieldName(field)}</div>
-                          <div className="grid grid-cols-2 gap-4 text-sm">
-                            <div>
-                              <span className="text-muted-foreground">Anterior: </span>
-                              <span className="line-through">{formatValue(changes.old)}</span>
-                            </div>
-                            <div>
-                              <span className="text-muted-foreground">Nuevo: </span>
-                              <span className="font-medium">{formatValue(changes.new)}</span>
+                      {Object.entries(request.changedFields as Record<string, any>).map(([field, changes]) => {
+                        if (!changes || typeof changes !== 'object') return null;
+                        
+                        return (
+                          <div
+                            key={field}
+                            className="bg-muted p-3 rounded-md space-y-1"
+                            data-testid={`field-change-${field}`}
+                          >
+                            <div className="font-medium text-sm">{formatFieldName(field)}</div>
+                            <div className="grid grid-cols-2 gap-4 text-sm">
+                              <div>
+                                <span className="text-muted-foreground">Anterior: </span>
+                                <span className="line-through">{formatValue(changes.old)}</span>
+                              </div>
+                              <div>
+                                <span className="text-muted-foreground">Nuevo: </span>
+                                <span className="font-medium">{formatValue(changes.new)}</span>
+                              </div>
                             </div>
                           </div>
-                        </div>
-                      ))}
+                        );
+                      })}
                     </div>
                   </div>
 
