@@ -198,6 +198,39 @@ function AdminPropertyImportExportContent() {
     },
   });
 
+  const handleFileUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    if (!file.name.endsWith('.json')) {
+      toast({
+        title: "Archivo inválido",
+        description: "Por favor selecciona un archivo JSON",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      const content = e.target?.result as string;
+      setImportData(content);
+      setValidationResult(null);
+      toast({
+        title: "Archivo cargado",
+        description: `${file.name} cargado exitosamente`,
+      });
+    };
+    reader.onerror = () => {
+      toast({
+        title: "Error al leer archivo",
+        description: "No se pudo leer el contenido del archivo",
+        variant: "destructive",
+      });
+    };
+    reader.readAsText(file);
+  };
+
   const handleValidate = () => {
     try {
       const properties = JSON.parse(importData);
@@ -323,6 +356,24 @@ function AdminPropertyImportExportContent() {
           </CardHeader>
           <CardContent className="space-y-4">
             <div className="space-y-2">
+              <Label>Cargar archivo JSON</Label>
+              <div className="flex gap-2">
+                <div className="flex-1">
+                  <input
+                    type="file"
+                    accept=".json"
+                    onChange={handleFileUpload}
+                    className="w-full text-sm text-muted-foreground file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-semibold file:bg-primary file:text-primary-foreground hover:file:bg-primary/90 cursor-pointer"
+                    data-testid="input-file-upload"
+                  />
+                </div>
+              </div>
+              <p className="text-xs text-muted-foreground">
+                O pega el contenido JSON manualmente en el área de texto
+              </p>
+            </div>
+
+            <div className="space-y-2">
               <Label>Datos JSON</Label>
               <Textarea
                 placeholder='[{"title": "Casa en Tulum", "price": 5000000, ...}]'
@@ -331,7 +382,7 @@ function AdminPropertyImportExportContent() {
                   setImportData(e.target.value);
                   setValidationResult(null);
                 }}
-                rows={8}
+                rows={6}
                 className="font-mono text-sm"
                 data-testid="textarea-import-data"
               />
