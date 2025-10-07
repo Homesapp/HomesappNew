@@ -116,6 +116,10 @@ const translations: Record<Language, Record<string, string>> = {
     "profile.noConversations": "No tienes conversaciones aún",
     "profile.viewAllChats": "Ver Todas las Conversaciones",
     "profile.bot": "Bot",
+    "profile.appearance": "Apariencia",
+    "profile.appearanceDesc": "Personaliza cómo se ve la aplicación",
+    "profile.lightMode": "Modo claro",
+    "profile.darkMode": "Modo oscuro",
     
     // Login Page
     "login.title": "Iniciar Sesión",
@@ -729,6 +733,10 @@ const translations: Record<Language, Record<string, string>> = {
     "profile.noConversations": "You don't have any conversations yet",
     "profile.viewAllChats": "View All Conversations",
     "profile.bot": "Bot",
+    "profile.appearance": "Appearance",
+    "profile.appearanceDesc": "Customize how the application looks",
+    "profile.lightMode": "Light mode",
+    "profile.darkMode": "Dark mode",
     
     // Login Page
     "login.title": "Login",

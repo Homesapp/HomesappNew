@@ -6,7 +6,6 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import { LoadingScreen } from "@/components/ui/loading-screen";
 import { ThemeProvider } from "@/components/ThemeProvider";
-import { ThemeToggle } from "@/components/ThemeToggle";
 import { LanguageToggle } from "@/components/LanguageToggle";
 import { RoleSelector } from "@/components/RoleSelector";
 import { AppSidebar } from "@/components/AppSidebar";
@@ -184,7 +183,6 @@ function AuthenticatedApp() {
             <div className="flex items-center gap-2">
               <NotificationBell />
               <LanguageToggle />
-              <ThemeToggle />
               {isAdminAuthenticated && adminUser ? (
                 <UserProfileMenu
                   user={adminUser as any}
