@@ -197,6 +197,67 @@
 - **Total Fase 3**: 17 (Iter 1-2) + 14 (Iter 3) = **31 rutas protegidas**
 - **Progreso General**: 36 rutas con verificación de ownership (11.4% de 315 rutas totales)
 
+### Fase 3 - Iteración 4 (Octubre 7, 2025) ✅
+
+**Vulnerabilidades Críticas de userId/providerId Spoofing Corregidas:**
+
+Se identificaron y corrigieron 5 rutas POST vulnerables que permitían a usuarios especificar IDs arbitrarios de otros usuarios, habilitando la creación de recursos en nombre de terceros.
+
+**1. POST /api/services - CRÍTICA** (Línea 5990)
+- **Vulnerabilidad**: Permitía especificar `providerId` arbitrario en el body
+- **Impacto**: Un usuario podía crear servicios para cualquier proveedor
+- **Corrección**: Ahora obtiene el service provider del usuario autenticado y fuerza el `providerId`
+- Retorna 403 si el usuario no es un proveedor registrado
+
+**2. POST /api/presentation-cards - ALTA** (Línea 5639)
+- **Vulnerabilidad**: Permitía especificar `clientId` vía patrón `req.body.clientId || userId`
+- **Impacto**: Un usuario podía crear presentation cards para otros clientes
+- **Corrección**: Ahora siempre usa el ID del usuario autenticado como `clientId`
+
+**3. POST /api/appointments - MEDIA** (Línea 5005)
+- **Vulnerabilidad**: Permitía especificar `clientId` arbitrario
+- **Impacto**: Usuarios regulares podían crear citas para otros clientes
+- **Corrección**: Verificación basada en roles - solo admin/master/admin_jr/seller pueden especificar clientId diferente
+- Usuarios regulares obtienen su propio userId silenciosamente
+
+**4. POST /api/offers - MEDIA** (Línea 6513)
+- **Vulnerabilidad**: Mismo patrón que appointments
+- **Impacto**: Usuarios regulares podían crear ofertas para otros clientes
+- **Corrección**: Misma verificación basada en roles que appointments
+
+**5. POST /api/rental-applications - MEDIA** (Línea 6634)
+- **Vulnerabilidad**: Permitía especificar `applicantId` arbitrario
+- **Impacto**: Usuarios regulares podían crear solicitudes de renta para otros
+- **Corrección**: Solo admin/master/admin_jr pueden especificar applicantId diferente
+
+**Patrones de Implementación:**
+
+**Prevención Completa (services, presentation-cards):**
+```typescript
+// services: Debe ser proveedor registrado
+const providers = await storage.getServiceProviders({ userId });
+if (!providers || providers.length === 0) {
+  return res.status(403).json({ message: "Must be registered provider" });
+}
+const serviceData = { ...req.body, providerId: providers[0].id };
+```
+
+**Delegación Basada en Roles (appointments, offers, applications):**
+```typescript
+let clientId = userId;
+if (req.body.clientId && req.body.clientId !== userId) {
+  if (user && ["master", "admin", "admin_jr", "seller"].includes(user.role)) {
+    clientId = req.body.clientId;
+  }
+  // Usuarios no-admin obtienen su propio userId silenciosamente
+}
+```
+
+**Impacto de Seguridad Iteración 4:**
+- **Antes**: 5 rutas POST permitían suplantación de userId/providerId
+- **Después**: Todas las rutas POST fuerzan identidad autenticada o requieren rol elevado
+- **Progreso General**: 36 rutas + 5 correcciones críticas = **41 puntos de protección implementados**
+
 ## 🚨 Problemas Críticos Identificados
 
 ### 1. VALIDACIÓN DE ENTRADA EN BACKEND (CRÍTICO)
@@ -378,11 +439,12 @@ export const requireResourceOwnership = (
 ### Progreso de Fases
 - ✅ **Fase 1**: Validación Zod y RBAC en rutas críticas (4 rutas)
 - ✅ **Fase 2**: Ownership verification base (3 rutas: appointments, offers)
-- 🔄 **Fase 3**: Extensión de ownership (31 rutas adicionales protegidas en 3 iteraciones)
+- 🔄 **Fase 3**: Extensión de ownership y corrección de vulnerabilidades POST (36 rutas protegidas en 4 iteraciones)
   - Iteración 1: 12 rutas (rentals, services, providers, cards, notifications)
   - Iteración 2: 5 rutas (budgets, tasks, conversations)
   - Iteración 3: 14 rutas (drafts, alerts, recommendations, suggestions, checklist, slots)
-- ⏳ **Fase 3 pendiente**: ~279 rutas restantes por auditar (88.6%)
+  - Iteración 4: 5 vulnerabilidades críticas POST corregidas (services, cards, appointments, offers, applications)
+- ⏳ **Fase 3 pendiente**: ~274 rutas restantes por auditar (87%)
 
 ## 🎯 Próximos Pasos Recomendados
 
