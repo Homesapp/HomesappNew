@@ -6,8 +6,8 @@ import { storage } from "../storage";
  * Admin and Master roles can access all resources
  */
 export const requireResourceOwnership = (
-  resourceType: 'appointment' | 'offer' | 'property' | 'rental-contract',
-  ownerField: 'clientId' | 'ownerId' | 'sellerId' | 'tenantId' = 'ownerId'
+  resourceType: 'appointment' | 'offer' | 'property' | 'rental-contract' | 'rental-application' | 'service-provider' | 'service' | 'service-booking' | 'presentation-card' | 'notification',
+  ownerField: 'clientId' | 'ownerId' | 'sellerId' | 'tenantId' | 'applicantId' | 'userId' | 'providerId' = 'ownerId'
 ): RequestHandler => {
   return async (req: any, res: any, next: any) => {
     try {
@@ -43,6 +43,24 @@ export const requireResourceOwnership = (
           break;
         case 'rental-contract':
           resource = await storage.getRentalContract(resourceId);
+          break;
+        case 'rental-application':
+          resource = await storage.getRentalApplication(resourceId);
+          break;
+        case 'service-provider':
+          resource = await storage.getServiceProvider(resourceId);
+          break;
+        case 'service':
+          resource = await storage.getService(resourceId);
+          break;
+        case 'service-booking':
+          resource = await storage.getServiceBooking(resourceId);
+          break;
+        case 'presentation-card':
+          resource = await storage.getPresentationCard(resourceId);
+          break;
+        case 'notification':
+          resource = await storage.getNotification(resourceId);
           break;
         default:
           return res.status(400).json({ message: "Invalid resource type" });
@@ -82,6 +100,74 @@ export const requireResourceOwnership = (
           return res.status(403).json({ 
             message: "Forbidden: You don't have permission to modify this offer" 
           });
+        }
+      }
+      // For rental contracts, check ownerId, tenantId, and sellerId
+      else if (resourceType === 'rental-contract') {
+        const isOwner = resource.ownerId === userId;
+        const isTenant = resource.tenantId === userId;
+        const isSeller = resource.sellerId === userId;
+        
+        if (!isOwner && !isTenant && !isSeller) {
+          return res.status(403).json({ 
+            message: "Forbidden: You don't have permission to modify this rental contract" 
+          });
+        }
+      }
+      // For rental applications, check applicantId and property owner
+      else if (resourceType === 'rental-application') {
+        const isApplicant = resource.applicantId === userId;
+        
+        // Get property to check if user is the owner
+        const property = await storage.getProperty(resource.propertyId);
+        const isPropertyOwner = property?.ownerId === userId;
+        
+        if (!isApplicant && !isPropertyOwner) {
+          return res.status(403).json({ 
+            message: "Forbidden: You don't have permission to modify this rental application" 
+          });
+        }
+      }
+      // For services, check providerId
+      else if (resourceType === 'service') {
+        // Get the service provider to check ownership
+        const service = resource;
+        const provider = await storage.getServiceProvider(service.providerId);
+        
+        if (!provider) {
+          return res.status(404).json({ message: "Service provider not found" });
+        }
+        
+        const isProviderOwner = provider.userId === userId;
+        
+        if (!isProviderOwner) {
+          return res.status(403).json({ 
+            message: "Forbidden: You don't have permission to modify this service" 
+          });
+        }
+      }
+      // For service bookings, check both clientId and service provider
+      else if (resourceType === 'service-booking') {
+        const isClient = resource.clientId === userId;
+        
+        // Get service and then provider to check if user is the provider
+        const service = await storage.getService(resource.serviceId);
+        if (service) {
+          const provider = await storage.getServiceProvider(service.providerId);
+          const isProvider = provider?.userId === userId;
+          
+          if (!isClient && !isProvider) {
+            return res.status(403).json({ 
+              message: "Forbidden: You don't have permission to modify this service booking" 
+            });
+          }
+        } else {
+          // If service not found, only allow client
+          if (!isClient) {
+            return res.status(403).json({ 
+              message: "Forbidden: You don't have permission to modify this service booking" 
+            });
+          }
         }
       }
       // For other resources, simple ownership check

@@ -56,6 +56,68 @@
 - ✅ Admin/Master mantienen acceso total para administración
 - ✅ Middleware reutilizable para futuras rutas de recursos
 
+## ✅ Completado (Fase 3 - Octubre 7, 2025) - EN PROGRESO
+
+### Extensión de Autorización de Recursos
+1. **Middleware Extendido** ✅
+   - Añadido soporte para 6 nuevos tipos de recursos
+   - rental-application, service-provider, service, service-booking, presentation-card, notification
+   - Lógica especializada para cada tipo con múltiples stakeholders
+
+2. **Rutas de Rental Applications Protegidas** ✅
+   - `PATCH /api/rental-applications/:id`
+   - `PATCH /api/rental-applications/:id/status`
+   - Verificación: applicantId o property owner
+
+3. **Rutas de Rental Contracts Protegidas** ✅
+   - `PATCH /api/rental-contracts/:id`
+   - `PATCH /api/rental-contracts/:id/status`
+   - Verificación: ownerId (propietario), tenantId (inquilino), o sellerId (vendedor)
+   - Múltiples stakeholders pueden modificar
+
+4. **Rutas de Service Providers Protegidas** ✅
+   - `PATCH /api/service-providers/:id`
+   - Verificación: userId
+
+5. **Rutas de Services Protegidas** ✅
+   - `PATCH /api/services/:id`
+   - `DELETE /api/services/:id`
+   - Verificación: providerId (a través de provider.userId)
+   - Retorna 404 si provider no existe
+
+6. **Rutas de Service Bookings Protegidas** ✅
+   - `PATCH /api/service-bookings/:id`
+   - `DELETE /api/service-bookings/:id`
+   - Verificación: clientId O provider (a través de service -> provider.userId)
+   - Permite tanto al cliente como al provider modificar
+
+7. **Rutas de Presentation Cards Protegidas** ✅
+   - `PATCH /api/presentation-cards/:id`
+   - `DELETE /api/presentation-cards/:id`
+   - Verificación: clientId
+
+8. **Rutas de Notifications Protegidas** ✅
+   - `PATCH /api/notifications/:id/read`
+   - Verificación: userId
+
+### Impacto de Seguridad Fase 3
+**Antes:**
+- ❌ Cualquier usuario podía modificar rental applications de otros
+- ❌ Cualquier usuario podía modificar rental contracts ajenos
+- ❌ Service providers sin control de sus propios services
+- ❌ Service bookings sin protección dual (cliente + provider)
+- ❌ Presentation cards modificables por cualquiera
+- ❌ Notifications marcables como leídas por cualquier usuario
+
+**Después:**
+- ✅ Solo applicants o property owners pueden modificar rental applications
+- ✅ Solo stakeholders (owner, tenant, seller) pueden modificar rental contracts
+- ✅ Solo el provider puede modificar sus services
+- ✅ Cliente Y provider pueden modificar service bookings
+- ✅ Solo el dueño de la presentation card puede modificarla
+- ✅ Solo el dueño de la notification puede marcarla como leída
+- ✅ **Total: 12 rutas adicionales protegidas en Fase 3**
+
 ## 🚨 Problemas Críticos Identificados
 
 ### 1. VALIDACIÓN DE ENTRADA EN BACKEND (CRÍTICO)
@@ -230,9 +292,15 @@ export const requireResourceOwnership = (
 - **Total de rutas**: 315
 - **Rutas con requireRole**: ~45 (14%)
 - **Rutas con validación Zod**: ~124 (39%) - ↑4 en Fase 1
-- **Rutas con ownership verification**: ~5 (2%) - NEW en Fase 2
-- **Rutas críticas sin protección**: ~20 - ↓5 después de Fase 1-2
+- **Rutas con ownership verification**: ~17 (5%) - ↑12 en Fase 3
+- **Rutas críticas sin protección**: ~15 - ↓10 después de Fases 1-3
 - **Rutas admin sin RBAC**: ~12 - ↓3 después de Fase 1
+
+### Progreso de Fases
+- ✅ **Fase 1**: Validación Zod y RBAC en rutas críticas (4 rutas)
+- ✅ **Fase 2**: Ownership verification base (3 rutas: appointments, offers)
+- 🔄 **Fase 3**: Extensión de ownership (12 rutas adicionales protegidas)
+- ⏳ **Fase 3 pendiente**: ~298 rutas restantes por auditar
 
 ## 🎯 Próximos Pasos Recomendados
 

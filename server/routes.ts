@@ -5681,7 +5681,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.patch("/api/presentation-cards/:id", isAuthenticated, async (req, res) => {
+  app.patch("/api/presentation-cards/:id", isAuthenticated, requireResourceOwnership('presentation-card', 'clientId'), async (req, res) => {
     try {
       const { id } = req.params;
       const card = await storage.updatePresentationCard(id, req.body);
@@ -5692,7 +5692,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.delete("/api/presentation-cards/:id", isAuthenticated, async (req, res) => {
+  app.delete("/api/presentation-cards/:id", isAuthenticated, requireResourceOwnership('presentation-card', 'clientId'), async (req, res) => {
     try {
       const { id} = req.params;
       await storage.deletePresentationCard(id);
@@ -5979,7 +5979,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.patch("/api/service-providers/:id", isAuthenticated, async (req, res) => {
+  app.patch("/api/service-providers/:id", isAuthenticated, requireResourceOwnership('service-provider', 'userId'), async (req, res) => {
     try {
       const { id } = req.params;
       const provider = await storage.updateServiceProvider(id, req.body);
@@ -6013,7 +6013,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.patch("/api/services/:id", isAuthenticated, async (req, res) => {
+  app.patch("/api/services/:id", isAuthenticated, requireResourceOwnership('service', 'providerId'), async (req, res) => {
     try {
       const { id } = req.params;
       const service = await storage.updateService(id, req.body);
@@ -6024,7 +6024,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.delete("/api/services/:id", isAuthenticated, async (req, res) => {
+  app.delete("/api/services/:id", isAuthenticated, requireResourceOwnership('service', 'providerId'), async (req, res) => {
     try {
       const { id } = req.params;
       await storage.deleteService(id);
@@ -6081,7 +6081,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.patch("/api/service-bookings/:id", isAuthenticated, async (req, res) => {
+  app.patch("/api/service-bookings/:id", isAuthenticated, requireResourceOwnership('service-booking', 'clientId'), async (req, res) => {
     try {
       const { id } = req.params;
       const booking = await storage.updateServiceBooking(id, req.body);
@@ -6092,7 +6092,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.delete("/api/service-bookings/:id", isAuthenticated, async (req, res) => {
+  app.delete("/api/service-bookings/:id", isAuthenticated, requireResourceOwnership('service-booking', 'clientId'), async (req, res) => {
     try {
       const { id } = req.params;
       await storage.deleteServiceBooking(id);
@@ -6636,7 +6636,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.patch("/api/rental-applications/:id", isAuthenticated, async (req: any, res) => {
+  app.patch("/api/rental-applications/:id", isAuthenticated, requireResourceOwnership('rental-application'), async (req: any, res) => {
     try {
       const { id } = req.params;
       const application = await storage.updateRentalApplication(id, req.body);
@@ -6657,7 +6657,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.patch("/api/rental-applications/:id/status", isAuthenticated, async (req: any, res) => {
+  app.patch("/api/rental-applications/:id/status", isAuthenticated, requireResourceOwnership('rental-application'), async (req: any, res) => {
     try {
       const { id } = req.params;
       const { status } = req.body;
@@ -6849,7 +6849,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.patch("/api/rental-contracts/:id", isAuthenticated, async (req: any, res) => {
+  app.patch("/api/rental-contracts/:id", isAuthenticated, requireResourceOwnership('rental-contract'), async (req: any, res) => {
     try {
       const { id } = req.params;
       const contract = await storage.updateRentalContract(id, req.body);
@@ -6885,7 +6885,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.patch("/api/rental-contracts/:id/status", isAuthenticated, async (req: any, res) => {
+  app.patch("/api/rental-contracts/:id/status", isAuthenticated, requireResourceOwnership('rental-contract'), async (req: any, res) => {
     try {
       const { id } = req.params;
       const { status } = req.body;
@@ -7392,7 +7392,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.patch("/api/notifications/:id/read", isAuthenticated, async (req, res) => {
+  app.patch("/api/notifications/:id/read", isAuthenticated, requireResourceOwnership('notification', 'userId'), async (req, res) => {
     try {
       const { id } = req.params;
       const notification = await storage.markNotificationAsRead(id);
