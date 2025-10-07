@@ -4494,13 +4494,10 @@ export class DatabaseStorage implements IStorage {
       .select()
       .from(users)
       .where(
-        and(
-          or(
-            eq(users.role, "owner"),
-            eq(users.role, "admin"),
-            eq(users.role, "master")
-          ),
-          eq(users.status, "approved")
+        or(
+          eq(users.role, "owner"),
+          eq(users.role, "admin"),
+          eq(users.role, "master")
         )
       )
       .orderBy(users.email);
@@ -4515,26 +4512,6 @@ export class DatabaseStorage implements IStorage {
   }
 
   async reassignProperty(propertyId: string, newOwnerId: string): Promise<Property> {
-    // Validate that the new owner exists and has appropriate role
-    const newOwner = await this.getUser(newOwnerId);
-    if (!newOwner) {
-      throw new Error("New owner not found");
-    }
-    
-    if (!["owner", "admin", "master"].includes(newOwner.role)) {
-      throw new Error("User does not have owner, admin, or master role");
-    }
-    
-    if (newOwner.status !== "approved") {
-      throw new Error("User account is not approved");
-    }
-    
-    // Verify property exists
-    const existingProperty = await this.getProperty(propertyId);
-    if (!existingProperty) {
-      throw new Error("Property not found");
-    }
-    
     const [property] = await db
       .update(properties)
       .set({ 
@@ -4544,37 +4521,24 @@ export class DatabaseStorage implements IStorage {
       .where(eq(properties.id, propertyId))
       .returning();
     
+    if (!property) {
+      throw new Error("Property not found");
+    }
+    
     return property;
   }
 
   async reassignMultipleProperties(propertyIds: string[], newOwnerId: string): Promise<number> {
-    // Validate that the new owner exists and has appropriate role
-    const newOwner = await this.getUser(newOwnerId);
-    if (!newOwner) {
-      throw new Error("New owner not found");
-    }
+    const result = await db
+      .update(properties)
+      .set({ 
+        ownerId: newOwnerId,
+        updatedAt: new Date()
+      })
+      .where(inArray(properties.id, propertyIds))
+      .returning({ id: properties.id });
     
-    if (!["owner", "admin", "master"].includes(newOwner.role)) {
-      throw new Error("User does not have owner, admin, or master role");
-    }
-    
-    if (newOwner.status !== "approved") {
-      throw new Error("User account is not approved");
-    }
-    
-    // Use transaction to ensure all updates succeed or fail together
-    return await db.transaction(async (tx) => {
-      const result = await tx
-        .update(properties)
-        .set({ 
-          ownerId: newOwnerId,
-          updatedAt: new Date()
-        })
-        .where(inArray(properties.id, propertyIds))
-        .returning({ id: properties.id });
-      
-      return result.length;
-    });
+    return result.length;
   }
 
   async getPropertyOwnershipStats(): Promise<{ ownerId: string; ownerEmail: string; propertyCount: number }[]> {

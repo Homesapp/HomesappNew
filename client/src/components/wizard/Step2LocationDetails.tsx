@@ -244,8 +244,8 @@ export default function Step2LocationDetails({ data, onUpdate, onNext, onPreviou
                   <FormLabel>Colonia (Opcional)</FormLabel>
                   <div className="flex gap-2">
                     <Select
-                      value={field.value || "NONE"}
-                      onValueChange={(value) => field.onChange(value === "NONE" ? null : value)}
+                      value={field.value || ""}
+                      onValueChange={field.onChange}
                     >
                       <FormControl>
                         <SelectTrigger data-testid="select-colony">
@@ -253,7 +253,7 @@ export default function Step2LocationDetails({ data, onUpdate, onNext, onPreviou
                         </SelectTrigger>
                       </FormControl>
                       <SelectContent>
-                        <SelectItem value="NONE" data-testid="option-no-colony">
+                        <SelectItem value="" data-testid="option-no-colony">
                           Sin colonia
                         </SelectItem>
                         {colonies.map((colony) => (
@@ -289,9 +289,9 @@ export default function Step2LocationDetails({ data, onUpdate, onNext, onPreviou
                 <FormItem>
                   <FormLabel>Condominio (Opcional)</FormLabel>
                   <Select
-                    value={field.value || "NONE"}
+                    value={field.value || ""}
                     onValueChange={(value) => {
-                      field.onChange(value === "NONE" ? null : value);
+                      field.onChange(value);
                       setShowNewCondoInput(value === "NEW_CONDO");
                       if (value !== "NEW_CONDO") {
                         setNewCondoName("");
@@ -304,7 +304,7 @@ export default function Step2LocationDetails({ data, onUpdate, onNext, onPreviou
                       </SelectTrigger>
                     </FormControl>
                     <SelectContent>
-                      <SelectItem value="NONE" data-testid="option-no-condo">
+                      <SelectItem value="" data-testid="option-no-condo">
                         Sin condominio
                       </SelectItem>
                       {condominiums.map((condo) => (

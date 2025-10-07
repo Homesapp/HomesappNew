@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect, Component, type ReactNode } from "react";
+import { useState, Component, type ReactNode } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { Button } from "@/components/ui/button";
@@ -97,21 +97,6 @@ function AdminPropertyImportExportContent() {
     updateExisting: false,
   });
 
-  // Ref for auto-scroll to validation results
-  const validationResultsRef = useRef<HTMLDivElement>(null);
-
-  // Auto-scroll to validation results when they appear
-  useEffect(() => {
-    if (validationResult && validationResultsRef.current) {
-      setTimeout(() => {
-        validationResultsRef.current?.scrollIntoView({ 
-          behavior: 'smooth', 
-          block: 'start' 
-        });
-      }, 100);
-    }
-  }, [validationResult]);
-
   // Export mutation
   const exportMutation = useMutation({
     mutationFn: async () => {
@@ -157,7 +142,6 @@ function AdminPropertyImportExportContent() {
       return apiRequest("POST", "/api/admin/properties/validate-import", { properties });
     },
     onSuccess: (data) => {
-      console.log("Validation result:", data);
       setValidationResult(data);
       if (data.valid) {
         toast({
@@ -165,12 +149,9 @@ function AdminPropertyImportExportContent() {
           description: "Los datos están listos para importar",
         });
       } else {
-        const errorCount = data.errors?.length || 0;
-        console.error("Validation errors:", data.errors);
-        console.warn("Validation warnings:", data.warnings);
         toast({
           title: "Errores de validación",
-          description: errorCount > 0 ? `Se encontraron ${errorCount} errores` : "Se encontraron errores en la validación",
+          description: `Se encontraron ${data.errors.length} errores`,
           variant: "destructive",
         });
       }
@@ -216,111 +197,12 @@ function AdminPropertyImportExportContent() {
     },
   });
 
-  // Group errors by type for better UX
-  const groupErrors = (errors: string[]) => {
-    const grouped: Record<string, string[]> = {
-      missingFields: [],
-      invalidOwners: [],
-      other: []
-    };
-
-    errors.forEach(error => {
-      if (error.includes("Missing")) {
-        grouped.missingFields.push(error);
-      } else if (error.includes("not found") || error.includes("email")) {
-        grouped.invalidOwners.push(error);
-      } else {
-        grouped.other.push(error);
-      }
-    });
-
-    return grouped;
-  };
-
-  const handleFileUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0];
-    if (!file) return;
-
-    if (!file.name.endsWith('.json')) {
-      toast({
-        title: "Archivo inválido",
-        description: "Por favor selecciona un archivo JSON",
-        variant: "destructive",
-      });
-      return;
-    }
-
-    const reader = new FileReader();
-    reader.onload = (e) => {
-      const content = e.target?.result as string;
-      setImportData(content);
-      setValidationResult(null);
-      toast({
-        title: "Archivo cargado",
-        description: `${file.name} cargado exitosamente`,
-      });
-    };
-    reader.onerror = () => {
-      toast({
-        title: "Error al leer archivo",
-        description: "No se pudo leer el contenido del archivo",
-        variant: "destructive",
-      });
-    };
-    reader.readAsText(file);
-  };
-
   const handleValidate = () => {
     try {
-      // Parse JSON
       const properties = JSON.parse(importData);
-      
-      // Validate it's an array
       if (!Array.isArray(properties)) {
         throw new Error("El JSON debe ser un array de propiedades");
       }
-
-      // Validate it's not empty
-      if (properties.length === 0) {
-        throw new Error("El array de propiedades está vacío");
-      }
-
-      // Pre-validate each property has basic structure
-      const requiredFields = ['title', 'price', 'bedrooms', 'bathrooms', 'area', 'location', 'ownerEmail'];
-      let preValidationErrors: string[] = [];
-
-      properties.forEach((prop, idx) => {
-        if (typeof prop !== 'object' || prop === null) {
-          preValidationErrors.push(`Propiedad ${idx + 1}: No es un objeto válido`);
-          return;
-        }
-
-        requiredFields.forEach(field => {
-          const value = prop[field];
-          // Allow 0 as valid value, only reject undefined, null, or empty string
-          if (value === undefined || value === null || value === '') {
-            preValidationErrors.push(`Propiedad ${idx + 1}: Falta el campo '${field}'`);
-          }
-        });
-      });
-
-      // If there are too many pre-validation errors, show them immediately
-      if (preValidationErrors.length > 0) {
-        setValidationResult({
-          valid: false,
-          errors: preValidationErrors,
-          warnings: [],
-          mappings: { owners: {}, colonies: {}, condominiums: {} }
-        });
-        toast({
-          title: "Errores de formato detectados",
-          description: `Se encontraron ${preValidationErrors.length} errores en el formato del JSON`,
-          variant: "destructive",
-        });
-        return;
-      }
-
-      // If basic validation passes, send to server for full validation
       validateMutation.mutate(properties);
     } catch (error: any) {
       toast({
@@ -440,24 +322,6 @@ function AdminPropertyImportExportContent() {
           </CardHeader>
           <CardContent className="space-y-4">
             <div className="space-y-2">
-              <Label>Cargar archivo JSON</Label>
-              <div className="flex gap-2">
-                <div className="flex-1">
-                  <input
-                    type="file"
-                    accept=".json"
-                    onChange={handleFileUpload}
-                    className="w-full text-sm text-muted-foreground file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-semibold file:bg-primary file:text-primary-foreground hover:file:bg-primary/90 cursor-pointer"
-                    data-testid="input-file-upload"
-                  />
-                </div>
-              </div>
-              <p className="text-xs text-muted-foreground">
-                O pega el contenido JSON manualmente en el área de texto
-              </p>
-            </div>
-
-            <div className="space-y-2">
               <Label>Datos JSON</Label>
               <Textarea
                 placeholder='[{"title": "Casa en Tulum", "price": 5000000, ...}]'
@@ -466,7 +330,7 @@ function AdminPropertyImportExportContent() {
                   setImportData(e.target.value);
                   setValidationResult(null);
                 }}
-                rows={6}
+                rows={8}
                 className="font-mono text-sm"
                 data-testid="textarea-import-data"
               />
@@ -527,7 +391,7 @@ function AdminPropertyImportExportContent() {
 
       {/* Validation Results */}
       {validationResult && (
-        <Card ref={validationResultsRef} data-testid="card-validation-results">
+        <Card data-testid="card-validation-results">
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               {validationResult.valid ? (
@@ -540,115 +404,29 @@ function AdminPropertyImportExportContent() {
           </CardHeader>
           <CardContent className="space-y-4">
             {/* Errors */}
-            {!validationResult.valid && (
-              validationResult.errors && Array.isArray(validationResult.errors) && validationResult.errors.length > 0 ? (
-                (() => {
-                  const grouped = groupErrors(validationResult.errors);
-                  return (
-                    <div className="space-y-3">
-                      {/* Summary */}
-                      <Alert variant="destructive">
-                        <AlertCircle className="h-4 w-4" />
-                        <AlertDescription>
-                          <div className="font-semibold mb-2">
-                            ❌ {validationResult.errors.length} errores encontrados
-                          </div>
-                          <div className="text-sm space-y-1">
-                            {grouped.missingFields.length > 0 && (
-                              <div>• {grouped.missingFields.length} campos requeridos faltantes</div>
-                            )}
-                            {grouped.invalidOwners.length > 0 && (
-                              <div>• {grouped.invalidOwners.length} emails de propietarios no encontrados</div>
-                            )}
-                            {grouped.other.length > 0 && (
-                              <div>• {grouped.other.length} otros errores</div>
-                            )}
-                          </div>
-                        </AlertDescription>
-                      </Alert>
-
-                      {/* Missing Fields */}
-                      {grouped.missingFields.length > 0 && (
-                        <Alert variant="destructive">
-                          <AlertDescription>
-                            <div className="font-semibold mb-2">
-                              Campos Requeridos Faltantes ({grouped.missingFields.length}):
-                            </div>
-                            <ul className="list-disc list-inside space-y-1 text-sm">
-                              {grouped.missingFields.slice(0, 5).map((error: string, idx: number) => (
-                                <li key={idx}>{error}</li>
-                              ))}
-                              {grouped.missingFields.length > 5 && (
-                                <li className="text-muted-foreground">
-                                  ... y {grouped.missingFields.length - 5} más
-                                </li>
-                              )}
-                            </ul>
-                          </AlertDescription>
-                        </Alert>
-                      )}
-
-                      {/* Invalid Owners */}
-                      {grouped.invalidOwners.length > 0 && (
-                        <Alert variant="destructive">
-                          <AlertDescription>
-                            <div className="font-semibold mb-2">
-                              Propietarios No Encontrados ({grouped.invalidOwners.length}):
-                            </div>
-                            <ul className="list-disc list-inside space-y-1 text-sm">
-                              {grouped.invalidOwners.slice(0, 5).map((error: string, idx: number) => (
-                                <li key={idx}>{error}</li>
-                              ))}
-                              {grouped.invalidOwners.length > 5 && (
-                                <li className="text-muted-foreground">
-                                  ... y {grouped.invalidOwners.length - 5} más
-                                </li>
-                              )}
-                            </ul>
-                          </AlertDescription>
-                        </Alert>
-                      )}
-
-                      {/* Other Errors */}
-                      {grouped.other.length > 0 && (
-                        <Alert variant="destructive">
-                          <AlertDescription>
-                            <div className="font-semibold mb-2">
-                              Otros Errores ({grouped.other.length}):
-                            </div>
-                            <ul className="list-disc list-inside space-y-1 text-sm">
-                              {grouped.other.slice(0, 5).map((error: string, idx: number) => (
-                                <li key={idx}>{error}</li>
-                              ))}
-                              {grouped.other.length > 5 && (
-                                <li className="text-muted-foreground">
-                                  ... y {grouped.other.length - 5} más
-                                </li>
-                              )}
-                            </ul>
-                          </AlertDescription>
-                        </Alert>
-                      )}
-                    </div>
-                  );
-                })()
-              ) : (
-                <Alert variant="destructive">
-                  <AlertCircle className="h-4 w-4" />
-                  <AlertDescription>
-                    <div className="font-semibold mb-2">
-                      Validación fallida
-                    </div>
-                    <p className="text-sm">
-                      Los datos no pasaron la validación. Por favor revisa el formato JSON y asegúrate de que todas las propiedades requeridas estén presentes.
-                    </p>
-                  </AlertDescription>
-                </Alert>
-              )
+            {validationResult.errors && validationResult.errors.length > 0 && (
+              <Alert variant="destructive">
+                <AlertCircle className="h-4 w-4" />
+                <AlertDescription>
+                  <div className="font-semibold mb-2">
+                    Errores ({validationResult.errors.length}):
+                  </div>
+                  <ul className="list-disc list-inside space-y-1 text-sm">
+                    {validationResult.errors.slice(0, 10).map((error: string, idx: number) => (
+                      <li key={idx}>{error}</li>
+                    ))}
+                    {validationResult.errors.length > 10 && (
+                      <li className="text-muted-foreground">
+                        ... y {validationResult.errors.length - 10} más
+                      </li>
+                    )}
+                  </ul>
+                </AlertDescription>
+              </Alert>
             )}
 
             {/* Warnings */}
-            {validationResult.warnings && Array.isArray(validationResult.warnings) && validationResult.warnings.length > 0 && (
+            {validationResult.warnings && validationResult.warnings.length > 0 && (
               <Alert>
                 <Info className="h-4 w-4" />
                 <AlertDescription>

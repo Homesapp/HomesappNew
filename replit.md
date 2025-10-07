@@ -62,14 +62,6 @@ Administrative fees: $2,500 MXN for personal use contracts or $3,800 MXN for sub
 *   **Admin Panel Enhancements**: Includes full English translation, a dedicated admin profile management page with photo upload and password changes, and a streamlined user menu.
 *   **Role Request System**: Enhanced with mandatory email, WhatsApp, and structured years of experience fields for applications.
 *   **Property Import/Export System**: Admin-only feature for migrating property data between development and production environments. Supports JSON export with filters, validation pipeline with foreign key checking, and bulk import with duplicate handling options (skip or update existing). Includes dry-run mode to validate data before importing.
-*   **Property Owner Assignment System**: Admin-only feature for managing property ownership assignments and reassignments. Critical for ensuring all properties have valid owners. Features include:
-    - **Statistics Dashboard**: Visual overview of property distribution across owners
-    - **Owner Filtering**: Filter properties by current owner to manage large portfolios
-    - **Bulk Reassignment**: Select multiple properties and reassign them to a new owner in a single transaction
-    - **Validation**: Ensures target owners exist, have appropriate roles (owner/admin/master), and are approved
-    - **Transactional Safety**: Batch operations use database transactions to prevent partial updates
-    - **Audit Trail**: All reassignments are logged for compliance and tracking
-    - Accessible at `/admin/property-owners` for master and admin roles only
 
 ### System Design Choices
 
@@ -126,44 +118,3 @@ Siguiendo las recomendaciones del sistema Dual-AI, se implementaron mejoras sign
 - Transiciones suaves: `transition-smooth` (300ms cubic-bezier), `transition-bounce`
 - Clases de utilidad Tailwind para feedback visual mejorado
 - Todas las animaciones diseñadas para mejorar UX sin distraer
-
-### Property Import/Export System Enhancements (Octubre 2025)
-Mejoras significativas al sistema de importación/exportación de propiedades siguiendo recomendaciones del sistema Dual-AI:
-
-#### File Upload Support
-- Input type="file" para carga directa de archivos JSON
-- Validación automática de extensión .json
-- Lectura asíncrona con FileReader API
-- Feedback visual de carga exitosa/fallida
-- Alternativa moderna al flujo manual de paste JSON
-
-#### Client-Side Pre-validation
-- Validación de formato JSON antes de enviar al servidor
-- Verificación de estructura de array no vacío
-- Pre-chequeo de campos requeridos (title, price, bedrooms, bathrooms, area, location, ownerEmail)
-- **Importante**: Permite valores numéricos 0 como válidos (e.g., 0 bedrooms para estudios)
-- Validación explícita solo para undefined/null/empty-string
-- Detección temprana de errores reduce carga en servidor
-
-#### Grouped Error Presentation
-- Función `groupErrors()` que categoriza errores en:
-  - Campos requeridos faltantes
-  - Emails de propietarios no encontrados
-  - Otros errores
-- Alert de resumen con emoji y conteo total de errores
-- Desglose por categoría con contadores individuales
-- Límite de 5 errores por categoría + indicador "... y X más"
-- Mejora significativa en legibilidad de errores complejos
-
-#### Auto-scroll to Results
-- useRef + useEffect para scroll automático
-- Smooth scroll behavior cuando aparecen resultados de validación
-- Reduce necesidad de scroll manual del usuario
-- Mejora UX especialmente con archivos grandes
-
-#### Backend Validation
-- Estructura de respuesta consistente: `{valid, errors, warnings, mappings}`
-- Logging detallado de operaciones de validación
-- Manejo robusto de undefined/null en response
-- Try/catch no-blocking para audit logs
-- Validación de referencias foráneas (owners, condominiums)
