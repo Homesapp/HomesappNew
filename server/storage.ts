@@ -3144,10 +3144,12 @@ export class DatabaseStorage implements IStorage {
           type: chatConversations.type,
           title: chatConversations.title,
           propertyId: chatConversations.propertyId,
-          appointmentId: chatConversations.appointmentId,
+          rentalApplicationId: chatConversations.rentalApplicationId,
+          createdById: chatConversations.createdById,
           lastMessageAt: chatConversations.lastMessageAt,
           isBot: chatConversations.isBot,
           createdAt: chatConversations.createdAt,
+          updatedAt: chatConversations.updatedAt,
         })
         .from(chatConversations)
         .innerJoin(
