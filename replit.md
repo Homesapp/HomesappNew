@@ -16,11 +16,31 @@ HomesApp is a comprehensive SaaS platform designed to streamline real estate pro
 - **Owner Appointment Management System Enhancements**:
   - **Smart Lock Expiration Tracking**: Added three new fields to access info (smartLockCode, smartLockExpirationDuration with options "same_day" or "ongoing", smartLockExpirationNotes) for tracking smart lock validity periods
   - **OwnerAppointments Complete Redesign**:
+    - **Compact List View**: Redesigned appointment cards to display concierge and client information inline with avatars, eliminating card expansion
+    - Concierge and client info displayed side-by-side with small avatars (h-5 w-5) and truncated names
+    - Appointment date shown in compact format (dd MMM, HH:mm) with calendar icon
+    - Property location and visit type badges inline with title
     - Collapsible filters and settings sections with toggle icons for cleaner UI and space optimization
     - Dual view modes: List view (default) and Calendar view with weekly navigation (Previous Week, Today, Next Week buttons)
     - Calendar view displays appointments organized by day with time slots and property titles
-    - Enhanced appointment cards showing concierge assignment details (avatar, name, email, phone) and client presentation information
-    - Detailed appointment dialog with concierge card, client card, and presentation card details (budget, timeframe, nationality)
+  - **Enhanced Appointment Details Dialog**:
+    - **Concierge Card with Rating System**: 
+      - Displays concierge name with avatar (h-16 w-16)
+      - Shows rating stars (1-5) with review count (e.g., "(3 reviews)")
+      - "Mensaje" button for direct chat (redirects to /chat?userId={conciergeId})
+      - "WhatsApp" button for instant messaging (opens wa.me link)
+      - EMAIL REMOVED - no longer displayed in concierge card for streamlined communication
+    - **Client Information with Embedded Presentation Card**:
+      - Client name, nationality displayed at top
+      - Integrated presentation card section showing:
+        - Property type preference
+        - Budget range (data-testid="text-presentation-budget")
+        - Pet information with "Sí"/"No" indicator
+        - Pet photo viewer button (eye icon, data-testid="button-view-pet-photo") - only shown if hasPets=true AND petPhotoUrl exists
+        - Move-in date
+        - Number of occupants (e.g., "4 personas")
+        - Timeframe (data-testid="text-presentation-timeframe")
+    - **Pet Photo Dialog**: Separate modal for viewing client pet photos (data-testid="dialog-pet-photo", img-pet-photo)
     - All interactive elements instrumented with data-testid attributes for comprehensive test coverage
   - **Conditional Auto-Approval Logic**: 
     - Auto-approval requires: autoApproveAppointments flag enabled AND (lockbox code exists OR smart lock with "ongoing" duration)
@@ -31,6 +51,12 @@ HomesApp is a comprehensive SaaS platform designed to streamline real estate pro
     - Manual approval: Notifies concierge (medium priority), client (high priority), and admin (low priority) with type "appointment"
     - Rejection: Notifies client (high priority) and admin (low priority) with type "appointment"
     - All notifications include property title, date, and relevant context messages
+  - **Backend API Enhancements**:
+    - `/api/appointments` enriched with concierge rating data (average from concierge_reviews table)
+    - Includes review count for each concierge
+    - Complete presentation card data including pets, move-in date, occupants
+    - Fixed `owner_status` column missing from properties table
+    - Fixed `upsertUser` function to handle OIDC email conflicts without breaking foreign key references
 
 ## User Preferences
 Preferred communication style: Simple, everyday language.

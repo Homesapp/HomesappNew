@@ -3117,7 +3117,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       );
       
       // Notify admins
-      const admins = await storage.getUsers({ role: "admin" });
+      const admins = await storage.getUsersByRole("admin");
       for (const admin of admins) {
         notifications.push(
           storage.createNotification({
@@ -3195,7 +3195,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       );
       
       // Notify admins
-      const admins = await storage.getUsers({ role: "admin" });
+      const admins = await storage.getUsersByRole("admin");
       for (const admin of admins) {
         notifications.push(
           storage.createNotification({
@@ -5764,7 +5764,68 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (propertyId) filters.propertyId = propertyId;
 
       const appointments = await storage.getAppointments(filters);
-      res.json(appointments);
+      
+      // Enrich appointments with additional data
+      const enrichedAppointments = await Promise.all(
+        appointments.map(async (apt) => {
+          const enriched: any = { ...apt };
+          
+          // Add property info
+          if (apt.propertyId) {
+            enriched.property = await storage.getProperty(apt.propertyId);
+          }
+          
+          // Add client info
+          if (apt.clientId) {
+            const client = await storage.getUser(apt.clientId);
+            if (client) {
+              enriched.client = {
+                email: client.email,
+                firstName: client.firstName,
+                lastName: client.lastName,
+                phone: client.phone,
+                nationality: client.nationality,
+                profileImageUrl: client.profileImageUrl,
+              };
+            }
+          }
+          
+          // Add concierge info with rating
+          if (apt.conciergeId) {
+            const concierge = await storage.getUser(apt.conciergeId);
+            if (concierge) {
+              // Get concierge reviews to calculate rating
+              const reviews = await storage.getConciergeReviews({ conciergeId: apt.conciergeId });
+              const avgRating = reviews.length > 0 
+                ? reviews.reduce((sum, r) => sum + r.rating, 0) / reviews.length 
+                : 0;
+              
+              enriched.concierge = {
+                id: concierge.id,
+                firstName: concierge.firstName,
+                lastName: concierge.lastName,
+                email: concierge.email,
+                phone: concierge.phone,
+                profileImageUrl: concierge.profileImageUrl,
+                rating: avgRating || undefined,
+                reviewCount: reviews.length || undefined,
+              };
+            }
+          }
+          
+          // Add presentation card info
+          if (apt.presentationCardId) {
+            const presentationCard = await storage.getPresentationCard(apt.presentationCardId);
+            if (presentationCard) {
+              enriched.presentationCard = presentationCard;
+            }
+          }
+          
+          return enriched;
+        })
+      );
+      
+      res.json(enrichedAppointments);
     } catch (error) {
       console.error("Error fetching appointments:", error);
       res.status(500).json({ message: "Failed to fetch appointments" });

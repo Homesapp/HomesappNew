@@ -13,7 +13,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { useToast } from "@/hooks/use-toast";
 import { queryClient, apiRequest } from "@/lib/queryClient";
-import { CheckCircle2, XCircle, Clock, Calendar as CalendarIcon, MapPin, User, Settings, Filter, ChevronDown, ChevronRight, Phone, Mail, Globe, CreditCard } from "lucide-react";
+import { CheckCircle2, XCircle, Clock, Calendar as CalendarIcon, MapPin, User, Settings, Filter, ChevronDown, ChevronRight, Phone, Mail, Globe, CreditCard, MessageCircle, Star, Eye } from "lucide-react";
 import { format, startOfWeek, endOfWeek, eachDayOfInterval, isWithinInterval, startOfDay, endOfDay, addWeeks, subWeeks, isSameDay } from "date-fns";
 import { es } from "date-fns/locale";
 import type { Appointment, Property, OwnerSettings } from "@shared/schema";
@@ -37,6 +37,8 @@ interface AppointmentWithDetails extends Appointment {
     email: string;
     phone?: string;
     profileImageUrl?: string;
+    rating?: number;
+    reviewCount?: number;
   };
   presentationCard?: {
     id: string;
@@ -45,6 +47,11 @@ interface AppointmentWithDetails extends Appointment {
     visitType: string;
     budget?: string;
     timeFrame?: string;
+    propertyType?: string;
+    hasPets?: boolean;
+    petPhotoUrl?: string;
+    moveInDate?: string;
+    numberOfOccupants?: number;
     createdAt: Date;
   };
 }
@@ -59,6 +66,7 @@ export default function OwnerAppointments() {
   const [viewMode, setViewMode] = useState<"list" | "calendar">("list");
   const [filtersOpen, setFiltersOpen] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const [petPhotoDialogOpen, setPetPhotoDialogOpen] = useState(false);
   const { toast } = useToast();
 
   const { data: allAppointments = [], isLoading } = useQuery<AppointmentWithDetails[]>({
@@ -531,40 +539,70 @@ export default function OwnerAppointments() {
               </Card>
             ) : (
               filteredAppointments.map((appointment) => (
-                <Card key={appointment.id} data-testid={`card-appointment-${appointment.id}`}>
-                  <CardHeader>
+                <Card 
+                  key={appointment.id} 
+                  className="hover-elevate cursor-pointer" 
+                  onClick={() => setSelectedAppointment(appointment)}
+                  data-testid={`card-appointment-${appointment.id}`}
+                >
+                  <div className="p-4">
                     <div className="flex items-start justify-between gap-4">
-                      <div className="flex-1">
+                      <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2 mb-2 flex-wrap">
-                          <CardTitle className="text-lg">
+                          <h3 className="font-semibold text-base">
                             {getPropertyDisplay(appointment.property)}
-                          </CardTitle>
+                          </h3>
                           {getStatusBadge(appointment.ownerApprovalStatus)}
                           {appointment.visitType && (
-                            <Badge variant="outline" data-testid={`badge-visit-type-${appointment.id}`}>
+                            <Badge variant="outline" className="text-xs" data-testid={`badge-visit-type-${appointment.id}`}>
                               {formatVisitType(appointment.visitType)}
                             </Badge>
                           )}
                         </div>
-                        <CardDescription className="space-y-1">
-                          <div className="flex items-center gap-2">
-                            <CalendarIcon className="w-4 h-4" />
-                            {new Date(appointment.date).toLocaleString()}
+                        
+                        <div className="grid grid-cols-2 gap-x-6 gap-y-1 text-sm">
+                          <div className="flex items-center gap-2 text-muted-foreground">
+                            <CalendarIcon className="w-3.5 h-3.5" />
+                            <span className="truncate">{format(new Date(appointment.date), "dd MMM, HH:mm", { locale: es })}</span>
                           </div>
+                          
                           <div className="flex items-center gap-2">
-                            <User className="w-4 w-4" />
-                            {getClientName(appointment.client)}
+                            <Avatar className="h-5 w-5">
+                              {appointment.client?.profileImageUrl && (
+                                <AvatarImage src={appointment.client.profileImageUrl} />
+                              )}
+                              <AvatarFallback className="text-[10px]">
+                                {getInitials(getClientName(appointment.client))}
+                              </AvatarFallback>
+                            </Avatar>
+                            <span className="truncate text-xs">{getClientName(appointment.client)}</span>
                           </div>
+
                           {appointment.property?.location && (
-                            <div className="flex items-center gap-2">
-                              <MapPin className="w-4 h-4" />
-                              {appointment.property.location}
+                            <div className="flex items-center gap-2 text-muted-foreground">
+                              <MapPin className="w-3.5 h-3.5" />
+                              <span className="truncate text-xs">{appointment.property.location}</span>
                             </div>
                           )}
-                        </CardDescription>
+
+                          {appointment.concierge && (
+                            <div className="flex items-center gap-2">
+                              <Avatar className="h-5 w-5">
+                                {appointment.concierge.profileImageUrl && (
+                                  <AvatarImage src={appointment.concierge.profileImageUrl} />
+                                )}
+                                <AvatarFallback className="text-[10px]">
+                                  {getInitials(getConciergeName(appointment.concierge))}
+                                </AvatarFallback>
+                              </Avatar>
+                              <span className="truncate text-xs">{getConciergeName(appointment.concierge)}</span>
+                            </div>
+                          )}
+                        </div>
                       </div>
+                      
                       {appointment.ownerApprovalStatus === "pending" && (
-                        <div className="flex gap-2">
+                        <div className="flex gap-2 flex-shrink-0" onClick={(e) => e.stopPropagation()}>
                           <Button
                             size="sm"
                             onClick={() => handleOpenReview(appointment, "approve")}
@@ -585,50 +623,7 @@ export default function OwnerAppointments() {
                         </div>
                       )}
                     </div>
-                  </CardHeader>
-                  <CardContent className="space-y-3">
-                    <div className="grid grid-cols-2 gap-4 text-sm">
-                      <div>
-                        <span className="text-muted-foreground">Tipo: </span>
-                        <span className="font-medium">{formatAppointmentType(appointment.type)}</span>
-                      </div>
-                      <div>
-                        <span className="text-muted-foreground">Estado: </span>
-                        <span className="font-medium capitalize">{appointment.status}</span>
-                      </div>
-                    </div>
-
-                    {appointment.notes && (
-                      <div>
-                        <h4 className="font-medium text-sm mb-1">Notas del cliente:</h4>
-                        <p className="text-sm text-muted-foreground" data-testid="text-client-notes">
-                          {appointment.notes}
-                        </p>
-                      </div>
-                    )}
-
-                    {appointment.meetLink && (
-                      <div>
-                        <h4 className="font-medium text-sm mb-1">Link de reunión:</h4>
-                        <a
-                          href={appointment.meetLink}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="text-sm text-primary hover:underline"
-                          data-testid="link-meet"
-                        >
-                          {appointment.meetLink}
-                        </a>
-                      </div>
-                    )}
-
-                    {appointment.ownerApprovedAt && (
-                      <div className="text-sm text-muted-foreground">
-                        {appointment.ownerApprovalStatus === "approved" ? "Aprobada" : "Procesada"} el{" "}
-                        {new Date(appointment.ownerApprovedAt).toLocaleString()}
-                      </div>
-                    )}
-                  </CardContent>
+                  </div>
                 </Card>
               ))
             )}
@@ -664,36 +659,54 @@ export default function OwnerAppointments() {
                           {getInitials(getConciergeName(selectedAppointment.concierge))}
                         </AvatarFallback>
                       </Avatar>
-                      <div className="flex-1 space-y-2">
-                        <p className="font-semibold text-lg" data-testid="text-concierge-name">
-                          {getConciergeName(selectedAppointment.concierge)}
-                        </p>
-                        {selectedAppointment.concierge.email && (
-                          <div className="flex items-center gap-2 text-sm">
-                            <Mail className="h-4 w-4 text-muted-foreground" />
-                            <a 
-                              href={`mailto:${selectedAppointment.concierge.email}`}
-                              className="text-primary hover:underline"
-                              data-testid="link-concierge-email"
+                      <div className="flex-1 space-y-3">
+                        <div>
+                          <p className="font-semibold text-lg" data-testid="text-concierge-name">
+                            {getConciergeName(selectedAppointment.concierge)}
+                          </p>
+                          {selectedAppointment.concierge.rating && selectedAppointment.concierge.reviewCount ? (
+                            <div className="flex items-center gap-2 mt-1">
+                              <div className="flex items-center">
+                                {[...Array(5)].map((_, i) => (
+                                  <Star
+                                    key={i}
+                                    className={`w-4 h-4 ${
+                                      i < Math.round(selectedAppointment.concierge!.rating!)
+                                        ? "fill-yellow-400 text-yellow-400"
+                                        : "text-muted-foreground"
+                                    }`}
+                                  />
+                                ))}
+                              </div>
+                              <span className="text-sm text-muted-foreground">
+                                ({selectedAppointment.concierge.reviewCount} reviews)
+                              </span>
+                            </div>
+                          ) : null}
+                        </div>
+                        
+                        <div className="flex gap-2">
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => window.location.href = `/chat?userId=${selectedAppointment.concierge!.id}`}
+                            data-testid="button-message-concierge"
+                          >
+                            <MessageCircle className="h-4 w-4 mr-2" />
+                            Mensaje
+                          </Button>
+                          {selectedAppointment.concierge.phone && (
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => window.open(`https://wa.me/${selectedAppointment.concierge!.phone!.replace(/\D/g, '')}`, '_blank')}
+                              data-testid="button-whatsapp-concierge"
                             >
-                              {selectedAppointment.concierge.email}
-                            </a>
-                          </div>
-                        )}
-                        {selectedAppointment.concierge.phone && (
-                          <div className="flex items-center gap-2 text-sm">
-                            <Phone className="h-4 w-4 text-muted-foreground" />
-                            <a 
-                              href={`https://wa.me/${selectedAppointment.concierge.phone.replace(/\D/g, '')}`}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              className="text-primary hover:underline"
-                              data-testid="link-concierge-phone"
-                            >
-                              {selectedAppointment.concierge.phone}
-                            </a>
-                          </div>
-                        )}
+                              <Phone className="h-4 w-4 mr-2" />
+                              WhatsApp
+                            </Button>
+                          )}
+                        </div>
                       </div>
                     </div>
                   </CardContent>
@@ -706,7 +719,7 @@ export default function OwnerAppointments() {
                   <CardHeader>
                     <CardTitle className="text-lg">Información del Cliente</CardTitle>
                   </CardHeader>
-                  <CardContent>
+                  <CardContent className="space-y-4">
                     <div className="flex items-start gap-4">
                       <Avatar className="h-16 w-16">
                         {selectedAppointment.client.profileImageUrl && (
@@ -720,32 +733,6 @@ export default function OwnerAppointments() {
                         <p className="font-semibold text-lg" data-testid="text-client-name">
                           {getClientName(selectedAppointment.client)}
                         </p>
-                        {selectedAppointment.client.email && (
-                          <div className="flex items-center gap-2 text-sm">
-                            <Mail className="h-4 w-4 text-muted-foreground" />
-                            <a 
-                              href={`mailto:${selectedAppointment.client.email}`}
-                              className="text-primary hover:underline"
-                              data-testid="link-client-email"
-                            >
-                              {selectedAppointment.client.email}
-                            </a>
-                          </div>
-                        )}
-                        {selectedAppointment.client.phone && (
-                          <div className="flex items-center gap-2 text-sm">
-                            <Phone className="h-4 w-4 text-muted-foreground" />
-                            <a 
-                              href={`https://wa.me/${selectedAppointment.client.phone.replace(/\D/g, '')}`}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              className="text-primary hover:underline"
-                              data-testid="link-client-phone"
-                            >
-                              {selectedAppointment.client.phone}
-                            </a>
-                          </div>
-                        )}
                         {selectedAppointment.client.nationality && (
                           <div className="flex items-center gap-2 text-sm">
                             <Globe className="h-4 w-4 text-muted-foreground" />
@@ -754,39 +741,68 @@ export default function OwnerAppointments() {
                         )}
                       </div>
                     </div>
-                  </CardContent>
-                </Card>
-              )}
 
-              {/* Presentation Card */}
-              {selectedAppointment.presentationCard && (
-                <Card>
-                  <CardHeader>
-                    <CardTitle className="text-lg">Tarjeta de Presentación</CardTitle>
-                  </CardHeader>
-                  <CardContent className="space-y-2">
-                    <div className="grid grid-cols-2 gap-4 text-sm">
-                      <div>
-                        <span className="text-muted-foreground">Tipo de visita: </span>
-                        <span className="font-medium">{formatVisitType(selectedAppointment.presentationCard.visitType)}</span>
+                    {/* Presentation Card Details */}
+                    {selectedAppointment.presentationCard && (
+                      <div className="border-t pt-4 space-y-3">
+                        <h4 className="font-semibold text-sm">Tarjeta de Presentación</h4>
+                        <div className="grid grid-cols-2 gap-3 text-sm">
+                          {selectedAppointment.presentationCard.propertyType && (
+                            <div>
+                              <span className="text-muted-foreground">Tipo de propiedad: </span>
+                              <span className="font-medium">{selectedAppointment.presentationCard.propertyType}</span>
+                            </div>
+                          )}
+                          {selectedAppointment.presentationCard.budget && (
+                            <div>
+                              <span className="text-muted-foreground">Presupuesto: </span>
+                              <span className="font-medium" data-testid="text-presentation-budget">
+                                {selectedAppointment.presentationCard.budget}
+                              </span>
+                            </div>
+                          )}
+                          {selectedAppointment.presentationCard.hasPets !== undefined && (
+                            <div className="flex items-center gap-2">
+                              <span className="text-muted-foreground">Mascotas: </span>
+                              <span className="font-medium">
+                                {selectedAppointment.presentationCard.hasPets ? "Sí" : "No"}
+                              </span>
+                              {selectedAppointment.presentationCard.hasPets && selectedAppointment.presentationCard.petPhotoUrl && (
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  className="h-6 w-6"
+                                  onClick={() => setPetPhotoDialogOpen(true)}
+                                  data-testid="button-view-pet-photo"
+                                >
+                                  <Eye className="h-4 w-4" />
+                                </Button>
+                              )}
+                            </div>
+                          )}
+                          {selectedAppointment.presentationCard.moveInDate && (
+                            <div>
+                              <span className="text-muted-foreground">Fecha de ingreso: </span>
+                              <span className="font-medium">{selectedAppointment.presentationCard.moveInDate}</span>
+                            </div>
+                          )}
+                          {selectedAppointment.presentationCard.numberOfOccupants && (
+                            <div>
+                              <span className="text-muted-foreground">Ocupantes: </span>
+                              <span className="font-medium">{selectedAppointment.presentationCard.numberOfOccupants} personas</span>
+                            </div>
+                          )}
+                          {selectedAppointment.presentationCard.timeFrame && (
+                            <div>
+                              <span className="text-muted-foreground">Plazo: </span>
+                              <span className="font-medium" data-testid="text-presentation-timeframe">
+                                {selectedAppointment.presentationCard.timeFrame}
+                              </span>
+                            </div>
+                          )}
+                        </div>
                       </div>
-                      {selectedAppointment.presentationCard.budget && (
-                        <div>
-                          <span className="text-muted-foreground">Presupuesto: </span>
-                          <span className="font-medium" data-testid="text-presentation-budget">
-                            {selectedAppointment.presentationCard.budget}
-                          </span>
-                        </div>
-                      )}
-                      {selectedAppointment.presentationCard.timeFrame && (
-                        <div>
-                          <span className="text-muted-foreground">Plazo: </span>
-                          <span className="font-medium" data-testid="text-presentation-timeframe">
-                            {selectedAppointment.presentationCard.timeFrame}
-                          </span>
-                        </div>
-                      )}
-                    </div>
+                    )}
                   </CardContent>
                 </Card>
               )}
@@ -890,6 +906,25 @@ export default function OwnerAppointments() {
                 : "Rechazar"}
             </Button>
           </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Pet Photo Dialog */}
+      <Dialog open={petPhotoDialogOpen} onOpenChange={setPetPhotoDialogOpen}>
+        <DialogContent className="max-w-md" data-testid="dialog-pet-photo">
+          <DialogHeader>
+            <DialogTitle>Foto de Mascota</DialogTitle>
+          </DialogHeader>
+          <div className="flex justify-center">
+            {selectedAppointment?.presentationCard?.petPhotoUrl && (
+              <img
+                src={selectedAppointment.presentationCard.petPhotoUrl}
+                alt="Mascota del cliente"
+                className="max-h-96 object-contain rounded-md"
+                data-testid="img-pet-photo"
+              />
+            )}
+          </div>
         </DialogContent>
       </Dialog>
     </div>
