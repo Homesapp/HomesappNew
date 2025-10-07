@@ -472,17 +472,18 @@ export default function Step2LocationDetails({ data, onUpdate, onNext, onPreviou
             />
           </div>
 
-          <div className="flex justify-between pt-4">
+          <div className="flex flex-col sm:flex-row justify-between gap-3 pt-4">
             <Button
               type="button"
               variant="outline"
               onClick={onPrevious}
+              className="w-full sm:w-auto"
               data-testid="button-previous-step2"
             >
               <ChevronLeft className="w-4 h-4 mr-2" />
               Anterior
             </Button>
-            <Button type="submit" data-testid="button-next-step2">
+            <Button type="submit" className="w-full sm:w-auto" data-testid="button-next-step2">
               Continuar
               <ChevronRight className="w-4 h-4 ml-2" />
             </Button>

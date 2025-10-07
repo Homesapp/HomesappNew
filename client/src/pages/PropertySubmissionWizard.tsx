@@ -211,17 +211,17 @@ export default function PropertySubmissionWizard() {
   const progress = (currentStep / TOTAL_STEPS) * 100;
 
   return (
-    <div className="container mx-auto p-6 max-w-4xl">
+    <div className="container mx-auto p-4 sm:p-6 max-w-4xl">
       <Card>
         <CardHeader className="space-y-4">
-          <div className="flex items-center justify-between">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
             <div>
               <CardTitle data-testid="heading-wizard-title">Cargar Nueva Propiedad</CardTitle>
               <CardDescription className="mt-2" data-testid="text-wizard-description">
                 Paso {currentStep} de {TOTAL_STEPS}
               </CardDescription>
             </div>
-            <div className="flex items-center gap-3">
+            <div className="flex items-center gap-3 flex-wrap">
               {lastSaved && (
                 <span className="text-sm text-muted-foreground" data-testid="text-last-saved">
                   Guardado {new Date(lastSaved).toLocaleTimeString()}
@@ -239,8 +239,8 @@ export default function PropertySubmissionWizard() {
                 disabled={isSaving}
                 data-testid="button-manual-save"
               >
-                <Save className="w-4 h-4 mr-2" />
-                Guardar
+                <Save className="w-4 h-4 sm:mr-2" />
+                <span className="hidden sm:inline">Guardar</span>
               </Button>
             </div>
           </div>

@@ -262,7 +262,7 @@ export default function Step1BasicInfo({ data, onUpdate, onNext }: Step1Props) {
           </div>
 
           <div className="flex justify-end pt-4">
-            <Button type="submit" data-testid="button-next-step1">
+            <Button type="submit" className="w-full sm:w-auto" data-testid="button-next-step1">
               Continuar
               <ChevronRight className="w-4 h-4 ml-2" />
             </Button>
