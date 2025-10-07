@@ -35,6 +35,7 @@ import Appointments from "@/pages/Appointments";
 import Calendar from "@/pages/Calendar";
 import AdminCalendar from "@/pages/AdminCalendar";
 import AdminBusinessHours from "@/pages/AdminBusinessHours";
+import AdminPropertyImportExport from "@/pages/AdminPropertyImportExport";
 import ConciergeSchedule from "@/pages/ConciergeSchedule";
 import Directory from "@/pages/Directory";
 import PresentationCards from "@/pages/PresentationCards";
@@ -218,6 +219,7 @@ function AuthenticatedApp() {
               <Route path="/admin/agreement-templates" component={AdminAgreementTemplates} />
               <Route path="/admin/condominiums/:id" component={CondominiumDetails} />
               <Route path="/admin/condominiums" component={AdminCondominiums} />
+              <Route path="/admin/import-export" component={AdminPropertyImportExport} />
               <Route path="/admin/suggestions" component={AdminSuggestions} />
               <Route path="/admin/chatbot-config" component={AdminChatbotConfig} />
               <Route path="/admin/create-user" component={CreateUser} />

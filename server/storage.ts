@@ -4147,6 +4147,325 @@ export class DatabaseStorage implements IStorage {
     
     return result.length;
   }
+
+  // Property Import/Export functions
+  async exportProperties(filters?: {
+    approvalStatus?: string;
+    active?: boolean;
+    published?: boolean;
+    ownerId?: string;
+  }): Promise<any[]> {
+    let query = db.select({
+      property: properties,
+      owner: {
+        email: users.email,
+        firstName: users.firstName,
+        lastName: users.lastName,
+      },
+      colony: {
+        name: colonies.name,
+        slug: colonies.slug,
+      },
+      condominium: {
+        name: condominiums.name,
+        slug: condominiums.slug,
+      },
+    })
+      .from(properties)
+      .leftJoin(users, eq(properties.ownerId, users.id))
+      .leftJoin(colonies, eq(properties.colonyId, colonies.id))
+      .leftJoin(condominiums, eq(properties.condominiumId, condominiums.id));
+
+    const conditions = [];
+    if (filters?.approvalStatus) {
+      conditions.push(eq(properties.approvalStatus, filters.approvalStatus as any));
+    }
+    if (filters?.active !== undefined) {
+      conditions.push(eq(properties.active, filters.active));
+    }
+    if (filters?.published !== undefined) {
+      conditions.push(eq(properties.published, filters.published));
+    }
+    if (filters?.ownerId) {
+      conditions.push(eq(properties.ownerId, filters.ownerId));
+    }
+
+    if (conditions.length > 0) {
+      query = query.where(and(...conditions)) as any;
+    }
+
+    const results = await query;
+
+    // Transform to export format
+    return results.map(r => ({
+      // Property data
+      externalId: r.property.id, // Original ID for reference
+      title: r.property.title,
+      description: r.property.description,
+      propertyType: r.property.propertyType,
+      price: r.property.price,
+      salePrice: r.property.salePrice,
+      currency: r.property.currency,
+      bedrooms: r.property.bedrooms,
+      bathrooms: r.property.bathrooms,
+      area: r.property.area,
+      location: r.property.location,
+      colonyName: r.colony?.name || r.property.colonyName,
+      unitType: r.property.unitType,
+      condoName: r.condominium?.name || r.property.condoName,
+      unitNumber: r.property.unitNumber,
+      showCondoInListing: r.property.showCondoInListing,
+      showUnitNumberInListing: r.property.showUnitNumberInListing,
+      images: r.property.images,
+      primaryImages: r.property.primaryImages,
+      coverImageIndex: r.property.coverImageIndex,
+      secondaryImages: r.property.secondaryImages,
+      videos: r.property.videos,
+      virtualTourUrl: r.property.virtualTourUrl,
+      googleMapsUrl: r.property.googleMapsUrl,
+      driveUrl: r.property.driveUrl,
+      latitude: r.property.latitude,
+      longitude: r.property.longitude,
+      amenities: r.property.amenities,
+      specifications: r.property.specifications,
+      status: r.property.status,
+      active: r.property.active,
+      published: r.property.published,
+      availableFrom: r.property.availableFrom,
+      availableTo: r.property.availableTo,
+      featured: r.property.featured,
+      allowsSubleasing: r.property.allowsSubleasing,
+      customListingTitle: r.property.customListingTitle,
+      // Owner information (for mapping)
+      ownerEmail: r.owner?.email,
+      ownerFirstName: r.owner?.firstName,
+      ownerLastName: r.owner?.lastName,
+    }));
+  }
+
+  async validatePropertyImport(importData: any[]): Promise<{
+    valid: boolean;
+    errors: string[];
+    warnings: string[];
+    mappings: {
+      owners: Record<string, string | null>; // email -> userId
+      colonies: Record<string, string | null>; // name -> colonyId
+      condominiums: Record<string, string | null>; // name -> condominiumId
+    };
+  }> {
+    const errors: string[] = [];
+    const warnings: string[] = [];
+    const ownerEmails = new Set<string>();
+    const colonyNames = new Set<string>();
+    const condoNames = new Set<string>();
+
+    // Collect unique identifiers
+    importData.forEach((prop, idx) => {
+      if (!prop.title) errors.push(`Row ${idx + 1}: Missing title`);
+      if (!prop.price) errors.push(`Row ${idx + 1}: Missing price`);
+      if (!prop.bedrooms) errors.push(`Row ${idx + 1}: Missing bedrooms`);
+      if (!prop.bathrooms) errors.push(`Row ${idx + 1}: Missing bathrooms`);
+      if (!prop.area) errors.push(`Row ${idx + 1}: Missing area`);
+      if (!prop.location) errors.push(`Row ${idx + 1}: Missing location`);
+      if (!prop.ownerEmail) errors.push(`Row ${idx + 1}: Missing ownerEmail`);
+
+      if (prop.ownerEmail) ownerEmails.add(prop.ownerEmail);
+      if (prop.colonyName) colonyNames.add(prop.colonyName);
+      if (prop.condoName) condoNames.add(prop.condoName);
+    });
+
+    // Validate owners exist
+    const ownerMapping: Record<string, string | null> = {};
+    for (const email of ownerEmails) {
+      const user = await this.getUserByEmail(email);
+      ownerMapping[email] = user?.id || null;
+      if (!user) {
+        errors.push(`Owner email not found: ${email}`);
+      }
+    }
+
+    // Validate colonies exist
+    const colonyMapping: Record<string, string | null> = {};
+    for (const name of colonyNames) {
+      const colony = await db.query.colonies.findFirst({
+        where: eq(colonies.name, name),
+      });
+      colonyMapping[name] = colony?.id || null;
+      if (!colony) {
+        warnings.push(`Colony not found (will be null): ${name}`);
+      }
+    }
+
+    // Validate condominiums exist
+    const condoMapping: Record<string, string | null> = {};
+    for (const name of condoNames) {
+      const condo = await db.query.condominiums.findFirst({
+        where: eq(condominiums.name, name),
+      });
+      condoMapping[name] = condo?.id || null;
+      if (!condo) {
+        warnings.push(`Condominium not found (will be null): ${name}`);
+      }
+    }
+
+    return {
+      valid: errors.length === 0,
+      errors,
+      warnings,
+      mappings: {
+        owners: ownerMapping,
+        colonies: colonyMapping,
+        condominiums: condoMapping,
+      },
+    };
+  }
+
+  async bulkImportProperties(
+    importData: any[],
+    mappings: {
+      owners: Record<string, string | null>;
+      colonies: Record<string, string | null>;
+      condominiums: Record<string, string | null>;
+    },
+    options: {
+      skipDuplicates?: boolean;
+      updateExisting?: boolean;
+    } = {}
+  ): Promise<{
+    created: number;
+    updated: number;
+    skipped: number;
+    errors: string[];
+  }> {
+    let created = 0;
+    let updated = 0;
+    let skipped = 0;
+    const errors: string[] = [];
+
+    for (const prop of importData) {
+      try {
+        const ownerId = mappings.owners[prop.ownerEmail];
+        if (!ownerId) {
+          errors.push(`Skipping property "${prop.title}": owner not found`);
+          skipped++;
+          continue;
+        }
+
+        // Check for duplicates by title + owner
+        const existing = await db.query.properties.findFirst({
+          where: and(
+            eq(properties.title, prop.title),
+            eq(properties.ownerId, ownerId)
+          ),
+        });
+
+        if (existing) {
+          if (options.skipDuplicates) {
+            skipped++;
+            continue;
+          }
+          if (options.updateExisting) {
+            await db.update(properties)
+              .set({
+                description: prop.description,
+                propertyType: prop.propertyType,
+                price: prop.price,
+                salePrice: prop.salePrice,
+                currency: prop.currency || "MXN",
+                bedrooms: prop.bedrooms,
+                bathrooms: prop.bathrooms,
+                area: prop.area,
+                location: prop.location,
+                colonyId: prop.colonyName ? mappings.colonies[prop.colonyName] : null,
+                colonyName: prop.colonyName,
+                unitType: prop.unitType || "private",
+                condominiumId: prop.condoName ? mappings.condominiums[prop.condoName] : null,
+                condoName: prop.condoName,
+                unitNumber: prop.unitNumber,
+                showCondoInListing: prop.showCondoInListing ?? true,
+                showUnitNumberInListing: prop.showUnitNumberInListing ?? true,
+                images: prop.images || [],
+                primaryImages: prop.primaryImages || [],
+                coverImageIndex: prop.coverImageIndex || 0,
+                secondaryImages: prop.secondaryImages || [],
+                videos: prop.videos || [],
+                virtualTourUrl: prop.virtualTourUrl,
+                googleMapsUrl: prop.googleMapsUrl,
+                driveUrl: prop.driveUrl,
+                latitude: prop.latitude,
+                longitude: prop.longitude,
+                amenities: prop.amenities || [],
+                specifications: prop.specifications,
+                status: prop.status || "rent",
+                active: prop.active ?? true,
+                published: prop.published ?? false,
+                availableFrom: prop.availableFrom,
+                availableTo: prop.availableTo,
+                featured: prop.featured ?? false,
+                allowsSubleasing: prop.allowsSubleasing ?? false,
+                customListingTitle: prop.customListingTitle,
+                updatedAt: new Date(),
+              })
+              .where(eq(properties.id, existing.id));
+            updated++;
+          } else {
+            skipped++;
+          }
+          continue;
+        }
+
+        // Create new property
+        await db.insert(properties).values({
+          title: prop.title,
+          description: prop.description,
+          propertyType: prop.propertyType || "house",
+          price: prop.price,
+          salePrice: prop.salePrice,
+          currency: prop.currency || "MXN",
+          bedrooms: prop.bedrooms,
+          bathrooms: prop.bathrooms,
+          area: prop.area,
+          location: prop.location,
+          colonyId: prop.colonyName ? mappings.colonies[prop.colonyName] : null,
+          colonyName: prop.colonyName,
+          unitType: prop.unitType || "private",
+          condominiumId: prop.condoName ? mappings.condominiums[prop.condoName] : null,
+          condoName: prop.condoName,
+          unitNumber: prop.unitNumber,
+          showCondoInListing: prop.showCondoInListing ?? true,
+          showUnitNumberInListing: prop.showUnitNumberInListing ?? true,
+          images: prop.images || [],
+          primaryImages: prop.primaryImages || [],
+          coverImageIndex: prop.coverImageIndex || 0,
+          secondaryImages: prop.secondaryImages || [],
+          videos: prop.videos || [],
+          virtualTourUrl: prop.virtualTourUrl,
+          googleMapsUrl: prop.googleMapsUrl,
+          driveUrl: prop.driveUrl,
+          latitude: prop.latitude,
+          longitude: prop.longitude,
+          amenities: prop.amenities || [],
+          specifications: prop.specifications,
+          ownerId: ownerId,
+          status: prop.status || "rent",
+          approvalStatus: "approved",
+          active: prop.active ?? true,
+          published: prop.published ?? false,
+          availableFrom: prop.availableFrom,
+          availableTo: prop.availableTo,
+          featured: prop.featured ?? false,
+          allowsSubleasing: prop.allowsSubleasing ?? false,
+          customListingTitle: prop.customListingTitle,
+        });
+        created++;
+      } catch (error) {
+        errors.push(`Error importing "${prop.title}": ${error instanceof Error ? error.message : String(error)}`);
+        skipped++;
+      }
+    }
+
+    return { created, updated, skipped, errors };
+  }
 }
 
 export const storage = new DatabaseStorage();

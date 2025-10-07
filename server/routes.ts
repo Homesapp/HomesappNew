@@ -2696,6 +2696,88 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Property Import/Export routes (Admin only)
+  app.get("/api/admin/properties/export", isAuthenticated, requireRole(["master", "admin"]), async (req: any, res) => {
+    try {
+      const { approvalStatus, active, published, ownerId } = req.query;
+      
+      const filters: any = {};
+      if (approvalStatus) filters.approvalStatus = approvalStatus;
+      if (active !== undefined) filters.active = active === "true";
+      if (published !== undefined) filters.published = published === "true";
+      if (ownerId) filters.ownerId = ownerId;
+
+      const properties = await storage.exportProperties(filters);
+
+      await createAuditLog(
+        req,
+        "view",
+        "property_export",
+        null,
+        `Exported ${properties.length} properties`
+      );
+
+      res.json(properties);
+    } catch (error) {
+      console.error("Error exporting properties:", error);
+      res.status(500).json({ message: "Error al exportar propiedades" });
+    }
+  });
+
+  app.post("/api/admin/properties/validate-import", isAuthenticated, requireRole(["master", "admin"]), async (req: any, res) => {
+    try {
+      const { properties: importData } = req.body;
+
+      if (!Array.isArray(importData) || importData.length === 0) {
+        return res.status(400).json({ message: "Debe proporcionar un array de propiedades" });
+      }
+
+      const validation = await storage.validatePropertyImport(importData);
+
+      await createAuditLog(
+        req,
+        "view",
+        "property_import_validation",
+        null,
+        `Validated ${importData.length} properties for import`
+      );
+
+      res.json(validation);
+    } catch (error) {
+      console.error("Error validating import:", error);
+      res.status(500).json({ message: "Error al validar importación" });
+    }
+  });
+
+  app.post("/api/admin/properties/import", isAuthenticated, requireRole(["master", "admin"]), async (req: any, res) => {
+    try {
+      const { properties: importData, mappings, options } = req.body;
+
+      if (!Array.isArray(importData) || importData.length === 0) {
+        return res.status(400).json({ message: "Debe proporcionar un array de propiedades" });
+      }
+
+      if (!mappings || !mappings.owners || !mappings.colonies || !mappings.condominiums) {
+        return res.status(400).json({ message: "Debe proporcionar los mappings de validación" });
+      }
+
+      const result = await storage.bulkImportProperties(importData, mappings, options || {});
+
+      await createAuditLog(
+        req,
+        "create",
+        "property_import",
+        null,
+        `Imported properties - Created: ${result.created}, Updated: ${result.updated}, Skipped: ${result.skipped}`
+      );
+
+      res.json(result);
+    } catch (error) {
+      console.error("Error importing properties:", error);
+      res.status(500).json({ message: "Error al importar propiedades" });
+    }
+  });
+
   // Admin API routes - for admins to manage property approvals and inspections
   app.get("/api/admin/change-requests", isAuthenticated, requireRole(["master", "admin", "admin_jr"]), async (req, res) => {
     try {
