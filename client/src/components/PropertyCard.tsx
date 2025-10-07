@@ -1,8 +1,27 @@
 import { Card, CardContent, CardFooter, CardHeader } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Bed, Bath, Square, MapPin, Eye, Edit, Calendar, Trash2 } from "lucide-react";
+import { Bed, Bath, Square, MapPin, Eye, Edit, Calendar, Trash2, Droplet, Zap, Wifi } from "lucide-react";
 import { useLanguage } from "@/contexts/LanguageContext";
+
+type IncludedServices = {
+  water?: {
+    included: boolean;
+    type?: "capa" | "well";
+    estimatedCost?: string;
+  };
+  electricity?: {
+    included: boolean;
+    type?: "cfe" | "solar";
+    paymentFrequency?: "monthly" | "bimonthly";
+    estimatedCost?: string;
+  };
+  internet?: {
+    included: boolean;
+    provider?: string;
+    estimatedCost?: string;
+  };
+};
 
 export type PropertyCardProps = {
   id: string;
@@ -22,6 +41,7 @@ export type PropertyCardProps = {
   showUnitNumberInListing?: boolean;
   status: "rent" | "sale" | "both";
   image?: string;
+  includedServices?: IncludedServices;
   onView?: () => void;
   onEdit?: () => void;
   onDelete?: () => void;
@@ -46,6 +66,7 @@ export function PropertyCard({
   showUnitNumberInListing = true,
   status,
   image,
+  includedServices,
   onView,
   onEdit,
   onDelete,
@@ -139,11 +160,46 @@ export function PropertyCard({
             <Bath className="h-4 w-4 text-muted-foreground" />
             <span>{bathrooms}</span>
           </div>
-          <div className="flex items-center gap-1">
-            <Square className="h-4 w-4 text-muted-foreground" />
-            <span>{area} m²</span>
-          </div>
+          {area > 0 && (
+            <div className="flex items-center gap-1">
+              <Square className="h-4 w-4 text-muted-foreground" />
+              <span>{area} m²</span>
+            </div>
+          )}
         </div>
+
+        {/* Servicios Incluidos - Solo mostrar si hay servicios incluidos */}
+        {includedServices && (includedServices.water?.included || includedServices.electricity?.included || includedServices.internet?.included) && (
+          <div className="flex flex-wrap gap-2 pt-2 border-t">
+            {includedServices.water?.included && (
+              <div className="flex items-center gap-1 text-xs text-muted-foreground" data-testid="service-water">
+                <Droplet className="h-3 w-3" />
+                <span>Agua</span>
+                {includedServices.water.estimatedCost && (
+                  <span className="text-xs">({includedServices.water.estimatedCost})</span>
+                )}
+              </div>
+            )}
+            {includedServices.electricity?.included && (
+              <div className="flex items-center gap-1 text-xs text-muted-foreground" data-testid="service-electricity">
+                <Zap className="h-3 w-3" />
+                <span>Luz</span>
+                {includedServices.electricity.estimatedCost && (
+                  <span className="text-xs">({includedServices.electricity.estimatedCost})</span>
+                )}
+              </div>
+            )}
+            {includedServices.internet?.included && (
+              <div className="flex items-center gap-1 text-xs text-muted-foreground" data-testid="service-internet">
+                <Wifi className="h-3 w-3" />
+                <span>Internet</span>
+                {includedServices.internet.estimatedCost && (
+                  <span className="text-xs">({includedServices.internet.estimatedCost})</span>
+                )}
+              </div>
+            )}
+          </div>
+        )}
       </CardContent>
 
       {showActions && (
