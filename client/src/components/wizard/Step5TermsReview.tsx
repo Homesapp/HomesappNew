@@ -122,10 +122,10 @@ export default function Step4TermsReview({ data, draftId, onUpdate, onPrevious }
   return (
     <div className="space-y-6">
       <div>
-        <h2 className="text-2xl font-bold mb-2" data-testid="heading-step4-title">
+        <h2 className="text-2xl font-bold mb-2" data-testid="heading-step5-title">
           Términos y Revisión Final
         </h2>
-        <p className="text-muted-foreground" data-testid="text-step4-description">
+        <p className="text-muted-foreground" data-testid="text-step5-description">
           Define los términos comerciales y revisa la información
         </p>
       </div>
@@ -506,7 +506,7 @@ export default function Step4TermsReview({ data, draftId, onUpdate, onPrevious }
             onClick={onPrevious}
             disabled={isSubmitting}
             className="w-full sm:w-auto"
-            data-testid="button-previous-step4"
+            data-testid="button-previous-step5"
           >
             <ChevronLeft className="w-4 h-4 mr-2" />
             Anterior
