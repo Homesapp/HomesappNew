@@ -29,6 +29,22 @@ import {
   PawPrint,
   ChevronLeft,
   ChevronRight,
+  Droplet,
+  Zap,
+  Wifi,
+  Calendar,
+  Key,
+  Lock,
+  User,
+  Phone,
+  MapPinned,
+  ExternalLink,
+  Home,
+  Trees,
+  Waves,
+  Flame,
+  Check,
+  X as XIcon,
 } from "lucide-react";
 import {
   AlertDialog,
@@ -282,9 +298,16 @@ export default function OwnerPropertyDetails() {
                           <Separator />
                           <div>
                             <label className="text-sm font-medium text-muted-foreground">Disponible desde</label>
-                            <p className="text-sm mt-1">
-                              {new Date(property.availableFrom).toLocaleDateString("es-ES")}
-                            </p>
+                            <div className="flex items-center gap-2 mt-1">
+                              <Calendar className="h-4 w-4 text-muted-foreground" />
+                              <p className="text-sm">
+                                {new Date(property.availableFrom).toLocaleDateString("es-ES", {
+                                  year: "numeric",
+                                  month: "long",
+                                  day: "numeric",
+                                })}
+                              </p>
+                            </div>
                           </div>
                         </>
                       )}
@@ -297,7 +320,7 @@ export default function OwnerPropertyDetails() {
                             </label>
                             <div className="flex gap-1 mt-2 flex-wrap">
                               {property.acceptedLeaseDurations.map((duration) => (
-                                <Badge key={duration} variant="secondary" className="text-xs">
+                                <Badge key={duration} variant="secondary" className="text-xs" data-testid={`badge-lease-duration-${duration}`}>
                                   {duration}
                                 </Badge>
                               ))}
@@ -333,8 +356,10 @@ export default function OwnerPropertyDetails() {
               </div>
             )}
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <Card>
+            {/* Property Details Grid */}
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+              {/* Main Details */}
+              <Card className="lg:col-span-2">
                 <CardHeader className="pb-3">
                   <CardTitle className="text-lg">Información General</CardTitle>
                 </CardHeader>
@@ -345,65 +370,147 @@ export default function OwnerPropertyDetails() {
                       {property.title}
                     </p>
                   </div>
+                  {property.description && (
+                    <>
+                      <Separator />
+                      <div>
+                        <label className="text-sm font-medium text-muted-foreground">Descripción</label>
+                        <p className="text-sm mt-1 text-muted-foreground">
+                          {property.description}
+                        </p>
+                      </div>
+                    </>
+                  )}
                   <Separator />
-                  <div>
-                    <label className="text-sm font-medium text-muted-foreground">Descripción</label>
-                    <p className="text-sm mt-1 text-muted-foreground">
-                      {property.description || "Sin descripción"}
-                    </p>
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                    <div className="flex flex-col items-center gap-1 p-3 border rounded-md">
+                      <Bed className="h-5 w-5 text-muted-foreground" />
+                      <span className="text-lg font-semibold" data-testid="text-bedrooms">{property.bedrooms}</span>
+                      <span className="text-xs text-muted-foreground">Habitaciones</span>
+                    </div>
+                    <div className="flex flex-col items-center gap-1 p-3 border rounded-md">
+                      <Bath className="h-5 w-5 text-muted-foreground" />
+                      <span className="text-lg font-semibold" data-testid="text-bathrooms">{property.bathrooms}</span>
+                      <span className="text-xs text-muted-foreground">Baños</span>
+                    </div>
+                    <div className="flex flex-col items-center gap-1 p-3 border rounded-md">
+                      <Square className="h-5 w-5 text-muted-foreground" />
+                      <span className="text-lg font-semibold" data-testid="text-area">{property.area}</span>
+                      <span className="text-xs text-muted-foreground">m²</span>
+                    </div>
+                    <div className="flex flex-col items-center gap-1 p-3 border rounded-md">
+                      <Home className="h-5 w-5 text-muted-foreground" />
+                      <span className="text-lg font-semibold capitalize" data-testid="text-property-type">{property.propertyType}</span>
+                      <span className="text-xs text-muted-foreground">Tipo</span>
+                    </div>
                   </div>
                   <Separator />
-                  <div>
-                    <label className="text-sm font-medium text-muted-foreground">Ubicación</label>
-                    <div className="flex items-center gap-2 mt-1">
-                      <MapPin className="h-4 w-4 text-muted-foreground" />
-                      <p className="text-sm">{property.location}</p>
-                    </div>
+                  <div className="flex gap-2 flex-wrap">
+                    {property.petFriendly && (
+                      <Badge variant="secondary" className="gap-1">
+                        <PawPrint className="h-3 w-3" />
+                        Pet Friendly
+                      </Badge>
+                    )}
+                    {property.allowsSubleasing && (
+                      <Badge variant="secondary" className="gap-1">
+                        <CheckCircle className="h-3 w-3" />
+                        Permite Subarriendo
+                      </Badge>
+                    )}
                   </div>
                 </CardContent>
               </Card>
 
+              {/* Location Details */}
               <Card>
                 <CardHeader className="pb-3">
-                  <CardTitle className="text-lg">Detalles de Propiedad</CardTitle>
+                  <CardTitle className="flex items-center gap-2 text-lg">
+                    <MapPinned className="h-5 w-5" />
+                    Ubicación
+                  </CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-3">
-                  <div className="grid grid-cols-2 gap-4">
-                    <div>
-                      <label className="text-sm font-medium text-muted-foreground">Tipo</label>
-                      <p className="text-sm mt-1 capitalize">{property.propertyType}</p>
-                    </div>
-                    {property.petFriendly && (
+                  <div>
+                    <label className="text-sm font-medium text-muted-foreground">Dirección</label>
+                    <p className="text-sm mt-1" data-testid="text-location">{property.location}</p>
+                  </div>
+                  {property.condoName && (
+                    <>
+                      <Separator />
                       <div>
-                        <label className="text-sm font-medium text-muted-foreground">Mascotas</label>
-                        <div className="flex items-center gap-2 mt-1">
-                          <PawPrint className="h-4 w-4 text-primary" />
-                          <p className="text-sm">Pet Friendly</p>
-                        </div>
+                        <label className="text-sm font-medium text-muted-foreground">Condominio</label>
+                        <p className="text-sm mt-1" data-testid="text-condominium">{property.condoName}</p>
                       </div>
-                    )}
-                  </div>
-                  <Separator />
-                  <div className="grid grid-cols-3 gap-3">
-                    <div className="flex flex-col items-center gap-1 p-2 border rounded-md">
-                      <Bed className="h-4 w-4 text-muted-foreground" />
-                      <span className="text-base font-semibold">{property.bedrooms}</span>
-                      <span className="text-xs text-muted-foreground">Habitaciones</span>
-                    </div>
-                    <div className="flex flex-col items-center gap-1 p-2 border rounded-md">
-                      <Bath className="h-4 w-4 text-muted-foreground" />
-                      <span className="text-base font-semibold">{property.bathrooms}</span>
-                      <span className="text-xs text-muted-foreground">Baños</span>
-                    </div>
-                    <div className="flex flex-col items-center gap-1 p-2 border rounded-md">
-                      <Square className="h-4 w-4 text-muted-foreground" />
-                      <span className="text-base font-semibold">{property.area}</span>
-                      <span className="text-xs text-muted-foreground">m²</span>
-                    </div>
-                  </div>
+                    </>
+                  )}
+                  {property.colonyName && (
+                    <>
+                      <Separator />
+                      <div>
+                        <label className="text-sm font-medium text-muted-foreground">Colonia</label>
+                        <p className="text-sm mt-1" data-testid="text-colony">{property.colonyName}</p>
+                      </div>
+                    </>
+                  )}
+                  {property.unitNumber && (
+                    <>
+                      <Separator />
+                      <div>
+                        <label className="text-sm font-medium text-muted-foreground">Unidad</label>
+                        <p className="text-sm mt-1" data-testid="text-unit-number">{property.unitNumber}</p>
+                      </div>
+                    </>
+                  )}
+                  {property.googleMapsUrl && (
+                    <>
+                      <Separator />
+                      <Button 
+                        variant="outline" 
+                        size="sm" 
+                        className="w-full gap-2"
+                        onClick={() => window.open(property.googleMapsUrl!, "_blank")}
+                        data-testid="button-maps"
+                      >
+                        <MapPin className="h-4 w-4" />
+                        Ver en Google Maps
+                        <ExternalLink className="h-3 w-3" />
+                      </Button>
+                    </>
+                  )}
                 </CardContent>
               </Card>
             </div>
+
+            {/* Amenities */}
+            {property.amenities && property.amenities.length > 0 && (
+              <Card>
+                <CardHeader className="pb-3">
+                  <CardTitle className="text-lg">Amenidades</CardTitle>
+                  <CardDescription>{property.amenities.length} amenidades disponibles</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
+                    {property.amenities.map((amenity, index) => (
+                      <div key={index} className="flex items-center gap-2 text-sm" data-testid={`amenity-${amenity}`}>
+                        <div className="h-2 w-2 rounded-full bg-primary" />
+                        <span className="capitalize">{amenity.replace(/_/g, " ")}</span>
+                      </div>
+                    ))}
+                  </div>
+                </CardContent>
+              </Card>
+            )}
+
+            {/* Services */}
+            {property.includedServices && (
+              <ServicesSection services={property.includedServices as any} />
+            )}
+
+            {/* Access Information */}
+            {property.accessInfo && (
+              <AccessInfoSection accessInfo={property.accessInfo as any} />
+            )}
           </TabsContent>
 
           <TabsContent value="changes" className="space-y-4">
@@ -496,6 +603,290 @@ export default function OwnerPropertyDetails() {
         </>
       )}
     </div>
+  );
+}
+
+// Services Section Component
+function ServicesSection({ services }: { services: any }) {
+  if (!services) return null;
+
+  const hasWater = services.water || services.waterIncluded;
+  const hasElectricity = services.electricity || services.electricityIncluded;
+  const hasInternet = services.internet || services.internetIncluded;
+  const hasAdditional = services.additionalServices && services.additionalServices.length > 0;
+
+  if (!hasWater && !hasElectricity && !hasInternet && !hasAdditional) return null;
+
+  const serviceIcons: Record<string, any> = {
+    pool_cleaning: Waves,
+    garden: Trees,
+    gas: Flame,
+  };
+
+  return (
+    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+      {/* Included Services */}
+      {(hasWater || hasElectricity || hasInternet) && (
+        <Card>
+          <CardHeader className="pb-3">
+            <CardTitle className="text-lg">Servicios Incluidos</CardTitle>
+            <CardDescription>Servicios incluidos en la renta</CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            {hasWater && (
+              <div className="flex items-start gap-3 p-3 border rounded-md" data-testid="service-water">
+                <Droplet className="h-5 w-5 text-blue-500 mt-0.5" />
+                <div className="flex-1">
+                  <div className="flex items-center justify-between">
+                    <p className="font-medium text-sm">Agua</p>
+                    {services.water?.included || services.waterIncluded ? (
+                      <Badge variant="secondary" className="gap-1" data-testid="badge-water-included">
+                        <Check className="h-3 w-3" />
+                        Incluido
+                      </Badge>
+                    ) : null}
+                  </div>
+                  {services.water?.provider && (
+                    <p className="text-xs text-muted-foreground mt-1" data-testid="text-water-provider">
+                      Proveedor: {services.water.provider}
+                    </p>
+                  )}
+                  {services.water?.cost && (
+                    <p className="text-xs text-muted-foreground" data-testid="text-water-cost">
+                      Costo aprox: ${services.water.cost}/mes
+                    </p>
+                  )}
+                </div>
+              </div>
+            )}
+            
+            {hasElectricity && (
+              <div className="flex items-start gap-3 p-3 border rounded-md" data-testid="service-electricity">
+                <Zap className="h-5 w-5 text-yellow-500 mt-0.5" />
+                <div className="flex-1">
+                  <div className="flex items-center justify-between">
+                    <p className="font-medium text-sm">Electricidad</p>
+                    {services.electricity?.included || services.electricityIncluded ? (
+                      <Badge variant="secondary" className="gap-1" data-testid="badge-electricity-included">
+                        <Check className="h-3 w-3" />
+                        Incluido
+                      </Badge>
+                    ) : null}
+                  </div>
+                  {services.electricity?.provider && (
+                    <p className="text-xs text-muted-foreground mt-1" data-testid="text-electricity-provider">
+                      Proveedor: {services.electricity.provider}
+                    </p>
+                  )}
+                  {services.electricity?.cost && (
+                    <p className="text-xs text-muted-foreground" data-testid="text-electricity-cost">
+                      Costo aprox: ${services.electricity.cost}
+                      {services.electricity?.billingCycle === "bimonthly" ? " (bimestral)" : "/mes"}
+                    </p>
+                  )}
+                </div>
+              </div>
+            )}
+            
+            {hasInternet && (
+              <div className="flex items-start gap-3 p-3 border rounded-md" data-testid="service-internet">
+                <Wifi className="h-5 w-5 text-purple-500 mt-0.5" />
+                <div className="flex-1">
+                  <div className="flex items-center justify-between">
+                    <p className="font-medium text-sm">Internet</p>
+                    {services.internet?.included || services.internetIncluded ? (
+                      <Badge variant="secondary" className="gap-1" data-testid="badge-internet-included">
+                        <Check className="h-3 w-3" />
+                        Incluido
+                      </Badge>
+                    ) : null}
+                  </div>
+                  {services.internet?.provider && (
+                    <p className="text-xs text-muted-foreground mt-1" data-testid="text-internet-provider">
+                      Proveedor: {services.internet.provider}
+                    </p>
+                  )}
+                  {services.internet?.cost && (
+                    <p className="text-xs text-muted-foreground" data-testid="text-internet-cost">
+                      Costo aprox: ${services.internet.cost}/mes
+                    </p>
+                  )}
+                </div>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Additional Services */}
+      {hasAdditional && (
+        <Card>
+          <CardHeader className="pb-3">
+            <CardTitle className="text-lg">Servicios Adicionales</CardTitle>
+            <CardDescription>Servicios extra disponibles</CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            {services.additionalServices.map((service: any, index: number) => {
+              const ServiceIcon = serviceIcons[service.type] || Building2;
+              return (
+                <div key={index} className="flex items-start gap-3 p-3 border rounded-md" data-testid={`additional-service-${index}`}>
+                  <ServiceIcon className="h-5 w-5 text-muted-foreground mt-0.5" />
+                  <div className="flex-1">
+                    <p className="font-medium text-sm" data-testid={`text-additional-service-name-${index}`}>
+                      {service.customName || 
+                        (service.type === "pool_cleaning" ? "Limpieza de Alberca" :
+                         service.type === "garden" ? "Jardín" :
+                         service.type === "gas" ? "Gas" : service.type)}
+                    </p>
+                    {service.provider && (
+                      <p className="text-xs text-muted-foreground mt-1" data-testid={`text-additional-service-provider-${index}`}>
+                        Proveedor: {service.provider}
+                      </p>
+                    )}
+                    {service.cost && (
+                      <p className="text-xs text-muted-foreground" data-testid={`text-additional-service-cost-${index}`}>
+                        Costo aprox: ${service.cost}/mes
+                      </p>
+                    )}
+                  </div>
+                </div>
+              );
+            })}
+          </CardContent>
+        </Card>
+      )}
+    </div>
+  );
+}
+
+// Access Info Section Component
+function AccessInfoSection({ accessInfo }: { accessInfo: any }) {
+  if (!accessInfo) return null;
+
+  const accessType = accessInfo.accessType || accessInfo.type;
+  const isUnattended = accessType === "unattended";
+
+  return (
+    <Card>
+      <CardHeader className="pb-3">
+        <CardTitle className="flex items-center gap-2 text-lg">
+          <Key className="h-5 w-5" />
+          Información de Acceso
+        </CardTitle>
+        <CardDescription>Configuración de acceso a la propiedad</CardDescription>
+      </CardHeader>
+      <CardContent className="space-y-4">
+        <div className="flex items-center gap-2">
+          <Badge variant={isUnattended ? "secondary" : "default"} className="gap-1" data-testid="badge-access-type">
+            {isUnattended ? <Lock className="h-3 w-3" /> : <User className="h-3 w-3" />}
+            {isUnattended ? "Acceso Desatendido" : "Acceso Asistido"}
+          </Badge>
+        </div>
+
+        <Separator />
+
+        {isUnattended ? (
+          <>
+            {accessInfo.accessMethod === "lockbox" && (
+              <div className="space-y-3">
+                <div>
+                  <label className="text-sm font-medium text-muted-foreground">Método de Acceso</label>
+                  <div className="flex items-center gap-2 mt-1">
+                    <Lock className="h-4 w-4 text-muted-foreground" />
+                    <p className="text-sm" data-testid="text-access-method">Lockbox (Caja de Llaves)</p>
+                  </div>
+                </div>
+                {accessInfo.lockboxCode && (
+                  <>
+                    <Separator />
+                    <div>
+                      <label className="text-sm font-medium text-muted-foreground">Código Lockbox</label>
+                      <p className="text-sm mt-1 font-mono bg-muted px-3 py-2 rounded-md" data-testid="text-lockbox-code">
+                        {accessInfo.lockboxCode}
+                      </p>
+                    </div>
+                  </>
+                )}
+                {accessInfo.lockboxLocation && (
+                  <>
+                    <Separator />
+                    <div>
+                      <label className="text-sm font-medium text-muted-foreground">Ubicación Lockbox</label>
+                      <p className="text-sm mt-1" data-testid="text-lockbox-location">{accessInfo.lockboxLocation}</p>
+                    </div>
+                  </>
+                )}
+              </div>
+            )}
+
+            {accessInfo.accessMethod === "smart_lock" && (
+              <div className="space-y-3">
+                <div>
+                  <label className="text-sm font-medium text-muted-foreground">Método de Acceso</label>
+                  <div className="flex items-center gap-2 mt-1">
+                    <Key className="h-4 w-4 text-muted-foreground" />
+                    <p className="text-sm" data-testid="text-access-method">Cerradura Inteligente (Smart Lock)</p>
+                  </div>
+                </div>
+                {accessInfo.smartLockProvider && (
+                  <>
+                    <Separator />
+                    <div>
+                      <label className="text-sm font-medium text-muted-foreground">Proveedor</label>
+                      <p className="text-sm mt-1" data-testid="text-smart-lock-provider">{accessInfo.smartLockProvider}</p>
+                    </div>
+                  </>
+                )}
+                {accessInfo.smartLockInstructions && (
+                  <>
+                    <Separator />
+                    <div>
+                      <label className="text-sm font-medium text-muted-foreground">Instrucciones</label>
+                      <p className="text-sm mt-1 text-muted-foreground" data-testid="text-smart-lock-instructions">
+                        {accessInfo.smartLockInstructions}
+                      </p>
+                    </div>
+                  </>
+                )}
+              </div>
+            )}
+          </>
+        ) : (
+          <>
+            {accessInfo.contactPerson && (
+              <div>
+                <label className="text-sm font-medium text-muted-foreground">Persona de Contacto</label>
+                <div className="flex items-center gap-2 mt-1">
+                  <User className="h-4 w-4 text-muted-foreground" />
+                  <p className="text-sm" data-testid="text-contact-person">{accessInfo.contactPerson}</p>
+                </div>
+              </div>
+            )}
+            {accessInfo.contactPhone && (
+              <>
+                <Separator />
+                <div>
+                  <label className="text-sm font-medium text-muted-foreground">Teléfono de Contacto</label>
+                  <div className="flex items-center gap-2 mt-1">
+                    <Phone className="h-4 w-4 text-muted-foreground" />
+                    <p className="text-sm font-mono" data-testid="text-contact-phone">{accessInfo.contactPhone}</p>
+                  </div>
+                </div>
+              </>
+            )}
+            {accessInfo.contactNotes && (
+              <>
+                <Separator />
+                <div>
+                  <label className="text-sm font-medium text-muted-foreground">Notas Adicionales</label>
+                  <p className="text-sm mt-1 text-muted-foreground" data-testid="text-contact-notes">{accessInfo.contactNotes}</p>
+                </div>
+              </>
+            )}
+          </>
+        )}
+      </CardContent>
+    </Card>
   );
 }
 
