@@ -20,6 +20,42 @@
 3. **Validación de permisos** ✅
    - DELETE `/api/permissions` - Validación Zod de userId y permission
 
+## ✅ Completado (Fase 2 - Octubre 7, 2025)
+
+### Autorización de Recursos - Middleware de Ownership
+1. **Middleware Reutilizable Creado** ✅
+   - `server/middleware/resourceOwnership.ts` - Middleware centralizado para verificar propiedad de recursos
+   - Soporta: appointments, offers, properties, rental contracts
+   - Admin/Master pueden acceder a todos los recursos
+   - Lógica especializada para cada tipo de recurso
+
+2. **Rutas de Appointments Protegidas** ✅
+   - `PATCH /api/appointments/:id` - Añadido requireResourceOwnership('appointment')
+   - `DELETE /api/appointments/:id` - Añadido requireResourceOwnership('appointment')
+   - Verificación: clientId, assignedToId (concierge), o property owner
+   - Obtiene property relacionada para verificar ownership correctamente
+
+3. **Rutas de Offers Protegidas** ✅
+   - `PATCH /api/offers/:id` - Añadido requireResourceOwnership('offer')
+   - Verificación: clientId o property owner
+   - Obtiene property relacionada para verificar ownership
+
+4. **Properties ya protegidas** ✅
+   - `PATCH /api/properties/:id` - Ya tenía verificación inline correcta (ownerId o admin)
+   - `DELETE /api/properties/:id` - Ya tenía verificación inline correcta (ownerId o admin)
+
+### Impacto de Seguridad
+**Antes de Fase 2:**
+- ❌ Cualquier usuario autenticado podía modificar cualquier appointment
+- ❌ Cualquier usuario autenticado podía modificar cualquier offer
+- ❌ Riesgo de escalada horizontal de privilegios
+
+**Después de Fase 2:**
+- ✅ Solo el cliente, concierge asignado, o dueño de la propiedad pueden modificar appointments
+- ✅ Solo el cliente u owner de la propiedad pueden modificar offers
+- ✅ Admin/Master mantienen acceso total para administración
+- ✅ Middleware reutilizable para futuras rutas de recursos
+
 ## 🚨 Problemas Críticos Identificados
 
 ### 1. VALIDACIÓN DE ENTRADA EN BACKEND (CRÍTICO)
@@ -136,12 +172,12 @@ const user = await db.select().from(users).where(eq(users.id, userId));
 2. ✅ **Todas las rutas POST/PUT/PATCH** deben tener validación Zod
 3. ✅ **Rutas de modificación de usuario/roles** deben validar permisos
 
-### Fase 2: Rutas de Recursos (Alta Prioridad)
-1. Verificar propiedad de recursos antes de modificar:
-   - Properties
-   - Appointments
-   - Offers
-   - Rental Contracts
+### Fase 2: Rutas de Recursos (Alta Prioridad) - ✅ COMPLETADO
+1. ✅ Verificar propiedad de recursos antes de modificar:
+   - ✅ Properties (ya tenían verificación correcta)
+   - ✅ Appointments (protegido con requireResourceOwnership)
+   - ✅ Offers (protegido con requireResourceOwnership)
+   - ⏳ Rental Contracts (pendiente - considerar en Fase 3)
 
 ### Fase 3: Auditoría Completa (Programada)
 1. Revisar las 315 rutas una por una
@@ -193,9 +229,10 @@ export const requireResourceOwnership = (
 
 - **Total de rutas**: 315
 - **Rutas con requireRole**: ~45 (14%)
-- **Rutas con validación Zod**: ~120 (38%)
-- **Rutas críticas sin protección**: ~25
-- **Rutas admin sin RBAC**: ~15
+- **Rutas con validación Zod**: ~124 (39%) - ↑4 en Fase 1
+- **Rutas con ownership verification**: ~5 (2%) - NEW en Fase 2
+- **Rutas críticas sin protección**: ~20 - ↓5 después de Fase 1-2
+- **Rutas admin sin RBAC**: ~12 - ↓3 después de Fase 1
 
 ## 🎯 Próximos Pasos Recomendados
 
