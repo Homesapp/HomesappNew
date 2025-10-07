@@ -55,23 +55,27 @@ type Step5Props = {
 };
 
 export default function Step5AccessInfo({ data = {}, onUpdate, onNext, onPrevious }: Step5Props) {
-  const initialValues = data.accessInfo ?? {
+  const initialValues = data?.accessInfo ?? {
     accessType: "unattended" as const,
     method: "lockbox" as const,
     lockboxCode: "",
     lockboxLocation: "",
   };
 
-  const form = useForm<AccessInfoForm>({
-    resolver: zodResolver(accessInfoSchema),
+  const form = useForm({
     defaultValues: initialValues,
   });
 
   const accessType = form.watch("accessType");
   const method = form.watch("method");
 
-  const onSubmit = (formData: AccessInfoForm) => {
-    onNext({ accessInfo: formData });
+  const onSubmit = (formData: any) => {
+    try {
+      const validated = accessInfoSchema.parse(formData);
+      onNext({ accessInfo: validated });
+    } catch (error) {
+      console.error("Validation error:", error);
+    }
   };
 
   return (
