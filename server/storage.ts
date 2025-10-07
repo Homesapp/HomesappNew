@@ -258,6 +258,7 @@ export interface IStorage {
   getAmenities(filters?: { category?: string; approvalStatus?: string }): Promise<Amenity[]>;
   getApprovedAmenities(category?: string): Promise<Amenity[]>;
   createAmenity(amenity: InsertAmenity): Promise<Amenity>;
+  updateAmenity(id: string, updates: Partial<InsertAmenity>): Promise<Amenity>;
   updateAmenityStatus(id: string, approvalStatus: string): Promise<Amenity>;
   deleteAmenity(id: string): Promise<void>;
   
@@ -1051,6 +1052,15 @@ export class DatabaseStorage implements IStorage {
 
   async createAmenity(amenityData: InsertAmenity): Promise<Amenity> {
     const [amenity] = await db.insert(amenities).values(amenityData).returning();
+    return amenity;
+  }
+
+  async updateAmenity(id: string, updates: Partial<InsertAmenity>): Promise<Amenity> {
+    const [amenity] = await db
+      .update(amenities)
+      .set({ ...updates, updatedAt: new Date() })
+      .where(eq(amenities.id, id))
+      .returning();
     return amenity;
   }
 

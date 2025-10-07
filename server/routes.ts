@@ -1560,11 +1560,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.patch("/api/admin/colonies/:id/approve", isAuthenticated, requireFullAdmin, async (req: any, res) => {
     try {
       const { id } = req.params;
+      const { name } = req.body;
 
       // Validate colony exists
       const existingColony = await storage.getColony(id);
       if (!existingColony) {
         return res.status(404).json({ message: "Colonia no encontrada" });
+      }
+
+      // Update name if provided
+      if (name && name.trim() !== "" && name !== existingColony.name) {
+        await storage.updateColony(id, { name: name.trim() });
       }
 
       const colony = await storage.updateColonyStatus(id, "approved");
@@ -1686,11 +1692,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.patch("/api/admin/condominiums/:id/approve", isAuthenticated, requireFullAdmin, async (req: any, res) => {
     try {
       const { id } = req.params;
+      const { name } = req.body;
 
       // Validate condominium exists
       const existingCondominium = await storage.getCondominium(id);
       if (!existingCondominium) {
         return res.status(404).json({ message: "Condominio no encontrado" });
+      }
+
+      // Update name if provided
+      if (name && name.trim() !== "" && name !== existingCondominium.name) {
+        await storage.updateCondominium(id, { name: name.trim() });
       }
 
       const condominium = await storage.updateCondominiumStatus(id, "approved");
@@ -2128,10 +2140,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.patch("/api/admin/amenities/:id/approve", isAuthenticated, requireFullAdmin, async (req: any, res) => {
     try {
       const { id } = req.params;
+      const { name } = req.body;
 
       const existingAmenity = await storage.getAmenity(id);
       if (!existingAmenity) {
         return res.status(404).json({ message: "Amenidad no encontrada" });
+      }
+
+      // Update name if provided
+      if (name && name.trim() !== "" && name !== existingAmenity.name) {
+        await storage.updateAmenity(id, { name: name.trim() });
       }
 
       const amenity = await storage.updateAmenityStatus(id, "approved");
