@@ -679,6 +679,13 @@ export interface IStorage {
   dismissSystemAlert(id: string): Promise<SystemAlert>;
   deleteSystemAlert(id: string): Promise<void>;
   cleanupExpiredAlerts(): Promise<number>;
+
+  // Property Owner Assignment operations
+  getUsersWithOwnerRole(): Promise<User[]>;
+  getPropertiesByOwner(ownerId: string): Promise<Property[]>;
+  reassignProperty(propertyId: string, newOwnerId: string): Promise<Property>;
+  reassignMultipleProperties(propertyIds: string[], newOwnerId: string): Promise<number>;
+  getPropertyOwnershipStats(): Promise<{ ownerId: string; ownerEmail: string; propertyCount: number }[]>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -4479,6 +4486,74 @@ export class DatabaseStorage implements IStorage {
     }
 
     return { created, updated, skipped, errors };
+  }
+
+  // Property Owner Assignment operations
+  async getUsersWithOwnerRole(): Promise<User[]> {
+    return await db
+      .select()
+      .from(users)
+      .where(
+        or(
+          eq(users.role, "owner"),
+          eq(users.role, "admin"),
+          eq(users.role, "master")
+        )
+      )
+      .orderBy(users.email);
+  }
+
+  async getPropertiesByOwner(ownerId: string): Promise<Property[]> {
+    return await db
+      .select()
+      .from(properties)
+      .where(eq(properties.ownerId, ownerId))
+      .orderBy(properties.title);
+  }
+
+  async reassignProperty(propertyId: string, newOwnerId: string): Promise<Property> {
+    const [property] = await db
+      .update(properties)
+      .set({ 
+        ownerId: newOwnerId,
+        updatedAt: new Date()
+      })
+      .where(eq(properties.id, propertyId))
+      .returning();
+    
+    if (!property) {
+      throw new Error("Property not found");
+    }
+    
+    return property;
+  }
+
+  async reassignMultipleProperties(propertyIds: string[], newOwnerId: string): Promise<number> {
+    const result = await db
+      .update(properties)
+      .set({ 
+        ownerId: newOwnerId,
+        updatedAt: new Date()
+      })
+      .where(inArray(properties.id, propertyIds))
+      .returning({ id: properties.id });
+    
+    return result.length;
+  }
+
+  async getPropertyOwnershipStats(): Promise<{ ownerId: string; ownerEmail: string; propertyCount: number }[]> {
+    const results = await db
+      .select({
+        ownerId: properties.ownerId,
+        ownerEmail: users.email,
+        propertyCount: sql<number>`count(${properties.id})::int`,
+      })
+      .from(properties)
+      .innerJoin(users, eq(properties.ownerId, users.id))
+      .groupBy(properties.ownerId, users.email)
+      .orderBy(desc(sql`count(${properties.id})`));
+    
+    return results;
   }
 }
 

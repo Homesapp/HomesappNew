@@ -2778,6 +2778,120 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Property Owner Assignment endpoints
+  app.get("/api/admin/property-owners", isAuthenticated, requireRole(["master", "admin"]), async (req: any, res) => {
+    try {
+      const owners = await storage.getUsersWithOwnerRole();
+      
+      await createAuditLog(
+        req,
+        "view",
+        "property_owners",
+        null,
+        "Viewed property owners list"
+      );
+
+      res.json(owners);
+    } catch (error) {
+      console.error("Error fetching property owners:", error);
+      res.status(500).json({ message: "Error al obtener propietarios" });
+    }
+  });
+
+  app.get("/api/admin/property-ownership-stats", isAuthenticated, requireRole(["master", "admin"]), async (req: any, res) => {
+    try {
+      const stats = await storage.getPropertyOwnershipStats();
+      
+      await createAuditLog(
+        req,
+        "view",
+        "property_ownership_stats",
+        null,
+        "Viewed property ownership statistics"
+      );
+
+      res.json(stats);
+    } catch (error) {
+      console.error("Error fetching ownership stats:", error);
+      res.status(500).json({ message: "Error al obtener estadísticas de propiedades" });
+    }
+  });
+
+  app.get("/api/admin/properties/by-owner/:ownerId", isAuthenticated, requireRole(["master", "admin"]), async (req: any, res) => {
+    try {
+      const { ownerId } = req.params;
+      const properties = await storage.getPropertiesByOwner(ownerId);
+      
+      await createAuditLog(
+        req,
+        "view",
+        "properties_by_owner",
+        ownerId,
+        `Viewed properties for owner ${ownerId}`
+      );
+
+      res.json(properties);
+    } catch (error) {
+      console.error("Error fetching properties by owner:", error);
+      res.status(500).json({ message: "Error al obtener propiedades del propietario" });
+    }
+  });
+
+  app.patch("/api/admin/properties/:propertyId/reassign-owner", isAuthenticated, requireRole(["master", "admin"]), async (req: any, res) => {
+    try {
+      const { propertyId } = req.params;
+      const { newOwnerId } = req.body;
+
+      if (!newOwnerId) {
+        return res.status(400).json({ message: "Debe proporcionar el ID del nuevo propietario" });
+      }
+
+      const property = await storage.reassignProperty(propertyId, newOwnerId);
+
+      await createAuditLog(
+        req,
+        "update",
+        "property_reassignment",
+        propertyId,
+        `Reassigned property ${propertyId} to owner ${newOwnerId}`
+      );
+
+      res.json(property);
+    } catch (error: any) {
+      console.error("Error reassigning property:", error);
+      res.status(500).json({ message: error.message || "Error al reasignar propiedad" });
+    }
+  });
+
+  app.post("/api/admin/properties/reassign-multiple", isAuthenticated, requireRole(["master", "admin"]), async (req: any, res) => {
+    try {
+      const { propertyIds, newOwnerId } = req.body;
+
+      if (!Array.isArray(propertyIds) || propertyIds.length === 0) {
+        return res.status(400).json({ message: "Debe proporcionar un array de IDs de propiedades" });
+      }
+
+      if (!newOwnerId) {
+        return res.status(400).json({ message: "Debe proporcionar el ID del nuevo propietario" });
+      }
+
+      const count = await storage.reassignMultipleProperties(propertyIds, newOwnerId);
+
+      await createAuditLog(
+        req,
+        "update",
+        "property_bulk_reassignment",
+        null,
+        `Reassigned ${count} properties to owner ${newOwnerId}`
+      );
+
+      res.json({ count, message: `${count} propiedades reasignadas exitosamente` });
+    } catch (error: any) {
+      console.error("Error reassigning multiple properties:", error);
+      res.status(500).json({ message: error.message || "Error al reasignar propiedades" });
+    }
+  });
+
   // Admin API routes - for admins to manage property approvals and inspections
   app.get("/api/admin/change-requests", isAuthenticated, requireRole(["master", "admin", "admin_jr"]), async (req, res) => {
     try {
