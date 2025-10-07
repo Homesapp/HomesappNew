@@ -14,8 +14,9 @@ import {
 import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { ChevronLeft, ChevronRight, Droplet, Zap, Wifi, Plus, X } from "lucide-react";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 
 const servicesSchema = z.object({
   // Basic services
@@ -26,6 +27,7 @@ const servicesSchema = z.object({
   electricityIncluded: z.boolean(),
   electricityProvider: z.string().optional(),
   electricityCost: z.string().optional(),
+  electricityBillingCycle: z.enum(["monthly", "bimonthly"]).optional(),
   
   internetIncluded: z.boolean(),
   internetProvider: z.string().optional(),
@@ -68,6 +70,13 @@ const servicesSchema = z.object({
         path: ["electricityCost"],
       });
     }
+    if (!data.electricityBillingCycle) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: "La periodicidad de pago es requerida",
+        path: ["electricityBillingCycle"],
+      });
+    }
   }
   
   // Validate internet service
@@ -93,7 +102,8 @@ type ServicesForm = z.infer<typeof servicesSchema>;
 
 type AdditionalService = {
   id: string;
-  type: "pool_cleaning" | "garden" | "gas";
+  type: "pool_cleaning" | "garden" | "gas" | "custom";
+  customName?: string;
   provider?: string;
   cost?: string;
 };
@@ -127,8 +137,9 @@ export default function Step4Services({ data, onUpdate, onNext, onPrevious }: St
       waterCost: data.servicesInfo?.basicServices?.water?.cost || "",
       
       electricityIncluded: data.servicesInfo?.basicServices?.electricity?.included || false,
-      electricityProvider: data.servicesInfo?.basicServices?.electricity?.provider || "",
+      electricityProvider: data.servicesInfo?.basicServices?.electricity?.provider || "CFE",
       electricityCost: data.servicesInfo?.basicServices?.electricity?.cost || "",
+      electricityBillingCycle: data.servicesInfo?.basicServices?.electricity?.billingCycle || "bimonthly",
       
       internetIncluded: data.servicesInfo?.basicServices?.internet?.included || false,
       internetProvider: data.servicesInfo?.basicServices?.internet?.provider || "",
@@ -142,10 +153,18 @@ export default function Step4Services({ data, onUpdate, onNext, onPrevious }: St
   const electricityIncluded = form.watch("electricityIncluded");
   const internetIncluded = form.watch("internetIncluded");
 
-  const handleAddAdditionalService = (type: "pool_cleaning" | "garden" | "gas") => {
+  // Set CFE as default when electricity is not included
+  useEffect(() => {
+    if (!electricityIncluded && !form.getValues("electricityProvider")) {
+      form.setValue("electricityProvider", "CFE");
+    }
+  }, [electricityIncluded, form]);
+
+  const handleAddAdditionalService = (type: "pool_cleaning" | "garden" | "gas" | "custom") => {
     const newService: AdditionalService = {
       id: `${type}-${Date.now()}`,
       type,
+      customName: type === "custom" ? "" : undefined,
       provider: "",
       cost: "",
     };
@@ -156,7 +175,7 @@ export default function Step4Services({ data, onUpdate, onNext, onPrevious }: St
     setAdditionalServices(additionalServices.filter(s => s.id !== id));
   };
 
-  const handleUpdateAdditionalService = (id: string, field: "provider" | "cost", value: string) => {
+  const handleUpdateAdditionalService = (id: string, field: "provider" | "cost" | "customName", value: string) => {
     setAdditionalServices(additionalServices.map(s => 
       s.id === id ? { ...s, [field]: value } : s
     ));
@@ -179,7 +198,12 @@ export default function Step4Services({ data, onUpdate, onNext, onPrevious }: St
           : { included: false, provider: formData.waterProvider, cost: formData.waterCost },
         electricity: formData.electricityIncluded
           ? { included: true }
-          : { included: false, provider: formData.electricityProvider, cost: formData.electricityCost },
+          : { 
+              included: false, 
+              provider: formData.electricityProvider, 
+              cost: formData.electricityCost,
+              billingCycle: formData.electricityBillingCycle
+            },
         internet: formData.internetIncluded
           ? { included: true }
           : { included: false, provider: formData.internetProvider, cost: formData.internetCost },
@@ -306,20 +330,43 @@ export default function Step4Services({ data, onUpdate, onNext, onPrevious }: St
                 </div>
                 
                 {!electricityIncluded && (
-                  <div className="grid grid-cols-2 gap-4 pl-7">
-                    <FormField
-                      control={form.control}
-                      name="electricityProvider"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Proveedor *</FormLabel>
-                          <FormControl>
-                            <Input {...field} placeholder="CFE, Solar, etc" data-testid="input-electricity-provider" />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
+                  <div className="space-y-4 pl-7">
+                    <div className="grid grid-cols-2 gap-4">
+                      <FormField
+                        control={form.control}
+                        name="electricityProvider"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Proveedor *</FormLabel>
+                            <FormControl>
+                              <Input {...field} placeholder="CFE, Solar, etc" data-testid="input-electricity-provider" />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                      <FormField
+                        control={form.control}
+                        name="electricityBillingCycle"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Periodicidad de Pago *</FormLabel>
+                            <Select onValueChange={field.onChange} value={field.value}>
+                              <FormControl>
+                                <SelectTrigger data-testid="select-billing-cycle">
+                                  <SelectValue placeholder="Seleccionar" />
+                                </SelectTrigger>
+                              </FormControl>
+                              <SelectContent>
+                                <SelectItem value="monthly">Mensual</SelectItem>
+                                <SelectItem value="bimonthly">Bimestral</SelectItem>
+                              </SelectContent>
+                            </Select>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                    </div>
                     <FormField
                       control={form.control}
                       name="electricityCost"
@@ -327,7 +374,7 @@ export default function Step4Services({ data, onUpdate, onNext, onPrevious }: St
                         <FormItem>
                           <FormLabel>Costo Estimado *</FormLabel>
                           <FormControl>
-                            <Input {...field} placeholder="$800 MXN/mes" data-testid="input-electricity-cost" />
+                            <Input {...field} placeholder="$800 MXN" data-testid="input-electricity-cost" />
                           </FormControl>
                           <FormMessage />
                         </FormItem>
@@ -410,67 +457,80 @@ export default function Step4Services({ data, onUpdate, onNext, onPrevious }: St
             </CardHeader>
             <CardContent className="space-y-4">
               {additionalServices.map(service => (
-                <div key={service.id} className="flex gap-4 items-start p-4 border rounded-lg">
-                  <div className="flex-1 space-y-4">
-                    <div className="flex items-center justify-between">
-                      <h4 className="font-medium">{serviceLabels[service.type]}</h4>
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => handleRemoveAdditionalService(service.id)}
-                        data-testid={`button-remove-${service.type}`}
-                      >
-                        <X className="h-4 w-4" />
-                      </Button>
+                <div key={service.id} className="space-y-3 p-4 border rounded-lg">
+                  <div className="flex items-center justify-between">
+                    <h4 className="font-medium">
+                      {service.type === "custom" ? "Servicio Personalizado" : serviceLabels[service.type as keyof typeof serviceLabels]}
+                    </h4>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="icon"
+                      onClick={() => handleRemoveAdditionalService(service.id)}
+                      data-testid={`button-remove-${service.type}`}
+                    >
+                      <X className="h-4 w-4" />
+                    </Button>
+                  </div>
+                  
+                  {service.type === "custom" && (
+                    <div>
+                      <FormLabel>Nombre del Servicio</FormLabel>
+                      <Input
+                        value={service.customName || ""}
+                        onChange={(e) => handleUpdateAdditionalService(service.id, "customName", e.target.value)}
+                        placeholder="Ej: Seguridad, Mantenimiento..."
+                        data-testid={`input-${service.id}-custom-name`}
+                      />
                     </div>
-                    <div className="grid grid-cols-2 gap-4">
-                      <div>
-                        <FormLabel>Proveedor</FormLabel>
-                        <Input
-                          value={service.provider || ""}
-                          onChange={(e) => handleUpdateAdditionalService(service.id, "provider", e.target.value)}
-                          placeholder="Nombre del proveedor"
-                          data-testid={`input-${service.type}-provider`}
-                        />
-                      </div>
-                      <div>
-                        <FormLabel>Costo Estimado</FormLabel>
-                        <Input
-                          value={service.cost || ""}
-                          onChange={(e) => handleUpdateAdditionalService(service.id, "cost", e.target.value)}
-                          placeholder="$1000 MXN/mes"
-                          data-testid={`input-${service.type}-cost`}
-                        />
-                      </div>
+                  )}
+                  
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <FormLabel>Proveedor</FormLabel>
+                      <Input
+                        value={service.provider || ""}
+                        onChange={(e) => handleUpdateAdditionalService(service.id, "provider", e.target.value)}
+                        placeholder="Nombre del proveedor"
+                        data-testid={`input-${service.type}-provider`}
+                      />
+                    </div>
+                    <div>
+                      <FormLabel>Costo Estimado</FormLabel>
+                      <Input
+                        value={service.cost || ""}
+                        onChange={(e) => handleUpdateAdditionalService(service.id, "cost", e.target.value)}
+                        placeholder="$1000 MXN/mes"
+                        data-testid={`input-${service.type}-cost`}
+                      />
                     </div>
                   </div>
                 </div>
               ))}
 
               {/* Add service buttons */}
-              <div className="flex flex-wrap gap-2">
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
                 {!additionalServices.find(s => s.type === "pool_cleaning") && (
                   <Button
                     type="button"
                     variant="outline"
-                    size="sm"
                     onClick={() => handleAddAdditionalService("pool_cleaning")}
+                    className="w-full"
                     data-testid="button-add-pool-cleaning"
                   >
-                    <Plus className="h-4 w-4 mr-1" />
-                    Limpieza de Alberca
+                    <Plus className="h-4 w-4 mr-2" />
+                    Alberca
                   </Button>
                 )}
                 {!additionalServices.find(s => s.type === "garden") && (
                   <Button
                     type="button"
                     variant="outline"
-                    size="sm"
                     onClick={() => handleAddAdditionalService("garden")}
+                    className="w-full"
                     data-testid="button-add-garden"
                   >
-                    <Plus className="h-4 w-4 mr-1" />
+                    <Plus className="h-4 w-4 mr-2" />
                     Jardín
                   </Button>
                 )}
@@ -478,14 +538,24 @@ export default function Step4Services({ data, onUpdate, onNext, onPrevious }: St
                   <Button
                     type="button"
                     variant="outline"
-                    size="sm"
                     onClick={() => handleAddAdditionalService("gas")}
+                    className="w-full"
                     data-testid="button-add-gas"
                   >
-                    <Plus className="h-4 w-4 mr-1" />
+                    <Plus className="h-4 w-4 mr-2" />
                     Gas
                   </Button>
                 )}
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => handleAddAdditionalService("custom")}
+                  className="w-full"
+                  data-testid="button-add-custom-service"
+                >
+                  <Plus className="h-4 w-4 mr-2" />
+                  Otro
+                </Button>
               </div>
             </CardContent>
           </Card>
@@ -540,17 +610,22 @@ export default function Step4Services({ data, onUpdate, onNext, onPrevious }: St
           )}
 
           {/* Navigation */}
-          <div className="flex gap-2 justify-between pt-4">
+          <div className="flex flex-col-reverse sm:flex-row gap-3 justify-between pt-4">
             <Button
               type="button"
               variant="outline"
               onClick={onPrevious}
+              className="w-full sm:w-auto"
               data-testid="button-previous-step4"
             >
               <ChevronLeft className="w-4 h-4 mr-2" />
               Anterior
             </Button>
-            <Button type="submit" data-testid="button-next-step4">
+            <Button 
+              type="submit" 
+              className="w-full sm:w-auto"
+              data-testid="button-next-step4"
+            >
               Siguiente
               <ChevronRight className="w-4 h-4 ml-2" />
             </Button>
