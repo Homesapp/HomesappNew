@@ -6,7 +6,7 @@ HomesApp is a comprehensive SaaS platform for real estate property management, p
 
 ## Recent Changes
 
-*   **October 7, 2025**: Fixed OnboardingTour duplicate close button issue. Migrated owner referrals from legacy `/api/owner-referrals` to unified `/api/referrals/owners` endpoints with expanded admin_jr permissions for approve/reject actions. Email notifications preserved during migration.
+*   **October 7, 2025**: Implemented comprehensive visit/appointment management system with multiple visit types (visita_cliente, visita_mantenimiento, visita_limpieza, visita_reconocimiento, material_multimedia, visita_inspeccion, otra). Features include role-based information filtering (client visits hide owner direct contact), owner pre-approval workflow with admin bypass, visit-specific feedback forms (predefined options for clients, text fields for staff), and enhanced owner appointments page with visit type filtering. Property displays now show condominium names and unit numbers instead of IDs for better owner experience. Fixed OnboardingTour duplicate close button issue. Migrated owner referrals from legacy `/api/owner-referrals` to unified `/api/referrals/owners` endpoints with expanded admin_jr permissions for approve/reject actions. Email notifications preserved during migration.
 
 ## User Preferences
 
