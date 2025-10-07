@@ -37,6 +37,7 @@ import AdminBusinessHours from "@/pages/AdminBusinessHours";
 import AdminPropertyAssignment from "@/pages/AdminPropertyAssignment";
 import AdminAppointmentManagement from "@/pages/AdminAppointmentManagement";
 import AdminSellerManagement from "@/pages/AdminSellerManagement";
+import AdminPropertyManagement from "@/pages/AdminPropertyManagement";
 import ConciergeSchedule from "@/pages/ConciergeSchedule";
 import Directory from "@/pages/Directory";
 import PresentationCards from "@/pages/PresentationCards";
@@ -216,6 +217,7 @@ function AuthenticatedApp() {
               <Route path="/owner/appointments" component={OwnerAppointments} />
               <Route path="/admin/appointments" component={AdminAppointmentManagement} />
               <Route path="/admin/sellers" component={AdminSellerManagement} />
+              <Route path="/admin/properties" component={AdminPropertyManagement} />
               <Route path="/admin/change-requests" component={AdminChangeRequests} />
               <Route path="/admin/inspection-reports" component={AdminInspectionReports} />
               <Route path="/admin/agreement-templates" component={AdminAgreementTemplates} />

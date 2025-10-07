@@ -3166,6 +3166,202 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Admin Property Management routes
+  app.get("/api/admin/properties", isAuthenticated, requireRole(["master", "admin", "admin_jr"]), async (req, res) => {
+    try {
+      const { approvalStatus, propertyType, status, featured, q } = req.query;
+      
+      const filters: any = {};
+      
+      if (approvalStatus) {
+        filters.approvalStatus = approvalStatus;
+      }
+      if (propertyType) {
+        filters.propertyType = propertyType;
+      }
+      if (status) {
+        filters.status = status;
+      }
+      if (featured !== undefined) {
+        filters.featured = featured === "true";
+      }
+      if (q && typeof q === "string") {
+        filters.query = q;
+      }
+      
+      const properties = await storage.searchPropertiesAdvanced(filters);
+      res.json(properties);
+    } catch (error) {
+      console.error("Error fetching admin properties:", error);
+      res.status(500).json({ message: "Error al obtener propiedades" });
+    }
+  });
+
+  app.get("/api/admin/properties/stats", isAuthenticated, requireRole(["master", "admin", "admin_jr"]), async (req, res) => {
+    try {
+      const allProperties = await storage.searchPropertiesAdvanced({});
+      
+      const stats = {
+        total: allProperties.length,
+        pending: allProperties.filter(p => p.approvalStatus === "pending").length,
+        approved: allProperties.filter(p => p.approvalStatus === "approved").length,
+        rejected: allProperties.filter(p => p.approvalStatus === "rejected").length,
+        draft: allProperties.filter(p => p.approvalStatus === "draft").length,
+        inspectionScheduled: allProperties.filter(p => p.approvalStatus === "inspection_scheduled").length,
+        inspectionCompleted: allProperties.filter(p => p.approvalStatus === "inspection_completed").length,
+        published: allProperties.filter(p => p.published).length,
+        featured: allProperties.filter(p => p.featured).length,
+      };
+      
+      res.json(stats);
+    } catch (error) {
+      console.error("Error fetching property stats:", error);
+      res.status(500).json({ message: "Error al obtener estadísticas" });
+    }
+  });
+
+  app.patch("/api/admin/properties/:id/approve", isAuthenticated, requireRole(["master", "admin", "admin_jr"]), async (req: any, res) => {
+    try {
+      const { id } = req.params;
+      const { notes, publish } = req.body;
+      
+      const property = await storage.getProperty(id);
+      if (!property) {
+        return res.status(404).json({ message: "Propiedad no encontrada" });
+      }
+      
+      const updated = await storage.updateProperty(id, {
+        approvalStatus: "approved",
+        published: publish !== false,
+      });
+      
+      await createAuditLog(
+        req,
+        "approve",
+        "property",
+        id,
+        `Propiedad aprobada: ${property.title}${notes ? ` - ${notes}` : ""}`
+      );
+      
+      res.json(updated);
+    } catch (error: any) {
+      console.error("Error approving property:", error);
+      res.status(500).json({ message: error.message || "Error al aprobar propiedad" });
+    }
+  });
+
+  app.patch("/api/admin/properties/:id/reject", isAuthenticated, requireRole(["master", "admin", "admin_jr"]), async (req: any, res) => {
+    try {
+      const { id } = req.params;
+      const { notes } = req.body;
+      
+      const property = await storage.getProperty(id);
+      if (!property) {
+        return res.status(404).json({ message: "Propiedad no encontrada" });
+      }
+      
+      const updated = await storage.updateProperty(id, {
+        approvalStatus: "rejected",
+        published: false,
+      });
+      
+      await createAuditLog(
+        req,
+        "reject",
+        "property",
+        id,
+        `Propiedad rechazada: ${property.title}${notes ? ` - ${notes}` : ""}`
+      );
+      
+      res.json(updated);
+    } catch (error: any) {
+      console.error("Error rejecting property:", error);
+      res.status(500).json({ message: error.message || "Error al rechazar propiedad" });
+    }
+  });
+
+  app.patch("/api/admin/properties/bulk-approve", isAuthenticated, requireRole(["master", "admin", "admin_jr"]), async (req: any, res) => {
+    try {
+      const { propertyIds, publish } = req.body;
+      
+      if (!Array.isArray(propertyIds) || propertyIds.length === 0) {
+        return res.status(400).json({ message: "IDs de propiedades requeridos" });
+      }
+      
+      const results = await Promise.all(
+        propertyIds.map(async (id: string) => {
+          try {
+            const property = await storage.getProperty(id);
+            if (!property) return { id, success: false, error: "No encontrada" };
+            
+            await storage.updateProperty(id, {
+              approvalStatus: "approved",
+              published: publish !== false,
+            });
+            
+            await createAuditLog(
+              req,
+              "approve",
+              "property",
+              id,
+              `Propiedad aprobada en masa: ${property.title}`
+            );
+            
+            return { id, success: true };
+          } catch (error: any) {
+            return { id, success: false, error: error.message };
+          }
+        })
+      );
+      
+      res.json({ results });
+    } catch (error: any) {
+      console.error("Error in bulk approve:", error);
+      res.status(500).json({ message: error.message || "Error al aprobar propiedades" });
+    }
+  });
+
+  app.patch("/api/admin/properties/bulk-reject", isAuthenticated, requireRole(["master", "admin", "admin_jr"]), async (req: any, res) => {
+    try {
+      const { propertyIds, notes } = req.body;
+      
+      if (!Array.isArray(propertyIds) || propertyIds.length === 0) {
+        return res.status(400).json({ message: "IDs de propiedades requeridos" });
+      }
+      
+      const results = await Promise.all(
+        propertyIds.map(async (id: string) => {
+          try {
+            const property = await storage.getProperty(id);
+            if (!property) return { id, success: false, error: "No encontrada" };
+            
+            await storage.updateProperty(id, {
+              approvalStatus: "rejected",
+              published: false,
+            });
+            
+            await createAuditLog(
+              req,
+              "reject",
+              "property",
+              id,
+              `Propiedad rechazada en masa: ${property.title}${notes ? ` - ${notes}` : ""}`
+            );
+            
+            return { id, success: true };
+          } catch (error: any) {
+            return { id, success: false, error: error.message };
+          }
+        })
+      );
+      
+      res.json({ results });
+    } catch (error: any) {
+      console.error("Error in bulk reject:", error);
+      res.status(500).json({ message: error.message || "Error al rechazar propiedades" });
+    }
+  });
+
   // Agreement Templates routes (admin only)
   app.get("/api/admin/agreement-templates", isAuthenticated, requireRole(["master", "admin"]), async (req: any, res) => {
     try {
