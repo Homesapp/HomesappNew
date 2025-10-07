@@ -1,7 +1,24 @@
 # 🔐 Recomendaciones de Seguridad para HomesApp
 
-## ✅ Completado
+## ✅ Completado (Fase 1 - Octubre 7, 2025)
+
+### Correcciones UI
 - **Logo HomesApp**: Tamaño estandarizado entre páginas (h-12 md:h-16)
+
+### Correcciones de Seguridad Críticas
+1. **Validación Zod en rutas de roles** ✅
+   - `/api/users/:id/role` - Validación Zod con enum de roles válidos (incluye "cliente" español)
+   - `/api/users/switch-role` - Validación Zod + verificación adicional de roles válidos
+   - Corregido manejo correcto de roles en español ("cliente") para compatibilidad con BD
+
+2. **RBAC Middleware en rutas admin** ✅
+   - `/api/admin/colonies` (POST) - Añadido requireRole(["master", "admin", "admin_jr"])
+   - `/api/admin/colonies/:id` (PATCH) - Añadido requireRole(["master", "admin", "admin_jr"])
+   - `/api/admin/colonies/:id` (DELETE) - Añadido requireRole(["master", "admin", "admin_jr"])
+   - Refactorizado de validación inline a middleware consistente
+
+3. **Validación de permisos** ✅
+   - DELETE `/api/permissions` - Validación Zod de userId y permission
 
 ## 🚨 Problemas Críticos Identificados
 
