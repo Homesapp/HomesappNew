@@ -21,23 +21,29 @@ const accessInfoSchema = z.object({
   contactPerson: z.string().optional(),
   contactPhone: z.string().optional(),
   contactNotes: z.string().optional(),
-}).refine(
-  (data) => {
-    if (data.accessType === "unattended" && data.method === "lockbox" && !data.lockboxCode) {
-      return false;
-    }
-    if (data.accessType === "attended" && !data.contactPerson) {
-      return false;
-    }
-    if (data.accessType === "attended" && !data.contactPhone) {
-      return false;
-    }
-    return true;
-  },
-  {
-    message: "Campos requeridos faltantes",
+}).superRefine((data, ctx) => {
+  if (data.accessType === "unattended" && data.method === "lockbox" && !data.lockboxCode) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      message: "Código de lockbox requerido",
+      path: ["lockboxCode"],
+    });
   }
-);
+  if (data.accessType === "attended" && !data.contactPerson) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      message: "Nombre de contacto requerido",
+      path: ["contactPerson"],
+    });
+  }
+  if (data.accessType === "attended" && !data.contactPhone) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      message: "Teléfono de contacto requerido",
+      path: ["contactPhone"],
+    });
+  }
+});
 
 type AccessInfoForm = z.infer<typeof accessInfoSchema>;
 
@@ -49,7 +55,6 @@ type Step5Props = {
 };
 
 export default function Step5AccessInfo({ data = {}, onUpdate, onNext, onPrevious }: Step5Props) {
-  // CACHE BUSTER v2 - Force new compile
   const initialValues = data?.accessInfo ?? {
     accessType: "unattended" as const,
     method: "lockbox" as const,
@@ -57,20 +62,16 @@ export default function Step5AccessInfo({ data = {}, onUpdate, onNext, onPreviou
     lockboxLocation: "",
   };
 
-  const form = useForm({
+  const form = useForm<AccessInfoForm>({
+    resolver: zodResolver(accessInfoSchema),
     defaultValues: initialValues,
   });
 
   const accessType = form.watch("accessType");
   const method = form.watch("method");
 
-  const onSubmit = (formData: any) => {
-    try {
-      const validated = accessInfoSchema.parse(formData);
-      onNext({ accessInfo: validated });
-    } catch (error) {
-      console.error("Validation error:", error);
-    }
+  const onSubmit = (formData: AccessInfoForm) => {
+    onNext({ accessInfo: formData });
   };
 
   return (
