@@ -302,7 +302,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get("/api/auth/admin/user", async (req: any, res) => {
     try {
       if (!req.session.adminUser) {
-        return res.status(401).json({ message: "Not authenticated" });
+        // Return 200 with null instead of 401 to avoid unnecessary error logs
+        return res.status(200).json(null);
       }
       
       // Fetch full admin data from database to include onboarding fields
@@ -310,7 +311,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const admin = await storage.getAdminById(adminId);
       
       if (!admin) {
-        return res.status(401).json({ message: "Admin not found" });
+        return res.status(200).json(null);
       }
       
       const { passwordHash, ...adminWithoutPassword } = admin;

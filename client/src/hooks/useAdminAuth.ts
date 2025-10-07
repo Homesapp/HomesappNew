@@ -12,7 +12,7 @@ interface AdminUser {
 }
 
 export function useAdminAuth() {
-  const { data: adminUser, isLoading, error } = useQuery<AdminUser>({
+  const { data: adminUser, isLoading, error } = useQuery<AdminUser | null>({
     queryKey: ["/api/auth/admin/user"],
     queryFn: async () => {
       const response = await fetch("/api/auth/admin/user", {
@@ -21,7 +21,9 @@ export function useAdminAuth() {
       if (!response.ok) {
         throw new Error("Not authenticated");
       }
-      return response.json();
+      const data = await response.json();
+      // Return null if no admin user (instead of throwing error)
+      return data;
     },
     retry: false,
     refetchOnWindowFocus: false,
@@ -34,6 +36,10 @@ export function useAdminAuth() {
 
   return {
     adminUser,
+    // Check both adminUser and absence of error to handle:
+    // - No admin session: adminUser=null, error=undefined → false
+    // - Admin session: adminUser=data, error=undefined → true  
+    // - Network error: error=present → false (prevents stale data)
     isAdminAuthenticated: !!adminUser && !error,
     isLoading,
   };
