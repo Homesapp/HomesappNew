@@ -405,25 +405,39 @@ function AdminPropertyImportExportContent() {
           </CardHeader>
           <CardContent className="space-y-4">
             {/* Errors */}
-            {validationResult.errors && Array.isArray(validationResult.errors) && validationResult.errors.length > 0 && (
-              <Alert variant="destructive">
-                <AlertCircle className="h-4 w-4" />
-                <AlertDescription>
-                  <div className="font-semibold mb-2">
-                    Errores ({validationResult.errors.length}):
-                  </div>
-                  <ul className="list-disc list-inside space-y-1 text-sm">
-                    {validationResult.errors.slice(0, 10).map((error: string, idx: number) => (
-                      <li key={idx}>{error}</li>
-                    ))}
-                    {validationResult.errors.length > 10 && (
-                      <li className="text-muted-foreground">
-                        ... y {validationResult.errors.length - 10} más
-                      </li>
-                    )}
-                  </ul>
-                </AlertDescription>
-              </Alert>
+            {!validationResult.valid && (
+              validationResult.errors && Array.isArray(validationResult.errors) && validationResult.errors.length > 0 ? (
+                <Alert variant="destructive">
+                  <AlertCircle className="h-4 w-4" />
+                  <AlertDescription>
+                    <div className="font-semibold mb-2">
+                      Errores ({validationResult.errors.length}):
+                    </div>
+                    <ul className="list-disc list-inside space-y-1 text-sm">
+                      {validationResult.errors.slice(0, 10).map((error: string, idx: number) => (
+                        <li key={idx}>{error}</li>
+                      ))}
+                      {validationResult.errors.length > 10 && (
+                        <li className="text-muted-foreground">
+                          ... y {validationResult.errors.length - 10} más
+                        </li>
+                      )}
+                    </ul>
+                  </AlertDescription>
+                </Alert>
+              ) : (
+                <Alert variant="destructive">
+                  <AlertCircle className="h-4 w-4" />
+                  <AlertDescription>
+                    <div className="font-semibold mb-2">
+                      Validación fallida
+                    </div>
+                    <p className="text-sm">
+                      Los datos no pasaron la validación. Por favor revisa el formato JSON y asegúrate de que todas las propiedades requeridas estén presentes.
+                    </p>
+                  </AlertDescription>
+                </Alert>
+              )
             )}
 
             {/* Warnings */}
