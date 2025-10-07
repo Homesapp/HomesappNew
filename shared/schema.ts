@@ -683,28 +683,31 @@ const accessInfoSchema = z.object({
   contactPhone: z.string().optional(),
 }).optional();
 
+// Schema for services - separates included (free) from not included (with provider/cost details)
 const includedServicesSchema = z.object({
-  water: z.object({
-    included: z.boolean().default(false),
-    type: z.enum(["capa", "well"]).optional(), // CAPA o Pozo
-    provider: z.string().optional(), // Solo en modo extendido
-    accountNumber: z.string().optional(), // Solo en modo extendido - oculto en listings
-    estimatedCost: z.string().optional(),
+  basicServices: z.object({
+    water: z.object({
+      included: z.boolean().default(false), // Si está incluido en la renta
+      provider: z.string().optional(), // Solo si NO está incluido
+      cost: z.string().optional(), // Solo si NO está incluido
+    }).optional(),
+    electricity: z.object({
+      included: z.boolean().default(false),
+      provider: z.string().optional(), // Solo si NO está incluido
+      cost: z.string().optional(), // Solo si NO está incluido
+    }).optional(),
+    internet: z.object({
+      included: z.boolean().default(false),
+      provider: z.string().optional(), // Solo si NO está incluido  
+      cost: z.string().optional(), // Solo si NO está incluido
+    }).optional(),
   }).optional(),
-  electricity: z.object({
-    included: z.boolean().default(false),
-    type: z.enum(["cfe", "solar"]).optional(), // CFE o Autosuficiente
-    paymentFrequency: z.enum(["monthly", "bimonthly"]).optional(),
-    provider: z.string().optional(), // Solo en modo extendido
-    accountNumber: z.string().optional(), // Solo en modo extendido - oculto en listings
-    estimatedCost: z.string().optional(),
-  }).optional(),
-  internet: z.object({
-    included: z.boolean().default(false),
-    provider: z.string().optional(), // Telmex, Abix, etc
-    accountNumber: z.string().optional(), // Solo en modo extendido - oculto en listings
-    estimatedCost: z.string().optional(),
-  }).optional(),
+  // Additional services (pool cleaning, garden, gas, etc)
+  additionalServices: z.array(z.object({
+    type: z.enum(["pool_cleaning", "garden", "gas"]),
+    provider: z.string().optional(),
+    cost: z.string().optional(),
+  })).optional(),
 }).optional();
 
 export const insertPropertySchema = createInsertSchema(properties).omit({
