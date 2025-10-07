@@ -19,13 +19,14 @@ The application utilizes PostgreSQL (Neon serverless) and Drizzle ORM for type-s
 
 ### Key Features and Workflows
 *   **Dual-Type Appointment Scheduling**: Supports individual 1-hour slots and 30-minute tour slots for multiple properties, with admin-configurable business hours and concierge time-blocking.
-*   **Property Management**: Includes a property approval workflow, owner change requests, auto-approval settings, and sublease functionality, standardizing all properties to Tulum.
+*   **Property Management**: Includes a property approval workflow, owner change requests, auto-approval settings, sublease functionality, and pet-friendly indicators with paw icon display. Properties are standardized to Tulum. Owners can manage their properties through a streamlined list view with quick action dropdowns.
+*   **Property Staff & Task Management**: Comprehensive system for assigning staff to properties with role-based assignments (cleaning, maintenance, concierge, accounting, legal). Task management with priorities, assignments, due dates, and status tracking (pending, in progress, completed, cancelled). Built with react-hook-form for robust form validation.
 *   **Property Submission**: A 5-step wizard with draft saving, digital agreement signing, and integration with approved condominiums. Features intelligent amenity and service configuration, and a simplified terms and review step with mandatory acceptances.
 *   **Condominium & Colony Workflow**: User-suggested condominiums and colonies require admin approval, with pre-approved Tulum condominiums.
 *   **Client Dashboard**: Provides a personalized overview with stats, quick actions, and Google Calendar integrated appointment management.
 *   **User Experience**: Features Airbnb-style role switching, full i18n support, a WebSocket-based real-time chat, enhanced presentation cards, granular email notification preferences, and streamlined navigation.
-*   **Notification System**: A dual-channel (in-app and email) system with configurable email categories, priority-based in-app notifications, and SLA tracking.
-*   **My Properties Views**: Multiple view modes (grid, list, compact) for property browsing.
+*   **Notification System**: A dual-channel (in-app and email) system with configurable email categories, priority-based in-app notifications, SLA tracking, and mark-as-read functionality.
+*   **My Properties Views**: Simplified list-view only with dropdown menu for quick property actions (View Details, Edit, Appointments).
 *   **Bank Information Management**: Supports Mexican banks (CLABE), Zelle, and Wise for payment account setup.
 *   **Public Dashboard**: An Airbnb-inspired design with dual pricing (rental/sale), advanced search filters, and promotional banners.
 *   **Virtual Assistant (MARCO)**: An intelligent, humanized chatbot powered by OpenAI GPT-5 for client guidance and appointment coordination.
