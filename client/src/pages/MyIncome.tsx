@@ -691,7 +691,7 @@ export default function MyIncome() {
                       ref={fileInputRef}
                       type="file"
                       id="document-upload"
-                      accept="image/*,application/pdf"
+                      accept="image/jpeg,image/jpg,image/png,image/webp,image/heic,image/heif,application/pdf"
                       onChange={handleFileChange}
                       className="hidden"
                       data-testid="input-document"
