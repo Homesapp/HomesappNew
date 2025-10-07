@@ -4155,27 +4155,7 @@ export class DatabaseStorage implements IStorage {
     published?: boolean;
     ownerId?: string;
   }): Promise<any[]> {
-    let query = db.select({
-      property: properties,
-      owner: {
-        email: users.email,
-        firstName: users.firstName,
-        lastName: users.lastName,
-      },
-      colony: {
-        name: colonies.name,
-        slug: colonies.slug,
-      },
-      condominium: {
-        name: condominiums.name,
-        slug: condominiums.slug,
-      },
-    })
-      .from(properties)
-      .leftJoin(users, eq(properties.ownerId, users.id))
-      .leftJoin(colonies, eq(properties.colonyId, colonies.id))
-      .leftJoin(condominiums, eq(properties.condominiumId, condominiums.id));
-
+    // Build query conditions
     const conditions = [];
     if (filters?.approvalStatus) {
       conditions.push(eq(properties.approvalStatus, filters.approvalStatus as any));
@@ -4190,11 +4170,45 @@ export class DatabaseStorage implements IStorage {
       conditions.push(eq(properties.ownerId, filters.ownerId));
     }
 
+    // Query properties first
+    let propQuery = db.select().from(properties);
     if (conditions.length > 0) {
-      query = query.where(and(...conditions)) as any;
+      propQuery = propQuery.where(and(...conditions)) as any;
+    }
+    
+    const props = await propQuery;
+
+    // Query related data separately to avoid null issues
+    const ownerIds = [...new Set(props.map(p => p.ownerId).filter(Boolean))];
+    const colonyIds = [...new Set(props.map(p => p.colonyId).filter(Boolean))];
+    const condoIds = [...new Set(props.map(p => p.condominiumId).filter(Boolean))];
+
+    const ownerMap = new Map();
+    const colonyMap = new Map();
+    const condoMap = new Map();
+
+    if (ownerIds.length > 0) {
+      const owners = await db.select().from(users).where(inArray(users.id, ownerIds));
+      owners.forEach(o => ownerMap.set(o.id, o));
     }
 
-    const results = await query;
+    if (colonyIds.length > 0) {
+      const cols = await db.select().from(colonies).where(inArray(colonies.id, colonyIds));
+      cols.forEach(c => colonyMap.set(c.id, c));
+    }
+
+    if (condoIds.length > 0) {
+      const condos = await db.select().from(condominiums).where(inArray(condominiums.id, condoIds));
+      condos.forEach(c => condoMap.set(c.id, c));
+    }
+
+    const results = props.map(property => {
+      const owner = ownerMap.get(property.ownerId);
+      const colony = colonyMap.get(property.colonyId);
+      const condo = condoMap.get(property.condominiumId);
+      
+      return { property, owner, colony, condominium: condo };
+    });
 
     // Transform to export format
     return results.map(r => ({
