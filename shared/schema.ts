@@ -123,6 +123,12 @@ export const wizardModeEnum = pgEnum("wizard_mode", [
   "extended",
 ]);
 
+export const paymentMethodEnum = pgEnum("payment_method", [
+  "bank",   // Banco Mexicano
+  "zelle",  // Zelle
+  "wise",   // Wise
+]);
+
 export const waterServiceEnum = pgEnum("water_service", [
   "capa", // CAPA
   "well", // Pozo
@@ -444,6 +450,13 @@ export const users = pgTable("users", {
   documentRejectionReason: text("document_rejection_reason"),
   commissionTermsAccepted: boolean("commission_terms_accepted").notNull().default(false),
   commissionTermsAcceptedAt: timestamp("commission_terms_accepted_at"),
+  paymentMethod: paymentMethodEnum("payment_method"),
+  bankName: varchar("bank_name"),
+  bankAccountName: varchar("bank_account_name"),
+  bankAccountNumber: varchar("bank_account_number"),
+  bankClabe: varchar("bank_clabe"),
+  bankEmail: varchar("bank_email"),
+  bankAddress: text("bank_address"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });
@@ -476,6 +489,36 @@ export const updateUserProfileSchema = z.object({
 });
 
 export type UpdateUserProfile = z.infer<typeof updateUserProfileSchema>;
+
+export const updateBankInfoSchema = z.object({
+  paymentMethod: z.enum(["bank", "zelle", "wise"]),
+  bankName: z.string().optional(),
+  bankAccountName: z.string().min(1, "El nombre del titular es requerido").max(200),
+  bankAccountNumber: z.string().min(1, "El número de cuenta es requerido").max(100),
+  bankClabe: z.string().optional(),
+  bankEmail: z.string().email("Email inválido").optional().or(z.literal("")),
+  bankAddress: z.string().optional().or(z.literal("")),
+}).superRefine((data, ctx) => {
+  // Si es banco mexicano, CLABE y nombre de banco son requeridos
+  if (data.paymentMethod === "bank") {
+    if (!data.bankName || data.bankName.trim() === "") {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: "El nombre del banco es requerido para cuentas bancarias mexicanas",
+        path: ["bankName"],
+      });
+    }
+    if (!data.bankClabe || data.bankClabe.trim() === "") {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: "La CLABE es requerida para cuentas bancarias mexicanas",
+        path: ["bankClabe"],
+      });
+    }
+  }
+});
+
+export type UpdateBankInfo = z.infer<typeof updateBankInfoSchema>;
 
 export const uploadSellerDocumentSchema = z.object({
   documentType: z.enum(["passport", "ine"]),

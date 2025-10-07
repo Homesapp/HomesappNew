@@ -55,6 +55,7 @@ import {
   insertChatMessageSchema,
   insertChatParticipantSchema,
   updateUserProfileSchema,
+  updateBankInfoSchema,
   uploadSellerDocumentSchema,
   acceptCommissionTermsSchema,
   updateDocumentStatusSchema,
@@ -648,6 +649,32 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Error updating profile:", error);
       res.status(500).json({ message: "Failed to update profile" });
+    }
+  });
+
+  app.patch("/api/profile/bank-info", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      
+      const validated = updateBankInfoSchema.parse(req.body);
+      
+      const user = await storage.updateBankInfo(userId, validated);
+      
+      await createAuditLog(
+        req,
+        "update",
+        "user",
+        userId,
+        "Información bancaria actualizada"
+      );
+      
+      res.json(user);
+    } catch (error) {
+      console.error("Error updating bank info:", error);
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ message: "Datos inválidos", errors: error.errors });
+      }
+      res.status(500).json({ message: "Failed to update bank information" });
     }
   });
 

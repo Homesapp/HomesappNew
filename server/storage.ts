@@ -786,6 +786,24 @@ export class DatabaseStorage implements IStorage {
     return user;
   }
 
+  async updateBankInfo(id: string, updates: { paymentMethod: string; bankName?: string; bankAccountName: string; bankAccountNumber: string; bankClabe?: string; bankEmail?: string; bankAddress?: string }): Promise<User> {
+    const [user] = await db
+      .update(users)
+      .set({ 
+        paymentMethod: updates.paymentMethod as "bank" | "zelle" | "wise",
+        bankName: updates.bankName,
+        bankAccountName: updates.bankAccountName,
+        bankAccountNumber: updates.bankAccountNumber,
+        bankClabe: updates.bankClabe,
+        bankEmail: updates.bankEmail,
+        bankAddress: updates.bankAddress,
+        updatedAt: new Date() 
+      })
+      .where(eq(users.id, id))
+      .returning();
+    return user;
+  }
+
   async deleteUser(id: string): Promise<void> {
     await db.delete(users).where(eq(users.id, id));
   }

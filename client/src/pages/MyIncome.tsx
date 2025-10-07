@@ -1,4 +1,4 @@
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { useAuth } from "@/hooks/useAuth";
@@ -13,7 +13,14 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Separator } from "@/components/ui/separator";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
-import { DollarSign, TrendingUp, Clock, CheckCircle2, FileText, Upload, AlertTriangle, BookOpen, Info, CheckCircle } from "lucide-react";
+import { DollarSign, TrendingUp, Clock, CheckCircle2, FileText, Upload, AlertTriangle, BookOpen, Info, CheckCircle, CreditCard, Building, Wallet } from "lucide-react";
+import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
+import { Input } from "@/components/ui/input";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Textarea } from "@/components/ui/textarea";
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { updateBankInfoSchema, type UpdateBankInfo } from "@shared/schema";
 import { format } from "date-fns";
 import { es } from "date-fns/locale";
 import { useToast } from "@/hooks/use-toast";
@@ -48,6 +55,34 @@ export default function MyIncome() {
   const [termsAccepted, setTermsAccepted] = useState(user?.commissionTermsAccepted || false);
   const [documentType, setDocumentType] = useState<"passport" | "ine">("ine");
   const [documentPreview, setDocumentPreview] = useState<string>("");
+
+  const bankForm = useForm<UpdateBankInfo>({
+    resolver: zodResolver(updateBankInfoSchema),
+    defaultValues: {
+      paymentMethod: "bank",
+      bankName: "",
+      bankAccountName: "",
+      bankAccountNumber: "",
+      bankClabe: "",
+      bankEmail: "",
+      bankAddress: "",
+    },
+  });
+
+  // Reset bank form when user data loads or after successful update
+  useEffect(() => {
+    if (user) {
+      bankForm.reset({
+        paymentMethod: (user.paymentMethod as "bank" | "zelle" | "wise") || "bank",
+        bankName: user.bankName || "",
+        bankAccountName: user.bankAccountName || "",
+        bankAccountNumber: user.bankAccountNumber || "",
+        bankClabe: user.bankClabe || "",
+        bankEmail: user.bankEmail || "",
+        bankAddress: user.bankAddress || "",
+      });
+    }
+  }, [user, bankForm]);
 
   const { data: summary, isLoading: summaryLoading } = useQuery<IncomeSummary>({
     queryKey: ["/api/income/my-summary"],
@@ -101,6 +136,30 @@ export default function MyIncome() {
         description: language === "es"
           ? "No se pudo subir el documento"
           : "Could not upload document",
+        variant: "destructive",
+      });
+    },
+  });
+
+  const updateBankInfoMutation = useMutation({
+    mutationFn: async (data: UpdateBankInfo) => {
+      return await apiRequest("PATCH", "/api/profile/bank-info", data);
+    },
+    onSuccess: () => {
+      toast({
+        title: language === "es" ? "Información actualizada" : "Information updated",
+        description: language === "es"
+          ? "Tu información bancaria ha sido actualizada exitosamente"
+          : "Your bank information has been updated successfully",
+      });
+      queryClient.invalidateQueries({ queryKey: ["/api/auth/user"] });
+    },
+    onError: (error: any) => {
+      toast({
+        title: language === "es" ? "Error" : "Error",
+        description: error.message || (language === "es"
+          ? "No se pudo actualizar la información bancaria"
+          : "Could not update bank information"),
         variant: "destructive",
       });
     },
@@ -303,12 +362,15 @@ export default function MyIncome() {
       )}
 
       <Tabs defaultValue="overview" className="w-full">
-        <TabsList className="grid w-full grid-cols-4" data-testid="tabs-list">
+        <TabsList className="grid w-full grid-cols-2 md:grid-cols-5" data-testid="tabs-list">
           <TabsTrigger value="overview" data-testid="tab-overview">
             {language === "es" ? "Resumen" : "Overview"}
           </TabsTrigger>
           <TabsTrigger value="commissions" data-testid="tab-commissions">
             {language === "es" ? "Comisiones" : "Commissions"}
+          </TabsTrigger>
+          <TabsTrigger value="bank-info" data-testid="tab-bank-info">
+            {language === "es" ? "Cuenta Bancaria" : "Bank Account"}
           </TabsTrigger>
           <TabsTrigger value="documents" data-testid="tab-documents">
             {language === "es" ? "Documentos" : "Documents"}
@@ -766,6 +828,221 @@ export default function MyIncome() {
                   </AlertDescription>
                 </Alert>
               )}
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="bank-info" className="space-y-6">
+          <Card data-testid="card-bank-info">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <CreditCard className="h-5 w-5" />
+                {language === "es" ? "Información Bancaria" : "Bank Information"}
+              </CardTitle>
+              <CardDescription>
+                {language === "es"
+                  ? "Configura tu cuenta para recibir pagos"
+                  : "Set up your account to receive payments"}
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <Form {...bankForm}>
+                <form onSubmit={bankForm.handleSubmit((data) => updateBankInfoMutation.mutate(data))} className="space-y-6">
+                  <FormField
+                    control={bankForm.control}
+                    name="paymentMethod"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>
+                          {language === "es" ? "Método de Pago" : "Payment Method"}
+                        </FormLabel>
+                        <Select onValueChange={field.onChange} value={field.value}>
+                          <FormControl>
+                            <SelectTrigger data-testid="select-payment-method">
+                              <SelectValue placeholder={language === "es" ? "Selecciona un método" : "Select a method"} />
+                            </SelectTrigger>
+                          </FormControl>
+                          <SelectContent>
+                            <SelectItem value="bank">
+                              <div className="flex items-center gap-2">
+                                <Building className="h-4 w-4" />
+                                {language === "es" ? "Banco Mexicano" : "Mexican Bank"}
+                              </div>
+                            </SelectItem>
+                            <SelectItem value="zelle">
+                              <div className="flex items-center gap-2">
+                                <Wallet className="h-4 w-4" />
+                                Zelle
+                              </div>
+                            </SelectItem>
+                            <SelectItem value="wise">
+                              <div className="flex items-center gap-2">
+                                <CreditCard className="h-4 w-4" />
+                                Wise
+                              </div>
+                            </SelectItem>
+                          </SelectContent>
+                        </Select>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+
+                  {bankForm.watch("paymentMethod") === "bank" && (
+                    <FormField
+                      control={bankForm.control}
+                      name="bankName"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>
+                            {language === "es" ? "Nombre del Banco" : "Bank Name"}
+                          </FormLabel>
+                          <FormControl>
+                            <Input
+                              {...field}
+                              placeholder={language === "es" ? "Ej: BBVA, Santander, Banorte" : "e.g., BBVA, Santander, Banorte"}
+                              data-testid="input-bank-name"
+                            />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                  )}
+
+                  <FormField
+                    control={bankForm.control}
+                    name="bankAccountName"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>
+                          {language === "es" ? "Nombre del Titular" : "Account Holder Name"}
+                        </FormLabel>
+                        <FormControl>
+                          <Input
+                            {...field}
+                            placeholder={language === "es" ? "Nombre completo" : "Full name"}
+                            data-testid="input-account-name"
+                          />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+
+                  <FormField
+                    control={bankForm.control}
+                    name="bankAccountNumber"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>
+                          {language === "es" ? "Número de Cuenta" : "Account Number"}
+                        </FormLabel>
+                        <FormControl>
+                          <Input
+                            {...field}
+                            placeholder={language === "es" ? "Número de cuenta" : "Account number"}
+                            data-testid="input-account-number"
+                          />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+
+                  {bankForm.watch("paymentMethod") === "bank" && (
+                    <FormField
+                      control={bankForm.control}
+                      name="bankClabe"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>
+                            {language === "es" ? "CLABE Interbancaria" : "Interbank CLABE"}
+                          </FormLabel>
+                          <FormControl>
+                            <Input
+                              {...field}
+                              placeholder="18 dígitos"
+                              maxLength={18}
+                              data-testid="input-clabe"
+                            />
+                          </FormControl>
+                          <FormDescription>
+                            {language === "es"
+                              ? "La CLABE es necesaria para transferencias en México"
+                              : "CLABE is required for transfers in Mexico"}
+                          </FormDescription>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                  )}
+
+                  <FormField
+                    control={bankForm.control}
+                    name="bankEmail"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>
+                          {language === "es" ? "Correo Electrónico" : "Email Address"}
+                        </FormLabel>
+                        <FormControl>
+                          <Input
+                            {...field}
+                            type="email"
+                            placeholder={language === "es" ? "correo@ejemplo.com" : "email@example.com"}
+                            data-testid="input-bank-email"
+                          />
+                        </FormControl>
+                        <FormDescription>
+                          {language === "es"
+                            ? "Email asociado a tu cuenta (opcional)"
+                            : "Email associated with your account (optional)"}
+                        </FormDescription>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+
+                  <FormField
+                    control={bankForm.control}
+                    name="bankAddress"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>
+                          {language === "es" ? "Dirección" : "Address"}
+                        </FormLabel>
+                        <FormControl>
+                          <Textarea
+                            {...field}
+                            placeholder={language === "es" ? "Dirección completa" : "Full address"}
+                            className="resize-none"
+                            rows={3}
+                            data-testid="textarea-bank-address"
+                          />
+                        </FormControl>
+                        <FormDescription>
+                          {language === "es"
+                            ? "Dirección asociada a tu cuenta (opcional)"
+                            : "Address associated with your account (optional)"}
+                        </FormDescription>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+
+                  <Button
+                    type="submit"
+                    className="w-full"
+                    disabled={updateBankInfoMutation.isPending}
+                    data-testid="button-save-bank-info"
+                  >
+                    {updateBankInfoMutation.isPending
+                      ? (language === "es" ? "Guardando..." : "Saving...")
+                      : (language === "es" ? "Guardar Información Bancaria" : "Save Bank Information")}
+                  </Button>
+                </form>
+              </Form>
             </CardContent>
           </Card>
         </TabsContent>
