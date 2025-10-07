@@ -11,9 +11,9 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Separator } from "@/components/ui/separator";
 import { ChevronLeft, ChevronRight, Plus } from "lucide-react";
 import { SuggestColonyDialog } from "@/components/SuggestColonyDialog";
+import { SuggestCondoDialog } from "@/components/SuggestCondoDialog";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { useToast } from "@/hooks/use-toast";
-import { apiRequest } from "@/lib/queryClient";
 import type { Colony, Condominium } from "@shared/schema";
 
 const step2Schema = z.object({
@@ -48,8 +48,7 @@ export default function Step2LocationDetails({ data, onUpdate, onNext, onPreviou
   const { t } = useLanguage();
   const { toast } = useToast();
   const [showColonyDialog, setShowColonyDialog] = useState(false);
-  const [showNewCondoInput, setShowNewCondoInput] = useState(false);
-  const [newCondoName, setNewCondoName] = useState("");
+  const [showCondoDialog, setShowCondoDialog] = useState(false);
 
   // Fetch approved colonies
   const { data: colonies = [] } = useQuery<Colony[]>({
@@ -59,13 +58,6 @@ export default function Step2LocationDetails({ data, onUpdate, onNext, onPreviou
   // Fetch approved condominiums
   const { data: condominiums = [] } = useQuery<Condominium[]>({
     queryKey: ["/api/condominiums/approved"],
-  });
-
-  // Mutation para crear sugerencia de condominio automáticamente
-  const createCondoSuggestion = useMutation({
-    mutationFn: async (name: string) => {
-      return await apiRequest("POST", "/api/condominiums", { name });
-    },
   });
 
   const form = useForm<Step2Form>({
@@ -285,61 +277,42 @@ export default function Step2LocationDetails({ data, onUpdate, onNext, onPreviou
               render={({ field }) => (
                 <FormItem>
                   <FormLabel>Condominio (Opcional)</FormLabel>
-                  <Select
-                    value={field.value || undefined}
-                    onValueChange={(value) => {
-                      field.onChange(value);
-                      setShowNewCondoInput(value === "NEW_CONDO");
-                      if (value !== "NEW_CONDO") {
-                        setNewCondoName("");
-                      }
-                    }}
-                  >
-                    <FormControl>
-                      <SelectTrigger data-testid="select-condominium">
-                        <SelectValue placeholder="Sin condominio" />
-                      </SelectTrigger>
-                    </FormControl>
-                    <SelectContent>
-                      {condominiums.map((condo) => (
-                        <SelectItem
-                          key={condo.id}
-                          value={condo.id}
-                          data-testid={`option-condo-${condo.id}`}
-                        >
-                          {condo.name}
-                        </SelectItem>
-                      ))}
-                      <SelectItem value="NEW_CONDO" data-testid="option-new-condo">
-                        ✏️ Otro (escribir nombre nuevo)
-                      </SelectItem>
-                    </SelectContent>
-                  </Select>
-                  <FormDescription>
-                    Selecciona un condominio existente o escribe uno nuevo
-                  </FormDescription>
+                  <div className="flex gap-2">
+                    <Select
+                      value={field.value || undefined}
+                      onValueChange={field.onChange}
+                    >
+                      <FormControl>
+                        <SelectTrigger data-testid="select-condominium">
+                          <SelectValue placeholder="Sin condominio" />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        {condominiums.map((condo) => (
+                          <SelectItem
+                            key={condo.id}
+                            value={condo.id}
+                            data-testid={`option-condo-${condo.id}`}
+                          >
+                            {condo.name}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="icon"
+                      onClick={() => setShowCondoDialog(true)}
+                      data-testid="button-suggest-condo"
+                    >
+                      <Plus className="w-4 h-4" />
+                    </Button>
+                  </div>
                   <FormMessage />
                 </FormItem>
               )}
             />
-
-            {/* Input condicional para nombre de nuevo condominio */}
-            {showNewCondoInput && (
-              <div className="space-y-2">
-                <label className="text-sm font-medium">
-                  Nombre del Nuevo Condominio
-                </label>
-                <Input
-                  value={newCondoName}
-                  onChange={(e) => setNewCondoName(e.target.value)}
-                  placeholder="Ej: Residencial Las Palmas"
-                  data-testid="input-new-condo-name"
-                />
-                <p className="text-sm text-muted-foreground">
-                  Este condominio será enviado para aprobación del administrador
-                </p>
-              </div>
-            )}
 
             <FormField
               control={form.control}
@@ -499,6 +472,11 @@ export default function Step2LocationDetails({ data, onUpdate, onNext, onPreviou
       <SuggestColonyDialog
         open={showColonyDialog}
         onOpenChange={setShowColonyDialog}
+      />
+      
+      <SuggestCondoDialog
+        open={showCondoDialog}
+        onOpenChange={setShowCondoDialog}
       />
     </div>
   );
