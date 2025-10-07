@@ -171,7 +171,7 @@ export default function SellerDashboard() {
                         Registrado: {format(new Date(lead.createdAt), "dd MMM yyyy 'a las' HH:mm", { locale: es })}
                       </p>
                     </div>
-                    <Link href={`/leads?leadId=${lead.id}`}>
+                    <Link href={`/leads?leadId=${lead.id}`} className="block md:inline">
                       <Button variant="ghost" size="sm" className="w-full md:w-auto" data-testid={`button-view-lead-${lead.id}`}>
                         Ver detalles
                       </Button>

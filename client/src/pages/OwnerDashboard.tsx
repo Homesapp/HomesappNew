@@ -177,7 +177,7 @@ export default function OwnerDashboard() {
                     </p>
                   </div>
                 </div>
-                <Link href="/owner/appointments">
+                <Link href="/owner/appointments" className="block md:inline">
                   <Button size="sm" className="w-full md:w-auto" data-testid="button-view-appointments">
                     Ver visitas
                     <ArrowRight className="ml-2 h-4 w-4" />
@@ -214,7 +214,7 @@ export default function OwnerDashboard() {
                     </p>
                   </div>
                 </div>
-                <Link href="/mis-propiedades">
+                <Link href="/mis-propiedades" className="block md:inline">
                   <Button size="sm" variant="outline" className="w-full md:w-auto" data-testid="button-view-properties">
                     Ver propiedades
                   </Button>

@@ -136,7 +136,7 @@ export default function AdminDashboard() {
                     </p>
                   </div>
                 </div>
-                <Link href="/admin/change-requests">
+                <Link href="/admin/change-requests" className="block md:inline">
                   <Button size="sm" className="w-full md:w-auto" data-testid="button-view-change-requests">
                     Revisar
                     <ArrowRight className="ml-2 h-4 w-4" />
@@ -156,7 +156,7 @@ export default function AdminDashboard() {
                     </p>
                   </div>
                 </div>
-                <Link href="/admin/inspection-reports">
+                <Link href="/admin/inspection-reports" className="block md:inline">
                   <Button size="sm" className="w-full md:w-auto" data-testid="button-view-inspections">
                     Revisar
                     <ArrowRight className="ml-2 h-4 w-4" />
@@ -176,7 +176,7 @@ export default function AdminDashboard() {
                     </p>
                   </div>
                 </div>
-                <Link href="/properties">
+                <Link href="/properties" className="block md:inline">
                   <Button size="sm" variant="outline" className="w-full md:w-auto" data-testid="button-view-properties">
                     Ver propiedades
                   </Button>
