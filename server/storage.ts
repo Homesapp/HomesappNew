@@ -1456,6 +1456,91 @@ export class DatabaseStorage implements IStorage {
     }));
   }
 
+  async getSellerManagementData(): Promise<any[]> {
+    // Get all sellers
+    const sellers = await db
+      .select()
+      .from(users)
+      .where(eq(users.role, 'seller'))
+      .orderBy(users.firstName, users.lastName);
+
+    if (sellers.length === 0) {
+      return [];
+    }
+
+    const sellerIds = sellers.map(s => s.id);
+
+    // Fetch all related data in parallel
+    const [allLeads, allRecommendations] = await Promise.all([
+      db.select().from(leads).where(
+        or(
+          inArray(leads.assignedToId, sellerIds),
+          inArray(leads.registeredById, sellerIds)
+        )
+      ),
+      db.select().from(propertyRecommendations).where(
+        inArray(propertyRecommendations.sellerId, sellerIds)
+      ),
+    ]);
+
+    // Get property data for recommendations
+    const propertyIds = [...new Set(allRecommendations.map(r => r.propertyId))];
+    const propertiesData = propertyIds.length > 0 
+      ? await db.select().from(properties).where(inArray(properties.id, propertyIds))
+      : [];
+    const propertyMap = new Map(propertiesData.map(p => [p.id, { id: p.id, title: p.title, location: p.location }]));
+
+    // Organize data by seller
+    return sellers.map(seller => {
+      const assignedLeads = allLeads.filter(l => l.assignedToId === seller.id);
+      const registeredLeads = allLeads.filter(l => l.registeredById === seller.id);
+      const recommendations = allRecommendations.filter(r => r.sellerId === seller.id);
+
+      // Count leads by status
+      const leadsByStatus = {
+        nuevo: assignedLeads.filter(l => l.status === 'nuevo').length,
+        contactado: assignedLeads.filter(l => l.status === 'contactado').length,
+        calificado: assignedLeads.filter(l => l.status === 'calificado').length,
+        propuesta: assignedLeads.filter(l => l.status === 'propuesta').length,
+        negociacion: assignedLeads.filter(l => l.status === 'negociacion').length,
+        ganado: assignedLeads.filter(l => l.status === 'ganado').length,
+        perdido: assignedLeads.filter(l => l.status === 'perdido').length,
+      };
+
+      return {
+        seller: {
+          id: seller.id,
+          firstName: seller.firstName,
+          lastName: seller.lastName,
+          email: seller.email,
+          profileImageUrl: seller.profileImageUrl,
+          phone: seller.phone,
+        },
+        stats: {
+          totalAssignedLeads: assignedLeads.length,
+          totalRegisteredLeads: registeredLeads.length,
+          totalRecommendations: recommendations.length,
+          leadsByStatus,
+        },
+        assignedLeads: assignedLeads.map(lead => ({
+          ...lead,
+          isAssigned: true,
+        })),
+        registeredLeads: registeredLeads.map(lead => ({
+          ...lead,
+          isRegistered: true,
+        })),
+        recentRecommendations: recommendations
+          .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
+          .slice(0, 10)
+          .map(rec => ({
+            ...rec,
+            property: rec.propertyId ? propertyMap.get(rec.propertyId) : null,
+          })),
+      };
+    });
+  }
+
   async createAppointment(appointmentData: InsertAppointment): Promise<Appointment> {
     const [appointment] = await db.insert(appointments).values(appointmentData).returning();
     return appointment;

@@ -4994,6 +4994,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Admin route to get seller management data
+  app.get("/api/admin/sellers/all", isAuthenticated, requireRole(["master", "admin", "admin_jr"]), async (req, res) => {
+    try {
+      const sellersData = await storage.getSellerManagementData();
+      res.json(sellersData);
+    } catch (error) {
+      console.error("Error fetching seller management data:", error);
+      res.status(500).json({ message: "Failed to fetch seller management data" });
+    }
+  });
+
   // Admin route to update any appointment
   app.patch("/api/admin/appointments/:id", isAuthenticated, requireRole(["master", "admin", "admin_jr"]), async (req: any, res) => {
     try {
