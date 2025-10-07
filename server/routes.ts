@@ -2282,6 +2282,48 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Admin route to reassign property owner
+  app.patch("/api/properties/:id/reassign-owner", isAuthenticated, requireFullAdmin, async (req: any, res) => {
+    try {
+      const { id } = req.params;
+      const { newOwnerId } = req.body;
+
+      if (!newOwnerId) {
+        return res.status(400).json({ message: "newOwnerId is required" });
+      }
+
+      const property = await storage.getProperty(id);
+      if (!property) {
+        return res.status(404).json({ message: "Property not found" });
+      }
+
+      const newOwner = await storage.getUser(newOwnerId);
+      if (!newOwner) {
+        return res.status(404).json({ message: "New owner not found" });
+      }
+
+      if (!["owner", "seller"].includes(newOwner.role)) {
+        return res.status(400).json({ message: "New owner must have 'owner' or 'seller' role" });
+      }
+
+      const previousOwnerId = property.ownerId;
+      const updatedProperty = await storage.updateProperty(id, { ownerId: newOwnerId });
+
+      // Log property owner reassignment
+      await createAuditLog(
+        req,
+        "assign",
+        "property",
+        id,
+        `Propietario reasignado de ${previousOwnerId} a ${newOwnerId} - ${updatedProperty.title}`
+      );
+
+      res.json(updatedProperty);
+    } catch (error: any) {
+      return handleGenericError(res, error, "al reasignar el propietario de la propiedad");
+    }
+  });
+
   // Property staff routes
   app.post("/api/properties/:id/staff", isAuthenticated, async (req: any, res) => {
     try {
