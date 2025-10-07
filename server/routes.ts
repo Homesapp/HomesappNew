@@ -5004,11 +5004,21 @@ export async function registerRoutes(app: Express): Promise<Server> {
     
     try {
       const userId = req.user.claims.sub;
+      const user = await storage.getUser(userId);
+      
+      // Determine clientId: admins/masters can specify, others use their own ID
+      let clientId = userId;
+      if (req.body.clientId && req.body.clientId !== userId) {
+        if (user && ["master", "admin", "admin_jr", "seller"].includes(user.role)) {
+          clientId = req.body.clientId;
+        }
+        // Non-admins cannot specify different clientId, silently use their own
+      }
       
       // Clean special values
       const cleanedBody = {
         ...req.body,
-        clientId: req.body.clientId || userId,
+        clientId,
         conciergeId: req.body.conciergeId === "none" ? undefined : req.body.conciergeId,
       };
       
@@ -5636,7 +5646,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post("/api/presentation-cards", isAuthenticated, async (req: any, res) => {
     try {
       const userId = req.user.claims.sub;
-      const clientId = req.body.clientId || userId;
+      // Always use authenticated user's ID as clientId to prevent spoofing
+      const clientId = userId;
 
       // Check if user already has 3 cards
       const existingCards = await db
@@ -5984,9 +5995,24 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post("/api/services", isAuthenticated, async (req, res) => {
+  app.post("/api/services", isAuthenticated, async (req: any, res) => {
     try {
-      const serviceData = insertServiceSchema.parse(req.body);
+      const userId = req.user.claims.sub;
+      
+      // Get the service provider for this user
+      const providers = await storage.getServiceProviders({ userId });
+      if (!providers || providers.length === 0) {
+        return res.status(403).json({ message: "You must be a registered service provider to create services" });
+      }
+      
+      const provider = providers[0];
+      
+      // Force providerId from authenticated user's service provider
+      const serviceData = insertServiceSchema.parse({
+        ...req.body,
+        providerId: provider.id,
+      });
+      
       const service = await storage.createService(serviceData);
       res.status(201).json(service);
     } catch (error: any) {
@@ -6484,11 +6510,21 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post("/api/offers", isAuthenticated, async (req: any, res) => {
     try {
       const userId = req.user.claims.sub;
+      const user = await storage.getUser(userId);
+      
+      // Determine clientId: admins/masters/sellers can specify, others use their own ID
+      let clientId = userId;
+      if (req.body.clientId && req.body.clientId !== userId) {
+        if (user && ["master", "admin", "admin_jr", "seller"].includes(user.role)) {
+          clientId = req.body.clientId;
+        }
+        // Non-admins cannot specify different clientId, silently use their own
+      }
       
       // Clean special values
       const cleanedBody = {
         ...req.body,
-        clientId: req.body.clientId || userId,
+        clientId,
         appointmentId: req.body.appointmentId === "none" ? undefined : req.body.appointmentId,
       };
       
@@ -6595,9 +6631,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post("/api/rental-applications", isAuthenticated, async (req: any, res) => {
     try {
       const userId = req.user.claims.sub;
+      const user = await storage.getUser(userId);
+      
+      // Determine applicantId: admins/masters can specify, others use their own ID
+      let applicantId = userId;
+      if (req.body.applicantId && req.body.applicantId !== userId) {
+        if (user && ["master", "admin", "admin_jr"].includes(user.role)) {
+          applicantId = req.body.applicantId;
+        }
+        // Non-admins cannot specify different applicantId, silently use their own
+      }
+      
       const applicationData = insertRentalApplicationSchema.parse({
         ...req.body,
-        applicantId: req.body.applicantId || userId,
+        applicantId,
       });
 
       const application = await storage.createRentalApplication(applicationData);
