@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, Component, type ReactNode } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { Button } from "@/components/ui/button";
@@ -13,7 +13,72 @@ import { Textarea } from "@/components/ui/textarea";
 import { Download, Upload, FileJson, AlertCircle, CheckCircle2, XCircle, Info, Loader2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 
-export default function AdminPropertyImportExport() {
+// Error Boundary Component
+class ErrorBoundary extends Component<
+  { children: ReactNode },
+  { hasError: boolean; error: Error | null }
+> {
+  constructor(props: { children: ReactNode }) {
+    super(props);
+    this.state = { hasError: false, error: null };
+  }
+
+  static getDerivedStateFromError(error: Error) {
+    return { hasError: true, error };
+  }
+
+  componentDidCatch(error: Error, errorInfo: any) {
+    console.error("Error capturado por ErrorBoundary:", error, errorInfo);
+  }
+
+  render() {
+    if (this.state.hasError) {
+      return (
+        <div className="flex items-center justify-center min-h-[400px] p-6">
+          <Card className="w-full max-w-2xl">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2 text-destructive">
+                <AlertCircle className="h-5 w-5" />
+                Error al cargar la página
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <Alert variant="destructive">
+                <AlertDescription>
+                  <p className="font-semibold mb-2">
+                    Ocurrió un error al cargar la página de Importar/Exportar propiedades.
+                  </p>
+                  <p className="text-sm">
+                    {this.state.error?.message || "Error desconocido"}
+                  </p>
+                </AlertDescription>
+              </Alert>
+              <div className="flex gap-2">
+                <Button
+                  onClick={() => window.location.reload()}
+                  data-testid="button-reload"
+                >
+                  Recargar página
+                </Button>
+                <Button
+                  variant="outline"
+                  onClick={() => window.history.back()}
+                  data-testid="button-go-back"
+                >
+                  Volver atrás
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      );
+    }
+
+    return this.props.children;
+  }
+}
+
+function AdminPropertyImportExportContent() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
@@ -469,5 +534,14 @@ export default function AdminPropertyImportExport() {
         </CardContent>
       </Card>
     </div>
+  );
+}
+
+// Export wrapped component with ErrorBoundary
+export default function AdminPropertyImportExport() {
+  return (
+    <ErrorBoundary>
+      <AdminPropertyImportExportContent />
+    </ErrorBoundary>
   );
 }
