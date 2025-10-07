@@ -219,8 +219,8 @@ export default function Step3Location({ data, onUpdate, onNext, onPrevious }: St
                 <FormLabel>{t("public.filterColony")} (Opcional)</FormLabel>
                 <div className="flex gap-2">
                   <Select
-                    value={field.value || ""}
-                    onValueChange={field.onChange}
+                    value={field.value || "NONE"}
+                    onValueChange={(value) => field.onChange(value === "NONE" ? null : value)}
                   >
                     <FormControl>
                       <SelectTrigger data-testid="select-colony">
@@ -228,7 +228,7 @@ export default function Step3Location({ data, onUpdate, onNext, onPrevious }: St
                       </SelectTrigger>
                     </FormControl>
                     <SelectContent>
-                      <SelectItem value="" data-testid="option-no-colony">
+                      <SelectItem value="NONE" data-testid="option-no-colony">
                         {t("public.filterAllColonies")}
                       </SelectItem>
                       {colonies.map((colony) => (
@@ -267,9 +267,9 @@ export default function Step3Location({ data, onUpdate, onNext, onPrevious }: St
               <FormItem>
                 <FormLabel>{t("public.filterCondo")} (Opcional)</FormLabel>
                 <Select
-                  value={field.value || ""}
+                  value={field.value || "NONE"}
                   onValueChange={(value) => {
-                    field.onChange(value);
+                    field.onChange(value === "NONE" ? null : value);
                     setShowNewCondoInput(value === "NEW_CONDO");
                     if (value !== "NEW_CONDO") {
                       setNewCondoName("");
@@ -282,7 +282,7 @@ export default function Step3Location({ data, onUpdate, onNext, onPrevious }: St
                     </SelectTrigger>
                   </FormControl>
                   <SelectContent>
-                    <SelectItem value="" data-testid="option-no-condo">
+                    <SelectItem value="NONE" data-testid="option-no-condo">
                       {t("public.filterAllCondos")}
                     </SelectItem>
                     {condominiums.map((condo) => (
