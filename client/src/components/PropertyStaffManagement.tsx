@@ -1,11 +1,14 @@
 import { useState } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { z } from "zod";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
@@ -48,10 +51,45 @@ const taskStatuses = [
   { value: "cancelled", label: "Cancelada", icon: XCircle },
 ];
 
+const staffFormSchema = z.object({
+  staffId: z.string().min(1, "El ID del personal es requerido"),
+  role: z.string().min(1, "El rol es requerido"),
+});
+
+const taskFormSchema = z.object({
+  title: z.string().min(1, "El título es requerido"),
+  description: z.string().optional(),
+  priority: z.string().min(1, "La prioridad es requerida"),
+  assignedToId: z.string().optional(),
+  dueDate: z.string().optional(),
+});
+
+type StaffFormValues = z.infer<typeof staffFormSchema>;
+type TaskFormValues = z.infer<typeof taskFormSchema>;
+
 export function PropertyStaffManagement({ propertyId }: PropertyStaffManagementProps) {
   const { toast } = useToast();
   const [staffDialogOpen, setStaffDialogOpen] = useState(false);
   const [taskDialogOpen, setTaskDialogOpen] = useState(false);
+
+  const staffForm = useForm<StaffFormValues>({
+    resolver: zodResolver(staffFormSchema),
+    defaultValues: {
+      staffId: "",
+      role: "",
+    },
+  });
+
+  const taskForm = useForm<TaskFormValues>({
+    resolver: zodResolver(taskFormSchema),
+    defaultValues: {
+      title: "",
+      description: "",
+      priority: "medium",
+      assignedToId: "",
+      dueDate: "",
+    },
+  });
 
   const { data: staff = [], isLoading: staffLoading } = useQuery<ExtendedPropertyStaff[]>({
     queryKey: ["/api/properties", propertyId, "staff"],
@@ -62,12 +100,13 @@ export function PropertyStaffManagement({ propertyId }: PropertyStaffManagementP
   });
 
   const addStaffMutation = useMutation({
-    mutationFn: async (data: { staffId: string; role: string }) => {
+    mutationFn: async (data: StaffFormValues) => {
       return apiRequest("POST", `/api/properties/${propertyId}/staff`, data);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/properties", propertyId, "staff"] });
       toast({ title: "Personal agregado", description: "El personal ha sido asignado exitosamente" });
+      staffForm.reset();
       setStaffDialogOpen(false);
     },
     onError: (error: any) => {
@@ -80,18 +119,13 @@ export function PropertyStaffManagement({ propertyId }: PropertyStaffManagementP
   });
 
   const createTaskMutation = useMutation({
-    mutationFn: async (data: {
-      title: string;
-      description?: string;
-      priority: string;
-      assignedToId?: string;
-      dueDate?: string;
-    }) => {
+    mutationFn: async (data: TaskFormValues) => {
       return apiRequest("POST", `/api/properties/${propertyId}/tasks`, data);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/properties", propertyId, "tasks"] });
       toast({ title: "Tarea creada", description: "La tarea ha sido creada exitosamente" });
+      taskForm.reset();
       setTaskDialogOpen(false);
     },
     onError: (error: any) => {
@@ -145,43 +179,52 @@ export function PropertyStaffManagement({ propertyId }: PropertyStaffManagementP
                 <DialogTitle>Agregar Personal</DialogTitle>
                 <DialogDescription>Asigna un miembro del personal a esta propiedad</DialogDescription>
               </DialogHeader>
-              <form
-                onSubmit={(e) => {
-                  e.preventDefault();
-                  const formData = new FormData(e.currentTarget);
-                  addStaffMutation.mutate({
-                    staffId: formData.get("staffId") as string,
-                    role: formData.get("role") as string,
-                  });
-                }}
-              >
-                <div className="space-y-4 py-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="staffId">Miembro del Personal</Label>
-                    <Input id="staffId" name="staffId" placeholder="ID del usuario" required data-testid="input-staff-id" />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="role">Rol</Label>
-                    <Select name="role" required>
-                      <SelectTrigger data-testid="select-staff-role">
-                        <SelectValue placeholder="Selecciona un rol" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {staffRoles.map((role) => (
-                          <SelectItem key={role.value} value={role.value}>
-                            {role.label}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                </div>
-                <DialogFooter>
-                  <Button type="submit" disabled={addStaffMutation.isPending} data-testid="button-submit-staff">
-                    {addStaffMutation.isPending ? "Agregando..." : "Agregar"}
-                  </Button>
-                </DialogFooter>
-              </form>
+              <Form {...staffForm}>
+                <form onSubmit={staffForm.handleSubmit((data) => addStaffMutation.mutate(data))} className="space-y-4">
+                  <FormField
+                    control={staffForm.control}
+                    name="staffId"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Miembro del Personal</FormLabel>
+                        <FormControl>
+                          <Input {...field} placeholder="ID del usuario" data-testid="input-staff-id" />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  <FormField
+                    control={staffForm.control}
+                    name="role"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Rol</FormLabel>
+                        <Select onValueChange={field.onChange} value={field.value}>
+                          <FormControl>
+                            <SelectTrigger data-testid="select-staff-role">
+                              <SelectValue placeholder="Selecciona un rol" />
+                            </SelectTrigger>
+                          </FormControl>
+                          <SelectContent>
+                            {staffRoles.map((role) => (
+                              <SelectItem key={role.value} value={role.value}>
+                                {role.label}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  <DialogFooter>
+                    <Button type="submit" disabled={addStaffMutation.isPending} data-testid="button-submit-staff">
+                      {addStaffMutation.isPending ? "Agregando..." : "Agregar"}
+                    </Button>
+                  </DialogFooter>
+                </form>
+              </Form>
             </DialogContent>
           </Dialog>
         </CardHeader>
@@ -237,74 +280,102 @@ export function PropertyStaffManagement({ propertyId }: PropertyStaffManagementP
                 <DialogTitle>Crear Tarea</DialogTitle>
                 <DialogDescription>Crea una nueva tarea para esta propiedad</DialogDescription>
               </DialogHeader>
-              <form
-                onSubmit={(e) => {
-                  e.preventDefault();
-                  const formData = new FormData(e.currentTarget);
-                  createTaskMutation.mutate({
-                    title: formData.get("title") as string,
-                    description: formData.get("description") as string,
-                    priority: formData.get("priority") as string,
-                    assignedToId: formData.get("assignedToId") as string || undefined,
-                    dueDate: formData.get("dueDate") as string || undefined,
-                  });
-                }}
-              >
-                <div className="space-y-4 py-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="title">Título</Label>
-                    <Input id="title" name="title" required data-testid="input-task-title" />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="description">Descripción</Label>
-                    <Textarea id="description" name="description" rows={3} data-testid="input-task-description" />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="priority">Prioridad</Label>
-                    <Select name="priority" defaultValue="medium">
-                      <SelectTrigger data-testid="select-task-priority">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {taskPriorities.map((priority) => (
-                          <SelectItem key={priority.value} value={priority.value}>
-                            {priority.label}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="assignedToId">Asignar a (opcional)</Label>
-                    <Select name="assignedToId">
-                      <SelectTrigger data-testid="select-task-assignee">
-                        <SelectValue placeholder="Selecciona un miembro" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {staff.map((member) => (
-                          <SelectItem key={member.staffId} value={member.staffId}>
-                            {member.staffName || member.staffId}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="dueDate">Fecha de vencimiento (opcional)</Label>
-                    <Input
-                      id="dueDate"
-                      name="dueDate"
-                      type="datetime-local"
-                      data-testid="input-task-due-date"
-                    />
-                  </div>
-                </div>
-                <DialogFooter>
-                  <Button type="submit" disabled={createTaskMutation.isPending} data-testid="button-submit-task">
-                    {createTaskMutation.isPending ? "Creando..." : "Crear Tarea"}
-                  </Button>
-                </DialogFooter>
-              </form>
+              <Form {...taskForm}>
+                <form onSubmit={taskForm.handleSubmit((data) => createTaskMutation.mutate(data))} className="space-y-4">
+                  <FormField
+                    control={taskForm.control}
+                    name="title"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Título</FormLabel>
+                        <FormControl>
+                          <Input {...field} data-testid="input-task-title" />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  <FormField
+                    control={taskForm.control}
+                    name="description"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Descripción</FormLabel>
+                        <FormControl>
+                          <Textarea {...field} rows={3} data-testid="input-task-description" />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  <FormField
+                    control={taskForm.control}
+                    name="priority"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Prioridad</FormLabel>
+                        <Select onValueChange={field.onChange} value={field.value} defaultValue="medium">
+                          <FormControl>
+                            <SelectTrigger data-testid="select-task-priority">
+                              <SelectValue />
+                            </SelectTrigger>
+                          </FormControl>
+                          <SelectContent>
+                            {taskPriorities.map((priority) => (
+                              <SelectItem key={priority.value} value={priority.value}>
+                                {priority.label}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  <FormField
+                    control={taskForm.control}
+                    name="assignedToId"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Asignar a (opcional)</FormLabel>
+                        <Select onValueChange={field.onChange} value={field.value}>
+                          <FormControl>
+                            <SelectTrigger data-testid="select-task-assignee">
+                              <SelectValue placeholder="Selecciona un miembro" />
+                            </SelectTrigger>
+                          </FormControl>
+                          <SelectContent>
+                            {staff.map((member) => (
+                              <SelectItem key={member.staffId} value={member.staffId}>
+                                {member.staffName || member.staffId}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  <FormField
+                    control={taskForm.control}
+                    name="dueDate"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Fecha de vencimiento (opcional)</FormLabel>
+                        <FormControl>
+                          <Input {...field} type="datetime-local" data-testid="input-task-due-date" />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  <DialogFooter>
+                    <Button type="submit" disabled={createTaskMutation.isPending} data-testid="button-submit-task">
+                      {createTaskMutation.isPending ? "Creando..." : "Crear Tarea"}
+                    </Button>
+                  </DialogFooter>
+                </form>
+              </Form>
             </DialogContent>
           </Dialog>
         </CardHeader>
@@ -348,6 +419,10 @@ export function PropertyStaffManagement({ propertyId }: PropertyStaffManagementP
                       )}
                     </div>
                     <div className="flex items-center gap-2">
+                      <Badge variant="outline" className="flex items-center gap-1">
+                        <StatusIcon className="h-3 w-3" />
+                        <span className="text-xs">{statusInfo?.label}</span>
+                      </Badge>
                       <Select
                         value={task.status}
                         onValueChange={(value) =>
@@ -355,12 +430,7 @@ export function PropertyStaffManagement({ propertyId }: PropertyStaffManagementP
                         }
                       >
                         <SelectTrigger className="w-[140px]" data-testid={`select-task-status-${task.id}`}>
-                          <SelectValue>
-                            <div className="flex items-center gap-2">
-                              <StatusIcon className="h-4 w-4" />
-                              <span className="text-sm">{statusInfo?.label}</span>
-                            </div>
-                          </SelectValue>
+                          <SelectValue placeholder="Cambiar estado" />
                         </SelectTrigger>
                         <SelectContent>
                           {taskStatuses.map((status) => (
