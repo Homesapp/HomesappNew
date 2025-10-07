@@ -1277,12 +1277,16 @@ export default function EditOwnerProperty() {
                           <RadioGroupItem
                             value="unattended"
                             id="unattended"
-                            className="peer sr-only"
+                            className="peer sr-only pointer-events-none"
                           />
                           <Label
                             htmlFor="unattended"
                             className="flex flex-col items-center justify-between rounded-md border-2 border-muted bg-transparent p-4 hover-elevate peer-data-[state=checked]:border-primary cursor-pointer"
                             data-testid="radio-unattended"
+                            onClick={(e) => {
+                              e.preventDefault();
+                              field.onChange("unattended");
+                            }}
                           >
                             <Lock className="mb-3 h-6 w-6" />
                             <div className="text-center">
@@ -1297,12 +1301,16 @@ export default function EditOwnerProperty() {
                           <RadioGroupItem
                             value="attended"
                             id="attended"
-                            className="peer sr-only"
+                            className="peer sr-only pointer-events-none"
                           />
                           <Label
                             htmlFor="attended"
                             className="flex flex-col items-center justify-between rounded-md border-2 border-muted bg-transparent p-4 hover-elevate peer-data-[state=checked]:border-primary cursor-pointer"
                             data-testid="radio-attended"
+                            onClick={(e) => {
+                              e.preventDefault();
+                              field.onChange("attended");
+                            }}
                           >
                             <User className="mb-3 h-6 w-6" />
                             <div className="text-center">

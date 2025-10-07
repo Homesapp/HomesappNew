@@ -26,6 +26,9 @@ import {
   FileText,
   ArrowLeft,
   Trash2,
+  PawPrint,
+  ChevronLeft,
+  ChevronRight,
 } from "lucide-react";
 import {
   AlertDialog,
@@ -78,6 +81,7 @@ export default function OwnerPropertyDetails() {
   const { id } = useParams<{ id: string }>();
   const [_, setLocation] = useLocation();
   const { toast } = useToast();
+  const [currentImageIndex, setCurrentImageIndex] = useState(0);
 
   const { data: property, isLoading } = useQuery<Property>({
     queryKey: ["/api/owner/properties", id, "detail"],
@@ -177,7 +181,65 @@ export default function OwnerPropertyDetails() {
       </div>
 
       {property && (
-        <Tabs defaultValue="details" className="w-full">
+        <>
+          {/* Photo Gallery */}
+          {property.images && property.images.length > 0 && (
+          <Card className="overflow-hidden">
+            <div className="relative h-96">
+              <img
+                src={property.images[currentImageIndex]}
+                alt={`${property.title} - imagen ${currentImageIndex + 1}`}
+                className="w-full h-full object-cover"
+              />
+              {property.images.length > 1 && (
+                <>
+                  <Button
+                    variant="outline"
+                    size="icon"
+                    className="absolute left-4 top-1/2 -translate-y-1/2 bg-background/80 backdrop-blur-sm"
+                    onClick={() =>
+                      setCurrentImageIndex((prev) =>
+                        prev === 0 ? property.images!.length - 1 : prev - 1
+                      )
+                    }
+                    data-testid="button-prev-image"
+                  >
+                    <ChevronLeft className="h-4 w-4" />
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="icon"
+                    className="absolute right-4 top-1/2 -translate-y-1/2 bg-background/80 backdrop-blur-sm"
+                    onClick={() =>
+                      setCurrentImageIndex((prev) =>
+                        prev === property.images!.length - 1 ? 0 : prev + 1
+                      )
+                    }
+                    data-testid="button-next-image"
+                  >
+                    <ChevronRight className="h-4 w-4" />
+                  </Button>
+                  <div className="absolute bottom-4 left-1/2 -translate-x-1/2 flex gap-2">
+                    {property.images.map((_, index) => (
+                      <button
+                        key={index}
+                        className={`w-2 h-2 rounded-full transition-all ${
+                          index === currentImageIndex
+                            ? "bg-white w-6"
+                            : "bg-white/50"
+                        }`}
+                        onClick={() => setCurrentImageIndex(index)}
+                        data-testid={`button-image-indicator-${index}`}
+                      />
+                    ))}
+                  </div>
+                </>
+              )}
+            </div>
+          </Card>
+          )}
+
+          <Tabs defaultValue="details" className="w-full">
           <TabsList>
             <TabsTrigger value="details">Detalles</TabsTrigger>
             <TabsTrigger value="changes">
@@ -308,6 +370,15 @@ export default function OwnerPropertyDetails() {
                       <label className="text-sm font-medium text-muted-foreground">Tipo</label>
                       <p className="text-base mt-1 capitalize">{property.propertyType}</p>
                     </div>
+                    {property.petFriendly && (
+                      <div>
+                        <label className="text-sm font-medium text-muted-foreground">Mascotas</label>
+                        <div className="flex items-center gap-2 mt-1">
+                          <PawPrint className="h-4 w-4 text-primary" />
+                          <p className="text-base">Pet Friendly</p>
+                        </div>
+                      </div>
+                    )}
                   </div>
                   <Separator />
                   <div className="grid grid-cols-3 gap-4">
@@ -331,17 +402,20 @@ export default function OwnerPropertyDetails() {
               </Card>
             </div>
 
-            {property.images && property.images.length > 0 && (
+            {property.images && property.images.length > 1 && (
               <Card>
                 <CardHeader>
-                  <CardTitle>Imágenes</CardTitle>
+                  <CardTitle>Galería de Imágenes</CardTitle>
+                  <CardDescription>{property.images.length} fotos</CardDescription>
                 </CardHeader>
                 <CardContent>
                   <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
                     {property.images.map((image, index) => (
                       <div
                         key={index}
-                        className="aspect-square rounded-md overflow-hidden border bg-muted"
+                        className="aspect-square rounded-md overflow-hidden border bg-muted cursor-pointer hover-elevate"
+                        onClick={() => setCurrentImageIndex(index)}
+                        data-testid={`thumbnail-${index}`}
                       >
                         <img
                           src={image}
@@ -443,6 +517,7 @@ export default function OwnerPropertyDetails() {
             <PropertyVisits propertyId={id!} />
           </TabsContent>
         </Tabs>
+        </>
       )}
     </div>
   );
