@@ -3,6 +3,7 @@ import {
   properties,
   colonies,
   condominiums,
+  amenities,
   appointments,
   businessHours,
   conciergeBlockedSlots,
@@ -68,6 +69,8 @@ import {
   type InsertColony,
   type Condominium,
   type InsertCondominium,
+  type Amenity,
+  type InsertAmenity,
   type UpsertUser,
   type InsertUser,
   type Property,
@@ -249,6 +252,14 @@ export interface IStorage {
   toggleCondominiumActive(id: string, active: boolean): Promise<Condominium>;
   countPropertiesByCondominium(condominiumId: string): Promise<number>;
   deleteCondominium(id: string): Promise<void>;
+  
+  // Amenity operations
+  getAmenity(id: string): Promise<Amenity | undefined>;
+  getAmenities(filters?: { category?: string; approvalStatus?: string }): Promise<Amenity[]>;
+  getApprovedAmenities(category?: string): Promise<Amenity[]>;
+  createAmenity(amenity: InsertAmenity): Promise<Amenity>;
+  updateAmenityStatus(id: string, approvalStatus: string): Promise<Amenity>;
+  deleteAmenity(id: string): Promise<void>;
   
   // Property operations
   getProperty(id: string): Promise<Property | undefined>;
@@ -996,6 +1007,64 @@ export class DatabaseStorage implements IStorage {
 
   async deleteCondominium(id: string): Promise<void> {
     await db.delete(condominiums).where(eq(condominiums.id, id));
+  }
+
+  // Amenity operations
+  async getAmenity(id: string): Promise<Amenity | undefined> {
+    const [amenity] = await db.select().from(amenities).where(eq(amenities.id, id));
+    return amenity;
+  }
+
+  async getAmenities(filters?: { category?: string; approvalStatus?: string }): Promise<Amenity[]> {
+    let query = db.select().from(amenities);
+    const conditions = [];
+
+    if (filters?.category) {
+      conditions.push(eq(amenities.category, filters.category as any));
+    }
+    if (filters?.approvalStatus) {
+      conditions.push(eq(amenities.approvalStatus, filters.approvalStatus as any));
+    }
+
+    if (conditions.length > 0) {
+      query = query.where(and(...conditions)) as any;
+    }
+
+    return await query.orderBy(amenities.name);
+  }
+
+  async getApprovedAmenities(category?: string): Promise<Amenity[]> {
+    let query = db
+      .select()
+      .from(amenities)
+      .where(eq(amenities.approvalStatus, "approved"));
+
+    if (category) {
+      query = query.where(and(
+        eq(amenities.approvalStatus, "approved"),
+        eq(amenities.category, category as any)
+      )) as any;
+    }
+
+    return await query.orderBy(amenities.name);
+  }
+
+  async createAmenity(amenityData: InsertAmenity): Promise<Amenity> {
+    const [amenity] = await db.insert(amenities).values(amenityData).returning();
+    return amenity;
+  }
+
+  async updateAmenityStatus(id: string, approvalStatus: string): Promise<Amenity> {
+    const [amenity] = await db
+      .update(amenities)
+      .set({ approvalStatus: approvalStatus as any, updatedAt: new Date() })
+      .where(eq(amenities.id, id))
+      .returning();
+    return amenity;
+  }
+
+  async deleteAmenity(id: string): Promise<void> {
+    await db.delete(amenities).where(eq(amenities.id, id));
   }
 
   // Property operations

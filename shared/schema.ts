@@ -187,6 +187,17 @@ export const changelogCategoryEnum = pgEnum("changelog_category", [
   "database",     // Cambios en base de datos
 ]);
 
+export const amenityCategoryEnum = pgEnum("amenity_category", [
+  "property",     // Características de la propiedad
+  "condo",        // Amenidades del condominio
+]);
+
+export const amenityApprovalStatusEnum = pgEnum("amenity_approval_status", [
+  "pending",
+  "approved",
+  "rejected",
+]);
+
 export const ownerApprovalStatusEnum = pgEnum("owner_approval_status", [
   "pending",   // Pendiente de aprobación
   "approved",  // Aprobado
@@ -703,6 +714,28 @@ export const insertCondominiumSchema = createInsertSchema(condominiums).omit({
 
 export type InsertCondominium = z.infer<typeof insertCondominiumSchema>;
 export type Condominium = typeof condominiums.$inferSelect;
+
+// Amenities table
+export const amenities = pgTable("amenities", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  name: text("name").notNull(),
+  category: amenityCategoryEnum("category").notNull(),
+  approvalStatus: amenityApprovalStatusEnum("approval_status").notNull().default("approved"),
+  requestedBy: varchar("requested_by").references(() => users.id),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+}, (table) => [
+  unique().on(table.name, table.category),
+]);
+
+export const insertAmenitySchema = createInsertSchema(amenities).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export type InsertAmenity = z.infer<typeof insertAmenitySchema>;
+export type Amenity = typeof amenities.$inferSelect;
 
 // Property staff assignment table
 export const propertyStaff = pgTable(
