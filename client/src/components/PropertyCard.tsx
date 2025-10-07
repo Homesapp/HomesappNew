@@ -5,22 +5,28 @@ import { Bed, Bath, Square, MapPin, Eye, Edit, Calendar, Trash2, Droplet, Zap, W
 import { useLanguage } from "@/contexts/LanguageContext";
 
 type IncludedServices = {
-  water?: {
-    included: boolean;
-    type?: "capa" | "well";
-    estimatedCost?: string;
+  basicServices?: {
+    water?: {
+      included: boolean;
+      provider?: string;
+      cost?: string;
+    };
+    electricity?: {
+      included: boolean;
+      provider?: string;
+      cost?: string;
+    };
+    internet?: {
+      included: boolean;
+      provider?: string;
+      cost?: string;
+    };
   };
-  electricity?: {
-    included: boolean;
-    type?: "cfe" | "solar";
-    paymentFrequency?: "monthly" | "bimonthly";
-    estimatedCost?: string;
-  };
-  internet?: {
-    included: boolean;
+  additionalServices?: Array<{
+    type: "pool_cleaning" | "garden" | "gas";
     provider?: string;
-    estimatedCost?: string;
-  };
+    cost?: string;
+  }>;
 };
 
 export type PropertyCardProps = {
@@ -168,34 +174,25 @@ export function PropertyCard({
           )}
         </div>
 
-        {/* Servicios Incluidos - Solo mostrar si hay servicios incluidos */}
-        {includedServices && (includedServices.water?.included || includedServices.electricity?.included || includedServices.internet?.included) && (
+        {/* Servicios Incluidos - Solo mostrar servicios incluidos (no los no incluidos) */}
+        {includedServices?.basicServices && (includedServices.basicServices.water?.included || includedServices.basicServices.electricity?.included || includedServices.basicServices.internet?.included) && (
           <div className="flex flex-wrap gap-2 pt-2 border-t">
-            {includedServices.water?.included && (
+            {includedServices.basicServices.water?.included && (
               <div className="flex items-center gap-1 text-xs text-muted-foreground" data-testid="service-water">
-                <Droplet className="h-3 w-3" />
+                <Droplet className="h-3 w-3 text-blue-500" />
                 <span>Agua</span>
-                {includedServices.water.estimatedCost && (
-                  <span className="text-xs">({includedServices.water.estimatedCost})</span>
-                )}
               </div>
             )}
-            {includedServices.electricity?.included && (
+            {includedServices.basicServices.electricity?.included && (
               <div className="flex items-center gap-1 text-xs text-muted-foreground" data-testid="service-electricity">
-                <Zap className="h-3 w-3" />
+                <Zap className="h-3 w-3 text-yellow-500" />
                 <span>Luz</span>
-                {includedServices.electricity.estimatedCost && (
-                  <span className="text-xs">({includedServices.electricity.estimatedCost})</span>
-                )}
               </div>
             )}
-            {includedServices.internet?.included && (
+            {includedServices.basicServices.internet?.included && (
               <div className="flex items-center gap-1 text-xs text-muted-foreground" data-testid="service-internet">
-                <Wifi className="h-3 w-3" />
+                <Wifi className="h-3 w-3 text-purple-500" />
                 <span>Internet</span>
-                {includedServices.internet.estimatedCost && (
-                  <span className="text-xs">({includedServices.internet.estimatedCost})</span>
-                )}
               </div>
             )}
           </div>
