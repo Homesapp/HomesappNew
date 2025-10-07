@@ -6915,6 +6915,98 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  app.patch("/api/referrals/owners/:id/approve", isAuthenticated, requireRole(["master", "admin", "admin_jr"]), async (req: any, res) => {
+    try {
+      const { id } = req.params;
+      let { commissionAmount } = req.body;
+      const userId = req.user.claims.sub;
+      
+      const referral = await storage.getOwnerReferral(id);
+      
+      if (!referral) {
+        return res.status(404).json({ message: "Referido no encontrado" });
+      }
+      
+      if (!referral.emailVerified) {
+        return res.status(400).json({ message: "El email del propietario debe ser verificado antes de aprobar" });
+      }
+      
+      // Calculate default 20% commission if not provided
+      if (!commissionAmount && referral.estimatedValue) {
+        const estimatedValue = parseFloat(referral.estimatedValue);
+        if (!isNaN(estimatedValue)) {
+          commissionAmount = (estimatedValue * 0.20).toFixed(2);
+        }
+      }
+      
+      const updatedReferral = await storage.approveOwnerReferralByAdmin(id, userId, commissionAmount);
+      
+      // Send notification to seller
+      const seller = await storage.getUser(referral.referrerId);
+      if (seller && seller.email) {
+        await sendOwnerReferralApprovedNotification(
+          seller.email,
+          `${seller.firstName || ''} ${seller.lastName || ''}`.trim(),
+          `${referral.firstName} ${referral.lastName}`,
+          referral.propertyAddress || 'Propiedad referida',
+          commissionAmount || updatedReferral.commissionAmount || '0.00'
+        );
+      }
+      
+      await createAuditLog(
+        req, 
+        "update", 
+        "owner_referral", 
+        id, 
+        `Referido de propietario aprobado con comisión de $${commissionAmount || updatedReferral.commissionAmount}`
+      );
+      
+      res.json({ 
+        message: "Referido aprobado exitosamente. Se ha notificado al vendedor.",
+        ownerReferral: updatedReferral 
+      });
+    } catch (error: any) {
+      console.error("Error approving owner referral:", error);
+      res.status(400).json({ message: error.message || "Error al aprobar referido" });
+    }
+  });
+
+  app.patch("/api/referrals/owners/:id/reject", isAuthenticated, requireRole(["master", "admin", "admin_jr"]), async (req: any, res) => {
+    try {
+      const { id } = req.params;
+      const { rejectionReason } = req.body;
+      const userId = req.user.claims.sub;
+      
+      if (!rejectionReason) {
+        return res.status(400).json({ message: "Se requiere una razón de rechazo" });
+      }
+      
+      const referral = await storage.getOwnerReferral(id);
+      
+      if (!referral) {
+        return res.status(404).json({ message: "Referido no encontrado" });
+      }
+      
+      const updatedReferral = await storage.rejectOwnerReferralByAdmin(id, userId, rejectionReason);
+      
+      await createAuditLog(
+        req, 
+        "update", 
+        "owner_referral", 
+        id, 
+        `Referido de propietario rechazado: ${rejectionReason}`
+      );
+      
+      res.json({ 
+        message: "Referido rechazado exitosamente",
+        ownerReferral: updatedReferral 
+      });
+    } catch (error: any) {
+      console.error("Error rejecting owner referral:", error);
+      res.status(400).json({ message: error.message || "Error al rechazar referido" });
+    }
+  });
+
   // Offer routes
   app.get("/api/offers", isAuthenticated, async (req, res) => {
     try {

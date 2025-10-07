@@ -247,21 +247,10 @@ export function OnboardingTour({ userRole, onboardingCompleted, onboardingSteps 
     <Dialog open={isOpen} onOpenChange={(open) => { if (!open) handleSkip(); }}>
       <DialogContent className="sm:max-w-[600px]" data-testid="dialog-onboarding-tour">
         <DialogHeader>
-          <div className="flex items-center justify-between">
-            <DialogTitle className="text-2xl font-bold flex items-center gap-2">
-              <Rocket className="h-6 w-6 text-primary" />
-              {step.title}
-            </DialogTitle>
-            <Button
-              variant="ghost"
-              size="icon"
-              onClick={handleSkip}
-              disabled={skipOnboardingMutation.isPending}
-              data-testid="button-skip-onboarding"
-            >
-              <X className="h-5 w-5" />
-            </Button>
-          </div>
+          <DialogTitle className="text-2xl font-bold flex items-center gap-2">
+            <Rocket className="h-6 w-6 text-primary" />
+            {step.title}
+          </DialogTitle>
           <DialogDescription className="text-base pt-2">
             {step.description}
           </DialogDescription>

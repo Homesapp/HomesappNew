@@ -53,16 +53,16 @@ export function ReferralsList({ type, referrals }: ReferralsListProps) {
   const [commissionAmount, setCommissionAmount] = useState("");
   const [rejectionReason, setRejectionReason] = useState("");
   
-  const isAdmin = user?.role === "admin" || user?.role === "master";
+  const isAdmin = user?.role === "admin" || user?.role === "master" || user?.role === "admin_jr";
   
   const approveMutation = useMutation({
     mutationFn: async ({ id, commission }: { id: string; commission?: string }) => {
-      return await apiRequest("PATCH", `/api/owner-referrals/${id}/approve`, {
+      return await apiRequest("PATCH", `/api/referrals/owners/${id}/approve`, {
         commissionAmount: commission
       });
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/owner-referrals"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/referrals/owners"] });
       toast({
         title: t("referrals.approved", "Referido aprobado"),
         description: t("referrals.approvedDesc", "El referido ha sido aprobado exitosamente"),
@@ -82,12 +82,12 @@ export function ReferralsList({ type, referrals }: ReferralsListProps) {
   
   const rejectMutation = useMutation({
     mutationFn: async ({ id, reason }: { id: string; reason: string }) => {
-      return await apiRequest("PATCH", `/api/owner-referrals/${id}/reject`, {
+      return await apiRequest("PATCH", `/api/referrals/owners/${id}/reject`, {
         rejectionReason: reason
       });
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/owner-referrals"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/referrals/owners"] });
       toast({
         title: t("referrals.rejected", "Referido rechazado"),
         description: t("referrals.rejectedDesc", "El referido ha sido rechazado"),

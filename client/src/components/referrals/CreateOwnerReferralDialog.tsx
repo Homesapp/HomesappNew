@@ -94,10 +94,10 @@ export function CreateOwnerReferralDialog({
 
   const createMutation = useMutation({
     mutationFn: async (data: FormData) => {
-      return await apiRequest("POST", "/api/owner-referrals", data);
+      return await apiRequest("POST", "/api/referrals/owners", data);
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/owner-referrals"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/referrals/owners"] });
       toast({
         title: t("referrals.ownerReferralCreated", "Referido de propietario creado"),
         description: t("referrals.ownerReferralCreatedDesc", "Se ha enviado un email de verificación al propietario"),

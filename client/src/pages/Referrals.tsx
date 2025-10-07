@@ -27,7 +27,7 @@ export default function Referrals() {
   });
 
   const { data: ownerReferrals = [], isLoading: ownersLoading, isError: ownersError } = useQuery<OwnerReferral[]>({
-    queryKey: ["/api/owner-referrals"],
+    queryKey: ["/api/referrals/owners"],
   });
 
   const isLoading = configLoading || clientsLoading || ownersLoading;
