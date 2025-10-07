@@ -126,3 +126,44 @@ Siguiendo las recomendaciones del sistema Dual-AI, se implementaron mejoras sign
 - Transiciones suaves: `transition-smooth` (300ms cubic-bezier), `transition-bounce`
 - Clases de utilidad Tailwind para feedback visual mejorado
 - Todas las animaciones diseñadas para mejorar UX sin distraer
+
+### Property Import/Export System Enhancements (Octubre 2025)
+Mejoras significativas al sistema de importación/exportación de propiedades siguiendo recomendaciones del sistema Dual-AI:
+
+#### File Upload Support
+- Input type="file" para carga directa de archivos JSON
+- Validación automática de extensión .json
+- Lectura asíncrona con FileReader API
+- Feedback visual de carga exitosa/fallida
+- Alternativa moderna al flujo manual de paste JSON
+
+#### Client-Side Pre-validation
+- Validación de formato JSON antes de enviar al servidor
+- Verificación de estructura de array no vacío
+- Pre-chequeo de campos requeridos (title, price, bedrooms, bathrooms, area, location, ownerEmail)
+- **Importante**: Permite valores numéricos 0 como válidos (e.g., 0 bedrooms para estudios)
+- Validación explícita solo para undefined/null/empty-string
+- Detección temprana de errores reduce carga en servidor
+
+#### Grouped Error Presentation
+- Función `groupErrors()` que categoriza errores en:
+  - Campos requeridos faltantes
+  - Emails de propietarios no encontrados
+  - Otros errores
+- Alert de resumen con emoji y conteo total de errores
+- Desglose por categoría con contadores individuales
+- Límite de 5 errores por categoría + indicador "... y X más"
+- Mejora significativa en legibilidad de errores complejos
+
+#### Auto-scroll to Results
+- useRef + useEffect para scroll automático
+- Smooth scroll behavior cuando aparecen resultados de validación
+- Reduce necesidad de scroll manual del usuario
+- Mejora UX especialmente con archivos grandes
+
+#### Backend Validation
+- Estructura de respuesta consistente: `{valid, errors, warnings, mappings}`
+- Logging detallado de operaciones de validación
+- Manejo robusto de undefined/null en response
+- Try/catch no-blocking para audit logs
+- Validación de referencias foráneas (owners, condominiums)
