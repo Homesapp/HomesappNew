@@ -512,6 +512,7 @@ const translations: Record<Language, Record<string, string>> = {
     "sidebar.suggestions": "Sugerencias",
     "sidebar.adminReferrals": "Gestión de Referidos",
     "sidebar.chatbotConfig": "Configuración Chatbot",
+    "sidebar.integrations": "Integraciones",
     "sidebar.feedbackManagement": "Gestión de Feedback",
     "sidebar.roleRequests": "Solicitudes de Roles",
     "sidebar.createUser": "Crear Usuario",
@@ -671,6 +672,21 @@ const translations: Record<Language, Record<string, string>> = {
     "adminProfile.appearanceDesc": "Personaliza cómo se ve la aplicación",
     "adminProfile.lightMode": "Modo claro",
     "adminProfile.darkMode": "Modo oscuro",
+    
+    // Admin Integrations
+    "adminIntegrations.title": "Control de Integraciones",
+    "adminIntegrations.subtitle": "Monitorea y configura las conexiones con APIs externas",
+    "adminIntegrations.refresh": "Actualizar",
+    "adminIntegrations.refreshing": "Actualizando estado",
+    "adminIntegrations.refreshingDescription": "Verificando el estado de las integraciones...",
+    "adminIntegrations.overview": "Vista General",
+    "adminIntegrations.overviewDescription": "Estado general de las integraciones del sistema",
+    "adminIntegrations.activeIntegrations": "Integraciones Activas",
+    "adminIntegrations.someDisconnected": "Algunas integraciones están desconectadas",
+    "adminIntegrations.connected": "Conectado",
+    "adminIntegrations.disconnected": "Desconectado",
+    "adminIntegrations.requiredFields": "Campos Requeridos",
+    "adminIntegrations.configurationRequired": "Se requiere configuración para activar esta integración",
   },
   en: {
     // Header
@@ -1504,6 +1520,7 @@ const translations: Record<Language, Record<string, string>> = {
     "sidebar.suggestions": "Suggestions",
     "sidebar.adminReferrals": "Referral Management",
     "sidebar.chatbotConfig": "Chatbot Configuration",
+    "sidebar.integrations": "Integrations",
     "sidebar.feedbackManagement": "Feedback Management",
     "sidebar.roleRequests": "Role Requests",
     "sidebar.createUser": "Create User",
@@ -1663,6 +1680,21 @@ const translations: Record<Language, Record<string, string>> = {
     "adminProfile.appearanceDesc": "Customize how the app looks",
     "adminProfile.lightMode": "Light mode",
     "adminProfile.darkMode": "Dark mode",
+    
+    // Admin Integrations
+    "adminIntegrations.title": "Integrations Control",
+    "adminIntegrations.subtitle": "Monitor and configure external API connections",
+    "adminIntegrations.refresh": "Refresh",
+    "adminIntegrations.refreshing": "Updating status",
+    "adminIntegrations.refreshingDescription": "Checking integrations status...",
+    "adminIntegrations.overview": "Overview",
+    "adminIntegrations.overviewDescription": "System integrations overall status",
+    "adminIntegrations.activeIntegrations": "Active Integrations",
+    "adminIntegrations.someDisconnected": "Some integrations are disconnected",
+    "adminIntegrations.connected": "Connected",
+    "adminIntegrations.disconnected": "Disconnected",
+    "adminIntegrations.requiredFields": "Required Fields",
+    "adminIntegrations.configurationRequired": "Configuration required to activate this integration",
   },
 };
 

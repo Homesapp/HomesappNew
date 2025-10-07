@@ -66,7 +66,7 @@ Administrative fees: $2,500 MXN for personal use contracts or $3,800 MXN for sub
 *   **Welcome Modals**: First-time welcome modals for clients and property owners to introduce features.
 *   **Service Provider Messaging**: One-click chat initiation with service providers from their directory listings.
 *   **Application System**: A unified application flow at `/aplicar` for users to apply as sellers (via role-requests) or service providers (via providerApplications), accessible from the landing page.
-*   **Admin Panel Enhancements**: Includes full English translation, a dedicated admin profile management page with photo upload and password changes, and a streamlined user menu.
+*   **Admin Panel Enhancements**: Includes full English translation, a dedicated admin profile management page with photo upload and password changes, a streamlined user menu, and an integrations control center for monitoring external API connections (Google Calendar, OpenAI, Gemini, Resend, Gmail).
 *   **Role Request System**: Enhanced with mandatory email, WhatsApp, and structured years of experience fields for applications.
 
 ### System Design Choices

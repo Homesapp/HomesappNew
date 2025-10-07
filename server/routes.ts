@@ -9648,6 +9648,126 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Admin Integrations Status endpoint
+  app.get("/api/admin/integrations/status", isAuthenticated, requireRole(["master", "admin"]), async (req, res) => {
+    try {
+      const integrations = [];
+
+      // Google Calendar
+      const googleCalendarConfigured = !!(
+        process.env.GOOGLE_CALENDAR_CLIENT_ID &&
+        process.env.GOOGLE_CALENDAR_CLIENT_SECRET &&
+        process.env.GOOGLE_CALENDAR_REFRESH_TOKEN
+      );
+      integrations.push({
+        id: "google_calendar",
+        name: "Google Calendar",
+        status: googleCalendarConfigured ? "connected" : "disconnected",
+        description: "Event scheduling and Google Meet integration",
+        configFields: ["GOOGLE_CALENDAR_CLIENT_ID", "GOOGLE_CALENDAR_CLIENT_SECRET", "GOOGLE_CALENDAR_REFRESH_TOKEN"]
+      });
+
+      // OpenAI
+      const openAIConfigured = !!process.env.OPENAI_API_KEY;
+      integrations.push({
+        id: "openai",
+        name: "OpenAI (MARCO)",
+        status: openAIConfigured ? "connected" : "disconnected",
+        description: "Virtual assistant powered by GPT-5",
+        configFields: ["OPENAI_API_KEY"]
+      });
+
+      // Gemini
+      const geminiConfigured = !!process.env.GEMINI_API_KEY;
+      integrations.push({
+        id: "gemini",
+        name: "Google Gemini",
+        status: geminiConfigured ? "connected" : "disconnected",
+        description: "AI-powered features",
+        configFields: ["GEMINI_API_KEY"]
+      });
+
+      // Resend (connector-based)
+      let resendStatus = "disconnected";
+      try {
+        const hostname = process.env.REPLIT_CONNECTORS_HOSTNAME;
+        const xReplitToken = process.env.REPL_IDENTITY
+          ? 'repl ' + process.env.REPL_IDENTITY
+          : process.env.WEB_REPL_RENEWAL
+          ? 'depl ' + process.env.WEB_REPL_RENEWAL
+          : null;
+        
+        if (xReplitToken && hostname) {
+          const connectorData = await fetch(
+            'https://' + hostname + '/api/v2/connection?include_secrets=true&connector_names=resend',
+            {
+              headers: {
+                'Accept': 'application/json',
+                'X_REPLIT_TOKEN': xReplitToken
+              }
+            }
+          ).then(res => res.json());
+          
+          if (connectorData.items?.[0]?.settings?.api_key) {
+            resendStatus = "connected";
+          }
+        }
+      } catch (error) {
+        console.error("Error checking Resend status:", error);
+      }
+
+      integrations.push({
+        id: "resend",
+        name: "Resend",
+        status: resendStatus,
+        description: "Primary email delivery service",
+        configFields: ["Replit Connector"]
+      });
+
+      // Gmail (connector-based)
+      let gmailStatus = "disconnected";
+      try {
+        const hostname = process.env.REPLIT_CONNECTORS_HOSTNAME;
+        const xReplitToken = process.env.REPL_IDENTITY
+          ? 'repl ' + process.env.REPL_IDENTITY
+          : process.env.WEB_REPL_RENEWAL
+          ? 'depl ' + process.env.WEB_REPL_RENEWAL
+          : null;
+        
+        if (xReplitToken && hostname) {
+          const connectorData = await fetch(
+            'https://' + hostname + '/api/v2/connection?include_secrets=true&connector_names=google-mail',
+            {
+              headers: {
+                'Accept': 'application/json',
+                'X_REPLIT_TOKEN': xReplitToken
+              }
+            }
+          ).then(res => res.json());
+          
+          if (connectorData.items?.[0]?.access_token) {
+            gmailStatus = "connected";
+          }
+        }
+      } catch (error) {
+        console.error("Error checking Gmail status:", error);
+      }
+
+      integrations.push({
+        id: "gmail",
+        name: "Gmail API",
+        status: gmailStatus,
+        description: "Backup email delivery service",
+        configFields: ["Replit Connector"]
+      });
+
+      res.json({ integrations });
+    } catch (error: any) {
+      console.error("Error fetching integrations status:", error);
+      res.status(500).json({ message: "Failed to fetch integrations status" });
+    }
+  });
+
   const httpServer = createServer(app);
   const sessionMiddleware = getSession();
   
