@@ -244,18 +244,15 @@ export default function Step2LocationDetails({ data, onUpdate, onNext, onPreviou
                   <FormLabel>Colonia (Opcional)</FormLabel>
                   <div className="flex gap-2">
                     <Select
-                      value={field.value || ""}
+                      value={field.value || undefined}
                       onValueChange={field.onChange}
                     >
                       <FormControl>
                         <SelectTrigger data-testid="select-colony">
-                          <SelectValue placeholder="Selecciona una colonia" />
+                          <SelectValue placeholder="Sin colonia" />
                         </SelectTrigger>
                       </FormControl>
                       <SelectContent>
-                        <SelectItem value="" data-testid="option-no-colony">
-                          Sin colonia
-                        </SelectItem>
                         {colonies.map((colony) => (
                           <SelectItem
                             key={colony.id}
@@ -289,7 +286,7 @@ export default function Step2LocationDetails({ data, onUpdate, onNext, onPreviou
                 <FormItem>
                   <FormLabel>Condominio (Opcional)</FormLabel>
                   <Select
-                    value={field.value || ""}
+                    value={field.value || undefined}
                     onValueChange={(value) => {
                       field.onChange(value);
                       setShowNewCondoInput(value === "NEW_CONDO");
@@ -300,13 +297,10 @@ export default function Step2LocationDetails({ data, onUpdate, onNext, onPreviou
                   >
                     <FormControl>
                       <SelectTrigger data-testid="select-condominium">
-                        <SelectValue placeholder="Selecciona un condominio" />
+                        <SelectValue placeholder="Sin condominio" />
                       </SelectTrigger>
                     </FormControl>
                     <SelectContent>
-                      <SelectItem value="" data-testid="option-no-condo">
-                        Sin condominio
-                      </SelectItem>
                       {condominiums.map((condo) => (
                         <SelectItem
                           key={condo.id}

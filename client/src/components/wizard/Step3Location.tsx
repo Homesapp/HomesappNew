@@ -219,7 +219,7 @@ export default function Step3Location({ data, onUpdate, onNext, onPrevious }: St
                 <FormLabel>{t("public.filterColony")} (Opcional)</FormLabel>
                 <div className="flex gap-2">
                   <Select
-                    value={field.value || ""}
+                    value={field.value || undefined}
                     onValueChange={field.onChange}
                   >
                     <FormControl>
@@ -228,9 +228,6 @@ export default function Step3Location({ data, onUpdate, onNext, onPrevious }: St
                       </SelectTrigger>
                     </FormControl>
                     <SelectContent>
-                      <SelectItem value="" data-testid="option-no-colony">
-                        {t("public.filterAllColonies")}
-                      </SelectItem>
                       {colonies.map((colony) => (
                         <SelectItem
                           key={colony.id}
@@ -267,7 +264,7 @@ export default function Step3Location({ data, onUpdate, onNext, onPrevious }: St
               <FormItem>
                 <FormLabel>{t("public.filterCondo")} (Opcional)</FormLabel>
                 <Select
-                  value={field.value || ""}
+                  value={field.value || undefined}
                   onValueChange={(value) => {
                     field.onChange(value);
                     setShowNewCondoInput(value === "NEW_CONDO");
@@ -282,9 +279,6 @@ export default function Step3Location({ data, onUpdate, onNext, onPrevious }: St
                     </SelectTrigger>
                   </FormControl>
                   <SelectContent>
-                    <SelectItem value="" data-testid="option-no-condo">
-                      {t("public.filterAllCondos")}
-                    </SelectItem>
                     {condominiums.map((condo) => (
                       <SelectItem
                         key={condo.id}
