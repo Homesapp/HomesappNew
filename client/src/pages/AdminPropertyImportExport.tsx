@@ -10,12 +10,53 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { Download, Upload, FileJson, AlertCircle, CheckCircle2, XCircle, Info } from "lucide-react";
+import { Download, Upload, FileJson, AlertCircle, CheckCircle2, XCircle, Info, Loader2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 
 export default function AdminPropertyImportExport() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
+
+  // Check user authentication
+  const { data: user, isLoading: isLoadingUser } = useQuery({
+    queryKey: ["/api/auth/user"],
+  });
+
+  const { data: adminUser, isLoading: isLoadingAdmin } = useQuery({
+    queryKey: ["/api/auth/admin/user"],
+  });
+
+  // Show loading state while checking authentication
+  if (isLoadingUser || isLoadingAdmin) {
+    return (
+      <div className="flex items-center justify-center min-h-[400px]">
+        <div className="flex flex-col items-center gap-2">
+          <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+          <p className="text-sm text-muted-foreground">Cargando...</p>
+        </div>
+      </div>
+    );
+  }
+
+  // Check if user has admin permissions
+  const isAdmin = adminUser || (user && (user.role === "master" || user.role === "admin"));
+
+  if (!isAdmin) {
+    return (
+      <div className="flex items-center justify-center min-h-[400px]">
+        <Card className="w-full max-w-md">
+          <CardHeader>
+            <CardTitle className="text-destructive">Acceso Denegado</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <p className="text-muted-foreground">
+              No tienes permisos para acceder a esta página. Solo los administradores pueden importar y exportar propiedades.
+            </p>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
 
   // Export state
   const [exportFilters, setExportFilters] = useState({
