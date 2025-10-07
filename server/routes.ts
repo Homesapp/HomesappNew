@@ -4983,6 +4983,69 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Appointment routes
+  // Admin route to get ALL appointments in the system
+  app.get("/api/admin/appointments/all", isAuthenticated, requireRole(["master", "admin", "admin_jr"]), async (req, res) => {
+    try {
+      const appointments = await storage.getAllAppointmentsAdmin();
+      res.json(appointments);
+    } catch (error) {
+      console.error("Error fetching admin appointments:", error);
+      res.status(500).json({ message: "Failed to fetch admin appointments" });
+    }
+  });
+
+  // Admin route to update any appointment
+  app.patch("/api/admin/appointments/:id", isAuthenticated, requireRole(["master", "admin", "admin_jr"]), async (req: any, res) => {
+    try {
+      const { id } = req.params;
+      const userId = req.user.claims.sub;
+
+      const appointment = await storage.getAppointment(id);
+      if (!appointment) {
+        return res.status(404).json({ message: "Cita no encontrada" });
+      }
+
+      const updatedAppointment = await storage.updateAppointment(id, req.body);
+
+      await createAuditLog(req, "update", "appointment", id, "Cita actualizada por administrador");
+
+      res.json({ 
+        message: "Cita actualizada exitosamente",
+        appointment: updatedAppointment 
+      });
+    } catch (error: any) {
+      console.error("Error updating appointment:", error);
+      res.status(400).json({ message: error.message || "Error al actualizar la cita" });
+    }
+  });
+
+  // Admin route to cancel any appointment
+  app.post("/api/admin/appointments/:id/cancel", isAuthenticated, requireRole(["master", "admin", "admin_jr"]), async (req: any, res) => {
+    try {
+      const { id } = req.params;
+      const userId = req.user.claims.sub;
+
+      const appointment = await storage.getAppointment(id);
+      if (!appointment) {
+        return res.status(404).json({ message: "Cita no encontrada" });
+      }
+
+      const updatedAppointment = await storage.updateAppointment(id, {
+        status: "cancelled" as any,
+      });
+
+      await createAuditLog(req, "update", "appointment", id, "Cita cancelada por administrador");
+
+      res.json({ 
+        message: "Cita cancelada exitosamente",
+        appointment: updatedAppointment 
+      });
+    } catch (error: any) {
+      console.error("Error cancelling appointment:", error);
+      res.status(400).json({ message: error.message || "Error al cancelar la cita" });
+    }
+  });
+
   app.get("/api/appointments", isAuthenticated, async (req, res) => {
     try {
       const { status, clientId, propertyId } = req.query;

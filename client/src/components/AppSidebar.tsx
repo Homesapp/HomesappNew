@@ -89,6 +89,7 @@ export function AppSidebar({ userRole }: AppSidebarProps) {
   const { state } = useSidebar();
 
   const [openGroups, setOpenGroups] = useState({
+    processManagement: false,
     usersAndRoles: false,
     properties: false,
     config: false,
@@ -116,11 +117,15 @@ export function AppSidebar({ userRole }: AppSidebarProps) {
 
   const adminSingleItems = [
     { titleKey: "sidebar.adminDashboard", url: "/admin/dashboard", icon: Home, roles: ["master", "admin", "admin_jr"] },
+    { titleKey: "sidebar.incomeDashboard", url: "/admin/income", icon: DollarSign, roles: ["master", "admin"] },
+    { titleKey: "sidebar.backoffice", url: "/backoffice", icon: FolderKanban, roles: ["master", "admin", "admin_jr", "management", "concierge", "provider"] },
+  ];
+
+  const processManagementGroup = [
+    { titleKey: "sidebar.adminAppointments", url: "/admin/appointments", icon: CalendarCheck, roles: ["master", "admin", "admin_jr"] },
     { titleKey: "sidebar.adminCalendar", url: "/admin/calendario", icon: Calendar, roles: ["master", "admin", "admin_jr"] },
     { titleKey: "sidebar.businessHours", url: "/admin/horarios", icon: Clock, roles: ["master", "admin"] },
     { titleKey: "sidebar.assignProperties", url: "/admin/asignar-propiedades", icon: Building2, roles: ["master", "admin"] },
-    { titleKey: "sidebar.backoffice", url: "/backoffice", icon: FolderKanban, roles: ["master", "admin", "admin_jr", "management", "concierge", "provider"] },
-    { titleKey: "sidebar.incomeDashboard", url: "/admin/income", icon: DollarSign, roles: ["master", "admin"] },
   ];
 
   const usersAndRolesGroup = [
@@ -167,6 +172,10 @@ export function AppSidebar({ userRole }: AppSidebarProps) {
     ? adminSingleItems.filter((item) => item.roles.includes(userRole))
     : [];
 
+  const filteredProcessManagement = userRole 
+    ? processManagementGroup.filter((item) => item.roles.includes(userRole))
+    : [];
+
   const filteredUsersAndRoles = userRole 
     ? usersAndRolesGroup.filter((item) => item.roles.includes(userRole))
     : [];
@@ -188,6 +197,7 @@ export function AppSidebar({ userRole }: AppSidebarProps) {
     : [];
 
   const hasAdminItems = filteredAdminSingle.length > 0 || 
+                        filteredProcessManagement.length > 0 ||
                         filteredUsersAndRoles.length > 0 || 
                         filteredProperties.length > 0 || 
                         filteredConfig.length > 0 || 
@@ -199,6 +209,7 @@ export function AppSidebar({ userRole }: AppSidebarProps) {
 
   useEffect(() => {
     setOpenGroups({
+      processManagement: isGroupActive(processManagementGroup),
       usersAndRoles: isGroupActive(usersAndRolesGroup),
       properties: isGroupActive(propertiesGroup),
       config: isGroupActive(configGroup),
@@ -263,6 +274,37 @@ export function AppSidebar({ userRole }: AppSidebarProps) {
                     </SidebarMenuButton>
                   </SidebarMenuItem>
                 ))}
+
+                {filteredProcessManagement.length > 0 && (
+                  <Collapsible 
+                    open={openGroups.processManagement}
+                    onOpenChange={(open) => setOpenGroups(prev => ({ ...prev, processManagement: open }))}
+                    className="group/collapsible">
+                    <SidebarMenuItem>
+                      <CollapsibleTrigger asChild>
+                        <SidebarMenuButton data-testid="collapsible-process-management">
+                          <ClipboardList />
+                          <span>Gestión de Procesos</span>
+                          <ChevronDown className="ml-auto transition-transform group-data-[state=open]/collapsible:rotate-180" />
+                        </SidebarMenuButton>
+                      </CollapsibleTrigger>
+                      <CollapsibleContent>
+                        <SidebarMenuSub>
+                          {filteredProcessManagement.map((item) => (
+                            <SidebarMenuSubItem key={item.titleKey}>
+                              <SidebarMenuSubButton asChild isActive={location === item.url}>
+                                <Link href={item.url} data-testid={`link-${item.titleKey.toLowerCase()}`}>
+                                  <item.icon />
+                                  <span>{t(item.titleKey)}</span>
+                                </Link>
+                              </SidebarMenuSubButton>
+                            </SidebarMenuSubItem>
+                          ))}
+                        </SidebarMenuSub>
+                      </CollapsibleContent>
+                    </SidebarMenuItem>
+                  </Collapsible>
+                )}
 
                 {filteredUsersAndRoles.length > 0 && (
                   <Collapsible 

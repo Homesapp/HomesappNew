@@ -302,6 +302,7 @@ export interface IStorage {
   // Appointment operations
   getAppointment(id: string): Promise<Appointment | undefined>;
   getAppointments(filters?: { status?: string; clientId?: string; propertyId?: string }): Promise<any[]>;
+  getAllAppointmentsAdmin(): Promise<any[]>;
   createAppointment(appointment: InsertAppointment): Promise<Appointment>;
   updateAppointment(id: string, updates: Partial<InsertAppointment>): Promise<Appointment>;
   deleteAppointment(id: string): Promise<void>;
@@ -1421,6 +1422,37 @@ export class DatabaseStorage implements IStorage {
       client: appointment.clientId ? clientMap.get(appointment.clientId) : null,
       concierge: appointment.conciergeId ? conciergeMap.get(appointment.conciergeId) : null,
       presentationCard: appointment.presentationCardId ? cardMap.get(appointment.presentationCardId) : null,
+    }));
+  }
+
+  async getAllAppointmentsAdmin(): Promise<any[]> {
+    const baseAppointments = await db
+      .select()
+      .from(appointments)
+      .orderBy(desc(appointments.date));
+
+    // Fetch all related data in parallel
+    const propertyIds = [...new Set(baseAppointments.map(a => a.propertyId).filter(Boolean))];
+    const clientIds = [...new Set(baseAppointments.map(a => a.clientId).filter(Boolean))];
+    const conciergeIds = [...new Set(baseAppointments.map(a => a.conciergeId).filter(Boolean))];
+
+    const [propertiesData, clientsData, conciergesData] = await Promise.all([
+      propertyIds.length > 0 ? db.select().from(properties).where(inArray(properties.id, propertyIds)) : [],
+      clientIds.length > 0 ? db.select().from(users).where(inArray(users.id, clientIds)) : [],
+      conciergeIds.length > 0 ? db.select().from(users).where(inArray(users.id, conciergeIds)) : [],
+    ]);
+
+    // Create lookup maps
+    const propertyMap = new Map(propertiesData.map(p => [p.id, { id: p.id, title: p.title, location: p.location }]));
+    const clientMap = new Map(clientsData.map(c => [c.id, { id: c.id, firstName: c.firstName, lastName: c.lastName, email: c.email, profileImageUrl: c.profileImageUrl }]));
+    const conciergeMap = new Map(conciergesData.map(c => [c.id, { id: c.id, firstName: c.firstName, lastName: c.lastName, email: c.email }]));
+
+    // Combine data
+    return baseAppointments.map(appointment => ({
+      ...appointment,
+      property: appointment.propertyId ? propertyMap.get(appointment.propertyId) : null,
+      client: appointment.clientId ? clientMap.get(appointment.clientId) : null,
+      concierge: appointment.conciergeId ? conciergeMap.get(appointment.conciergeId) : null,
     }));
   }
 
