@@ -12,8 +12,24 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, Di
 import { Skeleton } from "@/components/ui/skeleton";
 import { useToast } from "@/hooks/use-toast";
 import { queryClient, apiRequest } from "@/lib/queryClient";
-import { CheckCircle2, XCircle, Clock, FileText, Search, Filter, Home, Building2, MapPin, Bed, Bath, DollarSign, Eye, CheckSquare, XSquare, MoreVertical } from "lucide-react";
+import { CheckCircle2, XCircle, Clock, FileText, Search, Filter, Home, Building2, MapPin, Bed, Bath, DollarSign, Eye, CheckSquare, XSquare, MoreVertical, Key, User, Lock, Copy, Shield } from "lucide-react";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
+
+type AccessInfo = 
+  | {
+      accessType: "unattended";
+      method: "lockbox" | "smart_lock";
+      lockboxCode?: string;
+      lockboxLocation?: string;
+      smartLockInstructions?: string;
+      smartLockProvider?: string;
+    }
+  | {
+      accessType: "attended";
+      contactPerson: string;
+      contactPhone: string;
+      contactNotes?: string;
+    };
 
 type Property = {
   id: string;
@@ -31,6 +47,7 @@ type Property = {
   images: string[];
   primaryImages: string[];
   ownerId: string;
+  accessInfo?: AccessInfo;
   createdAt: string;
   updatedAt: string;
 };
@@ -505,6 +522,138 @@ export default function AdminPropertyManagement() {
                                     <label className="text-sm font-medium text-muted-foreground">Descripción</label>
                                     <p className="mt-1 whitespace-pre-wrap">{detailProperty.description}</p>
                                   </div>
+                                )}
+
+                                {/* Access Information Section */}
+                                {detailProperty.accessInfo && (
+                                  <Card className="border-primary/20">
+                                    <CardHeader>
+                                      <CardTitle className="flex items-center gap-2 text-base">
+                                        <Shield className="w-4 h-4" />
+                                        Información de Acceso (Confidencial)
+                                      </CardTitle>
+                                      <CardDescription className="text-xs">
+                                        Esta información es privada y solo debe compartirse con personal autorizado para citas confirmadas
+                                      </CardDescription>
+                                    </CardHeader>
+                                    <CardContent className="space-y-3">
+                                      {detailProperty.accessInfo.accessType === "unattended" ? (
+                                        <>
+                                          <div className="flex items-start gap-2">
+                                            <Key className="w-4 h-4 mt-1 text-primary" />
+                                            <div className="flex-1">
+                                              <div className="text-sm font-medium">Acceso Desatendido</div>
+                                              <div className="text-sm text-muted-foreground capitalize">
+                                                {detailProperty.accessInfo.method === "lockbox" ? "Lockbox con clave única" : "Cerradura inteligente con clave variable"}
+                                              </div>
+                                            </div>
+                                          </div>
+
+                                          {detailProperty.accessInfo.method === "lockbox" && (
+                                            <>
+                                              {detailProperty.accessInfo.lockboxCode && (
+                                                <div className="flex items-center justify-between p-2 bg-muted rounded-md">
+                                                  <div>
+                                                    <div className="text-xs text-muted-foreground">Código de Lockbox</div>
+                                                    <div className="font-mono text-sm font-semibold">{detailProperty.accessInfo.lockboxCode}</div>
+                                                  </div>
+                                                  <Button
+                                                    size="sm"
+                                                    variant="ghost"
+                                                    onClick={() => {
+                                                      navigator.clipboard.writeText(detailProperty.accessInfo!.accessType === "unattended" ? detailProperty.accessInfo!.lockboxCode || "" : "");
+                                                      toast({ title: "Copiado", description: "Código copiado al portapapeles" });
+                                                    }}
+                                                    data-testid="button-copy-lockbox-code"
+                                                  >
+                                                    <Copy className="w-4 h-4" />
+                                                  </Button>
+                                                </div>
+                                              )}
+                                              {detailProperty.accessInfo.lockboxLocation && (
+                                                <div className="text-sm">
+                                                  <span className="text-muted-foreground">Ubicación: </span>
+                                                  {detailProperty.accessInfo.lockboxLocation}
+                                                </div>
+                                              )}
+                                            </>
+                                          )}
+
+                                          {detailProperty.accessInfo.method === "smart_lock" && (
+                                            <>
+                                              {detailProperty.accessInfo.smartLockProvider && (
+                                                <div className="text-sm">
+                                                  <span className="text-muted-foreground">Proveedor: </span>
+                                                  {detailProperty.accessInfo.smartLockProvider}
+                                                </div>
+                                              )}
+                                              {detailProperty.accessInfo.smartLockInstructions && (
+                                                <div className="p-2 bg-muted rounded-md">
+                                                  <div className="text-xs text-muted-foreground mb-1">Instrucciones para generar clave:</div>
+                                                  <div className="text-sm whitespace-pre-wrap">{detailProperty.accessInfo.smartLockInstructions}</div>
+                                                </div>
+                                              )}
+                                            </>
+                                          )}
+                                        </>
+                                      ) : (
+                                        <>
+                                          <div className="flex items-start gap-2">
+                                            <User className="w-4 h-4 mt-1 text-primary" />
+                                            <div className="flex-1">
+                                              <div className="text-sm font-medium">Acceso Asistido</div>
+                                              <div className="text-sm text-muted-foreground">Alguien abrirá la propiedad</div>
+                                            </div>
+                                          </div>
+
+                                          <div className="space-y-2">
+                                            <div className="flex items-center justify-between p-2 bg-muted rounded-md">
+                                              <div>
+                                                <div className="text-xs text-muted-foreground">Contacto</div>
+                                                <div className="text-sm font-semibold">{detailProperty.accessInfo.contactPerson}</div>
+                                              </div>
+                                              <Button
+                                                size="sm"
+                                                variant="ghost"
+                                                onClick={() => {
+                                                  navigator.clipboard.writeText(detailProperty.accessInfo!.accessType === "attended" ? detailProperty.accessInfo!.contactPerson : "");
+                                                  toast({ title: "Copiado", description: "Nombre copiado al portapapeles" });
+                                                }}
+                                                data-testid="button-copy-contact-person"
+                                              >
+                                                <Copy className="w-4 h-4" />
+                                              </Button>
+                                            </div>
+
+                                            <div className="flex items-center justify-between p-2 bg-muted rounded-md">
+                                              <div>
+                                                <div className="text-xs text-muted-foreground">Teléfono</div>
+                                                <div className="text-sm font-semibold">{detailProperty.accessInfo.contactPhone}</div>
+                                              </div>
+                                              <Button
+                                                size="sm"
+                                                variant="ghost"
+                                                onClick={() => {
+                                                  navigator.clipboard.writeText(detailProperty.accessInfo!.accessType === "attended" ? detailProperty.accessInfo!.contactPhone : "");
+                                                  toast({ title: "Copiado", description: "Teléfono copiado al portapapeles" });
+                                                }}
+                                                data-testid="button-copy-contact-phone"
+                                              >
+                                                <Copy className="w-4 h-4" />
+                                              </Button>
+                                            </div>
+
+                                            {detailProperty.accessInfo.contactNotes && (
+                                              <div className="p-2 bg-muted rounded-md">
+                                                <div className="text-xs text-muted-foreground mb-1">Notas adicionales:</div>
+                                                <div className="text-sm whitespace-pre-wrap">{detailProperty.accessInfo.contactNotes}</div>
+                                              </div>
+                                            )}
+                                          </div>
+                                        </>
+                                      )}
+                                    </CardContent>
+                                  </Card>
                                 )}
                               </div>
                             )}

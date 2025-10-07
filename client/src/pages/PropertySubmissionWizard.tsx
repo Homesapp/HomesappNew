@@ -13,9 +13,10 @@ import Step1BasicInfo from "@/components/wizard/Step1BasicInfo";
 import Step2LocationDetails from "@/components/wizard/Step2LocationDetails";
 import Step3Media from "@/components/wizard/Step5Media";
 import Step4Services from "@/components/wizard/Step4Services";
-import Step5TermsReview from "@/components/wizard/Step5TermsReview";
+import Step5AccessInfo from "@/components/wizard/Step5AccessInfo";
+import Step6TermsReview from "@/components/wizard/Step5TermsReview";
 
-const TOTAL_STEPS = 5;
+const TOTAL_STEPS = 6;
 
 type WizardData = {
   isForRent: boolean;
@@ -25,6 +26,7 @@ type WizardData = {
   details?: any;
   media?: any;
   servicesInfo?: any;
+  accessInfo?: any;
   commercialTerms?: any;
 };
 
@@ -60,6 +62,7 @@ export default function PropertySubmissionWizard() {
           details: draft.details,
           media: draft.media,
           servicesInfo: draft.servicesInfo,
+          accessInfo: draft.accessInfo,
           commercialTerms: draft.commercialTerms,
         });
       }
@@ -208,7 +211,16 @@ export default function PropertySubmissionWizard() {
         );
       case 5:
         return (
-          <Step5TermsReview
+          <Step5AccessInfo
+            data={wizardData}
+            onUpdate={updateWizardData}
+            onNext={(stepData) => handleNext(stepData)}
+            onPrevious={handlePrevious}
+          />
+        );
+      case 6:
+        return (
+          <Step6TermsReview
             data={wizardData}
             draftId={draftId}
             onUpdate={updateWizardData}

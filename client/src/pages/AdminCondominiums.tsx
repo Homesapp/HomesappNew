@@ -11,6 +11,7 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
 import { queryClient, apiRequest } from "@/lib/queryClient";
+import { useLanguage } from "@/contexts/LanguageContext";
 import { 
   CheckCircle2, 
   XCircle, 
@@ -24,9 +25,12 @@ import {
   MapPin,
   Home,
   Eye,
-  AlertTriangle
+  AlertTriangle,
+  Sparkles,
+  Check,
+  X,
 } from "lucide-react";
-import type { Condominium } from "@shared/schema";
+import type { Condominium, Colony, Amenity } from "@shared/schema";
 import { format } from "date-fns";
 
 type CondominiumStatus = "pending" | "approved" | "rejected";
@@ -40,6 +44,9 @@ interface CondominiumStats extends CondominiumWithUser {
 }
 
 export default function AdminCondominiums() {
+  const { t } = useLanguage();
+  const { toast } = useToast();
+  const [activeMainTab, setActiveMainTab] = useState("condominiums");
   const [selectedCondominium, setSelectedCondominium] = useState<CondominiumStats | null>(null);
   const [reviewAction, setReviewAction] = useState<"approve" | "reject" | null>(null);
   const [statusFilter, setStatusFilter] = useState<CondominiumStatus | "all">("all");
@@ -52,16 +59,15 @@ export default function AdminCondominiums() {
   const [newCondominiumAddress, setNewCondominiumAddress] = useState("");
   const [editData, setEditData] = useState({ name: "", zone: "", address: "" });
   const [showDuplicatesDialog, setShowDuplicatesDialog] = useState(false);
-  const { toast } = useToast();
+  const [editedNames, setEditedNames] = useState<Record<string, string>>({});
 
   const { data: stats } = useQuery({
     queryKey: ["/api/admin/condominiums-stats"],
   });
 
-  const { data: allCondominiums = [], isLoading } = useQuery<CondominiumStats[]>({
+  const { data: allCondominiums = [], isLoading: loadingCondos } = useQuery<CondominiumStats[]>({
     queryKey: ["/api/condominiums"],
     select: (data) => {
-      // Merge with stats if available
       if (stats?.condominiums) {
         return data.map(condo => {
           const stat = stats.condominiums.find((s: any) => s.id === condo.id);
@@ -72,10 +78,20 @@ export default function AdminCondominiums() {
     },
   });
 
-  // Get unique zones from condominiums
+  const { data: colonies = [], isLoading: loadingColonies } = useQuery<Colony[]>({
+    queryKey: ["/api/colonies"],
+  });
+
+  const { data: amenities = [], isLoading: loadingAmenities } = useQuery<Amenity[]>({
+    queryKey: ["/api/amenities"],
+  });
+
+  const pendingColonies = colonies.filter((c) => c.approvalStatus === "pending");
+  const pendingCondos = allCondominiums.filter((c) => c.approvalStatus === "pending");
+  const pendingAmenities = amenities.filter((a) => a.approvalStatus === "pending");
+
   const zones = Array.from(new Set(allCondominiums.map(c => c.zone).filter(Boolean))) as string[];
 
-  // Filter condominiums
   const filteredCondominiums = allCondominiums.filter(condo => {
     const matchesStatus = statusFilter === "all" || condo.approvalStatus === statusFilter;
     const matchesZone = zoneFilter === "all" || condo.zone === zoneFilter;
@@ -87,14 +103,93 @@ export default function AdminCondominiums() {
     return matchesStatus && matchesZone && matchesSearch;
   });
 
-  const approveMutation = useMutation({
+  // Colony mutations
+  const approveColonyMutation = useMutation({
     mutationFn: async (id: string) => {
-      return apiRequest("PATCH", `/api/admin/condominiums/${id}/approve`, {});
+      const name = editedNames[id];
+      return await apiRequest("PATCH", `/api/admin/colonies/${id}/approve`, { name });
+    },
+    onSuccess: (_, id) => {
+      toast({ title: t("admin.suggestions.approveSuccess") });
+      setEditedNames((prev) => {
+        const newState = { ...prev };
+        delete newState[id];
+        return newState;
+      });
+      queryClient.invalidateQueries({ queryKey: ["/api/colonies"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/colonies/approved"] });
+    },
+    onError: () => {
+      toast({ title: t("admin.suggestions.approveError"), variant: "destructive" });
+    },
+  });
+
+  const rejectColonyMutation = useMutation({
+    mutationFn: async (id: string) => {
+      return await apiRequest("PATCH", `/api/admin/colonies/${id}/reject`, {});
     },
     onSuccess: () => {
+      toast({ title: t("admin.suggestions.rejectSuccess") });
+      queryClient.invalidateQueries({ queryKey: ["/api/colonies"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/colonies/approved"] });
+    },
+    onError: () => {
+      toast({ title: t("admin.suggestions.rejectError"), variant: "destructive" });
+    },
+  });
+
+  // Amenity mutations
+  const approveAmenityMutation = useMutation({
+    mutationFn: async (id: string) => {
+      const name = editedNames[id];
+      return await apiRequest("PATCH", `/api/admin/amenities/${id}/approve`, { name });
+    },
+    onSuccess: (_, id) => {
+      toast({ title: t("admin.suggestions.approveSuccess") });
+      setEditedNames((prev) => {
+        const newState = { ...prev };
+        delete newState[id];
+        return newState;
+      });
+      queryClient.invalidateQueries({ queryKey: ["/api/amenities"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/amenities/approved", "property"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/amenities/approved", "condo"] });
+    },
+    onError: () => {
+      toast({ title: t("admin.suggestions.approveError"), variant: "destructive" });
+    },
+  });
+
+  const rejectAmenityMutation = useMutation({
+    mutationFn: async (id: string) => {
+      return await apiRequest("PATCH", `/api/admin/amenities/${id}/reject`, {});
+    },
+    onSuccess: () => {
+      toast({ title: t("admin.suggestions.rejectSuccess") });
+      queryClient.invalidateQueries({ queryKey: ["/api/amenities"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/amenities/approved", "property"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/amenities/approved", "condo"] });
+    },
+    onError: () => {
+      toast({ title: t("admin.suggestions.rejectError"), variant: "destructive" });
+    },
+  });
+
+  // Condominium mutations
+  const approveCondoMutation = useMutation({
+    mutationFn: async (id: string) => {
+      const name = editedNames[id];
+      return apiRequest("PATCH", `/api/admin/condominiums/${id}/approve`, name ? { name } : {});
+    },
+    onSuccess: (_, id) => {
       toast({
         title: "Condominio aprobado",
         description: "El condominio ha sido aprobado exitosamente",
+      });
+      setEditedNames((prev) => {
+        const newState = { ...prev };
+        delete newState[id];
+        return newState;
       });
       queryClient.invalidateQueries({ queryKey: ["/api/condominiums"] });
       queryClient.invalidateQueries({ queryKey: ["/api/admin/condominiums-stats"] });
@@ -109,7 +204,7 @@ export default function AdminCondominiums() {
     },
   });
 
-  const rejectMutation = useMutation({
+  const rejectCondoMutation = useMutation({
     mutationFn: async (id: string) => {
       return apiRequest("PATCH", `/api/admin/condominiums/${id}/reject`, {});
     },
@@ -262,9 +357,9 @@ export default function AdminCondominiums() {
     if (!selectedCondominium) return;
 
     if (reviewAction === "approve") {
-      approveMutation.mutate(selectedCondominium.id);
+      approveCondoMutation.mutate(selectedCondominium.id);
     } else if (reviewAction === "reject") {
-      rejectMutation.mutate(selectedCondominium.id);
+      rejectCondoMutation.mutate(selectedCondominium.id);
     }
   };
 
@@ -354,11 +449,11 @@ export default function AdminCondominiums() {
     );
   };
 
-  if (isLoading) {
+  if (loadingCondos && activeMainTab === "condominiums") {
     return (
       <div className="p-6">
         <div className="flex items-center justify-center h-64">
-          <div className="text-muted-foreground">Cargando condominios...</div>
+          <div className="text-muted-foreground">Cargando...</div>
         </div>
       </div>
     );
@@ -368,200 +463,359 @@ export default function AdminCondominiums() {
     <div className="p-6 space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold" data-testid="heading-condominiums">Gestión de Condominios</h1>
+          <h1 className="text-2xl font-bold" data-testid="heading-condominiums">Gestión de Sugerencias y Condominios</h1>
           <p className="text-muted-foreground">
-            Administra los condominios del sistema ({filteredCondominiums.length} {filteredCondominiums.length === 1 ? 'condominio' : 'condominios'})
+            Administra colonias, condominios y amenidades del sistema
           </p>
         </div>
-        <div className="flex gap-2">
-          <Button
-            onClick={handleCheckDuplicates}
-            variant="outline"
-            data-testid="button-check-duplicates"
-          >
-            <AlertTriangle className="w-4 h-4 mr-2" />
-            Verificar Duplicados
-          </Button>
-          <Button
-            onClick={() => setShowCreateDialog(true)}
-            data-testid="button-create-condominium"
-          >
-            <Plus className="w-4 h-4 mr-2" />
-            Crear Condominio
-          </Button>
-        </div>
+        {activeMainTab === "condominiums" && (
+          <div className="flex gap-2">
+            <Button
+              onClick={handleCheckDuplicates}
+              variant="outline"
+              data-testid="button-check-duplicates"
+            >
+              <AlertTriangle className="w-4 h-4 mr-2" />
+              Verificar Duplicados
+            </Button>
+            <Button
+              onClick={() => setShowCreateDialog(true)}
+              data-testid="button-create-condominium"
+            >
+              <Plus className="w-4 h-4 mr-2" />
+              Crear Condominio
+            </Button>
+          </div>
+        )}
       </div>
 
-      <Card>
-        <CardHeader>
-          <CardTitle>Filtros</CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="grid gap-4 md:grid-cols-3">
-            <div className="space-y-2">
-              <Label htmlFor="search">Buscar</Label>
-              <Input
-                id="search"
-                placeholder="Nombre, zona o dirección..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                data-testid="input-search"
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="zone-filter">Zona</Label>
-              <Select value={zoneFilter} onValueChange={setZoneFilter}>
-                <SelectTrigger id="zone-filter" data-testid="select-zone-filter">
-                  <SelectValue placeholder="Todas las zonas" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">Todas las zonas</SelectItem>
-                  {zones.map((zone) => (
-                    <SelectItem key={zone} value={zone}>{zone}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
-
-      <Tabs value={statusFilter} onValueChange={(value) => setStatusFilter(value as any)}>
-        <TabsList>
-          <TabsTrigger value="all" data-testid="tab-all">
-            Todos ({allCondominiums.length})
+      <Tabs value={activeMainTab} onValueChange={setActiveMainTab}>
+        <TabsList className="grid w-full grid-cols-3">
+          <TabsTrigger value="colonies" data-testid="tab-colonies">
+            <MapPin className="w-4 h-4 mr-2" />
+            {t("admin.suggestions.coloniesTab")} ({pendingColonies.length})
           </TabsTrigger>
-          <TabsTrigger value="pending" data-testid="tab-pending">
-            Pendientes ({allCondominiums.filter(c => c.approvalStatus === "pending").length})
+          <TabsTrigger value="condominiums" data-testid="tab-condominiums-main">
+            <Building2 className="w-4 h-4 mr-2" />
+            {t("admin.suggestions.condominiumsTab")} ({filteredCondominiums.length})
           </TabsTrigger>
-          <TabsTrigger value="approved" data-testid="tab-approved">
-            Aprobados ({allCondominiums.filter(c => c.approvalStatus === "approved").length})
-          </TabsTrigger>
-          <TabsTrigger value="rejected" data-testid="tab-rejected">
-            Rechazados ({allCondominiums.filter(c => c.approvalStatus === "rejected").length})
+          <TabsTrigger value="amenities" data-testid="tab-amenities">
+            <Sparkles className="w-4 h-4 mr-2" />
+            Amenidades ({pendingAmenities.length})
           </TabsTrigger>
         </TabsList>
 
-        <TabsContent value={statusFilter} className="mt-6">
-          {filteredCondominiums.length === 0 ? (
+        {/* Colonies Tab */}
+        <TabsContent value="colonies" className="space-y-4">
+          {loadingColonies ? (
             <Card>
-              <CardContent className="flex flex-col items-center justify-center py-12">
-                <Building2 className="w-12 h-12 text-muted-foreground mb-4" />
-                <p className="text-muted-foreground" data-testid="text-no-condominiums">
-                  No hay condominios {statusFilter !== "all" ? `en estado "${statusFilter}"` : ""} que coincidan con los filtros
+              <CardContent className="p-6">
+                <p className="text-muted-foreground text-center">{t("common.loading")}</p>
+              </CardContent>
+            </Card>
+          ) : pendingColonies.length === 0 ? (
+            <Card>
+              <CardContent className="p-6">
+                <p className="text-muted-foreground text-center" data-testid="text-no-colonies">
+                  {t("admin.suggestions.noColonies")}
                 </p>
               </CardContent>
             </Card>
           ) : (
-            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-              {filteredCondominiums.map((condominium) => (
-                <Card key={condominium.id} className="hover-elevate" data-testid={`card-condominium-${condominium.id}`}>
-                  <CardHeader>
-                    <div className="flex items-start justify-between gap-2">
-                      <div className="flex items-center gap-2 flex-1 min-w-0">
-                        <Building2 className="w-5 h-5 text-primary flex-shrink-0" />
-                        <div className="flex-1 min-w-0">
-                          <CardTitle className="text-lg truncate" data-testid={`text-condominium-name-${condominium.id}`}>
-                            {condominium.name}
-                          </CardTitle>
-                          {!condominium.active && (
-                            <Badge variant="destructive" className="mt-1">Suspendido</Badge>
-                          )}
-                        </div>
-                      </div>
-                      {getStatusBadge(condominium.approvalStatus)}
-                    </div>
-                    <CardDescription className="space-y-1">
-                      {condominium.zone && (
-                        <div className="flex items-center gap-1 text-xs">
-                          <MapPin className="w-3 h-3" />
-                          <span data-testid={`text-zone-${condominium.id}`}>{condominium.zone}</span>
-                        </div>
-                      )}
-                      {condominium.address && (
-                        <div className="text-xs truncate" data-testid={`text-address-${condominium.id}`}>
-                          {condominium.address}
-                        </div>
-                      )}
-                      <div className="flex items-center gap-1 text-xs">
-                        <Home className="w-3 h-3" />
-                        <span data-testid={`text-properties-count-${condominium.id}`}>
-                          {condominium.propertiesCount || 0} {(condominium.propertiesCount || 0) === 1 ? 'propiedad' : 'propiedades'}
+            pendingColonies.map((colony) => (
+              <Card key={colony.id} data-testid={`card-colony-${colony.id}`}>
+                <CardHeader>
+                  <div className="flex items-start justify-between gap-4">
+                    <div className="flex-1 space-y-3">
+                      <Input
+                        value={editedNames[colony.id] ?? colony.name}
+                        onChange={(e) => setEditedNames((prev) => ({ ...prev, [colony.id]: e.target.value }))}
+                        placeholder="Nombre de la colonia"
+                        data-testid={`input-colony-name-${colony.id}`}
+                      />
+                      <CardDescription>
+                        <span className="text-sm">
+                          {t("admin.suggestions.requestedBy")}{" "}
+                          <span className="font-medium">{colony.requestedBy || "N/A"}</span>
                         </span>
-                      </div>
-                      <div data-testid={`text-condominium-date-${condominium.id}`} className="text-xs">
-                        Creado: {format(new Date(condominium.createdAt), "dd/MM/yyyy HH:mm")}
-                      </div>
-                    </CardDescription>
-                  </CardHeader>
-                  <CardContent className="space-y-2">
-                    {condominium.approvalStatus === "pending" && (
-                      <div className="flex gap-2">
-                        <Button
-                          variant="default"
-                          size="sm"
-                          onClick={() => handleOpenReview(condominium, "approve")}
-                          className="flex-1"
-                          data-testid={`button-approve-${condominium.id}`}
-                        >
-                          <CheckCircle2 className="w-4 h-4 mr-1" />
-                          Aprobar
-                        </Button>
-                        <Button
-                          variant="destructive"
-                          size="sm"
-                          onClick={() => handleOpenReview(condominium, "reject")}
-                          className="flex-1"
-                          data-testid={`button-reject-${condominium.id}`}
-                        >
-                          <XCircle className="w-4 h-4 mr-1" />
-                          Rechazar
-                        </Button>
-                      </div>
-                    )}
-                    <div className="flex gap-2">
-                      <Link href={`/admin/condominiums/${condominium.id}`} asChild>
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          className="flex-1"
-                          data-testid={`button-view-${condominium.id}`}
-                        >
-                          <Eye className="w-4 h-4 mr-1" />
-                          Ver Detalles
-                        </Button>
-                      </Link>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => handleOpenEdit(condominium)}
-                        data-testid={`button-edit-${condominium.id}`}
-                      >
-                        <Edit className="w-4 h-4" />
-                      </Button>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => handleToggleActive(condominium)}
-                        disabled={toggleActiveMutation.isPending}
-                        data-testid={`button-toggle-active-${condominium.id}`}
-                      >
-                        {condominium.active ? <PowerOff className="w-4 h-4" /> : <Power className="w-4 h-4" />}
-                      </Button>
-                      <Button
-                        variant="destructive"
-                        size="sm"
-                        onClick={() => handleDelete(condominium)}
-                        disabled={deleteMutation.isPending}
-                        data-testid={`button-delete-${condominium.id}`}
-                      >
-                        <Trash2 className="w-4 h-4" />
-                      </Button>
+                      </CardDescription>
                     </div>
+                    <Badge variant="secondary" data-testid={`badge-status-${colony.id}`}>
+                      {t("common.pending")}
+                    </Badge>
+                  </div>
+                </CardHeader>
+                <CardContent>
+                  <div className="flex gap-2 justify-end">
+                    <Button
+                      variant="outline"
+                      onClick={() => rejectColonyMutation.mutate(colony.id)}
+                      disabled={rejectColonyMutation.isPending}
+                      data-testid={`button-reject-colony-${colony.id}`}
+                    >
+                      <X className="w-4 h-4 mr-2" />
+                      {t("admin.suggestions.rejectButton")}
+                    </Button>
+                    <Button
+                      onClick={() => approveColonyMutation.mutate(colony.id)}
+                      disabled={approveColonyMutation.isPending}
+                      data-testid={`button-approve-colony-${colony.id}`}
+                    >
+                      <Check className="w-4 h-4 mr-2" />
+                      {t("admin.suggestions.approveButton")}
+                    </Button>
+                  </div>
+                </CardContent>
+              </Card>
+            ))
+          )}
+        </TabsContent>
+
+        {/* Condominiums Tab */}
+        <TabsContent value="condominiums" className="space-y-6">
+          <Card>
+            <CardHeader>
+              <CardTitle>Filtros</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="grid gap-4 md:grid-cols-3">
+                <div className="space-y-2">
+                  <Label htmlFor="search">Buscar</Label>
+                  <Input
+                    id="search"
+                    placeholder="Nombre, zona o dirección..."
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    data-testid="input-search"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="zone-filter">Zona</Label>
+                  <Select value={zoneFilter} onValueChange={setZoneFilter}>
+                    <SelectTrigger id="zone-filter" data-testid="select-zone-filter">
+                      <SelectValue placeholder="Todas las zonas" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">Todas las zonas</SelectItem>
+                      {zones.map((zone) => (
+                        <SelectItem key={zone} value={zone}>{zone}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          <Tabs value={statusFilter} onValueChange={(value) => setStatusFilter(value as any)}>
+            <TabsList>
+              <TabsTrigger value="all" data-testid="tab-all">
+                Todos ({allCondominiums.length})
+              </TabsTrigger>
+              <TabsTrigger value="pending" data-testid="tab-pending">
+                Pendientes ({allCondominiums.filter(c => c.approvalStatus === "pending").length})
+              </TabsTrigger>
+              <TabsTrigger value="approved" data-testid="tab-approved">
+                Aprobados ({allCondominiums.filter(c => c.approvalStatus === "approved").length})
+              </TabsTrigger>
+              <TabsTrigger value="rejected" data-testid="tab-rejected">
+                Rechazados ({allCondominiums.filter(c => c.approvalStatus === "rejected").length})
+              </TabsTrigger>
+            </TabsList>
+
+            <TabsContent value={statusFilter} className="mt-6">
+              {filteredCondominiums.length === 0 ? (
+                <Card>
+                  <CardContent className="flex flex-col items-center justify-center py-12">
+                    <Building2 className="w-12 h-12 text-muted-foreground mb-4" />
+                    <p className="text-muted-foreground" data-testid="text-no-condominiums">
+                      No hay condominios {statusFilter !== "all" ? `en estado "${statusFilter}"` : ""} que coincidan con los filtros
+                    </p>
                   </CardContent>
                 </Card>
-              ))}
-            </div>
+              ) : (
+                <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+                  {filteredCondominiums.map((condominium) => (
+                    <Card key={condominium.id} className="hover-elevate" data-testid={`card-condominium-${condominium.id}`}>
+                      <CardHeader>
+                        <div className="flex items-start justify-between gap-2">
+                          <div className="flex items-center gap-2 flex-1 min-w-0">
+                            <Building2 className="w-5 h-5 text-primary flex-shrink-0" />
+                            <div className="flex-1 min-w-0">
+                              <CardTitle className="text-lg truncate" data-testid={`text-condominium-name-${condominium.id}`}>
+                                {condominium.name}
+                              </CardTitle>
+                              {!condominium.active && (
+                                <Badge variant="destructive" className="mt-1">Suspendido</Badge>
+                              )}
+                            </div>
+                          </div>
+                          {getStatusBadge(condominium.approvalStatus)}
+                        </div>
+                        <CardDescription className="space-y-1">
+                          {condominium.zone && (
+                            <div className="flex items-center gap-1 text-xs">
+                              <MapPin className="w-3 h-3" />
+                              <span data-testid={`text-zone-${condominium.id}`}>{condominium.zone}</span>
+                            </div>
+                          )}
+                          {condominium.address && (
+                            <div className="text-xs truncate" data-testid={`text-address-${condominium.id}`}>
+                              {condominium.address}
+                            </div>
+                          )}
+                          <div className="flex items-center gap-1 text-xs">
+                            <Home className="w-3 h-3" />
+                            <span data-testid={`text-properties-count-${condominium.id}`}>
+                              {condominium.propertiesCount || 0} {(condominium.propertiesCount || 0) === 1 ? 'propiedad' : 'propiedades'}
+                            </span>
+                          </div>
+                          <div data-testid={`text-condominium-date-${condominium.id}`} className="text-xs">
+                            Creado: {format(new Date(condominium.createdAt), "dd/MM/yyyy HH:mm")}
+                          </div>
+                        </CardDescription>
+                      </CardHeader>
+                      <CardContent className="space-y-2">
+                        {condominium.approvalStatus === "pending" && (
+                          <div className="flex gap-2">
+                            <Button
+                              variant="default"
+                              size="sm"
+                              onClick={() => handleOpenReview(condominium, "approve")}
+                              className="flex-1"
+                              data-testid={`button-approve-${condominium.id}`}
+                            >
+                              <CheckCircle2 className="w-4 h-4 mr-1" />
+                              Aprobar
+                            </Button>
+                            <Button
+                              variant="destructive"
+                              size="sm"
+                              onClick={() => handleOpenReview(condominium, "reject")}
+                              className="flex-1"
+                              data-testid={`button-reject-${condominium.id}`}
+                            >
+                              <XCircle className="w-4 h-4 mr-1" />
+                              Rechazar
+                            </Button>
+                          </div>
+                        )}
+                        <div className="flex gap-2">
+                          <Link href={`/admin/condominiums/${condominium.id}`} asChild>
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              className="flex-1"
+                              data-testid={`button-view-${condominium.id}`}
+                            >
+                              <Eye className="w-4 h-4 mr-1" />
+                              Ver Detalles
+                            </Button>
+                          </Link>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => handleOpenEdit(condominium)}
+                            data-testid={`button-edit-${condominium.id}`}
+                          >
+                            <Edit className="w-4 h-4" />
+                          </Button>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => handleToggleActive(condominium)}
+                            disabled={toggleActiveMutation.isPending}
+                            data-testid={`button-toggle-active-${condominium.id}`}
+                          >
+                            {condominium.active ? <PowerOff className="w-4 h-4" /> : <Power className="w-4 h-4" />}
+                          </Button>
+                          <Button
+                            variant="destructive"
+                            size="sm"
+                            onClick={() => handleDelete(condominium)}
+                            disabled={deleteMutation.isPending}
+                            data-testid={`button-delete-${condominium.id}`}
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </Button>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  ))}
+                </div>
+              )}
+            </TabsContent>
+          </Tabs>
+        </TabsContent>
+
+        {/* Amenities Tab */}
+        <TabsContent value="amenities" className="space-y-4">
+          {loadingAmenities ? (
+            <Card>
+              <CardContent className="p-6">
+                <p className="text-muted-foreground text-center">{t("common.loading")}</p>
+              </CardContent>
+            </Card>
+          ) : pendingAmenities.length === 0 ? (
+            <Card>
+              <CardContent className="p-6">
+                <p className="text-muted-foreground text-center" data-testid="text-no-amenities">
+                  No hay amenidades pendientes
+                </p>
+              </CardContent>
+            </Card>
+          ) : (
+            pendingAmenities.map((amenity) => (
+              <Card key={amenity.id} data-testid={`card-amenity-${amenity.id}`}>
+                <CardHeader>
+                  <div className="flex items-start justify-between gap-4">
+                    <div className="flex-1 space-y-3">
+                      <Input
+                        value={editedNames[amenity.id] ?? amenity.name}
+                        onChange={(e) => setEditedNames((prev) => ({ ...prev, [amenity.id]: e.target.value }))}
+                        placeholder="Nombre de la amenidad"
+                        data-testid={`input-amenity-name-${amenity.id}`}
+                      />
+                      <CardDescription>
+                        <div className="flex items-center gap-3">
+                          <span className="text-sm">
+                            {t("admin.suggestions.requestedBy")}{" "}
+                            <span className="font-medium">{amenity.requestedBy || "N/A"}</span>
+                          </span>
+                          <Badge variant="outline" className="capitalize">
+                            {amenity.category === "property" ? "Propiedad" : "Condominio"}
+                          </Badge>
+                        </div>
+                      </CardDescription>
+                    </div>
+                    <Badge variant="secondary" data-testid={`badge-status-${amenity.id}`}>
+                      {t("common.pending")}
+                    </Badge>
+                  </div>
+                </CardHeader>
+                <CardContent>
+                  <div className="flex gap-2 justify-end">
+                    <Button
+                      variant="outline"
+                      onClick={() => rejectAmenityMutation.mutate(amenity.id)}
+                      disabled={rejectAmenityMutation.isPending}
+                      data-testid={`button-reject-amenity-${amenity.id}`}
+                    >
+                      <X className="w-4 h-4 mr-2" />
+                      {t("admin.suggestions.rejectButton")}
+                    </Button>
+                    <Button
+                      onClick={() => approveAmenityMutation.mutate(amenity.id)}
+                      disabled={approveAmenityMutation.isPending}
+                      data-testid={`button-approve-amenity-${amenity.id}`}
+                    >
+                      <Check className="w-4 h-4 mr-2" />
+                      {t("admin.suggestions.approveButton")}
+                    </Button>
+                  </div>
+                </CardContent>
+              </Card>
+            ))
           )}
         </TabsContent>
       </Tabs>
@@ -591,7 +845,7 @@ export default function AdminCondominiums() {
             <Button
               variant={reviewAction === "approve" ? "default" : "destructive"}
               onClick={handleSubmitReview}
-              disabled={approveMutation.isPending || rejectMutation.isPending}
+              disabled={approveCondoMutation.isPending || rejectCondoMutation.isPending}
               data-testid="button-confirm-review"
             >
               {reviewAction === "approve" ? "Aprobar" : "Rechazar"}
@@ -606,60 +860,55 @@ export default function AdminCondominiums() {
           <DialogHeader>
             <DialogTitle>Crear Nuevo Condominio</DialogTitle>
             <DialogDescription>
-              Ingresa los datos del nuevo condominio. Estará pendiente de aprobación.
+              Crea un nuevo condominio que estará pendiente de aprobación
             </DialogDescription>
           </DialogHeader>
-          <div className="space-y-4 py-4">
+          <div className="space-y-4">
             <div className="space-y-2">
-              <Label htmlFor="condominium-name">Nombre del Condominio *</Label>
+              <Label htmlFor="new-name">Nombre *</Label>
               <Input
-                id="condominium-name"
-                placeholder="Ej: Residencial Las Palmas"
+                id="new-name"
                 value={newCondominiumName}
                 onChange={(e) => setNewCondominiumName(e.target.value)}
-                data-testid="input-condominium-name"
+                placeholder="Nombre del condominio"
+                data-testid="input-new-condominium-name"
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="condominium-zone">Zona</Label>
+              <Label htmlFor="new-zone">Zona</Label>
               <Input
-                id="condominium-zone"
-                placeholder="Ej: Aldea Zamá"
+                id="new-zone"
                 value={newCondominiumZone}
                 onChange={(e) => setNewCondominiumZone(e.target.value)}
-                data-testid="input-condominium-zone"
+                placeholder="Zona del condominio"
+                data-testid="input-new-condominium-zone"
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="condominium-address">Dirección</Label>
+              <Label htmlFor="new-address">Dirección</Label>
               <Input
-                id="condominium-address"
-                placeholder="Ej: Av. Principal #123"
+                id="new-address"
                 value={newCondominiumAddress}
                 onChange={(e) => setNewCondominiumAddress(e.target.value)}
-                data-testid="input-condominium-address"
+                placeholder="Dirección del condominio"
+                data-testid="input-new-condominium-address"
               />
             </div>
           </div>
           <DialogFooter>
             <Button
               variant="outline"
-              onClick={() => {
-                setShowCreateDialog(false);
-                setNewCondominiumName("");
-                setNewCondominiumZone("");
-                setNewCondominiumAddress("");
-              }}
+              onClick={() => setShowCreateDialog(false)}
               data-testid="button-cancel-create"
             >
               Cancelar
             </Button>
             <Button
               onClick={handleCreateCondominium}
-              disabled={createMutation.isPending || !newCondominiumName.trim()}
-              data-testid="button-confirm-create"
+              disabled={createMutation.isPending}
+              data-testid="button-submit-create"
             >
-              Crear
+              Crear Condominio
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -671,37 +920,37 @@ export default function AdminCondominiums() {
           <DialogHeader>
             <DialogTitle>Editar Condominio</DialogTitle>
             <DialogDescription>
-              Modifica los datos del condominio
+              Actualiza la información del condominio
             </DialogDescription>
           </DialogHeader>
-          <div className="space-y-4 py-4">
+          <div className="space-y-4">
             <div className="space-y-2">
-              <Label htmlFor="edit-condominium-name">Nombre del Condominio *</Label>
+              <Label htmlFor="edit-name">Nombre *</Label>
               <Input
-                id="edit-condominium-name"
-                placeholder="Ej: Residencial Las Palmas"
+                id="edit-name"
                 value={editData.name}
                 onChange={(e) => setEditData({ ...editData, name: e.target.value })}
+                placeholder="Nombre del condominio"
                 data-testid="input-edit-condominium-name"
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="edit-condominium-zone">Zona</Label>
+              <Label htmlFor="edit-zone">Zona</Label>
               <Input
-                id="edit-condominium-zone"
-                placeholder="Ej: Aldea Zamá"
+                id="edit-zone"
                 value={editData.zone}
                 onChange={(e) => setEditData({ ...editData, zone: e.target.value })}
+                placeholder="Zona del condominio"
                 data-testid="input-edit-condominium-zone"
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="edit-condominium-address">Dirección</Label>
+              <Label htmlFor="edit-address">Dirección</Label>
               <Input
-                id="edit-condominium-address"
-                placeholder="Ej: Av. Principal #123"
+                id="edit-address"
                 value={editData.address}
                 onChange={(e) => setEditData({ ...editData, address: e.target.value })}
+                placeholder="Dirección del condominio"
                 data-testid="input-edit-condominium-address"
               />
             </div>
@@ -709,18 +958,15 @@ export default function AdminCondominiums() {
           <DialogFooter>
             <Button
               variant="outline"
-              onClick={() => {
-                setShowEditDialog(false);
-                setSelectedCondominium(null);
-              }}
+              onClick={() => setShowEditDialog(false)}
               data-testid="button-cancel-edit"
             >
               Cancelar
             </Button>
             <Button
               onClick={handleSubmitEdit}
-              disabled={editMutation.isPending || !editData.name.trim()}
-              data-testid="button-confirm-edit"
+              disabled={editMutation.isPending}
+              data-testid="button-submit-edit"
             >
               Guardar Cambios
             </Button>
@@ -730,69 +976,28 @@ export default function AdminCondominiums() {
 
       {/* Duplicates Dialog */}
       <Dialog open={showDuplicatesDialog} onOpenChange={setShowDuplicatesDialog}>
-        <DialogContent className="max-w-3xl max-h-[80vh] overflow-auto" data-testid="dialog-duplicates">
+        <DialogContent data-testid="dialog-duplicates">
           <DialogHeader>
-            <DialogTitle className="flex items-center gap-2">
-              <AlertTriangle className="w-5 h-5 text-orange-500" />
-              Condominios Duplicados
-            </DialogTitle>
+            <DialogTitle>Condominios Duplicados</DialogTitle>
             <DialogDescription>
-              {duplicates && Array.isArray(duplicates) && duplicates.length > 0
-                ? `Se encontraron ${duplicates.length} condominios duplicados. Se eliminará la versión más reciente de cada duplicado, manteniendo la más antigua.`
-                : "No se encontraron condominios duplicados en el sistema."}
+              {duplicates && duplicates.length > 0
+                ? `Se encontraron ${duplicates.length} condominios duplicados`
+                : "No se encontraron condominios duplicados"
+              }
             </DialogDescription>
           </DialogHeader>
-
-          {duplicates && Array.isArray(duplicates) && duplicates.length > 0 && (
-            <div className="space-y-4 py-4">
-              <div className="space-y-3">
-                {Object.entries(
-                  (duplicates as any[]).reduce((acc, dup) => {
-                    const key = dup.name.toLowerCase();
-                    if (!acc[key]) acc[key] = [];
-                    acc[key].push(dup);
-                    return acc;
-                  }, {} as Record<string, any[]>)
-                ).map(([nameLower, dups]) => (
-                  <Card key={nameLower} className="border-orange-200">
-                    <CardHeader className="pb-3">
-                      <CardTitle className="text-base">
-                        Grupo: "{dups[0].name}"
-                        <Badge variant="outline" className="ml-2">
-                          {dups.length} versiones
-                        </Badge>
-                      </CardTitle>
-                    </CardHeader>
-                    <CardContent>
-                      <div className="space-y-2">
-                        {dups.map((dup, index) => (
-                          <div
-                            key={dup.id}
-                            className={`flex items-center justify-between p-2 rounded ${
-                              dup.row_num === 1
-                                ? 'bg-green-50 dark:bg-green-950/20 border border-green-200 dark:border-green-800'
-                                : 'bg-red-50 dark:bg-red-950/20 border border-red-200 dark:border-red-800'
-                            }`}
-                          >
-                            <div className="flex-1">
-                              <p className="font-medium text-sm">{dup.name}</p>
-                              <p className="text-xs text-muted-foreground">
-                                Creado: {format(new Date(dup.created_at), "dd/MM/yyyy HH:mm")}
-                              </p>
-                            </div>
-                            <Badge variant={dup.row_num === 1 ? "default" : "destructive"}>
-                              {dup.row_num === 1 ? "Se mantendrá" : "Se eliminará"}
-                            </Badge>
-                          </div>
-                        ))}
-                      </div>
-                    </CardContent>
-                  </Card>
-                ))}
-              </div>
+          {duplicates && duplicates.length > 0 && (
+            <div className="max-h-64 overflow-y-auto space-y-2">
+              {duplicates.map((dup: any, index: number) => (
+                <div key={index} className="p-2 border rounded text-sm">
+                  <div className="font-medium">{dup.name}</div>
+                  <div className="text-muted-foreground text-xs">
+                    {dup.count} duplicados
+                  </div>
+                </div>
+              ))}
             </div>
           )}
-
           <DialogFooter>
             <Button
               variant="outline"
@@ -801,14 +1006,14 @@ export default function AdminCondominiums() {
             >
               Cancelar
             </Button>
-            {duplicates && Array.isArray(duplicates) && duplicates.length > 0 && (
+            {duplicates && duplicates.length > 0 && (
               <Button
                 variant="destructive"
                 onClick={handleRemoveDuplicates}
                 disabled={removeDuplicatesMutation.isPending}
-                data-testid="button-confirm-remove-duplicates"
+                data-testid="button-remove-duplicates"
               >
-                {removeDuplicatesMutation.isPending ? "Eliminando..." : "Eliminar Duplicados"}
+                Eliminar Duplicados
               </Button>
             )}
           </DialogFooter>

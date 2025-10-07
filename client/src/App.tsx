@@ -231,7 +231,6 @@ function AuthenticatedApp() {
               <Route path="/admin/agreement-templates" component={AdminAgreementTemplates} />
               <Route path="/admin/condominiums/:id" component={CondominiumDetails} />
               <Route path="/admin/condominiums" component={AdminCondominiums} />
-              <Route path="/admin/suggestions" component={AdminSuggestions} />
               <Route path="/admin/chatbot-config" component={AdminChatbotConfig} />
               <Route path="/admin/create-user" component={CreateUser} />
               <Route path="/admin/income" component={AdminIncome} />

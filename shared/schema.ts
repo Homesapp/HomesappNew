@@ -731,11 +731,27 @@ export const properties = pgTable("properties", {
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });
 
-const accessInfoSchema = z.object({
-  lockboxCode: z.string().optional(),
-  contactPerson: z.string().optional(),
-  contactPhone: z.string().optional(),
-}).optional();
+// Schema for property access information
+const accessInfoSchema = z.discriminatedUnion("accessType", [
+  // Unattended access - with lockbox or smart lock
+  z.object({
+    accessType: z.literal("unattended"),
+    method: z.enum(["lockbox", "smart_lock"]),
+    // Lockbox fields
+    lockboxCode: z.string().optional(),
+    lockboxLocation: z.string().optional(),
+    // Smart lock fields
+    smartLockInstructions: z.string().optional(),
+    smartLockProvider: z.string().optional(),
+  }),
+  // Attended access - someone will open
+  z.object({
+    accessType: z.literal("attended"),
+    contactPerson: z.string().min(1, "Nombre de contacto requerido"),
+    contactPhone: z.string().min(1, "Teléfono de contacto requerido"),
+    contactNotes: z.string().optional(),
+  }),
+]).optional();
 
 // Schema for services - separates included (free) from not included (with provider/cost details)
 const includedServicesSchema = z.object({
@@ -1836,6 +1852,7 @@ export const propertySubmissionDrafts = pgTable("property_submission_drafts", {
   details: jsonb("details"), // bedrooms, bathrooms, area, amenities
   media: jsonb("media"), // images, videos, virtualTourUrl
   servicesInfo: jsonb("services_info"), // servicios incluidos y duraciones de contrato
+  accessInfo: jsonb("access_info"), // información de acceso a la propiedad
   commercialTerms: jsonb("commercial_terms"), // rental/sale specific terms
   termsAcceptance: jsonb("terms_acceptance"), // acceptance flags and timestamp
   // Property type selection
