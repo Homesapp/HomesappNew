@@ -118,6 +118,26 @@ export const condominiumApprovalStatusEnum = pgEnum("condominium_approval_status
   "rejected",
 ]);
 
+export const wizardModeEnum = pgEnum("wizard_mode", [
+  "simple",
+  "extended",
+]);
+
+export const waterServiceEnum = pgEnum("water_service", [
+  "capa", // CAPA
+  "well", // Pozo
+]);
+
+export const electricityServiceEnum = pgEnum("electricity_service", [
+  "cfe", // CFE
+  "solar", // Autosuficiente con paneles solares
+]);
+
+export const electricityPaymentEnum = pgEnum("electricity_payment", [
+  "monthly", // Mensual
+  "bimonthly", // Bimensual
+]);
+
 export const leadStatusEnum = pgEnum("lead_status", [
   "nuevo",
   "contactado",
@@ -650,6 +670,9 @@ export const properties = pgTable("properties", {
   allowsSubleasing: boolean("allows_subleasing").notNull().default(false),
   referralPartnerId: varchar("referral_partner_id").references(() => users.id), // Socio que refirió la propiedad
   referralPercent: decimal("referral_percent", { precision: 5, scale: 2 }).default("20.00"), // Porcentaje del referido (default 20%)
+  wizardMode: wizardModeEnum("wizard_mode").default("simple"), // Modo de wizard: simple o extendido
+  includedServices: jsonb("included_services"), // Servicios incluidos en renta (agua, luz, internet)
+  acceptedLeaseDurations: text("accepted_lease_durations").array().default(sql`ARRAY[]::text[]`), // Duraciones de contrato aceptadas
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });
@@ -660,12 +683,37 @@ const accessInfoSchema = z.object({
   contactPhone: z.string().optional(),
 }).optional();
 
+const includedServicesSchema = z.object({
+  water: z.object({
+    included: z.boolean().default(false),
+    type: z.enum(["capa", "well"]).optional(), // CAPA o Pozo
+    provider: z.string().optional(), // Solo en modo extendido
+    accountNumber: z.string().optional(), // Solo en modo extendido - oculto en listings
+    estimatedCost: z.string().optional(),
+  }).optional(),
+  electricity: z.object({
+    included: z.boolean().default(false),
+    type: z.enum(["cfe", "solar"]).optional(), // CFE o Autosuficiente
+    paymentFrequency: z.enum(["monthly", "bimonthly"]).optional(),
+    provider: z.string().optional(), // Solo en modo extendido
+    accountNumber: z.string().optional(), // Solo en modo extendido - oculto en listings
+    estimatedCost: z.string().optional(),
+  }).optional(),
+  internet: z.object({
+    included: z.boolean().default(false),
+    provider: z.string().optional(), // Telmex, Abix, etc
+    accountNumber: z.string().optional(), // Solo en modo extendido - oculto en listings
+    estimatedCost: z.string().optional(),
+  }).optional(),
+}).optional();
+
 export const insertPropertySchema = createInsertSchema(properties).omit({
   id: true,
   createdAt: true,
   updatedAt: true,
 }).extend({
   accessInfo: accessInfoSchema,
+  includedServices: includedServicesSchema,
   customListingTitle: z.string().max(60, "El título personalizado no puede exceder 60 caracteres").optional(),
 });
 
