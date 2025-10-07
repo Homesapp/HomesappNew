@@ -207,10 +207,27 @@ export default function MyProperties() {
                           )}
                         </span>
                       </div>
-                      <div className="flex items-center gap-1 text-sm font-bold flex-shrink-0">
-                        <span data-testid={`text-property-price-${property.id}`}>
-                          ${Number(property.price).toLocaleString()}
-                        </span>
+                      <div className="flex items-center gap-2 flex-shrink-0">
+                        {property.price && (
+                          <div className="flex flex-col items-end gap-1">
+                            <Badge variant="outline">
+                              Renta
+                            </Badge>
+                            <span className="text-sm font-bold" data-testid={`text-property-price-rental-${property.id}`}>
+                              ${Number(property.price).toLocaleString()}
+                            </span>
+                          </div>
+                        )}
+                        {property.salePrice && (
+                          <div className="flex flex-col items-end gap-1">
+                            <Badge variant="outline">
+                              Venta
+                            </Badge>
+                            <span className="text-sm font-bold" data-testid={`text-property-price-sale-${property.id}`}>
+                              ${Number(property.salePrice).toLocaleString()}
+                            </span>
+                          </div>
+                        )}
                       </div>
                     </div>
                   </div>
