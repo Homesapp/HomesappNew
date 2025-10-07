@@ -450,6 +450,8 @@ export const users = pgTable("users", {
   preferredLanguage: varchar("preferred_language", { length: 2 }).notNull().default("es"),
   hasSeenWelcome: boolean("has_seen_welcome").notNull().default(false),
   lastWelcomeShown: timestamp("last_welcome_shown"),
+  onboardingCompleted: boolean("onboarding_completed").notNull().default(false),
+  onboardingSteps: jsonb("onboarding_steps"), // Tracks completed onboarding steps
   documentType: documentTypeEnum("document_type"),
   documentUrl: varchar("document_url"),
   documentApprovalStatus: documentApprovalStatusEnum("document_approval_status"),
@@ -560,6 +562,8 @@ export const adminUsers = pgTable("admin_users", {
   profileImageUrl: text("profile_image_url"),
   role: userRoleEnum("role").notNull().default("admin"),
   isActive: boolean("is_active").notNull().default(true),
+  onboardingCompleted: boolean("onboarding_completed").notNull().default(false),
+  onboardingSteps: jsonb("onboarding_steps"), // Tracks completed onboarding steps
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });

@@ -12,6 +12,7 @@ import { AppSidebar } from "@/components/AppSidebar";
 import { LanguageProvider } from "@/contexts/LanguageContext";
 import { UserProfileMenu } from "@/components/UserProfileMenu";
 import { NotificationBell } from "@/components/NotificationBell";
+import { OnboardingTour } from "@/components/OnboardingTour";
 import { useAuth } from "@/hooks/useAuth";
 import { useAdminAuth } from "@/hooks/useAdminAuth";
 import { apiRequest } from "@/lib/queryClient";
@@ -112,7 +113,8 @@ function AuthenticatedApp() {
     "--sidebar-width-icon": "3rem",
   };
 
-  if (isLoading) {
+  // Wait for both auth checks to complete
+  if (isLoading || isAdminLoading) {
     return <LoadingScreen className="h-screen" />;
   }
 
@@ -273,6 +275,14 @@ function AuthenticatedApp() {
           </main>
         </div>
       </div>
+      {/* Onboarding Tour - shows for authenticated users who haven't completed it */}
+      {currentUser && (
+        <OnboardingTour
+          userRole={currentUser.role || "cliente"}
+          onboardingCompleted={currentUser.onboardingCompleted || false}
+          onboardingSteps={currentUser.onboardingSteps as Record<string, boolean> | undefined}
+        />
+      )}
     </SidebarProvider>
   );
 }

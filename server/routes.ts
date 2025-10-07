@@ -304,7 +304,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!req.session.adminUser) {
         return res.status(401).json({ message: "Not authenticated" });
       }
-      res.json(req.session.adminUser);
+      
+      // Fetch full admin data from database to include onboarding fields
+      const adminId = req.session.adminUser.id;
+      const admin = await storage.getAdminById(adminId);
+      
+      if (!admin) {
+        return res.status(401).json({ message: "Admin not found" });
+      }
+      
+      const { passwordHash, ...adminWithoutPassword } = admin;
+      res.json(adminWithoutPassword);
     } catch (error) {
       console.error("Error fetching admin user:", error);
       res.status(500).json({ message: "Failed to fetch admin user" });
@@ -765,6 +775,80 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Error marking welcome as seen:", error);
       res.status(500).json({ message: "Failed to mark welcome as seen" });
+    }
+  });
+
+  app.patch("/api/user/complete-onboarding", async (req: any, res) => {
+    try {
+      // Support both regular auth (req.user) and admin auth (req.session.adminUser)
+      const isAdmin = !!req.session?.adminUser;
+      let userId;
+      
+      if (isAdmin) {
+        userId = req.session.adminUser.id;
+        // Update admin_users table
+        await db
+          .update(adminUsers)
+          .set({ 
+            onboardingCompleted: true,
+            onboardingSteps: { completed: true, completedAt: new Date().toISOString() }
+          })
+          .where(eq(adminUsers.id, userId));
+      } else if (req.user?.claims?.sub) {
+        userId = req.user.claims.sub;
+        // Update users table
+        await db
+          .update(users)
+          .set({ 
+            onboardingCompleted: true,
+            onboardingSteps: { completed: true, completedAt: new Date().toISOString() }
+          })
+          .where(eq(users.id, userId));
+      } else {
+        return res.status(401).json({ message: "Not authenticated" });
+      }
+      
+      res.json({ success: true });
+    } catch (error) {
+      console.error("Error completing onboarding:", error);
+      res.status(500).json({ message: "Failed to complete onboarding" });
+    }
+  });
+
+  app.patch("/api/user/skip-onboarding", async (req: any, res) => {
+    try {
+      // Support both regular auth (req.user) and admin auth (req.session.adminUser)
+      const isAdmin = !!req.session?.adminUser;
+      let userId;
+      
+      if (isAdmin) {
+        userId = req.session.adminUser.id;
+        // Update admin_users table
+        await db
+          .update(adminUsers)
+          .set({ 
+            onboardingCompleted: true,
+            onboardingSteps: { skipped: true, skippedAt: new Date().toISOString() }
+          })
+          .where(eq(adminUsers.id, userId));
+      } else if (req.user?.claims?.sub) {
+        userId = req.user.claims.sub;
+        // Update users table
+        await db
+          .update(users)
+          .set({ 
+            onboardingCompleted: true,
+            onboardingSteps: { skipped: true, skippedAt: new Date().toISOString() }
+          })
+          .where(eq(users.id, userId));
+      } else {
+        return res.status(401).json({ message: "Not authenticated" });
+      }
+      
+      res.json({ success: true });
+    } catch (error) {
+      console.error("Error skipping onboarding:", error);
+      res.status(500).json({ message: "Failed to skip onboarding" });
     }
   });
 

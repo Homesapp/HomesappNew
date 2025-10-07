@@ -7,6 +7,8 @@ interface AdminUser {
   firstName: string | null;
   lastName: string | null;
   role: string;
+  onboardingCompleted?: boolean;
+  onboardingSteps?: Record<string, any>;
 }
 
 export function useAdminAuth() {
@@ -23,9 +25,11 @@ export function useAdminAuth() {
     },
     retry: false,
     refetchOnWindowFocus: false,
-    refetchOnMount: false,
+    // Allow refetch on mount so onboarding changes are picked up
+    refetchOnMount: true,
     refetchOnReconnect: false,
-    staleTime: Infinity,
+    // Remove staleTime: Infinity to allow cache invalidation to work
+    staleTime: 5 * 60 * 1000, // 5 minutes
   });
 
   return {
