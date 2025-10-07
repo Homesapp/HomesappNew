@@ -55,13 +55,16 @@ export const requireResourceOwnership = (
       // Check ownership based on resource type and field
       const resourceOwnerId = resource[ownerField];
       
-      // For appointments, check both clientId and assignedToId
+      // For appointments, check clientId, assignedToId, and property owner
       if (resourceType === 'appointment') {
         const isClient = resource.clientId === userId;
         const isAssigned = resource.assignedToId === userId;
-        const isOwner = resource.ownerId === userId; // Property owner
         
-        if (!isClient && !isAssigned && !isOwner) {
+        // Get property to check if user is the owner
+        const property = await storage.getProperty(resource.propertyId);
+        const isPropertyOwner = property?.ownerId === userId;
+        
+        if (!isClient && !isAssigned && !isPropertyOwner) {
           return res.status(403).json({ 
             message: "Forbidden: You don't have permission to modify this appointment" 
           });
