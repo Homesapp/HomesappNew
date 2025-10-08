@@ -2678,6 +2678,53 @@ export const insertSystemAlertSchema = createInsertSchema(systemAlerts).omit({
 export type InsertSystemAlert = z.infer<typeof insertSystemAlertSchema>;
 export type SystemAlert = typeof systemAlerts.$inferSelect;
 
+// Error Log Type Enum
+export const errorLogTypeEnum = pgEnum("error_log_type", [
+  "frontend_error",
+  "api_error",
+  "console_error",
+  "unhandled_rejection",
+]);
+
+// Error Log Status Enum
+export const errorLogStatusEnum = pgEnum("error_log_status", [
+  "new",
+  "investigating",
+  "resolved",
+  "dismissed",
+]);
+
+// Error Logs table - Automatic error tracking and reporting
+export const errorLogs = pgTable("error_logs", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: varchar("user_id").references(() => users.id, { onDelete: "set null" }),
+  userEmail: varchar("user_email"), // Store email in case user is deleted
+  userRole: varchar("user_role"), // Store role for context
+  errorType: errorLogTypeEnum("error_type").notNull(),
+  errorMessage: text("error_message").notNull(),
+  errorStack: text("error_stack"), // Stack trace
+  errorCode: varchar("error_code"), // HTTP status code or custom error code
+  url: varchar("url"), // URL where error occurred
+  userAgent: text("user_agent"), // Browser/device info
+  componentStack: text("component_stack"), // React component stack
+  additionalInfo: jsonb("additional_info"), // Any extra context
+  status: errorLogStatusEnum("status").notNull().default("new"),
+  reportedByUser: boolean("reported_by_user").notNull().default(false), // If user manually reported
+  userComment: text("user_comment"), // User's description if they reported it
+  assignedTo: varchar("assigned_to").references(() => users.id), // Admin assigned to fix
+  resolutionNotes: text("resolution_notes"), // How it was resolved
+  resolvedAt: timestamp("resolved_at"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+export const insertErrorLogSchema = createInsertSchema(errorLogs).omit({
+  id: true,
+  createdAt: true,
+});
+
+export type InsertErrorLog = z.infer<typeof insertErrorLogSchema>;
+export type ErrorLog = typeof errorLogs.$inferSelect;
+
 // Relations
 export const usersRelations = relations(users, ({ many }) => ({
   properties: many(properties, { relationName: "owner" }),
