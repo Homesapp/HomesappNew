@@ -24,6 +24,7 @@ import {
   containsScriptTags
 } from "./sanitize";
 import { handleGenericError, handleZodError } from "./errorHandling";
+import { cache, CacheKeys, CacheTTL } from "./cache";
 import bcrypt from "bcryptjs";
 import crypto from "crypto";
 import { z } from "zod";
@@ -1866,7 +1867,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.get("/api/colonies/approved", async (req, res) => {
     try {
+      // Try to get from cache first
+      const cacheKey = CacheKeys.coloniesApproved();
+      const cached = await cache.get(cacheKey);
+      
+      if (cached) {
+        return res.json(cached);
+      }
+
+      // Cache miss - fetch from database
       const colonies = await storage.getApprovedColonies();
+      
+      // Store in cache with 24h TTL
+      await cache.set(cacheKey, colonies, CacheTTL.STATIC);
+      
       res.json(colonies);
     } catch (error) {
       console.error("Error fetching approved colonies:", error);
@@ -1948,6 +1962,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
         colony.id,
         isAdmin ? `Colonia creada: ${name}` : `Colonia solicitada: ${name}`
       );
+
+      // Invalidate cache if admin created (auto-approved)
+      if (isAdmin) {
+        await cache.invalidate(CacheKeys.coloniesApproved());
+      }
 
       res.json(colony);
     } catch (error) {
@@ -2123,7 +2142,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.get("/api/condominiums/approved", async (req, res) => {
     try {
+      // Try to get from cache first
+      const cacheKey = CacheKeys.condominiumsApproved();
+      const cached = await cache.get(cacheKey);
+      
+      if (cached) {
+        return res.json(cached);
+      }
+
+      // Cache miss - fetch from database
       const condominiums = await storage.getApprovedCondominiums();
+      
+      // Store in cache with 24h TTL
+      await cache.set(cacheKey, condominiums, CacheTTL.STATIC);
+      
       res.json(condominiums);
     } catch (error) {
       console.error("Error fetching approved condominiums:", error);
@@ -2204,6 +2236,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
         isAdmin ? `Condominio creado: ${name}` : `Condominio solicitado: ${name}`
       );
 
+      // Invalidate cache if admin created (auto-approved)
+      if (isAdmin) {
+        await cache.invalidate(CacheKeys.condominiumsApproved());
+      }
+
       res.json(condominium);
     } catch (error) {
       console.error("Error creating condominium:", error);
@@ -2236,6 +2273,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
         id,
         `Condominio aprobado: ${condominium.name}`
       );
+
+      // Invalidate cache after approval
+      await cache.invalidate(CacheKeys.condominiumsApproved());
 
       res.json(condominium);
     } catch (error) {
@@ -2307,6 +2347,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
         `Condominio actualizado: ${condominium.name}`
       );
 
+      // Invalidate cache after update
+      await cache.invalidate(CacheKeys.condominiumsApproved());
+
       res.json(condominium);
     } catch (error) {
       console.error("Error updating condominium:", error);
@@ -2338,6 +2381,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
         id,
         `Condominio ${active ? 'activado' : 'suspendido'}: ${condominium.name}`
       );
+
+      // Invalidate cache after toggle
+      await cache.invalidate(CacheKeys.condominiumsApproved());
 
       res.json(condominium);
     } catch (error) {
@@ -2373,6 +2419,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
       );
 
       await storage.deleteCondominium(id);
+      
+      // Invalidate cache after deletion
+      await cache.invalidate(CacheKeys.condominiumsApproved());
+      
       res.status(204).send();
     } catch (error) {
       console.error("Error deleting condominium:", error);
@@ -2592,7 +2642,24 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (category) filters.category = category;
       if (approvalStatus) filters.approvalStatus = approvalStatus;
       
+      // Only cache if no filters (full amenities list)
+      const shouldCache = !category && !approvalStatus;
+      const cacheKey = CacheKeys.amenities();
+      
+      if (shouldCache) {
+        const cached = await cache.get(cacheKey);
+        if (cached) {
+          return res.json(cached);
+        }
+      }
+      
       const amenities = await storage.getAmenities(filters);
+      
+      // Store in cache only if no filters
+      if (shouldCache) {
+        await cache.set(cacheKey, amenities, CacheTTL.STATIC);
+      }
+      
       res.json(amenities);
     } catch (error) {
       console.error("Error fetching amenities:", error);
@@ -2679,6 +2746,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
         amenity.id,
         isAdmin ? `Amenidad creada: ${name} (${category})` : `Amenidad solicitada: ${name} (${category})`
       );
+
+      // Invalidate cache if admin created (auto-approved)
+      if (isAdmin) {
+        await cache.invalidate(CacheKeys.amenities());
+      }
 
       res.json(amenity);
     } catch (error) {
@@ -2817,7 +2889,24 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const filters: any = {};
       if (active !== undefined) filters.active = active === "true";
       
+      // Only cache if no filters (all property features)
+      const shouldCache = active === undefined;
+      const cacheKey = CacheKeys.propertyFeatures();
+      
+      if (shouldCache) {
+        const cached = await cache.get(cacheKey);
+        if (cached) {
+          return res.json(cached);
+        }
+      }
+      
       const features = await storage.getPropertyFeatures(filters);
+      
+      // Store in cache only if no filters
+      if (shouldCache) {
+        await cache.set(cacheKey, features, CacheTTL.STATIC);
+      }
+      
       res.json(features);
     } catch (error) {
       console.error("Error fetching property features:", error);
@@ -2851,6 +2940,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
         feature.id,
         `Característica creada: ${feature.name}`
       );
+
+      // Invalidate cache after creating property feature
+      await cache.invalidate(CacheKeys.propertyFeatures());
 
       res.json(feature);
     } catch (error) {
