@@ -12816,6 +12816,24 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  app.get("/api/admin/marketing-campaigns/stats", isAuthenticated, requireRole(["admin", "master"]), async (req, res) => {
+    try {
+      const campaigns = await storage.getMarketingCampaigns({});
+      const stats = {
+        total: campaigns.length,
+        scheduled: campaigns.filter(c => c.status === "scheduled").length,
+        sent: campaigns.filter(c => c.status === "sent").length,
+        avgOpenRate: campaigns.length > 0 
+          ? campaigns.reduce((sum, c) => sum + (c.openRate || 0), 0) / campaigns.length
+          : 0
+      };
+      res.json(stats);
+    } catch (error: any) {
+      console.error("Error fetching campaign stats:", error);
+      res.status(500).json({ message: "Failed to fetch campaign stats" });
+    }
+  });
+
   // Maintenance Schedules endpoints
   app.get("/api/owner/maintenance-schedules", isAuthenticated, requireRole(["owner", "admin", "master"]), async (req, res) => {
     try {
