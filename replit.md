@@ -50,7 +50,7 @@ The schema includes:
 *   **Appointment Reschedule Workflow**: Owner-initiated reschedule requests with client approval/rejection flow. When owner requests reschedule, client can approve (appointment date changes) or reject (appointment auto-cancels). Calendar uses color coding: green (approved), red (cancelled), yellow (rescheduled). Archiving system keeps approved appointments visible; only completed/cancelled appointments are archived.
 *   **Property Management**: Includes property approval workflow, owner change requests, auto-approval settings, sublease functionality, pet-friendly indicators, and custom listing titles for better property identification.
 *   **Property Staff & Task Management**: System for assigning staff to properties with role-based assignments and task tracking.
-*   **Property Submission**: A 5-step wizard with draft saving, digital agreement signing, and integration with approved condominiums. Supports optional custom listing titles for private houses.
+*   **Property Submission**: A 5-step wizard with draft saving, digital agreement signing, and integration with approved condominiums. Supports optional custom listing titles for private houses. Features drag-and-drop photo reordering for primary and secondary images. Submitted drafts appear in owner's "Mis Propiedades" with "Pendiente" status badge until admin approval. Draft properties have disabled navigation (visual indicators: cursor-not-allowed, reduced opacity) until converted to real properties.
 *   **Condominium & Colony Workflow**: User-suggested condominiums/colonies require admin approval, with pre-approved Tulum condominiums.
 *   **Property Display Logic**: Appointment titles and property listings show customListingTitle for private houses, or condoName+unitNumber for condominiums, with fallback to title.
 *   **Client Dashboard**: Personalized overview with stats, quick actions, and Google Calendar integration.
@@ -92,6 +92,11 @@ The schema includes:
 
 ### System Design Choices
 The platform employs unified middleware for consistent authentication and automatic logging for auditing. The public dashboard adapts based on user authentication. WebSocket security for real-time chat ensures session-based authentication and per-conversation authorization.
+
+### Testing and Development
+*   **Test Authentication Endpoint** (Development only): `/api/auth/test/set-role` allows authenticated users to change their role for testing purposes. Protected by `NODE_ENV === "development"` check and requires valid authentication. Supports roles: cliente, owner, seller, concierge, admin, admin_jr, master.
+*   **Draft Property Visibility**: `/api/owner/properties` endpoint merges real properties with submitted drafts (status="submitted"), transforming drafts into property-like objects with `isDraft: true` flag, `draft-{id}` prefixed IDs, and `approvalStatus: "pending"`. Enables owners to see submitted properties before admin approval.
+*   **Drag-and-Drop Media**: Property wizard Step 3 supports HTML5 drag-and-drop API for reordering primary and secondary images with visual feedback (opacity changes during drag).
 
 ## External Dependencies
 *   **Google Calendar API**
