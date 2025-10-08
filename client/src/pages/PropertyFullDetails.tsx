@@ -53,12 +53,12 @@ export default function PropertyFullDetails() {
     <div className="container mx-auto py-6">
       <Button
         variant="ghost"
-        onClick={() => setLocation(`/propiedad/${property.id}`)}
+        onClick={() => setLocation('/buscar-propiedades')}
         className="mb-4"
         data-testid="button-back-to-details"
       >
         <ArrowLeft className="h-4 w-4 mr-2" />
-        Volver a vista general
+        Volver a búsqueda
       </Button>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
@@ -286,7 +286,7 @@ export default function PropertyFullDetails() {
                   }}
                   data-testid="button-request-opportunity"
                 >
-                  Solicitar Oportunidad de Renta
+                  Coordinar cita
                 </Button>
               ) : (
                 <Button className="w-full" size="lg" data-testid="button-contact">

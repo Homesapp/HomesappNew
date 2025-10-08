@@ -20,7 +20,11 @@ export default function Appointments() {
   const { toast } = useToast();
   const { user } = useAuth();
   
-  const filters = activeTab === "all" || activeTab === "needs-report" ? {} : { status: activeTab };
+  // For cliente role, filter appointments by clientId
+  const baseFilters = activeTab === "all" || activeTab === "needs-report" ? {} : { status: activeTab };
+  const filters = user?.role === "cliente" 
+    ? { ...baseFilters, clientId: user.id }
+    : baseFilters;
   const { data: appointments, isLoading, error } = useAppointments(filters);
   const { data: properties } = useProperties();
   const updateAppointment = useUpdateAppointment();
