@@ -3220,6 +3220,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(403).json({ message: "Forbidden" });
       }
 
+      // Check if property requires change request approval (not freely editable)
+      const editableStatuses = ["draft", "pending_review", "changes_requested"];
+      const requiresApproval = !editableStatuses.includes(property.approvalStatus);
+      
+      // If owner is trying to edit a property that requires approval, reject direct edit
+      if (requiresApproval && property.ownerId === userId && !["master", "admin", "admin_jr"].includes(user.role)) {
+        return res.status(403).json({ 
+          message: "Esta propiedad ya ha sido aceptada. Los cambios requieren aprobación del administrador. Por favor, usa el sistema de solicitud de cambios.",
+          requiresChangeRequest: true
+        });
+      }
+
       const sanitizedBody = {
         ...req.body,
         title: req.body.title ? sanitizeText(req.body.title) : undefined,
@@ -3442,6 +3454,277 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error: any) {
       console.error("Error checking documents:", error);
       res.status(500).json({ message: "Error al verificar documentos" });
+    }
+  });
+
+  // ===== PROPERTY APPROVAL WORKFLOW ENDPOINTS =====
+  
+  // 1. Admin accepts property (draft/pending_review → accepted)
+  app.post("/api/properties/:id/accept", isAuthenticated, requireFullAdmin, async (req: any, res) => {
+    try {
+      const { id } = req.params;
+      const property = await storage.getProperty(id);
+
+      if (!property) {
+        return res.status(404).json({ message: "Propiedad no encontrada" });
+      }
+
+      if (!["draft", "pending_review"].includes(property.approvalStatus)) {
+        return res.status(400).json({ 
+          message: "Solo se pueden aceptar propiedades en estado draft o pending_review" 
+        });
+      }
+
+      const updatedProperty = await storage.updateProperty(id, { approvalStatus: "accepted" });
+
+      await createAuditLog(
+        req,
+        "approve",
+        "property",
+        id,
+        `Propiedad aceptada: ${property.title}`
+      );
+
+      res.json(updatedProperty);
+    } catch (error: any) {
+      return handleGenericError(res, error, "al aceptar la propiedad");
+    }
+  });
+
+  // 2. Admin validates documents (accepted → documents_validated)
+  app.post("/api/properties/:id/validate-documents", isAuthenticated, requireFullAdmin, async (req: any, res) => {
+    try {
+      const { id } = req.params;
+      const property = await storage.getProperty(id);
+
+      if (!property) {
+        return res.status(404).json({ message: "Propiedad no encontrada" });
+      }
+
+      if (property.approvalStatus !== "accepted") {
+        return res.status(400).json({ 
+          message: "Solo se pueden validar documentos de propiedades aceptadas" 
+        });
+      }
+
+      const updatedProperty = await storage.updateProperty(id, { approvalStatus: "documents_validated" });
+
+      await createAuditLog(
+        req,
+        "approve",
+        "property",
+        id,
+        `Documentos validados: ${property.title}`
+      );
+
+      res.json(updatedProperty);
+    } catch (error: any) {
+      return handleGenericError(res, error, "al validar documentos");
+    }
+  });
+
+  // 3. Admin schedules inspection (documents_validated → inspection_scheduled)
+  app.post("/api/properties/:id/schedule-inspection", isAuthenticated, requireFullAdmin, async (req: any, res) => {
+    try {
+      const { id } = req.params;
+      const { inspectorId, inspectionDate } = req.body;
+      const property = await storage.getProperty(id);
+
+      if (!property) {
+        return res.status(404).json({ message: "Propiedad no encontrada" });
+      }
+
+      if (property.approvalStatus !== "documents_validated") {
+        return res.status(400).json({ 
+          message: "Solo se pueden programar inspecciones para propiedades con documentos validados" 
+        });
+      }
+
+      // Create inspection report
+      const inspectionReport = await storage.createInspectionReport({
+        propertyId: id,
+        inspectorId,
+        inspectionDate: new Date(inspectionDate),
+        status: "scheduled"
+      });
+
+      const updatedProperty = await storage.updateProperty(id, { approvalStatus: "inspection_scheduled" });
+
+      await createAuditLog(
+        req,
+        "create",
+        "inspection_report",
+        inspectionReport.id,
+        `Inspección programada para: ${property.title} - Fecha: ${inspectionDate}`
+      );
+
+      res.json({ property: updatedProperty, inspectionReport });
+    } catch (error: any) {
+      return handleGenericError(res, error, "al programar la inspección");
+    }
+  });
+
+  // 4. Concierge completes inspection with feedback (inspection_scheduled → inspection_completed)
+  app.post("/api/properties/:id/complete-inspection", isAuthenticated, async (req: any, res) => {
+    try {
+      const { id } = req.params;
+      const userId = req.user.claims.sub;
+      const user = await storage.getUser(userId);
+      const property = await storage.getProperty(id);
+
+      if (!property) {
+        return res.status(404).json({ message: "Propiedad no encontrada" });
+      }
+
+      // Only concierge or admin can complete inspection
+      if (!user || !["concierge", "master", "admin", "admin_jr"].includes(user.role)) {
+        return res.status(403).json({ message: "Solo conserjes y administradores pueden completar inspecciones" });
+      }
+
+      if (property.approvalStatus !== "inspection_scheduled") {
+        return res.status(400).json({ 
+          message: "Solo se pueden completar inspecciones programadas" 
+        });
+      }
+
+      // Get the inspection report for this property
+      const inspectionReports = await storage.getInspectionReports({ propertyId: id });
+      const activeReport = inspectionReports.find(r => r.status === "scheduled");
+
+      if (!activeReport) {
+        return res.status(404).json({ message: "No se encontró reporte de inspección programado" });
+      }
+
+      // Update inspection report with feedback
+      const inspectionData = updateInspectionReportSchema.parse({
+        ...req.body,
+        status: "completed"
+      });
+
+      const updatedReport = await storage.updateInspectionReport(activeReport.id, inspectionData);
+      const updatedProperty = await storage.updateProperty(id, { approvalStatus: "inspection_completed" });
+
+      await createAuditLog(
+        req,
+        "update",
+        "inspection_report",
+        activeReport.id,
+        `Inspección completada: ${property.title}`
+      );
+
+      res.json({ property: updatedProperty, inspectionReport: updatedReport });
+    } catch (error: any) {
+      return handleGenericError(res, error, "al completar la inspección");
+    }
+  });
+
+  // 5. Admin approves without inspection (documents_validated → approved)
+  app.post("/api/properties/:id/approve-without-inspection", isAuthenticated, requireFullAdmin, async (req: any, res) => {
+    try {
+      const { id } = req.params;
+      const { reason } = req.body;
+      const property = await storage.getProperty(id);
+
+      if (!property) {
+        return res.status(404).json({ message: "Propiedad no encontrada" });
+      }
+
+      if (property.approvalStatus !== "documents_validated") {
+        return res.status(400).json({ 
+          message: "Solo se pueden aprobar sin inspección propiedades con documentos validados" 
+        });
+      }
+
+      // Create a skipped inspection report
+      const inspectionReport = await storage.createInspectionReport({
+        propertyId: id,
+        inspectorId: req.user.claims.sub,
+        inspectionDate: new Date(),
+        status: "skipped",
+        approved: true,
+        approvalNotes: reason || "Aprobado sin inspección por administrador"
+      });
+
+      const updatedProperty = await storage.updateProperty(id, { approvalStatus: "approved" });
+
+      await createAuditLog(
+        req,
+        "approve",
+        "property",
+        id,
+        `Propiedad aprobada sin inspección: ${property.title} - Razón: ${reason || "No especificada"}`
+      );
+
+      res.json({ property: updatedProperty, inspectionReport });
+    } catch (error: any) {
+      return handleGenericError(res, error, "al aprobar sin inspección");
+    }
+  });
+
+  // 6. Admin approves after inspection (inspection_completed → approved)
+  app.post("/api/properties/:id/approve", isAuthenticated, requireFullAdmin, async (req: any, res) => {
+    try {
+      const { id } = req.params;
+      const property = await storage.getProperty(id);
+
+      if (!property) {
+        return res.status(404).json({ message: "Propiedad no encontrada" });
+      }
+
+      if (property.approvalStatus !== "inspection_completed") {
+        return res.status(400).json({ 
+          message: "Solo se pueden aprobar propiedades con inspección completada" 
+        });
+      }
+
+      const updatedProperty = await storage.updateProperty(id, { approvalStatus: "approved" });
+
+      await createAuditLog(
+        req,
+        "approve",
+        "property",
+        id,
+        `Propiedad aprobada: ${property.title}`
+      );
+
+      res.json(updatedProperty);
+    } catch (error: any) {
+      return handleGenericError(res, error, "al aprobar la propiedad");
+    }
+  });
+
+  // 7. Admin publishes property (approved → published)
+  app.post("/api/properties/:id/publish", isAuthenticated, requireFullAdmin, async (req: any, res) => {
+    try {
+      const { id } = req.params;
+      const property = await storage.getProperty(id);
+
+      if (!property) {
+        return res.status(404).json({ message: "Propiedad no encontrada" });
+      }
+
+      if (property.approvalStatus !== "approved") {
+        return res.status(400).json({ 
+          message: "Solo se pueden publicar propiedades aprobadas" 
+        });
+      }
+
+      const updatedProperty = await storage.updateProperty(id, { 
+        approvalStatus: "published",
+        published: true 
+      });
+
+      await createAuditLog(
+        req,
+        "update",
+        "property",
+        id,
+        `Propiedad publicada: ${property.title}`
+      );
+
+      res.json(updatedProperty);
+    } catch (error: any) {
+      return handleGenericError(res, error, "al publicar la propiedad");
     }
   });
 
