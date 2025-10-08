@@ -160,9 +160,8 @@ async function requireFullAdmin(req: any, res: any, next: any) {
     if (user.adminAuth && req.session?.adminUser) {
       userRole = req.session.adminUser.role;
     } else {
-      // Regular user from users table
-      const userId = user.claims.sub;
-      const dbUser = await storage.getUser(userId);
+      // Regular user from users table - ensure they exist
+      const dbUser = await ensureUserExists(req);
       if (!dbUser) {
         return res.status(403).json({ 
           message: "Forbidden: This action requires full administrator privileges" 
@@ -208,6 +207,28 @@ function requireAccountantOrAdmin(req: any, res: any, next: any) {
 
 // WebSocket clients organized by conversation ID
 const wsClients = new Map<string, Set<WebSocket>>();
+
+// Helper function to ensure user exists in database
+async function ensureUserExists(req: any): Promise<any> {
+  const userId = req.user.claims.sub;
+  const claims = req.user.claims;
+  
+  let user = await storage.getUser(userId);
+  
+  // If user doesn't exist but we have valid claims, create them automatically
+  if (!user && claims) {
+    console.log("[AUTO-CREATE-USER] Creating user from session claims:", claims.sub, claims.email);
+    user = await storage.upsertUser({
+      id: claims.sub,
+      email: claims.email,
+      firstName: claims.first_name || '',
+      lastName: claims.last_name || '',
+      profileImageUrl: claims.profile_image_url,
+    });
+  }
+  
+  return user;
+}
 
 export async function registerRoutes(app: Express): Promise<Server> {
   // Health check endpoint - must be first for deployment health checks
@@ -2135,8 +2156,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.post("/api/colonies", isAuthenticated, async (req: any, res) => {
     try {
-      const userId = req.user.claims.sub;
-      const user = await storage.getUser(userId);
+      const user = await ensureUserExists(req);
 
       if (!user) {
         return res.status(401).json({ message: "Usuario no encontrado" });
@@ -2422,8 +2442,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.post("/api/condominiums", isAuthenticated, async (req: any, res) => {
     try {
-      const userId = req.user.claims.sub;
-      const user = await storage.getUser(userId);
+      const user = await ensureUserExists(req);
       
       if (!user) {
         return res.status(401).json({ message: "Usuario no encontrado" });
@@ -2937,8 +2956,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.post("/api/amenities", isAuthenticated, async (req: any, res) => {
     try {
-      const userId = req.user.claims.sub;
-      const user = await storage.getUser(userId);
+      const user = await ensureUserExists(req);
 
       if (!user) {
         return res.status(401).json({ message: "Usuario no encontrado" });
