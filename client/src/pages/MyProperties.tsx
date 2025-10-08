@@ -70,10 +70,11 @@ export default function MyProperties() {
 
   const changeStatusMutation = useMutation({
     mutationFn: async ({ propertyId, newStatus }: { propertyId: string; newStatus: string }) => {
-      return await apiRequest(`/api/properties/${propertyId}/owner-status`, {
-        method: "PATCH",
-        body: JSON.stringify({ ownerStatus: newStatus }),
-      });
+      return await apiRequest(
+        "PATCH",
+        `/api/properties/${propertyId}/owner-status`,
+        { ownerStatus: newStatus }
+      );
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/owner/properties"] });
