@@ -49,8 +49,12 @@ import {
   User,
   Lock,
   Shield,
-  Image,
-  AlertCircle
+  Image as ImageIcon,
+  AlertCircle,
+  Trash2,
+  Star,
+  MoveUp,
+  MoveDown
 } from "lucide-react";
 import type { Property, Colony, Condominium } from "@shared/schema";
 
@@ -141,6 +145,10 @@ export default function EditOwnerProperty() {
   const [_, setLocation] = useLocation();
   const { toast } = useToast();
   const [additionalServices, setAdditionalServices] = useState<AdditionalService[]>([]);
+  const [photos, setPhotos] = useState<string[]>([]);
+  const [coverImageIndex, setCoverImageIndex] = useState(0);
+  const [newPhotoUrl, setNewPhotoUrl] = useState("");
+  const [showAddPhoto, setShowAddPhoto] = useState(false);
 
   const { data: property, isLoading } = useQuery<Property>({
     queryKey: ["/api/owner/properties", id, "detail"],
@@ -200,6 +208,15 @@ export default function EditOwnerProperty() {
     if (property && !form.formState.isDirty) {
       const includedServices = property.includedServices as any;
       const accessInfo = property.accessInfo as any;
+      
+      // Load photos
+      const allImages = [
+        ...(property.primaryImages || []),
+        ...(property.secondaryImages || []),
+        ...(property.images || [])
+      ].filter((img, index, self) => img && self.indexOf(img) === index);
+      setPhotos(allImages);
+      setCoverImageIndex(property.coverImageIndex || 0);
       
       // Parse additional services
       if (includedServices?.additionalServices) {
@@ -297,6 +314,58 @@ export default function EditOwnerProperty() {
       form.setValue("amenities", current.filter(a => a !== amenity));
     } else {
       form.setValue("amenities", [...current, amenity]);
+    }
+  };
+
+  // Photo management functions
+  const handleAddPhoto = () => {
+    if (newPhotoUrl.trim()) {
+      setPhotos([...photos, newPhotoUrl.trim()]);
+      setNewPhotoUrl("");
+      setShowAddPhoto(false);
+    }
+  };
+
+  const handleRemovePhoto = (index: number) => {
+    const newPhotos = photos.filter((_, i) => i !== index);
+    setPhotos(newPhotos);
+    // Adjust cover index if necessary
+    if (coverImageIndex >= newPhotos.length) {
+      setCoverImageIndex(Math.max(0, newPhotos.length - 1));
+    } else if (index < coverImageIndex) {
+      setCoverImageIndex(coverImageIndex - 1);
+    }
+  };
+
+  const handleSetCover = (index: number) => {
+    setCoverImageIndex(index);
+  };
+
+  const handleMoveUp = (index: number) => {
+    if (index > 0) {
+      const newPhotos = [...photos];
+      [newPhotos[index - 1], newPhotos[index]] = [newPhotos[index], newPhotos[index - 1]];
+      setPhotos(newPhotos);
+      // Adjust cover index
+      if (coverImageIndex === index) {
+        setCoverImageIndex(index - 1);
+      } else if (coverImageIndex === index - 1) {
+        setCoverImageIndex(index);
+      }
+    }
+  };
+
+  const handleMoveDown = (index: number) => {
+    if (index < photos.length - 1) {
+      const newPhotos = [...photos];
+      [newPhotos[index], newPhotos[index + 1]] = [newPhotos[index + 1], newPhotos[index]];
+      setPhotos(newPhotos);
+      // Adjust cover index
+      if (coverImageIndex === index) {
+        setCoverImageIndex(index + 1);
+      } else if (coverImageIndex === index + 1) {
+        setCoverImageIndex(index);
+      }
     }
   };
 
@@ -423,6 +492,28 @@ export default function EditOwnerProperty() {
       const normalizedOldAccess = normalizeForComparison(oldAccessInfo);
       if (JSON.stringify(normalizedNewAccess) !== JSON.stringify(normalizedOldAccess)) {
         changedFields.accessInfo = { old: oldAccessInfo, new: newAccessInfo };
+      }
+
+      // Photos - consolidate all photos into primaryImages and clear secondary/images
+      const oldPhotos = [
+        ...(property?.primaryImages || []),
+        ...(property?.secondaryImages || []),
+        ...(property?.images || [])
+      ].filter((img, index, self) => img && self.indexOf(img) === index);
+      
+      if (JSON.stringify(photos) !== JSON.stringify(oldPhotos)) {
+        changedFields.primaryImages = { old: property?.primaryImages || [], new: photos };
+        // Clear secondary arrays since we're consolidating into primaryImages
+        if (property?.secondaryImages && property.secondaryImages.length > 0) {
+          changedFields.secondaryImages = { old: property.secondaryImages, new: [] };
+        }
+        if (property?.images && property.images.length > 0) {
+          changedFields.images = { old: property.images, new: [] };
+        }
+      }
+      
+      if (coverImageIndex !== (property?.coverImageIndex || 0)) {
+        changedFields.coverImageIndex = { old: property?.coverImageIndex || 0, new: coverImageIndex };
       }
 
       if (Object.keys(changedFields).length === 0) {
@@ -931,83 +1022,150 @@ export default function EditOwnerProperty() {
           <Card>
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
-                <Image className="w-5 h-5" />
+                <ImageIcon className="w-5 h-5" />
                 Galería de Fotos
               </CardTitle>
               <CardDescription>
-                Fotos actuales de la propiedad
+                Administra las fotos de tu propiedad
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
-              <div className="flex items-start gap-3 p-3 border border-yellow-500/50 bg-yellow-500/10 rounded-md">
-                <AlertCircle className="h-5 w-5 text-yellow-600 mt-0.5 flex-shrink-0" />
-                <div className="flex-1">
-                  <p className="text-sm font-medium">Edición de fotos no disponible</p>
-                  <p className="text-xs text-muted-foreground mt-1">
-                    Actualmente no es posible cambiar las fotos de propiedades existentes. 
-                    Para actualizar las fotos, por favor contacta al administrador o crea una nueva solicitud de propiedad.
-                  </p>
+              {photos.length === 0 ? (
+                <div className="text-center py-8">
+                  <ImageIcon className="w-12 h-12 mx-auto text-muted-foreground mb-3" />
+                  <p className="text-sm text-muted-foreground mb-4">No hay fotos agregadas</p>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={() => setShowAddPhoto(true)}
+                    data-testid="button-add-first-photo"
+                  >
+                    <Plus className="w-4 h-4 mr-2" />
+                    Agregar Primera Foto
+                  </Button>
                 </div>
-              </div>
-
-              {/* Mostrar fotos actuales */}
-              {property && (
-                <div>
-                  <h4 className="text-sm font-medium mb-3">Fotos Actuales</h4>
-                  {(() => {
-                    const allImages = [
-                      ...(property.primaryImages || []),
-                      ...(property.secondaryImages || []),
-                      ...(property.images || [])
-                    ].filter((img, index, self) => img && self.indexOf(img) === index);
-
-                    if (allImages.length === 0) {
-                      return (
-                        <p className="text-sm text-muted-foreground">No hay fotos disponibles</p>
-                      );
-                    }
-
-                    const coverImageUrl = property.primaryImages && property.coverImageIndex !== undefined && property.coverImageIndex < property.primaryImages.length
-                      ? property.primaryImages[property.coverImageIndex]
-                      : property.primaryImages && property.primaryImages.length > 0
-                      ? property.primaryImages[0]
-                      : null;
-
-                    return (
-                      <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
-                        {allImages.slice(0, 8).map((img, idx) => (
-                          <div
-                            key={idx}
-                            className="relative aspect-square rounded-md overflow-hidden bg-muted"
+              ) : (
+                <>
+                  <div className="space-y-3">
+                    {photos.map((photo, index) => (
+                      <div
+                        key={index}
+                        className="flex items-center gap-3 p-3 border rounded-md bg-card"
+                      >
+                        <img
+                          src={photo}
+                          alt={`Foto ${index + 1}`}
+                          className="w-16 h-16 object-cover rounded-md"
+                        />
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm font-medium truncate">{photo.split('/').pop()}</p>
+                          {index === coverImageIndex && (
+                            <Badge variant="secondary" className="text-xs mt-1">
+                              <Star className="w-3 h-3 mr-1" />
+                              Foto de Portada
+                            </Badge>
+                          )}
+                        </div>
+                        <div className="flex items-center gap-1">
+                          {index !== coverImageIndex && (
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              size="icon"
+                              onClick={() => handleSetCover(index)}
+                              title="Establecer como portada"
+                              data-testid={`button-set-cover-${index}`}
+                            >
+                              <Star className="w-4 h-4" />
+                            </Button>
+                          )}
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="icon"
+                            onClick={() => handleMoveUp(index)}
+                            disabled={index === 0}
+                            title="Mover arriba"
+                            data-testid={`button-move-up-${index}`}
                           >
-                            <img
-                              src={img}
-                              alt={`Foto ${idx + 1}`}
-                              className="w-full h-full object-cover"
-                            />
-                            {coverImageUrl && img === coverImageUrl && (
-                              <div className="absolute top-2 right-2">
-                                <Badge variant="secondary" className="text-xs">Portada</Badge>
-                              </div>
-                            )}
-                          </div>
-                        ))}
+                            <MoveUp className="w-4 h-4" />
+                          </Button>
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="icon"
+                            onClick={() => handleMoveDown(index)}
+                            disabled={index === photos.length - 1}
+                            title="Mover abajo"
+                            data-testid={`button-move-down-${index}`}
+                          >
+                            <MoveDown className="w-4 h-4" />
+                          </Button>
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="icon"
+                            onClick={() => handleRemovePhoto(index)}
+                            title="Eliminar"
+                            data-testid={`button-remove-photo-${index}`}
+                          >
+                            <Trash2 className="w-4 h-4 text-destructive" />
+                          </Button>
+                        </div>
                       </div>
-                    );
-                  })()}
-                  {property && [
-                    ...(property.primaryImages || []),
-                    ...(property.secondaryImages || []),
-                    ...(property.images || [])
-                  ].filter((img, index, self) => img && self.indexOf(img) === index).length > 8 && (
-                    <p className="text-xs text-muted-foreground mt-2">
-                      Y {[
-                        ...(property.primaryImages || []),
-                        ...(property.secondaryImages || []),
-                        ...(property.images || [])
-                      ].filter((img, index, self) => img && self.indexOf(img) === index).length - 8} fotos más...
-                    </p>
+                    ))}
+                  </div>
+
+                  {!showAddPhoto && (
+                    <Button
+                      type="button"
+                      variant="outline"
+                      className="w-full"
+                      onClick={() => setShowAddPhoto(true)}
+                      data-testid="button-add-photo"
+                    >
+                      <Plus className="w-4 h-4 mr-2" />
+                      Agregar Foto
+                    </Button>
                   )}
+                </>
+              )}
+
+              {showAddPhoto && (
+                <div className="space-y-3 p-4 border rounded-md bg-muted/50">
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium">URL de la Foto</label>
+                    <Input
+                      value={newPhotoUrl}
+                      onChange={(e) => setNewPhotoUrl(e.target.value)}
+                      placeholder="/attached_assets/stock_images/..."
+                      data-testid="input-photo-url"
+                    />
+                    <p className="text-xs text-muted-foreground">
+                      Ingresa la URL de una foto (ejemplo: /attached_assets/stock_images/luxury_beach_house_m_0f2a3d45.jpg)
+                    </p>
+                  </div>
+                  <div className="flex gap-2">
+                    <Button
+                      type="button"
+                      onClick={handleAddPhoto}
+                      disabled={!newPhotoUrl.trim()}
+                      data-testid="button-confirm-add-photo"
+                    >
+                      Agregar
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      onClick={() => {
+                        setShowAddPhoto(false);
+                        setNewPhotoUrl("");
+                      }}
+                      data-testid="button-cancel-add-photo"
+                    >
+                      Cancelar
+                    </Button>
+                  </div>
                 </div>
               )}
             </CardContent>
