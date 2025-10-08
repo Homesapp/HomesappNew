@@ -2156,22 +2156,33 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.post("/api/colonies", isAuthenticated, async (req: any, res) => {
     try {
-      const user = await ensureUserExists(req);
+      let userId: string;
+      let isAdmin: boolean;
+      let userRole: string | null = null;
 
-      if (!user) {
-        return res.status(401).json({ message: "Usuario no encontrado" });
+      // Check if it's an admin session (from admin_users table)
+      if (req.session?.adminUser) {
+        userId = req.session.adminUser.id;
+        userRole = req.session.adminUser.role;
+        isAdmin = ["master", "admin"].includes(userRole);
+      } else {
+        // Regular user from Replit Auth
+        const user = await ensureUserExists(req);
+        if (!user) {
+          return res.status(401).json({ message: "Usuario no encontrado" });
+        }
+        userId = user.id;
+        userRole = user.role;
+        isAdmin = user.role === "master" || user.role === "admin" || user.additionalRole === "admin";
       }
-
-      const userId = user.id;
-      const isAdmin = user.role === "master" || user.role === "admin" || user.additionalRole === "admin";
       
       // Admins can create directly, owners need to suggest with limits
-      if (!isAdmin && user.role !== "owner") {
+      if (!isAdmin && userRole !== "owner") {
         return res.status(403).json({ message: "Solo los propietarios y administradores pueden crear colonias" });
       }
 
       // Check suggestion limits only for non-admin owners
-      if (!isAdmin && user.role === "owner") {
+      if (!isAdmin && userRole === "owner") {
         const todaySuggestions = await storage.getUserSuggestionsCount(userId, 'today');
         const totalSuggestions = await storage.getUserSuggestionsCount(userId, 'total');
 
@@ -2443,22 +2454,33 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.post("/api/condominiums", isAuthenticated, async (req: any, res) => {
     try {
-      const user = await ensureUserExists(req);
-      
-      if (!user) {
-        return res.status(401).json({ message: "Usuario no encontrado" });
-      }
+      let userId: string;
+      let isAdmin: boolean;
+      let userRole: string | null = null;
 
-      const userId = user.id;
-      const isAdmin = user.role === "master" || user.role === "admin" || user.additionalRole === "admin";
+      // Check if it's an admin session (from admin_users table)
+      if (req.session?.adminUser) {
+        userId = req.session.adminUser.id;
+        userRole = req.session.adminUser.role;
+        isAdmin = ["master", "admin"].includes(userRole);
+      } else {
+        // Regular user from Replit Auth
+        const user = await ensureUserExists(req);
+        if (!user) {
+          return res.status(401).json({ message: "Usuario no encontrado" });
+        }
+        userId = user.id;
+        userRole = user.role;
+        isAdmin = user.role === "master" || user.role === "admin" || user.additionalRole === "admin";
+      }
       
       // Admins can create directly, owners need to suggest with limits
-      if (!isAdmin && user.role !== "owner") {
+      if (!isAdmin && userRole !== "owner") {
         return res.status(403).json({ message: "Solo los propietarios y administradores pueden crear condominios" });
       }
 
       // Check suggestion limits only for non-admin owners
-      if (!isAdmin && user.role === "owner") {
+      if (!isAdmin && userRole === "owner") {
         const todaySuggestions = await storage.getUserSuggestionsCount(userId, 'today');
         const totalSuggestions = await storage.getUserSuggestionsCount(userId, 'total');
 
@@ -2958,22 +2980,33 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.post("/api/amenities", isAuthenticated, async (req: any, res) => {
     try {
-      const user = await ensureUserExists(req);
+      let userId: string;
+      let isAdmin: boolean;
+      let userRole: string | null = null;
 
-      if (!user) {
-        return res.status(401).json({ message: "Usuario no encontrado" });
+      // Check if it's an admin session (from admin_users table)
+      if (req.session?.adminUser) {
+        userId = req.session.adminUser.id;
+        userRole = req.session.adminUser.role;
+        isAdmin = ["master", "admin"].includes(userRole);
+      } else {
+        // Regular user from Replit Auth
+        const user = await ensureUserExists(req);
+        if (!user) {
+          return res.status(401).json({ message: "Usuario no encontrado" });
+        }
+        userId = user.id;
+        userRole = user.role;
+        isAdmin = user.role === "master" || user.role === "admin" || user.additionalRole === "admin";
       }
-
-      const userId = user.id;
-      const isAdmin = user.role === "master" || user.role === "admin" || user.additionalRole === "admin";
       
       // Admins can create directly, owners need to suggest with limits
-      if (!isAdmin && user.role !== "owner") {
+      if (!isAdmin && userRole !== "owner") {
         return res.status(403).json({ message: "Solo los propietarios y administradores pueden crear amenidades" });
       }
 
       // Check suggestion limits only for non-admin owners
-      if (!isAdmin && user.role === "owner") {
+      if (!isAdmin && userRole === "owner") {
         const todaySuggestions = await storage.getUserSuggestionsCount(userId, 'today');
         const totalSuggestions = await storage.getUserSuggestionsCount(userId, 'total');
 
