@@ -73,7 +73,19 @@ The schema includes:
 ### Key Features and Workflows
 *   **Dual-Type Appointment Scheduling**: Supports individual and tour slots with admin-configurable business hours.
 *   **Appointment Reschedule Workflow**: Owner-initiated reschedule requests with client approval/rejection flow. When owner requests reschedule, client can approve (appointment date changes) or reject (appointment auto-cancels). Calendar uses color coding: green (approved), red (cancelled), yellow (rescheduled). Archiving system keeps approved appointments visible; only completed/cancelled appointments are archived.
-*   **Property Management**: Includes property approval workflow, owner change requests, auto-approval settings, sublease functionality, pet-friendly indicators, and custom listing titles for better property identification.
+*   **Property Approval Workflow (2025-10-08)**: Redesigned multi-stage approval process with controlled editing permissions:
+    - **States**: draft → pending_review → accepted → documents_validated → inspection_scheduled → inspection_completed → approved → published
+    - **Editing Rules**: Owners can freely edit properties in draft, pending_review, and changes_requested states. Once admin accepts (moves to "accepted"), all future edits require change requests with admin approval.
+    - **Admin Actions**:
+      1. Accept property (draft/pending_review → accepted)
+      2. Validate documents (accepted → documents_validated)
+      3. Schedule inspection (documents_validated → inspection_scheduled) - Creates inspection report, assigns concierge
+      4. Approve without inspection (documents_validated → approved) - For trusted properties, creates "skipped" inspection record
+      5. Final approval (inspection_completed → approved) - After concierge inspection
+      6. Publish (approved → published) - Makes property live on platform
+    - **Concierge Inspection**: Extended feedback system captures structural condition, cleanliness, utilities, security, amenities, documentation review, and recommendations
+    - **API Endpoints**: 7 new endpoints enforce state transitions with audit logging and role-based access control
+*   **Property Management**: Includes owner change requests, auto-approval settings, sublease functionality, pet-friendly indicators, and custom listing titles for better property identification.
 *   **Property Staff & Task Management**: System for assigning staff to properties with role-based assignments and task tracking.
 *   **Property Submission**: A 5-step wizard with draft saving, digital agreement signing, and integration with approved condominiums. Supports optional custom listing titles for private houses.
 *   **Condominium & Colony Workflow**: User-suggested condominiums/colonies require admin approval, with pre-approved Tulum condominiums.
