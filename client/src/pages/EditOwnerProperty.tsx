@@ -48,7 +48,9 @@ import {
   X,
   User,
   Lock,
-  Shield
+  Shield,
+  Image,
+  AlertCircle
 } from "lucide-react";
 import type { Property, Colony, Condominium } from "@shared/schema";
 
@@ -922,6 +924,92 @@ export default function EditOwnerProperty() {
                   })}
                 </div>
               </div>
+            </CardContent>
+          </Card>
+
+          {/* Galería de Fotos */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Image className="w-5 h-5" />
+                Galería de Fotos
+              </CardTitle>
+              <CardDescription>
+                Fotos actuales de la propiedad
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="flex items-start gap-3 p-3 border border-yellow-500/50 bg-yellow-500/10 rounded-md">
+                <AlertCircle className="h-5 w-5 text-yellow-600 mt-0.5 flex-shrink-0" />
+                <div className="flex-1">
+                  <p className="text-sm font-medium">Edición de fotos no disponible</p>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    Actualmente no es posible cambiar las fotos de propiedades existentes. 
+                    Para actualizar las fotos, por favor contacta al administrador o crea una nueva solicitud de propiedad.
+                  </p>
+                </div>
+              </div>
+
+              {/* Mostrar fotos actuales */}
+              {property && (
+                <div>
+                  <h4 className="text-sm font-medium mb-3">Fotos Actuales</h4>
+                  {(() => {
+                    const allImages = [
+                      ...(property.primaryImages || []),
+                      ...(property.secondaryImages || []),
+                      ...(property.images || [])
+                    ].filter((img, index, self) => img && self.indexOf(img) === index);
+
+                    if (allImages.length === 0) {
+                      return (
+                        <p className="text-sm text-muted-foreground">No hay fotos disponibles</p>
+                      );
+                    }
+
+                    const coverImageUrl = property.primaryImages && property.coverImageIndex !== undefined && property.coverImageIndex < property.primaryImages.length
+                      ? property.primaryImages[property.coverImageIndex]
+                      : property.primaryImages && property.primaryImages.length > 0
+                      ? property.primaryImages[0]
+                      : null;
+
+                    return (
+                      <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
+                        {allImages.slice(0, 8).map((img, idx) => (
+                          <div
+                            key={idx}
+                            className="relative aspect-square rounded-md overflow-hidden bg-muted"
+                          >
+                            <img
+                              src={img}
+                              alt={`Foto ${idx + 1}`}
+                              className="w-full h-full object-cover"
+                            />
+                            {coverImageUrl && img === coverImageUrl && (
+                              <div className="absolute top-2 right-2">
+                                <Badge variant="secondary" className="text-xs">Portada</Badge>
+                              </div>
+                            )}
+                          </div>
+                        ))}
+                      </div>
+                    );
+                  })()}
+                  {property && [
+                    ...(property.primaryImages || []),
+                    ...(property.secondaryImages || []),
+                    ...(property.images || [])
+                  ].filter((img, index, self) => img && self.indexOf(img) === index).length > 8 && (
+                    <p className="text-xs text-muted-foreground mt-2">
+                      Y {[
+                        ...(property.primaryImages || []),
+                        ...(property.secondaryImages || []),
+                        ...(property.images || [])
+                      ].filter((img, index, self) => img && self.indexOf(img) === index).length - 8} fotos más...
+                    </p>
+                  )}
+                </div>
+              )}
             </CardContent>
           </Card>
 
