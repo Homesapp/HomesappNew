@@ -372,8 +372,12 @@ export default function MyProperties() {
               >
                 <div className="flex items-center gap-3 p-3">
                   <div 
-                    className="w-20 h-20 relative overflow-hidden bg-muted rounded-md flex-shrink-0 cursor-pointer"
-                    onClick={() => setLocation(`/owner/property/${property.id}`)}
+                    className={`w-20 h-20 relative overflow-hidden bg-muted rounded-md flex-shrink-0 ${(property as any).isDraft ? 'cursor-not-allowed opacity-50' : 'cursor-pointer'}`}
+                    onClick={() => {
+                      if (!(property as any).isDraft) {
+                        setLocation(`/owner/property/${property.id}`);
+                      }
+                    }}
                   >
                     {property.images && property.images.length > 0 ? (
                       <img
@@ -391,8 +395,12 @@ export default function MyProperties() {
                   <div className="flex-1 min-w-0">
                     <div className="flex items-start justify-between gap-2 mb-1">
                       <h3 
-                        className="font-semibold line-clamp-1 cursor-pointer hover:text-primary"
-                        onClick={() => setLocation(`/owner/property/${property.id}`)}
+                        className={`font-semibold line-clamp-1 ${(property as any).isDraft ? 'cursor-not-allowed opacity-75' : 'cursor-pointer hover:text-primary'}`}
+                        onClick={() => {
+                          if (!(property as any).isDraft) {
+                            setLocation(`/owner/property/${property.id}`);
+                          }
+                        }}
                         data-testid={`text-property-title-${property.id}`}
                       >
                         {property.title}
