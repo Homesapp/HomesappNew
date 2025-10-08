@@ -845,7 +845,17 @@ export const properties = pgTable("properties", {
   acceptedLeaseDurations: text("accepted_lease_durations").array().default(sql`ARRAY[]::text[]`), // Duraciones de contrato aceptadas
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
-});
+}, (table) => [
+  // Performance indexes for frequently queried fields
+  index("idx_properties_status").on(table.status),
+  index("idx_properties_owner_id").on(table.ownerId),
+  index("idx_properties_active").on(table.active),
+  index("idx_properties_created_at").on(table.createdAt),
+  index("idx_properties_approval_status").on(table.approvalStatus),
+  // Composite indexes for common query patterns
+  index("idx_properties_active_status").on(table.active, table.status),
+  index("idx_properties_active_published").on(table.active, table.published),
+]);
 
 // Schema for property access information
 const accessInfoSchema = z.discriminatedUnion("accessType", [
@@ -1249,7 +1259,16 @@ export const appointments = pgTable("appointments", {
   
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
-});
+}, (table) => [
+  // Performance indexes for frequently queried fields
+  index("idx_appointments_date").on(table.date),
+  index("idx_appointments_status").on(table.status),
+  index("idx_appointments_client_id").on(table.clientId),
+  index("idx_appointments_property_id").on(table.propertyId),
+  index("idx_appointments_concierge_id").on(table.conciergeId),
+  // Composite indexes for common query patterns
+  index("idx_appointments_status_date").on(table.status, table.date),
+]);
 
 export const insertAppointmentSchema = createInsertSchema(appointments).omit({
   id: true,
@@ -2396,7 +2415,17 @@ export const incomeTransactions = pgTable("income_transactions", {
   rejectionReason: text("rejection_reason"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
-});
+}, (table) => [
+  // Performance indexes for frequently queried fields
+  index("idx_income_transactions_beneficiary_id").on(table.beneficiaryId),
+  index("idx_income_transactions_property_id").on(table.propertyId),
+  index("idx_income_transactions_category").on(table.category),
+  index("idx_income_transactions_status").on(table.status),
+  index("idx_income_transactions_created_at").on(table.createdAt),
+  // Composite indexes for common query patterns  
+  index("idx_income_transactions_status_beneficiary").on(table.status, table.beneficiaryId),
+  index("idx_income_transactions_category_status").on(table.category, table.status),
+]);
 
 export const insertIncomeTransactionSchema = createInsertSchema(incomeTransactions).omit({
   id: true,
