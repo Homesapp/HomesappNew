@@ -15,6 +15,8 @@ import { handleGenericError, handleZodError } from "./errorHandling";
 import bcrypt from "bcryptjs";
 import crypto from "crypto";
 import { z } from "zod";
+import { format } from "date-fns";
+import { es } from "date-fns/locale";
 import {
   insertPropertySchema,
   insertAppointmentSchema,

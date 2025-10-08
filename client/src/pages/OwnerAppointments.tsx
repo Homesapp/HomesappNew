@@ -14,7 +14,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { useToast } from "@/hooks/use-toast";
 import { queryClient, apiRequest } from "@/lib/queryClient";
-import { CheckCircle2, XCircle, Clock, Calendar as CalendarIcon, MapPin, User, Settings, Filter, ChevronDown, ChevronRight, Phone, Mail, Globe, CreditCard, MessageCircle, Star, Eye, CalendarClock } from "lucide-react";
+import { CheckCircle2, XCircle, Clock, Calendar as CalendarIcon, MapPin, User, Settings, Filter, ChevronDown, ChevronRight, Phone, Mail, Globe, CreditCard, MessageCircle, Star, Eye, CalendarClock, UserCircle } from "lucide-react";
 import { format, startOfWeek, endOfWeek, eachDayOfInterval, isWithinInterval, startOfDay, endOfDay, addWeeks, subWeeks, isSameDay } from "date-fns";
 import { es } from "date-fns/locale";
 import type { Appointment, Property, OwnerSettings } from "@shared/schema";
@@ -846,27 +846,39 @@ export default function OwnerAppointments() {
                         </div>
                       </div>
                       
-                      {appointment.ownerApprovalStatus === "pending" && (
-                        <div className="flex gap-2 flex-shrink-0" onClick={(e) => e.stopPropagation()}>
+                      <div className="flex gap-2 flex-shrink-0" onClick={(e) => e.stopPropagation()}>
+                        {appointment.ownerApprovalStatus === "pending" ? (
+                          <>
+                            <Button
+                              size="sm"
+                              onClick={() => handleOpenReview(appointment, "approve")}
+                              data-testid={`button-approve-${appointment.id}`}
+                            >
+                              <CheckCircle2 className="w-4 h-4 mr-1" />
+                              Aprobar
+                            </Button>
+                            <Button
+                              size="sm"
+                              variant="destructive"
+                              onClick={() => handleOpenReview(appointment, "reject")}
+                              data-testid={`button-reject-${appointment.id}`}
+                            >
+                              <XCircle className="w-4 h-4 mr-1" />
+                              Rechazar
+                            </Button>
+                          </>
+                        ) : appointment.ownerApprovalStatus === "approved" && appointment.rescheduleStatus === "none" && (
                           <Button
                             size="sm"
-                            onClick={() => handleOpenReview(appointment, "approve")}
-                            data-testid={`button-approve-${appointment.id}`}
+                            variant="outline"
+                            onClick={() => handleOpenReschedule(appointment)}
+                            data-testid={`button-reschedule-${appointment.id}`}
                           >
-                            <CheckCircle2 className="w-4 h-4 mr-1" />
-                            Aprobar
+                            <CalendarClock className="w-4 h-4 mr-1" />
+                            Reprogramar
                           </Button>
-                          <Button
-                            size="sm"
-                            variant="destructive"
-                            onClick={() => handleOpenReview(appointment, "reject")}
-                            data-testid={`button-reject-${appointment.id}`}
-                          >
-                            <XCircle className="w-4 h-4 mr-1" />
-                            Rechazar
-                          </Button>
-                        </div>
-                      )}
+                        )}
+                      </div>
                     </div>
                   </div>
                 </Card>
