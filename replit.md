@@ -39,6 +39,7 @@ Performance is optimized with 20 B-tree indexes for critical tables (Properties,
 *   **Property Submission**: A 5-step wizard with draft saving, digital agreement signing, and integration with approved condominiums.
 *   **Condominium & Colony Workflow**: User-suggested condominiums/colonies require admin approval.
 *   **Client Dashboard**: Personalized overview with stats, quick actions, and Google Calendar integration.
+*   **Enhanced Owner Dashboard**: Comprehensive dashboard with automated financial reporting (total earnings, paid/pending amounts, category breakdown) and preventive maintenance calendar (30-day view with urgency indicators). Integrates `/api/income/my-summary` and `/api/owner/maintenance-schedules` endpoints.
 *   **User Experience**: Features Airbnb-style role switching, full i18n support, WebSocket-based real-time chat, enhanced presentation cards, granular email notification preferences, and streamlined navigation.
 *   **Notification System**: Dual-channel (in-app and email) with configurable categories and SLA tracking.
 *   **Admin CRUD System**: Full create/read/update/delete capabilities for condominiums, colonies, amenities, and property features. Includes an Admin Draft Management System for comprehensive visualization and filtering of property drafts.
