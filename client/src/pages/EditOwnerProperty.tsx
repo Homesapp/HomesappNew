@@ -147,7 +147,6 @@ export default function EditOwnerProperty() {
   const [additionalServices, setAdditionalServices] = useState<AdditionalService[]>([]);
   const [photos, setPhotos] = useState<string[]>([]);
   const [coverImageIndex, setCoverImageIndex] = useState(0);
-  const [newPhotoUrl, setNewPhotoUrl] = useState("");
   const [showAddPhoto, setShowAddPhoto] = useState(false);
 
   const { data: property, isLoading } = useQuery<Property>({
@@ -318,11 +317,36 @@ export default function EditOwnerProperty() {
   };
 
   // Photo management functions
-  const handleAddPhoto = () => {
-    if (newPhotoUrl.trim()) {
-      setPhotos([...photos, newPhotoUrl.trim()]);
-      setNewPhotoUrl("");
+  const handleAddPhoto = async (file: File) => {
+    if (!file) return;
+
+    const formData = new FormData();
+    formData.append('photo', file);
+
+    try {
+      const response = await fetch('/api/upload/property-photo', {
+        method: 'POST',
+        body: formData,
+      });
+
+      if (!response.ok) {
+        throw new Error('Error al subir la foto');
+      }
+
+      const data = await response.json();
+      setPhotos([...photos, data.url]);
       setShowAddPhoto(false);
+      toast({
+        title: "Foto agregada",
+        description: "La foto se agregó correctamente",
+      });
+    } catch (error) {
+      console.error('Error uploading photo:', error);
+      toast({
+        title: "Error",
+        description: "No se pudo subir la foto",
+        variant: "destructive",
+      });
     }
   };
 
@@ -1134,33 +1158,27 @@ export default function EditOwnerProperty() {
               {showAddPhoto && (
                 <div className="space-y-3 p-4 border rounded-md bg-muted/50">
                   <div className="space-y-2">
-                    <label className="text-sm font-medium">URL de la Foto</label>
+                    <label className="text-sm font-medium">Seleccionar Foto</label>
                     <Input
-                      value={newPhotoUrl}
-                      onChange={(e) => setNewPhotoUrl(e.target.value)}
-                      placeholder="/attached_assets/stock_images/..."
-                      data-testid="input-photo-url"
+                      type="file"
+                      accept="image/jpeg,image/jpg,image/png,image/webp"
+                      onChange={(e) => {
+                        const file = e.target.files?.[0];
+                        if (file) {
+                          handleAddPhoto(file);
+                        }
+                      }}
+                      data-testid="input-photo-file"
                     />
                     <p className="text-xs text-muted-foreground">
-                      Ingresa la URL de una foto (ejemplo: /attached_assets/stock_images/luxury_beach_house_m_0f2a3d45.jpg)
+                      Selecciona una imagen (JPG, PNG o WEBP, máximo 10MB)
                     </p>
                   </div>
                   <div className="flex gap-2">
                     <Button
                       type="button"
-                      onClick={handleAddPhoto}
-                      disabled={!newPhotoUrl.trim()}
-                      data-testid="button-confirm-add-photo"
-                    >
-                      Agregar
-                    </Button>
-                    <Button
-                      type="button"
                       variant="outline"
-                      onClick={() => {
-                        setShowAddPhoto(false);
-                        setNewPhotoUrl("");
-                      }}
+                      onClick={() => setShowAddPhoto(false)}
                       data-testid="button-cancel-add-photo"
                     >
                       Cancelar
