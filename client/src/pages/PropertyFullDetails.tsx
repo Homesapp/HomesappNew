@@ -65,11 +65,11 @@ export default function PropertyFullDetails() {
         <div className="lg:col-span-2">
           <Card className="mb-6">
             <div className="relative">
-              {property.images && property.images.length > 0 ? (
+              {property.primaryImages && property.primaryImages.length > 0 ? (
                 <div className="space-y-4">
                   <div className="h-96 bg-muted relative overflow-hidden rounded-t-lg">
                     <img
-                      src={property.images[0]}
+                      src={property.primaryImages[0]}
                       alt={property.title}
                       className="w-full h-full object-cover"
                     />
@@ -77,9 +77,9 @@ export default function PropertyFullDetails() {
                       <Badge className="absolute top-4 right-4">Destacada</Badge>
                     )}
                   </div>
-                  {property.images.length > 1 && (
+                  {property.primaryImages.length > 1 && (
                     <div className="grid grid-cols-4 gap-2 px-4 pb-4">
-                      {property.images.slice(1, 5).map((img, idx) => (
+                      {property.primaryImages.slice(1, 5).map((img, idx) => (
                         <div key={idx} className="h-24 bg-muted rounded-md overflow-hidden">
                           <img src={img} alt={`Vista ${idx + 2}`} className="w-full h-full object-cover" />
                         </div>

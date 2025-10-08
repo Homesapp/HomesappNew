@@ -284,9 +284,9 @@ export default function Dashboard() {
                   data-testid={`card-featured-${property.id}`}
                 >
                   <div className="relative h-56 overflow-hidden">
-                    {property.images && property.images.length > 0 ? (
+                    {property.primaryImages && property.primaryImages.length > 0 ? (
                       <img
-                        src={property.images[0]}
+                        src={property.primaryImages[0]}
                         alt={property.title}
                         className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-300"
                         data-testid={`img-featured-property-${property.id}`}
@@ -388,9 +388,9 @@ export default function Dashboard() {
                   data-testid={`card-all-${property.id}`}
                 >
                   <div className="relative h-48 overflow-hidden">
-                    {property.images && property.images.length > 0 ? (
+                    {property.primaryImages && property.primaryImages.length > 0 ? (
                       <img
-                        src={property.images[0]}
+                        src={property.primaryImages[0]}
                         alt={property.title}
                         className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-300"
                         data-testid={`img-all-property-${property.id}`}
