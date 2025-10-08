@@ -3712,7 +3712,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       // Verify user owns the property
       const property = await storage.getProperty(appointment.propertyId);
+      
+      console.log(`[APPROVE DEBUG] userId: ${userId}, property.ownerId: ${property?.ownerId}, user.role: ${user.role}`);
+      
       if (!property || (property.ownerId !== userId && !["admin", "admin_jr", "master"].includes(user.role))) {
+        console.log(`[APPROVE DEBUG] Permission denied - property exists: ${!!property}, userId matches: ${property?.ownerId === userId}, is admin: ${["admin", "admin_jr", "master"].includes(user.role)}`);
         return res.status(403).json({ message: "No tienes permisos para aprobar esta cita" });
       }
 

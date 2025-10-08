@@ -140,14 +140,25 @@ export default function OwnerAppointments() {
   const getPropertyDisplay = (property?: Property): string => {
     if (!property) return "Propiedad";
     
+    // If it's a condominium with unit number
     if (property.condoName && property.unitNumber) {
       return `${property.condoName} - Unidad ${property.unitNumber}`;
     } else if (property.condoName) {
       return property.condoName;
     } else if (property.unitNumber) {
+      // Has unit number but no condominium name
+      if (property.customListingTitle) {
+        return `${property.customListingTitle} - Unidad ${property.unitNumber}`;
+      }
       return `${property.title} - Unidad ${property.unitNumber}`;
     }
     
+    // If it's a private house with custom listing title (nombre de la casa)
+    if (property.customListingTitle) {
+      return property.customListingTitle;
+    }
+    
+    // Fallback to regular title
     return property.title || "Propiedad";
   };
 

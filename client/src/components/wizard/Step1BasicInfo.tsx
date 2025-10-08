@@ -15,6 +15,7 @@ const step1Schema = z.object({
   isForRent: z.boolean(),
   isForSale: z.boolean(),
   title: z.string().min(5, "El título debe tener al menos 5 caracteres"),
+  customListingTitle: z.string().max(60, "El nombre no puede exceder 60 caracteres").optional().or(z.literal("")),
   description: z.string().min(20, "La descripción debe tener al menos 20 caracteres"),
   propertyType: z.string().min(1, "Selecciona un tipo de propiedad"),
   price: z.string().min(1, "El precio es requerido"),
@@ -38,6 +39,7 @@ export default function Step1BasicInfo({ data, onUpdate, onNext }: Step1Props) {
       isForRent: data.isForRent || false,
       isForSale: data.isForSale || false,
       title: data.basicInfo?.title || "",
+      customListingTitle: data.basicInfo?.customListingTitle || "",
       description: data.basicInfo?.description || "",
       propertyType: data.basicInfo?.propertyType || "house",
       price: data.basicInfo?.price || "",
@@ -50,6 +52,7 @@ export default function Step1BasicInfo({ data, onUpdate, onNext }: Step1Props) {
       isForSale: formData.isForSale,
       basicInfo: {
         title: formData.title,
+        customListingTitle: formData.customListingTitle && formData.customListingTitle.trim() !== "" ? formData.customListingTitle : undefined,
         description: formData.description,
         propertyType: formData.propertyType,
         price: formData.price,
@@ -177,6 +180,28 @@ export default function Step1BasicInfo({ data, onUpdate, onNext }: Step1Props) {
                       data-testid="input-title"
                     />
                   </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
+            <FormField
+              control={form.control}
+              name="customListingTitle"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Nombre de la Casa (Opcional)</FormLabel>
+                  <FormControl>
+                    <Input
+                      placeholder="Ej: Casa del Mar, Villa Aurora, etc."
+                      maxLength={60}
+                      {...field}
+                      data-testid="input-custom-listing-title"
+                    />
+                  </FormControl>
+                  <p className="text-xs text-muted-foreground">
+                    Este nombre aparecerá en las citas y listados. Solo para casas privadas (no condominios).
+                  </p>
                   <FormMessage />
                 </FormItem>
               )}

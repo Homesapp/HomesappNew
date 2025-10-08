@@ -3,7 +3,7 @@ import { Link } from "wouter";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Building2, Calendar, FileEdit, CheckCircle2, AlertCircle, Clock, ArrowRight, Users } from "lucide-react";
+import { Building2, Calendar, FileEdit, CheckCircle2, AlertCircle, Clock, ArrowRight, Users, MessageSquare } from "lucide-react";
 import type { Property, PropertyChangeRequest, Appointment } from "@shared/schema";
 import { useAuth } from "@/hooks/useAuth";
 
@@ -354,7 +354,7 @@ export default function OwnerDashboard() {
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <div className="grid gap-3 md:grid-cols-2 lg:grid-cols-3">
+          <div className="grid gap-3 md:grid-cols-2 lg:grid-cols-4">
             <Link href="/mis-propiedades">
               <Button className="w-full justify-start gap-2" variant="outline" data-testid="button-my-properties">
                 <Building2 className="h-4 w-4" />
@@ -371,6 +371,12 @@ export default function OwnerDashboard() {
               <Button className="w-full justify-start gap-2" variant="outline" data-testid="button-search">
                 <Building2 className="h-4 w-4" />
                 Buscar propiedades
+              </Button>
+            </Link>
+            <Link href="/feedback">
+              <Button className="w-full justify-start gap-2" variant="outline" data-testid="button-feedback">
+                <MessageSquare className="h-4 w-4" />
+                Reportar Bug/Sugerencia
               </Button>
             </Link>
           </div>
