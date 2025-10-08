@@ -231,6 +231,7 @@ export function UserProfileDialog({ user, open, onOpenChange }: UserProfileDialo
   const fullName = `${user.firstName || ""} ${user.lastName || ""}`.trim() || "Usuario";
   const initials = `${user.firstName?.[0] || ""}${user.lastName?.[0] || ""}`.toUpperCase() || "U";
 
+  const isAdmin = currentUser?.role === "master" || currentUser?.role === "admin" || currentUser?.additionalRole === "admin";
   const canChangeRole = currentUser?.role === "master";
 
   const availableRoles = [
@@ -690,7 +691,7 @@ export function UserProfileDialog({ user, open, onOpenChange }: UserProfileDialo
                 </Card>
               )}
               
-              {(currentUser?.role === "master" || currentUser?.role === "admin") && (
+              {isAdmin && (
                 <Card>
                   <CardHeader>
                     <CardTitle className="text-sm flex items-center gap-2">
