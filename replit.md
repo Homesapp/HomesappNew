@@ -9,6 +9,7 @@ HomesApp is a comprehensive SaaS platform designed to streamline real estate pro
   - Fixed chat conversations API error: Removed non-existent `appointmentId` field from Drizzle query and added missing fields (`rentalApplicationId`, `createdById`, `updatedAt`) to match schema
   - Fixed AdminChangeRequests page crash: Added null safety check for `changes` object before accessing `.old` and `.new` properties
   - Added missing `getAdminById` function to storage interface and implementation to support admin profile retrieval
+  - **Fixed Property Change Request Data Format**: Updated EditOwnerProperty to save changedFields with proper `{ old, new }` structure instead of just new values, and updated backend approval logic to extract `new` values with backward compatibility for legacy format
 
 - **Owner Property Details Complete Redesign**:
   - Comprehensive information display with organized sections: property stats, location details (condominium/colony/unit/maps), amenities grid, included services (water/electricity/internet with provider/cost details), additional services section, access information, and lease durations
