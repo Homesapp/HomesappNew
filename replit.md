@@ -4,6 +4,10 @@
 HomesApp is a comprehensive SaaS platform designed to streamline real estate property management, with a specific focus on the Tulum, Quintana Roo market. It supports various user roles (master, admin, seller, owner, client) and offers features such as property management, dual-type appointment scheduling, client presentations, service coordination, and offer processing. The platform aims to provide a professional, data-rich user experience with role-based access, Google Calendar integration, configurable business hours, a service provider marketplace, digital agreement signing for property submissions, and a robust back office for offer management. The overarching goal is to dominate the real estate property management sector in Tulum.
 
 ## Recent Changes
+### October 8, 2025
+- **Critical Bug Fixes**:
+  - Fixed OwnerPropertyDetails crash: Expanded `approvalStatusLabels`, `approvalStatusColors`, and `approvalStatusIcons` records to include all 8 values from `propertyApprovalStatusEnum` (draft, pending_review, inspection_scheduled, inspection_completed, approved, published, changes_requested, rejected) to prevent undefined StatusIcon component
+
 ### October 7, 2025
 - **Critical Bug Fixes**:
   - Fixed chat conversations API error: Removed non-existent `appointmentId` field from Drizzle query and added missing fields (`rentalApplicationId`, `createdById`, `updatedAt`) to match schema
