@@ -449,6 +449,12 @@ export const healthScoreStatusEnum = pgEnum("health_score_status", [
   "critical",    // 0-29
 ]);
 
+// Suspension Type Enum
+export const suspensionTypeEnum = pgEnum("suspension_type", [
+  "temporary",   // Temporal
+  "permanent",   // Permanente
+]);
+
 // Users table (required for Replit Auth + extended fields)
 export const users = pgTable("users", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
@@ -484,6 +490,12 @@ export const users = pgTable("users", {
   bankAddress: text("bank_address"),
   customClientReferralPercent: decimal("custom_client_referral_percent", { precision: 5, scale: 2 }), // Custom % for client referrals (overrides global)
   customOwnerReferralPercent: decimal("custom_owner_referral_percent", { precision: 5, scale: 2 }), // Custom % for owner referrals (overrides global)
+  isSuspended: boolean("is_suspended").notNull().default(false),
+  suspensionType: suspensionTypeEnum("suspension_type"),
+  suspensionReason: text("suspension_reason"),
+  suspensionEndDate: timestamp("suspension_end_date"),
+  suspendedAt: timestamp("suspended_at"),
+  suspendedById: varchar("suspended_by_id").references((): any => users.id),
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });
@@ -586,6 +598,23 @@ export const resetPasswordSchema = z.object({
 });
 
 export type ResetPassword = z.infer<typeof resetPasswordSchema>;
+
+// Suspend user schema
+export const suspendUserSchema = z.object({
+  userId: z.string().min(1, "User ID es requerido"),
+  suspensionType: z.enum(["temporary", "permanent"]),
+  reason: z.string().min(1, "La razón es requerida"),
+  endDate: z.string().optional(), // ISO date string for temporary suspension
+});
+
+export type SuspendUser = z.infer<typeof suspendUserSchema>;
+
+// Unsuspend user schema
+export const unsuspendUserSchema = z.object({
+  userId: z.string().min(1, "User ID es requerido"),
+});
+
+export type UnsuspendUser = z.infer<typeof unsuspendUserSchema>;
 
 export const acceptCommissionTermsSchema = z.object({
   accepted: z.boolean().refine((val) => val === true, {
