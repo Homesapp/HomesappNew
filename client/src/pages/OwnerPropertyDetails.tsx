@@ -45,6 +45,7 @@ import {
   Flame,
   Check,
   X as XIcon,
+  Images,
 } from "lucide-react";
 import {
   AlertDialog,
@@ -57,6 +58,13 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
 import { PropertyStaffManagement } from "@/components/PropertyStaffManagement";
 import { PropertyVisits } from "@/components/PropertyVisits";
 import type { Property } from "@shared/schema";
@@ -110,6 +118,8 @@ export default function OwnerPropertyDetails() {
   const [_, setLocation] = useLocation();
   const { toast } = useToast();
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
+  const [isGalleryOpen, setIsGalleryOpen] = useState(false);
+  const [modalImageIndex, setModalImageIndex] = useState(0);
 
   const { data: property, isLoading } = useQuery<Property>({
     queryKey: ["/api/owner/properties", id, "detail"],
@@ -212,8 +222,8 @@ export default function OwnerPropertyDetails() {
         <>
           {/* Photo Gallery */}
           {((property.primaryImages && property.primaryImages.length > 0) || (property.images && property.images.length > 0)) && (
-          <Card className="overflow-hidden">
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-3">
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between gap-2 space-y-0 pb-3">
               <CardTitle className="text-lg">Galería de Fotos</CardTitle>
               <Button
                 variant="outline"
@@ -225,83 +235,169 @@ export default function OwnerPropertyDetails() {
                 Editar Fotos
               </Button>
             </CardHeader>
-            <div className="relative h-72">
+            <CardContent>
               {(() => {
                 const allImages = [
                   ...(property.primaryImages || []),
                   ...(property.secondaryImages || []),
                   ...(property.images || [])
-                ].filter((img, index, self) => img && self.indexOf(img) === index); // Remove duplicates
-                const currentImage = allImages[currentImageIndex] || (property.images && property.images[0]);
+                ].filter((img, index, self) => img && self.indexOf(img) === index);
+                
+                const mainImage = allImages[0];
+                const thumbnails = allImages.slice(1, 5);
+                const hasMorePhotos = allImages.length > 5;
                 
                 return (
-                  <>
-                    <img
-                      src={currentImage}
-                      alt={`${property.title} - imagen ${currentImageIndex + 1}`}
-                      className="w-full h-full object-cover"
-                    />
-                    {allImages.length > 1 && (
-                      <>
-                        <Button
-                          variant="outline"
-                          size="icon"
-                          className="absolute left-4 top-1/2 -translate-y-1/2 bg-background/80 backdrop-blur-sm"
-                          onClick={() =>
-                            setCurrentImageIndex((prev) =>
-                              prev === 0 ? allImages.length - 1 : prev - 1
-                            )
-                          }
-                          data-testid="button-prev-image"
+                  <div className="flex gap-3">
+                    {/* Main Image - Square */}
+                    <div className="flex-1">
+                      <div className="relative aspect-square rounded-md overflow-hidden bg-muted">
+                        <img
+                          src={mainImage}
+                          alt={property.title}
+                          className="w-full h-full object-cover"
+                          data-testid="img-main-photo"
+                        />
+                      </div>
+                    </div>
+
+                    {/* Thumbnails Column */}
+                    <div className="w-32 flex flex-col gap-2">
+                      {thumbnails.map((img, idx) => (
+                        <div
+                          key={idx}
+                          className="relative aspect-square rounded-md overflow-hidden bg-muted cursor-pointer hover-elevate"
+                          onClick={() => {
+                            setModalImageIndex(idx + 1);
+                            setIsGalleryOpen(true);
+                          }}
+                          data-testid={`img-thumbnail-${idx}`}
                         >
-                          <ChevronLeft className="h-4 w-4" />
-                        </Button>
-                        <Button
-                          variant="outline"
-                          size="icon"
-                          className="absolute right-4 top-1/2 -translate-y-1/2 bg-background/80 backdrop-blur-sm"
-                          onClick={() =>
-                            setCurrentImageIndex((prev) =>
-                              prev === allImages.length - 1 ? 0 : prev + 1
-                            )
-                          }
-                          data-testid="button-next-image"
+                          <img
+                            src={img}
+                            alt={`Foto ${idx + 2}`}
+                            className="w-full h-full object-cover"
+                          />
+                        </div>
+                      ))}
+                      
+                      {/* Ver Más Fotos Button */}
+                      {(thumbnails.length < 4 || hasMorePhotos) && (
+                        <button
+                          onClick={() => {
+                            setModalImageIndex(0);
+                            setIsGalleryOpen(true);
+                          }}
+                          className="aspect-square rounded-md bg-primary/10 hover-elevate active-elevate-2 flex flex-col items-center justify-center gap-1 text-primary"
+                          data-testid="button-view-all-photos"
                         >
-                          <ChevronRight className="h-4 w-4" />
-                        </Button>
-                        <div className="absolute bottom-4 left-1/2 -translate-x-1/2 flex gap-2">
-                          {allImages.map((_, index) => (
-                            <button
-                              key={index}
-                              className={`w-2 h-2 rounded-full transition-all ${
-                                index === currentImageIndex
-                                  ? "bg-white w-6"
-                                  : "bg-white/50"
-                              }`}
-                              onClick={() => setCurrentImageIndex(index)}
-                              data-testid={`button-image-indicator-${index}`}
-                            />
-                          ))}
-                        </div>
-                        <div className="absolute top-4 right-4 bg-background/80 backdrop-blur-sm px-3 py-1 rounded-full text-sm">
-                          {currentImageIndex + 1} / {allImages.length}
-                        </div>
-                      </>
-                    )}
-                  </>
+                          <Images className="h-5 w-5" />
+                          <span className="text-xs font-medium">
+                            Ver más
+                          </span>
+                          <span className="text-xs">
+                            {allImages.length}
+                          </span>
+                        </button>
+                      )}
+                    </div>
+                  </div>
                 );
               })()}
-            </div>
-            {property.primaryImages && property.primaryImages.length > 0 && (
-              <CardFooter className="flex flex-col items-start gap-2 pt-4">
-                <p className="text-sm text-muted-foreground">
+              
+              {property.primaryImages && property.primaryImages.length > 0 && (
+                <p className="text-sm text-muted-foreground mt-3">
                   {property.primaryImages.length} foto{property.primaryImages.length > 1 ? 's' : ''} principal{property.primaryImages.length > 1 ? 'es' : ''}
                   {property.secondaryImages && property.secondaryImages.length > 0 && ` • ${property.secondaryImages.length} foto${property.secondaryImages.length > 1 ? 's' : ''} secundaria${property.secondaryImages.length > 1 ? 's' : ''}`}
                 </p>
-              </CardFooter>
-            )}
+              )}
+            </CardContent>
           </Card>
           )}
+
+          {/* Photo Gallery Modal */}
+          <Dialog open={isGalleryOpen} onOpenChange={setIsGalleryOpen}>
+            <DialogContent className="max-w-4xl max-h-[90vh] p-0">
+              <DialogHeader className="p-6 pb-3">
+                <DialogTitle>Galería Completa - {property.title}</DialogTitle>
+              </DialogHeader>
+              <div className="relative px-6 pb-6">
+                {(() => {
+                  const allImages = [
+                    ...(property.primaryImages || []),
+                    ...(property.secondaryImages || []),
+                    ...(property.images || [])
+                  ].filter((img, index, self) => img && self.indexOf(img) === index);
+                  
+                  return (
+                    <>
+                      <div className="relative aspect-video bg-muted rounded-md overflow-hidden mb-4">
+                        <img
+                          src={allImages[modalImageIndex]}
+                          alt={`Foto ${modalImageIndex + 1}`}
+                          className="w-full h-full object-contain"
+                        />
+                        
+                        {allImages.length > 1 && (
+                          <>
+                            <Button
+                              variant="outline"
+                              size="icon"
+                              className="absolute left-4 top-1/2 -translate-y-1/2 bg-background/80 backdrop-blur-sm"
+                              onClick={() =>
+                                setModalImageIndex((prev) =>
+                                  prev === 0 ? allImages.length - 1 : prev - 1
+                                )
+                              }
+                              data-testid="button-modal-prev"
+                            >
+                              <ChevronLeft className="h-4 w-4" />
+                            </Button>
+                            <Button
+                              variant="outline"
+                              size="icon"
+                              className="absolute right-4 top-1/2 -translate-y-1/2 bg-background/80 backdrop-blur-sm"
+                              onClick={() =>
+                                setModalImageIndex((prev) =>
+                                  prev === allImages.length - 1 ? 0 : prev + 1
+                                )
+                              }
+                              data-testid="button-modal-next"
+                            >
+                              <ChevronRight className="h-4 w-4" />
+                            </Button>
+                            <div className="absolute bottom-4 right-4 bg-background/90 backdrop-blur-sm px-3 py-1 rounded-full text-sm">
+                              {modalImageIndex + 1} / {allImages.length}
+                            </div>
+                          </>
+                        )}
+                      </div>
+                      
+                      {/* Thumbnail Grid */}
+                      <div className="grid grid-cols-6 gap-2 max-h-32 overflow-y-auto">
+                        {allImages.map((img, idx) => (
+                          <div
+                            key={idx}
+                            className={`relative aspect-square rounded-md overflow-hidden cursor-pointer hover-elevate ${
+                              idx === modalImageIndex ? 'ring-2 ring-primary' : ''
+                            }`}
+                            onClick={() => setModalImageIndex(idx)}
+                            data-testid={`img-modal-thumb-${idx}`}
+                          >
+                            <img
+                              src={img}
+                              alt={`Miniatura ${idx + 1}`}
+                              className="w-full h-full object-cover"
+                            />
+                          </div>
+                        ))}
+                      </div>
+                    </>
+                  );
+                })()}
+              </div>
+            </DialogContent>
+          </Dialog>
 
           <Tabs defaultValue="details" className="w-full">
           <TabsList>

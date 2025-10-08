@@ -370,9 +370,9 @@ export default function MyProperties() {
                 className="hover-elevate"
                 data-testid={`card-property-${property.id}`}
               >
-                <div className="flex items-center gap-3 p-3">
+                <div className="flex items-start gap-3 p-2.5">
                   <div 
-                    className={`w-20 h-20 relative overflow-hidden bg-muted rounded-md flex-shrink-0 ${(property as any).isDraft ? 'cursor-not-allowed opacity-50' : 'cursor-pointer'}`}
+                    className={`w-16 h-16 relative overflow-hidden bg-muted rounded-md flex-shrink-0 ${(property as any).isDraft ? 'cursor-not-allowed opacity-50' : 'cursor-pointer'}`}
                     onClick={() => {
                       if (!(property as any).isDraft) {
                         setLocation(`/owner/property/${property.id}`);
@@ -399,16 +399,16 @@ export default function MyProperties() {
                         />
                       ) : (
                         <div className="w-full h-full flex items-center justify-center">
-                          <Building2 className="h-8 w-8 text-muted-foreground" />
+                          <Building2 className="h-6 w-6 text-muted-foreground" />
                         </div>
                       );
                     })()}
                   </div>
                   
-                  <div className="flex-1 min-w-0">
+                  <div className="flex-1 min-w-0 flex flex-col justify-center">
                     <div className="flex items-start justify-between gap-2 mb-1">
                       <h3 
-                        className={`font-semibold line-clamp-1 ${(property as any).isDraft ? 'cursor-not-allowed opacity-75' : 'cursor-pointer hover:text-primary'}`}
+                        className={`font-semibold line-clamp-1 text-sm ${(property as any).isDraft ? 'cursor-not-allowed opacity-75' : 'cursor-pointer hover:text-primary'}`}
                         onClick={() => {
                           if (!(property as any).isDraft) {
                             setLocation(`/owner/property/${property.id}`);
@@ -418,11 +418,10 @@ export default function MyProperties() {
                       >
                         {property.title}
                       </h3>
-                      <div className="flex items-center gap-2 flex-shrink-0">
-                        {/* Show only primary badge based on priority */}
+                      <div className="flex items-center gap-1.5 flex-shrink-0">
                         <Badge
                           variant={primaryBadge.color}
-                          className="gap-1 text-xs"
+                          className="gap-1 text-xs h-5"
                           data-testid={`badge-status-${property.id}`}
                         >
                           <BadgeIcon className="h-2.5 w-2.5" />
@@ -433,7 +432,7 @@ export default function MyProperties() {
                             <Button
                               variant="ghost"
                               size="icon"
-                              className="h-7 w-7"
+                              className="h-6 w-6"
                               data-testid={`button-menu-${property.id}`}
                               onClick={(e) => e.stopPropagation()}
                             >
@@ -505,13 +504,13 @@ export default function MyProperties() {
                       </div>
                     </div>
                     
-                    <div className="flex items-center gap-1 text-xs text-muted-foreground mb-2">
-                      <MapPin className="h-3 w-3" />
+                    <div className="flex items-center gap-1 text-xs text-muted-foreground mb-1.5">
+                      <MapPin className="h-3 w-3 flex-shrink-0" />
                       <span className="line-clamp-1">{property.location}</span>
                     </div>
 
                     <div className="flex items-center justify-between gap-2">
-                      <div className="flex items-center gap-3 text-xs text-muted-foreground">
+                      <div className="flex items-center gap-2.5 text-xs text-muted-foreground">
                         <span className="flex items-center gap-1">
                           <Bed className="h-3 w-3" />
                           {property.bedrooms}
@@ -523,12 +522,12 @@ export default function MyProperties() {
                         <span className="flex items-center gap-1">
                           <Square className="h-3 w-3" />
                           {property.area}m²
-                          {property.petFriendly && (
-                            <PawPrint className="h-3 w-3 ml-0.5" />
-                          )}
                         </span>
+                        {property.petFriendly && (
+                          <PawPrint className="h-3 w-3 text-primary" />
+                        )}
                       </div>
-                      <div className="flex items-center gap-2 flex-shrink-0">
+                      <div className="flex items-center gap-1.5 flex-shrink-0">
                         {property.price && (
                           <div className="flex flex-col items-end gap-1">
                             <Badge variant="outline">
