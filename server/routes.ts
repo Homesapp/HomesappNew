@@ -9,7 +9,7 @@ import { createGoogleMeetEvent, deleteGoogleMeetEvent } from "./googleCalendar";
 import { calculateRentalCommissions } from "./commissionCalculator";
 import { sendVerificationEmail, sendLeadVerificationEmail, sendDuplicateLeadNotification, sendOwnerReferralVerificationEmail, sendOwnerReferralApprovedNotification } from "./gmail";
 import { processChatbotMessage, generatePropertyRecommendations } from "./chatbot";
-import { authLimiter, registrationLimiter, emailVerificationLimiter, chatbotLimiter } from "./rateLimiters";
+import { authLimiter, registrationLimiter, emailVerificationLimiter, chatbotLimiter, propertySubmissionLimiter } from "./rateLimiters";
 import { sanitizeText, sanitizeHtml, sanitizeObject } from "./sanitize";
 import { handleGenericError, handleZodError } from "./errorHandling";
 import bcrypt from "bcryptjs";
@@ -4927,7 +4927,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post("/api/property-submission-drafts", isAuthenticated, async (req: any, res) => {
+  app.post("/api/property-submission-drafts", propertySubmissionLimiter, isAuthenticated, async (req: any, res) => {
     try {
       const userId = req.user.claims.sub;
       
@@ -4969,7 +4969,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.patch("/api/property-submission-drafts/:id", isAuthenticated, requireResourceOwnership('property-draft', 'userId'), async (req: any, res) => {
+  app.patch("/api/property-submission-drafts/:id", propertySubmissionLimiter, isAuthenticated, requireResourceOwnership('property-draft', 'userId'), async (req: any, res) => {
     try {
       const { id } = req.params;
       const userId = req.user.claims.sub;

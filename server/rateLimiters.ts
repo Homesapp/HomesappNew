@@ -39,3 +39,12 @@ export const chatbotLimiter = rateLimit({
   standardHeaders: true,
   legacyHeaders: false,
 });
+
+export const propertySubmissionLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 30, // Max 30 draft create/update operations per 15 minutes
+  message: { message: 'Demasiadas operaciones de guardado. Por favor, intenta de nuevo en unos minutos.' },
+  standardHeaders: true,
+  legacyHeaders: false,
+  skipSuccessfulRequests: false, // Count all requests, not just failed ones
+});
