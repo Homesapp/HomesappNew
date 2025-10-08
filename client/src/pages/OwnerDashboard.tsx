@@ -3,8 +3,8 @@ import { Link } from "wouter";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Building2, Calendar, FileEdit, CheckCircle2, AlertCircle, Clock, ArrowRight, Users, MessageSquare } from "lucide-react";
-import type { Property, PropertyChangeRequest, Appointment } from "@shared/schema";
+import { Building2, Calendar, FileEdit, CheckCircle2, AlertCircle, Clock, ArrowRight, Users, MessageSquare, DollarSign, Wrench } from "lucide-react";
+import type { Property, PropertyChangeRequest, Appointment, MaintenanceSchedule } from "@shared/schema";
 import { useAuth } from "@/hooks/useAuth";
 
 type InterestedClient = {
@@ -45,6 +45,20 @@ export default function OwnerDashboard() {
     queryKey: ["/api/owner/interested-clients"],
   });
 
+  const { data: financialSummary, isLoading: loadingFinancial } = useQuery<{
+    totalEarnings: number;
+    paidAmount: number;
+    pendingAmount: number;
+    transactionCount: number;
+    byCategory: Record<string, { count: number; total: number }>;
+  }>({
+    queryKey: ["/api/income/my-summary"],
+  });
+
+  const { data: maintenanceSchedules = [], isLoading: loadingMaintenance } = useQuery<MaintenanceSchedule[]>({
+    queryKey: ["/api/owner/maintenance-schedules"],
+  });
+
   // Filter owner appointments
   const pendingAppointments = appointments.filter(a => a.ownerApprovalStatus === "pending");
   const upcomingAppointments = appointments
@@ -58,7 +72,18 @@ export default function OwnerDashboard() {
   const publishedProperties = properties.filter(p => p.approvalStatus === "published").length;
   const pendingProperties = properties.filter(p => p.approvalStatus === "pending_review").length;
 
-  const isLoading = loadingProperties || loadingChangeRequests || loadingAppointments || loadingInterestedClients;
+  // Upcoming maintenance tasks (next 30 days, sorted by due date)
+  const upcomingMaintenance = maintenanceSchedules
+    .filter(m => {
+      const dueDate = new Date(m.nextDue);
+      const thirtyDaysFromNow = new Date();
+      thirtyDaysFromNow.setDate(thirtyDaysFromNow.getDate() + 30);
+      return dueDate <= thirtyDaysFromNow && m.isActive;
+    })
+    .sort((a, b) => new Date(a.nextDue).getTime() - new Date(b.nextDue).getTime())
+    .slice(0, 5);
+
+  const isLoading = loadingProperties || loadingChangeRequests || loadingAppointments || loadingInterestedClients || loadingFinancial || loadingMaintenance;
 
   if (isLoading) {
     return (
@@ -340,6 +365,118 @@ export default function OwnerDashboard() {
                   </Badge>
                 </div>
               )}
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Financial Reports */}
+      {financialSummary && (
+        <Card data-testid="card-financial-reports">
+          <CardHeader>
+            <div className="flex items-center justify-between">
+              <div>
+                <CardTitle>Reportes Financieros</CardTitle>
+                <CardDescription>Resumen de ingresos y transacciones</CardDescription>
+              </div>
+              <DollarSign className="h-5 w-5 text-muted-foreground" />
+            </div>
+          </CardHeader>
+          <CardContent>
+            <div className="grid gap-4 md:grid-cols-3">
+              <div className="space-y-1">
+                <p className="text-sm text-muted-foreground">Total Ganado</p>
+                <p className="text-2xl font-bold" data-testid="text-total-earnings">
+                  ${financialSummary.totalEarnings.toLocaleString()}
+                </p>
+              </div>
+              <div className="space-y-1">
+                <p className="text-sm text-muted-foreground">Pagado</p>
+                <p className="text-2xl font-bold text-green-600 dark:text-green-400" data-testid="text-paid-amount">
+                  ${financialSummary.paidAmount.toLocaleString()}
+                </p>
+              </div>
+              <div className="space-y-1">
+                <p className="text-sm text-muted-foreground">Pendiente</p>
+                <p className="text-2xl font-bold text-orange-600 dark:text-orange-400" data-testid="text-pending-amount">
+                  ${financialSummary.pendingAmount.toLocaleString()}
+                </p>
+              </div>
+            </div>
+            
+            {Object.keys(financialSummary.byCategory).length > 0 && (
+              <div className="mt-4 pt-4 border-t">
+                <p className="text-sm font-medium mb-3">Desglose por Categoría</p>
+                <div className="space-y-2">
+                  {Object.entries(financialSummary.byCategory).map(([category, data]) => (
+                    <div key={category} className="flex items-center justify-between text-sm">
+                      <div className="flex items-center gap-2">
+                        <Badge variant="secondary" className="capitalize">
+                          {category === "rental" ? "Renta" :
+                           category === "commission" ? "Comisión" :
+                           category === "referral" ? "Referido" : category}
+                        </Badge>
+                        <span className="text-muted-foreground">{data.count} transacciones</span>
+                      </div>
+                      <span className="font-medium">${data.total.toLocaleString()}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Preventive Maintenance Calendar */}
+      {upcomingMaintenance.length > 0 && (
+        <Card data-testid="card-maintenance-calendar">
+          <CardHeader>
+            <div className="flex items-center justify-between">
+              <div>
+                <CardTitle>Mantenimiento Preventivo</CardTitle>
+                <CardDescription>Próximas tareas programadas (30 días)</CardDescription>
+              </div>
+              <Wrench className="h-5 w-5 text-muted-foreground" />
+            </div>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-3">
+              {upcomingMaintenance.map((maintenance) => {
+                const dueDate = new Date(maintenance.nextDue);
+                const today = new Date();
+                const daysUntilDue = Math.ceil((dueDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
+                const isOverdue = daysUntilDue < 0;
+                const isUrgent = daysUntilDue >= 0 && daysUntilDue <= 7;
+
+                return (
+                  <div
+                    key={maintenance.id}
+                    className="flex items-center justify-between p-3 bg-muted rounded-md"
+                    data-testid={`maintenance-${maintenance.id}`}
+                  >
+                    <div className="flex items-center gap-3 flex-1">
+                      <Calendar className="h-5 w-5 text-primary flex-shrink-0" />
+                      <div className="flex-1 min-w-0">
+                        <p className="font-medium truncate">{maintenance.title}</p>
+                        <p className="text-sm text-muted-foreground">
+                          Vence: {dueDate.toLocaleDateString()} • Frecuencia: {maintenance.frequency}
+                        </p>
+                        {maintenance.estimatedCost && (
+                          <p className="text-sm text-muted-foreground">
+                            Costo estimado: ${maintenance.estimatedCost.toLocaleString()}
+                          </p>
+                        )}
+                      </div>
+                    </div>
+                    <Badge variant={isOverdue ? "destructive" : isUrgent ? "default" : "secondary"}>
+                      {isOverdue ? `${Math.abs(daysUntilDue)} días atrasado` :
+                       isUrgent ? `${daysUntilDue} días` :
+                       `${daysUntilDue} días`}
+                    </Badge>
+                  </div>
+                );
+              })}
             </div>
           </CardContent>
         </Card>
