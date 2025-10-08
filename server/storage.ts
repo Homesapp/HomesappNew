@@ -66,6 +66,7 @@ import {
   contractCycleMetrics,
   workflowEvents,
   systemAlerts,
+  errorLogs,
   type User,
   type Colony,
   type InsertColony,
@@ -203,6 +204,8 @@ import {
   type InsertWorkflowEvent,
   type SystemAlert,
   type InsertSystemAlert,
+  type ErrorLog,
+  type InsertErrorLog,
   passwordResetTokens,
   type PasswordResetToken,
   type InsertPasswordResetToken,
@@ -587,6 +590,12 @@ export interface IStorage {
   getAllFeedback(filters?: { type?: string; status?: string; userId?: string }): Promise<Feedback[]>;
   createFeedback(feedbackData: InsertFeedback): Promise<Feedback>;
   updateFeedback(id: string, updates: UpdateFeedback): Promise<Feedback>;
+
+  // Error Log operations
+  getErrorLog(id: string): Promise<ErrorLog | undefined>;
+  getAllErrorLogs(filters?: { status?: string; errorType?: string; userId?: string }): Promise<ErrorLog[]>;
+  createErrorLog(errorData: InsertErrorLog): Promise<ErrorLog>;
+  updateErrorLog(id: string, updates: Partial<InsertErrorLog>): Promise<ErrorLog>;
 
   // Rental Commission Config operations
   getRentalCommissionConfig(id: string): Promise<RentalCommissionConfig | undefined>;
@@ -3715,6 +3724,47 @@ export class DatabaseStorage implements IStorage {
         updatedAt: new Date(),
       })
       .where(eq(feedback.id, id))
+      .returning();
+    return updated;
+  }
+
+  // Error Log operations
+  async getErrorLog(id: string): Promise<ErrorLog | undefined> {
+    const [errorLog] = await db.select().from(errorLogs).where(eq(errorLogs.id, id));
+    return errorLog;
+  }
+
+  async getAllErrorLogs(filters?: { status?: string; errorType?: string; userId?: string }): Promise<ErrorLog[]> {
+    let query = db.select().from(errorLogs);
+    
+    const conditions = [];
+    if (filters?.status) {
+      conditions.push(eq(errorLogs.status, filters.status as any));
+    }
+    if (filters?.errorType) {
+      conditions.push(eq(errorLogs.errorType, filters.errorType as any));
+    }
+    if (filters?.userId) {
+      conditions.push(eq(errorLogs.userId, filters.userId));
+    }
+    
+    if (conditions.length > 0) {
+      query = query.where(and(...conditions)) as any;
+    }
+    
+    return await query.orderBy(desc(errorLogs.createdAt));
+  }
+
+  async createErrorLog(errorData: InsertErrorLog): Promise<ErrorLog> {
+    const [newErrorLog] = await db.insert(errorLogs).values(errorData).returning();
+    return newErrorLog;
+  }
+
+  async updateErrorLog(id: string, updates: Partial<InsertErrorLog>): Promise<ErrorLog> {
+    const [updated] = await db
+      .update(errorLogs)
+      .set(updates)
+      .where(eq(errorLogs.id, id))
       .returning();
     return updated;
   }

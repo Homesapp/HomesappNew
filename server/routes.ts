@@ -82,6 +82,7 @@ import {
   insertContractCycleMetricSchema,
   insertWorkflowEventSchema,
   insertSystemAlertSchema,
+  insertErrorLogSchema,
   requestPasswordResetSchema,
   resetPasswordSchema,
   suspendUserSchema,
@@ -10103,6 +10104,108 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error: any) {
       console.error("Error updating feedback:", error);
       res.status(500).json({ message: "Failed to update feedback" });
+    }
+  });
+
+  // Error Log routes - Automatic error tracking
+  app.post("/api/error-logs", async (req: any, res) => {
+    try {
+      // Allow unauthenticated error logging for critical errors
+      const userId = req.user?.claims?.sub || null;
+      const user = userId ? await storage.getUser(userId) : null;
+
+      const errorData = {
+        ...req.body,
+        userId,
+        userEmail: user?.email || req.body.userEmail,
+        userRole: user?.role || req.body.userRole,
+        userAgent: req.headers['user-agent'] || '',
+      };
+
+      // Validate error data with Zod
+      const validationResult = insertErrorLogSchema.safeParse(errorData);
+      if (!validationResult.success) {
+        return res.status(400).json({
+          message: "Datos inválidos",
+          errors: validationResult.error.errors,
+        });
+      }
+
+      const newErrorLog = await storage.createErrorLog(validationResult.data);
+
+      // Notify all admins about new errors
+      const admins = await storage.getUsersByRole("admin");
+      const masters = await storage.getUsersByRole("master");
+      const adminJrs = await storage.getUsersByRole("admin_jr");
+      const allAdmins = [...admins, ...masters, ...adminJrs];
+
+      for (const admin of allAdmins) {
+        await storage.createNotification({
+          userId: admin.id,
+          type: "system",
+          title: "Nuevo Error en la Aplicación",
+          message: `${errorData.errorType}: ${errorData.errorMessage.substring(0, 100)}...`,
+          relatedEntityType: "error_log",
+          relatedEntityId: newErrorLog.id,
+          priority: "high",
+        });
+      }
+
+      res.status(201).json(newErrorLog);
+    } catch (error: any) {
+      console.error("Error creating error log:", error);
+      res.status(500).json({ message: "Failed to create error log" });
+    }
+  });
+
+  app.get("/api/error-logs", isAuthenticated, requireRole(["master", "admin", "admin_jr"]), async (req: any, res) => {
+    try {
+      const { status, errorType, userId } = req.query;
+      const filters: any = {};
+      
+      if (status) filters.status = status;
+      if (errorType) filters.errorType = errorType;
+      if (userId) filters.userId = userId;
+      
+      const errorLogs = await storage.getAllErrorLogs(filters);
+      res.json(errorLogs);
+    } catch (error: any) {
+      console.error("Error fetching error logs:", error);
+      res.status(500).json({ message: "Failed to fetch error logs" });
+    }
+  });
+
+  app.patch("/api/error-logs/:id", isAuthenticated, requireRole(["master", "admin", "admin_jr"]), async (req: any, res) => {
+    try {
+      const { id } = req.params;
+      const userId = req.user.claims.sub;
+      
+      const updates: any = { ...req.body };
+      
+      // Set assignedTo if changing to investigating status
+      if (updates.status === "investigating" && !updates.assignedTo) {
+        updates.assignedTo = userId;
+      }
+      
+      // Set resolvedAt if changing to resolved status
+      if (updates.status === "resolved" && !updates.resolvedAt) {
+        updates.resolvedAt = new Date();
+      }
+
+      const updatedErrorLog = await storage.updateErrorLog(id, updates);
+
+      await createAuditLog(
+        req,
+        "update",
+        "error_log",
+        id,
+        `Error log actualizado a: ${updatedErrorLog.status}`
+      );
+
+      res.json(updatedErrorLog);
+    } catch (error: any) {
+      console.error("Error updating error log:", error);
+      res.status(500).json({ message: "Failed to update error log" });
     }
   });
 

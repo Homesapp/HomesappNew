@@ -13,8 +13,10 @@ import { LanguageProvider } from "@/contexts/LanguageContext";
 import { UserProfileMenu } from "@/components/UserProfileMenu";
 import { NotificationBell } from "@/components/NotificationBell";
 import { OnboardingTour } from "@/components/OnboardingTour";
+import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { useAuth } from "@/hooks/useAuth";
 import { useAdminAuth } from "@/hooks/useAdminAuth";
+import { useGlobalErrorHandler } from "@/hooks/useGlobalErrorHandler";
 import { apiRequest } from "@/lib/queryClient";
 import Landing from "@/pages/Landing";
 import AdminLogin from "@/pages/AdminLogin";
@@ -97,6 +99,9 @@ import NotFound from "@/pages/not-found";
 
 function AuthenticatedApp() {
   const [_, setLocation] = useLocation();
+  
+  // Enable global error handler
+  useGlobalErrorHandler();
   
   const { isAuthenticated, isLoading, user } = useAuth();
   const { adminUser, isAdminAuthenticated, isLoading: isAdminLoading } = useAdminAuth();
@@ -294,16 +299,18 @@ function AuthenticatedApp() {
 
 function App() {
   return (
-    <QueryClientProvider client={queryClient}>
-      <ThemeProvider>
-        <LanguageProvider>
-          <TooltipProvider>
-            <AuthenticatedApp />
-            <Toaster />
-          </TooltipProvider>
-        </LanguageProvider>
-      </ThemeProvider>
-    </QueryClientProvider>
+    <ErrorBoundary>
+      <QueryClientProvider client={queryClient}>
+        <ThemeProvider>
+          <LanguageProvider>
+            <TooltipProvider>
+              <AuthenticatedApp />
+              <Toaster />
+            </TooltipProvider>
+          </LanguageProvider>
+        </ThemeProvider>
+      </QueryClientProvider>
+    </ErrorBoundary>
   );
 }
 
