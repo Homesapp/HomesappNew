@@ -359,7 +359,7 @@ export default function MyProperties() {
           </div>
         </Card>
       ) : (
-        <div className="space-y-2">
+        <div className="space-y-3">
           {properties.map((property) => {
             const primaryBadge = getPrimaryBadge(property, t);
             const BadgeIcon = primaryBadge.icon;
@@ -367,12 +367,13 @@ export default function MyProperties() {
             return (
               <Card
                 key={property.id}
-                className="hover-elevate"
+                className="hover-elevate overflow-hidden"
                 data-testid={`card-property-${property.id}`}
               >
-                <div className="flex items-start gap-3 p-2.5">
+                <div className="flex gap-4 p-4">
+                  {/* Imagen de la propiedad */}
                   <div 
-                    className={`w-16 h-16 relative overflow-hidden bg-muted rounded-md flex-shrink-0 ${(property as any).isDraft ? 'cursor-not-allowed opacity-50' : 'cursor-pointer'}`}
+                    className={`w-28 h-28 relative overflow-hidden bg-muted rounded-lg flex-shrink-0 ${(property as any).isDraft ? 'cursor-not-allowed opacity-50' : 'cursor-pointer'}`}
                     onClick={() => {
                       if (!(property as any).isDraft) {
                         setLocation(`/owner/property/${property.id}`);
@@ -399,32 +400,41 @@ export default function MyProperties() {
                         />
                       ) : (
                         <div className="w-full h-full flex items-center justify-center">
-                          <Building2 className="h-6 w-6 text-muted-foreground" />
+                          <Building2 className="h-10 w-10 text-muted-foreground" />
                         </div>
                       );
                     })()}
                   </div>
                   
-                  <div className="flex-1 min-w-0 flex flex-col justify-center">
-                    <div className="flex items-start justify-between gap-2 mb-1">
-                      <h3 
-                        className={`font-semibold line-clamp-1 text-sm ${(property as any).isDraft ? 'cursor-not-allowed opacity-75' : 'cursor-pointer hover:text-primary'}`}
-                        onClick={() => {
-                          if (!(property as any).isDraft) {
-                            setLocation(`/owner/property/${property.id}`);
-                          }
-                        }}
-                        data-testid={`text-property-title-${property.id}`}
-                      >
-                        {property.title}
-                      </h3>
-                      <div className="flex items-center gap-1.5 flex-shrink-0">
+                  {/* Contenido de la propiedad */}
+                  <div className="flex-1 min-w-0 flex flex-col">
+                    {/* Header con título y acciones */}
+                    <div className="flex items-start justify-between gap-3 mb-2">
+                      <div className="flex-1 min-w-0">
+                        <h3 
+                          className={`font-semibold line-clamp-1 text-base ${(property as any).isDraft ? 'cursor-not-allowed opacity-75' : 'cursor-pointer hover:text-primary'}`}
+                          onClick={() => {
+                            if (!(property as any).isDraft) {
+                              setLocation(`/owner/property/${property.id}`);
+                            }
+                          }}
+                          data-testid={`text-property-title-${property.id}`}
+                        >
+                          {property.title}
+                        </h3>
+                        <div className="flex items-center gap-1.5 text-sm text-muted-foreground mt-1">
+                          <MapPin className="h-3.5 w-3.5 flex-shrink-0" />
+                          <span className="line-clamp-1">{property.location}</span>
+                        </div>
+                      </div>
+                      
+                      <div className="flex items-center gap-2 flex-shrink-0">
                         <Badge
                           variant={primaryBadge.color}
-                          className="gap-1 text-xs h-5"
+                          className="gap-1.5"
                           data-testid={`badge-status-${property.id}`}
                         >
-                          <BadgeIcon className="h-2.5 w-2.5" />
+                          <BadgeIcon className="h-3 w-3" />
                           {primaryBadge.label}
                         </Badge>
                         <DropdownMenu>
@@ -432,11 +442,10 @@ export default function MyProperties() {
                             <Button
                               variant="ghost"
                               size="icon"
-                              className="h-6 w-6"
                               data-testid={`button-menu-${property.id}`}
                               onClick={(e) => e.stopPropagation()}
                             >
-                              <MoreVertical className="h-3.5 w-3.5" />
+                              <MoreVertical className="h-4 w-4" />
                             </Button>
                           </DropdownMenuTrigger>
                           <DropdownMenuContent align="end">
@@ -503,49 +512,41 @@ export default function MyProperties() {
                         </DropdownMenu>
                       </div>
                     </div>
-                    
-                    <div className="flex items-center gap-1 text-xs text-muted-foreground mb-1.5">
-                      <MapPin className="h-3 w-3 flex-shrink-0" />
-                      <span className="line-clamp-1">{property.location}</span>
-                    </div>
 
-                    <div className="flex items-center justify-between gap-2">
-                      <div className="flex items-center gap-2.5 text-xs text-muted-foreground">
-                        <span className="flex items-center gap-1">
-                          <Bed className="h-3 w-3" />
-                          {property.bedrooms}
+                    {/* Especificaciones y precio */}
+                    <div className="flex items-center justify-between gap-3 mt-auto pt-3 border-t">
+                      <div className="flex items-center gap-4 text-sm text-muted-foreground">
+                        <span className="flex items-center gap-1.5">
+                          <Bed className="h-4 w-4" />
+                          <span className="font-medium">{property.bedrooms}</span>
                         </span>
-                        <span className="flex items-center gap-1">
-                          <Bath className="h-3 w-3" />
-                          {property.bathrooms}
+                        <span className="flex items-center gap-1.5">
+                          <Bath className="h-4 w-4" />
+                          <span className="font-medium">{property.bathrooms}</span>
                         </span>
-                        <span className="flex items-center gap-1">
-                          <Square className="h-3 w-3" />
-                          {property.area}m²
+                        <span className="flex items-center gap-1.5">
+                          <Square className="h-4 w-4" />
+                          <span className="font-medium">{property.area}m²</span>
                         </span>
                         {property.petFriendly && (
-                          <PawPrint className="h-3 w-3 text-primary" />
+                          <PawPrint className="h-4 w-4 text-primary" />
                         )}
                       </div>
-                      <div className="flex items-center gap-1.5 flex-shrink-0">
+                      <div className="flex items-center gap-3 flex-shrink-0">
                         {property.price && (
-                          <div className="flex flex-col items-end gap-1">
-                            <Badge variant="outline">
-                              Renta
-                            </Badge>
-                            <span className="text-sm font-bold" data-testid={`text-property-price-rental-${property.id}`}>
+                          <div className="text-right">
+                            <div className="text-xs text-muted-foreground">Renta</div>
+                            <div className="text-lg font-bold" data-testid={`text-property-price-rental-${property.id}`}>
                               ${Number(property.price).toLocaleString()}
-                            </span>
+                            </div>
                           </div>
                         )}
                         {property.salePrice && (
-                          <div className="flex flex-col items-end gap-1">
-                            <Badge variant="outline">
-                              Venta
-                            </Badge>
-                            <span className="text-sm font-bold" data-testid={`text-property-price-sale-${property.id}`}>
+                          <div className="text-right">
+                            <div className="text-xs text-muted-foreground">Venta</div>
+                            <div className="text-lg font-bold" data-testid={`text-property-price-sale-${property.id}`}>
                               ${Number(property.salePrice).toLocaleString()}
-                            </span>
+                            </div>
                           </div>
                         )}
                       </div>
