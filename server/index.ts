@@ -13,6 +13,9 @@ app.use(helmet({
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: false, limit: '10mb' }));
 
+// Serve attached_assets as static files
+app.use('/attached_assets', express.static('attached_assets'));
+
 app.use((req, res, next) => {
   const start = Date.now();
   const path = req.path;
