@@ -84,6 +84,8 @@ import {
   insertSystemAlertSchema,
   requestPasswordResetSchema,
   resetPasswordSchema,
+  suspendUserSchema,
+  unsuspendUserSchema,
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, and, inArray, desc } from "drizzle-orm";
@@ -1005,6 +1007,130 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Error deleting user:", error);
       res.status(500).json({ message: "Error al eliminar usuario" });
+    }
+  });
+
+  // Get user's presentation cards
+  app.get("/api/users/:userId/presentation-cards", isAuthenticated, requireRole(["master", "admin"]), async (req: any, res) => {
+    try {
+      const { userId } = req.params;
+      
+      const cards = await db
+        .select()
+        .from(presentationCards)
+        .where(eq(presentationCards.clientId, userId))
+        .orderBy(desc(presentationCards.createdAt));
+      
+      res.json(cards);
+    } catch (error) {
+      console.error("Error fetching presentation cards:", error);
+      res.status(500).json({ message: "Error al obtener tarjetas de presentación" });
+    }
+  });
+
+  // Get user's properties
+  app.get("/api/users/:userId/properties", isAuthenticated, requireRole(["master", "admin"]), async (req: any, res) => {
+    try {
+      const { userId } = req.params;
+      
+      const userProperties = await db
+        .select()
+        .from(properties)
+        .where(eq(properties.ownerId, userId))
+        .orderBy(desc(properties.createdAt));
+      
+      res.json(userProperties);
+    } catch (error) {
+      console.error("Error fetching user properties:", error);
+      res.status(500).json({ message: "Error al obtener propiedades del usuario" });
+    }
+  });
+
+  // Suspend user account
+  app.post("/api/admin/users/:userId/suspend", isAuthenticated, requireRole(["master", "admin"]), async (req: any, res) => {
+    try {
+      const { userId } = req.params;
+      const validated = suspendUserSchema.parse({ ...req.body, userId });
+      
+      const user = await storage.getUser(userId);
+      if (!user) {
+        return res.status(404).json({ message: "Usuario no encontrado" });
+      }
+      
+      const adminId = req.user?.claims?.sub || req.user?.id;
+      if (userId === adminId) {
+        return res.status(400).json({ message: "No puedes suspender tu propia cuenta" });
+      }
+      
+      const suspendedAt = new Date();
+      const suspensionEndDate = validated.suspensionType === "temporary" && validated.endDate
+        ? new Date(validated.endDate)
+        : null;
+      
+      await db
+        .update(users)
+        .set({
+          isSuspended: true,
+          suspensionType: validated.suspensionType,
+          suspensionReason: validated.reason,
+          suspensionEndDate,
+          suspendedAt,
+          suspendedById: adminId,
+        })
+        .where(eq(users.id, userId));
+      
+      await createAuditLog(
+        req,
+        "update",
+        "user",
+        userId,
+        `Admin suspendió cuenta de ${user.firstName} ${user.lastName}: ${validated.reason} (${validated.suspensionType})`
+      );
+      
+      res.json({ message: "Usuario suspendido exitosamente" });
+    } catch (error) {
+      console.error("Error suspending user:", error);
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ message: "Datos inválidos", errors: error.errors });
+      }
+      res.status(500).json({ message: "Error al suspender usuario" });
+    }
+  });
+
+  // Unsuspend user account
+  app.post("/api/admin/users/:userId/unsuspend", isAuthenticated, requireRole(["master", "admin"]), async (req: any, res) => {
+    try {
+      const { userId } = req.params;
+      
+      const user = await storage.getUser(userId);
+      if (!user) {
+        return res.status(404).json({ message: "Usuario no encontrado" });
+      }
+      
+      await db
+        .update(users)
+        .set({
+          isSuspended: false,
+          suspensionType: null,
+          suspensionReason: null,
+          suspensionEndDate: null,
+          suspendedAt: null,
+          suspendedById: null,
+        })
+        .where(eq(users.id, userId));
+      
+      await createAuditLog(
+        req,
+        "update",
+        "user",
+        userId,
+        `Admin reactivó cuenta de ${user.firstName} ${user.lastName}`
+      );
+      
+      res.json({ message: "Usuario reactivado exitosamente" });
+    } catch (error) {
+      console.error("Error unsuspending user:", error);
+      res.status(500).json({ message: "Error al reactivar usuario" });
     }
   });
 
