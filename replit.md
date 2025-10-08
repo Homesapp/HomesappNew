@@ -15,7 +15,7 @@ The frontend uses React 18, TypeScript, Vite, Wouter for routing, and TanStack Q
 The backend is built with Node.js, Express.js, and TypeScript (ESM), providing a RESTful API. It features role-based middleware, JSON error handling, and dual authentication: Replit Auth (OpenID Connect) for regular users and local username/password for administrators, including session management and user approval workflows.
 
 ### Data Storage
-PostgreSQL (Neon serverless) and Drizzle ORM are used for type-safe database interactions. The schema supports user management, property lifecycle, appointment scheduling, client presentation cards, service providers, offer workflows, staff assignments, audit logs, lead capture, a `condominiums` table with a three-state approval workflow, and a bidirectional review system. Financial tracking, payout management, and a comprehensive rental contract system are integrated, handling commissions, referrals, and rental income with automated commission calculations and digital signature tracking.
+PostgreSQL (Neon serverless) and Drizzle ORM are used for type-safe database interactions. The schema supports user management, property lifecycle, appointment scheduling, client presentation cards, service providers, offer workflows, staff assignments, audit logs, lead capture, a `condominiums` table with a three-state approval workflow, and a bidirectional review system. Financial tracking, payout management, and a comprehensive rental contract system are integrated, handling commissions, referrals, and rental income with automated commission calculations and digital signature tracking. An automatic error tracking system captures frontend errors, console errors, and unhandled promise rejections, logging them to the database and notifying administrators.
 
 The schema includes:
 - **Condominiums**: Linked to colonies via `colonyId` foreign key for parent-child relationship
@@ -50,6 +50,14 @@ The schema includes:
     - Property features management with optional Lucide icon names
     - Condominium management with colony linking and full CRUD operations
     - Unified admin interface in AdminCondominiums page with 4 tabs
+*   **Automatic Error Tracking**: Comprehensive error monitoring system that captures and logs all frontend errors:
+    - React render errors via ErrorBoundary component with user-friendly error screens
+    - Unhandled promise rejections captured globally
+    - Window JavaScript errors tracked automatically
+    - Console errors logged for debugging (with original console preserved)
+    - All errors sent to backend with Zod validation and automatic admin notifications
+    - High-priority notifications sent to admin, master, and admin_jr roles
+    - Error logs stored with full context: error type, message, stack trace, URL, user info, browser details
 
 ### System Design Choices
 The platform employs unified middleware for consistent authentication and automatic logging for auditing. The public dashboard adapts based on user authentication. WebSocket security for real-time chat ensures session-based authentication and per-conversation authorization.
