@@ -15,7 +15,8 @@ import {
   Heart, MapPin, Bed, Bath, Square, Star, ArrowLeft, Calendar, 
   User, Phone, Mail, Building, Image, Video, Map, Scan,
   CheckCircle2, XCircle, Home, Wifi, Droplets, Zap, Flame, Wrench,
-  ChevronLeft, ChevronRight, X
+  ChevronLeft, ChevronRight, X, Dumbbell, Trees, Car, Shield,
+  Waves, UtensilsCrossed, Dog, Wind, Snowflake
 } from "lucide-react";
 import { type Property } from "@shared/schema";
 import { AppointmentSchedulingDialog } from "@/components/AppointmentSchedulingDialog";
@@ -80,6 +81,50 @@ export default function PropertyFullDetails() {
     return <Icon className="h-4 w-4" />;
   };
 
+  const getAmenityIcon = (amenity: string) => {
+    const amenityLower = amenity.toLowerCase();
+    const icons: Record<string, any> = {
+      gimnasio: Dumbbell,
+      gym: Dumbbell,
+      piscina: Waves,
+      alberca: Waves,
+      pool: Waves,
+      estacionamiento: Car,
+      parking: Car,
+      seguridad: Shield,
+      security: Shield,
+      'seguridad 24/7': Shield,
+      jardin: Trees,
+      jardín: Trees,
+      garden: Trees,
+      área_verde: Trees,
+      asador: Flame,
+      parrilla: Flame,
+      bbq: Flame,
+      grill: Flame,
+      terraza: Home,
+      roof: Home,
+      rooftop: Home,
+      mascotas: Dog,
+      pets: Dog,
+      aire_acondicionado: Snowflake,
+      'aire acondicionado': Snowflake,
+      ac: Snowflake,
+      ventilador: Wind,
+      fan: Wind,
+      comedor: UtensilsCrossed,
+      cocina: UtensilsCrossed,
+      kitchen: UtensilsCrossed,
+    };
+    
+    for (const [key, Icon] of Object.entries(icons)) {
+      if (amenityLower.includes(key)) {
+        return Icon;
+      }
+    }
+    return Star;
+  };
+
   if (isLoading || !property) {
     return (
       <div className="container mx-auto py-6">
@@ -94,17 +139,6 @@ export default function PropertyFullDetails() {
     );
   }
 
-  const includedServices = property.includedServices 
-    ? Object.entries(property.includedServices as Record<string, boolean>)
-        .filter(([_, value]) => value === true)
-        .map(([key]) => key)
-    : [];
-
-  const notIncludedServices = property.includedServices 
-    ? Object.entries(property.includedServices as Record<string, boolean>)
-        .filter(([_, value]) => value === false)
-        .map(([key]) => key)
-    : [];
 
   const allImages = property.primaryImages || [];
   const VISIBLE_THUMBNAILS = 4;
@@ -272,6 +306,36 @@ export default function PropertyFullDetails() {
                 <h1 className="text-3xl md:text-4xl font-bold mb-3" data-testid="text-property-title">
                   {property.title}
                 </h1>
+                
+                {/* Price and Location Info */}
+                <div className="flex flex-wrap items-center gap-4 mb-4">
+                  {property.price && (
+                    <div className="flex items-center gap-2">
+                      <span className="text-2xl font-bold text-primary" data-testid="text-property-price">
+                        {formatPrice(property.price)}
+                      </span>
+                      <span className="text-sm text-muted-foreground">
+                        {property.status === "rent" ? "/mes" : property.status === "sale" ? "" : "/mes o venta"}
+                      </span>
+                    </div>
+                  )}
+                  {property.condoName && (
+                    <div className="flex items-center gap-2 px-3 py-1 bg-muted rounded-md">
+                      <Building className="h-4 w-4 text-muted-foreground" />
+                      <span className="font-medium text-sm" data-testid="text-condo-info">
+                        {property.condoName}
+                        {property.unitNumber && ` - Unidad ${property.unitNumber}`}
+                      </span>
+                    </div>
+                  )}
+                  {!property.condoName && property.title && (
+                    <div className="flex items-center gap-2 px-3 py-1 bg-muted rounded-md">
+                      <Home className="h-4 w-4 text-muted-foreground" />
+                      <span className="font-medium text-sm" data-testid="text-house-name">Casa</span>
+                    </div>
+                  )}
+                </div>
+
                 <div className="flex items-center gap-2 text-muted-foreground mb-6">
                   <MapPin className="h-5 w-5" />
                   <span className="text-lg" data-testid="text-property-location">{property.location}</span>
@@ -290,58 +354,6 @@ export default function PropertyFullDetails() {
                 )}
               </CardContent>
             </Card>
-
-            {/* Servicios Incluidos y No Incluidos */}
-            {(includedServices.length > 0 || notIncludedServices.length > 0) && (
-              <Card>
-                <CardHeader>
-                  <CardTitle>Servicios</CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-6">
-                  {includedServices.length > 0 && (
-                    <div>
-                      <h3 className="font-semibold mb-3 flex items-center gap-2 text-green-600 dark:text-green-500">
-                        <CheckCircle2 className="h-5 w-5" />
-                        Incluidos en la renta
-                      </h3>
-                      <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
-                        {includedServices.map((service) => (
-                          <div 
-                            key={service} 
-                            className="flex items-center gap-2 p-3 rounded-lg border bg-green-50 dark:bg-green-950/20 border-green-200 dark:border-green-900"
-                            data-testid={`service-included-${service}`}
-                          >
-                            {getServiceIcon(service)}
-                            <span className="text-sm">{getServiceLabel(service)}</span>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                  )}
-
-                  {notIncludedServices.length > 0 && (
-                    <div>
-                      <h3 className="font-semibold mb-3 flex items-center gap-2 text-red-600 dark:text-red-500">
-                        <XCircle className="h-5 w-5" />
-                        No incluidos en la renta
-                      </h3>
-                      <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
-                        {notIncludedServices.map((service) => (
-                          <div 
-                            key={service} 
-                            className="flex items-center gap-2 p-3 rounded-lg border bg-red-50 dark:bg-red-950/20 border-red-200 dark:border-red-900"
-                            data-testid={`service-not-included-${service}`}
-                          >
-                            {getServiceIcon(service)}
-                            <span className="text-sm">{getServiceLabel(service)}</span>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                  )}
-                </CardContent>
-              </Card>
-            )}
 
             {/* Características y Detalles */}
             <Card>
@@ -449,16 +461,19 @@ export default function PropertyFullDetails() {
                 </CardHeader>
                 <CardContent>
                   <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
-                    {property.amenities.map((amenity, index) => (
-                      <div 
-                        key={index} 
-                        className="flex items-center gap-3 p-3 rounded-lg border bg-card hover-elevate"
-                        data-testid={`amenity-${index}`}
-                      >
-                        <div className="h-2 w-2 rounded-full bg-primary" />
-                        <span>{amenity}</span>
-                      </div>
-                    ))}
+                    {property.amenities.map((amenity, index) => {
+                      const AmenityIcon = getAmenityIcon(amenity);
+                      return (
+                        <div 
+                          key={index} 
+                          className="flex items-center gap-3 p-3 rounded-lg border bg-card hover-elevate"
+                          data-testid={`amenity-${index}`}
+                        >
+                          <AmenityIcon className="h-5 w-5 text-primary" />
+                          <span>{amenity}</span>
+                        </div>
+                      );
+                    })}
                   </div>
                 </CardContent>
               </Card>
@@ -553,34 +568,104 @@ export default function PropertyFullDetails() {
               </CardContent>
             </Card>
 
-            {/* Quick Info */}
+            {/* Services Section */}
             <Card>
               <CardHeader>
-                <CardTitle>Información rápida</CardTitle>
+                <CardTitle>Servicios</CardTitle>
               </CardHeader>
-              <CardContent className="space-y-3">
-                <div className="flex items-center justify-between">
-                  <span className="text-sm text-muted-foreground">Disponibilidad</span>
-                  <Badge variant="secondary" data-testid="badge-status">
-                    {property.status === "rent" ? "Renta" : property.status === "sale" ? "Venta" : "Renta/Venta"}
-                  </Badge>
-                </div>
-                {property.condoName && (
-                  <div className="flex items-center justify-between">
-                    <span className="text-sm text-muted-foreground">Condominio</span>
-                    <span className="font-medium text-sm" data-testid="text-condo-name">{property.condoName}</span>
+              <CardContent className="space-y-4">
+                {/* Included Services */}
+                {property.includedServices?.basicServices && (
+                  Object.entries(property.includedServices.basicServices).some(
+                    ([_, service]: [string, any]) => service?.included
+                  ) && (
+                    <div>
+                      <h4 className="font-semibold text-sm mb-3 text-green-600 dark:text-green-400">
+                        Incluidos en la renta
+                      </h4>
+                      <div className="grid grid-cols-2 gap-2">
+                        {Object.entries(property.includedServices.basicServices).map(([key, service]: [string, any]) => {
+                          if (!service?.included) return null;
+                          const Icon = key === 'water' ? Droplets : key === 'electricity' ? Zap : key === 'internet' ? Wifi : Home;
+                          return (
+                            <div key={key} className="flex items-center gap-2 text-sm">
+                              <Icon className="h-4 w-4 text-green-600 dark:text-green-400" />
+                              <span>{getServiceLabel(key)}</span>
+                              {key === 'internet' && service.speed && (
+                                <span className="text-xs text-muted-foreground">({service.speed})</span>
+                              )}
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  )
+                )}
+
+                {/* Not Included Services */}
+                {property.includedServices?.basicServices && (
+                  Object.entries(property.includedServices.basicServices).some(
+                    ([_, service]: [string, any]) => service && !service.included
+                  ) && (
+                    <div>
+                      <h4 className="font-semibold text-sm mb-3 text-orange-600 dark:text-orange-400">
+                        No incluidos (pago directo)
+                      </h4>
+                      <div className="space-y-2">
+                        {Object.entries(property.includedServices.basicServices).map(([key, service]: [string, any]) => {
+                          if (!service || service.included) return null;
+                          const Icon = key === 'water' ? Droplets : key === 'electricity' ? Zap : key === 'internet' ? Wifi : Home;
+                          return (
+                            <div key={key} className="flex items-start gap-2 text-sm">
+                              <Icon className="h-4 w-4 text-orange-600 dark:text-orange-400 mt-0.5" />
+                              <div className="flex-1">
+                                <div className="font-medium">{getServiceLabel(key)}</div>
+                                {key === 'internet' && service.speed && (
+                                  <div className="text-xs text-muted-foreground">Velocidad: {service.speed}</div>
+                                )}
+                                {service.provider && (
+                                  <div className="text-xs text-muted-foreground">Proveedor: {service.provider}</div>
+                                )}
+                                {service.cost && (
+                                  <div className="text-xs font-semibold text-orange-600 dark:text-orange-400">
+                                    Estimado: ${service.cost} MXN/mes
+                                  </div>
+                                )}
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  )
+                )}
+
+                {/* Additional Services */}
+                {property.includedServices?.additionalServices && property.includedServices.additionalServices.length > 0 && (
+                  <div>
+                    <h4 className="font-semibold text-sm mb-3 text-blue-600 dark:text-blue-400">
+                      Servicios adicionales
+                    </h4>
+                    <div className="space-y-2">
+                      {property.includedServices.additionalServices.map((service: any, idx: number) => (
+                        <div key={idx} className="flex items-start gap-2 text-sm">
+                          <Wrench className="h-4 w-4 text-blue-600 dark:text-blue-400 mt-0.5" />
+                          <div className="flex-1">
+                            <div className="font-medium capitalize">{service.type.replace('_', ' ')}</div>
+                            {service.provider && (
+                              <div className="text-xs text-muted-foreground">Proveedor: {service.provider}</div>
+                            )}
+                            {service.cost && (
+                              <div className="text-xs font-semibold text-blue-600 dark:text-blue-400">
+                                ${service.cost} MXN/mes
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
                   </div>
                 )}
-                {property.colonyName && (
-                  <div className="flex items-center justify-between">
-                    <span className="text-sm text-muted-foreground">Colonia</span>
-                    <span className="font-medium text-sm" data-testid="text-colony-name">{property.colonyName}</span>
-                  </div>
-                )}
-                <div className="flex items-center justify-between">
-                  <span className="text-sm text-muted-foreground">ID Propiedad</span>
-                  <span className="font-mono text-sm" data-testid="text-property-id">{property.id}</span>
-                </div>
               </CardContent>
             </Card>
           </div>

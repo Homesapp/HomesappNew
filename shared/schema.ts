@@ -898,6 +898,7 @@ const includedServicesSchema = z.object({
     }).optional(),
     internet: z.object({
       included: z.boolean().default(false),
+      speed: z.string().optional(), // Velocidad del internet (ej: "100 Mbps", "1 Gbps")
       provider: z.string().optional(), // Solo si NO está incluido  
       cost: z.string().optional(), // Solo si NO está incluido
     }).optional(),

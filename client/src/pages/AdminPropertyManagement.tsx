@@ -441,11 +441,12 @@ export default function AdminPropertyManagement() {
                       <img
                         src={coverImage}
                         alt={property.title}
-                        className="w-32 h-24 object-cover rounded-md"
+                        className="w-40 h-28 object-cover rounded-md border"
+                        data-testid={`img-property-${property.id}`}
                       />
                     ) : (
-                      <div className="w-32 h-24 bg-muted rounded-md flex items-center justify-center">
-                        <TypeIcon className="w-8 h-8 text-muted-foreground" />
+                      <div className="w-40 h-28 bg-muted rounded-md flex items-center justify-center border">
+                        <TypeIcon className="w-10 h-10 text-muted-foreground" />
                       </div>
                     )}
 
@@ -507,47 +508,106 @@ export default function AdminPropertyManagement() {
                               Ver Detalles
                             </Button>
                           </DialogTrigger>
-                          <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+                          <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
                             <DialogHeader>
-                              <DialogTitle>{detailProperty?.title}</DialogTitle>
-                              <DialogDescription>{detailProperty?.location}</DialogDescription>
+                              <DialogTitle className="text-2xl">{detailProperty?.title}</DialogTitle>
+                              <DialogDescription className="text-base">{detailProperty?.location}</DialogDescription>
                             </DialogHeader>
                             {detailProperty && (
-                              <div className="space-y-4">
-                                {detailProperty.primaryImages?.[0] && (
-                                  <img
-                                    src={detailProperty.primaryImages[0]}
-                                    alt={detailProperty.title}
-                                    className="w-full h-64 object-cover rounded-lg"
-                                  />
+                              <div className="space-y-6">
+                                {/* Image Gallery */}
+                                {detailProperty.primaryImages && detailProperty.primaryImages.length > 0 && (
+                                  <div className="space-y-3">
+                                    <img
+                                      src={detailProperty.primaryImages[0]}
+                                      alt={detailProperty.title}
+                                      className="w-full h-80 object-cover rounded-lg border"
+                                    />
+                                    {detailProperty.primaryImages.length > 1 && (
+                                      <div className="grid grid-cols-4 gap-2">
+                                        {detailProperty.primaryImages.slice(1, 5).map((img, idx) => (
+                                          <img
+                                            key={idx}
+                                            src={img}
+                                            alt={`${detailProperty.title} - ${idx + 2}`}
+                                            className="w-full h-20 object-cover rounded-md border"
+                                          />
+                                        ))}
+                                      </div>
+                                    )}
+                                    {detailProperty.primaryImages.length > 5 && (
+                                      <p className="text-sm text-muted-foreground text-center">
+                                        +{detailProperty.primaryImages.length - 5} imágenes más
+                                      </p>
+                                    )}
+                                  </div>
                                 )}
-                                <div className="grid grid-cols-2 gap-4">
-                                  <div>
-                                    <label className="text-sm font-medium text-muted-foreground">Tipo</label>
-                                    <p className="capitalize">{detailProperty.propertyType}</p>
+                                {/* Property Info Cards */}
+                                <div className="grid grid-cols-3 gap-3">
+                                  <Card>
+                                    <CardContent className="p-4">
+                                      <div className="flex items-center gap-2 mb-1">
+                                        <DollarSign className="w-4 h-4 text-muted-foreground" />
+                                        <label className="text-sm font-medium text-muted-foreground">Precio</label>
+                                      </div>
+                                      <p className="text-xl font-bold">${parseFloat(detailProperty.price).toLocaleString()} MXN</p>
+                                    </CardContent>
+                                  </Card>
+                                  <Card>
+                                    <CardContent className="p-4">
+                                      <div className="flex items-center gap-2 mb-1">
+                                        <TypeIcon className="w-4 h-4 text-muted-foreground" />
+                                        <label className="text-sm font-medium text-muted-foreground">Tipo</label>
+                                      </div>
+                                      <p className="text-lg font-semibold capitalize">{detailProperty.propertyType}</p>
+                                    </CardContent>
+                                  </Card>
+                                  <Card>
+                                    <CardContent className="p-4">
+                                      <label className="text-sm font-medium text-muted-foreground">Estado</label>
+                                      <div className="mt-2">{getStatusBadge(detailProperty.approvalStatus)}</div>
+                                    </CardContent>
+                                  </Card>
+                                </div>
+
+                                {/* Property Features */}
+                                <div className="grid grid-cols-3 gap-4">
+                                  <div className="flex items-center gap-2">
+                                    <Bed className="w-5 h-5 text-muted-foreground" />
+                                    <div>
+                                      <p className="text-sm text-muted-foreground">Habitaciones</p>
+                                      <p className="font-semibold">{detailProperty.bedrooms}</p>
+                                    </div>
                                   </div>
-                                  <div>
-                                    <label className="text-sm font-medium text-muted-foreground">Precio</label>
-                                    <p>${parseFloat(detailProperty.price).toLocaleString()} MXN</p>
-                                  </div>
-                                  <div>
-                                    <label className="text-sm font-medium text-muted-foreground">Habitaciones</label>
-                                    <p>{detailProperty.bedrooms}</p>
-                                  </div>
-                                  <div>
-                                    <label className="text-sm font-medium text-muted-foreground">Baños</label>
-                                    <p>{detailProperty.bathrooms}</p>
+                                  <div className="flex items-center gap-2">
+                                    <Bath className="w-5 h-5 text-muted-foreground" />
+                                    <div>
+                                      <p className="text-sm text-muted-foreground">Baños</p>
+                                      <p className="font-semibold">{detailProperty.bathrooms}</p>
+                                    </div>
                                   </div>
                                   {detailProperty.area && (
-                                    <div>
-                                      <label className="text-sm font-medium text-muted-foreground">Área</label>
-                                      <p>{detailProperty.area} m²</p>
+                                    <div className="flex items-center gap-2">
+                                      <Home className="w-5 h-5 text-muted-foreground" />
+                                      <div>
+                                        <p className="text-sm text-muted-foreground">Área</p>
+                                        <p className="font-semibold">{detailProperty.area} m²</p>
+                                      </div>
                                     </div>
                                   )}
-                                  <div>
-                                    <label className="text-sm font-medium text-muted-foreground">Estado</label>
-                                    <div className="mt-1">{getStatusBadge(detailProperty.approvalStatus)}</div>
-                                  </div>
+                                </div>
+
+                                {/* Publication Status */}
+                                <div className="flex gap-2">
+                                  {detailProperty.published && (
+                                    <Badge variant="outline" className="gap-1">
+                                      <Eye className="w-3 h-3" />
+                                      Publicada
+                                    </Badge>
+                                  )}
+                                  {detailProperty.featured && (
+                                    <Badge variant="default">Destacada</Badge>
+                                  )}
                                 </div>
                                 {detailProperty.description && (
                                   <div>
