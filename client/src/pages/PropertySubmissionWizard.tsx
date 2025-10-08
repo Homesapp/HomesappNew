@@ -73,11 +73,20 @@ export default function PropertySubmissionWizard() {
   const createDraftMutation = useMutation<PropertySubmissionDraft, Error, Partial<WizardData> & { currentStep: number }>({
     mutationFn: async (data: Partial<WizardData> & { currentStep: number }) => {
       const response = await apiRequest("POST", "/api/property-submission-drafts", data);
-      return response as unknown as PropertySubmissionDraft;
+      const json = await response.json();
+      return json;
     },
     onSuccess: (data: PropertySubmissionDraft) => {
       setDraftId(data.id);
       queryClient.invalidateQueries({ queryKey: ["/api/property-submission-drafts"] });
+    },
+    onError: (error: Error) => {
+      console.error("Error creating draft:", error);
+      toast({
+        title: "Error al guardar borrador",
+        description: error.message || "No se pudo crear el borrador de la propiedad",
+        variant: "destructive",
+      });
     },
   });
 
@@ -85,10 +94,19 @@ export default function PropertySubmissionWizard() {
   const updateDraftMutation = useMutation<PropertySubmissionDraft, Error, { id: string; data: Partial<WizardData> & { currentStep?: number } }>({
     mutationFn: async ({ id, data }: { id: string; data: Partial<WizardData> & { currentStep?: number } }) => {
       const response = await apiRequest("PATCH", `/api/property-submission-drafts/${id}`, data);
-      return response as unknown as PropertySubmissionDraft;
+      const json = await response.json();
+      return json;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/property-submission-drafts"] });
+    },
+    onError: (error: Error) => {
+      console.error("Error updating draft:", error);
+      toast({
+        title: "Error al guardar progreso",
+        description: error.message || "No se pudo actualizar el borrador de la propiedad",
+        variant: "destructive",
+      });
     },
   });
 
@@ -110,12 +128,17 @@ export default function PropertySubmissionWizard() {
         setDraftId(newDraft.id);
       }
       setLastSaved(new Date());
-    } catch (error) {
+    } catch (error: any) {
       console.error("Save failed:", error);
+      toast({
+        title: "Error al guardar",
+        description: error?.message || "No se pudo guardar el progreso. Por favor intenta de nuevo.",
+        variant: "destructive",
+      });
     } finally {
       setIsSaving(false);
     }
-  }, [wizardData, currentStep, draftId, isSaving, draftId, updateDraftMutation, createDraftMutation]);
+  }, [wizardData, currentStep, draftId, isSaving, toast, updateDraftMutation, createDraftMutation]);
 
   const updateWizardData = (stepData: Partial<WizardData>) => {
     setWizardData(prev => ({ ...prev, ...stepData }));
@@ -145,13 +168,17 @@ export default function PropertySubmissionWizard() {
           setDraftId(newDraft.id);
         }
         setLastSaved(new Date());
-      } catch (error) {
+        setCurrentStep(nextStep);
+      } catch (error: any) {
         console.error("Save failed:", error);
+        toast({
+          title: "Error al avanzar",
+          description: error?.message || "No se pudo guardar y avanzar al siguiente paso",
+          variant: "destructive",
+        });
       } finally {
         setIsSaving(false);
       }
-      
-      setCurrentStep(nextStep);
     }
   };
 
