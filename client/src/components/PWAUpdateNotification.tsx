@@ -1,4 +1,4 @@
-import { usePWA } from '@/hooks/usePWA';
+import { usePWA } from '@/contexts/PWAContext';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { RefreshCw } from 'lucide-react';

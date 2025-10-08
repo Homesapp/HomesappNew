@@ -10,6 +10,7 @@ import { LanguageToggle } from "@/components/LanguageToggle";
 import { RoleSelector } from "@/components/RoleSelector";
 import { AppSidebar } from "@/components/AppSidebar";
 import { LanguageProvider } from "@/contexts/LanguageContext";
+import { PWAProvider } from "@/contexts/PWAContext";
 import { UserProfileMenu } from "@/components/UserProfileMenu";
 import { NotificationBell } from "@/components/NotificationBell";
 import { OnboardingTour } from "@/components/OnboardingTour";
@@ -305,12 +306,14 @@ function App() {
       <QueryClientProvider client={queryClient}>
         <ThemeProvider>
           <LanguageProvider>
-            <TooltipProvider>
-              <AuthenticatedApp />
-              <Toaster />
-              <PWAInstallPrompt />
-              <PWAUpdateNotification />
-            </TooltipProvider>
+            <PWAProvider>
+              <TooltipProvider>
+                <AuthenticatedApp />
+                <Toaster />
+                <PWAInstallPrompt />
+                <PWAUpdateNotification />
+              </TooltipProvider>
+            </PWAProvider>
           </LanguageProvider>
         </ThemeProvider>
       </QueryClientProvider>

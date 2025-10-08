@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { usePWA } from '@/hooks/usePWA';
+import { usePWA } from '@/contexts/PWAContext';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Download, X } from 'lucide-react';
@@ -10,15 +10,21 @@ export function PWAInstallPrompt() {
   const [isVisible, setIsVisible] = useState(false);
 
   useEffect(() => {
-    // Check if user has previously dismissed the prompt
     const dismissed = localStorage.getItem('pwa-install-dismissed');
-    if (dismissed) {
-      setIsDismissed(true);
+    const dismissedTime = localStorage.getItem('pwa-install-dismissed-time');
+    
+    if (dismissed && dismissedTime) {
+      const sevenDaysAgo = Date.now() - (7 * 24 * 60 * 60 * 1000);
+      if (parseInt(dismissedTime) > sevenDaysAgo) {
+        setIsDismissed(true);
+      } else {
+        localStorage.removeItem('pwa-install-dismissed');
+        localStorage.removeItem('pwa-install-dismissed-time');
+      }
     }
   }, []);
 
   useEffect(() => {
-    // Show prompt after 10 seconds if installable and not dismissed
     if (isInstallable && !isDismissed) {
       const timer = setTimeout(() => {
         setIsVisible(true);
@@ -39,6 +45,7 @@ export function PWAInstallPrompt() {
     setIsVisible(false);
     setIsDismissed(true);
     localStorage.setItem('pwa-install-dismissed', 'true');
+    localStorage.setItem('pwa-install-dismissed-time', Date.now().toString());
   };
 
   if (!isVisible) {

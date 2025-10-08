@@ -5,8 +5,7 @@ const CACHE_NAME = `homesapp-cache-${CACHE_VERSION}`;
 // Assets to cache immediately on install
 const PRECACHE_ASSETS = [
   '/',
-  '/index.html',
-  '/src/main.tsx'
+  '/index.html'
 ];
 
 // API routes that should use StaleWhileRevalidate

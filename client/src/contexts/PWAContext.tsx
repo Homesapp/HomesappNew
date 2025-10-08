@@ -1,63 +1,55 @@
-import { useEffect, useState } from 'react';
+import { createContext, useContext, useState, useEffect, useRef, ReactNode } from 'react';
 
 interface BeforeInstallPromptEvent extends Event {
   prompt: () => Promise<void>;
   userChoice: Promise<{ outcome: 'accepted' | 'dismissed' }>;
 }
 
-interface PWAState {
+interface PWAContextType {
   isInstallable: boolean;
   isInstalled: boolean;
   isUpdateAvailable: boolean;
   isOnline: boolean;
+  promptInstall: () => Promise<boolean>;
+  updateServiceWorker: () => void;
 }
 
-export function usePWA() {
-  const [pwaState, setPwaState] = useState<PWAState>({
-    isInstallable: false,
-    isInstalled: false,
-    isUpdateAvailable: false,
-    isOnline: navigator.onLine
-  });
+const PWAContext = createContext<PWAContextType | undefined>(undefined);
 
+let registrationPromise: Promise<ServiceWorkerRegistration> | null = null;
+
+export function PWAProvider({ children }: { children: ReactNode }) {
+  const [isInstallable, setIsInstallable] = useState(false);
+  const [isInstalled, setIsInstalled] = useState(false);
+  const [isUpdateAvailable, setIsUpdateAvailable] = useState(false);
+  const [isOnline, setIsOnline] = useState(navigator.onLine);
   const [deferredPrompt, setDeferredPrompt] = useState<BeforeInstallPromptEvent | null>(null);
+  const updateIntervalRef = useRef<number | undefined>(undefined);
 
   useEffect(() => {
-    // Check if already installed
     const checkInstalled = () => {
       const isStandalone = window.matchMedia('(display-mode: standalone)').matches;
       const isIOSStandalone = (window.navigator as any).standalone === true;
-      setPwaState(prev => ({ ...prev, isInstalled: isStandalone || isIOSStandalone }));
+      setIsInstalled(isStandalone || isIOSStandalone);
     };
 
     checkInstalled();
 
-    // Listen for beforeinstallprompt event
     const handleBeforeInstallPrompt = (e: Event) => {
       e.preventDefault();
       const promptEvent = e as BeforeInstallPromptEvent;
       setDeferredPrompt(promptEvent);
-      setPwaState(prev => ({ ...prev, isInstallable: true }));
+      setIsInstallable(true);
     };
 
-    // Listen for app installed
     const handleAppInstalled = () => {
       setDeferredPrompt(null);
-      setPwaState(prev => ({ 
-        ...prev, 
-        isInstallable: false, 
-        isInstalled: true 
-      }));
+      setIsInstallable(false);
+      setIsInstalled(true);
     };
 
-    // Listen for online/offline events
-    const handleOnline = () => {
-      setPwaState(prev => ({ ...prev, isOnline: true }));
-    };
-
-    const handleOffline = () => {
-      setPwaState(prev => ({ ...prev, isOnline: false }));
-    };
+    const handleOnline = () => setIsOnline(true);
+    const handleOffline = () => setIsOnline(false);
 
     window.addEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
     window.addEventListener('appinstalled', handleAppInstalled);
@@ -72,25 +64,28 @@ export function usePWA() {
     };
   }, []);
 
-  // Register service worker and check for updates
   useEffect(() => {
     if ('serviceWorker' in navigator) {
-      navigator.serviceWorker.register('/sw.js')
+      if (!registrationPromise) {
+        registrationPromise = navigator.serviceWorker.register('/sw.js');
+      }
+
+      registrationPromise
         .then((registration) => {
           console.log('[PWA] Service Worker registered:', registration);
 
-          // Check for updates every 60 seconds
-          setInterval(() => {
-            registration.update();
-          }, 60000);
+          if (updateIntervalRef.current === undefined) {
+            updateIntervalRef.current = window.setInterval(() => {
+              registration.update();
+            }, 60000);
+          }
 
-          // Listen for updates
           registration.addEventListener('updatefound', () => {
             const newWorker = registration.installing;
             if (newWorker) {
               newWorker.addEventListener('statechange', () => {
                 if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
-                  setPwaState(prev => ({ ...prev, isUpdateAvailable: true }));
+                  setIsUpdateAvailable(true);
                 }
               });
             }
@@ -99,6 +94,13 @@ export function usePWA() {
         .catch((error) => {
           console.error('[PWA] Service Worker registration failed:', error);
         });
+
+      return () => {
+        if (updateIntervalRef.current !== undefined) {
+          window.clearInterval(updateIntervalRef.current);
+          updateIntervalRef.current = undefined;
+        }
+      };
     }
   }, []);
 
@@ -112,7 +114,7 @@ export function usePWA() {
     
     if (outcome === 'accepted') {
       setDeferredPrompt(null);
-      setPwaState(prev => ({ ...prev, isInstallable: false }));
+      setIsInstallable(false);
       return true;
     }
     
@@ -126,9 +128,24 @@ export function usePWA() {
     }
   };
 
-  return {
-    ...pwaState,
-    promptInstall,
-    updateServiceWorker
-  };
+  return (
+    <PWAContext.Provider value={{
+      isInstallable,
+      isInstalled,
+      isUpdateAvailable,
+      isOnline,
+      promptInstall,
+      updateServiceWorker
+    }}>
+      {children}
+    </PWAContext.Provider>
+  );
+}
+
+export function usePWA() {
+  const context = useContext(PWAContext);
+  if (context === undefined) {
+    throw new Error('usePWA must be used within a PWAProvider');
+  }
+  return context;
 }
