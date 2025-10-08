@@ -227,6 +227,7 @@ function AuthenticatedApp() {
               <Route path="/admin/dashboard" component={AdminDashboard} />
               <Route path="/admin/profile" component={AdminProfile} />
               <Route path="/mis-propiedades" component={MyProperties} />
+              <Route path="/my-properties" component={MyProperties} />
               <Route path="/owner/property/new" component={PropertySubmissionWizard} />
               <Route path="/owner/property/:id/edit" component={EditOwnerProperty} />
               <Route path="/owner/property/:id/documents" component={PropertyDocuments} />
