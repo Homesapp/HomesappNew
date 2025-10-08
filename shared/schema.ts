@@ -230,13 +230,15 @@ export const rentalContractStatusEnum = pgEnum("rental_contract_status", [
 ]);
 
 export const propertyApprovalStatusEnum = pgEnum("property_approval_status", [
-  "draft",              // Borrador, aún no enviada
-  "pending_review",     // Enviada, esperando revisión inicial
-  "inspection_scheduled", // Inspección programada
-  "inspection_completed", // Inspección realizada
-  "approved",           // Aprobada para publicación
-  "published",          // Publicada en el sitio
-  "changes_requested",  // Se solicitaron cambios
+  "draft",              // Borrador, aún no enviada (editable libremente)
+  "pending_review",     // Enviada, esperando revisión inicial (editable libremente)
+  "accepted",           // Aceptada por admin (cambios requieren aprobación)
+  "documents_validated", // Documentos validados (cambios requieren aprobación)
+  "inspection_scheduled", // Inspección programada (cambios requieren aprobación)
+  "inspection_completed", // Inspección realizada (cambios requieren aprobación)
+  "approved",           // Aprobada para publicación (cambios requieren aprobación)
+  "published",          // Publicada en el sitio (cambios requieren aprobación)
+  "changes_requested",  // Se solicitaron cambios (vuelve a editable)
   "rejected",           // Rechazada
 ]);
 
@@ -1722,12 +1724,34 @@ export const inspectionReports = pgTable("inspection_reports", {
   propertyId: varchar("property_id").notNull().references(() => properties.id, { onDelete: "cascade" }),
   inspectorId: varchar("inspector_id").notNull().references(() => users.id),
   inspectionDate: timestamp("inspection_date").notNull(),
-  status: varchar("status").notNull().default("pending"), // pending, scheduled, completed
+  status: varchar("status").notNull().default("pending"), // pending, scheduled, completed, skipped
   overallCondition: varchar("overall_condition"), // excellent, good, fair, poor
   observations: text("observations"),
   images: text("images").array().default(sql`ARRAY[]::text[]`),
   approved: boolean("approved"),
   approvalNotes: text("approval_notes"),
+  
+  // Formulario extenso del conserje
+  structuralCondition: varchar("structural_condition"), // excellent, good, fair, poor
+  structuralNotes: text("structural_notes"),
+  electricalCondition: varchar("electrical_condition"), // excellent, good, fair, poor
+  electricalNotes: text("electrical_notes"),
+  plumbingCondition: varchar("plumbing_condition"), // excellent, good, fair, poor
+  plumbingNotes: text("plumbing_notes"),
+  appliancesCondition: varchar("appliances_condition"), // excellent, good, fair, poor
+  appliancesNotes: text("appliances_notes"),
+  furnitureCondition: varchar("furniture_condition"), // excellent, good, fair, poor
+  furnitureNotes: text("furniture_notes"),
+  cleanlinessLevel: varchar("cleanliness_level"), // excellent, good, fair, poor
+  cleanlinessNotes: text("cleanliness_notes"),
+  securityFeatures: text("security_features"), // Descripción de características de seguridad
+  accessibilityNotes: text("accessibility_notes"),
+  maintenanceNeeded: boolean("maintenance_needed").default(false),
+  maintenanceDetails: text("maintenance_details"),
+  recommendedRepairs: text("recommended_repairs"),
+  estimatedRepairCost: decimal("estimated_repair_cost", { precision: 12, scale: 2 }),
+  readyForRental: boolean("ready_for_rental").default(false),
+  
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });
@@ -1746,16 +1770,36 @@ export const createInspectionReportSchema = z.object({
   observations: z.string().optional(),
 });
 
-// Schema for updating inspection report (admin only)
+// Schema for updating inspection report (admin and concierge)
 export const updateInspectionReportSchema = z.object({
   inspectionDate: z.date().optional(),
-  status: z.string().optional(),
-  overallCondition: z.string().optional(),
+  status: z.enum(["pending", "scheduled", "completed", "skipped"]).optional(),
+  overallCondition: z.enum(["excellent", "good", "fair", "poor"]).optional(),
   observations: z.string().optional(),
   images: z.array(z.string()).optional(),
   approved: z.boolean().optional(),
   approvalNotes: z.string().optional(),
-  notes: z.string().optional(),
+  
+  // Formulario extenso del conserje
+  structuralCondition: z.enum(["excellent", "good", "fair", "poor"]).optional(),
+  structuralNotes: z.string().optional(),
+  electricalCondition: z.enum(["excellent", "good", "fair", "poor"]).optional(),
+  electricalNotes: z.string().optional(),
+  plumbingCondition: z.enum(["excellent", "good", "fair", "poor"]).optional(),
+  plumbingNotes: z.string().optional(),
+  appliancesCondition: z.enum(["excellent", "good", "fair", "poor"]).optional(),
+  appliancesNotes: z.string().optional(),
+  furnitureCondition: z.enum(["excellent", "good", "fair", "poor"]).optional(),
+  furnitureNotes: z.string().optional(),
+  cleanlinessLevel: z.enum(["excellent", "good", "fair", "poor"]).optional(),
+  cleanlinessNotes: z.string().optional(),
+  securityFeatures: z.string().optional(),
+  accessibilityNotes: z.string().optional(),
+  maintenanceNeeded: z.boolean().optional(),
+  maintenanceDetails: z.string().optional(),
+  recommendedRepairs: z.string().optional(),
+  estimatedRepairCost: z.number().optional(),
+  readyForRental: z.boolean().optional(),
 });
 
 export type InsertInspectionReport = z.infer<typeof insertInspectionReportSchema>;
