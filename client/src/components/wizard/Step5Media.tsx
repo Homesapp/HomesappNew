@@ -114,6 +114,67 @@ export default function Step5Media({ data, onUpdate, onNext, onPrevious }: Step5
     form.setValue("coverImageIndex", index);
   };
 
+  // Drag and drop handlers for primary images
+  const handleDragStart = (e: React.DragEvent<HTMLDivElement>, index: number) => {
+    e.dataTransfer.effectAllowed = "move";
+    e.dataTransfer.setData("text/html", index.toString());
+  };
+
+  const handleDragOver = (e: React.DragEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    e.dataTransfer.dropEffect = "move";
+  };
+
+  const handleDrop = (e: React.DragEvent<HTMLDivElement>, dropIndex: number) => {
+    e.preventDefault();
+    const dragIndex = parseInt(e.dataTransfer.getData("text/html"));
+    
+    if (dragIndex === dropIndex) return;
+
+    const newImages = [...primaryImages];
+    const draggedImage = newImages[dragIndex];
+    newImages.splice(dragIndex, 1);
+    newImages.splice(dropIndex, 0, draggedImage);
+    
+    setPrimaryImages(newImages);
+    form.setValue("primaryImages", newImages);
+
+    // Update cover index if needed
+    if (coverImageIndex === dragIndex) {
+      setCoverImageIndex(dropIndex);
+      form.setValue("coverImageIndex", dropIndex);
+    } else if (dragIndex < coverImageIndex && dropIndex >= coverImageIndex) {
+      const newCoverIndex = coverImageIndex - 1;
+      setCoverImageIndex(newCoverIndex);
+      form.setValue("coverImageIndex", newCoverIndex);
+    } else if (dragIndex > coverImageIndex && dropIndex <= coverImageIndex) {
+      const newCoverIndex = coverImageIndex + 1;
+      setCoverImageIndex(newCoverIndex);
+      form.setValue("coverImageIndex", newCoverIndex);
+    }
+  };
+
+  // Drag and drop handlers for secondary images
+  const handleSecondaryDragStart = (e: React.DragEvent<HTMLDivElement>, index: number) => {
+    e.dataTransfer.effectAllowed = "move";
+    e.dataTransfer.setData("text/html", index.toString());
+  };
+
+  const handleSecondaryDrop = (e: React.DragEvent<HTMLDivElement>, dropIndex: number) => {
+    e.preventDefault();
+    const dragIndex = parseInt(e.dataTransfer.getData("text/html"));
+    
+    if (dragIndex === dropIndex) return;
+
+    const newImages = [...secondaryImages];
+    const draggedImage = newImages[dragIndex];
+    newImages.splice(dragIndex, 1);
+    newImages.splice(dropIndex, 0, draggedImage);
+    
+    setSecondaryImages(newImages);
+    form.setValue("secondaryImages", newImages);
+  };
+
   const handleAddSecondaryImage = () => {
     secondaryFileInputRef.current?.click();
   };
@@ -301,43 +362,53 @@ export default function Step5Media({ data, onUpdate, onNext, onPrevious }: Step5
               {primaryImages.length > 0 && (
                 <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
                   {primaryImages.map((url, index) => (
-                    <Card key={index} data-testid={`card-primary-image-${index}`}>
-                      <CardContent className="p-2">
-                        <div className="relative">
-                          <img
-                            src={url}
-                            alt={`Imagen principal ${index + 1}`}
-                            className="w-full h-32 object-cover rounded"
-                            data-testid={`img-primary-preview-${index}`}
-                          />
-                          <Button
-                            type="button"
-                            variant="destructive"
-                            size="icon"
-                            className="absolute top-2 right-2 h-7 w-7"
-                            onClick={() => handleRemovePrimaryImage(index)}
-                            data-testid={`button-remove-primary-image-${index}`}
-                          >
-                            <X className="w-4 h-4" />
-                          </Button>
-                          <Button
-                            type="button"
-                            variant={coverImageIndex === index ? "default" : "secondary"}
-                            size="icon"
-                            className="absolute bottom-2 right-2 h-7 w-7"
-                            onClick={() => handleSetCoverImage(index)}
-                            data-testid={`button-set-cover-${index}`}
-                          >
-                            <Star className={`w-4 h-4 ${coverImageIndex === index ? 'fill-current' : ''}`} />
-                          </Button>
-                          {coverImageIndex === index && (
-                            <Badge className="absolute top-2 left-2" data-testid={`badge-cover-${index}`}>
-                              Portada
-                            </Badge>
-                          )}
-                        </div>
-                      </CardContent>
-                    </Card>
+                    <div
+                      key={index}
+                      draggable
+                      onDragStart={(e) => handleDragStart(e, index)}
+                      onDragOver={handleDragOver}
+                      onDrop={(e) => handleDrop(e, index)}
+                      className="cursor-move"
+                      data-testid={`card-primary-image-${index}`}
+                    >
+                      <Card className="hover:shadow-lg transition-shadow">
+                        <CardContent className="p-2">
+                          <div className="relative">
+                            <img
+                              src={url}
+                              alt={`Imagen principal ${index + 1}`}
+                              className="w-full h-32 object-cover rounded"
+                              data-testid={`img-primary-preview-${index}`}
+                            />
+                            <Button
+                              type="button"
+                              variant="destructive"
+                              size="icon"
+                              className="absolute top-1 right-1 h-7 w-7 flex items-center justify-center"
+                              onClick={() => handleRemovePrimaryImage(index)}
+                              data-testid={`button-remove-primary-image-${index}`}
+                            >
+                              <X className="w-4 h-4" />
+                            </Button>
+                            <Button
+                              type="button"
+                              variant={coverImageIndex === index ? "default" : "secondary"}
+                              size="icon"
+                              className="absolute bottom-1 right-1 h-7 w-7 flex items-center justify-center"
+                              onClick={() => handleSetCoverImage(index)}
+                              data-testid={`button-set-cover-${index}`}
+                            >
+                              <Star className={`w-4 h-4 ${coverImageIndex === index ? 'fill-current' : ''}`} />
+                            </Button>
+                            {coverImageIndex === index && (
+                              <Badge className="absolute top-1 left-1" data-testid={`badge-cover-${index}`}>
+                                Portada
+                              </Badge>
+                            )}
+                          </div>
+                        </CardContent>
+                      </Card>
+                    </div>
                   ))}
                 </div>
               )}
@@ -382,28 +453,38 @@ export default function Step5Media({ data, onUpdate, onNext, onPrevious }: Step5
               {secondaryImages.length > 0 && (
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                   {secondaryImages.map((url, index) => (
-                    <Card key={index} data-testid={`card-secondary-image-${index}`}>
-                      <CardContent className="p-2">
-                        <div className="relative">
-                          <img
-                            src={url}
-                            alt={`Imagen secundaria ${index + 1}`}
-                            className="w-full h-24 object-cover rounded"
-                            data-testid={`img-secondary-preview-${index}`}
-                          />
-                          <Button
-                            type="button"
-                            variant="destructive"
-                            size="icon"
-                            className="absolute top-2 right-2 h-7 w-7"
-                            onClick={() => handleRemoveSecondaryImage(index)}
-                            data-testid={`button-remove-secondary-image-${index}`}
-                          >
-                            <X className="w-4 h-4" />
-                          </Button>
-                        </div>
-                      </CardContent>
-                    </Card>
+                    <div
+                      key={index}
+                      draggable
+                      onDragStart={(e) => handleSecondaryDragStart(e, index)}
+                      onDragOver={handleDragOver}
+                      onDrop={(e) => handleSecondaryDrop(e, index)}
+                      className="cursor-move"
+                      data-testid={`card-secondary-image-${index}`}
+                    >
+                      <Card className="hover:shadow-lg transition-shadow">
+                        <CardContent className="p-2">
+                          <div className="relative">
+                            <img
+                              src={url}
+                              alt={`Imagen secundaria ${index + 1}`}
+                              className="w-full h-24 object-cover rounded"
+                              data-testid={`img-secondary-preview-${index}`}
+                            />
+                            <Button
+                              type="button"
+                              variant="destructive"
+                              size="icon"
+                              className="absolute top-1 right-1 h-7 w-7 flex items-center justify-center"
+                              onClick={() => handleRemoveSecondaryImage(index)}
+                              data-testid={`button-remove-secondary-image-${index}`}
+                            >
+                              <X className="w-4 h-4" />
+                            </Button>
+                          </div>
+                        </CardContent>
+                      </Card>
+                    </div>
                   ))}
                 </div>
               )}
