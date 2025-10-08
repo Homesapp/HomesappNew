@@ -26,10 +26,11 @@ The schema includes:
 ### Key Features and Workflows
 *   **Dual-Type Appointment Scheduling**: Supports individual and tour slots with admin-configurable business hours.
 *   **Appointment Reschedule Workflow**: Owner-initiated reschedule requests with client approval/rejection flow. When owner requests reschedule, client can approve (appointment date changes) or reject (appointment auto-cancels). Calendar uses color coding: green (approved), red (cancelled), yellow (rescheduled). Archiving system keeps approved appointments visible; only completed/cancelled appointments are archived.
-*   **Property Management**: Includes property approval workflow, owner change requests, auto-approval settings, sublease functionality, and pet-friendly indicators.
+*   **Property Management**: Includes property approval workflow, owner change requests, auto-approval settings, sublease functionality, pet-friendly indicators, and custom listing titles for better property identification.
 *   **Property Staff & Task Management**: System for assigning staff to properties with role-based assignments and task tracking.
-*   **Property Submission**: A 5-step wizard with draft saving, digital agreement signing, and integration with approved condominiums.
+*   **Property Submission**: A 5-step wizard with draft saving, digital agreement signing, and integration with approved condominiums. Supports optional custom listing titles for private houses.
 *   **Condominium & Colony Workflow**: User-suggested condominiums/colonies require admin approval, with pre-approved Tulum condominiums.
+*   **Property Display Logic**: Appointment titles and property listings show customListingTitle for private houses, or condoName+unitNumber for condominiums, with fallback to title.
 *   **Client Dashboard**: Personalized overview with stats, quick actions, and Google Calendar integration.
 *   **User Experience**: Features Airbnb-style role switching, full i18n support, WebSocket-based real-time chat, enhanced presentation cards, granular email notification preferences, and streamlined navigation.
 *   **Notification System**: Dual-channel (in-app and email) with configurable categories, priority-based in-app notifications, and SLA tracking.
