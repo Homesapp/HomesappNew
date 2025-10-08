@@ -65,6 +65,10 @@ export default function PropertySubmissionWizard() {
           accessInfo: draft.accessInfo,
           commercialTerms: draft.commercialTerms,
         });
+        // Set last saved to show the indicator after reload
+        if (draft.updatedAt) {
+          setLastSaved(new Date(draft.updatedAt));
+        }
       }
     }
   }, [existingDrafts]);
