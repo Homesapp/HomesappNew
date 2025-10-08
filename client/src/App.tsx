@@ -96,6 +96,10 @@ import RoleRequests from "@/pages/RoleRequests";
 import Terms from "@/pages/Terms";
 import Privacy from "@/pages/Privacy";
 import Help from "@/pages/Help";
+import SellerCommissions from "@/pages/SellerCommissions";
+import AdminPredictiveAnalytics from "@/pages/AdminPredictiveAnalytics";
+import AdminLegalDocuments from "@/pages/AdminLegalDocuments";
+import AdminTenantScreening from "@/pages/AdminTenantScreening";
 import NotFound from "@/pages/not-found";
 
 function AuthenticatedApp() {
@@ -280,6 +284,10 @@ function AuthenticatedApp() {
               <Route path="/admin/lead-scoring" component={AdminLeadScoring} />
               <Route path="/permissions" component={Permissions} />
               <Route path="/contratos" component={Contracts} />
+              <Route path="/seller/commissions" component={SellerCommissions} />
+              <Route path="/admin/predictive-analytics" component={AdminPredictiveAnalytics} />
+              <Route path="/admin/legal-documents" component={AdminLegalDocuments} />
+              <Route path="/admin/tenant-screening" component={AdminTenantScreening} />
               <Route path="/ayuda" component={Help} />
               <Route path="/terminos" component={Terms} />
               <Route path="/privacidad" component={Privacy} />
