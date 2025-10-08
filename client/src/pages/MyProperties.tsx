@@ -532,19 +532,19 @@ export default function MyProperties() {
                           <PawPrint className="h-4 w-4 text-primary" />
                         )}
                       </div>
-                      <div className="flex items-center gap-3 flex-shrink-0">
+                      <div className="flex items-center gap-2 flex-shrink-0">
                         {property.price && (
-                          <div className="text-right">
-                            <div className="text-xs text-muted-foreground">Renta</div>
-                            <div className="text-lg font-bold" data-testid={`text-property-price-rental-${property.id}`}>
+                          <div className="px-3 py-2 bg-primary/10 border border-primary/20 rounded-lg">
+                            <div className="text-xs font-medium text-primary mb-0.5">Renta</div>
+                            <div className="text-base font-bold" data-testid={`text-property-price-rental-${property.id}`}>
                               ${Number(property.price).toLocaleString()}
                             </div>
                           </div>
                         )}
                         {property.salePrice && (
-                          <div className="text-right">
-                            <div className="text-xs text-muted-foreground">Venta</div>
-                            <div className="text-lg font-bold" data-testid={`text-property-price-sale-${property.id}`}>
+                          <div className="px-3 py-2 bg-secondary border border-border rounded-lg">
+                            <div className="text-xs font-medium text-secondary-foreground mb-0.5">Venta</div>
+                            <div className="text-base font-bold" data-testid={`text-property-price-sale-${property.id}`}>
                               ${Number(property.salePrice).toLocaleString()}
                             </div>
                           </div>

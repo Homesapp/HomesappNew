@@ -249,9 +249,9 @@ export default function OwnerPropertyDetails() {
                 
                 return (
                   <div className="flex gap-3">
-                    {/* Main Image - Square */}
+                    {/* Main Image - Height matches 4 thumbnails */}
                     <div className="flex-1">
-                      <div className="relative aspect-square rounded-md overflow-hidden bg-muted">
+                      <div className="relative h-[33.5rem] rounded-md overflow-hidden bg-muted">
                         <img
                           src={mainImage}
                           alt={property.title}
@@ -852,12 +852,43 @@ export default function OwnerPropertyDetails() {
 function ServicesSection({ services }: { services: any }) {
   if (!services) return null;
 
-  const hasWater = services.water || services.waterIncluded;
-  const hasElectricity = services.electricity || services.electricityIncluded;
-  const hasInternet = services.internet || services.internetIncluded;
+  const waterIncluded = services.water?.included || services.waterIncluded;
+  const electricityIncluded = services.electricity?.included || services.electricityIncluded;
+  const internetIncluded = services.internet?.included || services.internetIncluded;
+  
+  const hasWater = services.water || services.waterIncluded !== undefined;
+  const hasElectricity = services.electricity || services.electricityIncluded !== undefined;
+  const hasInternet = services.internet || services.internetIncluded !== undefined;
   const hasAdditional = services.additionalServices && services.additionalServices.length > 0;
 
-  if (!hasWater && !hasElectricity && !hasInternet && !hasAdditional) return null;
+  const includedServices = [];
+  const notIncludedServices = [];
+
+  if (hasWater) {
+    if (waterIncluded) {
+      includedServices.push({ type: 'water', icon: Droplet, color: 'text-blue-500', name: 'Agua', data: services.water });
+    } else {
+      notIncludedServices.push({ type: 'water', icon: Droplet, color: 'text-blue-500', name: 'Agua', data: services.water });
+    }
+  }
+  
+  if (hasElectricity) {
+    if (electricityIncluded) {
+      includedServices.push({ type: 'electricity', icon: Zap, color: 'text-yellow-500', name: 'Electricidad', data: services.electricity });
+    } else {
+      notIncludedServices.push({ type: 'electricity', icon: Zap, color: 'text-yellow-500', name: 'Electricidad', data: services.electricity });
+    }
+  }
+  
+  if (hasInternet) {
+    if (internetIncluded) {
+      includedServices.push({ type: 'internet', icon: Wifi, color: 'text-purple-500', name: 'Internet', data: services.internet });
+    } else {
+      notIncludedServices.push({ type: 'internet', icon: Wifi, color: 'text-purple-500', name: 'Internet', data: services.internet });
+    }
+  }
+
+  if (includedServices.length === 0 && notIncludedServices.length === 0 && !hasAdditional) return null;
 
   const serviceIcons: Record<string, any> = {
     pool_cleaning: Waves,
@@ -866,96 +897,63 @@ function ServicesSection({ services }: { services: any }) {
   };
 
   return (
-    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+    <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
       {/* Included Services */}
-      {(hasWater || hasElectricity || hasInternet) && (
+      {includedServices.length > 0 && (
         <Card>
           <CardHeader className="pb-3">
-            <CardTitle className="text-lg">Servicios Incluidos</CardTitle>
-            <CardDescription>Servicios incluidos en la renta</CardDescription>
+            <CardTitle className="text-base flex items-center gap-2">
+              <Check className="h-4 w-4 text-green-600" />
+              Servicios Incluidos
+            </CardTitle>
+            <CardDescription className="text-xs">Incluidos en la renta</CardDescription>
           </CardHeader>
-          <CardContent className="space-y-3">
-            {hasWater && (
-              <div className="flex items-start gap-3 p-3 border rounded-md" data-testid="service-water">
-                <Droplet className="h-5 w-5 text-blue-500 mt-0.5" />
-                <div className="flex-1">
-                  <div className="flex items-center justify-between">
-                    <p className="font-medium text-sm">Agua</p>
-                    {services.water?.included || services.waterIncluded ? (
-                      <Badge variant="secondary" className="gap-1" data-testid="badge-water-included">
-                        <Check className="h-3 w-3" />
-                        Incluido
-                      </Badge>
-                    ) : null}
+          <CardContent className="space-y-2">
+            {includedServices.map((service, idx) => {
+              const Icon = service.icon;
+              return (
+                <div key={idx} className="flex items-start gap-2 p-2 bg-muted/50 rounded-md" data-testid={`service-${service.type}-included`}>
+                  <Icon className={`h-4 w-4 ${service.color} mt-0.5`} />
+                  <div className="flex-1 min-w-0">
+                    <p className="font-medium text-sm">{service.name}</p>
+                    {service.data?.speed && (
+                      <p className="text-xs text-muted-foreground">{service.data.speed}</p>
+                    )}
                   </div>
-                  {services.water?.provider && (
-                    <p className="text-xs text-muted-foreground mt-1" data-testid="text-water-provider">
-                      Proveedor: {services.water.provider}
-                    </p>
-                  )}
-                  {services.water?.cost && (
-                    <p className="text-xs text-muted-foreground" data-testid="text-water-cost">
-                      Costo aprox: ${services.water.cost}/mes
-                    </p>
-                  )}
                 </div>
-              </div>
-            )}
-            
-            {hasElectricity && (
-              <div className="flex items-start gap-3 p-3 border rounded-md" data-testid="service-electricity">
-                <Zap className="h-5 w-5 text-yellow-500 mt-0.5" />
-                <div className="flex-1">
-                  <div className="flex items-center justify-between">
-                    <p className="font-medium text-sm">Electricidad</p>
-                    {services.electricity?.included || services.electricityIncluded ? (
-                      <Badge variant="secondary" className="gap-1" data-testid="badge-electricity-included">
-                        <Check className="h-3 w-3" />
-                        Incluido
-                      </Badge>
-                    ) : null}
+              );
+            })}
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Not Included Services */}
+      {notIncludedServices.length > 0 && (
+        <Card>
+          <CardHeader className="pb-3">
+            <CardTitle className="text-base flex items-center gap-2">
+              <X className="h-4 w-4 text-destructive" />
+              No Incluidos
+            </CardTitle>
+            <CardDescription className="text-xs">Pago por separado</CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-2">
+            {notIncludedServices.map((service, idx) => {
+              const Icon = service.icon;
+              return (
+                <div key={idx} className="flex items-start gap-2 p-2 border rounded-md" data-testid={`service-${service.type}-not-included`}>
+                  <Icon className={`h-4 w-4 ${service.color} mt-0.5`} />
+                  <div className="flex-1 min-w-0">
+                    <p className="font-medium text-sm">{service.name}</p>
+                    {service.data?.cost && (
+                      <p className="text-xs text-muted-foreground">
+                        ${service.data.cost}{service.type === 'electricity' && service.data?.billingCycle === 'bimonthly' ? ' (bimestral)' : '/mes'}
+                      </p>
+                    )}
                   </div>
-                  {services.electricity?.provider && (
-                    <p className="text-xs text-muted-foreground mt-1" data-testid="text-electricity-provider">
-                      Proveedor: {services.electricity.provider}
-                    </p>
-                  )}
-                  {services.electricity?.cost && (
-                    <p className="text-xs text-muted-foreground" data-testid="text-electricity-cost">
-                      Costo aprox: ${services.electricity.cost}
-                      {services.electricity?.billingCycle === "bimonthly" ? " (bimestral)" : "/mes"}
-                    </p>
-                  )}
                 </div>
-              </div>
-            )}
-            
-            {hasInternet && (
-              <div className="flex items-start gap-3 p-3 border rounded-md" data-testid="service-internet">
-                <Wifi className="h-5 w-5 text-purple-500 mt-0.5" />
-                <div className="flex-1">
-                  <div className="flex items-center justify-between">
-                    <p className="font-medium text-sm">Internet</p>
-                    {services.internet?.included || services.internetIncluded ? (
-                      <Badge variant="secondary" className="gap-1" data-testid="badge-internet-included">
-                        <Check className="h-3 w-3" />
-                        Incluido
-                      </Badge>
-                    ) : null}
-                  </div>
-                  {services.internet?.provider && (
-                    <p className="text-xs text-muted-foreground mt-1" data-testid="text-internet-provider">
-                      Proveedor: {services.internet.provider}
-                    </p>
-                  )}
-                  {services.internet?.cost && (
-                    <p className="text-xs text-muted-foreground" data-testid="text-internet-cost">
-                      Costo aprox: ${services.internet.cost}/mes
-                    </p>
-                  )}
-                </div>
-              </div>
-            )}
+              );
+            })}
           </CardContent>
         </Card>
       )}
@@ -964,30 +962,33 @@ function ServicesSection({ services }: { services: any }) {
       {hasAdditional && (
         <Card>
           <CardHeader className="pb-3">
-            <CardTitle className="text-lg">Servicios Adicionales</CardTitle>
-            <CardDescription>Servicios extra disponibles</CardDescription>
+            <CardTitle className="text-base flex items-center gap-2">
+              <Plus className="h-4 w-4" />
+              Servicios Adicionales
+            </CardTitle>
+            <CardDescription className="text-xs">Servicios extra</CardDescription>
           </CardHeader>
-          <CardContent className="space-y-3">
+          <CardContent className="space-y-2">
             {services.additionalServices.map((service: any, index: number) => {
               const ServiceIcon = serviceIcons[service.type] || Building2;
               return (
-                <div key={index} className="flex items-start gap-3 p-3 border rounded-md" data-testid={`additional-service-${index}`}>
-                  <ServiceIcon className="h-5 w-5 text-muted-foreground mt-0.5" />
-                  <div className="flex-1">
+                <div key={index} className="flex items-start gap-2 p-2 border rounded-md" data-testid={`additional-service-${index}`}>
+                  <ServiceIcon className="h-4 w-4 text-muted-foreground mt-0.5" />
+                  <div className="flex-1 min-w-0">
                     <p className="font-medium text-sm" data-testid={`text-additional-service-name-${index}`}>
                       {service.customName || 
                         (service.type === "pool_cleaning" ? "Limpieza de Alberca" :
                          service.type === "garden" ? "Jardín" :
                          service.type === "gas" ? "Gas" : service.type)}
                     </p>
-                    {service.provider && (
-                      <p className="text-xs text-muted-foreground mt-1" data-testid={`text-additional-service-provider-${index}`}>
-                        Proveedor: {service.provider}
+                    {service.frequency && (
+                      <p className="text-xs text-muted-foreground">
+                        {service.frequency}
                       </p>
                     )}
                     {service.cost && (
                       <p className="text-xs text-muted-foreground" data-testid={`text-additional-service-cost-${index}`}>
-                        Costo aprox: ${service.cost}/mes
+                        ${service.cost}/mes
                       </p>
                     )}
                   </div>
