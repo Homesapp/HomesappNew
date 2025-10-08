@@ -10,7 +10,19 @@ import { calculateRentalCommissions } from "./commissionCalculator";
 import { sendVerificationEmail, sendLeadVerificationEmail, sendDuplicateLeadNotification, sendOwnerReferralVerificationEmail, sendOwnerReferralApprovedNotification } from "./gmail";
 import { processChatbotMessage, generatePropertyRecommendations } from "./chatbot";
 import { authLimiter, registrationLimiter, emailVerificationLimiter, chatbotLimiter, propertySubmissionLimiter } from "./rateLimiters";
-import { sanitizeText, sanitizeHtml, sanitizeObject } from "./sanitize";
+import { 
+  sanitizeText, 
+  sanitizeHtml, 
+  sanitizeObject,
+  isValidEmail,
+  isValidURL,
+  isValidPhoneNumber,
+  sanitizePhoneNumber,
+  isStrongPassword,
+  normalizeEmail,
+  containsSQLKeywords,
+  containsScriptTags
+} from "./sanitize";
 import { handleGenericError, handleZodError } from "./errorHandling";
 import bcrypt from "bcryptjs";
 import crypto from "crypto";
@@ -1267,6 +1279,25 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       const { email, password, firstName, lastName, phone, preferredLanguage } = validationResult.data;
+
+      // Additional security validations
+      if (!isValidEmail(email)) {
+        return res.status(400).json({ message: "Formato de email inválido" });
+      }
+
+      if (!isStrongPassword(password)) {
+        return res.status(400).json({ 
+          message: "La contraseña debe tener al menos 8 caracteres, una mayúscula, una minúscula y un número" 
+        });
+      }
+
+      if (containsSQLKeywords(firstName) || containsSQLKeywords(lastName)) {
+        return res.status(400).json({ message: "Nombre contiene caracteres no permitidos" });
+      }
+
+      if (phone && !isValidPhoneNumber(phone)) {
+        return res.status(400).json({ message: "Formato de teléfono inválido" });
+      }
 
       // Check if user already exists
       const existingUser = await storage.getUserByEmail(email);

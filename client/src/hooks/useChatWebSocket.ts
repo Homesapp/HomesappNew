@@ -35,13 +35,23 @@ export function useChatWebSocket(conversationId: string | null) {
 
     // Check if we've exceeded max reconnection attempts
     if (reconnectAttemptsRef.current >= WS_CONFIG.maxReconnectAttempts) {
-      console.error(`WebSocket: Max reconnection attempts (${WS_CONFIG.maxReconnectAttempts}) exceeded`);
+      console.error(`[WebSocket] Max reconnection attempts (${WS_CONFIG.maxReconnectAttempts}) exceeded`);
       setConnectionStatus('disconnected');
       return;
     }
 
-    const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-    const wsUrl = `${protocol}//${window.location.host}/ws/chat`;
+    // Use environment variable for WebSocket URL in production, fallback to window location
+    let wsUrl: string;
+    const envWsUrl = import.meta.env.VITE_WS_URL;
+    
+    if (envWsUrl) {
+      // Production/configured environment
+      wsUrl = `${envWsUrl}/ws/chat`;
+    } else {
+      // Development fallback
+      const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+      wsUrl = `${protocol}//${window.location.host}/ws/chat`;
+    }
     
     try {
       setConnectionStatus('connecting');
