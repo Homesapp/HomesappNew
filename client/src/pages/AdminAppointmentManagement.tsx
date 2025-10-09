@@ -127,7 +127,7 @@ export default function AdminAppointmentManagement() {
   });
 
   const { data: availableConcierges = [], isLoading: isLoadingConcierges } = useQuery<any[]>({
-    queryKey: [`/api/appointments/available-concierges?date=${selectedAppointment?.date}`],
+    queryKey: [`/api/appointments/available-concierges?date=${selectedAppointment?.date}&mode=${selectedAppointment?.mode || 'individual'}`],
     enabled: assignConciergeDialogOpen && !!selectedAppointment,
   });
 

@@ -110,7 +110,7 @@ export default function OwnerAppointments() {
 
   // Fetch available concierges when assigning
   const { data: availableConcierges = [], isLoading: isLoadingConcierges } = useQuery<any[]>({
-    queryKey: [`/api/appointments/available-concierges?date=${selectedAppointment?.date}`],
+    queryKey: [`/api/appointments/available-concierges?date=${selectedAppointment?.date}&mode=${selectedAppointment?.mode || 'individual'}`],
     enabled: assignConciergeDialogOpen && !!selectedAppointment,
   });
 
