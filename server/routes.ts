@@ -7671,6 +7671,30 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       const appointmentData = insertAppointmentSchema.parse(cleanedBody);
 
+      // Validate: Client can only have 1 appointment per day
+      // Get start and end of the appointment date
+      const appointmentDate = new Date(appointmentData.date);
+      const startOfAppointmentDay = new Date(appointmentDate);
+      startOfAppointmentDay.setHours(0, 0, 0, 0);
+      const endOfAppointmentDay = new Date(appointmentDate);
+      endOfAppointmentDay.setHours(23, 59, 59, 999);
+
+      // Check if client already has an appointment on this day (excluding cancelled ones)
+      const existingAppointments = await storage.getAppointments();
+      const clientAppointmentsOnDay = existingAppointments.filter(apt => {
+        const aptDate = new Date(apt.date);
+        return apt.clientId === clientId && 
+               apt.status !== "cancelled" &&
+               aptDate >= startOfAppointmentDay && 
+               aptDate <= endOfAppointmentDay;
+      });
+
+      if (clientAppointmentsOnDay.length > 0) {
+        return res.status(400).json({ 
+          message: "Ya tienes una cita programada para este día. Solo puedes coordinar 1 cita por día. Si necesitas coordinar otra cita el mismo día, primero debes cancelar la que tienes." 
+        });
+      }
+
       // Create Google Meet event if type is video
       let meetLink = null;
       

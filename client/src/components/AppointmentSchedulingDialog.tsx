@@ -312,7 +312,16 @@ export function AppointmentSchedulingDialog({
 
         <div className="flex-1 overflow-y-auto px-1">
           <Form {...form}>
-            <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+            <form 
+              onSubmit={form.handleSubmit(onSubmit)} 
+              onKeyDown={(e) => {
+                // Prevent form submission on Enter key unless on final step
+                if (e.key === 'Enter' && step < 4) {
+                  e.preventDefault();
+                }
+              }}
+              className="space-y-6"
+            >
               {/* Step 1: Tipo de visita */}
               {step === 1 && (
                 <div className="space-y-6 animate-in fade-in-0 duration-300">
