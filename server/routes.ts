@@ -10250,6 +10250,92 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Rental Opportunity Request routes
+  // Get visited properties for client (completed or past appointments)
+  app.get("/api/client/visited-properties", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const user = await storage.getUser(userId);
+      
+      if (!user || user.role !== "cliente") {
+        return res.status(403).json({ message: "Solo los clientes pueden ver propiedades visitadas" });
+      }
+      
+      const visitedProperties = await storage.getVisitedPropertiesByClient(userId);
+      res.json(visitedProperties);
+    } catch (error) {
+      console.error("Error fetching visited properties:", error);
+      res.status(500).json({ message: "Failed to fetch visited properties" });
+    }
+  });
+
+  // Create rental opportunity request
+  app.post("/api/rental-opportunity-requests", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const user = await storage.getUser(userId);
+      
+      if (!user || user.role !== "cliente") {
+        return res.status(403).json({ message: "Solo los clientes pueden solicitar oportunidades de renta" });
+      }
+
+      // Check if user already has a pending or approved request for this property
+      const existingRequests = await storage.getRentalOpportunityRequestsByClient(userId);
+      const propertyId = req.body.propertyId;
+      
+      const existingRequest = existingRequests.find(
+        req => req.propertyId === propertyId && (req.status === 'pending' || req.status === 'approved')
+      );
+      
+      if (existingRequest) {
+        return res.status(409).json({ 
+          message: existingRequest.status === 'approved' 
+            ? "Ya tienes una solicitud aprobada para esta propiedad" 
+            : "Ya tienes una solicitud pendiente para esta propiedad" 
+        });
+      }
+
+      const request = await storage.createRentalOpportunityRequest({
+        userId,
+        propertyId,
+        appointmentId: req.body.appointmentId,
+        status: 'pending',
+      });
+
+      // Log the request creation
+      await createAuditLog(
+        req,
+        "create",
+        "rental_opportunity_request",
+        request.id,
+        `Solicitud de oportunidad de renta creada para propiedad ${propertyId}`
+      );
+
+      res.status(201).json(request);
+    } catch (error) {
+      console.error("Error creating rental opportunity request:", error);
+      res.status(500).json({ message: "Failed to create rental opportunity request" });
+    }
+  });
+
+  // Get rental opportunity requests for current client
+  app.get("/api/rental-opportunity-requests", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const user = await storage.getUser(userId);
+      
+      if (!user || user.role !== "cliente") {
+        return res.status(403).json({ message: "Solo los clientes pueden ver sus solicitudes" });
+      }
+      
+      const requests = await storage.getRentalOpportunityRequestsByClient(userId);
+      res.json(requests);
+    } catch (error) {
+      console.error("Error fetching rental opportunity requests:", error);
+      res.status(500).json({ message: "Failed to fetch rental opportunity requests" });
+    }
+  });
+
   app.get("/api/rentals/:id/payments", isAuthenticated, async (req: any, res) => {
     try {
       const { id } = req.params;
