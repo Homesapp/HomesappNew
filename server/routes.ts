@@ -9958,11 +9958,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
         propertyId: rental.propertyId,
         rentalType: rental.leaseDurationMonths && rental.leaseDurationMonths <= 6 ? 'short_term' : 'long_term',
         monthlyRent: rental.monthlyRent,
-        depositAmount: rental.depositAmount,
-        contractStartDate: rental.leaseStartDate,
-        contractEndDate: rental.leaseEndDate,
-        checkInDate: rental.checkInDate,
+        depositAmount: rental.securityDeposit,
+        contractStartDate: rental.startDate,
+        contractEndDate: rental.endDate,
+        checkInDate: rental.startDate,
         status: rental.status,
+        // Property information
+        propertyTitle: rental.propertyTitle,
+        propertyType: rental.propertyType,
+        unitType: rental.unitType,
+        condominiumId: rental.condominiumId,
+        condoName: rental.condoName,
+        unitNumber: rental.unitNumber,
         // Do not expose ownerId, sellerId, or internal notes
       }));
       

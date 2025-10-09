@@ -25,13 +25,20 @@ import { apiRequest, queryClient } from "@/lib/queryClient";
 interface ActiveRental {
   id: string;
   propertyId: string;
-  rentalType: string;
+  rentalType?: string;
   monthlyRent: string;
-  depositAmount: string;
-  contractStartDate: string;
-  contractEndDate: string;
-  checkInDate: string;
+  depositAmount?: string;
+  contractStartDate?: string;
+  contractEndDate?: string;
+  checkInDate?: string;
   status: string;
+  // Property information
+  propertyTitle?: string;
+  propertyType?: string;
+  unitType?: string;
+  condominiumId?: string;
+  condoName?: string;
+  unitNumber?: string;
 }
 
 interface RentalPayment {
@@ -193,6 +200,38 @@ export default function ActiveRentals() {
         </p>
       </div>
 
+      {/* Property Information */}
+      {currentRental && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Home className="h-5 w-5" />
+              {currentRental.propertyTitle || t("activeRentals.property", "Propiedad")}
+            </CardTitle>
+            <CardDescription>
+              {currentRental.unitType === "condominio" ? (
+                <>
+                  {currentRental.condoName && (
+                    <span data-testid="text-condo-name">
+                      {t("activeRentals.condominium", "Condominio")}: {currentRental.condoName}
+                    </span>
+                  )}
+                  {currentRental.unitNumber && (
+                    <span className="ml-2" data-testid="text-unit-number">
+                      {t("activeRentals.unit", "Unidad")}: {currentRental.unitNumber}
+                    </span>
+                  )}
+                </>
+              ) : (
+                <span data-testid="text-property-type">
+                  {currentRental.propertyType === "house" ? t("activeRentals.privateHouse", "Casa Privada") : t("activeRentals.property", "Propiedad")}
+                </span>
+              )}
+            </CardDescription>
+          </CardHeader>
+        </Card>
+      )}
+
       {/* Rental Selector */}
       {rentals.length > 1 && (
         <Card>
@@ -207,11 +246,17 @@ export default function ActiveRentals() {
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
-                {rentals.map((rental) => (
-                  <SelectItem key={rental.id} value={rental.id}>
-                    {rental.rentalType === "short_term" ? "Renta Corta" : "Renta Larga"} - ${rental.monthlyRent}/mes
-                  </SelectItem>
-                ))}
+                {rentals.map((rental) => {
+                  const propertyName = rental.unitType === "condominio" 
+                    ? `${rental.condoName || ""} ${rental.unitNumber || ""}`.trim()
+                    : rental.propertyTitle || t("activeRentals.property", "Propiedad");
+                  
+                  return (
+                    <SelectItem key={rental.id} value={rental.id}>
+                      {propertyName} - ${rental.monthlyRent}/mes
+                    </SelectItem>
+                  );
+                })}
               </SelectContent>
             </Select>
           </CardContent>

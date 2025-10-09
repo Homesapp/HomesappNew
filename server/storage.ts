@@ -3271,11 +3271,32 @@ export class DatabaseStorage implements IStorage {
     await db.delete(rentalContracts).where(eq(rentalContracts.id, id));
   }
 
-  async getActiveRentalsByTenant(tenantId: string): Promise<RentalContract[]> {
+  async getActiveRentalsByTenant(tenantId: string): Promise<any[]> {
     // Get contracts where user is tenant and status is active (activo or check_in)
-    return await db
-      .select()
+    // Include property information
+    const results = await db
+      .select({
+        id: rentalContracts.id,
+        propertyId: rentalContracts.propertyId,
+        tenantId: rentalContracts.tenantId,
+        ownerId: rentalContracts.ownerId,
+        startDate: rentalContracts.leaseStartDate,
+        endDate: rentalContracts.leaseEndDate,
+        monthlyRent: rentalContracts.monthlyRent,
+        securityDeposit: rentalContracts.depositAmount,
+        status: rentalContracts.status,
+        leaseDurationMonths: rentalContracts.leaseDurationMonths,
+        createdAt: rentalContracts.createdAt,
+        // Property information
+        propertyTitle: properties.title,
+        propertyType: properties.propertyType,
+        unitType: properties.unitType,
+        condominiumId: properties.condominiumId,
+        condoName: properties.condoName,
+        unitNumber: properties.unitNumber,
+      })
       .from(rentalContracts)
+      .leftJoin(properties, eq(rentalContracts.propertyId, properties.id))
       .where(
         and(
           eq(rentalContracts.tenantId, tenantId),
@@ -3286,6 +3307,8 @@ export class DatabaseStorage implements IStorage {
         )
       )
       .orderBy(desc(rentalContracts.createdAt));
+    
+    return results;
   }
 
   async getActiveRentalsByOwner(ownerId: string): Promise<RentalContract[]> {
