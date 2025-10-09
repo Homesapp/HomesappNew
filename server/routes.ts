@@ -9956,11 +9956,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const filteredRentals = activeRentals.map(rental => ({
         id: rental.id,
         propertyId: rental.propertyId,
-        rentalType: rental.rentalType,
+        rentalType: rental.leaseDurationMonths && rental.leaseDurationMonths <= 6 ? 'short_term' : 'long_term',
         monthlyRent: rental.monthlyRent,
         depositAmount: rental.depositAmount,
-        contractStartDate: rental.contractStartDate,
-        contractEndDate: rental.contractEndDate,
+        contractStartDate: rental.leaseStartDate,
+        contractEndDate: rental.leaseEndDate,
         checkInDate: rental.checkInDate,
         status: rental.status,
         // Do not expose ownerId, sellerId, or internal notes
@@ -9970,6 +9970,42 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Error fetching active rentals:", error);
       res.status(500).json({ message: "Failed to fetch active rentals" });
+    }
+  });
+
+  // Client Dashboard Active Rentals endpoint
+  app.get("/api/client/active-rentals", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      
+      // Get active rental contracts where user is tenant
+      const activeRentals = await storage.getActiveRentalsByTenant(userId);
+      res.json(activeRentals);
+    } catch (error) {
+      console.error("Error fetching client active rentals:", error);
+      res.status(500).json({ message: "Failed to fetch active rentals" });
+    }
+  });
+
+  // Client Dashboard Maintenance Requests endpoint
+  app.get("/api/client/maintenance-requests", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      
+      // Get all active rental contracts for this tenant
+      const activeRentals = await storage.getActiveRentalsByTenant(userId);
+      
+      // Get maintenance requests for all active rentals
+      const allRequests = [];
+      for (const rental of activeRentals) {
+        const requests = await storage.getTenantMaintenanceRequests(rental.id);
+        allRequests.push(...requests);
+      }
+      
+      res.json(allRequests);
+    } catch (error) {
+      console.error("Error fetching client maintenance requests:", error);
+      res.status(500).json({ message: "Failed to fetch maintenance requests" });
     }
   });
 
