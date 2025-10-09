@@ -239,6 +239,12 @@ import {
   tenantScreenings,
   type TenantScreening,
   type InsertTenantScreening,
+  propertyDeliveryInventories,
+  type PropertyDeliveryInventory,
+  type InsertPropertyDeliveryInventory,
+  tenantMoveInForms,
+  type TenantMoveInForm,
+  type InsertTenantMoveInForm,
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, and, or, gte, lte, ilike, desc, sql, isNull, count, inArray } from "drizzle-orm";
@@ -553,9 +559,20 @@ export interface IStorage {
   updateRentalContractStatus(id: string, status: string, additionalData?: { apartadoDate?: Date; contractSignedDate?: Date; checkInDate?: Date; payoutReleasedAt?: Date }): Promise<RentalContract>;
   deleteRentalContract(id: string): Promise<void>;
   getActiveRentalsByTenant(tenantId: string): Promise<RentalContract[]>;
+  getActiveRentalsByOwner(ownerId: string): Promise<RentalContract[]>;
   getRentalPayments(rentalContractId: string): Promise<RentalPayment[]>;
   createTenantMaintenanceRequest(requestData: InsertTenantMaintenanceRequest): Promise<TenantMaintenanceRequest>;
   getTenantMaintenanceRequests(rentalContractId: string): Promise<TenantMaintenanceRequest[]>;
+  
+  // Property Delivery Inventory operations
+  getPropertyDeliveryInventory(rentalContractId: string): Promise<PropertyDeliveryInventory | undefined>;
+  createPropertyDeliveryInventory(inventory: InsertPropertyDeliveryInventory): Promise<PropertyDeliveryInventory>;
+  updatePropertyDeliveryInventory(id: string, updates: Partial<InsertPropertyDeliveryInventory>): Promise<PropertyDeliveryInventory>;
+  
+  // Tenant Move-In Form operations
+  getTenantMoveInForm(rentalContractId: string): Promise<TenantMoveInForm | undefined>;
+  createTenantMoveInForm(form: InsertTenantMoveInForm): Promise<TenantMoveInForm>;
+  updateTenantMoveInForm(id: string, updates: Partial<InsertTenantMoveInForm>): Promise<TenantMoveInForm>;
 
   // Property Change Request operations
   getPropertyChangeRequest(id: string): Promise<PropertyChangeRequest | undefined>;
@@ -3268,6 +3285,23 @@ export class DatabaseStorage implements IStorage {
       .orderBy(desc(rentalContracts.createdAt));
   }
 
+  async getActiveRentalsByOwner(ownerId: string): Promise<RentalContract[]> {
+    // Get contracts where user is owner and status is active (activo or check_in)
+    return await db
+      .select()
+      .from(rentalContracts)
+      .where(
+        and(
+          eq(rentalContracts.ownerId, ownerId),
+          or(
+            eq(rentalContracts.status, 'activo'),
+            eq(rentalContracts.status, 'check_in')
+          )
+        )
+      )
+      .orderBy(desc(rentalContracts.createdAt));
+  }
+
   async getRentalPayments(rentalContractId: string): Promise<RentalPayment[]> {
     return await db
       .select()
@@ -3287,6 +3321,52 @@ export class DatabaseStorage implements IStorage {
       .from(tenantMaintenanceRequests)
       .where(eq(tenantMaintenanceRequests.rentalContractId, rentalContractId))
       .orderBy(desc(tenantMaintenanceRequests.createdAt));
+  }
+
+  // Property Delivery Inventory operations
+  async getPropertyDeliveryInventory(rentalContractId: string): Promise<PropertyDeliveryInventory | undefined> {
+    const [inventory] = await db
+      .select()
+      .from(propertyDeliveryInventories)
+      .where(eq(propertyDeliveryInventories.rentalContractId, rentalContractId));
+    return inventory;
+  }
+
+  async createPropertyDeliveryInventory(inventory: InsertPropertyDeliveryInventory): Promise<PropertyDeliveryInventory> {
+    const [newInventory] = await db.insert(propertyDeliveryInventories).values(inventory).returning();
+    return newInventory;
+  }
+
+  async updatePropertyDeliveryInventory(id: string, updates: Partial<InsertPropertyDeliveryInventory>): Promise<PropertyDeliveryInventory> {
+    const [updated] = await db
+      .update(propertyDeliveryInventories)
+      .set({ ...updates, updatedAt: new Date() })
+      .where(eq(propertyDeliveryInventories.id, id))
+      .returning();
+    return updated;
+  }
+
+  // Tenant Move-In Form operations
+  async getTenantMoveInForm(rentalContractId: string): Promise<TenantMoveInForm | undefined> {
+    const [form] = await db
+      .select()
+      .from(tenantMoveInForms)
+      .where(eq(tenantMoveInForms.rentalContractId, rentalContractId));
+    return form;
+  }
+
+  async createTenantMoveInForm(form: InsertTenantMoveInForm): Promise<TenantMoveInForm> {
+    const [newForm] = await db.insert(tenantMoveInForms).values(form).returning();
+    return newForm;
+  }
+
+  async updateTenantMoveInForm(id: string, updates: Partial<InsertTenantMoveInForm>): Promise<TenantMoveInForm> {
+    const [updated] = await db
+      .update(tenantMoveInForms)
+      .set({ ...updates, updatedAt: new Date() })
+      .where(eq(tenantMoveInForms.id, id))
+      .returning();
+    return updated;
   }
 
   // Property Change Request operations

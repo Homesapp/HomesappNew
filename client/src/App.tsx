@@ -85,6 +85,7 @@ import CreateUser from "@/pages/CreateUser";
 import Referrals from "@/pages/Referrals";
 import AdminReferrals from "@/pages/AdminReferrals";
 import ActiveRentals from "@/pages/ActiveRentals";
+import OwnerActiveRentals from "@/pages/OwnerActiveRentals";
 import Feedback from "@/pages/Feedback";
 import AdminFeedback from "@/pages/AdminFeedback";
 import AccountantIncome from "@/pages/AccountantIncome";
@@ -283,6 +284,7 @@ function AuthenticatedApp() {
               <Route path="/referidos" component={Referrals} />
               <Route path="/admin/referidos" component={AdminReferrals} />
               <Route path="/rentas-activas" component={ActiveRentals} />
+              <Route path="/owner/rentas-activas" component={OwnerActiveRentals} />
               <Route path="/feedback" component={Feedback} />
               <Route path="/admin/feedback" component={AdminFeedback} />
               <Route path="/admin/role-requests" component={RoleRequests} />

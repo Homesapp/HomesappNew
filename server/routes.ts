@@ -10035,6 +10035,152 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Owner Active Rentals routes
+  app.get("/api/owner/active-rentals", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const rentals = await storage.getActiveRentalsByOwner(userId);
+      res.json(rentals);
+    } catch (error) {
+      console.error("Error fetching owner active rentals:", error);
+      res.status(500).json({ message: "Failed to fetch active rentals" });
+    }
+  });
+
+  app.get("/api/owner/rentals/:id/inventory", isAuthenticated, async (req: any, res) => {
+    try {
+      const { id } = req.params;
+      const userId = req.user.claims.sub;
+      
+      // Verify user is the owner of this rental
+      const rental = await storage.getRentalContract(id);
+      if (!rental) {
+        return res.status(404).json({ message: "Rental not found" });
+      }
+      
+      if (rental.ownerId !== userId) {
+        return res.status(403).json({ message: "Forbidden" });
+      }
+      
+      const inventory = await storage.getPropertyDeliveryInventory(id);
+      res.json(inventory || null);
+    } catch (error) {
+      console.error("Error fetching inventory:", error);
+      res.status(500).json({ message: "Failed to fetch inventory" });
+    }
+  });
+
+  app.post("/api/owner/rentals/:id/inventory", isAuthenticated, async (req: any, res) => {
+    try {
+      const { id } = req.params;
+      const userId = req.user.claims.sub;
+      
+      // Verify user is the owner of this rental
+      const rental = await storage.getRentalContract(id);
+      if (!rental) {
+        return res.status(404).json({ message: "Rental not found" });
+      }
+      
+      if (rental.ownerId !== userId) {
+        return res.status(403).json({ message: "Forbidden" });
+      }
+      
+      // Validate request body with Zod partial schema for updates
+      const updateSchema = insertPropertyDeliveryInventorySchema.partial();
+      const validatedData = updateSchema.parse(req.body);
+      
+      // Check if inventory already exists
+      const existing = await storage.getPropertyDeliveryInventory(id);
+      
+      let inventory;
+      if (existing) {
+        // Update existing inventory
+        inventory = await storage.updatePropertyDeliveryInventory(existing.id, validatedData);
+      } else {
+        // Create new inventory
+        const inventoryData = {
+          ...validatedData,
+          rentalContractId: id,
+          propertyId: rental.propertyId,
+          ownerId: userId,
+          tenantId: rental.tenantId,
+        };
+        inventory = await storage.createPropertyDeliveryInventory(inventoryData);
+      }
+      
+      res.json(inventory);
+    } catch (error: any) {
+      console.error("Error saving inventory:", error);
+      res.status(400).json({ message: error.message || "Failed to save inventory" });
+    }
+  });
+
+  app.get("/api/owner/rentals/:id/move-in-form", isAuthenticated, async (req: any, res) => {
+    try {
+      const { id } = req.params;
+      const userId = req.user.claims.sub;
+      
+      // Verify user is the owner of this rental
+      const rental = await storage.getRentalContract(id);
+      if (!rental) {
+        return res.status(404).json({ message: "Rental not found" });
+      }
+      
+      if (rental.ownerId !== userId) {
+        return res.status(403).json({ message: "Forbidden" });
+      }
+      
+      const form = await storage.getTenantMoveInForm(id);
+      res.json(form || null);
+    } catch (error) {
+      console.error("Error fetching move-in form:", error);
+      res.status(500).json({ message: "Failed to fetch move-in form" });
+    }
+  });
+
+  app.post("/api/owner/rentals/:id/move-in-form", isAuthenticated, async (req: any, res) => {
+    try {
+      const { id } = req.params;
+      const userId = req.user.claims.sub;
+      
+      // Verify user is the owner of this rental
+      const rental = await storage.getRentalContract(id);
+      if (!rental) {
+        return res.status(404).json({ message: "Rental not found" });
+      }
+      
+      if (rental.ownerId !== userId) {
+        return res.status(403).json({ message: "Forbidden" });
+      }
+      
+      // Validate request body with Zod partial schema for updates
+      const updateSchema = insertTenantMoveInFormSchema.partial();
+      const validatedData = updateSchema.parse(req.body);
+      
+      // Check if form already exists
+      const existing = await storage.getTenantMoveInForm(id);
+      
+      let form;
+      if (existing) {
+        // Update existing form
+        form = await storage.updateTenantMoveInForm(existing.id, validatedData);
+      } else {
+        // Create new form
+        const formData = {
+          ...validatedData,
+          rentalContractId: id,
+          tenantId: rental.tenantId,
+        };
+        form = await storage.createTenantMoveInForm(formData);
+      }
+      
+      res.json(form);
+    } catch (error: any) {
+      console.error("Error saving move-in form:", error);
+      res.status(400).json({ message: error.message || "Failed to save move-in form" });
+    }
+  });
+
   // Permission routes
   app.get("/api/users/:id/permissions", isAuthenticated, requireRole(["master", "admin"]), async (req, res) => {
     try {
