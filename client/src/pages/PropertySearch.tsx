@@ -480,24 +480,10 @@ export default function PropertySearch() {
                   {properties.map((property) => (
                     <Card 
                       key={property.id} 
-                      className="relative hover-elevate cursor-pointer" 
+                      className="overflow-hidden hover-elevate cursor-pointer" 
                       onClick={() => setLocation(`/propiedad/${property.id}/completo`)}
                       data-testid={`card-property-${property.id}`}
                     >
-                      {isAuthenticated && (
-                        <Button
-                          size="icon"
-                          variant="ghost"
-                          className="absolute top-2 left-2 z-10 bg-background/80 backdrop-blur-sm"
-                          onClick={(e) => handleToggleFavorite(e, property.id)}
-                          disabled={toggleFavoriteMutation.isPending}
-                          data-testid={`button-favorite-${property.id}`}
-                        >
-                          <Heart 
-                            className={`h-4 w-4 ${favoriteIds.has(property.id) ? "fill-red-500 text-red-500" : ""}`} 
-                          />
-                        </Button>
-                      )}
                       {property.primaryImages && property.primaryImages.length > 0 ? (
                         <div className="h-36 bg-muted relative overflow-hidden">
                           <img
@@ -505,6 +491,20 @@ export default function PropertySearch() {
                             alt={property.title}
                             className="w-full h-full object-cover"
                           />
+                          {isAuthenticated && (
+                            <Button
+                              size="icon"
+                              variant="ghost"
+                              className="absolute top-2 left-2 z-10 bg-background/80 backdrop-blur-sm"
+                              onClick={(e) => handleToggleFavorite(e, property.id)}
+                              disabled={toggleFavoriteMutation.isPending}
+                              data-testid={`button-favorite-${property.id}`}
+                            >
+                              <Heart 
+                                className={`h-4 w-4 ${favoriteIds.has(property.id) ? "fill-red-500 text-red-500" : ""}`} 
+                              />
+                            </Button>
+                          )}
                           {property.featured && (
                             <Badge className="absolute top-2 right-2">
                               Destacada
@@ -512,58 +512,70 @@ export default function PropertySearch() {
                           )}
                         </div>
                       ) : (
-                        <div className="h-36 bg-muted flex items-center justify-center">
+                        <div className="h-36 bg-muted flex items-center justify-center relative">
                           <MapPin className="h-12 w-12 text-muted-foreground" />
+                          {isAuthenticated && (
+                            <Button
+                              size="icon"
+                              variant="ghost"
+                              className="absolute top-2 left-2 z-10 bg-background/80 backdrop-blur-sm"
+                              onClick={(e) => handleToggleFavorite(e, property.id)}
+                              disabled={toggleFavoriteMutation.isPending}
+                              data-testid={`button-favorite-${property.id}`}
+                            >
+                              <Heart 
+                                className={`h-4 w-4 ${favoriteIds.has(property.id) ? "fill-red-500 text-red-500" : ""}`} 
+                              />
+                            </Button>
+                          )}
                         </div>
                       )}
-                      <CardHeader className="pb-3">
+                      <CardHeader className="pb-2 pt-3">
                         <CardTitle className="line-clamp-1 text-base">{property.title}</CardTitle>
                         <CardDescription className="line-clamp-1 text-xs">
                           {property.description || "Sin descripción"}
                         </CardDescription>
                       </CardHeader>
-                      <CardContent className="space-y-2 pt-0">
-                        <div className="space-y-1">
-                          {/* Mostrar tipo de operación */}
-                          <div className="text-xs font-medium text-muted-foreground" data-testid={`text-type-${property.id}`}>
-                            {property.status === "rent" && "En Renta"}
-                            {property.status === "sale" && "En Venta"}
-                            {property.status === "both" && "Renta o Venta"}
-                          </div>
-                          
-                          {/* Precio(s) */}
-                          {property.status === "both" ? (
-                            <div className="space-y-0.5">
-                              <div className="flex items-baseline gap-1">
-                                <span className="text-sm font-semibold text-primary">{formatPrice(property.price)}</span>
-                                <span className="text-xs text-muted-foreground">/mes</span>
-                              </div>
-                              {property.salePrice && (
-                                <div className="flex items-baseline gap-1">
-                                  <span className="text-sm font-semibold text-primary">{formatPrice(property.salePrice)}</span>
-                                  <span className="text-xs text-muted-foreground">venta</span>
-                                </div>
-                              )}
-                            </div>
-                          ) : (
-                            <div className="flex items-center justify-between">
-                              <div className="flex items-baseline gap-1">
-                                <span className="text-lg font-bold text-primary">
-                                  {formatPrice(property.status === "sale" && property.salePrice ? property.salePrice : property.price)}
-                                </span>
-                                {property.status === "rent" && (
-                                  <span className="text-xs text-muted-foreground">/mes</span>
-                                )}
-                              </div>
-                              {property.rating && parseFloat(property.rating) > 0 && (
-                                <div className="flex items-center gap-1">
-                                  <Star className="h-3 w-3 fill-yellow-400 text-yellow-400" />
-                                  <span className="text-xs font-medium">{property.rating}</span>
-                                </div>
-                              )}
-                            </div>
-                          )}
+                      <CardContent className="space-y-1.5 pt-0 pb-3">
+                        {/* Mostrar tipo de operación */}
+                        <div className="text-xs font-medium text-muted-foreground" data-testid={`text-type-${property.id}`}>
+                          {property.status === "rent" && "En Renta"}
+                          {property.status === "sale" && "En Venta"}
+                          {property.status === "both" && "Renta o Venta"}
                         </div>
+                        
+                        {/* Precio(s) */}
+                        {property.status === "both" ? (
+                          <div className="flex items-center justify-between gap-2">
+                            <div className="flex items-baseline gap-1">
+                              <span className="text-sm font-semibold text-primary">{formatPrice(property.price)}</span>
+                              <span className="text-xs text-muted-foreground">/mes</span>
+                            </div>
+                            {property.salePrice && (
+                              <div className="flex items-baseline gap-1">
+                                <span className="text-sm font-semibold text-primary">{formatPrice(property.salePrice)}</span>
+                                <span className="text-xs text-muted-foreground">venta</span>
+                              </div>
+                            )}
+                          </div>
+                        ) : (
+                          <div className="flex items-center justify-between">
+                            <div className="flex items-baseline gap-1">
+                              <span className="text-lg font-bold text-primary">
+                                {formatPrice(property.status === "sale" && property.salePrice ? property.salePrice : property.price)}
+                              </span>
+                              {property.status === "rent" && (
+                                <span className="text-xs text-muted-foreground">/mes</span>
+                              )}
+                            </div>
+                            {property.rating && parseFloat(property.rating) > 0 && (
+                              <div className="flex items-center gap-1">
+                                <Star className="h-3 w-3 fill-yellow-400 text-yellow-400" />
+                                <span className="text-xs font-medium">{property.rating}</span>
+                              </div>
+                            )}
+                          </div>
+                        )}
                         
                         <div className="flex items-center gap-3 text-xs text-muted-foreground">
                           <div className="flex items-center gap-1">
