@@ -604,6 +604,7 @@ export interface IStorage {
   getChatConversations(filters?: { type?: string; userId?: string }): Promise<ChatConversation[]>;
   getChatConversation(id: string): Promise<ChatConversation | undefined>;
   getChatConversationByAppointmentId(appointmentId: string): Promise<ChatConversation | undefined>;
+  getChatConversationByRentalContractId(rentalContractId: string): Promise<ChatConversation | undefined>;
   createChatConversation(conversation: InsertChatConversation): Promise<ChatConversation>;
   getChatMessages(conversationId: string): Promise<ChatMessage[]>;
   createChatMessage(message: InsertChatMessage): Promise<ChatMessage>;
@@ -3673,6 +3674,14 @@ export class DatabaseStorage implements IStorage {
       .select()
       .from(chatConversations)
       .where(eq(chatConversations.appointmentId, appointmentId));
+    return conversation;
+  }
+
+  async getChatConversationByRentalContractId(rentalContractId: string): Promise<ChatConversation | undefined> {
+    const [conversation] = await db
+      .select()
+      .from(chatConversations)
+      .where(eq(chatConversations.rentalContractId, rentalContractId));
     return conversation;
   }
 

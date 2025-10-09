@@ -10195,6 +10195,97 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Get or create chat conversation for a rental
+  app.get("/api/rentals/:id/chat-conversation", isAuthenticated, async (req: any, res) => {
+    try {
+      const { id } = req.params;
+      const userId = req.user.claims.sub;
+      
+      // Verify user has access to this rental
+      const rental = await storage.getRentalContract(id);
+      if (!rental) {
+        return res.status(404).json({ message: "Rental not found" });
+      }
+      
+      // Get maintenance staff assigned to the property
+      const propertyStaff = await storage.getPropertyStaff(rental.propertyId);
+      const maintenanceStaff = propertyStaff.filter(s => s.role === 'maintenance' && s.active);
+      const maintenanceStaffIds = maintenanceStaff.map(s => s.staffId);
+      
+      // Check if user has access (tenant, owner, or maintenance staff)
+      const isTenant = rental.tenantId === userId;
+      const isOwner = rental.ownerId === userId;
+      const isMaintenanceStaff = maintenanceStaffIds.includes(userId);
+      
+      if (!isTenant && !isOwner && !isMaintenanceStaff) {
+        return res.status(403).json({ message: "Forbidden" });
+      }
+      
+      // Check if conversation already exists
+      let conversation = await storage.getChatConversationByRentalContractId(id);
+      
+      if (!conversation) {
+        // Create new conversation
+        const property = await storage.getProperty(rental.propertyId);
+        const title = property 
+          ? `Chat - ${property.title || 'Propiedad'}`
+          : 'Chat - Renta Activa';
+        
+        conversation = await storage.createChatConversation({
+          type: 'rental' as any,
+          title,
+          rentalContractId: id,
+          createdById: userId,
+        });
+        
+        // Add participants (tenant, owner, and maintenance staff)
+        await storage.addChatParticipant({
+          conversationId: conversation.id,
+          userId: rental.tenantId,
+        });
+        
+        await storage.addChatParticipant({
+          conversationId: conversation.id,
+          userId: rental.ownerId,
+        });
+        
+        // Add maintenance staff as participants
+        for (const staffId of maintenanceStaffIds) {
+          await storage.addChatParticipant({
+            conversationId: conversation.id,
+            userId: staffId,
+          });
+        }
+      } else {
+        // Conversation exists - ensure all required participants are added
+        const existingParticipants = await storage.getChatParticipants(conversation.id);
+        const existingParticipantIds = existingParticipants.map(p => p.userId);
+        
+        // Collect all required participants
+        const requiredParticipants = [
+          rental.tenantId,
+          rental.ownerId,
+          ...maintenanceStaffIds
+        ];
+        
+        // Add any missing participants
+        for (const participantId of requiredParticipants) {
+          if (!existingParticipantIds.includes(participantId)) {
+            await storage.addChatParticipant({
+              conversationId: conversation.id,
+              userId: participantId,
+            });
+          }
+        }
+      }
+      
+      res.json(conversation);
+    } catch (error: any) {
+      console.error("Error getting/creating rental chat conversation:", error);
+      res.status(500).json({ message: error.message || "Failed to get chat conversation" });
+    }
+  });
+
   // Owner Active Rentals routes
   app.get("/api/owner/active-rentals", isAuthenticated, async (req: any, res) => {
     try {
