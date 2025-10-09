@@ -229,6 +229,31 @@ export const rentalContractStatusEnum = pgEnum("rental_contract_status", [
   "cancelado",       // Cancelado
 ]);
 
+export const rentalPaymentStatusEnum = pgEnum("rental_payment_status", [
+  "pending",         // Pendiente de pago
+  "paid",            // Pagado
+  "overdue",         // Atrasado
+  "cancelled",       // Cancelado
+]);
+
+export const tenantMaintenanceRequestStatusEnum = pgEnum("tenant_maintenance_request_status", [
+  "requested",       // Solicitado por inquilino
+  "owner_notified",  // Propietario notificado
+  "in_progress",     // En progreso
+  "completed",       // Completado
+  "cancelled",       // Cancelado
+]);
+
+export const tenantMaintenanceTypeEnum = pgEnum("tenant_maintenance_type", [
+  "plumbing",        // Plomería
+  "electrical",      // Eléctrico
+  "appliances",      // Electrodomésticos
+  "hvac",            // Aire acondicionado/calefacción
+  "general",         // General
+  "emergency",       // Emergencia
+  "other",           // Otro
+]);
+
 export const propertyApprovalStatusEnum = pgEnum("property_approval_status", [
   "draft",              // Borrador, aún no enviada
   "pending_review",     // Enviada, esperando revisión inicial
@@ -1221,6 +1246,73 @@ export const insertRentalContractSchema = createInsertSchema(rentalContracts).om
 
 export type InsertRentalContract = z.infer<typeof insertRentalContractSchema>;
 export type RentalContract = typeof rentalContracts.$inferSelect;
+
+// Rental Payments table - Pagos mensuales de renta
+export const rentalPayments = pgTable("rental_payments", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  rentalContractId: varchar("rental_contract_id").notNull().references(() => rentalContracts.id, { onDelete: "cascade" }),
+  tenantId: varchar("tenant_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  ownerId: varchar("owner_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  amount: decimal("amount", { precision: 12, scale: 2 }).notNull(),
+  dueDate: timestamp("due_date").notNull(), // Fecha de vencimiento del pago
+  paidAt: timestamp("paid_at"), // Fecha cuando se pagó
+  status: rentalPaymentStatusEnum("status").notNull().default("pending"),
+  paymentMethod: varchar("payment_method"), // Método de pago usado
+  transactionReference: varchar("transaction_reference"), // Referencia bancaria u otro identificador
+  notes: text("notes"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+}, (table) => [
+  index("idx_rental_payments_contract").on(table.rentalContractId),
+  index("idx_rental_payments_tenant").on(table.tenantId),
+  index("idx_rental_payments_status").on(table.status),
+  index("idx_rental_payments_due_date").on(table.dueDate),
+]);
+
+export const insertRentalPaymentSchema = createInsertSchema(rentalPayments).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export type InsertRentalPayment = z.infer<typeof insertRentalPaymentSchema>;
+export type RentalPayment = typeof rentalPayments.$inferSelect;
+
+// Tenant Maintenance Requests table - Solicitudes de mantenimiento del inquilino
+export const tenantMaintenanceRequests = pgTable("tenant_maintenance_requests", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  rentalContractId: varchar("rental_contract_id").notNull().references(() => rentalContracts.id, { onDelete: "cascade" }),
+  tenantId: varchar("tenant_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  ownerId: varchar("owner_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  propertyId: varchar("property_id").notNull().references(() => properties.id, { onDelete: "cascade" }),
+  maintenanceType: tenantMaintenanceTypeEnum("maintenance_type").notNull(),
+  title: varchar("title").notNull(),
+  description: text("description").notNull(),
+  urgency: varchar("urgency").notNull().default("normal"), // low, normal, high, emergency
+  status: tenantMaintenanceRequestStatusEnum("status").notNull().default("requested"),
+  images: text("images").array().default(sql`ARRAY[]::text[]`), // Fotos del problema
+  ownerNotifiedAt: timestamp("owner_notified_at"),
+  scheduledDate: timestamp("scheduled_date"), // Fecha programada para el mantenimiento
+  completedAt: timestamp("completed_at"),
+  ownerNotes: text("owner_notes"), // Notas del propietario
+  resolution: text("resolution"), // Descripción de cómo se resolvió
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+}, (table) => [
+  index("idx_tenant_maintenance_contract").on(table.rentalContractId),
+  index("idx_tenant_maintenance_tenant").on(table.tenantId),
+  index("idx_tenant_maintenance_owner").on(table.ownerId),
+  index("idx_tenant_maintenance_status").on(table.status),
+]);
+
+export const insertTenantMaintenanceRequestSchema = createInsertSchema(tenantMaintenanceRequests).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export type InsertTenantMaintenanceRequest = z.infer<typeof insertTenantMaintenanceRequestSchema>;
+export type TenantMaintenanceRequest = typeof tenantMaintenanceRequests.$inferSelect;
 
 // Appointments table
 export const appointments = pgTable("appointments", {
