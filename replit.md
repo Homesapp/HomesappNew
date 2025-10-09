@@ -6,6 +6,10 @@ HomesApp is a comprehensive SaaS platform designed to streamline real estate pro
 ## User Preferences
 Preferred communication style: Simple, everyday language.
 
+## Recent Changes (October 2025)
+*   **Enhanced Navigation & Dashboard UX**: Reorganized sidebar navigation with collapsible groups (Properties, Activity, Finance) for both client and owner roles to reduce visual clutter and improve organization. Enhanced ClientDashboard with active rentals and maintenance request stat cards, plus quick action buttons. Enhanced OwnerDashboard with active rentals card and quick action navigation. Fixed sidebar footer icon alignment when collapsed for proper RoleToggle and Help button display.
+*   **Bug Fixes**: Resolved critical `language` variable reference error in AppSidebar by properly destructuring from useLanguage hook. Corrected owner active rentals navigation route to use shared `/rentas-activas` page for both client and owner roles.
+
 ## System Architecture
 
 ### Frontend
