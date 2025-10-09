@@ -29,8 +29,9 @@ Key schema entities include:
 - **Tenant Screenings**: Stores application data, AI analysis, risk scores.
 - **Marketing Campaigns**: Stores message templates, targeting.
 - **Maintenance Schedules**: Tracks property linking, tasks, frequency.
-- **Rental Payments**: Tracks monthly payments with status.
-- **Tenant Maintenance Requests**: Client-submitted requests with urgency.
+- **Rental Payments**: Tracks monthly payments with status and device-uploaded proof images.
+- **Tenant Maintenance Requests**: Client-submitted requests with title, description, urgency, and photo documentation (base64 encoded).
+- **Chat Conversations**: Enhanced with rentalContractId for rental-specific chats with automatic participant enrollment (tenant, owner, maintenance staff).
 
 ### Key Features and Workflows
 *   **Role-Based Access**: Granular control for master, admin, seller, owner, and client roles, including role-based income and appointment page enhancements.
@@ -50,7 +51,11 @@ Key schema entities include:
 *   **Marketing Automation**: Campaign management, audience segmentation, performance tracking, and scheduling.
 *   **Preventive Maintenance System**: Scheduling, task tracking, and automated reminders.
 *   **Enhanced Referral Tracking**: Automatic commission attribution and performance analytics, including bank account integration for payments.
-*   **Active Rentals Management**: Comprehensive portals for clients (payment history, maintenance requests) and owners (contract visualization, property delivery inventory, tenant info).
+*   **Active Rentals Management**: Comprehensive portals for clients and owners with:
+    - Payment history with device-uploaded receipt proofs (images, 10MB limit)
+    - Maintenance requests with title, description, urgency, and photo documentation (device-only, base64, 10MB limit)
+    - Real-time chat system connecting tenant, owner, and maintenance staff via WebSocket
+    - Property information display (title, condominium/unit or house name)
 
 ### System Design Choices
 The platform utilizes unified middleware for consistent authentication and automatic logging. The public dashboard adapts based on user authentication. WebSocket security for real-time chat ensures session-based authentication and per-conversation authorization. A development-only authentication endpoint (`/api/auth/test/set-role`) allows role switching for testing.
