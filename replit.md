@@ -9,6 +9,7 @@ Preferred communication style: Simple, everyday language.
 ## Recent Changes (October 2025)
 *   **Enhanced Navigation & Dashboard UX**: Reorganized sidebar navigation with collapsible groups (Properties, Activity, Finance) for both client and owner roles to reduce visual clutter and improve organization. Enhanced ClientDashboard with active rentals and maintenance request stat cards, plus quick action buttons. Enhanced OwnerDashboard with active rentals card and quick action navigation. Fixed sidebar footer icon alignment when collapsed for proper RoleToggle and Help button display.
 *   **Bug Fixes**: Resolved critical `language` variable reference error in AppSidebar by properly destructuring from useLanguage hook. Corrected owner active rentals navigation route to use shared `/rentas-activas` page for both client and owner roles.
+*   **Client Income Page Enhancements (Oct 2025)**: Role-based commission structure implemented - clients only earn referral commissions (25% for client referrals, 20% for owner referrals), NOT rental commissions. MyIncome page updated with role guards to hide rental commission section, bank account tab, and training tab for clients. Added concrete dollar examples ($4,500 for $18k client referral, $3,600 for $18k owner referral). Sidebar spacing issue fixed by integrating client collapsible groups into main SidebarGroup, eliminating visual gap between Messages and Properties sections.
 
 ## System Architecture
 
