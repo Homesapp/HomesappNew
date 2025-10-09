@@ -56,6 +56,7 @@ Performance is optimized with 20 B-tree indexes for critical tables (Properties,
 *   **Preventive Maintenance System**: Scheduling, task tracking, and automated reminders for property owners.
 *   **Enhanced Referral Tracking**: Automatic commission attribution and performance analytics. Includes bank account field for commission payments in Referrals page.
 *   **Client Active Rentals Management**: Comprehensive tenant portal for managing active rentals, viewing payment history with status tracking (paid/pending/overdue), and submitting maintenance requests with urgency levels. Security-hardened endpoints filter sensitive owner data from client responses.
+*   **Owner Active Rentals Management**: Dedicated owner portal at `/owner/active-rentals` providing tabbed interface for managing rental properties. Features include contract visualization (monthly rent, deposit, lease dates, check-in date), property delivery inventory management (room-by-room items with condition tracking, utility meter readings, keys/access cards), and tenant information display (move-in form data including emergency contacts, vehicle details, pet info). Backend enforces ownership verification on all endpoints with Zod validation on POST operations. Supports bilingual interface (Spanish/English).
 *   **Virtual Assistant (MARCO)**: OpenAI GPT-5 powered chatbot for client guidance.
 
 ### System Design Choices
