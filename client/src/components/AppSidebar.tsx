@@ -87,7 +87,7 @@ const roleLabels: Record<UserRole, string> = {
 
 export function AppSidebar({ userRole }: AppSidebarProps) {
   const [location] = useLocation();
-  const { t } = useLanguage();
+  const { t, language } = useLanguage();
   const { state } = useSidebar();
 
   const [openGroups, setOpenGroups] = useState({
