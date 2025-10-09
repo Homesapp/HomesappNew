@@ -32,10 +32,19 @@ Key schema entities include:
 - **Rental Payments**: Tracks service-based payments (rent, electricity, water, internet, gas, maintenance, other) with status, device-uploaded receipt proofs, and owner approval workflow (approvedBy, approvedAt fields).
 - **Tenant Maintenance Requests**: Client-submitted requests with title, description, urgency, and photo documentation (base64 encoded).
 - **Chat Conversations**: Enhanced with rentalContractId for rental-specific chats with automatic participant enrollment (tenant, owner, maintenance staff).
+- **Appointments**: Extended with concierge assignment fields (conciergeId, accessType, accessCode, accessInstructions, conciergeAssignedBy, conciergeAssignedAt) for property access coordination.
+- **Concierge Blocked Slots**: Tracks concierge unavailability periods to calculate accurate appointment slot availability.
 
 ### Key Features and Workflows
 *   **Role-Based Access**: Granular control for master, admin, seller, owner, and client roles, including role-based income and appointment page enhancements.
 *   **Appointment Scheduling**: Dual-type (individual/tour) with configurable business hours, Calendly-style 4-step wizard interface, reschedule workflow, and client limits (1 per day).
+*   **Concierge-Based Appointment System**: Dynamic appointment slot availability determined by the number of approved concierges with available time (not blocked or booked). Owners and admins can assign concierges to appointments with property access credentials:
+    - **Access Types**: Lockbox (with code), Electronic Lock (with code), Manual (instructions only), Other (custom)
+    - **Owner Workflow**: Select concierge from available list, provide access type and credentials, send assignment
+    - **Admin Workflow**: Can assign concierges to any appointment regardless of owner approval status
+    - **Automated Notifications**: Client receives confirmation with property address, time, and concierge info; Owner receives assignment confirmation; Concierge receives appointment details with location and access instructions; Admins receive assignment notification
+    - **Slot Availability Logic**: Available slots = approved concierges count minus those with blocked time slots minus those with existing appointments at that time. System checks for time overlap (individual appointments = 60 min, tour appointments = 30 min) to prevent double-bookings
+    - **Blocked Slot Management**: Concierges and admins can create time blocks to mark unavailability periods. The system validates against these blocks when calculating slot availability, ensuring accurate scheduling. Blocked slots have start/end times and are checked for overlap with requested appointment times
 *   **Property Management**: Property approval workflow, owner change requests, sublease functionality, pet-friendly indicators, custom listing titles, and enhanced photo gallery with a complete photo editing system (add, delete, reorder, cover image selection, admin approval workflow). All listings use `primaryImages`.
 *   **Property Staff & Task Management**: System for assigning staff to properties with role-based assignments and task tracking.
 *   **Property Submission**: A 5-step wizard with draft saving, digital agreement signing, and integration with approved condominiums.

@@ -197,6 +197,13 @@ export default function AdminAppointmentManagement() {
       });
       queryClient.invalidateQueries({ queryKey: ["/api/admin/appointments/all"] });
       queryClient.invalidateQueries({ queryKey: ["/api/appointments"] });
+      // Invalidate available concierges queries to prevent stale data
+      queryClient.invalidateQueries({ 
+        predicate: (query) => {
+          const key = query.queryKey[0];
+          return typeof key === 'string' && key.startsWith('/api/appointments/available-concierges');
+        }
+      });
       setAssignConciergeDialogOpen(false);
       setSelectedConciergeId("");
       setAccessType("lockbox");

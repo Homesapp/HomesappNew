@@ -7675,14 +7675,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Get available concierges for a specific time slot
   app.get("/api/appointments/available-concierges", isAuthenticated, async (req: any, res) => {
     try {
-      const { date } = req.query;
+      const { date, mode } = req.query;
       
       if (!date) {
         return res.status(400).json({ message: "Date parameter is required" });
       }
 
       const slotDate = new Date(date);
-      const availableConcierges = await storage.getAvailableConcierguesForSlot(slotDate);
+      // Convert mode to duration: individual=60min (default), tour=30min
+      const durationMinutes = mode === 'tour' ? 30 : 60;
+      const availableConcierges = await storage.getAvailableConcierguesForSlot(slotDate, durationMinutes);
       
       // Enrich with ratings
       const enrichedConcierges = await Promise.all(

@@ -391,8 +391,8 @@ export interface IStorage {
   
   // Concierge Availability operations
   getActiveConciergues(): Promise<any[]>;
-  getAvailableConcierguesForSlot(date: Date): Promise<any[]>;
-  getAvailableSlotCount(date: Date): Promise<number>;
+  getAvailableConcierguesForSlot(date: Date, durationMinutes?: number): Promise<any[]>;
+  getAvailableSlotCount(date: Date, durationMinutes?: number): Promise<number>;
   assignConciergeToAppointment(appointmentId: string, conciergeId: string, assignedBy: string, accessInfo?: { accessType?: string; accessCode?: string; accessInstructions?: string }): Promise<Appointment>;
   
   // Property Review operations
@@ -2109,12 +2109,17 @@ export class DatabaseStorage implements IStorage {
       );
   }
 
-  async getAvailableConcierguesForSlot(date: Date): Promise<any[]> {
+  async getAvailableConcierguesForSlot(date: Date, durationMinutes: number = 60): Promise<any[]> {
     // Get all active concierges
     const activeConcierges = await this.getActiveConciergues();
     
     // Check each concierge's blocked slots and existing appointments
     const availableConcierges = [];
+    
+    // Use provided duration or default to 60 min (individual)
+    // Individual appointments = 60 min, tour appointments = 30 min
+    const requestedStartTime = new Date(date);
+    const requestedEndTime = new Date(date.getTime() + durationMinutes * 60 * 1000);
     
     for (const concierge of activeConcierges) {
       // Check if concierge has this time slot blocked
@@ -2124,26 +2129,40 @@ export class DatabaseStorage implements IStorage {
         .where(
           and(
             eq(conciergeBlockedSlots.conciergeId, concierge.id),
-            lte(conciergeBlockedSlots.startTime, date),
-            gte(conciergeBlockedSlots.endTime, date)
+            lte(conciergeBlockedSlots.startTime, requestedEndTime),
+            gte(conciergeBlockedSlots.endTime, requestedStartTime)
           )
         );
       
       if (blockedSlots.length > 0) continue; // Skip if blocked
       
-      // Check if concierge already has an appointment at this time
-      const existingAppointment = await db
+      // Check if concierge has any appointment that overlaps with this time
+      // Get all non-cancelled appointments for this concierge
+      const existingAppointments = await db
         .select()
         .from(appointments)
         .where(
           and(
             eq(appointments.conciergeId, concierge.id),
-            eq(appointments.date, date),
             not(eq(appointments.status, "cancelled"))
           )
         );
       
-      if (existingAppointment.length > 0) continue; // Skip if already booked
+      let hasConflict = false;
+      for (const apt of existingAppointments) {
+        const aptStart = new Date(apt.date);
+        // individual = 60 min, tour = 30 min
+        const aptDuration = apt.mode === 'individual' ? 60 : 30;
+        const aptEnd = new Date(aptStart.getTime() + aptDuration * 60 * 1000);
+        
+        // Check for overlap: appointments overlap if one starts before the other ends
+        if (aptStart < requestedEndTime && aptEnd > requestedStartTime) {
+          hasConflict = true;
+          break;
+        }
+      }
+      
+      if (hasConflict) continue; // Skip if already booked
       
       availableConcierges.push(concierge);
     }
@@ -2151,8 +2170,8 @@ export class DatabaseStorage implements IStorage {
     return availableConcierges;
   }
 
-  async getAvailableSlotCount(date: Date): Promise<number> {
-    const availableConcierges = await this.getAvailableConcierguesForSlot(date);
+  async getAvailableSlotCount(date: Date, durationMinutes: number = 60): Promise<number> {
+    const availableConcierges = await this.getAvailableConcierguesForSlot(date, durationMinutes);
     return availableConcierges.length;
   }
 
