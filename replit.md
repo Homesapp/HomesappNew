@@ -43,8 +43,15 @@ Key schema entities include:
     - **Owner Workflow**: Select concierge from available list, provide access type and credentials, send assignment
     - **Admin Workflow**: Can assign concierges to any appointment regardless of owner approval status
     - **Automated Notifications**: Client receives confirmation with property address, time, and concierge info; Owner receives assignment confirmation; Concierge receives appointment details with location and access instructions; Admins receive assignment notification
-    - **Slot Availability Logic**: Available slots = approved concierges count minus those with blocked time slots minus those with existing appointments at that time. System checks for time overlap (individual appointments = 60 min, tour appointments = 30 min) to prevent double-bookings
+    - **Slot Availability Logic**: Available slots = approved concierges count minus those with blocked time slots minus those with existing appointments at that time. System checks for time overlap (individual appointments = 60 min, tour appointments = 30 min) to prevent double-bookings with duration-aware availability calculation
     - **Blocked Slot Management**: Concierges and admins can create time blocks to mark unavailability periods. The system validates against these blocks when calculating slot availability, ensuring accurate scheduling. Blocked slots have start/end times and are checked for overlap with requested appointment times
+    - **Post-Appointment Client Features**: After confirmed appointments with assigned concierge, clients can:
+        - View concierge contact information (name, phone, email) with avatar and ratings
+        - Navigate to in-app chat with concierge for real-time messaging
+        - Open WhatsApp chat with concierge (deep link: `https://wa.me/[phone]`)
+        - View property location on Google Maps (prioritizes property's googleMapsUrl, falls back to generated link from coordinates)
+        - Leave reviews for both concierge and property (only available after appointment date passes or status is "completed")
+        - Review system validates appointment status and prevents duplicate submissions using robust query invalidation with `.some()` predicate pattern
 *   **Property Management**: Property approval workflow, owner change requests, sublease functionality, pet-friendly indicators, custom listing titles, and enhanced photo gallery with a complete photo editing system (add, delete, reorder, cover image selection, admin approval workflow). All listings use `primaryImages`.
 *   **Property Staff & Task Management**: System for assigning staff to properties with role-based assignments and task tracking.
 *   **Property Submission**: A 5-step wizard with draft saving, digital agreement signing, and integration with approved condominiums.
