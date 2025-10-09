@@ -1314,6 +1314,126 @@ export const insertTenantMaintenanceRequestSchema = createInsertSchema(tenantMai
 export type InsertTenantMaintenanceRequest = z.infer<typeof insertTenantMaintenanceRequestSchema>;
 export type TenantMaintenanceRequest = typeof tenantMaintenanceRequests.$inferSelect;
 
+// Property Delivery Inventories table - Inventarios de entrega de propiedad
+export const propertyDeliveryInventories = pgTable("property_delivery_inventories", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  rentalContractId: varchar("rental_contract_id").notNull().references(() => rentalContracts.id, { onDelete: "cascade" }),
+  propertyId: varchar("property_id").notNull().references(() => properties.id, { onDelete: "cascade" }),
+  ownerId: varchar("owner_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  tenantId: varchar("tenant_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  
+  // Estado general de la propiedad
+  generalCondition: varchar("general_condition").notNull().default("good"), // excellent, good, fair, poor
+  generalNotes: text("general_notes"),
+  
+  // Inventario por áreas (JSON)
+  livingRoomItems: jsonb("living_room_items"), // { item: string, quantity: number, condition: string, notes: string }[]
+  kitchenItems: jsonb("kitchen_items"),
+  bedroomItems: jsonb("bedroom_items"),
+  bathroomItems: jsonb("bathroom_items"),
+  otherItems: jsonb("other_items"),
+  
+  // Servicios y utilidades
+  waterMeterReading: varchar("water_meter_reading"), // Lectura del medidor de agua
+  electricityMeterReading: varchar("electricity_meter_reading"), // Lectura del medidor de luz
+  gasMeterReading: varchar("gas_meter_reading"), // Lectura del medidor de gas
+  
+  // Llaves y accesos
+  keysProvided: integer("keys_provided").notNull().default(0), // Número de llaves entregadas
+  remoteControls: integer("remote_controls").notNull().default(0), // Controles remotos
+  accessCards: integer("access_cards").notNull().default(0), // Tarjetas de acceso
+  
+  // Fotos del inventario
+  photos: text("photos").array().default(sql`ARRAY[]::text[]`),
+  
+  // Firmas digitales
+  ownerSignedAt: timestamp("owner_signed_at"),
+  tenantSignedAt: timestamp("tenant_signed_at"),
+  
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+}, (table) => [
+  index("idx_delivery_inventory_contract").on(table.rentalContractId),
+  index("idx_delivery_inventory_property").on(table.propertyId),
+]);
+
+export const insertPropertyDeliveryInventorySchema = createInsertSchema(propertyDeliveryInventories).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export type InsertPropertyDeliveryInventory = z.infer<typeof insertPropertyDeliveryInventorySchema>;
+export type PropertyDeliveryInventory = typeof propertyDeliveryInventories.$inferSelect;
+
+// Tenant Move-In Forms table - Formularios de ingreso de inquilinos
+export const tenantMoveInForms = pgTable("tenant_move_in_forms", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  rentalContractId: varchar("rental_contract_id").notNull().references(() => rentalContracts.id, { onDelete: "cascade" }),
+  tenantId: varchar("tenant_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  
+  // Información personal del inquilino
+  fullName: varchar("full_name").notNull(),
+  dateOfBirth: timestamp("date_of_birth"),
+  nationality: varchar("nationality"),
+  occupation: varchar("occupation"),
+  employer: varchar("employer"),
+  
+  // Documentos de identificación
+  idType: varchar("id_type"), // passport, ine, driver_license
+  idNumber: varchar("id_number"),
+  idExpiry: timestamp("id_expiry"),
+  idPhotos: text("id_photos").array().default(sql`ARRAY[]::text[]`),
+  
+  // Contactos de emergencia
+  emergencyContact1Name: varchar("emergency_contact1_name"),
+  emergencyContact1Phone: varchar("emergency_contact1_phone"),
+  emergencyContact1Relationship: varchar("emergency_contact1_relationship"),
+  
+  emergencyContact2Name: varchar("emergency_contact2_name"),
+  emergencyContact2Phone: varchar("emergency_contact2_phone"),
+  emergencyContact2Relationship: varchar("emergency_contact2_relationship"),
+  
+  // Información de vehículos
+  hasVehicle: boolean("has_vehicle").notNull().default(false),
+  vehicleMake: varchar("vehicle_make"),
+  vehicleModel: varchar("vehicle_model"),
+  vehiclePlate: varchar("vehicle_plate"),
+  vehicleColor: varchar("vehicle_color"),
+  vehiclePhotos: text("vehicle_photos").array().default(sql`ARRAY[]::text[]`),
+  
+  // Mascotas
+  hasPets: boolean("has_pets").notNull().default(false),
+  petDetails: text("pet_details"), // Descripción de las mascotas
+  petPhotos: text("pet_photos").array().default(sql`ARRAY[]::text[]`),
+  
+  // Ocupantes adicionales
+  additionalOccupants: jsonb("additional_occupants"), // { name: string, age: number, relationship: string }[]
+  
+  // Preferencias y notas
+  specialRequests: text("special_requests"),
+  allergies: text("allergies"),
+  medicalConditions: text("medical_conditions"),
+  
+  // Firma digital del inquilino
+  tenantSignedAt: timestamp("tenant_signed_at"),
+  
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+}, (table) => [
+  index("idx_move_in_form_contract").on(table.rentalContractId),
+  index("idx_move_in_form_tenant").on(table.tenantId),
+]);
+
+export const insertTenantMoveInFormSchema = createInsertSchema(tenantMoveInForms).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export type InsertTenantMoveInForm = z.infer<typeof insertTenantMoveInFormSchema>;
+export type TenantMoveInForm = typeof tenantMoveInForms.$inferSelect;
+
 // Appointments table
 export const appointments = pgTable("appointments", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
