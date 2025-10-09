@@ -106,6 +106,7 @@ export function AppSidebar({ userRole }: AppSidebarProps) {
     { titleKey: "sidebar.cards", url: "/cards", icon: CreditCard, roles: ["cliente"] },
     { titleKey: "sidebar.myAppointments", url: "/mis-citas", icon: Calendar, roles: ["cliente"] },
     { titleKey: "sidebar.myOpportunities", url: "/mis-oportunidades", icon: Zap, roles: ["cliente"] },
+    { titleKey: "sidebar.activeRentals", url: "/rentas-activas", icon: Home, roles: ["cliente"] },
     { titleKey: "sidebar.myProperties", url: "/mis-propiedades", icon: Building2, roles: ["owner"] },
     { titleKey: "sidebar.ownerVisits", url: "/owner/appointments", icon: Calendar, roles: ["owner"] },
     { titleKey: "sidebar.financialReport", url: "/owner/financial-report", icon: FileText, roles: ["owner"] },
