@@ -29,6 +29,8 @@ The schema includes:
 - **Tenant Screenings**: Stores application data, AI analysis, risk scores, flags, recommendations.
 - **Marketing Campaigns**: Stores message templates, audience targeting, delivery tracking.
 - **Maintenance Schedules**: Tracks property linking, task types, frequencies, completion.
+- **Rental Payments**: Tracks monthly rental payments with status (paid/pending/overdue), amount, due date, and payment date.
+- **Tenant Maintenance Requests**: Client-submitted maintenance requests with urgency levels, descriptions, and status tracking.
 
 Performance is optimized with 20 B-tree indexes for critical tables (Properties, Appointments, Income Transactions) resulting in significant query speed improvements. Security enhancements include a comprehensive Authorization Audit, patching of privilege escalation vulnerabilities, and enhanced role validation. Scalability assessment indicates the system can handle 5,000-10,000 daily active users with current optimizations.
 
@@ -52,7 +54,8 @@ Performance is optimized with 20 B-tree indexes for critical tables (Properties,
 *   **Intelligent Tenant Screening (OpenAI GPT-4)**: Automated application analysis, risk scoring, red flag detection, and actionable recommendations.
 *   **Marketing Automation**: Campaign management, audience segmentation, performance tracking, and scheduling.
 *   **Preventive Maintenance System**: Scheduling, task tracking, and automated reminders for property owners.
-*   **Enhanced Referral Tracking**: Automatic commission attribution and performance analytics.
+*   **Enhanced Referral Tracking**: Automatic commission attribution and performance analytics. Includes bank account field for commission payments in Referrals page.
+*   **Client Active Rentals Management**: Comprehensive tenant portal for managing active rentals, viewing payment history with status tracking (paid/pending/overdue), and submitting maintenance requests with urgency levels. Security-hardened endpoints filter sensitive owner data from client responses.
 *   **Virtual Assistant (MARCO)**: OpenAI GPT-5 powered chatbot for client guidance.
 
 ### System Design Choices
