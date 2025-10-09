@@ -14,7 +14,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Home, DollarSign, Wrench, Calendar, CheckCircle2, Clock, AlertCircle, Plus } from "lucide-react";
+import { Home, DollarSign, Wrench, Calendar, CheckCircle2, Clock, AlertCircle, Plus, Upload, X } from "lucide-react";
 import { format } from "date-fns";
 import { es } from "date-fns/locale";
 import { useForm } from "react-hook-form";
@@ -78,6 +78,7 @@ const maintenanceRequestSchema = z.object({
   title: z.string().min(3, "El título debe tener al menos 3 caracteres"),
   description: z.string().min(10, "La descripción debe tener al menos 10 caracteres"),
   urgency: z.enum(["low", "medium", "high", "emergency"]),
+  photoData: z.string().optional(),
 });
 
 export default function ActiveRentals() {
@@ -89,6 +90,7 @@ export default function ActiveRentals() {
   const [showPaymentDialog, setShowPaymentDialog] = useState(false);
   const [selectedPayment, setSelectedPayment] = useState<RentalPayment | null>(null);
   const [paymentProofFile, setPaymentProofFile] = useState<File | null>(null);
+  const [problemPhotoFile, setProblemPhotoFile] = useState<{ name: string; data: string } | null>(null);
 
   const isOwner = user?.role === "owner";
   const rentalsEndpoint = isOwner ? "/api/owner/active-rentals" : "/api/rentals/active";
@@ -119,7 +121,7 @@ export default function ActiveRentals() {
   const createMaintenanceRequestMutation = useMutation({
     mutationFn: async (data: z.infer<typeof maintenanceRequestSchema>) => {
       if (!selectedRental) throw new Error("No rental selected");
-      return await apiRequest("POST", `/api/rentals/${selectedRental}/maintenance-requests`, data);
+      return await apiRequest("POST", `/api/rentals/${selectedRental}/maintenance-request`, data);
     },
     onSuccess: () => {
       toast({
@@ -187,8 +189,48 @@ export default function ActiveRentals() {
     },
   });
 
+  const handleProblemPhotoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (!file.type.startsWith("image/")) {
+      toast({
+        title: language === "es" ? "Error" : "Error",
+        description: language === "es" 
+          ? "Solo se permiten imágenes" 
+          : "Only images are allowed",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (file.size > 10 * 1024 * 1024) {
+      toast({
+        title: language === "es" ? "Error" : "Error",
+        description: language === "es" 
+          ? "La imagen no debe superar los 10MB" 
+          : "Image must not exceed 10MB",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.onloadend = () => {
+      setProblemPhotoFile({
+        name: file.name,
+        data: reader.result as string,
+      });
+    };
+    reader.readAsDataURL(file);
+  };
+
   const onSubmitMaintenanceRequest = (data: z.infer<typeof maintenanceRequestSchema>) => {
-    createMaintenanceRequestMutation.mutate(data);
+    const submitData = {
+      ...data,
+      photoData: problemPhotoFile?.data,
+    };
+    createMaintenanceRequestMutation.mutate(submitData);
   };
 
   // Auto-select first rental when rentals load
@@ -201,6 +243,14 @@ export default function ActiveRentals() {
       setSelectedRental(rentals.length > 0 ? rentals[0].id : null);
     }
   }, [rentals, selectedRental]);
+
+  // Clean up problem photo when dialog closes
+  useEffect(() => {
+    if (!showMaintenanceDialog) {
+      setProblemPhotoFile(null);
+      maintenanceForm.reset();
+    }
+  }, [showMaintenanceDialog, maintenanceForm]);
 
   if (rentalsLoading) {
     return (
@@ -599,6 +649,40 @@ export default function ActiveRentals() {
                   </FormItem>
                 )}
               />
+              
+              <div className="space-y-2">
+                <FormLabel>{t("activeRentals.problemPhoto", "Foto del Problema (Opcional)")}</FormLabel>
+                <div className="flex items-center gap-4">
+                  <Input
+                    type="file"
+                    accept="image/*"
+                    onChange={handleProblemPhotoUpload}
+                    data-testid="input-problem-photo"
+                  />
+                  <Upload className="h-5 w-5 text-secondary-foreground" />
+                </div>
+                {problemPhotoFile && (
+                  <div className="relative group">
+                    <img
+                      src={problemPhotoFile.data}
+                      alt="Problem preview"
+                      className="w-full h-48 object-cover rounded-md"
+                    />
+                    <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity rounded-md flex items-center justify-center">
+                      <Button
+                        type="button"
+                        variant="destructive"
+                        size="icon"
+                        onClick={() => setProblemPhotoFile(null)}
+                        data-testid="button-remove-problem-photo"
+                      >
+                        <X className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  </div>
+                )}
+              </div>
+              
               <DialogFooter>
                 <Button
                   type="button"

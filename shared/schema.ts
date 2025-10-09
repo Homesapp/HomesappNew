@@ -1281,8 +1281,10 @@ export const tenantMaintenanceRequests = pgTable("tenant_maintenance_requests", 
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   rentalContractId: varchar("rental_contract_id").notNull().references(() => rentalContracts.id, { onDelete: "cascade" }),
   tenantId: varchar("tenant_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  title: text("title").notNull(), // Título de la solicitud
   description: text("description").notNull(),
-  urgency: varchar("urgency").notNull().default("normal"), // low, normal, urgent
+  urgency: varchar("urgency").notNull().default("medium"), // low, medium, high, emergency
+  photoData: text("photo_data"), // Foto del problema en base64
   status: varchar("status").notNull().default("pending"), // pending, in_progress, completed, cancelled
   adminNotes: text("admin_notes"), // Notas del administrador
   resolvedAt: timestamp("resolved_at"), // Fecha de resolución
