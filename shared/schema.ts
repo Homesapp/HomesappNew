@@ -1790,18 +1790,50 @@ export const insertServiceSchema = createInsertSchema(services).omit({
 export type InsertService = z.infer<typeof insertServiceSchema>;
 export type Service = typeof services.$inferSelect;
 
-// Offers table
+// Offers table - Extended for rental offers with complete client profile and offer details
 export const offers = pgTable("offers", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   opportunityRequestId: varchar("opportunity_request_id").references(() => rentalOpportunityRequests.id, { onDelete: "set null" }),
   propertyId: varchar("property_id").notNull().references(() => properties.id, { onDelete: "cascade" }),
   clientId: varchar("client_id").notNull().references(() => users.id),
   appointmentId: varchar("appointment_id").references(() => appointments.id),
-  offerAmount: decimal("offer_amount", { precision: 12, scale: 2 }).notNull(),
+  
+  // Client Profile Information (Perfil del Cliente)
+  clientFullName: text("client_full_name").notNull(),
+  nationality: varchar("nationality"),
+  age: integer("age"),
+  timeInTulum: varchar("time_in_tulum"), // Tiempo de residencia en Tulum
+  occupation: text("occupation"), // Trabajo/Posición
+  company: text("company"), // Compañía para la cual trabaja
+  hasPets: boolean("has_pets").default(false),
+  monthlyIncome: decimal("monthly_income", { precision: 12, scale: 2 }), // Ingreso mensual promedio
+  numberOfTenants: integer("number_of_tenants").default(1), // Número de inquilinos
+  hasGuarantor: boolean("has_guarantor").default(false), // Tiene Garante/Aval
+  propertyUse: varchar("property_use").default("vivienda"), // vivienda or subarrendamiento
+  
+  // Offer Details (Detalles de la Oferta)
+  offerAmount: decimal("offer_amount", { precision: 12, scale: 2 }).notNull(), // Renta ofertada
+  advancePayments: integer("advance_payments").default(0), // Rentas adelantadas
+  moveInDate: timestamp("move_in_date"), // Fecha de Ingreso
+  contractDuration: varchar("contract_duration"), // Duración del contrato
+  includedServices: jsonb("included_services"), // Servicios incluidos en la renta
+  notIncludedServices: jsonb("not_included_services"), // Servicios no incluidos
+  specialRequest: text("special_request"), // Pedido especial
+  
+  // Contract costs based on property use
+  contractCost: decimal("contract_cost", { precision: 10, scale: 2 }), // $2500 vivienda, $3800 subarrendamiento
+  
+  // Digital signature and acceptance
+  clientSignature: text("client_signature"), // Base64 encoded signature or signature URL
+  signedAt: timestamp("signed_at"),
+  acceptedTerms: boolean("accepted_terms").default(false),
+  
+  // Counter offer fields
   counterOfferAmount: decimal("counter_offer_amount", { precision: 12, scale: 2 }),
   status: offerStatusEnum("status").notNull().default("pending"),
   notes: text("notes"),
   counterOfferNotes: text("counter_offer_notes"),
+  
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });
@@ -2187,14 +2219,22 @@ export type InsertLeadJourney = z.infer<typeof insertLeadJourneySchema>;
 export type LeadJourney = typeof leadJourneys.$inferSelect;
 
 // Rental Opportunity Requests (SOR) - Solicitudes de Oportunidad de Renta
+// Clients who completed a visit can request to create an offer
 export const rentalOpportunityRequests = pgTable("rental_opportunity_requests", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   userId: varchar("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
   propertyId: varchar("property_id").notNull().references(() => properties.id, { onDelete: "cascade" }),
+  appointmentId: varchar("appointment_id").references(() => appointments.id), // Link to completed appointment
   status: opportunityRequestStatusEnum("status").notNull().default("pending"),
   notes: text("notes"),
   desiredMoveInDate: timestamp("desired_move_in_date"),
   preferredContactMethod: varchar("preferred_contact_method").default("email"), // email, phone, whatsapp
+  
+  // Admin approval fields
+  approvedBy: varchar("approved_by").references(() => users.id), // Admin who approved/rejected
+  approvedAt: timestamp("approved_at"),
+  rejectionReason: text("rejection_reason"), // If rejected, admin can provide reason
+  
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });
