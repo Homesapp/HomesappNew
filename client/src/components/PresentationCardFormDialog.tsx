@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { insertPresentationCardSchema, type InsertPresentationCard, type PresentationCard } from "@shared/schema";
@@ -30,7 +30,8 @@ import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { useCreatePresentationCard, useUpdatePresentationCard } from "@/hooks/usePresentationCards";
 import { useAuth } from "@/hooks/useAuth";
-import { Loader2 } from "lucide-react";
+import { Loader2, Upload, X } from "lucide-react";
+import { useToast } from "@/hooks/use-toast";
 
 interface PresentationCardFormDialogProps {
   open: boolean;
@@ -46,8 +47,10 @@ export function PresentationCardFormDialog({
   mode,
 }: PresentationCardFormDialogProps) {
   const { user } = useAuth();
+  const { toast } = useToast();
   const createMutation = useCreatePresentationCard();
   const updateMutation = useUpdatePresentationCard();
+  const [petPhotoPreview, setPetPhotoPreview] = useState<string | null>(null);
 
   const form = useForm<InsertPresentationCard>({
     resolver: zodResolver(insertPresentationCardSchema),
@@ -70,6 +73,10 @@ export function PresentationCardFormDialog({
   });
 
   useEffect(() => {
+    if (!open) {
+      return;
+    }
+    
     if (card && mode === "edit") {
       form.reset({
         clientId: card.clientId,
@@ -87,6 +94,7 @@ export function PresentationCardFormDialog({
         hasPets: card.hasPets || false,
         petPhotoUrl: card.petPhotoUrl || undefined,
       });
+      setPetPhotoPreview(card.petPhotoUrl || null);
     } else if (mode === "create") {
       form.reset({
         clientId: user?.id || "",
@@ -104,8 +112,45 @@ export function PresentationCardFormDialog({
         hasPets: false,
         petPhotoUrl: undefined,
       });
+      setPetPhotoPreview(null);
     }
-  }, [card, mode, form, user]);
+  }, [card, mode, form, user, open]);
+
+  const handlePetPhotoUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    if (!file.type.startsWith("image/")) {
+      toast({
+        title: "Error",
+        description: "Solo se permiten archivos de imagen",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (file.size > 5 * 1024 * 1024) {
+      toast({
+        title: "Error",
+        description: "La imagen no debe superar 5MB",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.onloadend = () => {
+      const base64String = reader.result as string;
+      setPetPhotoPreview(base64String);
+      form.setValue("petPhotoUrl", base64String);
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const removePetPhoto = () => {
+    setPetPhotoPreview(null);
+    form.setValue("petPhotoUrl", undefined);
+  };
 
   const onSubmit = async (data: InsertPresentationCard) => {
     try {
@@ -119,8 +164,9 @@ export function PresentationCardFormDialog({
       } else {
         await createMutation.mutateAsync(submitData);
       }
-      onOpenChange(false);
+      setPetPhotoPreview(null);
       form.reset();
+      onOpenChange(false);
     } catch (error) {
       console.error("Form submission error:", error);
     }
@@ -398,32 +444,49 @@ export function PresentationCardFormDialog({
             />
 
             {form.watch("hasPets") && (
-              <FormField
-                control={form.control}
-                name="petPhotoUrl"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Foto de Mascota (URL)</FormLabel>
-                    <FormControl>
-                      <Input
-                        type="url"
-                        placeholder="https://ejemplo.com/foto-mascota.jpg"
-                        data-testid="input-pet-photo-url"
-                        {...field}
-                        value={field.value || ""}
-                      />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
+              <div className="space-y-2">
+                <FormLabel>Foto de Mascota</FormLabel>
+                {petPhotoPreview ? (
+                  <div className="relative">
+                    <img
+                      src={petPhotoPreview}
+                      alt="Vista previa mascota"
+                      className="w-full max-w-xs h-48 object-cover rounded-lg"
+                    />
+                    <Button
+                      type="button"
+                      variant="destructive"
+                      size="icon"
+                      className="absolute top-2 right-2"
+                      onClick={removePetPhoto}
+                      data-testid="button-remove-pet-photo"
+                    >
+                      <X className="h-4 w-4" />
+                    </Button>
+                  </div>
+                ) : (
+                  <div className="flex items-center gap-4">
+                    <Input
+                      type="file"
+                      accept="image/*"
+                      onChange={handlePetPhotoUpload}
+                      data-testid="input-pet-photo"
+                    />
+                    <Upload className="h-5 w-5 text-secondary-foreground" />
+                  </div>
                 )}
-              />
+              </div>
             )}
 
             <div className="flex justify-end gap-3 pt-4">
               <Button
                 type="button"
                 variant="outline"
-                onClick={() => onOpenChange(false)}
+                onClick={() => {
+                  setPetPhotoPreview(null);
+                  form.reset();
+                  onOpenChange(false);
+                }}
                 disabled={isPending}
                 data-testid="button-cancel"
               >
