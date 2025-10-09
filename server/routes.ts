@@ -5108,6 +5108,112 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Admin Rental Opportunity Request routes
+  app.get("/api/admin/rental-opportunity-requests", isAuthenticated, requireRole(["master", "admin", "admin_jr"]), async (req, res) => {
+    try {
+      const { status } = req.query;
+      
+      const allRequests = await storage.getAllRentalOpportunityRequests();
+      let requests = allRequests;
+      
+      if (status) {
+        requests = requests.filter(r => r.status === status);
+      }
+      
+      res.json(requests);
+    } catch (error) {
+      console.error("Error fetching rental opportunity requests:", error);
+      res.status(500).json({ message: "Error al obtener solicitudes de oportunidad" });
+    }
+  });
+
+  app.get("/api/admin/rental-opportunity-requests/:id", isAuthenticated, requireRole(["master", "admin", "admin_jr"]), async (req, res) => {
+    try {
+      const { id } = req.params;
+      const request = await storage.getRentalOpportunityRequest(id);
+      
+      if (!request) {
+        return res.status(404).json({ message: "Solicitud no encontrada" });
+      }
+      
+      res.json(request);
+    } catch (error) {
+      console.error("Error fetching rental opportunity request:", error);
+      res.status(500).json({ message: "Error al obtener solicitud" });
+    }
+  });
+
+  app.patch("/api/admin/rental-opportunity-requests/:id/approve", isAuthenticated, requireRole(["master", "admin", "admin_jr"]), async (req: any, res) => {
+    try {
+      const { id } = req.params;
+      const adminId = req.user?.claims?.sub || req.session?.adminUser?.id;
+      
+      const request = await storage.getRentalOpportunityRequest(id);
+      if (!request) {
+        return res.status(404).json({ message: "Solicitud no encontrada" });
+      }
+
+      if (request.status !== "pending") {
+        return res.status(400).json({ 
+          message: "Esta solicitud ya fue procesada" 
+        });
+      }
+
+      const updated = await storage.approveRentalOpportunityRequest(id, adminId);
+
+      await createAuditLog(
+        req,
+        "approve",
+        "rental_opportunity_request",
+        id,
+        `Solicitud de oportunidad de renta aprobada para propiedad ${request.propertyId}`
+      );
+
+      res.json(updated);
+    } catch (error: any) {
+      console.error("Error approving rental opportunity request:", error);
+      res.status(500).json({ message: error.message || "Error al aprobar solicitud" });
+    }
+  });
+
+  app.patch("/api/admin/rental-opportunity-requests/:id/reject", isAuthenticated, requireRole(["master", "admin", "admin_jr"]), async (req: any, res) => {
+    try {
+      const { id } = req.params;
+      const { rejectionReason } = req.body;
+      const adminId = req.user?.claims?.sub || req.session?.adminUser?.id;
+
+      if (!rejectionReason) {
+        return res.status(400).json({ message: "La razón de rechazo es requerida" });
+      }
+      
+      const request = await storage.getRentalOpportunityRequest(id);
+      if (!request) {
+        return res.status(404).json({ message: "Solicitud no encontrada" });
+      }
+
+      if (request.status !== "pending") {
+        return res.status(400).json({ 
+          message: "Esta solicitud ya fue procesada" 
+        });
+      }
+
+      const updated = await storage.rejectRentalOpportunityRequest(id, adminId, rejectionReason);
+
+      await createAuditLog(
+        req,
+        "reject",
+        "rental_opportunity_request",
+        id,
+        `Solicitud de oportunidad de renta rechazada para propiedad ${request.propertyId}: ${rejectionReason}`
+      );
+
+      res.json(updated);
+    } catch (error: any) {
+      console.error("Error rejecting rental opportunity request:", error);
+      res.status(500).json({ message: error.message || "Error al rechazar solicitud" });
+    }
+  });
+
   app.post("/api/admin/inspection-reports", isAuthenticated, requireRole(["master", "admin", "admin_jr"]), async (req: any, res) => {
     try {
       const inspectorId = req.user?.claims?.sub || req.session?.adminUser?.id;
