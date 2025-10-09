@@ -54,6 +54,7 @@ import {
   ownerReferrals,
   feedback,
   rentalCommissionConfigs,
+  rentalOpportunityRequests,
   accountantAssignments,
   payoutBatches,
   incomeTransactions,
@@ -178,6 +179,8 @@ import {
   type AppointmentReview,
   type RentalCommissionConfig,
   type InsertRentalCommissionConfig,
+  type RentalOpportunityRequest,
+  type InsertRentalOpportunityRequest,
   type AccountantAssignment,
   type InsertAccountantAssignment,
   type PayoutBatch,
@@ -481,6 +484,16 @@ export interface IStorage {
   getOffers(filters?: { status?: string; clientId?: string; propertyId?: string }): Promise<Offer[]>;
   createOffer(offer: InsertOffer): Promise<Offer>;
   updateOffer(id: string, updates: Partial<InsertOffer>): Promise<Offer>;
+  
+  // Rental Opportunity Request operations
+  getVisitedPropertiesByClient(clientId: string): Promise<Array<Property & { appointment: Appointment }>>;
+  createRentalOpportunityRequest(request: InsertRentalOpportunityRequest): Promise<RentalOpportunityRequest>;
+  getRentalOpportunityRequestsByClient(clientId: string): Promise<RentalOpportunityRequest[]>;
+  getRentalOpportunityRequest(id: string): Promise<RentalOpportunityRequest | undefined>;
+  getAllRentalOpportunityRequests(): Promise<RentalOpportunityRequest[]>;
+  approveRentalOpportunityRequest(id: string, adminId: string): Promise<RentalOpportunityRequest>;
+  rejectRentalOpportunityRequest(id: string, adminId: string, reason: string): Promise<RentalOpportunityRequest>;
+  updateRentalOpportunityRequestStatus(id: string, status: string): Promise<RentalOpportunityRequest>;
   
   // Permission operations
   getUserPermissions(userId: string): Promise<Permission[]>;
@@ -2807,6 +2820,99 @@ export class DatabaseStorage implements IStorage {
       .where(eq(offers.id, id))
       .returning();
     return offer;
+  }
+
+  // Rental Opportunity Request operations
+  async getVisitedPropertiesByClient(clientId: string): Promise<Array<Property & { appointment: Appointment }>> {
+    // Get appointments that are completed or have passed
+    const completedAppointments = await db
+      .select({
+        property: properties,
+        appointment: appointments,
+      })
+      .from(appointments)
+      .innerJoin(properties, eq(appointments.propertyId, properties.id))
+      .where(
+        and(
+          eq(appointments.clientId, clientId),
+          or(
+            eq(appointments.status, 'completed' as any),
+            lte(appointments.appointmentDate, new Date())
+          )
+        )
+      )
+      .orderBy(desc(appointments.appointmentDate));
+
+    return completedAppointments.map(row => ({
+      ...row.property,
+      appointment: row.appointment
+    }));
+  }
+
+  async createRentalOpportunityRequest(requestData: InsertRentalOpportunityRequest): Promise<RentalOpportunityRequest> {
+    const [request] = await db.insert(rentalOpportunityRequests).values(requestData).returning();
+    return request;
+  }
+
+  async getRentalOpportunityRequestsByClient(clientId: string): Promise<RentalOpportunityRequest[]> {
+    return await db
+      .select()
+      .from(rentalOpportunityRequests)
+      .where(eq(rentalOpportunityRequests.userId, clientId))
+      .orderBy(desc(rentalOpportunityRequests.createdAt));
+  }
+
+  async getRentalOpportunityRequest(id: string): Promise<RentalOpportunityRequest | undefined> {
+    const [request] = await db.select().from(rentalOpportunityRequests).where(eq(rentalOpportunityRequests.id, id));
+    return request;
+  }
+
+  async getAllRentalOpportunityRequests(): Promise<RentalOpportunityRequest[]> {
+    return await db
+      .select()
+      .from(rentalOpportunityRequests)
+      .orderBy(desc(rentalOpportunityRequests.createdAt));
+  }
+
+  async approveRentalOpportunityRequest(id: string, adminId: string): Promise<RentalOpportunityRequest> {
+    const [request] = await db
+      .update(rentalOpportunityRequests)
+      .set({
+        status: 'approved' as any,
+        approvedBy: adminId,
+        approvedAt: new Date(),
+        updatedAt: new Date()
+      })
+      .where(eq(rentalOpportunityRequests.id, id))
+      .returning();
+    return request;
+  }
+
+  async rejectRentalOpportunityRequest(id: string, adminId: string, reason: string): Promise<RentalOpportunityRequest> {
+    const [request] = await db
+      .update(rentalOpportunityRequests)
+      .set({
+        status: 'rejected' as any,
+        approvedBy: adminId,
+        approvedAt: new Date(),
+        rejectionReason: reason,
+        updatedAt: new Date()
+      })
+      .where(eq(rentalOpportunityRequests.id, id))
+      .returning();
+    return request;
+  }
+
+  async updateRentalOpportunityRequestStatus(id: string, status: string): Promise<RentalOpportunityRequest> {
+    const [request] = await db
+      .update(rentalOpportunityRequests)
+      .set({
+        status: status as any,
+        updatedAt: new Date()
+      })
+      .where(eq(rentalOpportunityRequests.id, id))
+      .returning();
+    return request;
   }
 
   // Permission operations
