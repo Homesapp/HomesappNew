@@ -313,10 +313,12 @@ export function AppointmentSchedulingDialog({
         <div className="flex-1 overflow-y-auto px-1">
           <Form {...form}>
             <form 
-              onSubmit={form.handleSubmit(onSubmit)} 
+              onSubmit={(e) => {
+                e.preventDefault();
+              }} 
               onKeyDown={(e) => {
-                // Prevent form submission on Enter key unless on final step
-                if (e.key === 'Enter' && step < 4) {
+                // Prevent form submission on Enter key, but allow Enter in textareas for multi-line input
+                if (e.key === 'Enter' && (e.target as HTMLElement).tagName !== 'TEXTAREA') {
                   e.preventDefault();
                 }
               }}
@@ -685,7 +687,8 @@ export function AppointmentSchedulingDialog({
                   </Button>
                 ) : (
                   <Button
-                    type="submit"
+                    type="button"
+                    onClick={() => form.handleSubmit(onSubmit)()}
                     disabled={createAppointmentMutation.isPending}
                     data-testid="button-confirm"
                   >
