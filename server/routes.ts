@@ -7773,12 +7773,92 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Send notifications to all parties
       const concierge = await storage.getUser(conciergeId);
       const client = await storage.getUser(appointment.clientId);
+      
+      const notifications = [];
+      const appointmentDate = new Date(appointment.date).toLocaleString('es-MX', { 
+        dateStyle: 'full',
+        timeStyle: 'short'
+      });
+      const propertyLocation = property?.location || "ubicación no disponible";
+      const accessTypeLabel = {
+        lockbox: "Lockbox",
+        electronic: "Cerradura Electrónica",
+        manual: "Acceso Manual",
+        other: "Otro"
+      }[accessType] || accessType;
 
-      // TODO: Send notifications with Google Maps location and schedule details
-      // - Client: confirmation with property address, time, concierge info
-      // - Owner: confirmation with concierge assignment
-      // - Concierge: appointment details, access instructions, property location
-      // - Admin: assignment confirmation
+      // Notify client - confirmation with property address, time, concierge info
+      if (client) {
+        notifications.push(
+          storage.createNotification({
+            userId: client.id,
+            type: "appointment",
+            title: "Conserje Asignado a tu Cita",
+            message: `Tu cita para ${property?.title} el ${appointmentDate} ha sido confirmada. Conserje asignado: ${concierge?.firstName} ${concierge?.lastName}. Ubicación: ${propertyLocation}`,
+            relatedEntityType: "appointment",
+            relatedEntityId: appointment.id,
+            priority: "high",
+          })
+        );
+      }
+
+      // Notify property owner - confirmation with concierge assignment
+      if (property?.ownerId && property.ownerId !== userId) {
+        notifications.push(
+          storage.createNotification({
+            userId: property.ownerId,
+            type: "appointment",
+            title: "Conserje Asignado",
+            message: `Se ha asignado a ${concierge?.firstName} ${concierge?.lastName} para la cita en ${property.title} el ${appointmentDate}`,
+            relatedEntityType: "appointment",
+            relatedEntityId: appointment.id,
+            priority: "medium",
+          })
+        );
+      }
+
+      // Notify concierge - appointment details, access instructions, property location
+      if (concierge) {
+        const accessInfo = accessType === "manual" 
+          ? `Acceso: ${accessTypeLabel}. ${accessInstructions || 'Sin instrucciones adicionales'}`
+          : `Acceso: ${accessTypeLabel}. Código: ${accessCode || 'N/A'}. ${accessInstructions || ''}`;
+        
+        notifications.push(
+          storage.createNotification({
+            userId: concierge.id,
+            type: "appointment",
+            title: "Nueva Cita Asignada",
+            message: `Has sido asignado a una cita en ${property?.title} el ${appointmentDate}. Ubicación: ${propertyLocation}. ${accessInfo}`,
+            relatedEntityType: "appointment",
+            relatedEntityId: appointment.id,
+            priority: "high",
+          })
+        );
+      }
+
+      // Notify admins - assignment confirmation
+      const admins = await storage.getUsersByRole("admin");
+      const masters = await storage.getUsersByRole("master");
+      const allAdmins = [...admins, ...masters];
+      
+      for (const admin of allAdmins) {
+        if (admin.id !== userId) { // Don't notify the admin who made the assignment
+          notifications.push(
+            storage.createNotification({
+              userId: admin.id,
+              type: "appointment",
+              title: "Conserje Asignado a Cita",
+              message: `${concierge?.firstName} ${concierge?.lastName} asignado a cita en ${property?.title} el ${appointmentDate} por ${isOwner ? "propietario" : "administrador"}`,
+              relatedEntityType: "appointment",
+              relatedEntityId: appointment.id,
+              priority: "low",
+            })
+          );
+        }
+      }
+
+      // Create all notifications
+      await Promise.all(notifications);
 
       res.json({ 
         message: "Conserje asignado exitosamente",
