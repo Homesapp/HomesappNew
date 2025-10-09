@@ -200,13 +200,11 @@ export default function Referrals() {
               {ownerReferrals.length}
             </Badge>
           </TabsTrigger>
-          {user?.role !== "cliente" && user?.role !== "owner" && (
-            <TabsTrigger value="bank-info" data-testid="tab-bank-info">
-              <CreditCard className="h-4 w-4 mr-2" />
-              {t("referrals.bankInfo", "Información Bancaria")}
-              {!hasBankInfo && <AlertTriangle className="h-3 w-3 ml-2 text-destructive" />}
-            </TabsTrigger>
-          )}
+          <TabsTrigger value="bank-info" data-testid="tab-bank-info">
+            <CreditCard className="h-4 w-4 mr-2" />
+            {t("referrals.bankInfo", "Información Bancaria")}
+            {!hasBankInfo && <AlertTriangle className="h-3 w-3 ml-2 text-destructive" />}
+          </TabsTrigger>
         </TabsList>
 
         <TabsContent value="clients" className="space-y-4">

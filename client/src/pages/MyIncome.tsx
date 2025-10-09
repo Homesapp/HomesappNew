@@ -362,18 +362,16 @@ export default function MyIncome() {
       )}
 
       <Tabs defaultValue="overview" className="w-full">
-        <TabsList className={`grid w-full ${(user?.role === "cliente" || user?.role === "owner") ? "grid-cols-2 md:grid-cols-3" : "grid-cols-2 md:grid-cols-5"}`} data-testid="tabs-list">
+        <TabsList className={`grid w-full ${(user?.role === "cliente" || user?.role === "owner") ? "grid-cols-2 md:grid-cols-4" : "grid-cols-2 md:grid-cols-5"}`} data-testid="tabs-list">
           <TabsTrigger value="overview" data-testid="tab-overview">
             {language === "es" ? "Resumen" : "Overview"}
           </TabsTrigger>
           <TabsTrigger value="commissions" data-testid="tab-commissions">
             {language === "es" ? "Comisiones" : "Commissions"}
           </TabsTrigger>
-          {user?.role !== "cliente" && user?.role !== "owner" && (
-            <TabsTrigger value="bank-info" data-testid="tab-bank-info">
-              {language === "es" ? "Cuenta Bancaria" : "Bank Account"}
-            </TabsTrigger>
-          )}
+          <TabsTrigger value="bank-info" data-testid="tab-bank-info">
+            {language === "es" ? "Cuenta Bancaria" : "Bank Account"}
+          </TabsTrigger>
           <TabsTrigger value="documents" data-testid="tab-documents">
             {language === "es" ? "Documentos" : "Documents"}
           </TabsTrigger>
