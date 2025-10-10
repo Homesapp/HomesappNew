@@ -102,9 +102,9 @@ export default function PublicDashboard() {
         </div>
       </header>
 
-      <div className="container mx-auto px-4 py-6 sm:py-8">
+      <div className="container mx-auto px-4 py-4 sm:py-6">
         {/* Hero Section */}
-        <div className="mb-8 sm:mb-10 text-center">
+        <div className="mb-6 sm:mb-8 text-center">
           <h1 className="mb-3 sm:mb-4 text-3xl sm:text-4xl md:text-5xl font-bold tracking-tight">
             {t("public.hero.title")}
           </h1>
@@ -277,8 +277,8 @@ export default function PublicDashboard() {
 
         {/* Featured Properties */}
         {featuredProperties.length > 0 && (
-          <div className="mb-10">
-            <div className="mb-6 flex items-center justify-between">
+          <div className="mb-6">
+            <div className="mb-4 flex items-center justify-between">
               <h2 className="text-3xl font-bold">{t("public.featured.title")}</h2>
               <Button
                 variant="outline"
@@ -329,7 +329,7 @@ export default function PublicDashboard() {
                         </Badge>
                       </div>
                       <div className="p-4">
-                        <h3 className="mb-2 text-lg font-semibold" data-testid={`text-title-${property.id}`}>
+                        <h3 className="mb-2 text-lg font-semibold truncate" data-testid={`text-title-${property.id}`}>
                           {property.title}
                         </h3>
                         <p className="mb-3 flex items-center text-sm text-muted-foreground" data-testid={`text-location-${property.id}`}>
@@ -360,7 +360,7 @@ export default function PublicDashboard() {
         )}
 
         {/* Promotional Banners Carousel */}
-        <div className="mb-8">
+        <div className="mb-6">
           <Carousel
             opts={{
               align: "start",
@@ -518,7 +518,7 @@ export default function PublicDashboard() {
         </div>
 
         {/* Benefits Section */}
-        <div className="mb-10 grid md:grid-cols-2 gap-6">
+        <div className="mb-6 grid md:grid-cols-2 gap-6">
           {/* Client Benefits */}
           <div className="p-6 rounded-lg border bg-card">
             <div className="mb-4">
@@ -660,7 +660,7 @@ export default function PublicDashboard() {
       </div>
 
       {/* Footer */}
-      <footer className="border-t bg-card mt-16">
+      <footer className="border-t bg-card mt-8">
         <div className="container mx-auto px-4 py-8">
           <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
             {/* Información de contacto */}
