@@ -1830,9 +1830,16 @@ export const offers = pgTable("offers", {
   
   // Counter offer fields
   counterOfferAmount: decimal("counter_offer_amount", { precision: 12, scale: 2 }),
+  counterOfferServicesIncluded: jsonb("counter_offer_services_included"), // Servicios incluidos en contraoferta
+  counterOfferServicesExcluded: jsonb("counter_offer_services_excluded"), // Servicios excluidos en contraoferta
   status: offerStatusEnum("status").notNull().default("pending"),
   notes: text("notes"),
   counterOfferNotes: text("counter_offer_notes"),
+  
+  // Negotiation tracking
+  negotiationRound: integer("negotiation_round").default(0), // Número de rondas de negociación (máximo 3)
+  lastOfferedBy: varchar("last_offered_by"), // 'client' o 'owner'
+  negotiationHistory: jsonb("negotiation_history"), // Historial de negociaciones
   
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
