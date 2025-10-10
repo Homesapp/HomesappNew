@@ -74,6 +74,30 @@ Key schema entities include:
     - Maintenance requests with title, description, urgency, and photo documentation (device-only, base64, 10MB limit)
     - Real-time chat system connecting tenant, owner, and maintenance staff via WebSocket
     - Property information display (title, condominium/unit or house name)
+*   **Rental Opportunity Request System**: Streamlined workflow for clients to create rental offers based on visited properties:
+    - **Client Workflow**: 
+        - Access "/mis-oportunidades" page with 4 tabs: Visitadas, Recomendaciones, Sugerencias, Mis Solicitudes
+        - "Visitadas" tab displays properties with completed/past appointments
+        - Request admin approval to create rental offer (one request per property, prevents duplicates)
+        - Receive in-app notification when request is approved/rejected
+        - Upon approval, access comprehensive rental offer form at "/rental-offer/:propertyId"
+    - **Admin Workflow**:
+        - View all rental opportunity requests at "/admin/rental-opportunity-requests"
+        - Dashboard shows pending, approved, and rejected requests with stats
+        - Approve requests to allow clients to create offers
+        - Reject requests with mandatory reason (client is notified)
+        - Receive in-app notifications when clients submit new requests
+    - **Rental Offer Form**: Comprehensive form based on PDF specification with:
+        - **Client Profile**: Nationality, time in Tulum, occupation, company, pets (with description), monthly income, number of tenants, guarantor info, property use
+        - **Offer Details**: Monthly rent, advance payments (1st/2nd month), deposit, move-in date, contract duration
+        - **Services**: Configurable included/excluded services (water, electricity, gas, internet, maintenance, cleaning)
+        - **Special Requests**: Optional custom requirements
+        - **Digital Signature**: Full name signature for offer confirmation
+    - **Database Schema**:
+        - `rental_opportunity_requests`: clientId, propertyId, appointmentId, status (pending/approved/rejected), approval fields (approvedBy, approvedAt, rejectionReason)
+        - `offers` table extended with client profile fields, financial details, services arrays, special requests, and digital signature
+    - **Notification Flow**: Client requests → Admin notified → Admin approves/rejects → Client notified
+    - **Validation**: Prevents duplicate requests, requires completed appointment before request, enforces role-based access
 
 ### System Design Choices
 The platform utilizes unified middleware for consistent authentication and automatic logging. The public dashboard adapts based on user authentication. WebSocket security for real-time chat ensures session-based authentication and per-conversation authorization. A development-only authentication endpoint (`/api/auth/test/set-role`) allows role switching for testing.
