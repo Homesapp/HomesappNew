@@ -671,7 +671,9 @@ export interface IStorage {
   getNotification(id: string): Promise<Notification | undefined>;
   createNotification(notification: InsertNotification): Promise<Notification>;
   markNotificationAsRead(id: string): Promise<Notification>;
+  markNotificationAsUnread(id: string): Promise<Notification>;
   markAllNotificationsAsRead(userId: string): Promise<void>;
+  deleteNotification(id: string): Promise<void>;
   
   // Chat operations
   getChatConversations(filters?: { type?: string; userId?: string }): Promise<ChatConversation[]>;
@@ -4270,6 +4272,21 @@ export class DatabaseStorage implements IStorage {
       .update(notifications)
       .set({ read: true })
       .where(eq(notifications.userId, userId));
+  }
+
+  async markNotificationAsUnread(id: string): Promise<Notification> {
+    const [notification] = await db
+      .update(notifications)
+      .set({ read: false })
+      .where(eq(notifications.id, id))
+      .returning();
+    return notification;
+  }
+
+  async deleteNotification(id: string): Promise<void> {
+    await db
+      .delete(notifications)
+      .where(eq(notifications.id, id));
   }
 
   // Chat operations

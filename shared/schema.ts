@@ -373,6 +373,12 @@ export const notificationTypeEnum = pgEnum("notification_type", [
   "property_update",
   "system",
   "rental_update",
+  "opportunity",
+  "role_approved",
+  "role_rejected",
+  "hoa_announcement",
+  "contract_update",
+  "payment_reminder",
 ]);
 
 export const notificationPriorityEnum = pgEnum("notification_priority", [

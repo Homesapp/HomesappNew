@@ -13181,6 +13181,28 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  app.patch("/api/notifications/:id/unread", isAuthenticated, requireResourceOwnership('notification', 'userId'), async (req, res) => {
+    try {
+      const { id } = req.params;
+      const notification = await storage.markNotificationAsUnread(id);
+      res.json(notification);
+    } catch (error) {
+      console.error("Error marking notification as unread:", error);
+      res.status(500).json({ message: "Failed to mark notification as unread" });
+    }
+  });
+
+  app.delete("/api/notifications/:id", isAuthenticated, requireResourceOwnership('notification', 'userId'), async (req, res) => {
+    try {
+      const { id } = req.params;
+      await storage.deleteNotification(id);
+      res.json({ message: "Notification deleted successfully" });
+    } catch (error) {
+      console.error("Error deleting notification:", error);
+      res.status(500).json({ message: "Failed to delete notification" });
+    }
+  });
+
   // Chat routes
   app.get("/api/chat/conversations", isAuthenticated, async (req: any, res) => {
     try {
