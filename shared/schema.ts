@@ -1476,6 +1476,142 @@ export const insertTenantMaintenanceRequestSchema = createInsertSchema(tenantMai
 export type InsertTenantMaintenanceRequest = z.infer<typeof insertTenantMaintenanceRequestSchema>;
 export type TenantMaintenanceRequest = typeof tenantMaintenanceRequests.$inferSelect;
 
+// Contract Legal Documents table - Documentos PDF elaborados por abogados
+export const contractLegalDocuments = pgTable("contract_legal_documents", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  rentalContractId: varchar("rental_contract_id").notNull().references(() => rentalContracts.id, { onDelete: "cascade" }),
+  uploadedById: varchar("uploaded_by_id").notNull().references(() => users.id), // ID del abogado
+  documentUrl: text("document_url").notNull(), // URL del PDF
+  documentName: text("document_name").notNull(),
+  version: integer("version").notNull().default(1), // Versión del documento
+  notes: text("notes"), // Notas del abogado
+  status: varchar("status").notNull().default("pending_review"), // pending_review, under_discussion, approved, rejected
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+}, (table) => [
+  index("idx_legal_docs_contract").on(table.rentalContractId),
+  index("idx_legal_docs_lawyer").on(table.uploadedById),
+  index("idx_legal_docs_status").on(table.status),
+]);
+
+export const insertContractLegalDocumentSchema = createInsertSchema(contractLegalDocuments).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export type InsertContractLegalDocument = z.infer<typeof insertContractLegalDocumentSchema>;
+export type ContractLegalDocument = typeof contractLegalDocuments.$inferSelect;
+
+// Contract Term Discussions table - Debate de términos del contrato
+export const contractTermDiscussions = pgTable("contract_term_discussions", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  legalDocumentId: varchar("legal_document_id").notNull().references(() => contractLegalDocuments.id, { onDelete: "cascade" }),
+  userId: varchar("user_id").notNull().references(() => users.id), // Cliente, propietario o abogado
+  userRole: varchar("user_role").notNull(), // 'tenant', 'owner', 'lawyer'
+  termSection: varchar("term_section"), // Sección del contrato que se discute
+  comment: text("comment").notNull(),
+  status: varchar("status").notNull().default("open"), // open, resolved, accepted, rejected
+  resolvedById: varchar("resolved_by_id").references(() => users.id),
+  resolvedAt: timestamp("resolved_at"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+}, (table) => [
+  index("idx_term_discussions_doc").on(table.legalDocumentId),
+  index("idx_term_discussions_user").on(table.userId),
+  index("idx_term_discussions_status").on(table.status),
+]);
+
+export const insertContractTermDiscussionSchema = createInsertSchema(contractTermDiscussions).omit({
+  id: true,
+  createdAt: true,
+});
+
+export type InsertContractTermDiscussion = z.infer<typeof insertContractTermDiscussionSchema>;
+export type ContractTermDiscussion = typeof contractTermDiscussions.$inferSelect;
+
+// Contract Approvals table - Aprobaciones de cliente y propietario
+export const contractApprovals = pgTable("contract_approvals", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  legalDocumentId: varchar("legal_document_id").notNull().references(() => contractLegalDocuments.id, { onDelete: "cascade" }),
+  userId: varchar("user_id").notNull().references(() => users.id),
+  userRole: varchar("user_role").notNull(), // 'tenant' o 'owner'
+  approved: boolean("approved").notNull(),
+  digitalSignature: text("digital_signature"), // Firma digital
+  comments: text("comments"), // Comentarios opcionales
+  ipAddress: varchar("ip_address"), // IP desde donde se aprobó
+  approvedAt: timestamp("approved_at").defaultNow().notNull(),
+}, (table) => [
+  index("idx_contract_approvals_doc").on(table.legalDocumentId),
+  index("idx_contract_approvals_user").on(table.userId),
+  unique("unique_approval_per_user_doc").on(table.legalDocumentId, table.userId),
+]);
+
+export const insertContractApprovalSchema = createInsertSchema(contractApprovals).omit({
+  id: true,
+  approvedAt: true,
+});
+
+export type InsertContractApproval = z.infer<typeof insertContractApprovalSchema>;
+export type ContractApproval = typeof contractApprovals.$inferSelect;
+
+// Check-in Appointments table - Citas de check-in
+export const checkInAppointments = pgTable("check_in_appointments", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  rentalContractId: varchar("rental_contract_id").notNull().references(() => rentalContracts.id, { onDelete: "cascade" }),
+  propertyId: varchar("property_id").notNull().references(() => properties.id),
+  tenantId: varchar("tenant_id").notNull().references(() => users.id),
+  ownerId: varchar("owner_id").notNull().references(() => users.id),
+  scheduledDate: timestamp("scheduled_date").notNull(),
+  duration: integer("duration").notNull().default(120), // Duración en minutos (default 2 horas)
+  location: text("location").notNull(), // Dirección de la propiedad
+  assignedAdminId: varchar("assigned_admin_id").references(() => users.id), // Admin encargado
+  status: varchar("status").notNull().default("scheduled"), // scheduled, completed, cancelled, rescheduled
+  completedAt: timestamp("completed_at"),
+  cancellationReason: text("cancellation_reason"),
+  notes: text("notes"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+}, (table) => [
+  index("idx_checkin_contract").on(table.rentalContractId),
+  index("idx_checkin_property").on(table.propertyId),
+  index("idx_checkin_date").on(table.scheduledDate),
+  index("idx_checkin_status").on(table.status),
+]);
+
+export const insertCheckInAppointmentSchema = createInsertSchema(checkInAppointments).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export type InsertCheckInAppointment = z.infer<typeof insertCheckInAppointmentSchema>;
+export type CheckInAppointment = typeof checkInAppointments.$inferSelect;
+
+// Contract Signed Documents table - Contratos escaneados subidos en check-in
+export const contractSignedDocuments = pgTable("contract_signed_documents", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  rentalContractId: varchar("rental_contract_id").notNull().references(() => rentalContracts.id, { onDelete: "cascade" }),
+  checkInAppointmentId: varchar("check_in_appointment_id").references(() => checkInAppointments.id),
+  uploadedById: varchar("uploaded_by_id").notNull().references(() => users.id), // Admin que sube
+  documentUrl: text("document_url").notNull(), // URL del PDF escaneado
+  documentName: text("document_name").notNull(),
+  documentType: varchar("document_type").notNull(), // 'contract', 'addendum', 'inventory', 'other'
+  description: text("description"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+}, (table) => [
+  index("idx_signed_docs_contract").on(table.rentalContractId),
+  index("idx_signed_docs_checkin").on(table.checkInAppointmentId),
+  index("idx_signed_docs_type").on(table.documentType),
+]);
+
+export const insertContractSignedDocumentSchema = createInsertSchema(contractSignedDocuments).omit({
+  id: true,
+  createdAt: true,
+});
+
+export type InsertContractSignedDocument = z.infer<typeof insertContractSignedDocumentSchema>;
+export type ContractSignedDocument = typeof contractSignedDocuments.$inferSelect;
+
 // Property Delivery Inventories table - Inventarios de entrega de propiedad
 export const propertyDeliveryInventories = pgTable("property_delivery_inventories", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
