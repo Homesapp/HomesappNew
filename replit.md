@@ -10,7 +10,7 @@ Preferred communication style: Simple, everyday language.
 The platform is built with a modern web stack, emphasizing a professional, responsive, and accessible user experience with full internationalization.
 
 ### Frontend
-The frontend uses React 18, TypeScript, Vite, Wouter for routing, and TanStack Query for server state management. UI components are crafted with Radix UI and Shadcn/ui, styled using Tailwind CSS, and support light/dark themes. All forms use Shadcn Form, `useForm`, and `zodResolver` with Zod for validation.
+The frontend uses React 18, TypeScript, Vite, Wouter for routing, and TanStack Query for server state management. UI components are crafted with Radix UI and Shadcn/ui, styled using Tailwind CSS, and support light/dark themes. All forms use Shadcn Form, `useForm`, and `zodResolver` with Zod for validation. The entire platform is **fully optimized for mobile devices** with responsive spacing patterns: mobile-first design using `px-3 sm:px-4`, `py-2 sm:py-3`, `space-y-4 sm:space-y-6`, `gap-3 sm:gap-4`, and `text-2xl sm:text-3xl` for headers.
 
 ### Backend
 The backend is developed with Node.js, Express.js, and TypeScript, providing a RESTful API. It includes role-based middleware, JSON error handling, and dual authentication: Replit Auth (OpenID Connect) for general users and local username/password for administrators. Session management and user approval workflows are integral. Centralized OpenAI service integration utilizes the GPT-4 model. All contract routes implement strict Zod validation with insertContractTenantInfoSchema and insertContractOwnerInfoSchema, data sanitization via sanitizeObject(), and role-based authorization allowing tenant, owner, and admin (master/admin/admin_jr) access for verification workflows.
