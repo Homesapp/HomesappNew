@@ -71,6 +71,8 @@ import {
   workflowEvents,
   systemAlerts,
   errorLogs,
+  contractTenantInfo,
+  contractOwnerInfo,
   type User,
   type Colony,
   type InsertColony,
@@ -218,6 +220,10 @@ import {
   type InsertSystemAlert,
   type ErrorLog,
   type InsertErrorLog,
+  type ContractTenantInfo,
+  type InsertContractTenantInfo,
+  type ContractOwnerInfo,
+  type InsertContractOwnerInfo,
   passwordResetTokens,
   type PasswordResetToken,
   type InsertPasswordResetToken,
@@ -3677,6 +3683,74 @@ export class DatabaseStorage implements IStorage {
 
   async deleteRentalContract(id: string): Promise<void> {
     await db.delete(rentalContracts).where(eq(rentalContracts.id, id));
+  }
+
+  // Contract Tenant Info CRUD
+  async getContractTenantInfo(rentalContractId: string): Promise<ContractTenantInfo | undefined> {
+    const [info] = await db
+      .select()
+      .from(contractTenantInfo)
+      .where(eq(contractTenantInfo.rentalContractId, rentalContractId))
+      .limit(1);
+    return info;
+  }
+
+  async createContractTenantInfo(data: InsertContractTenantInfo): Promise<ContractTenantInfo> {
+    const [info] = await db
+      .insert(contractTenantInfo)
+      .values(data)
+      .returning();
+    return info;
+  }
+
+  async updateContractTenantInfo(
+    rentalContractId: string,
+    updates: Partial<InsertContractTenantInfo>
+  ): Promise<ContractTenantInfo> {
+    const [updated] = await db
+      .update(contractTenantInfo)
+      .set({ ...updates, updatedAt: new Date() })
+      .where(eq(contractTenantInfo.rentalContractId, rentalContractId))
+      .returning();
+    return updated;
+  }
+
+  async deleteContractTenantInfo(rentalContractId: string): Promise<void> {
+    await db.delete(contractTenantInfo).where(eq(contractTenantInfo.rentalContractId, rentalContractId));
+  }
+
+  // Contract Owner Info CRUD
+  async getContractOwnerInfo(rentalContractId: string): Promise<ContractOwnerInfo | undefined> {
+    const [info] = await db
+      .select()
+      .from(contractOwnerInfo)
+      .where(eq(contractOwnerInfo.rentalContractId, rentalContractId))
+      .limit(1);
+    return info;
+  }
+
+  async createContractOwnerInfo(data: InsertContractOwnerInfo): Promise<ContractOwnerInfo> {
+    const [info] = await db
+      .insert(contractOwnerInfo)
+      .values(data)
+      .returning();
+    return info;
+  }
+
+  async updateContractOwnerInfo(
+    rentalContractId: string,
+    updates: Partial<InsertContractOwnerInfo>
+  ): Promise<ContractOwnerInfo> {
+    const [updated] = await db
+      .update(contractOwnerInfo)
+      .set({ ...updates, updatedAt: new Date() })
+      .where(eq(contractOwnerInfo.rentalContractId, rentalContractId))
+      .returning();
+    return updated;
+  }
+
+  async deleteContractOwnerInfo(rentalContractId: string): Promise<void> {
+    await db.delete(contractOwnerInfo).where(eq(contractOwnerInfo.rentalContractId, rentalContractId));
   }
 
   async getActiveRentalsByTenant(tenantId: string): Promise<any[]> {
