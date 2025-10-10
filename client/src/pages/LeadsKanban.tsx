@@ -4,6 +4,8 @@ import { useLocation } from "wouter";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem } from "@/components/ui/command";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import {
   Plus,
   Mail,
@@ -131,6 +133,8 @@ const LEAD_STATUSES = [
 
 const leadFormSchema = insertLeadSchema.extend({
   budget: z.string().optional(),
+  email: z.string().optional(), // Email es opcional
+  phone: z.string().min(10, "Teléfono es obligatorio"), // WhatsApp obligatorio
 });
 
 export default function LeadsKanban() {
@@ -138,6 +142,7 @@ export default function LeadsKanban() {
   const [, setLocation] = useLocation();
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingLead, setEditingLead] = useState<Lead | null>(null);
+  const [selectedProperties, setSelectedProperties] = useState<string[]>([]);
   
   const form = useForm({
     resolver: zodResolver(leadFormSchema),
@@ -149,6 +154,12 @@ export default function LeadsKanban() {
       source: "",
       budget: "",
       notes: "",
+      contractDuration: "",
+      moveInDate: "",
+      pets: "",
+      bedrooms: "",
+      areaOfInterest: "",
+      unitType: undefined,
       status: "nuevo",
     },
   });
@@ -165,9 +176,14 @@ export default function LeadsKanban() {
     queryKey: ["/api/offers"],
   });
 
+  const { data: properties = [] } = useQuery<any[]>({
+    queryKey: ["/api/properties/search"],
+  });
+
   const createLeadMutation = useMutation({
     mutationFn: async (data: any) => {
-      await apiRequest("POST", "/api/leads", data);
+      const response = await apiRequest("POST", "/api/leads", data);
+      return response;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/leads"] });
@@ -175,8 +191,22 @@ export default function LeadsKanban() {
       setDialogOpen(false);
       form.reset();
     },
-    onError: () => {
-      toast({ title: "Error al crear lead", variant: "destructive" });
+    onError: (error: any) => {
+      const errorData = error?.response?.data || error;
+      if (errorData.isDuplicate) {
+        // Lead duplicado - mostrar mensaje detallado
+        toast({
+          title: "Lead duplicado",
+          description: errorData.message,
+          variant: "destructive",
+        });
+      } else {
+        toast({ 
+          title: "Error al crear lead", 
+          description: errorData.message || "Inténtalo de nuevo",
+          variant: "destructive" 
+        });
+      }
     },
   });
 
@@ -211,6 +241,7 @@ export default function LeadsKanban() {
     const leadData = {
       ...data,
       budget: data.budget ? data.budget.toString() : null,
+      propertyInterests: selectedProperties,
     };
     createLeadMutation.mutate(leadData);
   };
@@ -373,6 +404,158 @@ export default function LeadsKanban() {
                       </FormItem>
                     )}
                   />
+                </div>
+                <div className="grid grid-cols-2 gap-4">
+                  <FormField
+                    control={form.control}
+                    name="contractDuration"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Duración de Contrato</FormLabel>
+                        <FormControl>
+                          <Input {...field} placeholder="6 meses, 1 año" data-testid="input-contract-duration" />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  <FormField
+                    control={form.control}
+                    name="moveInDate"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Fecha de Ingreso</FormLabel>
+                        <FormControl>
+                          <Input {...field} placeholder="Noviembre, finales de octubre" data-testid="input-move-in-date" />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                </div>
+                <div className="grid grid-cols-2 gap-4">
+                  <FormField
+                    control={form.control}
+                    name="pets"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Mascotas</FormLabel>
+                        <FormControl>
+                          <Input {...field} placeholder="un perro, No, Si" data-testid="input-pets" />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  <FormField
+                    control={form.control}
+                    name="bedrooms"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Recámaras</FormLabel>
+                        <FormControl>
+                          <Input {...field} placeholder="1/2, 2, 3" data-testid="input-bedrooms" />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                </div>
+                <div className="grid grid-cols-2 gap-4">
+                  <FormField
+                    control={form.control}
+                    name="areaOfInterest"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Lugar de Interés</FormLabel>
+                        <FormControl>
+                          <Input {...field} placeholder="veleta, aldea Zama" data-testid="input-area-interest" />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  <FormField
+                    control={form.control}
+                    name="unitType"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Tipo de Unidad</FormLabel>
+                        <FormControl>
+                          <select 
+                            {...field} 
+                            className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm transition-colors file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50"
+                            data-testid="select-unit-type"
+                          >
+                            <option value="">Seleccionar...</option>
+                            <option value="departamento">Departamento</option>
+                            <option value="casa">Casa</option>
+                            <option value="estudio">Estudio</option>
+                          </select>
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <FormLabel>Propiedades de Interés</FormLabel>
+                  <Popover>
+                    <PopoverTrigger asChild>
+                      <Button
+                        variant="outline"
+                        role="combobox"
+                        className="w-full justify-between"
+                        data-testid="button-select-properties"
+                      >
+                        {selectedProperties.length > 0
+                          ? `${selectedProperties.length} propiedad${selectedProperties.length > 1 ? 'es' : ''} seleccionada${selectedProperties.length > 1 ? 's' : ''}`
+                          : "Seleccionar propiedades..."}
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-full p-0">
+                      <Command>
+                        <CommandInput placeholder="Buscar propiedad..." />
+                        <CommandEmpty>No se encontraron propiedades.</CommandEmpty>
+                        <CommandGroup className="max-h-64 overflow-auto">
+                          {properties.map((property: any) => (
+                            <CommandItem
+                              key={property.id}
+                              onSelect={() => {
+                                setSelectedProperties((prev) =>
+                                  prev.includes(property.id)
+                                    ? prev.filter((id) => id !== property.id)
+                                    : [...prev, property.id]
+                                );
+                              }}
+                              data-testid={`property-option-${property.id}`}
+                            >
+                              <div className="flex items-center gap-2">
+                                <div className={`h-4 w-4 rounded border ${selectedProperties.includes(property.id) ? 'bg-primary border-primary' : 'border-input'}`}>
+                                  {selectedProperties.includes(property.id) && (
+                                    <CheckCircle2 className="h-4 w-4 text-primary-foreground" />
+                                  )}
+                                </div>
+                                <span>{property.title}</span>
+                              </div>
+                            </CommandItem>
+                          ))}
+                        </CommandGroup>
+                      </Command>
+                    </PopoverContent>
+                  </Popover>
+                  {selectedProperties.length > 0 && (
+                    <div className="flex flex-wrap gap-1 mt-2">
+                      {selectedProperties.map((propId) => {
+                        const property = properties.find((p: any) => p.id === propId);
+                        return (
+                          <Badge key={propId} variant="secondary" className="text-xs">
+                            {property?.title}
+                          </Badge>
+                        );
+                      })}
+                    </div>
+                  )}
                 </div>
                 <FormField
                   control={form.control}
