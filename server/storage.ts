@@ -281,6 +281,15 @@ import {
   condominiumIssues,
   type CondominiumIssue,
   type InsertCondominiumIssue,
+  hoaManagerAssignments,
+  type HoaManagerAssignment,
+  type InsertHoaManagerAssignment,
+  hoaAnnouncements,
+  type HoaAnnouncement,
+  type InsertHoaAnnouncement,
+  hoaAnnouncementReads,
+  type HoaAnnouncementRead,
+  type InsertHoaAnnouncementRead,
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, and, or, gte, lte, ilike, desc, sql, isNull, count, inArray } from "drizzle-orm";
@@ -960,6 +969,34 @@ export interface IStorage {
   updateCondominiumIssue(id: string, updates: Partial<InsertCondominiumIssue>): Promise<CondominiumIssue>;
   updateCondominiumIssueStatus(id: string, status: string): Promise<CondominiumIssue>;
   resolveCondominiumIssue(id: string, resolvedById: string, resolution: string): Promise<CondominiumIssue>;
+
+  // HOA Manager - Assignment operations
+  getHoaManagerAssignment(id: string): Promise<HoaManagerAssignment | undefined>;
+  getHoaManagerAssignmentsByManager(managerId: string): Promise<HoaManagerAssignment[]>;
+  getHoaManagerAssignmentsByCondominium(condominiumId: string): Promise<HoaManagerAssignment[]>;
+  getHoaManagerAssignmentsByStatus(status: string): Promise<HoaManagerAssignment[]>;
+  getApprovedHoaManagerByCondominium(condominiumId: string): Promise<HoaManagerAssignment | undefined>;
+  createHoaManagerAssignment(assignment: InsertHoaManagerAssignment): Promise<HoaManagerAssignment>;
+  updateHoaManagerAssignment(id: string, updates: Partial<InsertHoaManagerAssignment>): Promise<HoaManagerAssignment>;
+  approveHoaManagerAssignment(id: string, approvedById: string): Promise<HoaManagerAssignment>;
+  rejectHoaManagerAssignment(id: string, rejectedById: string, reason: string): Promise<HoaManagerAssignment>;
+  suspendHoaManagerAssignment(id: string, suspendedById: string, reason: string): Promise<HoaManagerAssignment>;
+
+  // HOA Manager - Announcement operations
+  getHoaAnnouncement(id: string): Promise<HoaAnnouncement | undefined>;
+  getHoaAnnouncementsByCondominium(condominiumId: string): Promise<HoaAnnouncement[]>;
+  getHoaAnnouncementsByManager(managerId: string): Promise<HoaAnnouncement[]>;
+  getActiveHoaAnnouncementsByCondominium(condominiumId: string): Promise<HoaAnnouncement[]>;
+  getUnreadHoaAnnouncementsForOwner(ownerId: string): Promise<HoaAnnouncement[]>;
+  createHoaAnnouncement(announcement: InsertHoaAnnouncement): Promise<HoaAnnouncement>;
+  updateHoaAnnouncement(id: string, updates: Partial<InsertHoaAnnouncement>): Promise<HoaAnnouncement>;
+  publishHoaAnnouncement(id: string): Promise<HoaAnnouncement>;
+  deleteHoaAnnouncement(id: string): Promise<void>;
+
+  // HOA Manager - Announcement Read operations
+  markHoaAnnouncementAsRead(announcementId: string, ownerId: string): Promise<HoaAnnouncementRead>;
+  getHoaAnnouncementReads(announcementId: string): Promise<HoaAnnouncementRead[]>;
+  hasOwnerReadAnnouncement(announcementId: string, ownerId: string): Promise<boolean>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -6267,6 +6304,247 @@ export class DatabaseStorage implements IStorage {
       .where(eq(condominiumIssues.id, id))
       .returning();
     return result[0];
+  }
+
+  // ========================================
+  // HOA Manager System Operations
+  // ========================================
+
+  // HOA Manager Assignment operations
+  async getHoaManagerAssignment(id: string): Promise<HoaManagerAssignment | undefined> {
+    const result = await db.select().from(hoaManagerAssignments).where(eq(hoaManagerAssignments.id, id));
+    return result[0];
+  }
+
+  async getHoaManagerAssignmentsByManager(managerId: string): Promise<HoaManagerAssignment[]> {
+    return await db.select()
+      .from(hoaManagerAssignments)
+      .where(eq(hoaManagerAssignments.managerId, managerId))
+      .orderBy(desc(hoaManagerAssignments.createdAt));
+  }
+
+  async getHoaManagerAssignmentsByCondominium(condominiumId: string): Promise<HoaManagerAssignment[]> {
+    return await db.select()
+      .from(hoaManagerAssignments)
+      .where(eq(hoaManagerAssignments.condominiumId, condominiumId))
+      .orderBy(desc(hoaManagerAssignments.createdAt));
+  }
+
+  async getHoaManagerAssignmentsByStatus(status: string): Promise<HoaManagerAssignment[]> {
+    return await db.select()
+      .from(hoaManagerAssignments)
+      .where(eq(hoaManagerAssignments.status, status as any))
+      .orderBy(desc(hoaManagerAssignments.createdAt));
+  }
+
+  async getApprovedHoaManagerByCondominium(condominiumId: string): Promise<HoaManagerAssignment | undefined> {
+    const result = await db.select()
+      .from(hoaManagerAssignments)
+      .where(
+        and(
+          eq(hoaManagerAssignments.condominiumId, condominiumId),
+          eq(hoaManagerAssignments.status, 'approved')
+        )
+      )
+      .limit(1);
+    return result[0];
+  }
+
+  async createHoaManagerAssignment(assignment: InsertHoaManagerAssignment): Promise<HoaManagerAssignment> {
+    const result = await db.insert(hoaManagerAssignments).values(assignment).returning();
+    return result[0];
+  }
+
+  async updateHoaManagerAssignment(id: string, updates: Partial<InsertHoaManagerAssignment>): Promise<HoaManagerAssignment> {
+    const result = await db.update(hoaManagerAssignments)
+      .set({ ...updates, updatedAt: new Date() })
+      .where(eq(hoaManagerAssignments.id, id))
+      .returning();
+    return result[0];
+  }
+
+  async approveHoaManagerAssignment(id: string, approvedById: string): Promise<HoaManagerAssignment> {
+    const result = await db.update(hoaManagerAssignments)
+      .set({
+        status: 'approved',
+        approvedById,
+        approvedAt: new Date(),
+        updatedAt: new Date()
+      })
+      .where(eq(hoaManagerAssignments.id, id))
+      .returning();
+    return result[0];
+  }
+
+  async rejectHoaManagerAssignment(id: string, rejectedById: string, reason: string): Promise<HoaManagerAssignment> {
+    const result = await db.update(hoaManagerAssignments)
+      .set({
+        status: 'rejected',
+        rejectedById,
+        rejectedAt: new Date(),
+        rejectionReason: reason,
+        updatedAt: new Date()
+      })
+      .where(eq(hoaManagerAssignments.id, id))
+      .returning();
+    return result[0];
+  }
+
+  async suspendHoaManagerAssignment(id: string, suspendedById: string, reason: string): Promise<HoaManagerAssignment> {
+    const result = await db.update(hoaManagerAssignments)
+      .set({
+        status: 'suspended',
+        suspendedById,
+        suspendedAt: new Date(),
+        suspensionReason: reason,
+        updatedAt: new Date()
+      })
+      .where(eq(hoaManagerAssignments.id, id))
+      .returning();
+    return result[0];
+  }
+
+  // HOA Announcement operations
+  async getHoaAnnouncement(id: string): Promise<HoaAnnouncement | undefined> {
+    const result = await db.select().from(hoaAnnouncements).where(eq(hoaAnnouncements.id, id));
+    return result[0];
+  }
+
+  async getHoaAnnouncementsByCondominium(condominiumId: string): Promise<HoaAnnouncement[]> {
+    return await db.select()
+      .from(hoaAnnouncements)
+      .where(eq(hoaAnnouncements.condominiumId, condominiumId))
+      .orderBy(desc(hoaAnnouncements.createdAt));
+  }
+
+  async getHoaAnnouncementsByManager(managerId: string): Promise<HoaAnnouncement[]> {
+    return await db.select()
+      .from(hoaAnnouncements)
+      .where(eq(hoaAnnouncements.managerId, managerId))
+      .orderBy(desc(hoaAnnouncements.createdAt));
+  }
+
+  async getActiveHoaAnnouncementsByCondominium(condominiumId: string): Promise<HoaAnnouncement[]> {
+    return await db.select()
+      .from(hoaAnnouncements)
+      .where(
+        and(
+          eq(hoaAnnouncements.condominiumId, condominiumId),
+          eq(hoaAnnouncements.isActive, true),
+          or(
+            isNull(hoaAnnouncements.expiresAt),
+            gte(hoaAnnouncements.expiresAt, new Date())
+          )
+        )
+      )
+      .orderBy(desc(hoaAnnouncements.publishedAt));
+  }
+
+  async getUnreadHoaAnnouncementsForOwner(ownerId: string): Promise<HoaAnnouncement[]> {
+    // Get all units owned by this owner
+    const units = await this.getCondominiumUnitsByOwner(ownerId);
+    if (units.length === 0) return [];
+
+    const condominiumIds = [...new Set(units.map(u => u.condominiumId))];
+
+    // Get active announcements for those condominiums
+    const announcements = await db.select()
+      .from(hoaAnnouncements)
+      .where(
+        and(
+          inArray(hoaAnnouncements.condominiumId, condominiumIds),
+          eq(hoaAnnouncements.isActive, true),
+          or(
+            isNull(hoaAnnouncements.expiresAt),
+            gte(hoaAnnouncements.expiresAt, new Date())
+          )
+        )
+      )
+      .orderBy(desc(hoaAnnouncements.publishedAt));
+
+    // Filter out read announcements
+    const unreadAnnouncements = [];
+    for (const announcement of announcements) {
+      const hasRead = await this.hasOwnerReadAnnouncement(announcement.id, ownerId);
+      if (!hasRead) {
+        unreadAnnouncements.push(announcement);
+      }
+    }
+
+    return unreadAnnouncements;
+  }
+
+  async createHoaAnnouncement(announcement: InsertHoaAnnouncement): Promise<HoaAnnouncement> {
+    const result = await db.insert(hoaAnnouncements).values(announcement).returning();
+    return result[0];
+  }
+
+  async updateHoaAnnouncement(id: string, updates: Partial<InsertHoaAnnouncement>): Promise<HoaAnnouncement> {
+    const result = await db.update(hoaAnnouncements)
+      .set({ ...updates, updatedAt: new Date() })
+      .where(eq(hoaAnnouncements.id, id))
+      .returning();
+    return result[0];
+  }
+
+  async publishHoaAnnouncement(id: string): Promise<HoaAnnouncement> {
+    const result = await db.update(hoaAnnouncements)
+      .set({
+        publishedAt: new Date(),
+        isActive: true,
+        updatedAt: new Date()
+      })
+      .where(eq(hoaAnnouncements.id, id))
+      .returning();
+    return result[0];
+  }
+
+  async deleteHoaAnnouncement(id: string): Promise<void> {
+    await db.delete(hoaAnnouncements).where(eq(hoaAnnouncements.id, id));
+  }
+
+  // HOA Announcement Read operations
+  async markHoaAnnouncementAsRead(announcementId: string, ownerId: string): Promise<HoaAnnouncementRead> {
+    const result = await db.insert(hoaAnnouncementReads)
+      .values({ announcementId, ownerId })
+      .onConflictDoNothing()
+      .returning();
+    
+    if (result.length > 0) {
+      return result[0];
+    }
+    
+    // If already exists, fetch it
+    const existing = await db.select()
+      .from(hoaAnnouncementReads)
+      .where(
+        and(
+          eq(hoaAnnouncementReads.announcementId, announcementId),
+          eq(hoaAnnouncementReads.ownerId, ownerId)
+        )
+      )
+      .limit(1);
+    return existing[0];
+  }
+
+  async getHoaAnnouncementReads(announcementId: string): Promise<HoaAnnouncementRead[]> {
+    return await db.select()
+      .from(hoaAnnouncementReads)
+      .where(eq(hoaAnnouncementReads.announcementId, announcementId))
+      .orderBy(desc(hoaAnnouncementReads.readAt));
+  }
+
+  async hasOwnerReadAnnouncement(announcementId: string, ownerId: string): Promise<boolean> {
+    const result = await db.select()
+      .from(hoaAnnouncementReads)
+      .where(
+        and(
+          eq(hoaAnnouncementReads.announcementId, announcementId),
+          eq(hoaAnnouncementReads.ownerId, ownerId)
+        )
+      )
+      .limit(1);
+    return result.length > 0;
   }
 }
 
