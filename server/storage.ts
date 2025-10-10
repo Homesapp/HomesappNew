@@ -2852,7 +2852,20 @@ export class DatabaseStorage implements IStorage {
     }));
   }
 
-  async acceptOffer(offerId: string): Promise<Offer> {
+  async acceptOffer(offerId: string): Promise<{ offer: Offer; contract?: RentalContract }> {
+    // Get offer details
+    const [currentOffer] = await db.select().from(offers).where(eq(offers.id, offerId));
+    if (!currentOffer) {
+      throw new Error('Offer not found');
+    }
+
+    // Get property details to get ownerId
+    const property = await this.getProperty(currentOffer.propertyId);
+    if (!property) {
+      throw new Error('Property not found');
+    }
+
+    // Update offer status to accepted
     const [offer] = await db
       .update(offers)
       .set({ 
@@ -2861,7 +2874,63 @@ export class DatabaseStorage implements IStorage {
       })
       .where(eq(offers.id, offerId))
       .returning();
-    return offer;
+
+    // Create rental contract automatically
+    const contractDurationMonths = currentOffer.contractDurationMonths || 12; // Default 12 months
+    const monthlyRent = Number(currentOffer.counterOfferAmount || currentOffer.offerAmount);
+    
+    // Calculate commission based on contract duration
+    let totalCommissionMonths = 1; // Default 1 month
+    if (contractDurationMonths >= 60) totalCommissionMonths = 3;       // 5 years
+    else if (contractDurationMonths >= 48) totalCommissionMonths = 2.5; // 4 years
+    else if (contractDurationMonths >= 36) totalCommissionMonths = 2;   // 3 years
+    else if (contractDurationMonths >= 24) totalCommissionMonths = 1.5; // 2 years
+    else if (contractDurationMonths >= 6) totalCommissionMonths = 1;    // 1 year or 6 months
+    else totalCommissionMonths = 0.5; // Less than 6 months
+
+    const totalCommissionAmount = monthlyRent * totalCommissionMonths;
+    
+    // Commission distribution (default: 70% seller, 30% homesapp)
+    const sellerPercent = 70;
+    const homesappPercent = 30;
+    
+    const sellerCommissionAmount = totalCommissionAmount * (sellerPercent / 100);
+    const homesappCommissionAmount = totalCommissionAmount * (homesappPercent / 100);
+
+    // Administrative fee based on property use
+    const isForSublease = currentOffer.clientPropertyUse === 'subarrendamiento';
+    const administrativeFee = isForSublease ? 3800 : 2500;
+
+    // Calculate lease dates
+    const leaseStartDate = currentOffer.moveInDate || new Date();
+    const leaseEndDate = new Date(leaseStartDate);
+    leaseEndDate.setMonth(leaseEndDate.getMonth() + contractDurationMonths);
+
+    const [contract] = await db.insert(rentalContracts).values({
+      propertyId: currentOffer.propertyId,
+      tenantId: currentOffer.clientId,
+      ownerId: property.ownerId!,
+      sellerId: property.sellerId || null,
+      status: 'draft',
+      monthlyRent: monthlyRent.toString(),
+      leaseDurationMonths: contractDurationMonths,
+      depositAmount: currentOffer.depositAmount?.toString() || currentOffer.firstMonthAdvance ? monthlyRent.toString() : '0',
+      administrativeFee: administrativeFee.toString(),
+      isForSublease: isForSublease,
+      totalCommissionMonths: totalCommissionMonths.toString(),
+      totalCommissionAmount: totalCommissionAmount.toString(),
+      sellerCommissionPercent: sellerPercent.toString(),
+      referralCommissionPercent: '0',
+      homesappCommissionPercent: homesappPercent.toString(),
+      sellerCommissionAmount: sellerCommissionAmount.toString(),
+      referralCommissionAmount: '0',
+      homesappCommissionAmount: homesappCommissionAmount.toString(),
+      includedServices: currentOffer.servicesIncluded as any,
+      leaseStartDate,
+      leaseEndDate,
+    }).returning();
+
+    return { offer, contract };
   }
 
   async rejectOffer(offerId: string, reason?: string): Promise<Offer> {

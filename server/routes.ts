@@ -9882,9 +9882,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ message: "No puedes aceptar tu propia contraoferta. Espera la respuesta del cliente." });
       }
 
-      const acceptedOffer = await storage.acceptOffer(id);
+      const { offer: acceptedOffer, contract } = await storage.acceptOffer(id);
       
-      // Create notification for client
+      // Create notification for client about accepted offer
       await storage.createNotification({
         userId: offer.clientId,
         title: "Oferta Aceptada",
@@ -9894,15 +9894,37 @@ export async function registerRoutes(app: Express): Promise<Server> {
         relatedEntityId: id,
       });
 
+      // Create notification for client about contract
+      if (contract) {
+        await storage.createNotification({
+          userId: offer.clientId,
+          title: "Completar Formato de Inquilino",
+          message: `Por favor completa el formato de inquilino para proceder con el contrato de ${property.title || 'la propiedad'}.`,
+          category: "contract",
+          relatedEntityType: "rental_contract",
+          relatedEntityId: contract.id,
+        });
+
+        // Create notification for owner about contract
+        await storage.createNotification({
+          userId: property.ownerId!,
+          title: "Completar Formato de Propietario",
+          message: `Por favor completa el formato de propietario para proceder con el contrato de ${property.title || 'la propiedad'}.`,
+          category: "contract",
+          relatedEntityType: "rental_contract",
+          relatedEntityId: contract.id,
+        });
+      }
+
       await createAuditLog(
         req,
         "update",
         "offer",
         id,
-        `Oferta aceptada por propietario`
+        `Oferta aceptada por propietario - Contrato creado: ${contract?.id}`
       );
 
-      res.json(acceptedOffer);
+      res.json({ offer: acceptedOffer, contract });
     } catch (error) {
       console.error("Error accepting offer:", error);
       res.status(500).json({ message: "Error al aceptar oferta" });
@@ -10091,7 +10113,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ message: "No puedes aceptar tu propia contraoferta. Espera la respuesta del propietario." });
       }
 
-      const acceptedOffer = await storage.acceptOffer(id);
+      const { offer: acceptedOffer, contract } = await storage.acceptOffer(id);
       
       // Get property and owner for notification
       const property = await storage.getProperty(offer.propertyId);
@@ -10104,6 +10126,30 @@ export async function registerRoutes(app: Express): Promise<Server> {
           relatedEntityType: "offer",
           relatedEntityId: id,
         });
+
+        // Create notification for owner about contract
+        if (contract) {
+          await storage.createNotification({
+            userId: property.ownerId,
+            title: "Completar Formato de Propietario",
+            message: `Por favor completa el formato de propietario para proceder con el contrato de ${property.title || 'la propiedad'}.`,
+            category: "contract",
+            relatedEntityType: "rental_contract",
+            relatedEntityId: contract.id,
+          });
+        }
+      }
+
+      // Create notification for client about contract
+      if (contract) {
+        await storage.createNotification({
+          userId: offer.clientId,
+          title: "Completar Formato de Inquilino",
+          message: `Por favor completa el formato de inquilino para proceder con el contrato de ${property.title || 'la propiedad'}.`,
+          category: "contract",
+          relatedEntityType: "rental_contract",
+          relatedEntityId: contract.id,
+        });
       }
 
       await createAuditLog(
@@ -10111,10 +10157,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
         "update",
         "offer",
         id,
-        `Contraoferta aceptada por cliente`
+        `Contraoferta aceptada por cliente - Contrato creado: ${contract?.id}`
       );
 
-      res.json(acceptedOffer);
+      res.json({ offer: acceptedOffer, contract });
     } catch (error) {
       console.error("Error accepting counter offer:", error);
       res.status(500).json({ message: "Error al aceptar contraoferta" });
