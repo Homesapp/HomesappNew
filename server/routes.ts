@@ -12,6 +12,7 @@ import { createGoogleMeetEvent, deleteGoogleMeetEvent } from "./googleCalendar";
 import { calculateRentalCommissions } from "./commissionCalculator";
 import { sendVerificationEmail, sendLeadVerificationEmail, sendDuplicateLeadNotification, sendOwnerReferralVerificationEmail, sendOwnerReferralApprovedNotification } from "./gmail";
 import { sendOfferLinkEmail } from "./resend";
+import { generateOfferPDF } from "./pdfGenerator";
 import { processChatbotMessage, generatePropertyRecommendations } from "./chatbot";
 import { authLimiter, registrationLimiter, emailVerificationLimiter, chatbotLimiter, propertySubmissionLimiter } from "./rateLimiters";
 import { 
@@ -11742,6 +11743,45 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error: any) {
       console.error("Error sending offer link email:", error);
       res.status(500).json({ message: error.message || "Error al enviar email" });
+    }
+  });
+
+  // Generate PDF for offer
+  app.get("/api/offer-tokens/:id/pdf", isAuthenticated, requireRole(["admin", "master", "admin_jr"]), async (req, res) => {
+    try {
+      const { id } = req.params;
+
+      // Get offer token
+      const [offerToken] = await db
+        .select()
+        .from(offerTokens)
+        .where(eq(offerTokens.id, id))
+        .limit(1);
+
+      if (!offerToken) {
+        return res.status(404).json({ message: "Token de oferta no encontrado" });
+      }
+
+      if (!offerToken.isUsed || !offerToken.offerData) {
+        return res.status(400).json({ message: "La oferta aún no ha sido completada" });
+      }
+
+      // Get property info
+      const property = await storage.getProperty(offerToken.propertyId);
+      if (!property) {
+        return res.status(404).json({ message: "Propiedad no encontrada" });
+      }
+
+      // Generate PDF
+      const pdfBuffer = await generateOfferPDF(offerToken.offerData, property);
+
+      // Set headers for PDF download
+      res.setHeader('Content-Type', 'application/pdf');
+      res.setHeader('Content-Disposition', `attachment; filename="oferta-${offerToken.id}.pdf"`);
+      res.send(pdfBuffer);
+    } catch (error) {
+      console.error("Error generating PDF:", error);
+      res.status(500).json({ message: "Error al generar PDF" });
     }
   });
 
