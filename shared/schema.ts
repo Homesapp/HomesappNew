@@ -40,6 +40,7 @@ export const userRoleEnum = pgEnum("user_role", [
   "abogado",
   "contador",
   "agente_servicios_especiales",
+  "hoa_manager",
 ]);
 
 export const userStatusEnum = pgEnum("user_status", [
@@ -3990,5 +3991,153 @@ export const condominiumIssuesRelations = relations(condominiumIssues, ({ one })
     fields: [condominiumIssues.assignedToId],
     references: [users.id],
     relationName: "issueAssignee",
+  }),
+}));
+
+// ========================================
+// HOA Manager System
+// ========================================
+
+// HOA Manager Assignment Status Enum
+export const hoaManagerStatusEnum = pgEnum("hoa_manager_status", [
+  "pending",      // Solicitud pendiente de aprobación
+  "approved",     // Aprobado por admin
+  "rejected",     // Rechazado por admin
+  "suspended",    // Suspendido temporalmente
+]);
+
+// HOA Announcement Priority Enum
+export const hoaAnnouncementPriorityEnum = pgEnum("hoa_announcement_priority", [
+  "baja",
+  "media",
+  "alta",
+  "urgente",
+]);
+
+// HOA Manager Assignments - Asignación de managers a condominios
+export const hoaManagerAssignments = pgTable("hoa_manager_assignments", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  managerId: varchar("manager_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  condominiumId: varchar("condominium_id").notNull().references(() => condominiums.id, { onDelete: "cascade" }),
+  status: hoaManagerStatusEnum("status").notNull().default("pending"),
+  requestedAt: timestamp("requested_at").defaultNow().notNull(),
+  approvedById: varchar("approved_by_id").references(() => users.id), // Admin que aprobó
+  approvedAt: timestamp("approved_at"),
+  rejectedById: varchar("rejected_by_id").references(() => users.id), // Admin que rechazó
+  rejectedAt: timestamp("rejected_at"),
+  rejectionReason: text("rejection_reason"),
+  suspendedById: varchar("suspended_by_id").references(() => users.id),
+  suspendedAt: timestamp("suspended_at"),
+  suspensionReason: text("suspension_reason"),
+  notes: text("notes"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+}, (table) => ({
+  uniqueAssignment: unique().on(table.managerId, table.condominiumId),
+}));
+
+export const insertHoaManagerAssignmentSchema = createInsertSchema(hoaManagerAssignments).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export type InsertHoaManagerAssignment = z.infer<typeof insertHoaManagerAssignmentSchema>;
+export type HoaManagerAssignment = typeof hoaManagerAssignments.$inferSelect;
+
+// HOA Announcements - Anuncios/Noticias del HOA Manager para propietarios
+export const hoaAnnouncements = pgTable("hoa_announcements", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  condominiumId: varchar("condominium_id").notNull().references(() => condominiums.id, { onDelete: "cascade" }),
+  managerId: varchar("manager_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  title: text("title").notNull(),
+  message: text("message").notNull(),
+  priority: hoaAnnouncementPriorityEnum("priority").notNull().default("media"),
+  category: text("category"), // "mantenimiento", "reunion", "aviso", "emergencia", "otro"
+  attachments: jsonb("attachments").$type<string[]>(), // URLs de documentos adjuntos
+  targetAllUnits: boolean("target_all_units").notNull().default(true), // Si es para todos los propietarios
+  targetUnitIds: text("target_unit_ids").array(), // IDs específicos de unidades si no es para todos
+  publishedAt: timestamp("published_at"),
+  expiresAt: timestamp("expires_at"), // Fecha de expiración del anuncio
+  isActive: boolean("is_active").notNull().default(true),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
+export const insertHoaAnnouncementSchema = createInsertSchema(hoaAnnouncements).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export type InsertHoaAnnouncement = z.infer<typeof insertHoaAnnouncementSchema>;
+export type HoaAnnouncement = typeof hoaAnnouncements.$inferSelect;
+
+// HOA Announcement Reads - Tracking de lectura de anuncios por propietarios
+export const hoaAnnouncementReads = pgTable("hoa_announcement_reads", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  announcementId: varchar("announcement_id").notNull().references(() => hoaAnnouncements.id, { onDelete: "cascade" }),
+  ownerId: varchar("owner_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  readAt: timestamp("read_at").defaultNow().notNull(),
+}, (table) => ({
+  uniqueRead: unique().on(table.announcementId, table.ownerId),
+}));
+
+export const insertHoaAnnouncementReadSchema = createInsertSchema(hoaAnnouncementReads).omit({
+  id: true,
+  readAt: true,
+});
+
+export type InsertHoaAnnouncementRead = z.infer<typeof insertHoaAnnouncementReadSchema>;
+export type HoaAnnouncementRead = typeof hoaAnnouncementReads.$inferSelect;
+
+// HOA Manager Relations
+export const hoaManagerAssignmentsRelations = relations(hoaManagerAssignments, ({ one }) => ({
+  manager: one(users, {
+    fields: [hoaManagerAssignments.managerId],
+    references: [users.id],
+    relationName: "hoaManager",
+  }),
+  condominium: one(condominiums, {
+    fields: [hoaManagerAssignments.condominiumId],
+    references: [condominiums.id],
+  }),
+  approvedBy: one(users, {
+    fields: [hoaManagerAssignments.approvedById],
+    references: [users.id],
+    relationName: "assignmentApprover",
+  }),
+  rejectedBy: one(users, {
+    fields: [hoaManagerAssignments.rejectedById],
+    references: [users.id],
+    relationName: "assignmentRejecter",
+  }),
+  suspendedBy: one(users, {
+    fields: [hoaManagerAssignments.suspendedById],
+    references: [users.id],
+    relationName: "assignmentSuspender",
+  }),
+}));
+
+export const hoaAnnouncementsRelations = relations(hoaAnnouncements, ({ one, many }) => ({
+  condominium: one(condominiums, {
+    fields: [hoaAnnouncements.condominiumId],
+    references: [condominiums.id],
+  }),
+  manager: one(users, {
+    fields: [hoaAnnouncements.managerId],
+    references: [users.id],
+  }),
+  reads: many(hoaAnnouncementReads),
+}));
+
+export const hoaAnnouncementReadsRelations = relations(hoaAnnouncementReads, ({ one }) => ({
+  announcement: one(hoaAnnouncements, {
+    fields: [hoaAnnouncementReads.announcementId],
+    references: [hoaAnnouncements.id],
+  }),
+  owner: one(users, {
+    fields: [hoaAnnouncementReads.ownerId],
+    references: [users.id],
   }),
 }));
