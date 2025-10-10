@@ -70,6 +70,7 @@ export default function RoleRequests() {
 
   const { data: requests = [], isLoading } = useQuery<RoleRequestWithUser[]>({
     queryKey: ["/api/role-requests"],
+    enabled: activeTab !== "hoa-manager",
   });
 
   const approveRequest = useApproveRoleRequest();
@@ -180,17 +181,19 @@ export default function RoleRequests() {
           </TabsTrigger>
         </TabsList>
 
-        <TabsContent value={activeTab} className="mt-6 space-y-4">
-          {filteredRequests.length === 0 ? (
-            <Card>
-              <CardContent className="flex items-center justify-center py-12">
-                <p className="text-muted-foreground">
-                  No hay solicitudes {activeTab !== "all" && statusLabels[activeTab].toLowerCase()}
-                </p>
-              </CardContent>
-            </Card>
-          ) : (
-            filteredRequests.map((request) => (
+        <>
+          {["pending", "approved", "rejected", "all"].map((tab) => (
+            <TabsContent key={tab} value={tab} className="mt-6 space-y-4">
+              {filteredRequests.length === 0 ? (
+                <Card>
+                  <CardContent className="flex items-center justify-center py-12">
+                    <p className="text-muted-foreground">
+                      No hay solicitudes {tab !== "all" && statusLabels[tab]?.toLowerCase()}
+                    </p>
+                  </CardContent>
+                </Card>
+              ) : (
+                filteredRequests.map((request) => (
               <Card key={request.id} data-testid={`card-request-${request.id}`}>
                 <CardHeader>
                   <div className="flex items-start justify-between">
@@ -315,11 +318,13 @@ export default function RoleRequests() {
               </Card>
             ))
           )}
-        </TabsContent>
+          </TabsContent>
+          ))}
 
-        <TabsContent value="hoa-manager" className="mt-6">
-          <HoaManagerRequests />
-        </TabsContent>
+          <TabsContent value="hoa-manager" className="mt-6">
+            <HoaManagerRequests />
+          </TabsContent>
+        </>
       </Tabs>
 
       <Dialog open={!!selectedRequest && !!actionType} onOpenChange={(open) => !open && handleCloseDialog()}>
