@@ -42,6 +42,7 @@ const roleLabels: Record<string, string> = {
   management: "Management",
   concierge: "Conserje",
   provider: "Proveedor",
+  hoa_manager: "HOA Manager",
 };
 
 const roleColors: Record<string, string> = {
@@ -51,6 +52,7 @@ const roleColors: Record<string, string> = {
   management: "bg-orange-100 text-orange-800 dark:bg-orange-900/30 dark:text-orange-400",
   concierge: "bg-cyan-100 text-cyan-800 dark:bg-cyan-900/30 dark:text-cyan-400",
   provider: "bg-pink-100 text-pink-800 dark:bg-pink-900/30 dark:text-pink-400",
+  hoa_manager: "bg-indigo-100 text-indigo-800 dark:bg-indigo-900/30 dark:text-indigo-400",
 };
 
 const requestStatusLabels: Record<string, string> = {

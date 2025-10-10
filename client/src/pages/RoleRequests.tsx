@@ -33,6 +33,7 @@ const roleLabels: Record<string, string> = {
   provider: "Proveedor",
   concierge: "Conserje",
   agente_servicios_especiales: "Agente de Servicios Especiales",
+  hoa_manager: "HOA Manager",
 };
 
 const statusLabels: Record<string, string> = {

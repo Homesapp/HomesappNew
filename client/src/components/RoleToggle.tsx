@@ -54,6 +54,7 @@ const ROLE_ICONS: Record<string, any> = {
   seller: Briefcase,
   management: Star,
   provider: FileText,
+  hoa_manager: Building2,
 };
 
 const ROLE_NAMES: Record<string, string> = {
@@ -66,6 +67,7 @@ const ROLE_NAMES: Record<string, string> = {
   provider: "Proveedor",
   concierge: "Conserje",
   agente_servicios_especiales: "Agente de Servicios Especiales",
+  hoa_manager: "HOA Manager",
 };
 
 const ROLE_DESCRIPTIONS: Record<string, { question: string; placeholder: string }> = {
@@ -92,6 +94,10 @@ const ROLE_DESCRIPTIONS: Record<string, { question: string; placeholder: string 
   concierge: {
     question: "¿Cuál es tu experiencia en servicios de conserjería o atención al cliente?",
     placeholder: "Describe tu experiencia en servicio al cliente, coordinación, etc..."
+  },
+  hoa_manager: {
+    question: "¿Cuál es tu experiencia en administración de condominios y comunidades?",
+    placeholder: "Describe tu experiencia en gestión de condominios, relaciones con residentes, mantenimiento, etc..."
   },
 };
 
@@ -201,7 +207,7 @@ export function RoleToggle() {
   const currentRoleName = ROLE_NAMES[user.role] || user.role;
 
   // Available roles to apply for
-  const availableRoles = ["abogado", "contador", "seller", "management", "provider", "concierge"];
+  const availableRoles = ["abogado", "contador", "seller", "management", "provider", "concierge", "hoa_manager"];
 
   const selectedRole = form.watch("requestedRole");
   const roleInfo = selectedRole ? ROLE_DESCRIPTIONS[selectedRole] : null;
