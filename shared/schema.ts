@@ -1260,6 +1260,160 @@ export const insertRentalContractSchema = createInsertSchema(rentalContracts).om
 export type InsertRentalContract = z.infer<typeof insertRentalContractSchema>;
 export type RentalContract = typeof rentalContracts.$inferSelect;
 
+// Contract Tenant Info table - Información del formato de renta del inquilino
+export const contractTenantInfo = pgTable("contract_tenant_info", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  rentalContractId: varchar("rental_contract_id").notNull().references(() => rentalContracts.id, { onDelete: "cascade" }),
+  
+  // Datos Generales del Arrendatario
+  fullName: text("full_name").notNull(),
+  address: text("address"),
+  nationality: varchar("nationality"),
+  age: integer("age"),
+  timeInTulum: varchar("time_in_tulum"),
+  occupation: text("occupation"),
+  company: text("company"),
+  workplaceAddress: text("workplace_address"),
+  monthlyIncome: decimal("monthly_income", { precision: 12, scale: 2 }),
+  companyTenure: varchar("company_tenure"),
+  maritalStatus: varchar("marital_status"),
+  whatsappNumber: varchar("whatsapp_number"),
+  cellNumber: varchar("cell_number"),
+  email: text("email"),
+  idType: varchar("id_type"),
+  idNumber: varchar("id_number"),
+  checkInDate: timestamp("check_in_date"),
+  numberOfTenants: integer("number_of_tenants"),
+  paymentMethod: varchar("payment_method"),
+  hasPets: boolean("has_pets").default(false),
+  petDescription: text("pet_description"),
+  propertyToRent: text("property_to_rent"),
+  condominiumAndUnit: text("condominium_and_unit"),
+  
+  // Datos del Garante
+  guarantorName: text("guarantor_name"),
+  guarantorAddress: text("guarantor_address"),
+  guarantorBirthInfo: text("guarantor_birth_info"),
+  guarantorNationality: varchar("guarantor_nationality"),
+  guarantorAge: integer("guarantor_age"),
+  guarantorTimeInTulum: varchar("guarantor_time_in_tulum"),
+  guarantorOccupation: text("guarantor_occupation"),
+  guarantorCompany: text("guarantor_company"),
+  guarantorWorkAddress: text("guarantor_work_address"),
+  guarantorWorkPhone: varchar("guarantor_work_phone"),
+  guarantorMaritalStatus: varchar("guarantor_marital_status"),
+  guarantorLandline: varchar("guarantor_landline"),
+  guarantorCell: varchar("guarantor_cell"),
+  guarantorEmail: text("guarantor_email"),
+  guarantorIdNumber: varchar("guarantor_id_number"),
+  
+  // Referencias del Arrendamiento Anterior
+  previousLandlordName: text("previous_landlord_name"),
+  previousLandlordCell: varchar("previous_landlord_cell"),
+  previousLandlordAddress: text("previous_landlord_address"),
+  previousTenancyDuration: varchar("previous_tenancy_duration"),
+  
+  // Referencias Laborales
+  directBossName: text("direct_boss_name"),
+  companyNameAddress: text("company_name_address"),
+  companyLandline: varchar("company_landline"),
+  companyManagerCell: varchar("company_manager_cell"),
+  
+  // Referencias No Familiares
+  reference1Name: text("reference1_name"),
+  reference1Address: text("reference1_address"),
+  reference1Landline: varchar("reference1_landline"),
+  reference1Cell: varchar("reference1_cell"),
+  reference2Name: text("reference2_name"),
+  reference2Address: text("reference2_address"),
+  reference2Landline: varchar("reference2_landline"),
+  reference2Cell: varchar("reference2_cell"),
+  
+  // Documentos Subidos (URLs)
+  idDocumentUrl: text("id_document_url"),
+  proofOfAddressUrl: text("proof_of_address_url"),
+  solvencyDocumentsUrl: text("solvency_documents_url").array(),
+  guarantorIdUrl: text("guarantor_id_url"),
+  guarantorProofAddressUrl: text("guarantor_proof_address_url"),
+  guarantorSolvencyUrl: text("guarantor_solvency_url").array(),
+  
+  // Firma Digital y Términos
+  digitalSignature: text("digital_signature"),
+  acceptedTerms: boolean("accepted_terms").default(false),
+  signedAt: timestamp("signed_at"),
+  
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
+export const insertContractTenantInfoSchema = createInsertSchema(contractTenantInfo).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export type InsertContractTenantInfo = z.infer<typeof insertContractTenantInfoSchema>;
+export type ContractTenantInfo = typeof contractTenantInfo.$inferSelect;
+
+// Contract Owner Info table - Información del formato de renta del propietario
+export const contractOwnerInfo = pgTable("contract_owner_info", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  rentalContractId: varchar("rental_contract_id").notNull().references(() => rentalContracts.id, { onDelete: "cascade" }),
+  
+  // Datos Generales del Arrendador
+  fullName: text("full_name").notNull(),
+  nationality: varchar("nationality"),
+  phone: varchar("phone"),
+  whatsapp: varchar("whatsapp"),
+  email: text("email"),
+  subleaseAllowed: boolean("sublease_allowed").default(false),
+  propertyAddress: text("property_address"),
+  subdivision: varchar("subdivision"),
+  unitNumber: varchar("unit_number"),
+  agreedRent: decimal("agreed_rent", { precision: 12, scale: 2 }),
+  agreedDeposit: decimal("agreed_deposit", { precision: 12, scale: 2 }),
+  checkInDate: timestamp("check_in_date"),
+  contractDuration: varchar("contract_duration"),
+  includedServices: text("included_services").array(),
+  excludedServices: text("excluded_services").array(),
+  petsAccepted: boolean("pets_accepted").default(false),
+  specialNotes: text("special_notes"),
+  
+  // Datos Bancarios para Apartado y Pago de Renta
+  bankName: varchar("bank_name"),
+  clabe: varchar("clabe"),
+  accountNumber: varchar("account_number"),
+  accountHolderName: text("account_holder_name"),
+  swiftCode: varchar("swift_code"),
+  bankAddress: text("bank_address"),
+  bankEmail: text("bank_email"),
+  
+  // Documentos Subidos (URLs)
+  idDocumentUrl: text("id_document_url"),
+  propertyDocumentsUrl: text("property_documents_url").array(),
+  serviceReceiptsUrl: text("service_receipts_url").array(),
+  noDebtProofUrl: text("no_debt_proof_url").array(),
+  servicesFormatUrl: text("services_format_url"),
+  rulesRegulationsUrl: text("rules_regulations_url"),
+  
+  // Firma Digital y Términos
+  digitalSignature: text("digital_signature"),
+  acceptedTerms: boolean("accepted_terms").default(false),
+  signedAt: timestamp("signed_at"),
+  
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
+export const insertContractOwnerInfoSchema = createInsertSchema(contractOwnerInfo).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export type InsertContractOwnerInfo = z.infer<typeof insertContractOwnerInfoSchema>;
+export type ContractOwnerInfo = typeof contractOwnerInfo.$inferSelect;
+
 // Rental Payments table - Pagos mensuales de renta y servicios
 export const rentalPayments = pgTable("rental_payments", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
