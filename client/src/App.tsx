@@ -103,6 +103,7 @@ import Terms from "@/pages/Terms";
 import Privacy from "@/pages/Privacy";
 import Help from "@/pages/Help";
 import SellerCommissions from "@/pages/SellerCommissions";
+import SellerAppointmentManagement from "@/pages/SellerAppointmentManagement";
 import AdminPredictiveAnalytics from "@/pages/AdminPredictiveAnalytics";
 import AdminLegalDocuments from "@/pages/AdminLegalDocuments";
 import AdminTenantScreening from "@/pages/AdminTenantScreening";
@@ -321,6 +322,7 @@ function AuthenticatedApp() {
               <Route path="/permissions" component={Permissions} />
               <Route path="/contratos" component={Contracts} />
               <Route path="/seller/commissions" component={SellerCommissions} />
+              <Route path="/seller/appointments" component={SellerAppointmentManagement} />
               <Route path="/admin/predictive-analytics" component={AdminPredictiveAnalytics} />
               <Route path="/admin/legal-documents" component={AdminLegalDocuments} />
               <Route path="/admin/tenant-screening" component={AdminTenantScreening} />

@@ -23,7 +23,7 @@ The platform employs unified middleware for consistent authentication and automa
 
 ### Key Features
 *   **Role-Based Access Control**: Granular permissions across all user types with admin direct role assignment capability. Admins can update both primary and additional roles for any user via the user management interface (PATCH /api/admin/users/:userId/role).
-*   **Advanced Appointment System**: Dual-type scheduling with concierge assignment, dynamic slot availability, and post-appointment client features.
+*   **Advanced Appointment System**: Dual-type scheduling with concierge assignment, dynamic slot availability, and post-appointment client features. Sellers and admins can independently manage appointments with their registered leads through a dedicated appointment management interface accessible via sidebar navigation (/seller/appointments).
 *   **Property Management Lifecycle**: Features property approval workflows with two-stage publication system (approved → published), owner change requests, sublease functionality, comprehensive photo editing, and a 5-step property submission wizard with digital agreement signing. Properties must be both "approved" and "published" to appear on the public home page for security reasons.
     - **Property Approval States**: 
       - draft: Borrador, aún no enviada

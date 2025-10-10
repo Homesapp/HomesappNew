@@ -8754,6 +8754,281 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Seller/Admin Appointment Management Routes
+  // Create appointment with lead (seller can only use their own leads)
+  app.post("/api/seller/appointments/create-with-lead", isAuthenticated, requireRole(["master", "admin", "admin_jr", "seller", "management"]), async (req: any, res) => {
+    let googleEventId: string | null = null;
+    
+    try {
+      const userId = req.user.claims.sub;
+      const user = await storage.getUser(userId);
+      const { leadId, propertyId, date, type, notes } = req.body;
+
+      if (!leadId || !propertyId || !date || !type) {
+        return res.status(400).json({ message: "Lead, propiedad, fecha y tipo son requeridos" });
+      }
+
+      // Verify lead exists and belongs to seller (unless admin)
+      const lead = await storage.getLead(leadId);
+      if (!lead) {
+        return res.status(404).json({ message: "Lead no encontrado" });
+      }
+
+      // Sellers can only create appointments with their own leads
+      if (user?.role === "seller" && lead.registeredById !== userId) {
+        return res.status(403).json({ message: "Solo puedes crear citas con leads que tú registraste" });
+      }
+
+      // Verify property exists and is published
+      const property = await storage.getProperty(propertyId);
+      if (!property) {
+        return res.status(404).json({ message: "Propiedad no encontrada" });
+      }
+
+      if (!property.published) {
+        return res.status(400).json({ message: "Solo puedes crear citas con propiedades publicadas" });
+      }
+
+      // Convert lead to client if not already a user
+      let clientId = lead.userId;
+      if (!clientId) {
+        // Lead doesn't have a user account yet - use the lead's ID as placeholder
+        // In a real scenario, you might want to create a temporary user or handle this differently
+        return res.status(400).json({ 
+          message: "El lead debe estar registrado como usuario antes de crear una cita. Por favor, invita al lead a registrarse primero." 
+        });
+      }
+
+      // Create Google Meet event if type is video
+      let meetLink = null;
+      if (type === "video") {
+        const appointmentDate = new Date(date);
+        const endDate = new Date(appointmentDate.getTime() + 60 * 60 * 1000); // 1 hour later
+
+        try {
+          const eventResult = await createGoogleMeetEvent({
+            summary: `Visita Virtual: ${property.title}`,
+            description: `Cita virtual para visitar la propiedad`,
+            start: appointmentDate,
+            end: endDate,
+            attendees: [],
+          });
+
+          if (eventResult) {
+            meetLink = eventResult.meetLink;
+            googleEventId = eventResult.eventId;
+          }
+        } catch (meetError) {
+          console.error("Error creating Google Meet event:", meetError);
+        }
+      }
+
+      // Create appointment with auto-approved status
+      const appointment = await storage.createAppointment({
+        propertyId,
+        clientId,
+        date: new Date(date),
+        type,
+        mode: "individual",
+        status: "confirmed", // Auto-confirmed for seller-created appointments
+        ownerApprovalStatus: "approved",
+        ownerApprovedAt: new Date(),
+        ownerApprovalNotes: `Cita creada por ${user?.role} ${user?.firstName} ${user?.lastName}`,
+        visitType: "visita_cliente",
+        notes,
+        meetLink,
+        googleEventId: googleEventId || undefined,
+      });
+
+      // Update lead status if needed
+      if (lead.status === "nuevo" || lead.status === "contactado" || lead.status === "calificado") {
+        await storage.updateLeadStatus(leadId, "visita_agendada");
+      }
+
+      await createAuditLog(
+        req,
+        "create",
+        "appointment",
+        appointment.id,
+        `${user?.role} creó cita con lead ${lead.firstName} ${lead.lastName} para ${property.title}`
+      );
+
+      // Notify client about the appointment
+      await storage.createNotification({
+        userId: clientId,
+        type: "appointment",
+        title: "Nueva Cita Agendada",
+        message: `Se ha agendado una cita para visitar ${property.title} el ${new Date(date).toLocaleDateString()}`,
+        relatedEntityType: "appointment",
+        relatedEntityId: appointment.id,
+        priority: "high",
+      });
+
+      res.status(201).json(appointment);
+    } catch (error: any) {
+      // Rollback Google Meet event if appointment creation fails
+      if (googleEventId) {
+        try {
+          await deleteGoogleMeetEvent(googleEventId);
+        } catch (rollbackError) {
+          console.error("Error rolling back Google Meet event:", rollbackError);
+        }
+      }
+      console.error("Error creating appointment with lead:", error);
+      res.status(500).json({ message: error.message || "Error al crear cita con lead" });
+    }
+  });
+
+  // Seller/Admin approve appointment directly
+  app.post("/api/seller/appointments/:id/approve", isAuthenticated, requireRole(["master", "admin", "admin_jr", "seller", "management"]), async (req: any, res) => {
+    try {
+      const { id } = req.params;
+      const userId = req.user.claims.sub;
+      const user = await storage.getUser(userId);
+
+      const appointment = await storage.getAppointment(id);
+      if (!appointment) {
+        return res.status(404).json({ message: "Cita no encontrada" });
+      }
+
+      // Update appointment to confirmed
+      const updated = await storage.updateAppointment(id, {
+        status: "confirmed",
+        ownerApprovalStatus: "approved",
+        ownerApprovedAt: new Date(),
+        ownerApprovalNotes: `Aprobada por ${user?.role} ${user?.firstName} ${user?.lastName}`,
+      });
+
+      await createAuditLog(
+        req,
+        "update",
+        "appointment",
+        id,
+        `${user?.role} aprobó cita directamente`
+      );
+
+      // Notify client
+      await storage.createNotification({
+        userId: appointment.clientId,
+        type: "appointment",
+        title: "Cita Aprobada",
+        message: `Tu cita ha sido aprobada`,
+        relatedEntityType: "appointment",
+        relatedEntityId: appointment.id,
+        priority: "high",
+      });
+
+      res.json(updated);
+    } catch (error: any) {
+      console.error("Error approving appointment:", error);
+      res.status(500).json({ message: error.message || "Error al aprobar cita" });
+    }
+  });
+
+  // Seller/Admin cancel appointment directly
+  app.post("/api/seller/appointments/:id/cancel", isAuthenticated, requireRole(["master", "admin", "admin_jr", "seller", "management"]), async (req: any, res) => {
+    try {
+      const { id } = req.params;
+      const { reason } = req.body;
+      const userId = req.user.claims.sub;
+      const user = await storage.getUser(userId);
+
+      const appointment = await storage.getAppointment(id);
+      if (!appointment) {
+        return res.status(404).json({ message: "Cita no encontrada" });
+      }
+
+      // Cancel appointment
+      const updated = await storage.updateAppointment(id, {
+        status: "cancelled",
+      });
+
+      // Delete Google Meet event if exists
+      if (appointment.googleEventId) {
+        try {
+          await deleteGoogleMeetEvent(appointment.googleEventId);
+        } catch (error) {
+          console.error("Error deleting Google Meet event:", error);
+        }
+      }
+
+      await createAuditLog(
+        req,
+        "update",
+        "appointment",
+        id,
+        `${user?.role} canceló cita${reason ? `: ${reason}` : ""}`
+      );
+
+      // Notify client
+      await storage.createNotification({
+        userId: appointment.clientId,
+        type: "appointment",
+        title: "Cita Cancelada",
+        message: `Tu cita ha sido cancelada${reason ? `: ${reason}` : ""}`,
+        relatedEntityType: "appointment",
+        relatedEntityId: appointment.id,
+        priority: "high",
+      });
+
+      res.json(updated);
+    } catch (error: any) {
+      console.error("Error cancelling appointment:", error);
+      res.status(500).json({ message: error.message || "Error al cancelar cita" });
+    }
+  });
+
+  // Seller/Admin reschedule appointment directly
+  app.patch("/api/seller/appointments/:id/reschedule", isAuthenticated, requireRole(["master", "admin", "admin_jr", "seller", "management"]), async (req: any, res) => {
+    try {
+      const { id } = req.params;
+      const { newDate } = req.body;
+      const userId = req.user.claims.sub;
+      const user = await storage.getUser(userId);
+
+      if (!newDate) {
+        return res.status(400).json({ message: "Nueva fecha es requerida" });
+      }
+
+      const appointment = await storage.getAppointment(id);
+      if (!appointment) {
+        return res.status(404).json({ message: "Cita no encontrada" });
+      }
+
+      const oldDate = new Date(appointment.date);
+
+      // Update appointment date directly
+      const updated = await storage.updateAppointment(id, {
+        date: new Date(newDate),
+        rescheduleStatus: "none", // Reset reschedule status since this is direct change
+      });
+
+      await createAuditLog(
+        req,
+        "update",
+        "appointment",
+        id,
+        `${user?.role} reprogramó cita de ${oldDate.toLocaleDateString()} a ${new Date(newDate).toLocaleDateString()}`
+      );
+
+      // Notify client
+      await storage.createNotification({
+        userId: appointment.clientId,
+        type: "appointment",
+        title: "Cita Reprogramada",
+        message: `Tu cita ha sido reprogramada para el ${new Date(newDate).toLocaleDateString()}`,
+        relatedEntityType: "appointment",
+        relatedEntityId: appointment.id,
+        priority: "high",
+      });
+
+      res.json(updated);
+    } catch (error: any) {
+      console.error("Error rescheduling appointment:", error);
+      res.status(500).json({ message: error.message || "Error al reprogramar cita" });
+    }
+  });
+
   // Calendar Events routes
   app.get("/api/calendar-events", isAuthenticated, async (req, res) => {
     try {
