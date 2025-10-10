@@ -5520,6 +5520,89 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Admin: Grant rental opportunity directly to a client (without appointment)
+  app.post("/api/admin/rental-opportunity-requests/grant", isAuthenticated, requireRole(["master", "admin", "admin_jr"]), async (req: any, res) => {
+    try {
+      const adminId = req.user?.claims?.sub || req.session?.adminUser?.id;
+      const { userId, propertyId, notes } = req.body;
+
+      if (!userId || !propertyId) {
+        return res.status(400).json({ message: "userId y propertyId son requeridos" });
+      }
+
+      // Verify user exists and is a client
+      const user = await storage.getUser(userId);
+      if (!user) {
+        return res.status(404).json({ message: "Usuario no encontrado" });
+      }
+      if (user.role !== "cliente") {
+        return res.status(400).json({ message: "Solo se puede otorgar oportunidades a clientes" });
+      }
+
+      // Verify property exists
+      const property = await storage.getProperty(propertyId);
+      if (!property) {
+        return res.status(404).json({ message: "Propiedad no encontrada" });
+      }
+
+      // Check if there's already an approved opportunity for this client-property combination
+      const existingOpportunities = await db
+        .select()
+        .from(rentalOpportunityRequests)
+        .where(
+          and(
+            eq(rentalOpportunityRequests.userId, userId),
+            eq(rentalOpportunityRequests.propertyId, propertyId),
+            eq(rentalOpportunityRequests.status, "approved" as any)
+          )
+        );
+
+      if (existingOpportunities.length > 0) {
+        return res.status(400).json({ 
+          message: "Ya existe una oportunidad aprobada para este cliente en esta propiedad" 
+        });
+      }
+
+      // Create the rental opportunity request directly as approved
+      const [opportunityRequest] = await db
+        .insert(rentalOpportunityRequests)
+        .values({
+          userId,
+          propertyId,
+          appointmentId: null, // No appointment required when admin grants directly
+          status: "approved" as any,
+          notes: notes || "Oportunidad otorgada directamente por administrador",
+          approvedBy: adminId,
+          approvedAt: new Date(),
+        })
+        .returning();
+
+      // Notify client
+      await storage.createNotification({
+        userId,
+        type: "opportunity",
+        title: "Oportunidad de Renta Otorgada",
+        message: `Se te ha otorgado una oportunidad para crear una oferta de renta para ${property.title}. Puedes proceder a crear tu oferta.`,
+        relatedEntityType: "rental_opportunity_request",
+        relatedEntityId: opportunityRequest.id,
+        priority: "high",
+      });
+
+      await createAuditLog(
+        req,
+        "approve",
+        "rental_opportunity_request",
+        opportunityRequest.id,
+        `Oportunidad de renta otorgada directamente a ${user.firstName} ${user.lastName} para propiedad ${property.title}`
+      );
+
+      res.json(opportunityRequest);
+    } catch (error: any) {
+      console.error("Error granting rental opportunity:", error);
+      res.status(500).json({ message: error.message || "Error al otorgar oportunidad" });
+    }
+  });
+
   app.post("/api/admin/inspection-reports", isAuthenticated, requireRole(["master", "admin", "admin_jr"]), async (req: any, res) => {
     try {
       const inspectorId = req.user?.claims?.sub || req.session?.adminUser?.id;

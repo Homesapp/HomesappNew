@@ -11,9 +11,16 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
-import { CheckCircle, XCircle, Clock, User, Home, Calendar, Loader2 } from "lucide-react";
+import { CheckCircle, XCircle, Clock, User, Home, Calendar, Loader2, Gift } from "lucide-react";
 import { format } from "date-fns";
 import { es } from "date-fns/locale";
 import type { RentalOpportunityRequest, Property, User as UserType, Appointment } from "@shared/schema";
@@ -32,9 +39,27 @@ export default function AdminRentalOpportunityRequests() {
   const [selectedRequest, setSelectedRequest] = useState<RequestWithDetails | null>(null);
   const [actionType, setActionType] = useState<"approve" | "reject" | null>(null);
   const [rejectionReason, setRejectionReason] = useState("");
+  
+  // Grant opportunity states
+  const [showGrantDialog, setShowGrantDialog] = useState(false);
+  const [selectedClientId, setSelectedClientId] = useState("");
+  const [selectedPropertyId, setSelectedPropertyId] = useState("");
+  const [grantNotes, setGrantNotes] = useState("");
 
   const { data: requests = [], isLoading } = useQuery<RequestWithDetails[]>({
     queryKey: ["/api/admin/rental-opportunity-requests"],
+  });
+
+  // Fetch clients for grant dialog
+  const { data: clients = [] } = useQuery<UserType[]>({
+    queryKey: ["/api/admin/users?role=cliente"],
+    enabled: showGrantDialog,
+  });
+
+  // Fetch properties for grant dialog
+  const { data: properties = [] } = useQuery<Property[]>({
+    queryKey: ["/api/properties"],
+    enabled: showGrantDialog,
   });
 
   const approveMutation = useMutation({
@@ -91,6 +116,32 @@ export default function AdminRentalOpportunityRequests() {
     },
   });
 
+  const grantOpportunityMutation = useMutation({
+    mutationFn: async (data: { userId: string; propertyId: string; notes?: string }) => {
+      return await apiRequest("POST", "/api/admin/rental-opportunity-requests/grant", data);
+    },
+    onSuccess: () => {
+      toast({
+        title: "Oportunidad otorgada",
+        description: "El cliente ha sido notificado y puede crear su oferta de renta",
+      });
+      queryClient.invalidateQueries({ 
+        predicate: (query) => 
+          query.queryKey.some(key => 
+            typeof key === 'string' && key.includes('/api/admin/rental-opportunity-requests')
+          )
+      });
+      handleCloseGrantDialog();
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Error",
+        description: error.message || "No se pudo otorgar la oportunidad",
+        variant: "destructive",
+      });
+    },
+  });
+
   const handleOpenDialog = (request: RequestWithDetails, action: "approve" | "reject") => {
     setSelectedRequest(request);
     setActionType(action);
@@ -100,6 +151,13 @@ export default function AdminRentalOpportunityRequests() {
     setSelectedRequest(null);
     setActionType(null);
     setRejectionReason("");
+  };
+
+  const handleCloseGrantDialog = () => {
+    setShowGrantDialog(false);
+    setSelectedClientId("");
+    setSelectedPropertyId("");
+    setGrantNotes("");
   };
 
   const handleConfirmAction = () => {
@@ -118,6 +176,23 @@ export default function AdminRentalOpportunityRequests() {
       }
       rejectMutation.mutate({ id: selectedRequest.id, reason: rejectionReason });
     }
+  };
+
+  const handleGrantOpportunity = () => {
+    if (!selectedClientId || !selectedPropertyId) {
+      toast({
+        title: "Campos requeridos",
+        description: "Por favor selecciona un cliente y una propiedad",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    grantOpportunityMutation.mutate({
+      userId: selectedClientId,
+      propertyId: selectedPropertyId,
+      notes: grantNotes || undefined,
+    });
   };
 
   if (isLoading) {
@@ -160,12 +235,19 @@ export default function AdminRentalOpportunityRequests() {
       </CardHeader>
       <CardContent className="space-y-4">
         <div className="grid gap-2 text-sm">
-          <div className="flex items-center gap-2 text-muted-foreground">
-            <Calendar className="h-4 w-4" />
-            <span>
-              Cita: {format(new Date(request.appointment.appointmentDate), "dd 'de' MMMM, yyyy 'a las' HH:mm", { locale: es })}
-            </span>
-          </div>
+          {request.appointment ? (
+            <div className="flex items-center gap-2 text-muted-foreground">
+              <Calendar className="h-4 w-4" />
+              <span>
+                Cita: {format(new Date(request.appointment.appointmentDate), "dd 'de' MMMM, yyyy 'a las' HH:mm", { locale: es })}
+              </span>
+            </div>
+          ) : (
+            <div className="flex items-center gap-2 text-muted-foreground">
+              <Gift className="h-4 w-4" />
+              <span>Oportunidad otorgada directamente (sin cita)</span>
+            </div>
+          )}
           <div className="text-muted-foreground">
             Solicitado: {format(new Date(request.createdAt!), "dd/MM/yyyy HH:mm", { locale: es })}
           </div>
@@ -177,6 +259,11 @@ export default function AdminRentalOpportunityRequests() {
           {request.status === "rejected" && request.rejectionReason && (
             <div className="text-destructive">
               Razón de rechazo: {request.rejectionReason}
+            </div>
+          )}
+          {request.notes && (
+            <div className="text-muted-foreground">
+              <span className="font-medium">Notas:</span> {request.notes}
             </div>
           )}
         </div>
@@ -211,11 +298,20 @@ export default function AdminRentalOpportunityRequests() {
   return (
     <div className="container mx-auto py-8 px-4">
       <div className="mb-8">
-        <h1 className="text-3xl font-bold mb-2" data-testid="title-opportunity-requests">
-          Solicitudes de Oportunidades de Renta
-        </h1>
+        <div className="flex items-center justify-between mb-2">
+          <h1 className="text-3xl font-bold" data-testid="title-opportunity-requests">
+            Solicitudes de Oportunidades de Renta
+          </h1>
+          <Button 
+            onClick={() => setShowGrantDialog(true)}
+            data-testid="button-grant-opportunity"
+          >
+            <Gift className="h-4 w-4 mr-2" />
+            Otorgar Oportunidad
+          </Button>
+        </div>
         <p className="text-muted-foreground">
-          Gestiona las solicitudes de clientes para crear ofertas de renta
+          Gestiona las solicitudes de clientes para crear ofertas de renta u otorga oportunidades directamente
         </p>
       </div>
 
@@ -343,6 +439,85 @@ export default function AdminRentalOpportunityRequests() {
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
               )}
               {actionType === "approve" ? "Aprobar" : "Rechazar"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Grant Opportunity Dialog */}
+      <Dialog open={showGrantDialog} onOpenChange={setShowGrantDialog}>
+        <DialogContent data-testid="dialog-grant-opportunity">
+          <DialogHeader>
+            <DialogTitle>Otorgar Oportunidad de Renta</DialogTitle>
+            <DialogDescription>
+              Otorga una oportunidad de renta directamente a un cliente sin necesidad de una cita previa
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="client-select">Cliente *</Label>
+              <Select value={selectedClientId} onValueChange={setSelectedClientId}>
+                <SelectTrigger id="client-select" data-testid="select-client">
+                  <SelectValue placeholder="Selecciona un cliente" />
+                </SelectTrigger>
+                <SelectContent>
+                  {clients.map((client) => (
+                    <SelectItem key={client.id} value={client.id}>
+                      {client.name} ({client.email})
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="property-select">Propiedad *</Label>
+              <Select value={selectedPropertyId} onValueChange={setSelectedPropertyId}>
+                <SelectTrigger id="property-select" data-testid="select-property">
+                  <SelectValue placeholder="Selecciona una propiedad" />
+                </SelectTrigger>
+                <SelectContent>
+                  {properties
+                    .filter(p => p.status === 'available')
+                    .map((property) => (
+                      <SelectItem key={property.id} value={property.id}>
+                        {property.title} - {property.location}
+                      </SelectItem>
+                    ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="grant-notes">Notas (opcional)</Label>
+              <Textarea
+                id="grant-notes"
+                value={grantNotes}
+                onChange={(e) => setGrantNotes(e.target.value)}
+                placeholder="Notas adicionales sobre esta oportunidad..."
+                data-testid="textarea-grant-notes"
+              />
+            </div>
+          </div>
+
+          <DialogFooter>
+            <Button 
+              variant="outline" 
+              onClick={handleCloseGrantDialog} 
+              data-testid="button-cancel-grant"
+            >
+              Cancelar
+            </Button>
+            <Button
+              onClick={handleGrantOpportunity}
+              disabled={grantOpportunityMutation.isPending}
+              data-testid="button-confirm-grant"
+            >
+              {grantOpportunityMutation.isPending && (
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              )}
+              Otorgar Oportunidad
             </Button>
           </DialogFooter>
         </DialogContent>
