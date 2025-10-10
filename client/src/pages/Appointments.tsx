@@ -6,6 +6,9 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Textarea } from "@/components/ui/textarea";
+import { Label } from "@/components/ui/label";
+import { Calendar as CalendarComponent } from "@/components/ui/calendar";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { useToast } from "@/hooks/use-toast";
 import { useUpdateAppointment } from "@/hooks/useAppointments";
 import { useAuth } from "@/hooks/useAuth";
@@ -58,6 +61,9 @@ export default function Appointments() {
   const [conciergeComment, setConciergeComment] = useState("");
   const [propertyRating, setPropertyRating] = useState<number>(0);
   const [propertyComment, setPropertyComment] = useState("");
+  const [rescheduleDialogOpen, setRescheduleDialogOpen] = useState(false);
+  const [rescheduleDate, setRescheduleDate] = useState<Date | undefined>(undefined);
+  const [rescheduleNotes, setRescheduleNotes] = useState("");
   const { toast } = useToast();
   const { user } = useAuth();
   const [, setLocation] = useLocation();
@@ -128,6 +134,38 @@ export default function Appointments() {
       toast({
         title: "Error",
         description: "No se pudo guardar la review de la propiedad",
+        variant: "destructive",
+      });
+    },
+  });
+
+  // Mutation for requesting reschedule
+  const requestReschedule = useMutation({
+    mutationFn: async ({ appointmentId, rescheduleRequestedDate, rescheduleNotes }: {
+      appointmentId: string;
+      rescheduleRequestedDate: Date;
+      rescheduleNotes?: string;
+    }) => {
+      return await apiRequest("PATCH", `/api/client/appointments/${appointmentId}/request-reschedule`, {
+        rescheduleRequestedDate: rescheduleRequestedDate.toISOString(),
+        rescheduleNotes,
+      });
+    },
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: ["/api/appointments"] });
+      toast({
+        title: "Solicitud enviada",
+        description: "Tu solicitud de reprogramación ha sido enviada al propietario",
+      });
+      setRescheduleDialogOpen(false);
+      setSelectedAppointment(null);
+      setRescheduleDate(undefined);
+      setRescheduleNotes("");
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Error",
+        description: error.message || "No se pudo enviar la solicitud de reprogramación",
         variant: "destructive",
       });
     },
@@ -286,6 +324,20 @@ export default function Appointments() {
       setPropertyComment("");
     } catch (error) {
       // Errors are handled by mutation onError
+    }
+  };
+
+  const handleRequestReschedule = async () => {
+    if (!selectedAppointment || !rescheduleDate) return;
+
+    try {
+      await requestReschedule.mutateAsync({
+        appointmentId: selectedAppointment.id,
+        rescheduleRequestedDate: rescheduleDate,
+        rescheduleNotes,
+      });
+    } catch (error) {
+      // Error handled by mutation onError
     }
   };
 
@@ -720,6 +772,21 @@ export default function Appointments() {
                 )}
               </div>
 
+              {/* Reschedule Button - Show for pending/confirmed appointments only */}
+              {(selectedAppointment.status === "pending" || selectedAppointment.status === "confirmed") && (
+                <div className="flex gap-2 pt-4 border-t">
+                  <Button
+                    variant="outline"
+                    className="w-full"
+                    onClick={() => setRescheduleDialogOpen(true)}
+                    data-testid="button-reschedule"
+                  >
+                    <Calendar className="h-4 w-4 mr-2" />
+                    Reprogramar Cita
+                  </Button>
+                </div>
+              )}
+
               {selectedAppointment.status === "pending" && (
                 <div className="flex gap-2 pt-4 border-t">
                   <Button
@@ -927,6 +994,100 @@ export default function Appointments() {
                   data-testid="button-submit-review"
                 >
                   Enviar Review
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      )}
+
+      {/* Reschedule Dialog */}
+      {rescheduleDialogOpen && selectedAppointment && (
+        <div className="fixed inset-0 bg-background/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <Card className="max-w-md w-full" data-testid="dialog-reschedule">
+            <CardHeader>
+              <div className="flex items-start justify-between">
+                <div className="flex-1">
+                  <CardTitle>Reprogramar Cita</CardTitle>
+                  <CardDescription>Solicita una nueva fecha para tu cita</CardDescription>
+                </div>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  onClick={() => {
+                    setRescheduleDialogOpen(false);
+                    setRescheduleDate(undefined);
+                    setRescheduleNotes("");
+                  }}
+                  data-testid="button-close-reschedule-dialog"
+                >
+                  <X className="h-4 w-4" />
+                </Button>
+              </div>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="space-y-2">
+                <Label htmlFor="reschedule-date">Nueva Fecha y Hora</Label>
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <Button
+                      id="reschedule-date"
+                      variant="outline"
+                      className={cn(
+                        "w-full justify-start text-left font-normal",
+                        !rescheduleDate && "text-muted-foreground"
+                      )}
+                      data-testid="button-select-date"
+                    >
+                      <Calendar className="mr-2 h-4 w-4" />
+                      {rescheduleDate ? format(rescheduleDate, "PPP", { locale: es }) : "Selecciona una fecha"}
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-auto p-0" align="start">
+                    <CalendarComponent
+                      mode="single"
+                      selected={rescheduleDate}
+                      onSelect={setRescheduleDate}
+                      disabled={(date) => date < new Date()}
+                      initialFocus
+                    />
+                  </PopoverContent>
+                </Popover>
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="reschedule-notes">Notas (opcional)</Label>
+                <Textarea
+                  id="reschedule-notes"
+                  placeholder="Explica por qué necesitas reprogramar..."
+                  value={rescheduleNotes}
+                  onChange={(e) => setRescheduleNotes(e.target.value)}
+                  rows={3}
+                  data-testid="input-reschedule-notes"
+                />
+              </div>
+
+              <div className="flex gap-2 pt-4">
+                <Button
+                  variant="outline"
+                  className="flex-1"
+                  onClick={() => {
+                    setRescheduleDialogOpen(false);
+                    setRescheduleDate(undefined);
+                    setRescheduleNotes("");
+                  }}
+                  data-testid="button-cancel-reschedule"
+                >
+                  Cancelar
+                </Button>
+                <Button
+                  variant="default"
+                  className="flex-1"
+                  onClick={handleRequestReschedule}
+                  disabled={!rescheduleDate || requestReschedule.isPending}
+                  data-testid="button-submit-reschedule"
+                >
+                  {requestReschedule.isPending ? "Enviando..." : "Enviar Solicitud"}
                 </Button>
               </div>
             </CardContent>

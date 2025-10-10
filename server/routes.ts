@@ -4769,9 +4769,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(403).json({ message: "No eres el cliente de esta cita" });
       }
 
-      // Cannot reschedule cancelled appointments
+      // Cannot reschedule cancelled or completed appointments
       if (appointment.status === "cancelled") {
         return res.status(400).json({ message: "No se puede reprogramar una cita cancelada" });
+      }
+
+      if (appointment.status === "completed") {
+        return res.status(400).json({ message: "No se puede reprogramar una cita ya completada" });
+      }
+
+      // Cannot reschedule appointments that already passed
+      const appointmentDate = new Date(appointment.date);
+      if (appointmentDate < new Date()) {
+        return res.status(400).json({ message: "No se puede reprogramar una cita que ya pasó" });
       }
 
       const property = await storage.getProperty(appointment.propertyId);
