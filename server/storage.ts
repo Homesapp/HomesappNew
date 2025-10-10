@@ -3160,7 +3160,7 @@ export class DatabaseStorage implements IStorage {
           eq(appointments.clientId, clientId),
           or(
             eq(appointments.status, 'completed' as any),
-            sql`${appointments.appointmentDate} <= now()`
+            lte(appointments.appointmentDate, sql`now()`)
           )
         )
       )
