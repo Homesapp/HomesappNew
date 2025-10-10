@@ -221,7 +221,7 @@ export function RoleToggle() {
       <DropdownMenu open={isOpen} onOpenChange={setIsOpen}>
         <DropdownMenuTrigger asChild>
           <Button 
-            variant="outline" 
+            variant={isCollapsed ? "ghost" : "outline"}
             size={isCollapsed ? "icon" : "default"}
             className={isCollapsed ? "" : "gap-2 w-full justify-start"} 
             data-testid="button-role-toggle"

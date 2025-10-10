@@ -624,7 +624,7 @@ export function AppSidebar({ userRole }: AppSidebarProps) {
           <RoleToggle />
           <Link href="/ayuda" data-testid="link-help">
             <Button
-              variant="outline"
+              variant={state === "collapsed" ? "ghost" : "outline"}
               size={state === "expanded" ? "default" : "icon"}
               className={state === "expanded" ? "w-full justify-start gap-2" : ""}
               data-testid="button-help"
