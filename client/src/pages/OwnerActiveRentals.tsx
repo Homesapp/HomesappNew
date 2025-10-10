@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { useLanguage } from "@/contexts/LanguageContext";
+import { useAuth } from "@/hooks/useAuth";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -8,6 +9,7 @@ import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Separator } from "@/components/ui/separator";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 import { 
   Home, 
   User, 
@@ -25,7 +27,8 @@ import {
   Zap,
   Droplet,
   Wifi,
-  Flame
+  Flame,
+  Eye
 } from "lucide-react";
 import { format } from "date-fns";
 import { es } from "date-fns/locale";
@@ -108,10 +111,29 @@ interface RentalPayment {
 
 export default function OwnerActiveRentals() {
   const { t, language } = useLanguage();
+  const { user } = useAuth();
   const [selectedRental, setSelectedRental] = useState<string | null>(null);
 
   const { data: rentals = [], isLoading: rentalsLoading } = useQuery<ActiveRental[]>({
     queryKey: ["/api/owner/active-rentals"],
+  });
+
+  // Obtener contratos en proceso del propietario
+  const { data: contracts = [], isLoading: contractsLoading } = useQuery({
+    queryKey: ["/api/rental-contracts", { ownerId: user?.id, statuses: "draft,apartado,firmado,check_in" }],
+    queryFn: async () => {
+      const params = new URLSearchParams();
+      // Necesitamos obtener contratos donde el usuario es propietario
+      const response = await fetch(`/api/rental-contracts`);
+      if (!response.ok) throw new Error("Failed to fetch contracts");
+      const allContracts = await response.json();
+      // Filtrar contratos en proceso donde el usuario es el propietario
+      return allContracts.filter((c: any) => 
+        ["draft", "apartado", "firmado", "check_in"].includes(c.status) &&
+        c.ownerId === user?.id
+      );
+    },
+    enabled: !!user?.id,
   });
 
   const { data: inventory, isLoading: inventoryLoading } = useQuery<PropertyDeliveryInventory>({
@@ -178,31 +200,64 @@ export default function OwnerActiveRentals() {
     return <Badge variant={config.variant} data-testid={`badge-condition-${condition}`}>{config.label}</Badge>;
   };
 
-  if (rentalsLoading) {
+  const getContractStatusBadge = (status: string) => {
+    const statusConfig = {
+      draft: { label: language === "es" ? "Borrador" : "Draft", variant: "secondary" as const },
+      apartado: { label: language === "es" ? "Apartado" : "Reserved", variant: "default" as const },
+      firmado: { label: language === "es" ? "Firmado" : "Signed", variant: "default" as const },
+      check_in: { label: language === "es" ? "Check-in Pendiente" : "Check-in Pending", variant: "default" as const },
+      activo: { label: language === "es" ? "Activo" : "Active", variant: "default" as const },
+    };
+    const config = statusConfig[status as keyof typeof statusConfig] || { label: status, variant: "secondary" as const };
+    return <Badge variant={config.variant}>{config.label}</Badge>;
+  };
+
+  const getContractProgress = (contract: any) => {
+    const steps = {
+      draft: { 
+        step: 1, 
+        total: 5, 
+        message: language === "es" 
+          ? "Esperando información del inquilino" 
+          : "Waiting for tenant information" 
+      },
+      apartado: { 
+        step: 2, 
+        total: 5, 
+        message: language === "es" 
+          ? "Revisión de documentos en proceso" 
+          : "Document review in process" 
+      },
+      firmado: { 
+        step: 3, 
+        total: 5, 
+        message: language === "es" 
+          ? "Contrato firmado, esperando check-in" 
+          : "Contract signed, awaiting check-in" 
+      },
+      check_in: { 
+        step: 4, 
+        total: 5, 
+        message: language === "es" 
+          ? "Check-in pendiente" 
+          : "Check-in pending" 
+      },
+      activo: { 
+        step: 5, 
+        total: 5, 
+        message: language === "es" 
+          ? "Contrato activo" 
+          : "Active contract" 
+      },
+    };
+    return steps[contract.status as keyof typeof steps] || steps.draft;
+  };
+
+  if (rentalsLoading || contractsLoading) {
     return (
       <div className="container mx-auto p-6 space-y-6">
         <Skeleton className="h-10 w-64" />
         <Skeleton className="h-96 w-full" />
-      </div>
-    );
-  }
-
-  if (rentals.length === 0) {
-    return (
-      <div className="container mx-auto p-6">
-        <Card>
-          <CardContent className="flex flex-col items-center justify-center py-16">
-            <Home className="h-16 w-16 text-muted-foreground mb-4" />
-            <h3 className="text-xl font-semibold mb-2" data-testid="text-no-rentals">
-              {language === "es" ? "No tienes rentas activas" : "You have no active rentals"}
-            </h3>
-            <p className="text-muted-foreground text-center" data-testid="text-no-rentals-description">
-              {language === "es"
-                ? "Cuando tengas propiedades rentadas, aparecerán aquí"
-                : "When you have rented properties, they will appear here"}
-            </p>
-          </CardContent>
-        </Card>
       </div>
     );
   }
@@ -214,6 +269,146 @@ export default function OwnerActiveRentals() {
           {language === "es" ? "Rentas Activas" : "Active Rentals"}
         </h1>
       </div>
+
+      {/* Alertas de acciones pendientes */}
+      {contracts.some((c: any) => c.status === "apartado") && (
+        <Alert data-testid="alert-pending-actions">
+          <AlertCircle className="h-4 w-4" />
+          <AlertDescription>
+            {language === "es" 
+              ? "Tienes contratos que requieren tu atención. Completa la información de propietario para continuar el proceso."
+              : "You have contracts that require your attention. Complete the owner information to continue the process."}
+          </AlertDescription>
+        </Alert>
+      )}
+
+      <Tabs defaultValue={contracts.length > 0 ? "contracts" : "rentals"} className="w-full">
+        <TabsList className="grid w-full grid-cols-2">
+          <TabsTrigger value="contracts" data-testid="tab-contracts-in-process">
+            {language === "es" ? "Contratos en Proceso" : "Contracts in Progress"}
+            {contracts.length > 0 && (
+              <Badge variant="secondary" className="ml-2">{contracts.length}</Badge>
+            )}
+          </TabsTrigger>
+          <TabsTrigger value="rentals" data-testid="tab-active-rentals">
+            {language === "es" ? "Rentas Activas" : "Active Rentals"}
+            {rentals.length > 0 && (
+              <Badge variant="secondary" className="ml-2">{rentals.length}</Badge>
+            )}
+          </TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="contracts" className="mt-6 space-y-4">
+          {contracts.length === 0 ? (
+            <Card>
+              <CardHeader>
+                <CardTitle>
+                  {language === "es" ? "No tienes contratos en proceso" : "No contracts in progress"}
+                </CardTitle>
+                <CardDescription>
+                  {language === "es"
+                    ? "Cuando una oferta sea aceptada, el contrato aparecerá aquí"
+                    : "When an offer is accepted, the contract will appear here"}
+                </CardDescription>
+              </CardHeader>
+            </Card>
+          ) : (
+            <>
+              {contracts.map((contract: any) => {
+                const progress = getContractProgress(contract);
+                return (
+                  <Card key={contract.id} className="hover-elevate" data-testid={`card-contract-${contract.id}`}>
+                    <CardHeader>
+                      <div className="flex items-start justify-between">
+                        <div className="space-y-1 flex-1">
+                          <CardTitle className="flex items-center gap-2">
+                            <FileText className="h-5 w-5" />
+                            {language === "es" ? "Contrato de Renta" : "Rental Contract"}
+                          </CardTitle>
+                          <CardDescription>
+                            {language === "es" ? "Propiedad ID" : "Property ID"}: {contract.propertyId}
+                          </CardDescription>
+                        </div>
+                        {getContractStatusBadge(contract.status)}
+                      </div>
+                    </CardHeader>
+                    <CardContent className="space-y-4">
+                      <div className="grid gap-2 md:grid-cols-2">
+                        <div className="flex items-center gap-2">
+                          <DollarSign className="h-4 w-4 text-tertiary-foreground" />
+                          <span className="text-sm">
+                            {language === "es" ? "Renta" : "Rent"}: ${contract.monthlyRent}/{language === "es" ? "mes" : "month"}
+                          </span>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <Calendar className="h-4 w-4 text-tertiary-foreground" />
+                          <span className="text-sm">
+                            {language === "es" ? "Duración" : "Duration"}: {contract.leaseDurationMonths} {language === "es" ? "meses" : "months"}
+                          </span>
+                        </div>
+                      </div>
+
+                      <div className="space-y-2">
+                        <div className="flex items-center justify-between text-sm">
+                          <span className="text-tertiary-foreground">
+                            {language === "es" ? "Progreso del contrato" : "Contract progress"}
+                          </span>
+                          <span className="font-medium">{progress.step} {language === "es" ? "de" : "of"} {progress.total}</span>
+                        </div>
+                        <div className="w-full bg-secondary rounded-full h-2">
+                          <div 
+                            className="bg-primary h-2 rounded-full transition-all" 
+                            style={{ width: `${(progress.step / progress.total) * 100}%` }}
+                          />
+                        </div>
+                        <p className="text-sm text-tertiary-foreground">{progress.message}</p>
+                      </div>
+
+                      {contract.status === "apartado" && (
+                        <Button 
+                          className="w-full" 
+                          onClick={() => window.location.href = `/contract-owner-form/${contract.id}`}
+                          data-testid={`button-complete-owner-form-${contract.id}`}
+                        >
+                          <FileText className="h-4 w-4 mr-2" />
+                          {language === "es" ? "Completar Información de Propietario" : "Complete Owner Information"}
+                        </Button>
+                      )}
+
+                      <Button 
+                        variant="outline" 
+                        className="w-full"
+                        onClick={() => window.location.href = `/contract/${contract.id}`}
+                        data-testid={`button-view-details-${contract.id}`}
+                      >
+                        <Eye className="h-4 w-4 mr-2" />
+                        {language === "es" ? "Ver Detalles del Contrato" : "View Contract Details"}
+                      </Button>
+                    </CardContent>
+                  </Card>
+                );
+              })}
+            </>
+          )}
+        </TabsContent>
+
+        <TabsContent value="rentals" className="mt-6">
+          {rentals.length === 0 ? (
+            <Card>
+              <CardContent className="flex flex-col items-center justify-center py-16">
+                <Home className="h-16 w-16 text-muted-foreground mb-4" />
+                <h3 className="text-xl font-semibold mb-2" data-testid="text-no-rentals">
+                  {language === "es" ? "No tienes rentas activas" : "You have no active rentals"}
+                </h3>
+                <p className="text-muted-foreground text-center" data-testid="text-no-rentals-description">
+                  {language === "es"
+                    ? "Cuando tengas propiedades rentadas, aparecerán aquí"
+                    : "When you have rented properties, they will appear here"}
+                </p>
+              </CardContent>
+            </Card>
+          ) : (
+            <div>
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
         <div className="md:col-span-1">
@@ -796,6 +991,10 @@ export default function OwnerActiveRentals() {
           )}
         </div>
       </div>
+            </div>
+          )}
+        </TabsContent>
+      </Tabs>
     </div>
   );
 }

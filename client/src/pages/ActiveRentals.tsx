@@ -9,12 +9,13 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Home, DollarSign, Wrench, Calendar, CheckCircle2, Clock, AlertCircle, Plus, Upload, X, MessageSquare, Send, ExternalLink, Zap, Droplet, Wifi, Flame } from "lucide-react";
+import { Home, DollarSign, Wrench, Calendar, CheckCircle2, Clock, AlertCircle, Plus, Upload, X, MessageSquare, Send, ExternalLink, Zap, Droplet, Wifi, Flame, Eye, FileText } from "lucide-react";
 import { format } from "date-fns";
 import { es } from "date-fns/locale";
 import { useForm } from "react-hook-form";
@@ -106,6 +107,24 @@ export default function ActiveRentals() {
 
   const { data: rentals = [], isLoading: rentalsLoading } = useQuery<ActiveRental[]>({
     queryKey: [rentalsEndpoint],
+  });
+
+  // Obtener contratos en proceso del cliente
+  const { data: contracts = [], isLoading: contractsLoading } = useQuery({
+    queryKey: ["/api/rental-contracts", { tenantId: user?.id, statuses: "draft,apartado,firmado,check_in" }],
+    queryFn: async () => {
+      const params = new URLSearchParams({
+        tenantId: user?.id || "",
+      });
+      const response = await fetch(`/api/rental-contracts?${params}`);
+      if (!response.ok) throw new Error("Failed to fetch contracts");
+      const allContracts = await response.json();
+      // Filtrar solo contratos en proceso (no activos ni completados)
+      return allContracts.filter((c: any) => 
+        ["draft", "apartado", "firmado", "check_in"].includes(c.status)
+      );
+    },
+    enabled: !!user?.id && !isOwner,
   });
 
   const { data: payments = [], isLoading: paymentsLoading } = useQuery<RentalPayment[]>({
@@ -324,7 +343,7 @@ export default function ActiveRentals() {
       .slice(0, 2);
   };
 
-  if (rentalsLoading) {
+  if (rentalsLoading || contractsLoading) {
     return (
       <div className="space-y-6">
         <Skeleton className="h-10 w-64" />
@@ -333,30 +352,30 @@ export default function ActiveRentals() {
     );
   }
 
-  if (rentals.length === 0) {
-    return (
-      <div className="space-y-6">
-        <div>
-          <h1 className="text-3xl font-bold" data-testid="text-active-rentals-title">
-            {t("activeRentals.title", "Mis Rentas Activas")}
-          </h1>
-          <p className="text-secondary-foreground mt-2">
-            {t("activeRentals.description", "Gestiona tus propiedades rentadas")}
-          </p>
-        </div>
-        <Card>
-          <CardHeader>
-            <CardTitle>{t("activeRentals.noRentals", "No tienes rentas activas")}</CardTitle>
-            <CardDescription>
-              {t("activeRentals.noRentalsDesc", "Cuando tengas una propiedad rentada, aparecerá aquí")}
-            </CardDescription>
-          </CardHeader>
-        </Card>
-      </div>
-    );
-  }
-
   const currentRental = rentals.find(r => r.id === selectedRental);
+
+  const getContractStatusBadge = (status: string) => {
+    const statusConfig = {
+      draft: { label: "Borrador", variant: "secondary" as const },
+      apartado: { label: "Apartado", variant: "default" as const },
+      firmado: { label: "Firmado", variant: "default" as const },
+      check_in: { label: "Check-in Pendiente", variant: "default" as const },
+      activo: { label: "Activo", variant: "default" as const },
+    };
+    const config = statusConfig[status as keyof typeof statusConfig] || { label: status, variant: "secondary" as const };
+    return <Badge variant={config.variant}>{config.label}</Badge>;
+  };
+
+  const getContractProgress = (contract: any) => {
+    const steps = {
+      draft: { step: 1, total: 5, message: "Completa tu información de inquilino" },
+      apartado: { step: 2, total: 5, message: "Esperando revisión de documentos" },
+      firmado: { step: 3, total: 5, message: "Contrato firmado, agenda check-in" },
+      check_in: { step: 4, total: 5, message: "Completar check-in" },
+      activo: { step: 5, total: 5, message: "Contrato activo" },
+    };
+    return steps[contract.status as keyof typeof steps] || steps.draft;
+  };
 
   return (
     <div className="space-y-6">
@@ -365,9 +384,142 @@ export default function ActiveRentals() {
           {t("activeRentals.title", "Mis Rentas Activas")}
         </h1>
         <p className="text-secondary-foreground mt-2">
-          {t("activeRentals.description", "Gestiona tus propiedades rentadas")}
+          {t("activeRentals.description", "Gestiona tus propiedades rentadas y contratos")}
         </p>
       </div>
+
+      {/* Alertas de acciones pendientes */}
+      {contracts.some((c: any) => c.status === "draft") && (
+        <Alert data-testid="alert-pending-actions">
+          <AlertCircle className="h-4 w-4" />
+          <AlertDescription>
+            Tienes contratos que requieren tu atención. Completa la información de inquilino para continuar el proceso.
+          </AlertDescription>
+        </Alert>
+      )}
+
+      <Tabs defaultValue={contracts.length > 0 ? "contracts" : "rentals"} className="w-full">
+        <TabsList className="grid w-full grid-cols-2">
+          <TabsTrigger value="contracts" data-testid="tab-contracts-in-process">
+            Contratos en Proceso
+            {contracts.length > 0 && (
+              <Badge variant="secondary" className="ml-2">{contracts.length}</Badge>
+            )}
+          </TabsTrigger>
+          <TabsTrigger value="rentals" data-testid="tab-active-rentals">
+            Rentas Activas
+            {rentals.length > 0 && (
+              <Badge variant="secondary" className="ml-2">{rentals.length}</Badge>
+            )}
+          </TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="contracts" className="mt-6 space-y-4">
+          {contracts.length === 0 ? (
+            <Card>
+              <CardHeader>
+                <CardTitle>No tienes contratos en proceso</CardTitle>
+                <CardDescription>
+                  Cuando una oferta sea aceptada, el contrato aparecerá aquí para que completes la información
+                </CardDescription>
+              </CardHeader>
+            </Card>
+          ) : (
+            <>
+              {contracts.map((contract: any) => {
+                const progress = getContractProgress(contract);
+                return (
+                  <Card key={contract.id} className="hover-elevate" data-testid={`card-contract-${contract.id}`}>
+                    <CardHeader>
+                      <div className="flex items-start justify-between">
+                        <div className="space-y-1 flex-1">
+                          <CardTitle className="flex items-center gap-2">
+                            <FileText className="h-5 w-5" />
+                            Contrato de Renta
+                          </CardTitle>
+                          <CardDescription>
+                            Propiedad ID: {contract.propertyId}
+                          </CardDescription>
+                        </div>
+                        {getContractStatusBadge(contract.status)}
+                      </div>
+                    </CardHeader>
+                    <CardContent className="space-y-4">
+                      <div className="grid gap-2 md:grid-cols-2">
+                        <div className="flex items-center gap-2">
+                          <DollarSign className="h-4 w-4 text-tertiary-foreground" />
+                          <span className="text-sm">Renta: ${contract.monthlyRent}/mes</span>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <Calendar className="h-4 w-4 text-tertiary-foreground" />
+                          <span className="text-sm">Duración: {contract.leaseDurationMonths} meses</span>
+                        </div>
+                      </div>
+
+                      <div className="space-y-2">
+                        <div className="flex items-center justify-between text-sm">
+                          <span className="text-tertiary-foreground">Progreso del contrato</span>
+                          <span className="font-medium">{progress.step} de {progress.total}</span>
+                        </div>
+                        <div className="w-full bg-secondary rounded-full h-2">
+                          <div 
+                            className="bg-primary h-2 rounded-full transition-all" 
+                            style={{ width: `${(progress.step / progress.total) * 100}%` }}
+                          />
+                        </div>
+                        <p className="text-sm text-tertiary-foreground">{progress.message}</p>
+                      </div>
+
+                      {contract.status === "draft" && (
+                        <Button 
+                          className="w-full" 
+                          onClick={() => window.location.href = `/contract-tenant-form/${contract.id}`}
+                          data-testid={`button-complete-tenant-form-${contract.id}`}
+                        >
+                          <FileText className="h-4 w-4 mr-2" />
+                          Completar Información de Inquilino
+                        </Button>
+                      )}
+                      
+                      {contract.status === "check_in" && (
+                        <Button 
+                          className="w-full" 
+                          onClick={() => window.location.href = `/contract/${contract.id}`}
+                          data-testid={`button-view-contract-${contract.id}`}
+                        >
+                          <Eye className="h-4 w-4 mr-2" />
+                          Ver Contrato y Agendar Check-in
+                        </Button>
+                      )}
+
+                      <Button 
+                        variant="outline" 
+                        className="w-full"
+                        onClick={() => window.location.href = `/contract/${contract.id}`}
+                        data-testid={`button-view-details-${contract.id}`}
+                      >
+                        Ver Detalles del Contrato
+                      </Button>
+                    </CardContent>
+                  </Card>
+                );
+              })}
+            </>
+          )}
+        </TabsContent>
+
+        <TabsContent value="rentals" className="mt-6 space-y-6">
+          {rentals.length === 0 ? (
+            <Card>
+              <CardHeader>
+                <CardTitle>{t("activeRentals.noRentals", "No tienes rentas activas")}</CardTitle>
+                <CardDescription>
+                  {t("activeRentals.noRentalsDesc", "Cuando tengas una propiedad rentada, aparecerá aquí")}
+                </CardDescription>
+              </CardHeader>
+            </Card>
+          ) : (
+            <div className="space-y-6">
 
       {/* Property Information */}
       {currentRental && (
@@ -991,6 +1143,10 @@ export default function ActiveRentals() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+            </div>
+          )}
+        </TabsContent>
+      </Tabs>
     </div>
   );
 }
