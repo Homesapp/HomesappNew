@@ -5,11 +5,13 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { useLocation } from "wouter";
 import { Button } from "@/components/ui/button";
-import { Building2, User, Plus, FileText, Briefcase, Scale, Calculator, Star } from "lucide-react";
+import { Card, CardContent } from "@/components/ui/card";
+import { Building2, User, Plus, FileText, Briefcase, Scale, Calculator, Star, Check } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { queryClient, apiRequest } from "@/lib/queryClient";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { useSidebar } from "@/components/ui/sidebar";
+import { cn } from "@/lib/utils";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -109,6 +111,16 @@ const roleApplicationSchema = z.object({
   experience: z.string().min(50, "Describe tu experiencia en detalle (mínimo 50 caracteres)"),
   yearsOfExperience: z.coerce.number().min(0, "Años de experiencia debe ser un número positivo"),
   additionalInfo: z.string().optional(),
+  condominiumId: z.string().optional(),
+}).refine((data) => {
+  // If HOA Manager is selected, condominiumId is required
+  if (data.requestedRole === "hoa_manager") {
+    return !!data.condominiumId;
+  }
+  return true;
+}, {
+  message: "Debes seleccionar un condominio para el rol de HOA Manager",
+  path: ["condominiumId"],
 });
 
 type RoleApplicationFormData = z.infer<typeof roleApplicationSchema>;
@@ -135,7 +147,14 @@ export function RoleToggle() {
       experience: "",
       yearsOfExperience: 0,
       additionalInfo: "",
+      condominiumId: "",
     },
+  });
+
+  // Fetch approved condominiums for HOA Manager selection
+  const { data: condominiums = [], isLoading: loadingCondominiums } = useQuery({
+    queryKey: ["/api/condominiums", { approvalStatus: "approved" }],
+    enabled: selectedRole === "hoa_manager",
   });
 
   const switchRoleMutation = useMutation({
@@ -163,6 +182,15 @@ export function RoleToggle() {
 
   const applyRoleMutation = useMutation({
     mutationFn: async (data: RoleApplicationFormData) => {
+      // For HOA Manager, send request to the specific endpoint with condominium
+      if (data.requestedRole === "hoa_manager" && data.condominiumId) {
+        return apiRequest("POST", "/api/hoa-manager/assignments", {
+          condominiumId: data.condominiumId,
+          notes: `${data.reason}\n\nExperiencia: ${data.experience}\n\nAños de experiencia: ${data.yearsOfExperience}\n\nInfo adicional: ${data.additionalInfo || 'N/A'}`,
+        });
+      }
+      
+      // For other roles, use the existing role-requests endpoint
       return apiRequest("POST", "/api/role-requests", {
         userId: user?.id,
         requestedRole: data.requestedRole,
@@ -174,13 +202,20 @@ export function RoleToggle() {
         additionalInfo: data.additionalInfo,
       });
     },
-    onSuccess: () => {
+    onSuccess: (_, variables) => {
       toast({
         title: "Solicitud enviada",
         description: "Tu solicitud de rol ha sido enviada. Un administrador la revisará pronto.",
       });
       setShowApplicationDialog(false);
       form.reset();
+      
+      // Invalidate relevant queries
+      if (variables.requestedRole === "hoa_manager") {
+        queryClient.invalidateQueries({ queryKey: ["/api/hoa-manager/my-assignments"] });
+      } else {
+        queryClient.invalidateQueries({ queryKey: ["/api/role-requests"] });
+      }
     },
     onError: (error: any) => {
       toast({
@@ -303,40 +338,107 @@ export function RoleToggle() {
       </DropdownMenu>
 
       <Dialog open={showApplicationDialog} onOpenChange={setShowApplicationDialog}>
-        <DialogContent className="max-h-[90vh] overflow-y-auto" data-testid="dialog-role-application">
+        <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-[700px]" data-testid="dialog-role-application">
           <DialogHeader>
             <DialogTitle>Solicitar Rol Adicional</DialogTitle>
             <DialogDescription>
-              Completa el formulario para solicitar acceso a un rol adicional. Un administrador revisará tu solicitud.
+              Selecciona el rol que deseas solicitar y completa la información requerida
             </DialogDescription>
           </DialogHeader>
           
           <Form {...form}>
-            <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+            <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
               <FormField
                 control={form.control}
                 name="requestedRole"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Rol a solicitar</FormLabel>
-                    <Select value={field.value} onValueChange={field.onChange}>
-                      <FormControl>
-                        <SelectTrigger data-testid="select-role">
-                          <SelectValue placeholder="Selecciona un rol" />
-                        </SelectTrigger>
-                      </FormControl>
-                      <SelectContent>
-                        {availableRoles.map((role) => (
-                          <SelectItem key={role} value={role}>
-                            {ROLE_NAMES[role]}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
+                    <FormLabel className="text-base font-semibold">Selecciona el rol que deseas solicitar</FormLabel>
+                    <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 mt-3">
+                      {availableRoles.map((role) => {
+                        const Icon = ROLE_ICONS[role] || User;
+                        const isSelected = field.value === role;
+                        return (
+                          <Card
+                            key={role}
+                            className={cn(
+                              "cursor-pointer transition-all hover-elevate",
+                              isSelected && "border-primary bg-primary/5"
+                            )}
+                            onClick={() => {
+                              field.onChange(role);
+                              // Reset experience fields when changing role
+                              if (role !== field.value) {
+                                form.setValue("experience", "");
+                                form.setValue("yearsOfExperience", 0);
+                                form.setValue("condominiumId", "");
+                              }
+                            }}
+                            data-testid={`button-select-role-${role}`}
+                          >
+                            <CardContent className="p-4 flex flex-col items-center text-center gap-2 relative">
+                              {isSelected && (
+                                <div className="absolute top-2 right-2">
+                                  <Check className="h-4 w-4 text-primary" />
+                                </div>
+                              )}
+                              <Icon className={cn(
+                                "h-8 w-8",
+                                isSelected ? "text-primary" : "text-muted-foreground"
+                              )} />
+                              <span className={cn(
+                                "text-sm font-medium",
+                                isSelected && "text-primary"
+                              )}>
+                                {ROLE_NAMES[role]}
+                              </span>
+                            </CardContent>
+                          </Card>
+                        );
+                      })}
+                    </div>
                     <FormMessage />
                   </FormItem>
                 )}
               />
+
+              {selectedRole === "hoa_manager" && (
+                <FormField
+                  control={form.control}
+                  name="condominiumId"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Condominio a administrar *</FormLabel>
+                      <Select
+                        value={field.value}
+                        onValueChange={field.onChange}
+                        disabled={loadingCondominiums}
+                      >
+                        <FormControl>
+                          <SelectTrigger data-testid="select-condominium">
+                            <SelectValue placeholder="Selecciona el condominio" />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          {condominiums.map((condominium: any) => (
+                            <SelectItem
+                              key={condominium.id}
+                              value={condominium.id}
+                              data-testid={`select-option-condominium-${condominium.id}`}
+                            >
+                              {condominium.name}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      <FormDescription>
+                        Solo podrás administrar este condominio específico
+                      </FormDescription>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              )}
 
               <FormField
                 control={form.control}

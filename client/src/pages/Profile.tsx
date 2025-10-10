@@ -33,7 +33,6 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { updateUserProfileSchema, type UpdateUserProfile } from "@shared/schema";
 import { useEffect, useRef, useState } from "react";
-import { RequestHoaManagerDialog } from "@/components/RequestHoaManagerDialog";
 
 function AppearanceSettings() {
   const { theme, setTheme } = useTheme();
@@ -394,20 +393,6 @@ export default function Profile() {
                   </FormItem>
                 )}
               />
-
-              {/* Role Requests Section */}
-              <Separator />
-              <div className="space-y-4">
-                <div>
-                  <h3 className="text-lg font-medium mb-2">Solicitudes de Roles</h3>
-                  <p className="text-sm text-muted-foreground mb-4">
-                    Solicita roles adicionales para expandir tus capacidades en la plataforma
-                  </p>
-                </div>
-                <div className="flex flex-wrap gap-2">
-                  <RequestHoaManagerDialog />
-                </div>
-              </div>
 
               {/* Appearance Settings */}
               <AppearanceSettings />
