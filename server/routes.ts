@@ -3557,9 +3557,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Authenticated users (especially admin) can see all properties
       const isUserAuthenticated = req.user || (req.session && (req.session.adminUser || req.session.userId));
       if (!isUserAuthenticated) {
-        // Defensively delete any approvalStatus that might have been set and force published only
-        delete filters.approvalStatus;
-        filters.approvalStatus = ["published"];
+        // Force published = true for non-authenticated users
+        filters.published = true;
       }
 
       const properties = await storage.searchPropertiesAdvanced(filters);

@@ -24,7 +24,20 @@ The platform employs unified middleware for consistent authentication and automa
 ### Key Features
 *   **Role-Based Access Control**: Granular permissions across all user types.
 *   **Advanced Appointment System**: Dual-type scheduling with concierge assignment, dynamic slot availability, and post-appointment client features.
-*   **Property Management Lifecycle**: Features property approval workflows with two-stage publication, owner change requests, sublease functionality, photo editing, and a 5-step property submission wizard with digital agreement signing. Properties have detailed approval statuses and a distinct published state.
+*   **Property Management Lifecycle**: Features property approval workflows with two-stage publication system (approved → published), owner change requests, sublease functionality, comprehensive photo editing, and a 5-step property submission wizard with digital agreement signing. Properties must be both "approved" and "published" to appear on the public home page for security reasons.
+    - **Property Approval States**: 
+      - draft: Borrador, aún no enviada
+      - pending_review: Enviada, esperando revisión inicial
+      - inspection_scheduled: Inspección programada
+      - inspection_completed: Inspección realizada
+      - approved: Aprobada para publicación (visible solo a usuarios autenticados)
+      - changes_requested: Se solicitaron cambios
+      - rejected: Rechazada
+    - **Publication System**: Properties have two separate fields: `approvalStatus` (enum) and `published` (boolean). Admin endpoints:
+      - POST /api/admin/properties/:id/approve - Aprueba y opcionalmente publica (`publish: true` por defecto)
+      - POST /api/admin/properties/:id/publish - Publica una propiedad ya aprobada (establece `published = true`)
+      - POST /api/admin/properties/:id/reject - Rechaza y despublica una propiedad
+    - **Public Home Filter**: Non-authenticated users only see properties with `published = true` for security (enforced in GET /api/properties/search endpoint)
 *   **Rental Management**: Active rental portals for clients and owners, including service-based payment tracking, owner payment approval, and tenant maintenance requests.
 *   **Rental Opportunity & Offer System**: Workflow for clients to request and create rental offers, followed by a bidirectional counter-offer negotiation system. Administrators can grant rental opportunities directly.
 *   **Contract Elaboration System**: Automated workflow triggered after offer acceptance, involving client and owner information forms, admin document verification, lawyer contract elaboration, tripartite chat for negotiations, and digital signatures. Contracts progress through statuses: draft, apartado, firmado, check_in, activo. UI includes tabbed interfaces and visual progress indicators.
