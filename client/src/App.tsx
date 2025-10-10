@@ -72,6 +72,7 @@ import AdminSuggestions from "@/pages/AdminSuggestions";
 import AdminChatbotConfig from "@/pages/AdminChatbotConfig";
 import PropertySubmissionWizard from "@/pages/PropertySubmissionWizard";
 import OwnerAppointments from "@/pages/OwnerAppointments";
+import OwnerOffers from "@/pages/OwnerOffers";
 import OwnerDashboard from "@/pages/OwnerDashboard";
 import AdminDashboard from "@/pages/AdminDashboard";
 import AdminProfile from "@/pages/AdminProfile";
@@ -244,6 +245,7 @@ function AuthenticatedApp() {
               <Route path="/owner/property/:id/documents" component={PropertyDocuments} />
               <Route path="/owner/property/:id" component={OwnerPropertyDetails} />
               <Route path="/owner/appointments" component={OwnerAppointments} />
+              <Route path="/owner/offers" component={OwnerOffers} />
               <Route path="/owner/financial-report" component={OwnerFinancialReport} />
               <Route path="/admin/appointments" component={AdminAppointmentManagement} />
               <Route path="/admin/sellers" component={AdminSellerManagement} />

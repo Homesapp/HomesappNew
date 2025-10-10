@@ -96,6 +96,15 @@ export default function MyOpportunities() {
     queryKey: ["/api/rental-opportunity-requests"],
   });
 
+  interface OfferWithDetails extends Offer {
+    property?: Property;
+    owner?: UserType;
+  }
+
+  const { data: myOffers = [], isLoading: offersLoading } = useQuery<OfferWithDetails[]>({
+    queryKey: ["/api/client/my-offers"],
+  });
+
   const setRecommendationInterest = useMutation({
     mutationFn: async ({ id, isInterested }: { id: string; isInterested: boolean }) => {
       return apiRequest("PATCH", `/api/property-recommendations/${id}/set-interest`, { isInterested });
@@ -205,10 +214,14 @@ export default function MyOpportunities() {
       </div>
 
       <Tabs defaultValue="recommendations" className="w-full">
-        <TabsList className="grid w-full grid-cols-4">
+        <TabsList className="grid w-full grid-cols-5">
           <TabsTrigger value="visited" data-testid="tab-visited">
             <CheckCircle2 className="h-4 w-4 mr-2" />
             Visitadas
+          </TabsTrigger>
+          <TabsTrigger value="my-offers" data-testid="tab-my-offers">
+            <DollarSign className="h-4 w-4 mr-2" />
+            Mis Ofertas
           </TabsTrigger>
           <TabsTrigger value="recommendations" className="relative" data-testid="tab-recommendations">
             <User className="h-4 w-4 mr-2" />
@@ -348,6 +361,197 @@ export default function MyOpportunities() {
                           </Button>
                         )}
                       </div>
+                    </CardContent>
+                  </Card>
+                );
+              })}
+            </div>
+          )}
+        </TabsContent>
+
+        {/* Mis Ofertas */}
+        <TabsContent value="my-offers" className="mt-6">
+          {offersLoading ? (
+            <div className="flex items-center justify-center py-12">
+              <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+            </div>
+          ) : myOffers.length === 0 ? (
+            <Card>
+              <CardContent className="py-12 text-center">
+                <DollarSign className="h-12 w-12 text-muted-foreground mx-auto mb-3" />
+                <p className="text-muted-foreground">
+                  No has enviado ofertas aún
+                </p>
+                <p className="text-sm text-muted-foreground mt-2">
+                  Solicita oportunidades de renta para las propiedades visitadas y envía ofertas
+                </p>
+              </CardContent>
+            </Card>
+          ) : (
+            <div className="grid gap-4">
+              {myOffers.map((offer) => {
+                const isMyTurn = offer.status === 'countered' && offer.lastOfferedBy === 'owner';
+                const canAcceptReject = isMyTurn; // Can accept/reject when it's client's turn
+                const canCounterOffer = isMyTurn && (offer.negotiationRound || 0) < 3; // Can counter-offer only if under round limit
+                
+                return (
+                  <Card key={offer.id} className="hover-elevate" data-testid={`card-offer-${offer.id}`}>
+                    <CardHeader>
+                      <div className="flex justify-between items-start">
+                        <div className="flex-1">
+                          <CardTitle className="text-lg">
+                            {offer.property?.title || 'Propiedad'}
+                          </CardTitle>
+                          <CardDescription className="flex items-center gap-1 mt-1">
+                            <MapPin className="h-3 w-3" />
+                            {offer.property?.location}
+                          </CardDescription>
+                        </div>
+                        <Badge variant={
+                          offer.status === 'pending' ? 'secondary' :
+                          offer.status === 'countered' ? 'default' :
+                          offer.status === 'accepted' ? 'default' :
+                          'destructive'
+                        } data-testid={`badge-status-${offer.id}`}>
+                          {offer.status === 'pending' && 'Pendiente'}
+                          {offer.status === 'countered' && `Contraoferta ${offer.lastOfferedBy === 'owner' ? '(Propietario)' : '(Tuya)'}`}
+                          {offer.status === 'accepted' && 'Aceptada'}
+                          {offer.status === 'rejected' && 'Rechazada'}
+                        </Badge>
+                      </div>
+                    </CardHeader>
+                    <CardContent className="space-y-4">
+                      <div className="grid grid-cols-2 gap-4">
+                        <div>
+                          <p className="text-sm text-muted-foreground">Monto Ofertado</p>
+                          <p className="text-lg font-bold" data-testid={`text-amount-${offer.id}`}>
+                            ${offer.offerAmount}
+                          </p>
+                        </div>
+                        {offer.counterOfferAmount && (
+                          <div>
+                            <p className="text-sm text-muted-foreground">Contraoferta</p>
+                            <p className="text-lg font-bold text-primary" data-testid={`text-counter-${offer.id}`}>
+                              ${offer.counterOfferAmount}
+                            </p>
+                          </div>
+                        )}
+                      </div>
+
+                      {offer.negotiationRound && offer.negotiationRound > 0 && (
+                        <div className="flex items-center gap-2 p-2 bg-muted rounded-md">
+                          <Clock className="h-4 w-4" />
+                          <p className="text-sm">Ronda de negociación: {offer.negotiationRound} de 3</p>
+                        </div>
+                      )}
+
+                      {offer.counterOfferNotes && (
+                        <div className="p-3 bg-muted rounded-md">
+                          <p className="text-sm font-medium mb-1">Notas del propietario:</p>
+                          <p className="text-sm">{offer.counterOfferNotes}</p>
+                        </div>
+                      )}
+
+                      {isMyTurn && (
+                        <div className="p-3 bg-yellow-50 dark:bg-yellow-950 rounded-md">
+                          <p className="text-sm text-yellow-800 dark:text-yellow-200 font-medium">
+                            El propietario envió una contraoferta. Es tu turno de responder.
+                          </p>
+                        </div>
+                      )}
+
+                      {offer.status === 'accepted' && (
+                        <div className="p-3 bg-green-50 dark:bg-green-950 rounded-md">
+                          <p className="text-sm text-green-800 dark:text-green-200 font-medium">
+                            ¡Oferta aceptada! El propietario se pondrá en contacto contigo.
+                          </p>
+                        </div>
+                      )}
+
+                      {offer.status === 'rejected' && offer.notes && (
+                        <div className="p-3 bg-red-50 dark:bg-red-950 rounded-md">
+                          <p className="text-sm text-red-800 dark:text-red-200 font-medium mb-1">
+                            Oferta rechazada
+                          </p>
+                          <p className="text-sm text-red-700 dark:text-red-300">
+                            Razón: {offer.notes}
+                          </p>
+                        </div>
+                      )}
+
+                      {canAcceptReject && (
+                        <div className="flex gap-2 pt-2 border-t">
+                          <Button 
+                            variant="default" 
+                            className="flex-1"
+                            onClick={() => {
+                              apiRequest("PATCH", `/api/client/offers/${offer.id}/accept-counter`, {})
+                                .then(() => {
+                                  queryClient.invalidateQueries({ queryKey: ["/api/client/my-offers"] });
+                                  toast({ title: "Contraoferta aceptada", description: "Has aceptado la contraoferta del propietario" });
+                                })
+                                .catch((error: any) => {
+                                  toast({ title: "Error", description: error.message || "No se pudo aceptar la contraoferta", variant: "destructive" });
+                                });
+                            }}
+                            data-testid={`button-accept-counter-${offer.id}`}
+                          >
+                            <CheckCircle2 className="h-4 w-4 mr-2" />
+                            Aceptar Contraoferta
+                          </Button>
+                          {canCounterOffer && (
+                            <Button 
+                              variant="outline"
+                              onClick={() => {
+                                const amount = prompt(`Contraoferta al propietario (monto actual: $${offer.counterOfferAmount || offer.offerAmount}):`);
+                                if (amount && !isNaN(Number(amount))) {
+                                  const notes = prompt("Notas opcionales para el propietario:");
+                                  apiRequest("POST", `/api/client/offers/${offer.id}/counter-offer`, { 
+                                    counterOfferAmount: Number(amount),
+                                    counterOfferNotes: notes || undefined 
+                                  })
+                                    .then(() => {
+                                      queryClient.invalidateQueries({ queryKey: ["/api/client/my-offers"] });
+                                      toast({ title: "Contraoferta enviada", description: "Tu contraoferta ha sido enviada al propietario" });
+                                    })
+                                    .catch((error: any) => {
+                                      toast({ title: "Error", description: error.message || "No se pudo enviar la contraoferta", variant: "destructive" });
+                                    });
+                                }
+                              }}
+                              data-testid={`button-counter-back-${offer.id}`}
+                            >
+                              Contraofertar
+                            </Button>
+                          )}
+                          <Button 
+                            variant="destructive"
+                            onClick={() => {
+                              const reason = prompt("¿Por qué rechazas esta contraoferta? (opcional)");
+                              apiRequest("PATCH", `/api/client/offers/${offer.id}/reject-counter`, { reason: reason || undefined })
+                                .then(() => {
+                                  queryClient.invalidateQueries({ queryKey: ["/api/client/my-offers"] });
+                                  toast({ title: "Contraoferta rechazada", description: "Has rechazado la contraoferta" });
+                                })
+                                .catch((error: any) => {
+                                  toast({ title: "Error", description: error.message || "No se pudo rechazar la contraoferta", variant: "destructive" });
+                                });
+                            }}
+                            data-testid={`button-reject-counter-${offer.id}`}
+                          >
+                            <XCircle className="h-4 w-4 mr-2" />
+                            Rechazar
+                          </Button>
+                        </div>
+                      )}
+
+                      {!canAcceptReject && offer.status === 'countered' && offer.lastOfferedBy === 'client' && (
+                        <div className="p-3 bg-muted rounded-md">
+                          <p className="text-sm text-muted-foreground">
+                            Esperando respuesta del propietario...
+                          </p>
+                        </div>
+                      )}
                     </CardContent>
                   </Card>
                 );

@@ -1791,6 +1791,7 @@ export type InsertService = z.infer<typeof insertServiceSchema>;
 export type Service = typeof services.$inferSelect;
 
 // Offers table - Extended for rental offers with complete client profile and offer details
+// Schema matches existing database structure
 export const offers = pgTable("offers", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   opportunityRequestId: varchar("opportunity_request_id").references(() => rentalOpportunityRequests.id, { onDelete: "set null" }),
@@ -1798,48 +1799,48 @@ export const offers = pgTable("offers", {
   clientId: varchar("client_id").notNull().references(() => users.id),
   appointmentId: varchar("appointment_id").references(() => appointments.id),
   
-  // Client Profile Information (Perfil del Cliente)
-  clientFullName: text("client_full_name").notNull(),
-  nationality: varchar("nationality"),
-  age: integer("age"),
-  timeInTulum: varchar("time_in_tulum"), // Tiempo de residencia en Tulum
-  occupation: text("occupation"), // Trabajo/Posición
-  company: text("company"), // Compañía para la cual trabaja
-  hasPets: boolean("has_pets").default(false),
-  monthlyIncome: decimal("monthly_income", { precision: 12, scale: 2 }), // Ingreso mensual promedio
-  numberOfTenants: integer("number_of_tenants").default(1), // Número de inquilinos
-  hasGuarantor: boolean("has_guarantor").default(false), // Tiene Garante/Aval
-  propertyUse: varchar("property_use").default("vivienda"), // vivienda or subarrendamiento
+  // Client Profile Information (matching existing DB columns)
+  clientNationality: varchar("client_nationality"),
+  clientTimeInTulum: varchar("client_time_in_tulum"),
+  clientOccupation: varchar("client_occupation"),
+  clientCompany: varchar("client_company"),
+  clientHasPets: boolean("client_has_pets").default(false),
+  clientPetDescription: text("client_pet_description"),
+  clientMonthlyIncome: decimal("client_monthly_income", { precision: 12, scale: 2 }),
+  clientNumTenants: integer("client_num_tenants"),
+  clientGuarantorName: varchar("client_guarantor_name"),
+  clientGuarantorPhone: varchar("client_guarantor_phone"),
+  clientPropertyUse: varchar("client_property_use"),
   
-  // Offer Details (Detalles de la Oferta)
-  offerAmount: decimal("offer_amount", { precision: 12, scale: 2 }).notNull(), // Renta ofertada
-  advancePayments: integer("advance_payments").default(0), // Rentas adelantadas
-  moveInDate: timestamp("move_in_date"), // Fecha de Ingreso
-  contractDuration: varchar("contract_duration"), // Duración del contrato
-  includedServices: jsonb("included_services"), // Servicios incluidos en la renta
-  notIncludedServices: jsonb("not_included_services"), // Servicios no incluidos
-  specialRequest: text("special_request"), // Pedido especial
+  // Offer Details (matching existing DB columns)
+  offerAmount: decimal("offer_amount", { precision: 12, scale: 2 }).notNull(),
+  monthlyRent: decimal("monthly_rent", { precision: 12, scale: 2 }),
+  firstMonthAdvance: boolean("first_month_advance").default(false),
+  secondMonthAdvance: boolean("second_month_advance").default(false),
+  depositAmount: decimal("deposit_amount", { precision: 12, scale: 2 }),
+  moveInDate: timestamp("move_in_date", { mode: 'date' }),
+  contractDurationMonths: integer("contract_duration_months"),
+  servicesIncluded: text("services_included").array(),
+  servicesExcluded: text("services_excluded").array(),
+  specialRequests: text("special_requests"),
   
-  // Contract costs based on property use
-  contractCost: decimal("contract_cost", { precision: 10, scale: 2 }), // $2500 vivienda, $3800 subarrendamiento
+  // Digital signature
+  digitalSignature: text("digital_signature"),
   
-  // Digital signature and acceptance
-  clientSignature: text("client_signature"), // Base64 encoded signature or signature URL
-  signedAt: timestamp("signed_at"),
-  acceptedTerms: boolean("accepted_terms").default(false),
-  
-  // Counter offer fields
-  counterOfferAmount: decimal("counter_offer_amount", { precision: 12, scale: 2 }),
-  counterOfferServicesIncluded: jsonb("counter_offer_services_included"), // Servicios incluidos en contraoferta
-  counterOfferServicesExcluded: jsonb("counter_offer_services_excluded"), // Servicios excluidos en contraoferta
+  // Status and notes
   status: offerStatusEnum("status").notNull().default("pending"),
   notes: text("notes"),
+  
+  // Counter offer fields (matching existing DB columns)
+  counterOfferAmount: decimal("counter_offer_amount", { precision: 12, scale: 2 }),
+  counterOfferServicesIncluded: jsonb("counter_offer_services_included"),
+  counterOfferServicesExcluded: jsonb("counter_offer_services_excluded"),
   counterOfferNotes: text("counter_offer_notes"),
   
-  // Negotiation tracking
-  negotiationRound: integer("negotiation_round").default(0), // Número de rondas de negociación (máximo 3)
-  lastOfferedBy: varchar("last_offered_by"), // 'client' o 'owner'
-  negotiationHistory: jsonb("negotiation_history"), // Historial de negociaciones
+  // Negotiation tracking (matching existing DB columns)
+  negotiationRound: integer("negotiation_round").default(0),
+  lastOfferedBy: varchar("last_offered_by"),
+  negotiationHistory: jsonb("negotiation_history"),
   
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),

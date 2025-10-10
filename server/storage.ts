@@ -2947,7 +2947,7 @@ export class DatabaseStorage implements IStorage {
           eq(appointments.clientId, clientId),
           or(
             eq(appointments.status, 'completed' as any),
-            lte(appointments.appointmentDate, new Date())
+            sql`${appointments.appointmentDate} <= now()`
           )
         )
       )

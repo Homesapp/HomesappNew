@@ -1,106 +1,35 @@
 # HomesApp - Real Estate Property Management Platform
 
 ## Overview
-HomesApp is a comprehensive SaaS platform for real estate property management in Tulum, Quintana Roo. It supports multiple user roles (master, admin, seller, owner, client) and offers features like property management, dual-type appointment scheduling, client presentations, service coordination, and offer processing. The platform provides a professional, data-rich user experience with role-based access, Google Calendar integration, configurable business hours, a service provider marketplace, digital agreement signing, and a robust back office for offer management. It aims to dominate the Tulum real estate market through enhanced commission systems, marketing automation, preventive maintenance, referral tracking, and AI-powered features for predictive analytics, automated legal document generation, and intelligent tenant screening.
+HomesApp is a comprehensive SaaS platform designed for real estate property management in Tulum, Quintana Roo. It supports multiple user roles (master, admin, seller, owner, client) and offers extensive features including property management, dual-type appointment scheduling with a concierge system, client presentations, service coordination, and offer processing with a counter-negotiation system. The platform aims to provide a professional, data-rich user experience with role-based access, Google Calendar integration, configurable business hours, a service provider marketplace, digital agreement signing, and a robust back office. Its ambition is to dominate the Tulum real estate market by leveraging enhanced commission systems, marketing automation, preventive maintenance, referral tracking, and AI-powered features for predictive analytics, automated legal document generation, and intelligent tenant screening.
 
 ## User Preferences
 Preferred communication style: Simple, everyday language.
 
 ## System Architecture
+The platform is built with a modern web stack, emphasizing a professional, responsive, and accessible user experience with full internationalization.
 
 ### Frontend
-The frontend uses React 18, TypeScript, Vite, Wouter for routing, and TanStack Query for server state. UI components are built with Radix UI and Shadcn/ui, styled with Tailwind CSS, and support light/dark themes and i18n (Spanish/English). The design emphasizes professionalism, role-switching, comprehensive error handling, loading states, full i18n support, testing attributes, and responsive design with accessibility features. All forms utilize shadcn Form + useForm + zodResolver with Zod validation.
+The frontend uses React 18, TypeScript, Vite, Wouter for routing, and TanStack Query for server state management. UI components are crafted with Radix UI and Shadcn/ui, styled using Tailwind CSS, and support light/dark themes. All forms use Shadcn Form, `useForm`, and `zodResolver` with Zod for validation.
 
 ### Backend
-The backend is built with Node.js, Express.js, and TypeScript (ESM), providing a RESTful API. It features role-based middleware, JSON error handling, and dual authentication: Replit Auth (OpenID Connect) for regular users and local username/password for administrators. Session management and user approval workflows are included. OpenAI service integration is centralized, utilizing the GPT-4 model.
+The backend is developed with Node.js, Express.js, and TypeScript, providing a RESTful API. It includes role-based middleware, JSON error handling, and dual authentication: Replit Auth (OpenID Connect) for general users and local username/password for administrators. Session management and user approval workflows are integral. Centralized OpenAI service integration utilizes the GPT-4 model.
 
 ### Data Storage
-PostgreSQL (Neon serverless) and Drizzle ORM are used for type-safe database interactions. The schema supports user management, property lifecycle, appointment scheduling, client presentation cards, service providers, offer workflows, staff assignments, audit logs, lead capture, a `condominiums` table with a three-state approval workflow, and a bidirectional review system. Financial tracking, payout management, and a comprehensive rental contract system handle commissions, referrals, and rental income with automated calculations and digital signature tracking. An automatic error tracking system captures frontend and backend errors, logging them to the database and notifying administrators. Performance is optimized with 20 B-tree indexes, and security enhancements include authorization auditing and role validation.
-
-Key schema entities include:
-- **Condominiums**: Linked to colonies.
-- **Colonies**: Standalone entities.
-- **Amenities**: Property or condominium specific.
-- **Property Features**: Custom characteristics.
-- **Commission Advances**: Tracks seller requests.
-- **Service Favorites**: Links users to preferred providers.
-- **Predictive Analytics**: Stores analysis, predictions, confidence.
-- **Legal Documents**: Stores document type, content, metadata.
-- **Tenant Screenings**: Stores application data, AI analysis, risk scores.
-- **Marketing Campaigns**: Stores message templates, targeting.
-- **Maintenance Schedules**: Tracks property linking, tasks, frequency.
-- **Rental Payments**: Tracks service-based payments (rent, electricity, water, internet, gas, maintenance, other) with status, device-uploaded receipt proofs, and owner approval workflow (approvedBy, approvedAt fields).
-- **Tenant Maintenance Requests**: Client-submitted requests with title, description, urgency, and photo documentation (base64 encoded).
-- **Chat Conversations**: Enhanced with rentalContractId for rental-specific chats with automatic participant enrollment (tenant, owner, maintenance staff).
-- **Appointments**: Extended with concierge assignment fields (conciergeId, accessType, accessCode, accessInstructions, conciergeAssignedBy, conciergeAssignedAt) for property access coordination.
-- **Concierge Blocked Slots**: Tracks concierge unavailability periods to calculate accurate appointment slot availability.
-
-### Key Features and Workflows
-*   **Role-Based Access**: Granular control for master, admin, seller, owner, and client roles, including role-based income and appointment page enhancements.
-*   **Appointment Scheduling**: Dual-type (individual/tour) with configurable business hours, Calendly-style 4-step wizard interface, reschedule workflow, and client limits (1 per day).
-*   **Concierge-Based Appointment System**: Dynamic appointment slot availability determined by the number of approved concierges with available time (not blocked or booked). Owners and admins can assign concierges to appointments with property access credentials:
-    - **Access Types**: Lockbox (with code), Electronic Lock (with code), Manual (instructions only), Other (custom)
-    - **Owner Workflow**: Select concierge from available list, provide access type and credentials, send assignment
-    - **Admin Workflow**: Can assign concierges to any appointment regardless of owner approval status
-    - **Automated Notifications**: Client receives confirmation with property address, time, and concierge info; Owner receives assignment confirmation; Concierge receives appointment details with location and access instructions; Admins receive assignment notification
-    - **Slot Availability Logic**: Available slots = approved concierges count minus those with blocked time slots minus those with existing appointments at that time. System checks for time overlap (individual appointments = 60 min, tour appointments = 30 min) to prevent double-bookings with duration-aware availability calculation
-    - **Blocked Slot Management**: Concierges and admins can create time blocks to mark unavailability periods. The system validates against these blocks when calculating slot availability, ensuring accurate scheduling. Blocked slots have start/end times and are checked for overlap with requested appointment times
-    - **Post-Appointment Client Features**: After confirmed appointments with assigned concierge, clients can:
-        - View concierge contact information (name, phone, email) with avatar and ratings
-        - Navigate to in-app chat with concierge for real-time messaging
-        - Open WhatsApp chat with concierge (deep link: `https://wa.me/[phone]`)
-        - View property location on Google Maps (prioritizes property's googleMapsUrl, falls back to generated link from coordinates)
-        - Leave reviews for both concierge and property (only available after appointment date passes or status is "completed")
-        - Review system validates appointment status and prevents duplicate submissions using robust query invalidation with `.some()` predicate pattern
-*   **Property Management**: Property approval workflow, owner change requests, sublease functionality, pet-friendly indicators, custom listing titles, and enhanced photo gallery with a complete photo editing system (add, delete, reorder, cover image selection, admin approval workflow). All listings use `primaryImages`.
-*   **Property Staff & Task Management**: System for assigning staff to properties with role-based assignments and task tracking.
-*   **Property Submission**: A 5-step wizard with draft saving, digital agreement signing, and integration with approved condominiums.
-*   **Dashboard Enhancements**: Personalized Client Dashboard with stats and quick actions. Comprehensive Owner Dashboard with automated financial reporting and preventive maintenance calendar.
-*   **User Experience**: Airbnb-style role switching, full i18n support, WebSocket-based real-time chat, enhanced presentation cards, and granular email notification preferences.
-*   **Notification System**: Dual-channel (in-app and email) with configurable categories and SLA tracking.
-*   **Admin CRUD System**: Full management for condominiums, colonies, amenities, property features, and property drafts.
-*   **Automatic Error Tracking**: Comprehensive monitoring for frontend and backend errors.
-*   **Property Limit System**: Owner property count control with request/approval workflow.
-*   **Enhanced Commission System**: Includes commission advances for sellers and role-based commission structures.
-*   **Enhanced Service Provider Marketplace**: Features service favorites and expanded bidirectional reviews.
-*   **AI-Powered Features (OpenAI GPT-4/GPT-5)**: Predictive analytics for rental probability/price recommendations, automated legal document generation, intelligent tenant screening, and a virtual assistant (MARCO).
-*   **Marketing Automation**: Campaign management, audience segmentation, performance tracking, and scheduling.
-*   **Preventive Maintenance System**: Scheduling, task tracking, and automated reminders.
-*   **Enhanced Referral Tracking**: Automatic commission attribution and performance analytics, including bank account integration for payments.
-*   **Active Rentals Management**: Comprehensive portals for clients and owners with:
-    - Service-based payment tracking (rent, electricity, water, internet, gas) with device-uploaded receipt proofs (images, 10MB limit)
-    - Owner payment approval system with service-filtered tabs and approve/pending workflow
-    - Link to property listing from active rental cards (ExternalLink icon)
-    - Maintenance requests with title, description, urgency, and photo documentation (device-only, base64, 10MB limit)
-    - Real-time chat system connecting tenant, owner, and maintenance staff via WebSocket
-    - Property information display (title, condominium/unit or house name)
-*   **Rental Opportunity Request System**: Streamlined workflow for clients to create rental offers based on visited properties:
-    - **Client Workflow**: 
-        - Access "/mis-oportunidades" page with 4 tabs: Visitadas, Recomendaciones, Sugerencias, Mis Solicitudes
-        - "Visitadas" tab displays properties with completed/past appointments
-        - Request admin approval to create rental offer (one request per property, prevents duplicates)
-        - Receive in-app notification when request is approved/rejected
-        - Upon approval, access comprehensive rental offer form at "/rental-offer/:propertyId"
-    - **Admin Workflow**:
-        - View all rental opportunity requests at "/admin/rental-opportunity-requests"
-        - Dashboard shows pending, approved, and rejected requests with stats
-        - Approve requests to allow clients to create offers
-        - Reject requests with mandatory reason (client is notified)
-        - Receive in-app notifications when clients submit new requests
-    - **Rental Offer Form**: Comprehensive form based on PDF specification with:
-        - **Client Profile**: Nationality, time in Tulum, occupation, company, pets (with description), monthly income, number of tenants, guarantor info, property use
-        - **Offer Details**: Monthly rent, advance payments (1st/2nd month), deposit, move-in date, contract duration
-        - **Services**: Configurable included/excluded services (water, electricity, gas, internet, maintenance, cleaning)
-        - **Special Requests**: Optional custom requirements
-        - **Digital Signature**: Full name signature for offer confirmation
-    - **Database Schema**:
-        - `rental_opportunity_requests`: clientId, propertyId, appointmentId, status (pending/approved/rejected), approval fields (approvedBy, approvedAt, rejectionReason)
-        - `offers` table extended with client profile fields, financial details, services arrays, special requests, and digital signature
-    - **Notification Flow**: Client requests → Admin notified → Admin approves/rejects → Client notified
-    - **Validation**: Prevents duplicate requests, requires completed appointment before request, enforces role-based access
+PostgreSQL (Neon serverless) with Drizzle ORM provides type-safe database interactions. The schema supports user management, property lifecycle, appointment scheduling (including concierge assignments and blocked slots), client presentation cards, service providers, offer workflows (including counter-offers and rental opportunity requests), staff assignments, audit logs, lead capture, and a `condominiums` table with a three-state approval workflow. It also features a bidirectional review system, financial tracking, payout management, and a comprehensive rental contract system with automated calculations and digital signature tracking. An automatic error tracking system logs errors and notifies administrators. Performance is optimized with B-tree indexes, and security includes authorization auditing and role validation. Key entities include Condominiums, Colonies, Amenities, Property Features, Commission Advances, Service Favorites, Predictive Analytics, Legal Documents, Tenant Screenings, Marketing Campaigns, Maintenance Schedules, Rental Payments, Tenant Maintenance Requests, and enhanced Chat Conversations with `rentalContractId`.
 
 ### System Design Choices
-The platform utilizes unified middleware for consistent authentication and automatic logging. The public dashboard adapts based on user authentication. WebSocket security for real-time chat ensures session-based authentication and per-conversation authorization. A development-only authentication endpoint (`/api/auth/test/set-role`) allows role switching for testing.
+The platform employs unified middleware for consistent authentication and automatic logging. The public dashboard adapts based on user authentication status. WebSocket-based real-time chat ensures session-based authentication and per-conversation authorization. A development-only authentication endpoint facilitates role switching for testing purposes.
+
+### Key Features
+*   **Role-Based Access Control**: Granular permissions across all user types.
+*   **Advanced Appointment System**: Dual-type scheduling (individual/tour) with a concierge assignment workflow, dynamic slot availability based on concierge availability, and post-appointment client features (concierge contact, chat, map, reviews).
+*   **Property Management Lifecycle**: Features property approval workflows, owner change requests, sublease functionality, comprehensive photo editing, and a 5-step property submission wizard with digital agreement signing.
+*   **Rental Management**: Active rental portals for clients and owners, including service-based payment tracking with receipt proofs, owner payment approval, and tenant maintenance requests.
+*   **Rental Opportunity & Offer System**: Workflow for clients to request and create rental offers on visited properties, followed by a bidirectional counter-offer negotiation system with a maximum of 3 rounds.
+*   **AI-Powered Capabilities**: Predictive analytics, automated legal document generation, intelligent tenant screening, and a virtual assistant (MARCO) powered by OpenAI GPT-4.
+*   **Operational Efficiency**: Marketing automation, preventive maintenance scheduling, enhanced referral tracking, and comprehensive admin CRUD systems.
+*   **User Experience**: Airbnb-style role switching, full i18n support, real-time chat, and granular email notification preferences.
 
 ## External Dependencies
 *   Google Calendar API
