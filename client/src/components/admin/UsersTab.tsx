@@ -5,12 +5,31 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Card, CardContent } from "@/components/ui/card";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
-import { Search } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { Search, UserCog } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useApprovedUsers } from "@/hooks/useUsers";
+import { useMutation } from "@tanstack/react-query";
+import { apiRequest, queryClient } from "@/lib/queryClient";
 import type { User } from "@shared/schema";
 
 const roleLabels: Record<string, string> = {
+  cliente: "Cliente",
   master: "Master",
   admin: "Administrador",
   admin_jr: "Administrador Jr",
@@ -25,13 +44,60 @@ export function UsersTab() {
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedUser, setSelectedUser] = useState<User | null>(null);
   const [isProfileOpen, setIsProfileOpen] = useState(false);
+  const [isRoleDialogOpen, setIsRoleDialogOpen] = useState(false);
+  const [userToUpdateRole, setUserToUpdateRole] = useState<User | null>(null);
+  const [selectedRole, setSelectedRole] = useState<string>("");
+  const [selectedAdditionalRole, setSelectedAdditionalRole] = useState<string>("");
 
   const { data: approvedUsers = [], isLoading: isLoadingApproved, error: errorApproved } = useApprovedUsers();
   const { toast } = useToast();
 
+  const updateRoleMutation = useMutation({
+    mutationFn: async ({ userId, role, additionalRole }: { userId: string; role: string; additionalRole?: string | null }) => {
+      return await apiRequest(`/api/admin/users/${userId}/role`, {
+        method: 'PATCH',
+        body: JSON.stringify({ role, additionalRole }),
+        headers: { 'Content-Type': 'application/json' },
+      });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/users/approved'] });
+      toast({
+        title: "Rol actualizado",
+        description: "El rol del usuario se actualizó exitosamente",
+      });
+      setIsRoleDialogOpen(false);
+      setUserToUpdateRole(null);
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Error",
+        description: error.message || "No se pudo actualizar el rol",
+        variant: "destructive",
+      });
+    },
+  });
+
   const handleViewProfile = (user: User) => {
     setSelectedUser(user);
     setIsProfileOpen(true);
+  };
+
+  const handleChangeRole = (user: User) => {
+    setUserToUpdateRole(user);
+    setSelectedRole(user.role);
+    setSelectedAdditionalRole(user.additionalRole || "");
+    setIsRoleDialogOpen(true);
+  };
+
+  const handleSubmitRoleChange = () => {
+    if (!userToUpdateRole || !selectedRole) return;
+    
+    updateRoleMutation.mutate({
+      userId: userToUpdateRole.id,
+      role: selectedRole,
+      additionalRole: selectedAdditionalRole || null,
+    });
   };
 
   const filterUsers = (users: typeof approvedUsers) => {
@@ -98,29 +164,52 @@ export function UsersTab() {
                 return (
                   <Card 
                     key={user.id} 
-                    className="hover-elevate cursor-pointer" 
-                    onClick={() => handleViewProfile(user)}
+                    className="hover-elevate" 
                     data-testid={`card-user-${user.id}`}
                   >
                     <CardContent className="pt-6">
                       <div className="flex items-start gap-4">
-                        <Avatar className="h-12 w-12">
+                        <Avatar className="h-12 w-12 cursor-pointer" onClick={() => handleViewProfile(user)}>
                           <AvatarImage src={user.profileImageUrl || undefined} alt={fullName} />
                           <AvatarFallback>{initials}</AvatarFallback>
                         </Avatar>
                         <div className="flex-1 min-w-0 space-y-1">
-                          <h3 className="font-semibold truncate" data-testid={`text-user-name-${user.id}`}>
+                          <h3 
+                            className="font-semibold truncate cursor-pointer" 
+                            data-testid={`text-user-name-${user.id}`}
+                            onClick={() => handleViewProfile(user)}
+                          >
                             {fullName}
                           </h3>
-                          <p className="text-sm text-muted-foreground truncate" data-testid={`text-user-email-${user.id}`}>
+                          <p 
+                            className="text-sm text-muted-foreground truncate cursor-pointer" 
+                            data-testid={`text-user-email-${user.id}`}
+                            onClick={() => handleViewProfile(user)}
+                          >
                             {user.email}
                           </p>
                           <div className="flex items-center gap-2 flex-wrap">
                             <Badge variant="secondary" data-testid={`badge-user-role-${user.id}`}>
                               {roleLabel}
                             </Badge>
+                            {user.additionalRole && (
+                              <Badge variant="outline" data-testid={`badge-user-additional-role-${user.id}`}>
+                                {roleLabels[user.additionalRole] || user.additionalRole}
+                              </Badge>
+                            )}
                           </div>
                         </div>
+                        <Button
+                          size="icon"
+                          variant="ghost"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleChangeRole(user);
+                          }}
+                          data-testid={`button-change-role-${user.id}`}
+                        >
+                          <UserCog className="h-4 w-4" />
+                        </Button>
                       </div>
                     </CardContent>
                   </Card>
@@ -143,6 +232,76 @@ export function UsersTab() {
         open={isProfileOpen}
         onOpenChange={setIsProfileOpen}
       />
+
+      <Dialog open={isRoleDialogOpen} onOpenChange={setIsRoleDialogOpen}>
+        <DialogContent data-testid="dialog-change-role">
+          <DialogHeader>
+            <DialogTitle>Cambiar Rol de Usuario</DialogTitle>
+            <DialogDescription>
+              Actualiza el rol principal y/o adicional de {userToUpdateRole?.firstName} {userToUpdateRole?.lastName}
+            </DialogDescription>
+          </DialogHeader>
+          
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <label className="text-sm font-medium">Rol Principal</label>
+              <Select value={selectedRole} onValueChange={setSelectedRole}>
+                <SelectTrigger data-testid="select-main-role">
+                  <SelectValue placeholder="Selecciona un rol" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="cliente">Cliente</SelectItem>
+                  <SelectItem value="seller">Vendedor</SelectItem>
+                  <SelectItem value="owner">Propietario</SelectItem>
+                  <SelectItem value="concierge">Conserje</SelectItem>
+                  <SelectItem value="provider">Proveedor</SelectItem>
+                  <SelectItem value="management">Management</SelectItem>
+                  <SelectItem value="admin_jr">Administrador Jr</SelectItem>
+                  <SelectItem value="admin">Administrador</SelectItem>
+                  <SelectItem value="master">Master</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="space-y-2">
+              <label className="text-sm font-medium">Rol Adicional (Opcional)</label>
+              <Select value={selectedAdditionalRole} onValueChange={setSelectedAdditionalRole}>
+                <SelectTrigger data-testid="select-additional-role">
+                  <SelectValue placeholder="Ninguno" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="">Ninguno</SelectItem>
+                  <SelectItem value="cliente">Cliente</SelectItem>
+                  <SelectItem value="seller">Vendedor</SelectItem>
+                  <SelectItem value="owner">Propietario</SelectItem>
+                  <SelectItem value="concierge">Conserje</SelectItem>
+                  <SelectItem value="provider">Proveedor</SelectItem>
+                  <SelectItem value="management">Management</SelectItem>
+                  <SelectItem value="admin_jr">Administrador Jr</SelectItem>
+                  <SelectItem value="admin">Administrador</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => setIsRoleDialogOpen(false)}
+              data-testid="button-cancel-role-change"
+            >
+              Cancelar
+            </Button>
+            <Button
+              onClick={handleSubmitRoleChange}
+              disabled={!selectedRole || updateRoleMutation.isPending}
+              data-testid="button-confirm-role-change"
+            >
+              {updateRoleMutation.isPending ? "Guardando..." : "Actualizar Rol"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
