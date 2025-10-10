@@ -9839,6 +9839,420 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Owner Offer Management routes
+  app.get("/api/owner/offers", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const user = await storage.getUser(userId);
+
+      if (!user || !["owner", "admin", "master"].includes(user.role)) {
+        return res.status(403).json({ message: "Solo propietarios pueden acceder a esta ruta" });
+      }
+
+      const offers = await storage.getOffersByOwner(userId);
+      res.json(offers);
+    } catch (error) {
+      console.error("Error fetching owner offers:", error);
+      res.status(500).json({ message: "Error al obtener ofertas" });
+    }
+  });
+
+  app.patch("/api/owner/offers/:id/accept", isAuthenticated, async (req: any, res) => {
+    try {
+      const { id } = req.params;
+      const userId = req.user.claims.sub;
+      
+      // Verify offer exists and user is the owner
+      const offer = await storage.getOffer(id);
+      if (!offer) {
+        return res.status(404).json({ message: "Oferta no encontrada" });
+      }
+
+      const property = await storage.getProperty(offer.propertyId);
+      if (!property || property.ownerId !== userId) {
+        return res.status(403).json({ message: "No tienes permiso para aceptar esta oferta" });
+      }
+
+      // Validate workflow state - owner can accept when it's client's turn (pending or countered by client)
+      if (offer.status === 'accepted' || offer.status === 'rejected') {
+        return res.status(400).json({ message: "Esta oferta ya fue procesada" });
+      }
+
+      if (offer.status === 'countered' && offer.lastOfferedBy === 'owner') {
+        return res.status(400).json({ message: "No puedes aceptar tu propia contraoferta. Espera la respuesta del cliente." });
+      }
+
+      const acceptedOffer = await storage.acceptOffer(id);
+      
+      // Create notification for client
+      await storage.createNotification({
+        userId: offer.clientId,
+        title: "Oferta Aceptada",
+        message: `Tu oferta de renta para ${property.title || 'la propiedad'} ha sido aceptada por el propietario.`,
+        category: "offer",
+        relatedEntityType: "offer",
+        relatedEntityId: id,
+      });
+
+      await createAuditLog(
+        req,
+        "update",
+        "offer",
+        id,
+        `Oferta aceptada por propietario`
+      );
+
+      res.json(acceptedOffer);
+    } catch (error) {
+      console.error("Error accepting offer:", error);
+      res.status(500).json({ message: "Error al aceptar oferta" });
+    }
+  });
+
+  app.patch("/api/owner/offers/:id/reject", isAuthenticated, async (req: any, res) => {
+    try {
+      const { id } = req.params;
+      const { reason } = req.body;
+      const userId = req.user.claims.sub;
+      
+      // Verify offer exists and user is the owner
+      const offer = await storage.getOffer(id);
+      if (!offer) {
+        return res.status(404).json({ message: "Oferta no encontrada" });
+      }
+
+      const property = await storage.getProperty(offer.propertyId);
+      if (!property || property.ownerId !== userId) {
+        return res.status(403).json({ message: "No tienes permiso para rechazar esta oferta" });
+      }
+
+      // Validate workflow state
+      if (offer.status === 'accepted' || offer.status === 'rejected') {
+        return res.status(400).json({ message: "Esta oferta ya fue procesada" });
+      }
+
+      if (offer.status === 'countered' && offer.lastOfferedBy === 'owner') {
+        return res.status(400).json({ message: "No puedes rechazar tu propia contraoferta. Espera la respuesta del cliente." });
+      }
+
+      const rejectedOffer = await storage.rejectOffer(id, reason);
+      
+      // Create notification for client
+      await storage.createNotification({
+        userId: offer.clientId,
+        title: "Oferta Rechazada",
+        message: `Tu oferta de renta para ${property.title || 'la propiedad'} ha sido rechazada. ${reason ? `Razón: ${reason}` : ''}`,
+        category: "offer",
+        relatedEntityType: "offer",
+        relatedEntityId: id,
+      });
+
+      await createAuditLog(
+        req,
+        "update",
+        "offer",
+        id,
+        `Oferta rechazada por propietario${reason ? ': ' + reason : ''}`
+      );
+
+      res.json(rejectedOffer);
+    } catch (error) {
+      console.error("Error rejecting offer:", error);
+      res.status(500).json({ message: "Error al rechazar oferta" });
+    }
+  });
+
+  app.post("/api/owner/offers/:id/counter-offer", isAuthenticated, async (req: any, res) => {
+    try {
+      const { id } = req.params;
+      const userId = req.user.claims.sub;
+      
+      // Validate counter offer payload with Zod
+      const counterOfferSchema = z.object({
+        counterOfferAmount: z.string().optional(),
+        counterOfferServicesIncluded: z.any().optional(),
+        counterOfferServicesExcluded: z.any().optional(),
+        counterOfferNotes: z.string().optional(),
+      });
+
+      const validatedData = counterOfferSchema.parse(req.body);
+      
+      // Verify offer exists and user is the owner
+      const offer = await storage.getOffer(id);
+      if (!offer) {
+        return res.status(404).json({ message: "Oferta no encontrada" });
+      }
+
+      const property = await storage.getProperty(offer.propertyId);
+      if (!property || property.ownerId !== userId) {
+        return res.status(403).json({ message: "No tienes permiso para contraofertar esta oferta" });
+      }
+
+      // Validate workflow state - owner can counter-offer when it's their turn (pending or countered by client)
+      if (offer.status === 'accepted' || offer.status === 'rejected') {
+        return res.status(400).json({ message: "Esta oferta ya fue procesada" });
+      }
+
+      if (offer.status === 'countered' && offer.lastOfferedBy === 'owner') {
+        return res.status(400).json({ message: "Ya enviaste una contraoferta. Espera la respuesta del cliente." });
+      }
+
+      // Check negotiation round limit
+      const currentRound = offer.negotiationRound || 0;
+      if (currentRound >= 3) {
+        return res.status(400).json({ message: "Se alcanzó el límite máximo de 3 rondas de negociación" });
+      }
+
+      const counterOffer = await storage.createCounterOffer(id, {
+        ...validatedData,
+        offeredBy: 'owner'
+      });
+      
+      // Create notification for client
+      await storage.createNotification({
+        userId: offer.clientId,
+        title: "Contraoferta Recibida",
+        message: `El propietario ha enviado una contraoferta para tu solicitud de renta de ${property.title || 'la propiedad'}.`,
+        category: "offer",
+        relatedEntityType: "offer",
+        relatedEntityId: id,
+      });
+
+      await createAuditLog(
+        req,
+        "create",
+        "offer",
+        id,
+        `Contraoferta creada por propietario - Ronda ${counterOffer.negotiationRound}`
+      );
+
+      res.json(counterOffer);
+    } catch (error: any) {
+      console.error("Error creating counter offer:", error);
+      res.status(400).json({ message: error.message || "Error al crear contraoferta" });
+    }
+  });
+
+  // Client Offer Management routes
+  app.get("/api/client/my-offers", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      
+      const offers = await storage.getOffers({ clientId: userId });
+      
+      // Enrich offers with property and owner data
+      const enrichedOffers = await Promise.all(
+        offers.map(async (offer) => {
+          const property = await storage.getProperty(offer.propertyId);
+          let owner = null;
+          if (property?.ownerId) {
+            owner = await storage.getUser(property.ownerId);
+          }
+          return {
+            ...offer,
+            property,
+            owner
+          };
+        })
+      );
+      
+      res.json(enrichedOffers);
+    } catch (error) {
+      console.error("Error fetching client offers:", error);
+      res.status(500).json({ message: "Error al obtener ofertas" });
+    }
+  });
+
+  app.patch("/api/client/offers/:id/accept-counter", isAuthenticated, async (req: any, res) => {
+    try {
+      const { id } = req.params;
+      const userId = req.user.claims.sub;
+      
+      // Verify offer exists and user is the client
+      const offer = await storage.getOffer(id);
+      if (!offer) {
+        return res.status(404).json({ message: "Oferta no encontrada" });
+      }
+
+      if (offer.clientId !== userId) {
+        return res.status(403).json({ message: "No tienes permiso para aceptar esta contraoferta" });
+      }
+
+      // Validate workflow state - client can accept when it's owner's turn (countered by owner)
+      if (offer.status === 'accepted' || offer.status === 'rejected') {
+        return res.status(400).json({ message: "Esta oferta ya fue procesada" });
+      }
+
+      if (offer.status !== 'countered') {
+        return res.status(400).json({ message: "No hay contraoferta pendiente para aceptar" });
+      }
+
+      if (offer.lastOfferedBy === 'client') {
+        return res.status(400).json({ message: "No puedes aceptar tu propia contraoferta. Espera la respuesta del propietario." });
+      }
+
+      const acceptedOffer = await storage.acceptOffer(id);
+      
+      // Get property and owner for notification
+      const property = await storage.getProperty(offer.propertyId);
+      if (property?.ownerId) {
+        await storage.createNotification({
+          userId: property.ownerId,
+          title: "Contraoferta Aceptada",
+          message: `El cliente ha aceptado tu contraoferta para ${property.title || 'la propiedad'}.`,
+          category: "offer",
+          relatedEntityType: "offer",
+          relatedEntityId: id,
+        });
+      }
+
+      await createAuditLog(
+        req,
+        "update",
+        "offer",
+        id,
+        `Contraoferta aceptada por cliente`
+      );
+
+      res.json(acceptedOffer);
+    } catch (error) {
+      console.error("Error accepting counter offer:", error);
+      res.status(500).json({ message: "Error al aceptar contraoferta" });
+    }
+  });
+
+  app.patch("/api/client/offers/:id/reject-counter", isAuthenticated, async (req: any, res) => {
+    try {
+      const { id } = req.params;
+      const { reason } = req.body;
+      const userId = req.user.claims.sub;
+      
+      // Verify offer exists and user is the client
+      const offer = await storage.getOffer(id);
+      if (!offer) {
+        return res.status(404).json({ message: "Oferta no encontrada" });
+      }
+
+      if (offer.clientId !== userId) {
+        return res.status(403).json({ message: "No tienes permiso para rechazar esta contraoferta" });
+      }
+
+      // Validate workflow state
+      if (offer.status === 'accepted' || offer.status === 'rejected') {
+        return res.status(400).json({ message: "Esta oferta ya fue procesada" });
+      }
+
+      if (offer.status !== 'countered') {
+        return res.status(400).json({ message: "No hay contraoferta pendiente para rechazar" });
+      }
+
+      if (offer.lastOfferedBy === 'client') {
+        return res.status(400).json({ message: "No puedes rechazar tu propia contraoferta. Espera la respuesta del propietario." });
+      }
+
+      const rejectedOffer = await storage.rejectOffer(id, reason);
+      
+      // Get property and owner for notification
+      const property = await storage.getProperty(offer.propertyId);
+      if (property?.ownerId) {
+        await storage.createNotification({
+          userId: property.ownerId,
+          title: "Contraoferta Rechazada",
+          message: `El cliente ha rechazado tu contraoferta para ${property.title || 'la propiedad'}. ${reason ? `Razón: ${reason}` : ''}`,
+          category: "offer",
+          relatedEntityType: "offer",
+          relatedEntityId: id,
+        });
+      }
+
+      await createAuditLog(
+        req,
+        "update",
+        "offer",
+        id,
+        `Contraoferta rechazada por cliente${reason ? ': ' + reason : ''}`
+      );
+
+      res.json(rejectedOffer);
+    } catch (error) {
+      console.error("Error rejecting counter offer:", error);
+      res.status(500).json({ message: "Error al rechazar contraoferta" });
+    }
+  });
+
+  app.post("/api/client/offers/:id/counter-offer", isAuthenticated, async (req: any, res) => {
+    try {
+      const { id } = req.params;
+      const userId = req.user.claims.sub;
+      
+      // Validate counter offer payload with Zod
+      const counterOfferSchema = z.object({
+        counterOfferAmount: z.string().optional(),
+        counterOfferServicesIncluded: z.any().optional(),
+        counterOfferServicesExcluded: z.any().optional(),
+        counterOfferNotes: z.string().optional(),
+      });
+
+      const validatedData = counterOfferSchema.parse(req.body);
+      
+      // Verify offer exists and user is the client
+      const offer = await storage.getOffer(id);
+      if (!offer) {
+        return res.status(404).json({ message: "Oferta no encontrada" });
+      }
+
+      if (offer.clientId !== userId) {
+        return res.status(403).json({ message: "No tienes permiso para contraofertar" });
+      }
+
+      // Validate workflow state - client can counter-offer when it's their turn (countered by owner)
+      if (offer.status === 'accepted' || offer.status === 'rejected') {
+        return res.status(400).json({ message: "Esta oferta ya fue procesada" });
+      }
+
+      if (offer.status === 'countered' && offer.lastOfferedBy === 'client') {
+        return res.status(400).json({ message: "Ya enviaste una contraoferta. Espera la respuesta del propietario." });
+      }
+
+      // Check negotiation round limit
+      const currentRound = offer.negotiationRound || 0;
+      if (currentRound >= 3) {
+        return res.status(400).json({ message: "Se alcanzó el límite máximo de 3 rondas de negociación" });
+      }
+
+      const counterOffer = await storage.createCounterOffer(id, {
+        ...validatedData,
+        offeredBy: 'client'
+      });
+      
+      // Get property and owner for notification
+      const property = await storage.getProperty(offer.propertyId);
+      if (property?.ownerId) {
+        await storage.createNotification({
+          userId: property.ownerId,
+          title: "Nueva Contraoferta",
+          message: `El cliente ha enviado una contraoferta para tu propiedad ${property.title || ''}.`,
+          category: "offer",
+          relatedEntityType: "offer",
+          relatedEntityId: id,
+        });
+      }
+
+      await createAuditLog(
+        req,
+        "create",
+        "offer",
+        id,
+        `Contraoferta creada por cliente - Ronda ${counterOffer.negotiationRound}`
+      );
+
+      res.json(counterOffer);
+    } catch (error: any) {
+      console.error("Error creating counter offer:", error);
+      res.status(400).json({ message: error.message || "Error al crear contraoferta" });
+    }
+  });
+
   // Rental Application routes (Rental Process Kanban)
   app.get("/api/rental-applications/eligible-applicants", isAuthenticated, async (req, res) => {
     try {
