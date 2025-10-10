@@ -66,6 +66,12 @@ export function AppointmentFormDialog({
   const [time, setTime] = useState("10:00");
   const [appointmentMode, setAppointmentMode] = useState<"individual" | "tour">("individual");
   const [selectedProperties, setSelectedProperties] = useState<string[]>([]);
+  const [propertyInputMode, setPropertyInputMode] = useState<"registered" | "manual">("registered");
+  const [manualCondominium, setManualCondominium] = useState("");
+  const [manualUnit, setManualUnit] = useState("");
+  
+  // Only sellers and admins can use manual property entry
+  const canUseManualEntry = user && ["master", "admin", "admin_jr", "seller"].includes(user.role as string);
 
   const form = useForm<InsertAppointment>({
     resolver: zodResolver(insertAppointmentSchema),
@@ -80,6 +86,8 @@ export function AppointmentFormDialog({
       notes: "",
       meetLink: undefined,
       googleEventId: undefined,
+      condominiumName: "",
+      unitNumber: "",
     },
   });
 
@@ -124,13 +132,25 @@ export function AppointmentFormDialog({
     e.preventDefault();
     
     // Validar selección de propiedades según el modo
-    if (appointmentMode === "individual" && selectedProperties.length !== 1) {
-      toast({
-        title: "Error de validación",
-        description: "Debes seleccionar exactamente una propiedad para cita individual",
-        variant: "destructive",
-      });
-      return;
+    if (appointmentMode === "individual") {
+      if (propertyInputMode === "manual") {
+        // Validar campos manuales
+        if (!manualCondominium || !manualUnit) {
+          toast({
+            title: "Error de validación",
+            description: "Debes proporcionar el nombre del condominio y número de unidad",
+            variant: "destructive",
+          });
+          return;
+        }
+      } else if (selectedProperties.length !== 1) {
+        toast({
+          title: "Error de validación",
+          description: "Debes seleccionar exactamente una propiedad para cita individual",
+          variant: "destructive",
+        });
+        return;
+      }
     }
 
     if (appointmentMode === "tour") {
@@ -184,13 +204,23 @@ export function AppointmentFormDialog({
         // Create mode: crear una o múltiples citas según el modo
         if (appointmentMode === "individual") {
           // Crear una sola cita
-          const appointmentData = {
+          const appointmentData: any = {
             ...data,
-            propertyId: selectedProperties[0],
             date: appointmentDate,
             mode: "individual" as const,
             clientId: user?.id || data.clientId,
           };
+          
+          // Add property info based on input mode
+          if (propertyInputMode === "manual") {
+            appointmentData.condominiumName = manualCondominium;
+            appointmentData.unitNumber = manualUnit;
+            appointmentData.propertyId = undefined;
+          } else {
+            appointmentData.propertyId = selectedProperties[0];
+            appointmentData.condominiumName = undefined;
+            appointmentData.unitNumber = undefined;
+          }
           
           const result = await createMutation.mutateAsync(appointmentData);
           
@@ -252,6 +282,9 @@ export function AppointmentFormDialog({
       form.reset();
       setSelectedProperties([]);
       setAppointmentMode("individual");
+      setPropertyInputMode("registered");
+      setManualCondominium("");
+      setManualUnit("");
     } catch (error) {
       console.error("Form submission error:", error);
       toast({
@@ -311,8 +344,42 @@ export function AppointmentFormDialog({
               </FormItem>
             )}
 
+            {/* Modo de entrada de propiedad - solo para sellers y admins */}
+            {mode === "create" && appointmentMode === "individual" && canUseManualEntry && (
+              <FormItem className="space-y-3">
+                <FormLabel>Tipo de Propiedad</FormLabel>
+                <RadioGroup
+                  onValueChange={(value) => {
+                    setPropertyInputMode(value as "registered" | "manual");
+                    setSelectedProperties([]);
+                    setManualCondominium("");
+                    setManualUnit("");
+                  }}
+                  value={propertyInputMode}
+                  className="flex gap-4"
+                  data-testid="radio-property-input-mode"
+                >
+                  <div className="flex items-center space-x-2 space-y-0">
+                    <RadioGroupItem value="registered" data-testid="radio-property-registered" />
+                    <label className="font-normal cursor-pointer">
+                      Propiedad Registrada
+                    </label>
+                  </div>
+                  <div className="flex items-center space-x-2 space-y-0">
+                    <RadioGroupItem value="manual" data-testid="radio-property-manual" />
+                    <label className="font-normal cursor-pointer">
+                      Propiedad Manual
+                    </label>
+                  </div>
+                </RadioGroup>
+                <p className="text-sm text-muted-foreground">
+                  Usa entrada manual para propiedades que aún no están registradas en el sistema
+                </p>
+              </FormItem>
+            )}
+
             {/* Selector de propiedades */}
-            {appointmentMode === "individual" ? (
+            {appointmentMode === "individual" && propertyInputMode === "registered" ? (
               <FormField
                 control={form.control}
                 name="propertyId"
@@ -344,6 +411,33 @@ export function AppointmentFormDialog({
                   </FormItem>
                 )}
               />
+            ) : appointmentMode === "individual" && propertyInputMode === "manual" && canUseManualEntry ? (
+              <div className="grid grid-cols-2 gap-4">
+                <FormItem>
+                  <FormLabel>Nombre del Condominio *</FormLabel>
+                  <FormControl>
+                    <Input
+                      placeholder="Ej: Aldea Zamá, La Veleta"
+                      value={manualCondominium}
+                      onChange={(e) => setManualCondominium(e.target.value)}
+                      data-testid="input-condominium"
+                    />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+                <FormItem>
+                  <FormLabel>Número de Unidad / Casa *</FormLabel>
+                  <FormControl>
+                    <Input
+                      placeholder="Ej: 101, Casa 5"
+                      value={manualUnit}
+                      onChange={(e) => setManualUnit(e.target.value)}
+                      data-testid="input-unit"
+                    />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              </div>
             ) : (
               <FormItem>
                 <FormLabel>Propiedades del Tour * (Máximo 4)</FormLabel>
