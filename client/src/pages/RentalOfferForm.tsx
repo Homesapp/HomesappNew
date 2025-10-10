@@ -171,18 +171,18 @@ export default function RentalOfferForm() {
   const watchHasPets = form.watch("clientHasPets");
 
   return (
-    <div className="container mx-auto py-8 px-4">
-      <div className="mb-8">
-        <h1 className="text-3xl font-bold mb-2" data-testid="title-offer-form">
+    <div className="container mx-auto py-4 sm:py-6 md:py-8 px-4">
+      <div className="mb-4 sm:mb-6 md:mb-8">
+        <h1 className="text-2xl sm:text-3xl font-bold mb-2" data-testid="title-offer-form">
           Oferta de Renta
         </h1>
-        <p className="text-muted-foreground">
+        <p className="text-sm sm:text-base text-muted-foreground">
           Completa los detalles de tu oferta para {property.title}
         </p>
       </div>
 
       <Form {...form}>
-        <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-8">
+        <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4 sm:space-y-6 md:space-y-8">
           {/* Client Profile Section */}
           <Card>
             <CardHeader>
@@ -194,7 +194,7 @@ export default function RentalOfferForm() {
                 Información personal y laboral
               </CardDescription>
             </CardHeader>
-            <CardContent className="grid gap-6 md:grid-cols-2">
+            <CardContent className="grid gap-4 sm:gap-6 md:grid-cols-2">
               <FormField
                 control={form.control}
                 name="clientNationality"
@@ -377,7 +377,7 @@ export default function RentalOfferForm() {
               <CardTitle>Detalles de la Oferta</CardTitle>
               <CardDescription>Montos y fechas del contrato</CardDescription>
             </CardHeader>
-            <CardContent className="grid gap-6 md:grid-cols-2">
+            <CardContent className="grid gap-4 sm:gap-6 md:grid-cols-2">
               <FormField
                 control={form.control}
                 name="monthlyRent"
