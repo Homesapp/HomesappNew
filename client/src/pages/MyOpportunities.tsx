@@ -83,6 +83,19 @@ export default function MyOpportunities() {
     queryKey: ["/api/my-auto-suggestions"],
   });
 
+  // New queries for visited properties and rental opportunity requests
+  type VisitedPropertyWithAppointment = Property & {
+    appointment: Appointment;
+  };
+
+  const { data: visitedProperties = [], isLoading: visitedLoading } = useQuery<VisitedPropertyWithAppointment[]>({
+    queryKey: ["/api/client/visited-properties"],
+  });
+
+  const { data: rentalRequests = [], isLoading: rentalRequestsLoading } = useQuery<RentalOpportunityRequest[]>({
+    queryKey: ["/api/rental-opportunity-requests"],
+  });
+
   const setRecommendationInterest = useMutation({
     mutationFn: async ({ id, isInterested }: { id: string; isInterested: boolean }) => {
       return apiRequest("PATCH", `/api/property-recommendations/${id}/set-interest`, { isInterested });
@@ -105,6 +118,28 @@ export default function MyOpportunities() {
       toast({
         title: "Preferencia guardada",
         description: "Tu respuesta ha sido registrada",
+      });
+    },
+  });
+
+  const createRentalRequestMutation = useMutation({
+    mutationFn: async (data: { propertyId: string; appointmentId: string }) => {
+      return await apiRequest("POST", "/api/rental-opportunity-requests", data);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ 
+        predicate: (query) => query.queryKey.some(key => key === "/api/rental-opportunity-requests")
+      });
+      toast({
+        title: "Solicitud enviada",
+        description: "Tu solicitud de oportunidad ha sido enviada al administrador",
+      });
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Error",
+        description: error.message || "No se pudo enviar la solicitud",
+        variant: "destructive",
       });
     },
   });
@@ -170,7 +205,11 @@ export default function MyOpportunities() {
       </div>
 
       <Tabs defaultValue="recommendations" className="w-full">
-        <TabsList className="grid w-full grid-cols-3">
+        <TabsList className="grid w-full grid-cols-4">
+          <TabsTrigger value="visited" data-testid="tab-visited">
+            <CheckCircle2 className="h-4 w-4 mr-2" />
+            Visitadas
+          </TabsTrigger>
           <TabsTrigger value="recommendations" className="relative" data-testid="tab-recommendations">
             <User className="h-4 w-4 mr-2" />
             Recomendaciones
@@ -194,6 +233,128 @@ export default function MyOpportunities() {
             Mis Solicitudes
           </TabsTrigger>
         </TabsList>
+
+        {/* Propiedades Visitadas - New Tab */}
+        <TabsContent value="visited" className="mt-6">
+          {visitedLoading ? (
+            <div className="flex items-center justify-center py-12">
+              <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+            </div>
+          ) : visitedProperties.length === 0 ? (
+            <Card>
+              <CardContent className="py-12 text-center">
+                <CheckCircle2 className="h-12 w-12 text-muted-foreground mx-auto mb-3" />
+                <p className="text-muted-foreground">
+                  No has visitado ninguna propiedad aún
+                </p>
+                <p className="text-sm text-muted-foreground mt-2">
+                  Programa citas para visitar propiedades y luego podrás solicitar oportunidades de renta aquí
+                </p>
+              </CardContent>
+            </Card>
+          ) : (
+            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+              {visitedProperties.map((property) => {
+                const request = rentalRequests.find(req => req.propertyId === property.id);
+                const canRequest = !request || request.status === 'rejected';
+                
+                return (
+                  <Card key={property.id} className="hover-elevate" data-testid={`card-visited-${property.id}`}>
+                    <CardHeader>
+                      <div className="aspect-video w-full overflow-hidden rounded-lg bg-muted mb-3">
+                        {property.primaryImages && property.primaryImages.length > 0 ? (
+                          <img 
+                            src={property.primaryImages[0]} 
+                            alt={property.title}
+                            className="h-full w-full object-cover"
+                            data-testid={`img-visited-${property.id}`}
+                          />
+                        ) : (
+                          <div className="h-full w-full flex items-center justify-center">
+                            <MapPin className="h-12 w-12 text-muted-foreground" />
+                          </div>
+                        )}
+                      </div>
+                      <CardTitle className="text-lg" data-testid={`text-title-${property.id}`}>
+                        {property.title}
+                      </CardTitle>
+                      <CardDescription className="flex items-center gap-1">
+                        <MapPin className="h-3 w-3" />
+                        {property.location}
+                      </CardDescription>
+                    </CardHeader>
+                    <CardContent className="space-y-4">
+                      <div className="space-y-2">
+                        <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                          <Calendar className="h-4 w-4" />
+                          <span>Visitada: {format(new Date(property.appointment.appointmentDate), "dd 'de' MMMM, yyyy", { locale: es })}</span>
+                        </div>
+                        
+                        <div className="flex items-center gap-2 text-sm">
+                          <span className="font-medium">Tipo: {property.appointment.type === 'individual' ? 'Individual' : 'Tour'}</span>
+                        </div>
+                      </div>
+
+                      {request && (
+                        <div className="pt-2 border-t">
+                          <div className="flex items-center justify-between">
+                            <span className="text-sm font-medium">Estado:</span>
+                            <Badge variant={
+                              request.status === 'pending' ? 'secondary' : 
+                              request.status === 'approved' ? 'default' : 
+                              'destructive'
+                            }>
+                              {request.status === 'pending' && <Clock className="h-3 w-3 mr-1" />}
+                              {request.status === 'approved' && <CheckCircle2 className="h-3 w-3 mr-1" />}
+                              {request.status === 'rejected' && <XCircle className="h-3 w-3 mr-1" />}
+                              {request.status === 'pending' ? 'Pendiente' : request.status === 'approved' ? 'Aprobada' : 'Rechazada'}
+                            </Badge>
+                          </div>
+                          {request.rejectionReason && (
+                            <p className="mt-2 text-sm text-muted-foreground">
+                              Razón: {request.rejectionReason}
+                            </p>
+                          )}
+                        </div>
+                      )}
+
+                      <div className="flex gap-2">
+                        {canRequest ? (
+                          <Button 
+                            className="w-full" 
+                            onClick={() => createRentalRequestMutation.mutate({ propertyId: property.id, appointmentId: property.appointment.id })}
+                            disabled={createRentalRequestMutation.isPending}
+                            data-testid={`button-request-${property.id}`}
+                          >
+                            {request?.status === 'rejected' ? 'Solicitar Nuevamente' : 'Solicitar Oportunidad'}
+                          </Button>
+                        ) : request?.status === 'approved' ? (
+                          <Button 
+                            className="w-full" 
+                            onClick={() => window.location.href = `/rental-offer/${property.id}?requestId=${request.id}`}
+                            data-testid={`button-create-offer-${property.id}`}
+                          >
+                            Crear Oferta de Renta
+                          </Button>
+                        ) : (
+                          <Button 
+                            className="w-full" 
+                            variant="outline"
+                            disabled
+                            data-testid={`button-pending-${property.id}`}
+                          >
+                            <Clock className="h-4 w-4 mr-2" />
+                            Esperando Aprobación
+                          </Button>
+                        )}
+                      </div>
+                    </CardContent>
+                  </Card>
+                );
+              })}
+            </div>
+          )}
+        </TabsContent>
 
         {/* Recomendaciones de Vendedores */}
         <TabsContent value="recommendations" className="mt-6">

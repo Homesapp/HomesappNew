@@ -5161,6 +5161,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       const updated = await storage.approveRentalOpportunityRequest(id, adminId);
 
+      // Get property details for notification
+      const property = await storage.getProperty(request.propertyId);
+      
+      // Notify client
+      await storage.createNotification({
+        userId: request.clientId,
+        type: "opportunity",
+        title: "Solicitud de Oportunidad Aprobada",
+        message: `Tu solicitud para crear una oferta de renta para ${property?.title || 'la propiedad'} ha sido aprobada. Ahora puedes crear tu oferta.`,
+        relatedEntityType: "rental_opportunity_request",
+        relatedEntityId: request.id,
+        priority: "high",
+      });
+
       await createAuditLog(
         req,
         "approve",
@@ -5198,6 +5212,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       const updated = await storage.rejectRentalOpportunityRequest(id, adminId, rejectionReason);
+
+      // Get property details for notification
+      const property = await storage.getProperty(request.propertyId);
+      
+      // Notify client
+      await storage.createNotification({
+        userId: request.clientId,
+        type: "opportunity",
+        title: "Solicitud de Oportunidad Rechazada",
+        message: `Tu solicitud para crear una oferta de renta para ${property?.title || 'la propiedad'} ha sido rechazada. Razón: ${rejectionReason}`,
+        relatedEntityType: "rental_opportunity_request",
+        relatedEntityId: request.id,
+        priority: "high",
+      });
 
       await createAuditLog(
         req,
@@ -10407,6 +10435,24 @@ export async function registerRoutes(app: Express): Promise<Server> {
         appointmentId: req.body.appointmentId,
         status: 'pending',
       });
+
+      // Get property details for notification
+      const property = await storage.getProperty(propertyId);
+      
+      // Notify all admins about the new request
+      const admins = await storage.getUsersByRole("admin");
+      const notificationPromises = admins.map(admin => 
+        storage.createNotification({
+          userId: admin.id,
+          type: "opportunity",
+          title: "Nueva Solicitud de Oportunidad de Renta",
+          message: `${user.name} ha solicitado crear una oferta de renta para ${property?.title || 'una propiedad'}`,
+          relatedEntityType: "rental_opportunity_request",
+          relatedEntityId: request.id,
+          priority: "medium",
+        })
+      );
+      await Promise.all(notificationPromises);
 
       // Log the request creation
       await createAuditLog(

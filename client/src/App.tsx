@@ -56,6 +56,7 @@ import Clients from "@/pages/Clients";
 import Budgets from "@/pages/Budgets";
 import Tasks from "@/pages/Tasks";
 import MyOpportunities from "@/pages/MyOpportunities";
+import RentalOfferForm from "@/pages/RentalOfferForm";
 import MyProperties from "@/pages/MyProperties";
 import OwnerPropertyDetails from "@/pages/OwnerPropertyDetails";
 import EditOwnerProperty from "@/pages/EditOwnerProperty";
@@ -104,6 +105,7 @@ import AdminPredictiveAnalytics from "@/pages/AdminPredictiveAnalytics";
 import AdminLegalDocuments from "@/pages/AdminLegalDocuments";
 import AdminTenantScreening from "@/pages/AdminTenantScreening";
 import AdminMarketingCampaigns from "@/pages/AdminMarketingCampaigns";
+import AdminRentalOpportunityRequests from "@/pages/AdminRentalOpportunityRequests";
 import NotFound from "@/pages/not-found";
 
 function AuthenticatedApp() {
@@ -231,6 +233,7 @@ function AuthenticatedApp() {
               <Route path="/propiedad/:id" component={PropertyDetails} />
               <Route path="/favoritos" component={Favorites} />
               <Route path="/mis-oportunidades" component={MyOpportunities} />
+              <Route path="/rental-offer/:propertyId" component={RentalOfferForm} />
               <Route path="/owner/dashboard" component={OwnerDashboard} />
               <Route path="/admin/dashboard" component={AdminDashboard} />
               <Route path="/admin/profile" component={AdminProfile} />
@@ -297,6 +300,7 @@ function AuthenticatedApp() {
               <Route path="/admin/legal-documents" component={AdminLegalDocuments} />
               <Route path="/admin/tenant-screening" component={AdminTenantScreening} />
               <Route path="/admin/marketing-campaigns" component={AdminMarketingCampaigns} />
+              <Route path="/admin/rental-opportunity-requests" component={AdminRentalOpportunityRequests} />
               <Route path="/ayuda" component={Help} />
               <Route path="/terminos" component={Terms} />
               <Route path="/privacidad" component={Privacy} />
