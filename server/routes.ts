@@ -115,6 +115,13 @@ import {
   suspendUserSchema,
   unsuspendUserSchema,
   createPropertyLimitRequestSchema,
+  insertCondominiumUnitSchema,
+  insertCondominiumFeeSchema,
+  insertCondominiumFeePaymentSchema,
+  insertCondominiumIssueSchema,
+  insertHoaManagerAssignmentSchema,
+  insertHoaAnnouncementSchema,
+  insertHoaAnnouncementReadSchema,
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, and, inArray, desc } from "drizzle-orm";
@@ -16097,6 +16104,439 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error: any) {
       console.error("Error resolving issue:", error);
       res.status(500).json({ message: "Failed to resolve issue" });
+    }
+  });
+
+  // ========================================
+  // HOA Manager System Routes
+  // ========================================
+
+  // HOA Manager Assignment Routes
+
+  // Request to become HOA manager for a condominium
+  app.post("/api/hoa-manager/assignments", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const validationResult = insertHoaManagerAssignmentSchema.safeParse({
+        ...req.body,
+        managerId: userId,
+        status: "pending",
+      });
+
+      if (!validationResult.success) {
+        return res.status(400).json({
+          message: "Invalid data",
+          errors: validationResult.error.errors,
+        });
+      }
+
+      // Check if there's already a pending or approved assignment
+      const existingAssignments = await storage.getHoaManagerAssignmentsByCondominium(req.body.condominiumId);
+      const hasPendingOrApproved = existingAssignments.some(a => a.managerId === userId && (a.status === 'pending' || a.status === 'approved'));
+      
+      if (hasPendingOrApproved) {
+        return res.status(400).json({ message: "You already have a pending or approved assignment for this condominium" });
+      }
+
+      const assignment = await storage.createHoaManagerAssignment(validationResult.data);
+
+      await createAuditLog(
+        req,
+        "create",
+        "hoa_manager_assignment",
+        assignment.id,
+        `Requested HOA manager assignment for condominium ${assignment.condominiumId}`
+      );
+
+      res.status(201).json(assignment);
+    } catch (error: any) {
+      console.error("Error creating HOA manager assignment:", error);
+      res.status(500).json({ message: "Failed to create assignment" });
+    }
+  });
+
+  // Get all assignments (admin only)
+  app.get("/api/hoa-manager/assignments", isAuthenticated, requireRole(["admin", "master"]), async (req, res) => {
+    try {
+      const status = req.query.status as string | undefined;
+      const assignments = status 
+        ? await storage.getHoaManagerAssignmentsByStatus(status)
+        : await storage.getHoaManagerAssignmentsByStatus("pending");
+      res.json(assignments);
+    } catch (error: any) {
+      console.error("Error fetching assignments:", error);
+      res.status(500).json({ message: "Failed to fetch assignments" });
+    }
+  });
+
+  // Get my assignments (HOA manager)
+  app.get("/api/hoa-manager/my-assignments", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const assignments = await storage.getHoaManagerAssignmentsByManager(userId);
+      res.json(assignments);
+    } catch (error: any) {
+      console.error("Error fetching my assignments:", error);
+      res.status(500).json({ message: "Failed to fetch assignments" });
+    }
+  });
+
+  // Get assignment by condominium
+  app.get("/api/hoa-manager/assignments/condominium/:condominiumId", isAuthenticated, async (req, res) => {
+    try {
+      const assignments = await storage.getHoaManagerAssignmentsByCondominium(req.params.condominiumId);
+      res.json(assignments);
+    } catch (error: any) {
+      console.error("Error fetching assignments:", error);
+      res.status(500).json({ message: "Failed to fetch assignments" });
+    }
+  });
+
+  // Approve HOA manager assignment (admin only)
+  app.post("/api/hoa-manager/assignments/:id/approve", isAuthenticated, requireRole(["admin", "master"]), async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const assignment = await storage.approveHoaManagerAssignment(req.params.id, userId);
+
+      await createAuditLog(
+        req,
+        "approve",
+        "hoa_manager_assignment",
+        req.params.id,
+        `Approved HOA manager assignment for condominium ${assignment.condominiumId}`
+      );
+
+      res.json(assignment);
+    } catch (error: any) {
+      console.error("Error approving assignment:", error);
+      res.status(500).json({ message: "Failed to approve assignment" });
+    }
+  });
+
+  // Reject HOA manager assignment (admin only)
+  app.post("/api/hoa-manager/assignments/:id/reject", isAuthenticated, requireRole(["admin", "master"]), async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const { reason } = req.body;
+
+      if (!reason) {
+        return res.status(400).json({ message: "Rejection reason is required" });
+      }
+
+      const assignment = await storage.rejectHoaManagerAssignment(req.params.id, userId, reason);
+
+      await createAuditLog(
+        req,
+        "reject",
+        "hoa_manager_assignment",
+        req.params.id,
+        `Rejected HOA manager assignment: ${reason}`
+      );
+
+      res.json(assignment);
+    } catch (error: any) {
+      console.error("Error rejecting assignment:", error);
+      res.status(500).json({ message: "Failed to reject assignment" });
+    }
+  });
+
+  // Suspend HOA manager assignment (admin only)
+  app.post("/api/hoa-manager/assignments/:id/suspend", isAuthenticated, requireRole(["admin", "master"]), async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const { reason } = req.body;
+
+      if (!reason) {
+        return res.status(400).json({ message: "Suspension reason is required" });
+      }
+
+      const assignment = await storage.suspendHoaManagerAssignment(req.params.id, userId, reason);
+
+      await createAuditLog(
+        req,
+        "update",
+        "hoa_manager_assignment",
+        req.params.id,
+        `Suspended HOA manager assignment: ${reason}`
+      );
+
+      res.json(assignment);
+    } catch (error: any) {
+      console.error("Error suspending assignment:", error);
+      res.status(500).json({ message: "Failed to suspend assignment" });
+    }
+  });
+
+  // HOA Announcement Routes
+
+  // Get announcements for a condominium (only for owners/managers of that condominium or admins)
+  app.get("/api/hoa-manager/condominiums/:condominiumId/announcements", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const condominiumId = req.params.condominiumId;
+
+      // Check if user is admin, or owner/manager of this condominium
+      const user = await storage.getUser(userId);
+      const isAdmin = user?.role === 'admin' || user?.role === 'master';
+      
+      if (!isAdmin) {
+        // Check if user is an owner of a unit in this condominium or the HOA manager
+        const units = await storage.getCondominiumUnitsByOwner(userId);
+        const ownsUnitInCondo = units.some(u => u.condominiumId === condominiumId);
+        const assignment = await storage.getApprovedHoaManagerByCondominium(condominiumId);
+        const isHoaManager = assignment?.managerId === userId;
+
+        if (!ownsUnitInCondo && !isHoaManager) {
+          return res.status(403).json({ message: "Not authorized to view announcements for this condominium" });
+        }
+      }
+
+      const announcements = await storage.getHoaAnnouncementsByCondominium(condominiumId);
+      res.json(announcements);
+    } catch (error: any) {
+      console.error("Error fetching announcements:", error);
+      res.status(500).json({ message: "Failed to fetch announcements" });
+    }
+  });
+
+  // Get my announcements (HOA manager)
+  app.get("/api/hoa-manager/my-announcements", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const announcements = await storage.getHoaAnnouncementsByManager(userId);
+      res.json(announcements);
+    } catch (error: any) {
+      console.error("Error fetching my announcements:", error);
+      res.status(500).json({ message: "Failed to fetch announcements" });
+    }
+  });
+
+  // Get unread announcements for owner
+  app.get("/api/hoa-manager/my-unread-announcements", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const announcements = await storage.getUnreadHoaAnnouncementsForOwner(userId);
+      res.json(announcements);
+    } catch (error: any) {
+      console.error("Error fetching unread announcements:", error);
+      res.status(500).json({ message: "Failed to fetch announcements" });
+    }
+  });
+
+  // Create announcement (HOA manager only - must be approved for condominium)
+  app.post("/api/hoa-manager/announcements", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const validationResult = insertHoaAnnouncementSchema.safeParse({
+        ...req.body,
+        managerId: userId,
+        isActive: false,
+      });
+
+      if (!validationResult.success) {
+        return res.status(400).json({
+          message: "Invalid data",
+          errors: validationResult.error.errors,
+        });
+      }
+
+      // Check if user is approved HOA manager for this condominium
+      const approvedManager = await storage.getApprovedHoaManagerByCondominium(req.body.condominiumId);
+      if (!approvedManager || approvedManager.managerId !== userId) {
+        return res.status(403).json({ message: "You are not an approved HOA manager for this condominium" });
+      }
+
+      // Double-check assignment is not suspended
+      if (approvedManager.status === 'suspended') {
+        return res.status(403).json({ message: "Your HOA manager assignment is currently suspended" });
+      }
+
+      const announcement = await storage.createHoaAnnouncement(validationResult.data);
+
+      await createAuditLog(
+        req,
+        "create",
+        "hoa_announcement",
+        announcement.id,
+        `Created announcement: ${announcement.title}`
+      );
+
+      res.status(201).json(announcement);
+    } catch (error: any) {
+      console.error("Error creating announcement:", error);
+      res.status(500).json({ message: "Failed to create announcement" });
+    }
+  });
+
+  // Update announcement
+  app.patch("/api/hoa-manager/announcements/:id", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const validationResult = insertHoaAnnouncementSchema.partial().safeParse(req.body);
+
+      if (!validationResult.success) {
+        return res.status(400).json({
+          message: "Invalid data",
+          errors: validationResult.error.errors,
+        });
+      }
+
+      const existingAnnouncement = await storage.getHoaAnnouncement(req.params.id);
+      if (!existingAnnouncement) {
+        return res.status(404).json({ message: "Announcement not found" });
+      }
+
+      // Only the manager who created it can update
+      if (existingAnnouncement.managerId !== userId) {
+        return res.status(403).json({ message: "Not authorized to update this announcement" });
+      }
+
+      // Verify manager is still approved and not suspended
+      const approvedManager = await storage.getApprovedHoaManagerByCondominium(existingAnnouncement.condominiumId);
+      if (!approvedManager || approvedManager.managerId !== userId) {
+        return res.status(403).json({ message: "You are no longer an approved HOA manager for this condominium" });
+      }
+
+      if (approvedManager.status === 'suspended') {
+        return res.status(403).json({ message: "Your HOA manager assignment is currently suspended" });
+      }
+
+      const announcement = await storage.updateHoaAnnouncement(req.params.id, validationResult.data);
+
+      await createAuditLog(
+        req,
+        "update",
+        "hoa_announcement",
+        req.params.id,
+        `Updated announcement: ${announcement.title}`
+      );
+
+      res.json(announcement);
+    } catch (error: any) {
+      console.error("Error updating announcement:", error);
+      res.status(500).json({ message: "Failed to update announcement" });
+    }
+  });
+
+  // Publish announcement
+  app.post("/api/hoa-manager/announcements/:id/publish", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const existingAnnouncement = await storage.getHoaAnnouncement(req.params.id);
+      
+      if (!existingAnnouncement) {
+        return res.status(404).json({ message: "Announcement not found" });
+      }
+
+      // Only the manager who created it can publish
+      if (existingAnnouncement.managerId !== userId) {
+        return res.status(403).json({ message: "Not authorized to publish this announcement" });
+      }
+
+      // Verify manager is still approved and not suspended
+      const approvedManager = await storage.getApprovedHoaManagerByCondominium(existingAnnouncement.condominiumId);
+      if (!approvedManager || approvedManager.managerId !== userId) {
+        return res.status(403).json({ message: "You are no longer an approved HOA manager for this condominium" });
+      }
+
+      if (approvedManager.status === 'suspended') {
+        return res.status(403).json({ message: "Your HOA manager assignment is currently suspended" });
+      }
+
+      const announcement = await storage.publishHoaAnnouncement(req.params.id);
+
+      await createAuditLog(
+        req,
+        "update",
+        "hoa_announcement",
+        req.params.id,
+        `Published announcement: ${announcement.title}`
+      );
+
+      res.json(announcement);
+    } catch (error: any) {
+      console.error("Error publishing announcement:", error);
+      res.status(500).json({ message: "Failed to publish announcement" });
+    }
+  });
+
+  // Delete announcement
+  app.delete("/api/hoa-manager/announcements/:id", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const existingAnnouncement = await storage.getHoaAnnouncement(req.params.id);
+      
+      if (!existingAnnouncement) {
+        return res.status(404).json({ message: "Announcement not found" });
+      }
+
+      // Only the manager who created it can delete
+      if (existingAnnouncement.managerId !== userId) {
+        return res.status(403).json({ message: "Not authorized to delete this announcement" });
+      }
+
+      // Verify manager is still approved and not suspended
+      const approvedManager = await storage.getApprovedHoaManagerByCondominium(existingAnnouncement.condominiumId);
+      if (!approvedManager || approvedManager.managerId !== userId) {
+        return res.status(403).json({ message: "You are no longer an approved HOA manager for this condominium" });
+      }
+
+      if (approvedManager.status === 'suspended') {
+        return res.status(403).json({ message: "Your HOA manager assignment is currently suspended" });
+      }
+
+      await storage.deleteHoaAnnouncement(req.params.id);
+
+      await createAuditLog(
+        req,
+        "delete",
+        "hoa_announcement",
+        req.params.id,
+        `Deleted announcement: ${existingAnnouncement.title}`
+      );
+
+      res.status(204).send();
+    } catch (error: any) {
+      console.error("Error deleting announcement:", error);
+      res.status(500).json({ message: "Failed to delete announcement" });
+    }
+  });
+
+  // Mark announcement as read (owner only - must own unit in condominium)
+  app.post("/api/hoa-manager/announcements/:id/read", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      
+      // Get announcement to verify condominium
+      const announcement = await storage.getHoaAnnouncement(req.params.id);
+      if (!announcement) {
+        return res.status(404).json({ message: "Announcement not found" });
+      }
+
+      // Verify user owns a unit in this condominium
+      const units = await storage.getCondominiumUnitsByOwner(userId);
+      const ownsUnitInCondo = units.some(u => u.condominiumId === announcement.condominiumId);
+
+      if (!ownsUnitInCondo) {
+        return res.status(403).json({ message: "Not authorized to mark this announcement as read" });
+      }
+
+      const read = await storage.markHoaAnnouncementAsRead(req.params.id, userId);
+      res.json(read);
+    } catch (error: any) {
+      console.error("Error marking announcement as read:", error);
+      res.status(500).json({ message: "Failed to mark as read" });
+    }
+  });
+
+  // Get announcement read status
+  app.get("/api/hoa-manager/announcements/:id/reads", isAuthenticated, requireRole(["admin", "master", "hoa_manager"]), async (req, res) => {
+    try {
+      const reads = await storage.getHoaAnnouncementReads(req.params.id);
+      res.json(reads);
+    } catch (error: any) {
+      console.error("Error fetching read status:", error);
+      res.status(500).json({ message: "Failed to fetch read status" });
     }
   });
 
