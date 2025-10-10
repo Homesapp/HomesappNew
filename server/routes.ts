@@ -1943,7 +1943,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       // Validate requested role is allowed
-      const allowedRoles = ["owner", "seller", "management", "concierge", "provider"];
+      const allowedRoles = ["owner", "seller", "management", "concierge", "provider", "hoa_manager"];
       if (!allowedRoles.includes(roleRequest.requestedRole)) {
         return res.status(400).json({ message: "Rol solicitado no es válido" });
       }
