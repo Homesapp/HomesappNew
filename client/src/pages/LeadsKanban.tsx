@@ -23,6 +23,7 @@ import {
   HandshakeIcon,
   Eye,
   Send,
+  X,
 } from "lucide-react";
 import { type Lead, insertLeadSchema } from "@shared/schema";
 import { apiRequest, queryClient } from "@/lib/queryClient";
@@ -147,6 +148,7 @@ const leadFormSchema = z.object({
   bedrooms: z.array(z.string()).default([]),
   zoneOfInterest: z.array(z.string()).default([]),
   unitType: z.array(z.string()).default([]),
+  propertyInterests: z.array(z.string()).default([]),
   pets: z.string().optional(),
   notes: z.string().optional(),
   status: z.string().default("nuevo"),
@@ -175,7 +177,6 @@ export default function LeadsKanban() {
   const [, setLocation] = useLocation();
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingLead, setEditingLead] = useState<Lead | null>(null);
-  const [selectedProperties, setSelectedProperties] = useState<string[]>([]);
   const [offerDialogOpen, setOfferDialogOpen] = useState(false);
   const [selectedLeadForOffer, setSelectedLeadForOffer] = useState<Lead | null>(null);
   const [phoneValidation, setPhoneValidation] = useState<{
@@ -189,7 +190,6 @@ export default function LeadsKanban() {
   useEffect(() => {
     if (!dialogOpen) {
       form.reset();
-      setSelectedProperties([]);
     }
   }, [dialogOpen]);
   
@@ -209,6 +209,7 @@ export default function LeadsKanban() {
       bedrooms: [],
       zoneOfInterest: [],
       unitType: [],
+      propertyInterests: [],
       status: "nuevo",
     },
   });
@@ -239,7 +240,6 @@ export default function LeadsKanban() {
       toast({ title: "Lead creado exitosamente" });
       setDialogOpen(false);
       form.reset();
-      setSelectedProperties([]);
     },
     onError: (error: any) => {
       const errorData = error?.response?.data || error;
@@ -320,7 +320,6 @@ export default function LeadsKanban() {
       lastName: capitalizeFirstLetter(data.lastName.trim()),
       email: data.email ? data.email.toLowerCase().trim() : undefined,
       budget: data.budget ? data.budget.toString() : null,
-      propertyInterests: selectedProperties,
     };
     createLeadMutation.mutate(formattedData);
   };
@@ -664,8 +663,8 @@ export default function LeadsKanban() {
                         className="w-full justify-between"
                         data-testid="button-select-properties"
                       >
-                        {selectedProperties.length > 0
-                          ? `${selectedProperties.length} propiedad${selectedProperties.length > 1 ? 'es' : ''} seleccionada${selectedProperties.length > 1 ? 's' : ''}`
+                        {form.watch("propertyInterests")?.length > 0
+                          ? `${form.watch("propertyInterests").length} propiedad${form.watch("propertyInterests").length > 1 ? 'es' : ''} seleccionada${form.watch("propertyInterests").length > 1 ? 's' : ''}`
                           : "Seleccionar propiedades..."}
                       </Button>
                     </PopoverTrigger>
@@ -678,17 +677,20 @@ export default function LeadsKanban() {
                             <CommandItem
                               key={property.id}
                               onSelect={() => {
-                                setSelectedProperties((prev) =>
-                                  prev.includes(property.id)
-                                    ? prev.filter((id) => id !== property.id)
-                                    : [...prev, property.id]
+                                const currentValues = form.getValues("propertyInterests") || [];
+                                const isSelected = currentValues.includes(property.id);
+                                form.setValue(
+                                  "propertyInterests",
+                                  isSelected
+                                    ? currentValues.filter((id: string) => id !== property.id)
+                                    : [...currentValues, property.id]
                                 );
                               }}
                               data-testid={`property-option-${property.id}`}
                             >
                               <div className="flex items-center gap-2">
-                                <div className={`h-4 w-4 rounded border ${selectedProperties.includes(property.id) ? 'bg-primary border-primary' : 'border-input'}`}>
-                                  {selectedProperties.includes(property.id) && (
+                                <div className={`h-4 w-4 rounded border ${(form.watch("propertyInterests") || []).includes(property.id) ? 'bg-primary border-primary' : 'border-input'}`}>
+                                  {(form.watch("propertyInterests") || []).includes(property.id) && (
                                     <CheckCircle2 className="h-4 w-4 text-primary-foreground" />
                                   )}
                                 </div>
@@ -700,13 +702,25 @@ export default function LeadsKanban() {
                       </Command>
                     </PopoverContent>
                   </Popover>
-                  {selectedProperties.length > 0 && (
+                  {(form.watch("propertyInterests")?.length > 0) && (
                     <div className="flex flex-wrap gap-1 mt-2">
-                      {selectedProperties.map((propId) => {
+                      {form.watch("propertyInterests").map((propId: string) => {
                         const property = properties.find((p: any) => p.id === propId);
                         return (
-                          <Badge key={propId} variant="secondary" className="text-xs">
-                            {property?.title}
+                          <Badge 
+                            key={propId} 
+                            variant="secondary" 
+                            className="text-xs gap-1"
+                            data-testid={`badge-property-${propId}`}
+                          >
+                            {property?.title || propId}
+                            <X
+                              className="h-3 w-3 cursor-pointer"
+                              onClick={() => {
+                                const currentValues = form.getValues("propertyInterests") || [];
+                                form.setValue("propertyInterests", currentValues.filter((id: string) => id !== propId));
+                              }}
+                            />
                           </Badge>
                         );
                       })}
