@@ -7490,6 +7490,65 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Validate phone number for duplicates (real-time validation)
+  app.get("/api/leads/validate-phone/:phone", isAuthenticated, requireRole(["master", "admin", "admin_jr", "seller", "management"]), async (req: any, res) => {
+    try {
+      const { phone } = req.params;
+      
+      if (!phone) {
+        return res.status(400).json({ message: "Teléfono requerido" });
+      }
+
+      // Check for existing lead with this phone
+      const existingLead = await storage.getActiveLeadByPhone(phone);
+      
+      if (!existingLead) {
+        return res.json({ 
+          isDuplicate: false,
+          message: "Teléfono disponible"
+        });
+      }
+
+      // Get original seller information
+      const originalSeller = await storage.getUser(existingLead.registeredById);
+      
+      if (!originalSeller) {
+        return res.json({
+          isDuplicate: true,
+          message: "Lead duplicado detectado"
+        });
+      }
+
+      // Return duplicate information (excluding phone for security)
+      res.json({
+        isDuplicate: true,
+        lead: {
+          id: existingLead.id,
+          firstName: existingLead.firstName,
+          lastName: existingLead.lastName,
+          email: existingLead.email,
+          budget: existingLead.budget,
+          status: existingLead.status,
+          source: existingLead.source,
+          notes: existingLead.notes,
+          registeredAt: existingLead.createdAt,
+          // Exclude phone for security
+        },
+        originalSeller: {
+          id: originalSeller.id,
+          firstName: originalSeller.firstName,
+          lastName: originalSeller.lastName,
+          email: originalSeller.email,
+          phone: originalSeller.phone,
+        },
+        message: `Este teléfono ya fue registrado por ${originalSeller.firstName} ${originalSeller.lastName} el ${new Date(existingLead.createdAt).toLocaleDateString('es-MX')}`
+      });
+    } catch (error) {
+      console.error("Error validating phone:", error);
+      res.status(500).json({ message: "Error al validar teléfono" });
+    }
+  });
+
   app.post("/api/leads", isAuthenticated, requireRole(["master", "admin", "admin_jr", "seller", "management"]), async (req: any, res) => {
     try {
       const userId = req.user.claims.sub;
