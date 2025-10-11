@@ -45,12 +45,19 @@ The platform employs unified middleware for consistent authentication and automa
 *   **HOA (Homeowners Association) Module**: Complete condominium management system for admin, owner, and HOA Manager roles. Includes unit, fee, issue management, and a comprehensive announcement system with assignment workflows, notifications, and security.
 *   **Comprehensive Notification System**: Full-featured notification system with real-time updates, filtering, priority levels, email integration, and detailed user preferences.
 *   **AI-Powered Capabilities**: Predictive analytics, automated legal document generation, intelligent tenant screening, and a virtual assistant (MARCO) powered by OpenAI GPT-4.
-*   **CRM Lead Management System**: Modern Kanban-style lead management with 10-stage rental pipeline:
+*   **CRM Lead Management System**: Modern Kanban-style lead management with 10-stage rental pipeline and multi-step lead creation form:
     - **Lead Status Flow**: nuevo → contactado → calificado → cita_agendada → visita_completada → oferta_enviada → en_negociacion → contrato_firmado → ganado → perdido
     - **Sales Funnel Visualization**: Interactive horizontal bar chart showing lead distribution across all stages with key conversion metrics (calificado→cita, cita→visita, visita→oferta, contrato→ganado)
     - **Quick Actions**: Direct access buttons on lead cards for scheduling appointments, creating offers, and viewing details
     - **Enhanced Lead Cards**: Display associated appointments, offers, and contract information with visual indicators
     - **Staff-Created Leads**: Auto-verified email for leads manually registered by sellers/admins to prevent FK constraint violations
+    - **Multi-Step Lead Form**: 3-step wizard with visual progress indicator for improved UX:
+      - Step 1 (Información Básica): Name, surname, email, phone with duplicate validation, budget
+      - Step 2 (Preferencias): Zone of interest, unit type, bedrooms, property interests - all with button-based multi-select
+      - Step 3 (Detalles): Source, contract duration, move-in date, notes - button-based multi-select
+      - ButtonMultiSelect component provides visual button selection with "Carga Manual" option for custom values
+      - Real-time duplicate phone validation with seller contact option
+      - Auto-formatting: capitalize names/surnames, lowercase emails
 *   **Operational Efficiency**: Marketing automation, preventive maintenance scheduling, enhanced referral tracking, and comprehensive admin CRUD systems.
 *   **User Experience**: Airbnb-style role switching, full i18n support, real-time chat, granular email notification preferences, and auto-logout security feature.
 
