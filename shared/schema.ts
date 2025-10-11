@@ -1124,32 +1124,39 @@ export const leads = pgTable("leads", {
   email: varchar("email"), // Ya no es obligatorio
   phone: varchar("phone").notNull(), // WhatsApp obligatorio
   status: leadStatusEnum("status").notNull().default("nuevo"),
-  source: varchar("source"), // web, referido, llamada, evento, etc
+  source: text("source").array().default(sql`ARRAY[]::text[]`), // Multi-select: web, referido, llamada, evento, carga manual, etc
   registeredById: varchar("registered_by_id").notNull().references(() => users.id), // Vendedor que registró el lead
   assignedToId: varchar("assigned_to_id").references(() => users.id),
   userId: varchar("user_id").references(() => users.id), // Usuario creado para este lead (después de confirmación)
-  budget: decimal("budget", { precision: 12, scale: 2 }),
+  budget: decimal("budget", { precision: 12, scale: 2 }).notNull(), // Campo obligatorio
   notes: text("notes"),
-  propertyInterests: text("property_interests").array().default(sql`ARRAY[]::text[]`),
-  // Campos adicionales para registro completo de leads
-  contractDuration: varchar("contract_duration"), // Duración del contrato (ej: "6 meses", "1 año")
-  moveInDate: varchar("move_in_date"), // Fecha deseada de ingreso (ej: "Noviembre", "finales de octubre")
+  propertyInterests: text("property_interests").array().default(sql`ARRAY[]::text[]`), // Multi-select
+  // Campos adicionales para registro completo de leads (todos multi-select)
+  contractDuration: text("contract_duration").array().default(sql`ARRAY[]::text[]`), // Multi-select: "6 meses", "1 año", etc
+  moveInDate: text("move_in_date").array().default(sql`ARRAY[]::text[]`), // Multi-select: "Noviembre", "finales de octubre", etc
   pets: varchar("pets"), // Mascotas (ej: "un perro", "No", "Si")
-  bedrooms: varchar("bedrooms"), // Número de recámaras deseadas (ej: "1/2", "2", "3")
-  areaOfInterest: varchar("area_of_interest"), // Área de interés (ej: "veleta o aldea Zama")
-  unitType: unitTypeEnum("unit_type"), // Tipo de unidad deseada
+  bedrooms: text("bedrooms").array().default(sql`ARRAY[]::text[]`), // Multi-select: "1", "2", "3", "Studio", etc
+  zoneOfInterest: text("zone_of_interest").array().default(sql`ARRAY[]::text[]`), // Multi-select: "Veleta", "Aldea Zama", etc (renamed from areaOfInterest)
+  unitType: text("unit_type").array().default(sql`ARRAY[]::text[]`), // Multi-select: "Departamento", "Casa", "Studio", etc
   emailVerified: boolean("email_verified").notNull().default(false), // Si el lead confirmó su email
   validUntil: timestamp("valid_until").notNull(), // Fecha de expiración del lead (3 meses por defecto)
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });
 
-export const insertLeadSchema = createInsertSchema(leads).omit({
-  id: true,
-  createdAt: true,
-  updatedAt: true,
-  emailVerified: true,
-});
+export const insertLeadSchema = createInsertSchema(leads)
+  .omit({
+    id: true,
+    createdAt: true,
+    updatedAt: true,
+    emailVerified: true,
+  })
+  .extend({
+    firstName: z.string().min(1, "El nombre es obligatorio"),
+    lastName: z.string().min(1, "El apellido es obligatorio"),
+    phone: z.string().min(1, "El teléfono es obligatorio"),
+    budget: z.string().min(1, "El presupuesto es obligatorio"),
+  });
 
 export type InsertLead = z.infer<typeof insertLeadSchema>;
 export type Lead = typeof leads.$inferSelect;
