@@ -1083,10 +1083,22 @@ export async function registerRoutes(app: Express): Promise<Server> {
           used: false,
         });
         
-        const baseUrl = process.env.REPLIT_DEV_DOMAIN 
-          ? `https://${process.env.REPLIT_DEV_DOMAIN}` 
-          : `http://localhost:5000`;
+        // Determine the base URL for the reset link
+        // In production: use REPLIT_DOMAINS (first domain) or WEB_REPL_DEPLOYMENT_URL
+        // In development: use REPLIT_DEV_DOMAIN or localhost
+        let baseUrl = 'http://localhost:5000';
+        
+        if (process.env.REPLIT_DOMAINS) {
+          // Production deployment - use the first domain from REPLIT_DOMAINS
+          const domains = process.env.REPLIT_DOMAINS.split(',');
+          baseUrl = `https://${domains[0]}`;
+        } else if (process.env.REPLIT_DEV_DOMAIN) {
+          // Development environment
+          baseUrl = `https://${process.env.REPLIT_DEV_DOMAIN}`;
+        }
+        
         const resetLink = `${baseUrl}/reset-password?token=${token}`;
+        console.log(`Generated password reset link for ${user.email} using baseUrl: ${baseUrl}`);
         
         try {
           const { sendPasswordResetEmail } = await import("./gmail");
@@ -1098,6 +1110,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
           console.log(`Password reset email sent successfully to ${user.email}`);
         } catch (emailError) {
           console.error('Error sending password reset email:', emailError);
+          console.error('Email error details:', {
+            message: emailError instanceof Error ? emailError.message : 'Unknown error',
+            stack: emailError instanceof Error ? emailError.stack : undefined
+          });
+          // Still return success to prevent user enumeration
         }
       }
       

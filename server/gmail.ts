@@ -7,33 +7,66 @@ async function getAccessToken() {
     return connectionSettings.settings.access_token;
   }
   
-  const hostname = process.env.REPLIT_CONNECTORS_HOSTNAME
+  const hostname = process.env.REPLIT_CONNECTORS_HOSTNAME;
   const xReplitToken = process.env.REPL_IDENTITY 
     ? 'repl ' + process.env.REPL_IDENTITY 
     : process.env.WEB_REPL_RENEWAL 
     ? 'depl ' + process.env.WEB_REPL_RENEWAL 
     : null;
 
-  if (!xReplitToken) {
-    throw new Error('X_REPLIT_TOKEN not found for repl/depl');
+  if (!hostname) {
+    console.error('Gmail config error: REPLIT_CONNECTORS_HOSTNAME not found');
+    throw new Error('Gmail integration not configured: REPLIT_CONNECTORS_HOSTNAME missing');
   }
 
-  connectionSettings = await fetch(
-    'https://' + hostname + '/api/v2/connection?include_secrets=true&connector_names=google-mail',
-    {
+  if (!xReplitToken) {
+    console.error('Gmail config error: Neither REPL_IDENTITY nor WEB_REPL_RENEWAL found');
+    console.error('Environment:', process.env.NODE_ENV);
+    console.error('Available env vars:', Object.keys(process.env).filter(k => k.includes('REPL')));
+    throw new Error('Gmail integration not configured: Missing authentication token (REPL_IDENTITY or WEB_REPL_RENEWAL)');
+  }
+
+  const connectorUrl = 'https://' + hostname + '/api/v2/connection?include_secrets=true&connector_names=google-mail';
+  console.log(`Fetching Gmail connection from: ${connectorUrl.replace(/\?.*/, '?...')}`);
+
+  try {
+    const response = await fetch(connectorUrl, {
       headers: {
         'Accept': 'application/json',
         'X_REPLIT_TOKEN': xReplitToken
       }
+    });
+
+    if (!response.ok) {
+      console.error(`Gmail connector API returned ${response.status}: ${response.statusText}`);
+      const errorText = await response.text();
+      console.error('Response body:', errorText);
+      throw new Error(`Gmail connector API failed: ${response.status} ${response.statusText}`);
     }
-  ).then(res => res.json()).then(data => data.items?.[0]);
 
-  const accessToken = connectionSettings?.settings?.access_token || connectionSettings?.settings?.oauth?.credentials?.access_token;
+    const data = await response.json();
+    connectionSettings = data.items?.[0];
 
-  if (!connectionSettings || !accessToken) {
-    throw new Error('Gmail not connected');
+    if (!connectionSettings) {
+      console.error('No Gmail connection found in API response');
+      console.error('Number of items in response:', data.items?.length || 0);
+      throw new Error('Gmail not connected - no connection found in Replit');
+    }
+
+    const accessToken = connectionSettings?.settings?.access_token || connectionSettings?.settings?.oauth?.credentials?.access_token;
+
+    if (!accessToken) {
+      console.error('No access token found in connection settings');
+      console.error('Available settings keys:', Object.keys(connectionSettings?.settings || {}));
+      throw new Error('Gmail not connected - no access token available');
+    }
+
+    console.log('Gmail access token retrieved successfully');
+    return accessToken;
+  } catch (error) {
+    console.error('Error fetching Gmail connection:', error);
+    throw error;
   }
-  return accessToken;
 }
 
 export async function getUncachableGmailClient() {
