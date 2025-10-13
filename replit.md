@@ -44,6 +44,20 @@ Preferred communication style: Simple, everyday language.
     - Maintains proper form accessibility including keyboard (Enter key) submission on final step
     - Changed DELETE /api/leads/:id endpoint permissions from requireFullAdmin to requireRole(["master", "admin", "admin_jr", "seller", "management"]) to allow sellers and management to delete leads
 
+*   **Appointments with Unregistered Leads** (October 13, 2025):
+    - Modified appointments schema to support leads without user accounts:
+      - Made `clientId` nullable (previously required NOT NULL)
+      - Added optional fields: `leadId`, `leadEmail`, `leadPhone`, `leadName` for non-registered leads
+      - Added Zod validation requiring either `clientId` OR (`leadEmail` AND `leadName`)
+    - Updated POST `/api/seller/appointments/create-with-lead` endpoint:
+      - Now accepts leads without `userId` (no longer returns 400 error)
+      - Uses lead contact info (`leadId`, `leadEmail`, `leadPhone`, `leadName`) when lead is not registered
+      - Skips notification creation for non-registered leads (only notifies registered users)
+    - Enhanced appointment deletion permissions:
+      - Added `admin_jr` to global resource access list in requireResourceOwnership middleware
+      - Sellers and management can now delete appointments associated with their leads (verified via `leadId` and `registeredById` match)
+      - Property owners, clients, and assigned staff retain their deletion rights
+
 ## System Architecture
 The platform is built with a modern web stack, emphasizing a professional, responsive, and accessible user experience with full internationalization.
 
