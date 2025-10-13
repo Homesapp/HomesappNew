@@ -8092,7 +8092,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.delete("/api/leads/:id", isAuthenticated, requireFullAdmin, async (req: any, res) => {
+  app.delete("/api/leads/:id", isAuthenticated, requireRole(["master", "admin", "admin_jr", "seller", "management"]), async (req: any, res) => {
     try {
       const { id } = req.params;
       
