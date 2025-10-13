@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useQuery } from "@tanstack/react-query";
-import { insertPropertySchema, type InsertProperty, type Property, type Condominium, type CondominiumUnit, type Amenity } from "@shared/schema";
+import { insertPropertySchema, type InsertProperty, type Property, type Condominium, type CondominiumUnit, type Amenity, type Colony } from "@shared/schema";
 import {
   Dialog,
   DialogContent,
@@ -76,6 +76,11 @@ export function PropertyFormDialog({
   // Fetch approved amenities
   const { data: approvedAmenities = [] } = useQuery<Amenity[]>({
     queryKey: ["/api/amenities/approved"],
+  });
+
+  // Fetch approved colonies
+  const { data: colonies = [] } = useQuery<Colony[]>({
+    queryKey: ["/api/colonies/approved"],
   });
 
   const form = useForm<InsertProperty>({
@@ -346,6 +351,44 @@ export function PropertyFormDialog({
     }
   };
 
+  // Handle location (colony) selection/creation
+  const handleLocationChange = async (value: string) => {
+    try {
+      // Check if it's an existing colony name
+      const existingColony = colonies.find(c => c.name === value);
+      
+      if (existingColony) {
+        // Existing colony selected
+        form.setValue("location", value);
+      } else {
+        // New colony name - create it
+        await apiRequest<Colony>("/api/colonies/ensure", {
+          method: "POST",
+          body: JSON.stringify({ name: value }),
+        });
+        
+        form.setValue("location", value);
+        
+        // Invalidate colonies cache to refresh the list
+        await queryClient.invalidateQueries({ 
+          queryKey: ["/api/colonies/approved"] 
+        });
+        
+        toast({
+          title: "Colonia agregada",
+          description: `"${value}" ha sido agregada correctamente.`,
+        });
+      }
+    } catch (error) {
+      console.error("Error handling colony:", error);
+      toast({
+        title: "Error",
+        description: "No se pudo procesar la colonia.",
+        variant: "destructive",
+      });
+    }
+  };
+
   const onSubmit = async (data: InsertProperty) => {
     try {
       if (mode === "edit" && property) {
@@ -542,12 +585,17 @@ export function PropertyFormDialog({
                   name="location"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Ubicación *</FormLabel>
+                      <FormLabel>Colonia/Ubicación *</FormLabel>
                       <FormControl>
-                        <Input
-                          placeholder="Col. Centro, Ciudad de México"
-                          data-testid="input-location"
-                          {...field}
+                        <CreatableCombobox
+                          value={field.value || ""}
+                          onValueChange={handleLocationChange}
+                          options={colonies.map(c => ({ id: c.name, label: c.name }))}
+                          placeholder="Seleccionar o escribir colonia..."
+                          emptyText="No se encontraron colonias."
+                          createText="Crear"
+                          searchPlaceholder="Buscar o escribir nueva..."
+                          testId="select-location"
                         />
                       </FormControl>
                       <FormMessage />

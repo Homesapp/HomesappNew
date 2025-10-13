@@ -130,6 +130,7 @@ import {
   offerTokens,
   condominiums,
   condominiumUnits,
+  colonies,
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, and, inArray, desc, sql } from "drizzle-orm";
@@ -2450,6 +2451,78 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Error creating colony:", error);
       res.status(500).json({ message: "Failed to create colony" });
+    }
+  });
+
+  app.post("/api/colonies/ensure", isAuthenticated, async (req: any, res) => {
+    try {
+      let userId: string;
+      let isAdmin: boolean;
+      let userRole: string | null = null;
+
+      // Check if it's an admin session
+      if (req.session?.adminUser) {
+        userId = req.session.adminUser.id;
+        userRole = req.session.adminUser.role;
+        isAdmin = ["master", "admin"].includes(userRole);
+      } else {
+        const user = await ensureUserExists(req);
+        if (!user) {
+          return res.status(401).json({ message: "Usuario no encontrado" });
+        }
+        userId = user.id;
+        userRole = user.role;
+        isAdmin = user.role === "master" || user.role === "admin" || user.additionalRole === "admin";
+      }
+
+      const { name } = req.body;
+      if (!name || name.trim() === "") {
+        return res.status(400).json({ message: "El nombre de la colonia es requerido" });
+      }
+
+      // Search for existing colony by exact name (case-insensitive)
+      const existingColony = await db
+        .select()
+        .from(colonies)
+        .where(sql`LOWER(${colonies.name}) = LOWER(${name.trim()})`)
+        .limit(1);
+
+      if (existingColony.length > 0) {
+        return res.json(existingColony[0]);
+      }
+
+      // Generate slug from name
+      const slug = name.trim().toLowerCase()
+        .normalize("NFD").replace(/[\u0300-\u036f]/g, "") // Remove accents
+        .replace(/[^a-z0-9]+/g, "-") // Replace non-alphanumeric with hyphens
+        .replace(/^-+|-+$/g, ""); // Remove leading/trailing hyphens
+
+      // Create new colony
+      const approvalStatus = isAdmin ? "approved" : "pending_review";
+      const newColony = await storage.createColony({
+        name: name.trim(),
+        slug,
+        approvalStatus,
+        requestedBy: userId,
+      });
+
+      await createAuditLog(
+        req,
+        "create",
+        "colony",
+        newColony.id,
+        isAdmin ? `Colonia creada: ${name}` : `Colonia solicitada: ${name}`
+      );
+
+      // Invalidate cache if admin created (auto-approved)
+      if (isAdmin) {
+        await cache.invalidate(CacheKeys.coloniesApproved());
+      }
+
+      res.json(newColony);
+    } catch (error) {
+      console.error("Error ensuring colony:", error);
+      res.status(500).json({ message: "Failed to ensure colony exists" });
     }
   });
 
