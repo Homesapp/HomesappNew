@@ -28,6 +28,7 @@ import {
 } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import ButtonMultiSelect from "./ButtonMultiSelect";
+import { getPropertyTitle } from "@/lib/propertyHelpers";
 
 const leadFormSchema = insertLeadSchema.extend({
   firstName: z.string().min(1, "Nombre es requerido"),
@@ -103,9 +104,9 @@ export default function MultiStepLeadForm({ onSubmit, isPending, defaultValues }
 
   const isDuplicate = duplicateCheck?.isDuplicate;
 
-  // Propiedades para selector
+  // Propiedades para selector (usar search endpoint que incluye relaciones)
   const { data: properties = [] } = useQuery<any[]>({
-    queryKey: ["/api/properties"],
+    queryKey: ["/api/properties/search"],
   });
 
   const handleNext = async () => {
@@ -388,7 +389,7 @@ export default function MultiStepLeadForm({ onSubmit, isPending, defaultValues }
                                   <CheckCircle2 className="h-4 w-4 text-primary-foreground" />
                                 )}
                               </div>
-                              <span>{property.title}</span>
+                              <span>{getPropertyTitle(property)}</span>
                             </div>
                           </CommandItem>
                         ))}
@@ -407,7 +408,7 @@ export default function MultiStepLeadForm({ onSubmit, isPending, defaultValues }
                           className="text-xs gap-1"
                           data-testid={`badge-property-${propId}`}
                         >
-                          {property?.title || propId}
+                          {property ? getPropertyTitle(property) : propId}
                           <X
                             className="h-3 w-3 cursor-pointer"
                             onClick={() => {
