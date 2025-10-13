@@ -132,6 +132,7 @@ const translations: Record<Language, Record<string, string>> = {
     "login.registerLink": "Regístrate aquí",
     "login.orContinueWith": "O inicia sesión con",
     "login.continueWithReplit": "Continuar con Replit",
+    "login.googleSignIn": "Continuar con Google",
     "login.error": "Error al iniciar sesión",
     "login.errorDesc": "Credenciales inválidas. Verifica tu email y contraseña.",
     
@@ -175,6 +176,8 @@ const translations: Record<Language, Record<string, string>> = {
     "landing.feature4.desc": "Marketplace de proveedores para mantenimiento y servicios",
     "landing.createAccount": "Crear Cuenta Gratis",
     "landing.loginButton": "Iniciar Sesión",
+    "landing.orSignInWith": "O inicia sesión con",
+    "landing.googleSignIn": "Continuar con Google",
     
     // Client Dashboard
     "clientDashboard.welcome": "Bienvenido,",
@@ -984,6 +987,7 @@ const translations: Record<Language, Record<string, string>> = {
     "login.registerLink": "Register here",
     "login.orContinueWith": "Or continue with",
     "login.continueWithReplit": "Continue with Replit",
+    "login.googleSignIn": "Continue with Google",
     "login.error": "Login error",
     "login.errorDesc": "Invalid credentials. Check your email and password.",
     
@@ -1027,6 +1031,8 @@ const translations: Record<Language, Record<string, string>> = {
     "landing.feature4.desc": "Marketplace of providers for maintenance and services",
     "landing.createAccount": "Create Free Account",
     "landing.loginButton": "Login",
+    "landing.orSignInWith": "Or sign in with",
+    "landing.googleSignIn": "Continue with Google",
     
     // Client Dashboard
     "clientDashboard.welcome": "Welcome,",
