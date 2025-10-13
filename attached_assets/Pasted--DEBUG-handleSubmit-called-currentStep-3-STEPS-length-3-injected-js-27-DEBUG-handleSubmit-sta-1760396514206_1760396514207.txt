@@ -1,0 +1,116 @@
+[DEBUG] handleSubmit called - currentStep: 3 STEPS.length: 3
+injected.js:27 [DEBUG] handleSubmit stack trace
+(anonymous) @ injected.js:27
+handleSubmit @ MultiStepLeadForm.tsx:131
+(anonymous) @ chunk-4BFJKWC4.js?v=3ad6907c:1465
+await in (anonymous)
+callCallback2 @ chunk-RPCDYKBN.js?v=3ad6907c:3674
+invokeGuardedCallbackDev @ chunk-RPCDYKBN.js?v=3ad6907c:3699
+invokeGuardedCallback @ chunk-RPCDYKBN.js?v=3ad6907c:3733
+invokeGuardedCallbackAndCatchFirstError @ chunk-RPCDYKBN.js?v=3ad6907c:3736
+executeDispatch @ chunk-RPCDYKBN.js?v=3ad6907c:7014
+processDispatchQueueItemsInOrder @ chunk-RPCDYKBN.js?v=3ad6907c:7034
+processDispatchQueue @ chunk-RPCDYKBN.js?v=3ad6907c:7043
+dispatchEventsForPlugins @ chunk-RPCDYKBN.js?v=3ad6907c:7051
+(anonymous) @ chunk-RPCDYKBN.js?v=3ad6907c:7174
+batchedUpdates$1 @ chunk-RPCDYKBN.js?v=3ad6907c:18913
+batchedUpdates @ chunk-RPCDYKBN.js?v=3ad6907c:3579
+dispatchEventForPluginEventSystem @ chunk-RPCDYKBN.js?v=3ad6907c:7173
+dispatchEventWithEnableCapturePhaseSelectiveHydrationWithoutDiscreteEventReplay @ chunk-RPCDYKBN.js?v=3ad6907c:5478
+dispatchEvent @ chunk-RPCDYKBN.js?v=3ad6907c:5472
+dispatchDiscreteEvent @ chunk-RPCDYKBN.js?v=3ad6907c:5449
+injected.js:27 [DEBUG] Submitting lead: {firstName: '1233123123', lastName: '1231231231', email: 'maximaaaaianorocca@gmail.com', phone: '9841231233', source: Array(0), …}
+6631-b96c71bd6c247aac.js:1 WebSocket is already in CLOSING or CLOSED state.
+send @ 6631-b96c71bd6c247aac.js:1
+J @ 6631-b96c71bd6c247aac.js:1
+send @ 6631-b96c71bd6c247aac.js:1
+(anonymous) @ 6631-b96c71bd6c247aac.js:1
+(anonymous) @ 6631-b96c71bd6c247aac.js:1
+(anonymous) @ 6631-b96c71bd6c247aac.js:1
+apply @ 6631-b96c71bd6c247aac.js:1
+(anonymous) @ 3824-2613a88a3f83c688.js:1
+(anonymous) @ main-4bbce70bdebfda86.js:1
+n @ main-4bbce70bdebfda86.js:1
+u @ main-4bbce70bdebfda86.js:1
+(anonymous) @ main-4bbce70bdebfda86.js:1
+(anonymous) @ main-4bbce70bdebfda86.js:1
+(anonymous) @ 3824-2613a88a3f83c688.js:1
+(anonymous) @ 3824-2613a88a3f83c688.js:1
+(anonymous) @ main-4bbce70bdebfda86.js:1
+n @ main-4bbce70bdebfda86.js:1
+u @ main-4bbce70bdebfda86.js:1
+(anonymous) @ main-4bbce70bdebfda86.js:1
+(anonymous) @ main-4bbce70bdebfda86.js:1
+wait @ 3824-2613a88a3f83c688.js:1
+u @ 3082-96f1d659bd8fbe03.js:1
+(anonymous) @ 3082-96f1d659bd8fbe03.js:1
+n @ _app-35ecfd9528f4857f.js:28
+setTimeout
+(anonymous) @ _app-35ecfd9528f4857f.js:28
+Object.assign.isScheduled @ 3082-96f1d659bd8fbe03.js:1
+(anonymous) @ 3824-2613a88a3f83c688.js:1
+n @ 3824-2613a88a3f83c688.js:1
+n @ _app-35ecfd9528f4857f.js:28
+6631-b96c71bd6c247aac.js:1 WebSocket is already in CLOSING or CLOSED state.
+send @ 6631-b96c71bd6c247aac.js:1
+J @ 6631-b96c71bd6c247aac.js:1
+send @ 6631-b96c71bd6c247aac.js:1
+(anonymous) @ 6631-b96c71bd6c247aac.js:1
+(anonymous) @ 6631-b96c71bd6c247aac.js:1
+(anonymous) @ 6631-b96c71bd6c247aac.js:1
+apply @ 6631-b96c71bd6c247aac.js:1
+(anonymous) @ 3824-2613a88a3f83c688.js:1
+(anonymous) @ main-4bbce70bdebfda86.js:1
+n @ main-4bbce70bdebfda86.js:1
+u @ main-4bbce70bdebfda86.js:1
+(anonymous) @ main-4bbce70bdebfda86.js:1
+(anonymous) @ main-4bbce70bdebfda86.js:1
+(anonymous) @ 3824-2613a88a3f83c688.js:1
+(anonymous) @ 3824-2613a88a3f83c688.js:1
+(anonymous) @ main-4bbce70bdebfda86.js:1
+n @ main-4bbce70bdebfda86.js:1
+u @ main-4bbce70bdebfda86.js:1
+(anonymous) @ main-4bbce70bdebfda86.js:1
+(anonymous) @ main-4bbce70bdebfda86.js:1
+wait @ 3824-2613a88a3f83c688.js:1
+u @ 3082-96f1d659bd8fbe03.js:1
+(anonymous) @ 3082-96f1d659bd8fbe03.js:1
+n @ _app-35ecfd9528f4857f.js:28
+setTimeout
+(anonymous) @ _app-35ecfd9528f4857f.js:28
+Object.assign.isScheduled @ 3082-96f1d659bd8fbe03.js:1
+(anonymous) @ 3824-2613a88a3f83c688.js:1
+n @ 3824-2613a88a3f83c688.js:1
+n @ _app-35ecfd9528f4857f.js:28
+6631-b96c71bd6c247aac.js:1 WebSocket is already in CLOSING or CLOSED state.
+send @ 6631-b96c71bd6c247aac.js:1
+J @ 6631-b96c71bd6c247aac.js:1
+send @ 6631-b96c71bd6c247aac.js:1
+(anonymous) @ 6631-b96c71bd6c247aac.js:1
+(anonymous) @ 6631-b96c71bd6c247aac.js:1
+(anonymous) @ 6631-b96c71bd6c247aac.js:1
+apply @ 6631-b96c71bd6c247aac.js:1
+(anonymous) @ 3824-2613a88a3f83c688.js:1
+(anonymous) @ main-4bbce70bdebfda86.js:1
+n @ main-4bbce70bdebfda86.js:1
+u @ main-4bbce70bdebfda86.js:1
+(anonymous) @ main-4bbce70bdebfda86.js:1
+(anonymous) @ main-4bbce70bdebfda86.js:1
+(anonymous) @ 3824-2613a88a3f83c688.js:1
+(anonymous) @ 3824-2613a88a3f83c688.js:1
+(anonymous) @ main-4bbce70bdebfda86.js:1
+n @ main-4bbce70bdebfda86.js:1
+u @ main-4bbce70bdebfda86.js:1
+(anonymous) @ main-4bbce70bdebfda86.js:1
+(anonymous) @ main-4bbce70bdebfda86.js:1
+wait @ 3824-2613a88a3f83c688.js:1
+u @ 3082-96f1d659bd8fbe03.js:1
+(anonymous) @ 3082-96f1d659bd8fbe03.js:1
+n @ _app-35ecfd9528f4857f.js:28
+setTimeout
+(anonymous) @ _app-35ecfd9528f4857f.js:28
+Object.assign.isScheduled @ 3082-96f1d659bd8fbe03.js:1
+(anonymous) @ 3824-2613a88a3f83c688.js:1
+n @ 3824-2613a88a3f83c688.js:1
+n @ _app-35ecfd9528f4857f.js:28
+6631-b96c71bd6c247aac.js:1 WebSocket is already in CLOSING or CLOSED state.
