@@ -24,7 +24,7 @@ The platform employs unified middleware for consistent authentication and automa
 ### Key Features
 *   **Role-Based Access Control**: Granular permissions across all user types with admin direct role assignment capability. Admins can update both primary and additional roles for any user via the user management interface (PATCH /api/admin/users/:userId/role).
 *   **Advanced Appointment System**: Dual-type scheduling with concierge assignment, dynamic slot availability, and post-appointment client features. Sellers and admins can independently manage appointments with their registered leads through a dedicated appointment management interface accessible via sidebar navigation (/seller/appointments). Supports manual property entry for properties not yet in the database - sellers and admins can specify condominium name and unit number directly when scheduling appointments, allowing work to begin while property data is being loaded. The system automatically detects and preserves manual property information during editing and displays it with clear visual indicators across all views.
-*   **Property Management Lifecycle**: Features property approval workflows with two-stage publication system (approved → published), owner change requests, sublease functionality, comprehensive photo editing, and a 5-step property submission wizard with digital agreement signing. Properties must be both "approved" and "published" to appear on the public home page for security reasons.
+*   **Property Management Lifecycle**: Features property approval workflows with two-stage publication system (approved → published), owner change requests, sublease functionality, comprehensive photo editing, and a 7-step property submission wizard with private owner data collection and digital agreement signing. Properties must be both "approved" and "published" to appear on the public home page for security reasons.
     - **Property Approval States**: 
       - draft: Borrador, aún no enviada
       - pending_review: Enviada, esperando revisión inicial
@@ -77,3 +77,10 @@ The platform employs unified middleware for consistent authentication and automa
 
 ## Recent Changes (October 2025)
 *   **Email Integration Migration**: Successfully migrated from Resend to Gmail API for all transactional emails including password reset, verification codes, offer links, and notifications. All email functionality now uses the Gmail integration (server/gmail.ts) with proper UTF-8 encoding and error handling.
+*   **Private Owner Data Collection**: Enhanced property submission wizard from 5 to 7 steps, adding Step 6 for private owner and referral data collection:
+    - Owner contact information (first name, last name, WhatsApp, email) stored in private property fields
+    - Optional referral contact data for commission tracking
+    - Document upload capability for owner identity and property documents
+    - Documents automatically categorized (persona_fisica/persona_moral/optional) and saved to propertyDocuments table when admin approves submission
+    - Data transformer (draftToPropertyData) maps owner/referral fields from draft.ownerData to property columns
+    - Enhanced approvePropertySubmissionDraft method handles document persistence with proper categorization
