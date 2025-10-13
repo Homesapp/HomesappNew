@@ -187,7 +187,7 @@ export default function MultiStepLeadForm({ onSubmit, isPending, defaultValues }
       </div>
 
       <Form {...form}>
-        <form onSubmit={form.handleSubmit(handleSubmit)} className="space-y-4">
+        <form onSubmit={(e) => { e.preventDefault(); }} className="space-y-4">
           {/* Step 1: Basic Information */}
           {currentStep === 1 && (
             <div className="space-y-4">
@@ -541,7 +541,11 @@ export default function MultiStepLeadForm({ onSubmit, isPending, defaultValues }
               </Button>
             ) : (
               <Button
-                type="submit"
+                type="button"
+                onClick={() => {
+                  console.log('[DEBUG] Submit button clicked explicitly');
+                  form.handleSubmit(handleSubmit)();
+                }}
                 disabled={isPending || isDuplicate}
                 data-testid="button-submit-lead"
               >
