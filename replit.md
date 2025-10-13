@@ -38,6 +38,12 @@ Preferred communication style: Simple, everyday language.
     - Edit dialog title dynamically changes between "Crear Nuevo Lead" and "Editar Lead" based on context
     - All interactive elements have proper data-testid attributes for testing (button-edit-lead, button-delete-lead, dialog-delete-confirmation)
 
+*   **Lead Form Auto-Submit Bug Fix** (October 13, 2025):
+    - Fixed critical bug where leads were auto-created when reaching Step 3 without explicit user action
+    - Added guard in handleSubmit() to prevent form submission on steps 1 and 2 (only allows submit when currentStep === STEPS.length)
+    - Maintains proper form accessibility including keyboard (Enter key) submission on final step
+    - Changed DELETE /api/leads/:id endpoint permissions from requireFullAdmin to requireRole(["master", "admin", "admin_jr", "seller", "management"]) to allow sellers and management to delete leads
+
 ## System Architecture
 The platform is built with a modern web stack, emphasizing a professional, responsive, and accessible user experience with full internationalization.
 
