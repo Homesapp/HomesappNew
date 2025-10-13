@@ -12,8 +12,11 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, Di
 import { Skeleton } from "@/components/ui/skeleton";
 import { useToast } from "@/hooks/use-toast";
 import { queryClient, apiRequest } from "@/lib/queryClient";
-import { CheckCircle2, XCircle, Clock, FileText, Search, Filter, Home, Building2, MapPin, Bed, Bath, DollarSign, Eye, CheckSquare, XSquare, MoreVertical, Key, User, Lock, Copy, Shield, Star } from "lucide-react";
+import { CheckCircle2, XCircle, Clock, FileText, Search, Filter, Home, Building2, MapPin, Bed, Bath, DollarSign, Eye, CheckSquare, XSquare, MoreVertical, Key, User, Lock, Copy, Shield, Star, Trash2, Edit, Calendar } from "lucide-react";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
+import { PropertyFormDialog } from "@/components/PropertyFormDialog";
+import { useNavigate } from "wouter";
 
 type AccessInfo = 
   | {
@@ -67,11 +70,16 @@ type PropertyStats = {
 export default function AdminPropertyManagement() {
   const { t } = useLanguage();
   const { toast } = useToast();
+  const navigate = useNavigate();
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedStatus, setSelectedStatus] = useState<string>("all");
   const [selectedType, setSelectedType] = useState<string>("all");
   const [selectedProperties, setSelectedProperties] = useState<string[]>([]);
   const [detailProperty, setDetailProperty] = useState<Property | null>(null);
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [propertyToDelete, setPropertyToDelete] = useState<Property | null>(null);
+  const [editDialogOpen, setEditDialogOpen] = useState(false);
+  const [propertyToEdit, setPropertyToEdit] = useState<Property | null>(null);
 
   // Fetch appointments for selected property
   const { data: propertyAppointments = [] } = useQuery({
@@ -208,6 +216,20 @@ export default function AdminPropertyManagement() {
     },
     onError: () => {
       toast({ title: "Error", description: "No se pudo actualizar el estado destacado", variant: "destructive" });
+    },
+  });
+
+  // Delete property mutation
+  const deleteMutation = useMutation({
+    mutationFn: (propertyId: string) =>
+      apiRequest("DELETE", `/api/properties/${propertyId}`, {}),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/properties"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/properties/stats"] });
+      toast({ title: "Propiedad eliminada", description: "La propiedad ha sido eliminada permanentemente" });
+    },
+    onError: () => {
+      toast({ title: "Error", description: "No se pudo eliminar la propiedad", variant: "destructive" });
     },
   });
 
@@ -536,7 +558,7 @@ export default function AdminPropertyManagement() {
                         </div>
                       </div>
 
-                      <div className="flex gap-2">
+                      <div className="flex flex-wrap gap-2">
                         <Dialog>
                           <DialogTrigger asChild>
                             <Button
@@ -546,7 +568,7 @@ export default function AdminPropertyManagement() {
                               onClick={() => setDetailProperty(property)}
                             >
                               <Eye className="w-4 h-4 mr-2" />
-                              Ver Detalles
+                              Ver
                             </Button>
                           </DialogTrigger>
                           <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
@@ -869,6 +891,42 @@ export default function AdminPropertyManagement() {
                           </DialogContent>
                         </Dialog>
 
+                        <Button
+                          data-testid={`button-edit-${property.id}`}
+                          size="sm"
+                          variant="outline"
+                          onClick={() => {
+                            setPropertyToEdit(property);
+                            setEditDialogOpen(true);
+                          }}
+                        >
+                          <Edit className="w-4 h-4 mr-2" />
+                          Editar
+                        </Button>
+
+                        <Button
+                          data-testid={`button-schedule-${property.id}`}
+                          size="sm"
+                          variant="outline"
+                          onClick={() => navigate(`/admin/appointments/new?propertyId=${property.id}`)}
+                        >
+                          <Calendar className="w-4 h-4 mr-2" />
+                          Agendar
+                        </Button>
+
+                        <Button
+                          data-testid={`button-delete-${property.id}`}
+                          size="sm"
+                          variant="destructive"
+                          onClick={() => {
+                            setPropertyToDelete(property);
+                            setDeleteDialogOpen(true);
+                          }}
+                        >
+                          <Trash2 className="w-4 h-4 mr-2" />
+                          Eliminar
+                        </Button>
+
                         {property.approvalStatus === "pending_review" && (
                           <>
                             <Button
@@ -931,6 +989,51 @@ export default function AdminPropertyManagement() {
           )}
         </CardContent>
       </Card>
+
+      {/* Delete Confirmation Dialog */}
+      <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+        <AlertDialogContent data-testid="dialog-delete-property">
+          <AlertDialogHeader>
+            <AlertDialogTitle data-testid="dialog-delete-title">
+              ¿Eliminar propiedad?
+            </AlertDialogTitle>
+            <AlertDialogDescription data-testid="dialog-delete-description">
+              Esta acción no se puede deshacer. Se eliminará permanentemente la propiedad "{propertyToDelete?.title}".
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel data-testid="button-cancel-delete">
+              Cancelar
+            </AlertDialogCancel>
+            <AlertDialogAction
+              data-testid="button-confirm-delete"
+              onClick={() => {
+                if (propertyToDelete) {
+                  deleteMutation.mutate(propertyToDelete.id);
+                  setDeleteDialogOpen(false);
+                  setPropertyToDelete(null);
+                }
+              }}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              Eliminar
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Edit Property Dialog */}
+      <PropertyFormDialog
+        open={editDialogOpen}
+        onOpenChange={(open) => {
+          setEditDialogOpen(open);
+          if (!open) {
+            setPropertyToEdit(null);
+          }
+        }}
+        property={propertyToEdit || undefined}
+        mode="edit"
+      />
     </div>
   );
 }
