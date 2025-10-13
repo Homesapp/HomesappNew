@@ -33,6 +33,7 @@ import {
 import { type Lead, insertLeadSchema } from "@shared/schema";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
+import { useUsersByRole } from "@/hooks/useUsers";
 import GenerateOfferLinkDialog from "@/components/GenerateOfferLinkDialog";
 import { MultiSelectWithManual } from "@/components/MultiSelectWithManual";
 import MultiStepLeadForm from "@/components/MultiStepLeadForm";
@@ -239,6 +240,8 @@ export default function LeadsKanban() {
   const { data: properties = [] } = useQuery<any[]>({
     queryKey: ["/api/properties/search"],
   });
+
+  const { data: sellers = [] } = useUsersByRole("seller");
 
   const createLeadMutation = useMutation({
     mutationFn: async (data: any) => {
