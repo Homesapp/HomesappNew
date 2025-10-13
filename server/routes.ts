@@ -2747,6 +2747,72 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Simplified endpoint to ensure condominium exists (create if needed)
+  app.post("/api/condominiums/ensure", isAuthenticated, async (req: any, res) => {
+    try {
+      let userId: string;
+      let isAdmin: boolean;
+      let userRole: string | null = null;
+
+      // Check if it's an admin session
+      if (req.session?.adminUser) {
+        userId = req.session.adminUser.id;
+        userRole = req.session.adminUser.role;
+        isAdmin = ["master", "admin"].includes(userRole);
+      } else {
+        const user = await ensureUserExists(req);
+        if (!user) {
+          return res.status(401).json({ message: "Usuario no encontrado" });
+        }
+        userId = user.id;
+        userRole = user.role;
+        isAdmin = user.role === "master" || user.role === "admin" || user.additionalRole === "admin";
+      }
+
+      const { name } = req.body;
+      if (!name || name.trim() === "") {
+        return res.status(400).json({ message: "El nombre del condominio es requerido" });
+      }
+
+      // Search for existing condominium by exact name (case-insensitive)
+      const existingCondo = await db
+        .select()
+        .from(condominiums)
+        .where(sql`LOWER(${condominiums.name}) = LOWER(${name.trim()})`)
+        .limit(1);
+
+      if (existingCondo.length > 0) {
+        return res.json(existingCondo[0]);
+      }
+
+      // Create new condominium
+      const approvalStatus = isAdmin ? "approved" : "pending_review";
+      const newCondo = await storage.createCondominium({
+        name: name.trim(),
+        approvalStatus,
+        requestedBy: userId,
+      });
+
+      await createAuditLog(
+        req,
+        "create",
+        "condominium",
+        newCondo.id,
+        isAdmin ? `Condominio creado: ${name}` : `Condominio solicitado: ${name}`
+      );
+
+      // Invalidate cache if admin created (auto-approved)
+      if (isAdmin) {
+        await cache.invalidate(CacheKeys.condominiumsApproved());
+      }
+
+      res.json(newCondo);
+    } catch (error) {
+      console.error("Error ensuring condominium:", error);
+      res.status(500).json({ message: "Failed to ensure condominium exists" });
+    }
+  });
+
   app.patch("/api/admin/condominiums/:id/approve", isAuthenticated, requireFullAdmin, async (req: any, res) => {
     try {
       const { id } = req.params;
@@ -3077,6 +3143,89 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Error fetching condominium stats:", error);
       res.status(500).json({ message: "Failed to fetch condominium stats" });
+    }
+  });
+
+  // Public endpoint to get units for a condominium
+  app.get("/api/condominiums/:condominiumId/units", async (req, res) => {
+    try {
+      const { condominiumId } = req.params;
+      
+      const units = await db
+        .select()
+        .from(condominiumUnits)
+        .where(eq(condominiumUnits.condominiumId, condominiumId));
+
+      res.json(units);
+    } catch (error) {
+      console.error("Error fetching units:", error);
+      res.status(500).json({ message: "Failed to fetch units" });
+    }
+  });
+
+  // Simplified endpoint to ensure unit exists (create if needed)
+  app.post("/api/condominiums/:condominiumId/units/ensure", isAuthenticated, async (req: any, res) => {
+    try {
+      let userId: string;
+      let isAdmin: boolean;
+      let userRole: string | null = null;
+
+      // Check if it's an admin session
+      if (req.session?.adminUser) {
+        userId = req.session.adminUser.id;
+        userRole = req.session.adminUser.role;
+        isAdmin = ["master", "admin"].includes(userRole);
+      } else {
+        const user = await ensureUserExists(req);
+        if (!user) {
+          return res.status(401).json({ message: "Usuario no encontrado" });
+        }
+        userId = user.id;
+        userRole = user.role;
+        isAdmin = user.role === "master" || user.role === "admin" || user.additionalRole === "admin";
+      }
+
+      const { condominiumId } = req.params;
+      const { unitNumber } = req.body;
+
+      if (!unitNumber || unitNumber.trim() === "") {
+        return res.status(400).json({ message: "El número de unidad es requerido" });
+      }
+
+      // Search for existing unit in this condominium with exact unit number
+      const existingUnit = await db
+        .select()
+        .from(condominiumUnits)
+        .where(
+          and(
+            eq(condominiumUnits.condominiumId, condominiumId),
+            sql`LOWER(${condominiumUnits.unitNumber}) = LOWER(${unitNumber.trim()})`
+          )
+        )
+        .limit(1);
+
+      if (existingUnit.length > 0) {
+        return res.json(existingUnit[0]);
+      }
+
+      // Create new unit
+      const newUnit = await storage.createCondominiumUnit({
+        condominiumId,
+        unitNumber: unitNumber.trim(),
+      });
+
+      await createAuditLog(
+        req,
+        "create",
+        "condominium_unit",
+        newUnit.id,
+        `Unidad creada: ${unitNumber} en condominio ${condominiumId}`
+      );
+
+      res.json(newUnit);
+    } catch (error) {
+      console.error("Error ensuring unit:", error);
+      res.status(500).json({ message: "Failed to ensure unit exists" });
     }
   });
 
