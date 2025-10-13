@@ -142,12 +142,13 @@ export const propertyDocumentTypeEnum = pgEnum("property_document_type", [
   "recibo_agua",
   "recibo_luz",
   "recibo_internet",
+  "reglas_internas",
+  "reglamento_condominio",
   "comprobante_no_adeudo",
   // Persona Moral
   "acta_constitutiva",
-  // Opcionales
-  "reglas_internas",
-  "reglamento_condominio",
+  "poder_notarial",
+  "identificacion_representante",
 ]);
 
 export const roleRequestStatusEnum = pgEnum("role_request_status", [
@@ -894,6 +895,16 @@ export const properties = pgTable("properties", {
   wizardMode: wizardModeEnum("wizard_mode").default("simple"), // Modo de wizard: simple o extendido
   includedServices: jsonb("included_services"), // Servicios incluidos en renta (agua, luz, internet)
   acceptedLeaseDurations: text("accepted_lease_durations").array().default(sql`ARRAY[]::text[]`), // Duraciones de contrato aceptadas
+  // Datos privados del propietario real
+  ownerFirstName: text("owner_first_name"), // Nombre del propietario
+  ownerLastName: text("owner_last_name"), // Apellidos del propietario
+  ownerPhone: varchar("owner_phone", { length: 20 }), // Teléfono WhatsApp del propietario
+  ownerEmail: varchar("owner_email", { length: 255 }), // Email del propietario (opcional)
+  // Datos del referido (quien trajo al propietario)
+  referredByName: text("referred_by_name"), // Nombre del referido
+  referredByLastName: text("referred_by_last_name"), // Apellidos del referido
+  referredByPhone: varchar("referred_by_phone", { length: 20 }), // Teléfono WhatsApp del referido
+  referredByEmail: varchar("referred_by_email", { length: 255 }), // Email del referido (opcional)
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
 }, (table) => [
