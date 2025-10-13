@@ -196,8 +196,16 @@ export function PropertyFormDialog({
     try {
       if (mode === "edit" && property) {
         await updateMutation.mutateAsync({ id: property.id, data });
+        toast({
+          title: "Propiedad actualizada",
+          description: "Los cambios se han guardado correctamente.",
+        });
       } else {
         await createMutation.mutateAsync(data);
+        toast({
+          title: "Propiedad creada",
+          description: "La propiedad se ha agregado correctamente.",
+        });
       }
       setImageFiles([]);
       form.reset();
@@ -205,6 +213,11 @@ export function PropertyFormDialog({
       onOpenChange(false);
     } catch (error) {
       console.error("Form submission error:", error);
+      toast({
+        title: "Error",
+        description: "No se pudo guardar la propiedad. Intente nuevamente.",
+        variant: "destructive",
+      });
     }
   };
 
