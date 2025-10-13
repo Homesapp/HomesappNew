@@ -16,7 +16,7 @@ import {
   User, Phone, Mail, Building, Image, Video, Map, Scan,
   CheckCircle2, XCircle, Home, Wifi, Droplets, Zap, Flame, Wrench,
   ChevronLeft, ChevronRight, X, Dumbbell, Trees, Car, Shield,
-  Waves, UtensilsCrossed, Dog, Wind, Snowflake
+  Waves, UtensilsCrossed, Dog, Wind, Snowflake, TrendingUp
 } from "lucide-react";
 import { type Property } from "@shared/schema";
 import { AppointmentSchedulingDialog } from "@/components/AppointmentSchedulingDialog";
@@ -28,7 +28,7 @@ import { getPropertyTitle } from "@/lib/propertyHelpers";
 export default function PropertyFullDetails() {
   const [, params] = useRoute("/propiedad/:id/completo");
   const [, setLocation] = useLocation();
-  const { isAuthenticated } = useAuth();
+  const { isAuthenticated, user: authUser, adminUser } = useAuth();
   const { toast } = useToast();
   const [showAppointmentDialog, setShowAppointmentDialog] = useState(false);
   const [showAuthDialog, setShowAuthDialog] = useState(false);
@@ -663,6 +663,57 @@ export default function PropertyFullDetails() {
                 )}
               </CardContent>
             </Card>
+
+            {/* Referral Information - Admin Only */}
+            {adminUser && (property.referredByName || property.referredByLastName || property.referredByPhone || property.referredByEmail || property.referralPercent) && (
+              <Card className="mt-6">
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <User className="h-5 w-5" />
+                    Información del Referido (Solo Admin)
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    {(property.referredByName || property.referredByLastName) && (
+                      <div>
+                        <div className="text-sm text-muted-foreground mb-1">Nombre Completo</div>
+                        <div className="font-medium">
+                          {[property.referredByName, property.referredByLastName].filter(Boolean).join(' ')}
+                        </div>
+                      </div>
+                    )}
+                    {property.referredByPhone && (
+                      <div>
+                        <div className="text-sm text-muted-foreground mb-1">Teléfono</div>
+                        <div className="font-medium flex items-center gap-2">
+                          <Phone className="h-4 w-4" />
+                          {property.referredByPhone}
+                        </div>
+                      </div>
+                    )}
+                    {property.referredByEmail && (
+                      <div>
+                        <div className="text-sm text-muted-foreground mb-1">Email</div>
+                        <div className="font-medium flex items-center gap-2">
+                          <Mail className="h-4 w-4" />
+                          {property.referredByEmail}
+                        </div>
+                      </div>
+                    )}
+                    {property.referralPercent && (
+                      <div>
+                        <div className="text-sm text-muted-foreground mb-1">Porcentaje de Comisión</div>
+                        <div className="font-medium flex items-center gap-2">
+                          <TrendingUp className="h-4 w-4" />
+                          {property.referralPercent}%
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                </CardContent>
+              </Card>
+            )}
             </div>
           </div>
         </div>
