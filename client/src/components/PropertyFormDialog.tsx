@@ -281,9 +281,9 @@ export function PropertyFormDialog({
     const fieldsToValidate: Record<number, (keyof InsertProperty)[]> = {
       1: ["condominiumId", "unitNumber", "description", "location", "status"],
       2: ["bedrooms", "bathrooms", "area", "price", "currency"],
-      3: ["amenities", "ownerId"],
+      3: ["amenities"],
       4: ["images"],
-      5: ["ownerFirstName", "ownerLastName", "ownerPhone"], // ownerEmail is optional
+      5: ["ownerFirstName", "ownerLastName", "ownerPhone", "ownerId"], // ownerEmail is optional, ownerId is now in step 5
     };
 
     const fields = fieldsToValidate[step];
@@ -624,24 +624,6 @@ export function PropertyFormDialog({
                               .filter((a) => a.length > 0);
                             field.onChange(amenities);
                           }}
-                        />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-
-                <FormField
-                  control={form.control}
-                  name="ownerId"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>ID del Propietario *</FormLabel>
-                      <FormControl>
-                        <Input
-                          placeholder="ID del usuario propietario"
-                          data-testid="input-owner-id"
-                          {...field}
                         />
                       </FormControl>
                       <FormMessage />

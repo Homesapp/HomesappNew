@@ -11,6 +11,7 @@ import { requireResourceOwnership } from "./middleware/resourceOwnership";
 import { createGoogleMeetEvent, deleteGoogleMeetEvent } from "./googleCalendar";
 import { calculateRentalCommissions } from "./commissionCalculator";
 import { sendVerificationEmail, sendLeadVerificationEmail, sendDuplicateLeadNotification, sendOwnerReferralVerificationEmail, sendOwnerReferralApprovedNotification, sendOfferLinkEmail } from "./gmail";
+import { getPropertyTitle } from "./propertyHelpers";
 import { setupGoogleAuth } from "./googleAuth";
 import { generateOfferPDF } from "./pdfGenerator";
 import { processChatbotMessage, generatePropertyRecommendations } from "./chatbot";
@@ -3711,7 +3712,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         "create",
         "property",
         property.id,
-        `Propiedad creada: ${property.title} - ${property.location}`
+        `Propiedad creada: ${getPropertyTitle(property)} - ${property.location}`
       );
       
       res.status(201).json(property);
@@ -3750,7 +3751,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         "update",
         "property",
         id,
-        `Propiedad actualizada: ${updatedProperty.title}`
+        `Propiedad actualizada: ${getPropertyTitle(updatedProperty)}`
       );
       
       res.json(updatedProperty);
@@ -3780,7 +3781,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         "delete",
         "property",
         id,
-        `Propiedad eliminada: ${property.title} - ${property.location}`
+        `Propiedad eliminada: ${getPropertyTitle(property)} - ${property.location}`
       );
 
       await storage.deleteProperty(id);
@@ -4048,7 +4049,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         "update",
         "property",
         id,
-        `Estado de propiedad cambiado a ${ownerStatus} - ${property.title}`
+        `Estado de propiedad cambiado a ${ownerStatus} - ${getPropertyTitle(property)}`
       );
 
       res.json(updatedProperty);
