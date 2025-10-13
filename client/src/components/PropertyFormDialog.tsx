@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useQuery } from "@tanstack/react-query";
-import { insertPropertySchema, type InsertProperty, type Property, type Condominium, type CondominiumUnit } from "@shared/schema";
+import { insertPropertySchema, type InsertProperty, type Property, type Condominium, type CondominiumUnit, type Amenity } from "@shared/schema";
 import {
   Dialog,
   DialogContent,
@@ -35,6 +35,7 @@ import { useToast } from "@/hooks/use-toast";
 import { Badge } from "@/components/ui/badge";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
+import { Checkbox } from "@/components/ui/checkbox";
 
 interface PropertyFormDialogProps {
   open: boolean;
@@ -70,6 +71,11 @@ export function PropertyFormDialog({
     enabled: !!selectedCondoId,
   });
 
+  // Fetch approved amenities
+  const { data: approvedAmenities = [] } = useQuery<Amenity[]>({
+    queryKey: ["/api/amenities/approved"],
+  });
+
   const form = useForm<InsertProperty>({
     resolver: zodResolver(insertPropertySchema),
     defaultValues: {
@@ -89,6 +95,7 @@ export function PropertyFormDialog({
       managementId: undefined,
       active: true,
       accessInfo: undefined,
+      referralPercent: "20.00",
     },
   });
 
@@ -143,6 +150,7 @@ export function PropertyFormDialog({
         referredByLastName: property.referredByLastName || "",
         referredByPhone: property.referredByPhone || "",
         referredByEmail: property.referredByEmail || "",
+        referralPercent: property.referralPercent || "20.00",
       });
       
       // Load existing images
@@ -180,6 +188,7 @@ export function PropertyFormDialog({
         referredByLastName: "",
         referredByPhone: "",
         referredByEmail: "",
+        referralPercent: "20.00",
       });
       setImageFiles([]);
     }
@@ -291,7 +300,7 @@ export function PropertyFormDialog({
     
     // Additional validation for referral if enabled
     if (step === 5 && hasReferral) {
-      const referralFields: (keyof InsertProperty)[] = ["referredByName", "referredByLastName", "referredByPhone"];
+      const referralFields: (keyof InsertProperty)[] = ["referredByName", "referredByLastName", "referredByPhone", "referralPercent"];
       const referralResult = await form.trigger(referralFields);
       return result && referralResult;
     }
@@ -611,21 +620,32 @@ export function PropertyFormDialog({
                   name="amenities"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Amenidades (separadas por comas)</FormLabel>
-                      <FormControl>
-                        <Input
-                          placeholder="Estacionamiento, Gimnasio, Alberca"
-                          data-testid="input-amenities"
-                          value={field.value?.join(", ") || ""}
-                          onChange={(e) => {
-                            const amenities = e.target.value
-                              .split(",")
-                              .map((a) => a.trim())
-                              .filter((a) => a.length > 0);
-                            field.onChange(amenities);
-                          }}
-                        />
-                      </FormControl>
+                      <FormLabel>Amenidades</FormLabel>
+                      <div className="grid grid-cols-2 gap-3 mt-2">
+                        {approvedAmenities.map((amenity) => (
+                          <div key={amenity.id} className="flex items-center space-x-2">
+                            <Checkbox
+                              id={`amenity-${amenity.id}`}
+                              checked={field.value?.includes(amenity.name) || false}
+                              onCheckedChange={(checked) => {
+                                const current = field.value || [];
+                                if (checked) {
+                                  field.onChange([...current, amenity.name]);
+                                } else {
+                                  field.onChange(current.filter((a) => a !== amenity.name));
+                                }
+                              }}
+                              data-testid={`checkbox-amenity-${amenity.name.toLowerCase().replace(/\s+/g, '-')}`}
+                            />
+                            <label
+                              htmlFor={`amenity-${amenity.id}`}
+                              className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 cursor-pointer"
+                            >
+                              {amenity.name}
+                            </label>
+                          </div>
+                        ))}
+                      </div>
                       <FormMessage />
                     </FormItem>
                   )}
@@ -846,6 +866,25 @@ export function PropertyFormDialog({
                       )}
                     />
                   </div>
+
+                  <FormField
+                    control={form.control}
+                    name="ownerId"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>ID del Usuario Propietario *</FormLabel>
+                        <FormControl>
+                          <Input
+                            placeholder="ID del usuario registrado como propietario"
+                            data-testid="input-owner-id"
+                            {...field}
+                            value={field.value || ""}
+                          />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
                 </div>
 
                 <Separator />
@@ -946,6 +985,29 @@ export function PropertyFormDialog({
                           </FormItem>
                         )}
                       />
+
+                      <FormField
+                        control={form.control}
+                        name="referralPercent"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Porcentaje de Comisión (%)</FormLabel>
+                            <FormControl>
+                              <Input
+                                type="number"
+                                step="0.01"
+                                min="0"
+                                max="100"
+                                placeholder="20.00"
+                                data-testid="input-referral-percent"
+                                {...field}
+                                value={field.value || ""}
+                              />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
                     </div>
                   )}
                 </div>
@@ -971,6 +1033,48 @@ export function PropertyFormDialog({
                       <li>Reglas internas o del condominio</li>
                       <li>Otros documentos relevantes</li>
                     </ul>
+                  </div>
+
+                  <div>
+                    <input
+                      type="file"
+                      id="document-upload"
+                      className="hidden"
+                      accept=".pdf,.doc,.docx,.jpg,.jpeg,.png"
+                      multiple
+                      onChange={(e) => {
+                        const files = e.target.files;
+                        if (!files) return;
+                        
+                        Array.from(files).forEach((file) => {
+                          const reader = new FileReader();
+                          reader.onloadend = () => {
+                            setDocuments((prev) => [
+                              ...prev,
+                              {
+                                type: file.type,
+                                url: reader.result as string,
+                                name: file.name,
+                              },
+                            ]);
+                          };
+                          reader.readAsDataURL(file);
+                        });
+                        
+                        // Reset input
+                        e.target.value = "";
+                      }}
+                      data-testid="input-document-upload"
+                    />
+                    <Button
+                      type="button"
+                      variant="outline"
+                      onClick={() => document.getElementById("document-upload")?.click()}
+                      data-testid="button-upload-documents"
+                    >
+                      <Upload className="w-4 h-4 mr-2" />
+                      Subir Documentos
+                    </Button>
                   </div>
 
                   {documents.length > 0 && (
