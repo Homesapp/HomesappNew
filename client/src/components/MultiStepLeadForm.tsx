@@ -34,7 +34,6 @@ const leadFormSchema = insertLeadSchema.extend({
   firstName: z.string().min(1, "Nombre es requerido"),
   lastName: z.string().min(1, "Apellido es requerido"),
   phone: z.string().min(10, "Teléfono debe tener al menos 10 dígitos"),
-  budget: z.coerce.number().min(1, "Presupuesto es requerido"),
 });
 
 type LeadFormData = z.infer<typeof leadFormSchema>;
@@ -68,7 +67,7 @@ export default function MultiStepLeadForm({ onSubmit, isPending, defaultValues }
       lastName: "",
       email: "",
       phone: "",
-      budget: 0,
+      budget: "",
       source: [],
       contractDuration: [],
       moveInDate: [],
@@ -278,7 +277,7 @@ export default function MultiStepLeadForm({ onSubmit, isPending, defaultValues }
                   <FormItem>
                     <FormLabel>Presupuesto *</FormLabel>
                     <FormControl>
-                      <Input {...field} type="number" placeholder="50000" data-testid="input-budget" />
+                      <Input {...field} type="text" placeholder="50000" data-testid="input-budget" />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
