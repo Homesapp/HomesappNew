@@ -24,8 +24,8 @@ export const requireResourceOwnership = (
         return res.status(401).json({ message: "User not found" });
       }
 
-      // Admin and Master can access all resources
-      if (["admin", "master"].includes(user.role)) {
+      // Admin, Admin Jr, and Master can access all resources
+      if (["admin", "admin_jr", "master"].includes(user.role)) {
         return next();
       }
 
@@ -103,7 +103,7 @@ export const requireResourceOwnership = (
       // Check ownership based on resource type and field
       const resourceOwnerId = resource[ownerField];
       
-      // For appointments, check clientId, assignedToId, and property owner (if property exists)
+      // For appointments, check clientId, assignedToId, property owner, and lead owner (for sellers)
       if (resourceType === 'appointment') {
         const isClient = resource.clientId === userId;
         const isAssigned = resource.assignedToId === userId;
@@ -115,7 +115,14 @@ export const requireResourceOwnership = (
           isPropertyOwner = property?.ownerId === userId;
         }
         
-        if (!isClient && !isAssigned && !isPropertyOwner) {
+        // Check if user is a seller who owns the lead associated with this appointment
+        let isLeadOwner = false;
+        if (resource.leadId && (user.role === "seller" || user.role === "management")) {
+          const lead = await storage.getLead(resource.leadId);
+          isLeadOwner = lead?.registeredById === userId;
+        }
+        
+        if (!isClient && !isAssigned && !isPropertyOwner && !isLeadOwner) {
           return res.status(403).json({ 
             message: "Forbidden: You don't have permission to modify this appointment" 
           });

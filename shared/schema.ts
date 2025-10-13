@@ -1797,10 +1797,16 @@ export type TenantMoveInForm = typeof tenantMoveInForms.$inferSelect;
 export const appointments = pgTable("appointments", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   propertyId: varchar("property_id").references(() => properties.id, { onDelete: "cascade" }), // Ahora opcional
-  clientId: varchar("client_id").notNull().references(() => users.id),
+  clientId: varchar("client_id").references(() => users.id), // Nullable para soportar leads no registrados
   conciergeId: varchar("concierge_id").references(() => users.id),
   presentationCardId: varchar("presentation_card_id").references(() => presentationCards.id), // Tarjeta de presentación requerida
   opportunityRequestId: varchar("opportunity_request_id").references(() => rentalOpportunityRequests.id, { onDelete: "set null" }), // Link to SOR
+  
+  // Campos para leads no registrados (cuando clientId es null)
+  leadId: varchar("lead_id").references(() => leads.id, { onDelete: "set null" }), // ID del lead si viene de CRM
+  leadEmail: varchar("lead_email"), // Email del lead no registrado
+  leadPhone: varchar("lead_phone"), // Teléfono del lead no registrado
+  leadName: text("lead_name"), // Nombre completo del lead no registrado
   
   // Campos para propiedades no registradas en el sistema
   condominiumName: text("condominium_name"), // Nombre del condominio
@@ -1856,11 +1862,23 @@ export const appointments = pgTable("appointments", {
   index("idx_appointments_status_date").on(table.status, table.date),
 ]);
 
-export const insertAppointmentSchema = createInsertSchema(appointments).omit({
-  id: true,
-  createdAt: true,
-  updatedAt: true,
-});
+export const insertAppointmentSchema = createInsertSchema(appointments)
+  .omit({
+    id: true,
+    createdAt: true,
+    updatedAt: true,
+  })
+  .refine(
+    (data) => {
+      // Must have either clientId OR (leadEmail AND leadName)
+      const hasClient = !!data.clientId;
+      const hasLeadInfo = !!data.leadEmail && !!data.leadName;
+      return hasClient || hasLeadInfo;
+    },
+    {
+      message: "Debe proporcionar clientId o (leadEmail y leadName) para la cita",
+    }
+  );
 
 export type InsertAppointment = z.infer<typeof insertAppointmentSchema>;
 export type Appointment = typeof appointments.$inferSelect;

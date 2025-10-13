@@ -9204,15 +9204,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ message: "Solo puedes crear citas con propiedades publicadas" });
       }
 
-      // Convert lead to client if not already a user
-      let clientId = lead.userId;
-      if (!clientId) {
-        // Lead doesn't have a user account yet - use the lead's ID as placeholder
-        // In a real scenario, you might want to create a temporary user or handle this differently
-        return res.status(400).json({ 
-          message: "El lead debe estar registrado como usuario antes de crear una cita. Por favor, invita al lead a registrarse primero." 
-        });
-      }
+      // Use clientId if lead is registered, otherwise use lead contact info
+      const clientId = lead.userId || undefined;
+      const leadContactInfo = !clientId ? {
+        leadId: lead.id,
+        leadEmail: lead.email,
+        leadPhone: lead.phoneNumber || undefined,
+        leadName: `${lead.firstName} ${lead.lastName}`,
+      } : {};
 
       // Create Google Meet event if type is video
       let meetLink = null;
@@ -9242,6 +9241,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const appointment = await storage.createAppointment({
         propertyId,
         clientId,
+        ...leadContactInfo, // Include lead info if no clientId
         date: new Date(date),
         type,
         mode: "individual",
@@ -9268,16 +9268,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
         `${user?.role} creó cita con lead ${lead.firstName} ${lead.lastName} para ${property.title}`
       );
 
-      // Notify client about the appointment
-      await storage.createNotification({
-        userId: clientId,
-        type: "appointment",
-        title: "Nueva Cita Agendada",
-        message: `Se ha agendado una cita para visitar ${property.title} el ${new Date(date).toLocaleDateString()}`,
-        relatedEntityType: "appointment",
-        relatedEntityId: appointment.id,
-        priority: "high",
-      });
+      // Notify client about the appointment (only if registered user)
+      if (clientId) {
+        await storage.createNotification({
+          userId: clientId,
+          type: "appointment",
+          title: "Nueva Cita Agendada",
+          message: `Se ha agendado una cita para visitar ${property.title} el ${new Date(date).toLocaleDateString()}`,
+          relatedEntityType: "appointment",
+          relatedEntityId: appointment.id,
+          priority: "high",
+        });
+      }
 
       res.status(201).json(appointment);
     } catch (error: any) {
