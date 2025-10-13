@@ -37,6 +37,7 @@ import { useUsersByRole } from "@/hooks/useUsers";
 import GenerateOfferLinkDialog from "@/components/GenerateOfferLinkDialog";
 import { MultiSelectWithManual } from "@/components/MultiSelectWithManual";
 import MultiStepLeadForm from "@/components/MultiStepLeadForm";
+import { getPropertyTitle } from "@/lib/propertyHelpers";
 import { AlertCircle } from "lucide-react";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -848,7 +849,10 @@ export default function LeadsKanban() {
                   <div>
                     <p className="text-sm text-muted-foreground">Registrado por:</p>
                     <p className="font-medium">
-                      {sellers?.find((s: any) => s.id === selectedLeadDetails.registeredById)?.fullName || "No asignado"}
+                      {(() => {
+                        const seller = sellers?.find((s: any) => s.id === selectedLeadDetails.registeredById);
+                        return seller ? `${seller.firstName} ${seller.lastName}` : "No asignado";
+                      })()}
                     </p>
                   </div>
                 </div>
@@ -929,6 +933,37 @@ export default function LeadsKanban() {
                 </div>
 
                 <Separator />
+
+                {/* Propiedades de Interés */}
+                {selectedLeadDetails.propertyInterests && selectedLeadDetails.propertyInterests.length > 0 && (
+                  <>
+                    <div className="space-y-4">
+                      <h3 className="text-lg font-semibold flex items-center gap-2">
+                        <FileText className="h-5 w-5" />
+                        Propiedades de Interés ({selectedLeadDetails.propertyInterests.length})
+                      </h3>
+                      <div className="space-y-2">
+                        {selectedLeadDetails.propertyInterests.map((propId: string) => {
+                          const property = properties.find((p: any) => p.id === propId);
+                          return property ? (
+                            <Card key={propId}>
+                              <CardContent className="p-4">
+                                <p className="font-medium">{getPropertyTitle(property)}</p>
+                                {property.monthlyRent && (
+                                  <p className="text-sm text-muted-foreground">
+                                    Renta: {formatCurrency(property.monthlyRent)}/mes
+                                  </p>
+                                )}
+                              </CardContent>
+                            </Card>
+                          ) : null;
+                        })}
+                      </div>
+                    </div>
+
+                    <Separator />
+                  </>
+                )}
 
                 {/* Citas */}
                 <div className="space-y-4">
