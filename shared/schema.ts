@@ -591,7 +591,8 @@ export const upsertUserSchema = createInsertSchema(users).pick({
   firstName: true,
   lastName: true,
   profileImageUrl: true,
-});
+  role: true,
+}).partial({ role: true });
 
 export const insertUserSchema = createInsertSchema(users).omit({
   id: true,

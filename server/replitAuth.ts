@@ -62,13 +62,20 @@ function updateUserSession(
 }
 
 async function upsertUser(claims: any) {
-  await storage.upsertUser({
+  const userData: any = {
     id: claims["sub"],
     email: claims["email"],
     firstName: claims["first_name"],
     lastName: claims["last_name"],
     profileImageUrl: claims["profile_image_url"],
-  });
+  };
+
+  // In development mode, allow setting role from OIDC claims for testing
+  if (process.env.NODE_ENV === "development" && claims["roles"] && Array.isArray(claims["roles"]) && claims["roles"].length > 0) {
+    userData.role = claims["roles"][0];
+  }
+
+  await storage.upsertUser(userData);
 }
 
 export async function setupAuth(app: Express) {

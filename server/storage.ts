@@ -1026,17 +1026,24 @@ export class DatabaseStorage implements IStorage {
       return existingUser;
     } else {
       // Insert new user
+      const updateFields: any = {
+        firstName: userData.firstName,
+        lastName: userData.lastName,
+        profileImageUrl: userData.profileImageUrl,
+        updatedAt: new Date(),
+      };
+
+      // Include role in update if provided (for development mode OIDC testing)
+      if (userData.role) {
+        updateFields.role = userData.role;
+      }
+
       const [user] = await db
         .insert(users)
         .values(userData)
         .onConflictDoUpdate({
           target: users.id,
-          set: {
-            firstName: userData.firstName,
-            lastName: userData.lastName,
-            profileImageUrl: userData.profileImageUrl,
-            updatedAt: new Date(),
-          },
+          set: updateFields,
         })
         .returning();
       return user;
