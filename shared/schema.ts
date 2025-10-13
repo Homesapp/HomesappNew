@@ -2769,6 +2769,7 @@ export const propertySubmissionDrafts = pgTable("property_submission_drafts", {
   media: jsonb("media"), // images, videos, virtualTourUrl
   servicesInfo: jsonb("services_info"), // servicios incluidos y duraciones de contrato
   accessInfo: jsonb("access_info"), // información de acceso a la propiedad
+  ownerData: jsonb("owner_data"), // datos privados del propietario, referido y documentos
   commercialTerms: jsonb("commercial_terms"), // rental/sale specific terms
   termsAcceptance: jsonb("terms_acceptance"), // acceptance flags and timestamp
   // Property type selection

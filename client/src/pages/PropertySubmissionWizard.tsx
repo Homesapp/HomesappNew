@@ -14,9 +14,10 @@ import Step2LocationDetails from "@/components/wizard/Step2LocationDetails";
 import Step3Media from "@/components/wizard/Step5Media";
 import Step4Services from "@/components/wizard/Step4Services";
 import Step5AccessInfo from "@/components/wizard/Step5AccessInfo";
-import Step6TermsReview from "@/components/wizard/Step5TermsReview";
+import Step6OwnerData from "@/components/wizard/Step6OwnerData";
+import Step7TermsReview from "@/components/wizard/Step5TermsReview";
 
-const TOTAL_STEPS = 6;
+const TOTAL_STEPS = 7;
 
 type WizardData = {
   isForRent: boolean;
@@ -27,6 +28,7 @@ type WizardData = {
   media?: any;
   servicesInfo?: any;
   accessInfo?: any;
+  ownerData?: any;
   commercialTerms?: any;
 };
 
@@ -63,6 +65,7 @@ export default function PropertySubmissionWizard() {
           media: draft.media,
           servicesInfo: draft.servicesInfo,
           accessInfo: draft.accessInfo,
+          ownerData: draft.ownerData,
           commercialTerms: draft.commercialTerms,
         });
         // Set last saved to show the indicator after reload
@@ -261,7 +264,16 @@ export default function PropertySubmissionWizard() {
         );
       case 6:
         return (
-          <Step6TermsReview
+          <Step6OwnerData
+            data={wizardData}
+            onUpdate={updateWizardData}
+            onNext={(stepData) => handleNext(stepData)}
+            onPrevious={handlePrevious}
+          />
+        );
+      case 7:
+        return (
+          <Step7TermsReview
             data={wizardData}
             draftId={draftId}
             onUpdate={updateWizardData}
