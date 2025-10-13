@@ -1041,12 +1041,14 @@ export default function AdminCondominiums() {
                           <CardTitle className="text-lg truncate" data-testid={`text-amenity-name-${amenity.id}`}>
                             {amenity.name}
                           </CardTitle>
-                          {!amenity.active && (
-                            <Badge variant="destructive" className="mt-1">Suspendida</Badge>
-                          )}
                         </div>
                       </div>
-                      {getStatusBadge(amenity.approvalStatus)}
+                      <div className="flex gap-2">
+                        {!amenity.active && (
+                          <Badge variant="destructive">Suspendida</Badge>
+                        )}
+                        {getStatusBadge(amenity.approvalStatus)}
+                      </div>
                     </div>
                     <CardDescription>
                       <div className="flex items-center gap-2">
