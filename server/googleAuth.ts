@@ -83,7 +83,13 @@ export function setupGoogleAuth(app: Express) {
       failureRedirect: "/login?error=google_auth_failed",
     }),
     (req, res) => {
-      // Successful authentication, redirect to home
+      // Successful authentication
+      console.log("Google OAuth callback successful");
+      console.log("User authenticated:", req.isAuthenticated());
+      console.log("User data:", req.user);
+      console.log("Session ID:", req.sessionID);
+      
+      // Redirect to home
       res.redirect("/");
     }
   );
