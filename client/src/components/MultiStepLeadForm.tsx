@@ -534,6 +534,13 @@ export default function MultiStepLeadForm({ onSubmit, isPending, defaultValues }
                 type="submit"
                 disabled={isPending || isDuplicate}
                 data-testid="button-submit-lead"
+                onClick={() => {
+                  console.log("Submit button clicked");
+                  console.log("Form state:", form.formState);
+                  console.log("Form values:", form.getValues());
+                  console.log("Form errors:", form.formState.errors);
+                  console.log("Is valid:", form.formState.isValid);
+                }}
               >
                 {isPending ? "Guardando..." : "Crear Lead"}
               </Button>
