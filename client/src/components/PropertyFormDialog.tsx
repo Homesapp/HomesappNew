@@ -1,7 +1,8 @@
 import { useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { insertPropertySchema, type InsertProperty, type Property } from "@shared/schema";
+import { useQuery } from "@tanstack/react-query";
+import { insertPropertySchema, type InsertProperty, type Property, type Condominium, type CondominiumUnit } from "@shared/schema";
 import {
   Dialog,
   DialogContent,
@@ -56,11 +57,22 @@ export function PropertyFormDialog({
   const totalSteps = 5;
   const [hasReferral, setHasReferral] = useState(false);
   const [documents, setDocuments] = useState<Array<{ type: string; url: string; name: string }>>([]);
+  const [selectedCondoId, setSelectedCondoId] = useState<string>("");
+
+  // Fetch approved condominiums
+  const { data: condominiums = [] } = useQuery<Condominium[]>({
+    queryKey: ["/api/condominiums/approved"],
+  });
+
+  // Fetch units for selected condominium
+  const { data: units = [] } = useQuery<CondominiumUnit[]>({
+    queryKey: ["/api/condominiums", selectedCondoId, "units"],
+    enabled: !!selectedCondoId,
+  });
 
   const form = useForm<InsertProperty>({
     resolver: zodResolver(insertPropertySchema),
     defaultValues: {
-      title: "",
       description: "",
       price: "0",
       currency: "MXN",
@@ -68,6 +80,8 @@ export function PropertyFormDialog({
       bathrooms: "1",
       area: "0",
       location: "",
+      condominiumId: "",
+      unitNumber: "",
       status: "rent",
       amenities: [],
       images: [],
@@ -89,6 +103,11 @@ export function PropertyFormDialog({
     if (property && mode === "edit") {
       const accessInfo = property.accessInfo as { lockboxCode?: string; contactPerson?: string; contactPhone?: string } | null;
       
+      // Set selected condominium for unit loading
+      if (property.condominiumId) {
+        setSelectedCondoId(property.condominiumId);
+      }
+      
       // Check if referral data exists
       const hasExistingReferral = Boolean(
         property.referredByName || 
@@ -98,7 +117,6 @@ export function PropertyFormDialog({
       setHasReferral(hasExistingReferral);
       
       form.reset({
-        title: property.title,
         description: property.description || "",
         price: property.price,
         currency: property.currency,
@@ -106,6 +124,8 @@ export function PropertyFormDialog({
         bathrooms: property.bathrooms,
         area: property.area,
         location: property.location,
+        condominiumId: property.condominiumId,
+        unitNumber: property.unitNumber,
         status: property.status,
         amenities: property.amenities || [],
         images: property.images || [],
@@ -134,7 +154,6 @@ export function PropertyFormDialog({
     } else if (mode === "create") {
       setHasReferral(false);
       form.reset({
-        title: "",
         description: "",
         price: "0",
         currency: "MXN",
@@ -142,6 +161,8 @@ export function PropertyFormDialog({
         bathrooms: "1",
         area: "0",
         location: "",
+        condominiumId: "",
+        unitNumber: "",
         status: "rent",
         amenities: [],
         images: [],
@@ -258,7 +279,7 @@ export function PropertyFormDialog({
 
   const validateStep = async (step: number): Promise<boolean> => {
     const fieldsToValidate: Record<number, (keyof InsertProperty)[]> = {
-      1: ["title", "description", "location", "status"],
+      1: ["condominiumId", "unitNumber", "description", "location", "status"],
       2: ["bedrooms", "bathrooms", "area", "price", "currency"],
       3: ["amenities", "ownerId"],
       4: ["images"],
@@ -354,17 +375,59 @@ export function PropertyFormDialog({
               <div className="space-y-4">
                 <FormField
                   control={form.control}
-                  name="title"
+                  name="condominiumId"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Título *</FormLabel>
-                      <FormControl>
-                        <Input
-                          placeholder="Casa moderna en zona residencial"
-                          data-testid="input-title"
-                          {...field}
-                        />
-                      </FormControl>
+                      <FormLabel>Condominio *</FormLabel>
+                      <Select
+                        onValueChange={(value) => {
+                          field.onChange(value);
+                          setSelectedCondoId(value);
+                        }}
+                        value={field.value || ""}
+                      >
+                        <FormControl>
+                          <SelectTrigger data-testid="select-condominium">
+                            <SelectValue placeholder="Seleccionar condominio" />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          {condominiums.map((condo) => (
+                            <SelectItem key={condo.id} value={condo.id}>
+                              {condo.name}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                <FormField
+                  control={form.control}
+                  name="unitNumber"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Número de Unidad *</FormLabel>
+                      <Select
+                        onValueChange={field.onChange}
+                        value={field.value || ""}
+                        disabled={!selectedCondoId}
+                      >
+                        <FormControl>
+                          <SelectTrigger data-testid="select-unit-number">
+                            <SelectValue placeholder={selectedCondoId ? "Seleccionar unidad" : "Primero selecciona un condominio"} />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          {units.map((unit) => (
+                            <SelectItem key={unit.id} value={unit.unitNumber}>
+                              {unit.unitNumber}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
                       <FormMessage />
                     </FormItem>
                   )}

@@ -17,6 +17,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { LoadingScreen } from "@/components/ui/loading-screen";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { LanguageToggle } from "@/components/LanguageToggle";
+import { getPropertyTitle } from "@/lib/propertyHelpers";
 import logoIcon from "@assets/H mes (500 x 300 px)_1759672952263.png";
 
 interface SearchFilters {
@@ -488,7 +489,7 @@ export default function PropertySearch() {
                         <div className="h-36 bg-muted relative overflow-hidden">
                           <img
                             src={property.primaryImages[0]}
-                            alt={property.title}
+                            alt={getPropertyTitle(property)}
                             className="w-full h-full object-cover"
                           />
                           {isAuthenticated && (
@@ -531,7 +532,7 @@ export default function PropertySearch() {
                         </div>
                       )}
                       <CardHeader className="pb-2 pt-3">
-                        <CardTitle className="line-clamp-1 text-base">{property.title}</CardTitle>
+                        <CardTitle className="line-clamp-1 text-base">{getPropertyTitle(property)}</CardTitle>
                         <CardDescription className="line-clamp-1 text-xs">
                           {property.description || "Sin descripción"}
                         </CardDescription>

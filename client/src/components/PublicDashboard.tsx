@@ -10,6 +10,7 @@ import { useQuery } from "@tanstack/react-query";
 import { type Property, type Colony, type Condominium } from "@shared/schema";
 import { LanguageToggle } from "@/components/LanguageToggle";
 import { useLanguage } from "@/contexts/LanguageContext";
+import { getPropertyTitle } from "@/lib/propertyHelpers";
 import {
   Carousel,
   CarouselContent,
@@ -312,7 +313,7 @@ export default function PublicDashboard() {
                         {property.primaryImages && property.primaryImages[0] ? (
                           <img
                             src={property.primaryImages[0]}
-                            alt={property.title}
+                            alt={getPropertyTitle(property)}
                             className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-110"
                             data-testid={`img-property-${property.id}`}
                           />
@@ -330,7 +331,7 @@ export default function PublicDashboard() {
                       </div>
                       <div className="p-4">
                         <h3 className="mb-2 text-lg font-semibold truncate" data-testid={`text-title-${property.id}`}>
-                          {property.title}
+                          {getPropertyTitle(property)}
                         </h3>
                         <p className="mb-3 flex items-center text-sm text-muted-foreground" data-testid={`text-location-${property.id}`}>
                           <MapPin className="mr-1 h-4 w-4" />
@@ -618,7 +619,7 @@ export default function PublicDashboard() {
                   {property.primaryImages && property.primaryImages[0] ? (
                     <img
                       src={property.primaryImages[0]}
-                      alt={property.title}
+                      alt={getPropertyTitle(property)}
                       className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-110"
                       data-testid={`img-all-property-${property.id}`}
                     />
@@ -636,7 +637,7 @@ export default function PublicDashboard() {
                 </div>
                 <div className="p-3">
                   <h3 className="mb-1 truncate font-semibold" data-testid={`text-all-title-${property.id}`}>
-                    {property.title}
+                    {getPropertyTitle(property)}
                   </h3>
                   <p className="mb-2 flex items-center truncate text-sm text-muted-foreground" data-testid={`text-all-location-${property.id}`}>
                     <MapPin className="mr-1 h-3 w-3" />

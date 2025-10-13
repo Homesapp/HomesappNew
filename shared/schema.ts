@@ -846,7 +846,6 @@ export type UserLogin = z.infer<typeof userLoginSchema>;
 // Properties table
 export const properties = pgTable("properties", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
-  title: text("title").notNull(),
   description: text("description"),
   propertyType: text("property_type").notNull().default("house"),
   price: decimal("price", { precision: 12, scale: 2 }).notNull(),
@@ -858,12 +857,11 @@ export const properties = pgTable("properties", {
   location: text("location").notNull(),
   colonyId: varchar("colony_id").references(() => colonies.id),
   colonyName: text("colony_name"),
-  customListingTitle: varchar("custom_listing_title", { length: 60 }),
   status: propertyStatusEnum("status").notNull(),
   unitType: text("unit_type").notNull().default("private"),
-  condominiumId: varchar("condominium_id").references(() => condominiums.id),
+  condominiumId: varchar("condominium_id").notNull().references(() => condominiums.id),
   condoName: text("condo_name"),
-  unitNumber: text("unit_number"),
+  unitNumber: text("unit_number").notNull(),
   showCondoInListing: boolean("show_condo_in_listing").notNull().default(true),
   showUnitNumberInListing: boolean("show_unit_number_in_listing").notNull().default(true),
   images: text("images").array().default(sql`ARRAY[]::text[]`),
@@ -980,7 +978,6 @@ export const insertPropertySchema = createInsertSchema(properties).omit({
 }).extend({
   accessInfo: accessInfoSchema,
   includedServices: includedServicesSchema,
-  customListingTitle: z.string().max(60, "El título personalizado no puede exceder 60 caracteres").optional(),
 });
 
 export type InsertProperty = z.infer<typeof insertPropertySchema>;

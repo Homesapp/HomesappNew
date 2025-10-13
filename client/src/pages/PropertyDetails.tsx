@@ -10,6 +10,7 @@ import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/useAuth";
 import { LoadingScreen } from "@/components/ui/loading-screen";
 import { useFavoriteStatus, useToggleFavorite } from "@/hooks/useFavorites";
+import { getPropertyTitle } from "@/lib/propertyHelpers";
 
 export default function PropertyDetails() {
   const [, params] = useRoute("/propiedad/:id");
@@ -86,7 +87,7 @@ export default function PropertyDetails() {
             <div className="h-96 bg-muted relative overflow-hidden">
               <img
                 src={property.primaryImages[0]}
-                alt={property.title}
+                alt={getPropertyTitle(property)}
                 className="w-full h-full object-cover"
               />
               {property.featured && (
@@ -144,7 +145,7 @@ export default function PropertyDetails() {
         <CardContent className="py-6">
           <div className="flex items-start justify-between mb-4">
             <div>
-              <h1 className="text-3xl font-bold mb-2">{property.title}</h1>
+              <h1 className="text-3xl font-bold mb-2">{getPropertyTitle(property)}</h1>
               <div className="flex items-center gap-2 text-muted-foreground">
                 <MapPin className="h-5 w-5" />
                 <span className="text-lg">{property.location}</span>

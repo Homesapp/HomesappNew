@@ -36,6 +36,7 @@ import {
 } from "@/components/ui/table";
 import { useForm } from "react-hook-form";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
+import { getPropertyTitle } from "@/lib/propertyHelpers";
 import { format } from "date-fns";
 import { es } from "date-fns/locale";
 
@@ -201,9 +202,9 @@ export default function RentalsKanban() {
     return applications.filter((app) => statuses.includes(app.status));
   };
 
-  const getPropertyTitle = (propertyId: string) => {
+  const getPropertyTitleById = (propertyId: string) => {
     const property = properties.find((p: any) => p.id === propertyId);
-    return property?.title || "Propiedad";
+    return getPropertyTitle(property);
   };
 
   const getApplicantName = (applicantId: string) => {
@@ -524,7 +525,7 @@ export default function RentalsKanban() {
                             <div className="flex items-start justify-between gap-2">
                               <div className="flex-1 min-w-0">
                                 <h4 className="font-semibold text-sm truncate" data-testid="text-property-title">
-                                  {getPropertyTitle(application.propertyId)}
+                                  {getPropertyTitleById(application.propertyId)}
                                 </h4>
                                 <p className="text-xs text-muted-foreground truncate flex items-center gap-1">
                                   <User className="h-3 w-3 flex-shrink-0" />

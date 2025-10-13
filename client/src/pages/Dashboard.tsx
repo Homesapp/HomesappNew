@@ -14,6 +14,7 @@ import { useToast } from "@/hooks/use-toast";
 import { AppointmentCard } from "@/components/AppointmentCard";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { LanguageToggle } from "@/components/LanguageToggle";
+import { getPropertyTitle } from "@/lib/propertyHelpers";
 import { format } from "date-fns";
 import logoIcon from "@assets/H mes (500 x 300 px)_1759672952263.png";
 
@@ -287,7 +288,7 @@ export default function Dashboard() {
                     {property.primaryImages && property.primaryImages.length > 0 ? (
                       <img
                         src={property.primaryImages[0]}
-                        alt={property.title}
+                        alt={getPropertyTitle(property)}
                         className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-300"
                         data-testid={`img-featured-property-${property.id}`}
                       />
@@ -315,7 +316,7 @@ export default function Dashboard() {
                   </div>
                   <div className="p-4">
                     <h3 className="font-semibold mb-2 line-clamp-2 min-h-[2.75rem]" data-testid={`text-title-featured-${property.id}`}>
-                      {property.title}
+                      {getPropertyTitle(property)}
                     </h3>
                     <div className="flex items-center gap-2 text-sm text-muted-foreground mb-3">
                       <MapPin className="h-4 w-4 flex-shrink-0" />
@@ -391,7 +392,7 @@ export default function Dashboard() {
                     {property.primaryImages && property.primaryImages.length > 0 ? (
                       <img
                         src={property.primaryImages[0]}
-                        alt={property.title}
+                        alt={getPropertyTitle(property)}
                         className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-300"
                         data-testid={`img-all-property-${property.id}`}
                       />
@@ -408,7 +409,7 @@ export default function Dashboard() {
                   </div>
                   <div className="p-3">
                     <h3 className="font-semibold line-clamp-2 mb-2 min-h-[2.5rem] text-sm" data-testid={`text-title-all-${property.id}`}>
-                      {property.title}
+                      {getPropertyTitle(property)}
                     </h3>
                     <div className="flex items-center gap-1 text-xs text-muted-foreground mb-2">
                       <MapPin className="h-3 w-3 flex-shrink-0" />

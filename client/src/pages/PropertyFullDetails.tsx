@@ -23,6 +23,7 @@ import { AppointmentSchedulingDialog } from "@/components/AppointmentSchedulingD
 import { AuthRequiredDialog } from "@/components/AuthRequiredDialog";
 import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
+import { getPropertyTitle } from "@/lib/propertyHelpers";
 
 export default function PropertyFullDetails() {
   const [, params] = useRoute("/propiedad/:id/completo");
@@ -194,7 +195,7 @@ export default function PropertyFullDetails() {
                     >
                       <img
                         src={allImages[mainImageIndex]}
-                        alt={property.title}
+                        alt={getPropertyTitle(property)}
                         className="w-full h-full object-cover"
                         data-testid="img-main-property"
                       />
@@ -304,7 +305,7 @@ export default function PropertyFullDetails() {
 
               <CardContent className="py-6">
                 <h1 className="text-3xl md:text-4xl font-bold mb-3" data-testid="text-property-title">
-                  {property.title}
+                  {getPropertyTitle(property)}
                 </h1>
                 
                 {/* Price and Location Info */}
@@ -328,7 +329,7 @@ export default function PropertyFullDetails() {
                       </span>
                     </div>
                   )}
-                  {!property.condoName && property.title && (
+                  {!property.condoName && getPropertyTitle(property) && (
                     <div className="flex items-center gap-2 px-3 py-1 bg-muted rounded-md">
                       <Home className="h-4 w-4 text-muted-foreground" />
                       <span className="font-medium text-sm" data-testid="text-house-name">Casa</span>

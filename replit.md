@@ -6,6 +6,14 @@ HomesApp is a comprehensive SaaS platform for real estate property management in
 ## User Preferences
 Preferred communication style: Simple, everyday language.
 
+## Recent Changes (October 2025)
+*   **Property Title Standardization**: Major refactoring to eliminate custom property titles. All properties now use "CONDOMINIO - UNIDAD" format throughout the application.
+    - Database schema updated: removed `title` and `customListingTitle` columns, made `condominiumId` and `unitNumber` required (NOT NULL)
+    - Created centralized `getPropertyTitle()` helper function in `client/src/lib/propertyHelpers.ts` for consistent title formatting
+    - Updated PropertyFormDialog with cascading condominium/unit selectors instead of title input
+    - Updated all main property display views: Properties, PropertyDetails, PropertySearch, Dashboard, PublicDashboard, PropertyFullDetails, RentalsKanban
+    - Imported comprehensive location data: 31 colonies, 403 condominiums, 916 units from Tulum real estate inventory (DEVELOPMENT database only)
+
 ## System Architecture
 The platform is built with a modern web stack, emphasizing a professional, responsive, and accessible user experience with full internationalization.
 

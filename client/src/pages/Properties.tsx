@@ -24,6 +24,7 @@ import {
 import { Search, Plus, SlidersHorizontal } from "lucide-react";
 import { useProperties, useSearchProperties, useDeleteProperty } from "@/hooks/useProperties";
 import { useAuth } from "@/hooks/useAuth";
+import { getPropertyTitle } from "@/lib/propertyHelpers";
 import type { Property } from "@shared/schema";
 
 export default function Properties() {
@@ -156,7 +157,7 @@ export default function Properties() {
               <PropertyCard
                 key={property.id}
                 id={property.id}
-                title={property.title}
+                title={getPropertyTitle(property)}
                 price={Number(property.price)}
                 bedrooms={property.bedrooms}
                 bathrooms={Number(property.bathrooms)}
