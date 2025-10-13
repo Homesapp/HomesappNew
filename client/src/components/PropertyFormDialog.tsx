@@ -29,9 +29,11 @@ import {
 import { Separator } from "@/components/ui/separator";
 import { Button } from "@/components/ui/button";
 import { useCreateProperty, useUpdateProperty } from "@/hooks/useProperties";
-import { Loader2, Upload, X, ChevronLeft, ChevronRight, Check } from "lucide-react";
+import { Loader2, Upload, X, ChevronLeft, ChevronRight, Check, User, Users, FileText } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { Badge } from "@/components/ui/badge";
+import { Switch } from "@/components/ui/switch";
+import { Label } from "@/components/ui/label";
 
 interface PropertyFormDialogProps {
   open: boolean;
@@ -51,7 +53,9 @@ export function PropertyFormDialog({
   const updateMutation = useUpdateProperty();
   const [imageFiles, setImageFiles] = useState<{ name: string; data: string }[]>([]);
   const [currentStep, setCurrentStep] = useState(1);
-  const totalSteps = 4;
+  const totalSteps = 5;
+  const [hasReferral, setHasReferral] = useState(false);
+  const [documents, setDocuments] = useState<Array<{ type: string; url: string; name: string }>>([]);
 
   const form = useForm<InsertProperty>({
     resolver: zodResolver(insertPropertySchema),
@@ -84,6 +88,15 @@ export function PropertyFormDialog({
     
     if (property && mode === "edit") {
       const accessInfo = property.accessInfo as { lockboxCode?: string; contactPerson?: string; contactPhone?: string } | null;
+      
+      // Check if referral data exists
+      const hasExistingReferral = Boolean(
+        property.referredByName || 
+        property.referredByLastName || 
+        property.referredByPhone
+      );
+      setHasReferral(hasExistingReferral);
+      
       form.reset({
         title: property.title,
         description: property.description || "",
@@ -100,7 +113,18 @@ export function PropertyFormDialog({
         managementId: property.managementId || undefined,
         active: property.active,
         accessInfo: accessInfo || undefined,
+        // Owner private data
+        ownerFirstName: property.ownerFirstName || "",
+        ownerLastName: property.ownerLastName || "",
+        ownerPhone: property.ownerPhone || "",
+        ownerEmail: property.ownerEmail || "",
+        // Referral data
+        referredByName: property.referredByName || "",
+        referredByLastName: property.referredByLastName || "",
+        referredByPhone: property.referredByPhone || "",
+        referredByEmail: property.referredByEmail || "",
       });
+      
       // Load existing images
       const files = (property.images || []).map((data, index) => ({
         name: `Imagen ${index + 1}`,
@@ -108,6 +132,7 @@ export function PropertyFormDialog({
       }));
       setImageFiles(files);
     } else if (mode === "create") {
+      setHasReferral(false);
       form.reset({
         title: "",
         description: "",
@@ -124,6 +149,16 @@ export function PropertyFormDialog({
         managementId: undefined,
         active: true,
         accessInfo: undefined,
+        // Owner private data
+        ownerFirstName: "",
+        ownerLastName: "",
+        ownerPhone: "",
+        ownerEmail: "",
+        // Referral data
+        referredByName: "",
+        referredByLastName: "",
+        referredByPhone: "",
+        referredByEmail: "",
       });
       setImageFiles([]);
     }
@@ -227,10 +262,19 @@ export function PropertyFormDialog({
       2: ["bedrooms", "bathrooms", "area", "price", "currency"],
       3: ["amenities", "ownerId"],
       4: ["images"],
+      5: ["ownerFirstName", "ownerLastName", "ownerPhone"], // ownerEmail is optional
     };
 
     const fields = fieldsToValidate[step];
     const result = await form.trigger(fields);
+    
+    // Additional validation for referral if enabled
+    if (step === 5 && hasReferral) {
+      const referralFields: (keyof InsertProperty)[] = ["referredByName", "referredByLastName", "referredByPhone"];
+      const referralResult = await form.trigger(referralFields);
+      return result && referralResult;
+    }
+    
     return result;
   };
 
@@ -254,6 +298,7 @@ export function PropertyFormDialog({
     { number: 2, title: "Características" },
     { number: 3, title: "Amenidades y Acceso" },
     { number: 4, title: "Imágenes" },
+    { number: 5, title: "Propietario y Referido" },
   ];
 
   return (
@@ -662,6 +707,259 @@ export function PropertyFormDialog({
                     </p>
                   </div>
                 )}
+              </div>
+            )}
+
+            {/* Step 5: Datos del Propietario y Referido */}
+            {currentStep === 5 && (
+              <div className="space-y-6">
+                {/* Owner Data Section */}
+                <div className="space-y-4">
+                  <div className="flex items-center gap-2">
+                    <User className="w-5 h-5 text-primary" />
+                    <h3 className="text-lg font-semibold">Datos Privados del Propietario</h3>
+                  </div>
+                  <p className="text-sm text-muted-foreground">
+                    Información confidencial del propietario real (solo visible para administradores)
+                  </p>
+
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <FormField
+                      control={form.control}
+                      name="ownerFirstName"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Nombre(s) *</FormLabel>
+                          <FormControl>
+                            <Input
+                              placeholder="Juan Carlos"
+                              data-testid="input-owner-first-name"
+                              {...field}
+                              value={field.value || ""}
+                            />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+
+                    <FormField
+                      control={form.control}
+                      name="ownerLastName"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Apellidos *</FormLabel>
+                          <FormControl>
+                            <Input
+                              placeholder="García López"
+                              data-testid="input-owner-last-name"
+                              {...field}
+                              value={field.value || ""}
+                            />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+
+                    <FormField
+                      control={form.control}
+                      name="ownerPhone"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Teléfono WhatsApp *</FormLabel>
+                          <FormControl>
+                            <Input
+                              placeholder="+52 998 123 4567"
+                              data-testid="input-owner-phone"
+                              {...field}
+                              value={field.value || ""}
+                            />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+
+                    <FormField
+                      control={form.control}
+                      name="ownerEmail"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Email (opcional)</FormLabel>
+                          <FormControl>
+                            <Input
+                              type="email"
+                              placeholder="propietario@email.com"
+                              data-testid="input-owner-email"
+                              {...field}
+                              value={field.value || ""}
+                            />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                  </div>
+                </div>
+
+                <Separator />
+
+                {/* Referral Data Section */}
+                <div className="space-y-4">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <Users className="w-5 h-5 text-primary" />
+                      <h3 className="text-lg font-semibold">Datos del Referido</h3>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <Label htmlFor="has-referral">¿Tiene referido?</Label>
+                      <Switch
+                        id="has-referral"
+                        checked={hasReferral}
+                        onCheckedChange={setHasReferral}
+                        data-testid="switch-has-referral"
+                      />
+                    </div>
+                  </div>
+
+                  {hasReferral && (
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <FormField
+                        control={form.control}
+                        name="referredByName"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Nombre(s) *</FormLabel>
+                            <FormControl>
+                              <Input
+                                placeholder="María"
+                                data-testid="input-referral-first-name"
+                                {...field}
+                                value={field.value || ""}
+                              />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+
+                      <FormField
+                        control={form.control}
+                        name="referredByLastName"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Apellidos *</FormLabel>
+                            <FormControl>
+                              <Input
+                                placeholder="Rodríguez"
+                                data-testid="input-referral-last-name"
+                                {...field}
+                                value={field.value || ""}
+                              />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+
+                      <FormField
+                        control={form.control}
+                        name="referredByPhone"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Teléfono WhatsApp *</FormLabel>
+                            <FormControl>
+                              <Input
+                                placeholder="+52 998 987 6543"
+                                data-testid="input-referral-phone"
+                                {...field}
+                                value={field.value || ""}
+                              />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+
+                      <FormField
+                        control={form.control}
+                        name="referredByEmail"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Email (opcional)</FormLabel>
+                            <FormControl>
+                              <Input
+                                type="email"
+                                placeholder="referido@email.com"
+                                data-testid="input-referral-email"
+                                {...field}
+                                value={field.value || ""}
+                              />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                    </div>
+                  )}
+                </div>
+
+                <Separator />
+
+                {/* Documents Section */}
+                <div className="space-y-4">
+                  <div className="flex items-center gap-2">
+                    <FileText className="w-5 h-5 text-primary" />
+                    <h3 className="text-lg font-semibold">Documentos del Propietario (Opcional)</h3>
+                  </div>
+                  <p className="text-sm text-muted-foreground">
+                    Documentos necesarios para la elaboración de contratos
+                  </p>
+
+                  <div className="text-sm text-muted-foreground space-y-1">
+                    <p>Puedes subir:</p>
+                    <ul className="list-disc list-inside ml-2">
+                      <li>Escrituras o contrato de compraventa</li>
+                      <li>Identificación oficial (INE/Pasaporte)</li>
+                      <li>Recibos (luz, agua, internet)</li>
+                      <li>Reglas internas o del condominio</li>
+                      <li>Otros documentos relevantes</li>
+                    </ul>
+                  </div>
+
+                  {documents.length > 0 && (
+                    <div className="space-y-2">
+                      {documents.map((doc, index) => (
+                        <div
+                          key={index}
+                          className="flex items-center justify-between p-3 border rounded-md"
+                        >
+                          <div className="flex items-center gap-2">
+                            <FileText className="w-4 h-4 text-muted-foreground" />
+                            <span className="text-sm">{doc.name}</span>
+                          </div>
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="icon"
+                            onClick={() => {
+                              const updated = documents.filter((_, i) => i !== index);
+                              setDocuments(updated);
+                            }}
+                            data-testid={`button-remove-doc-${index}`}
+                          >
+                            <X className="w-4 h-4" />
+                          </Button>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+
+                  <p className="text-xs text-muted-foreground mt-2">
+                    * Los documentos se pueden agregar más tarde. No son obligatorios en esta instancia.
+                  </p>
+                </div>
               </div>
             )}
 
