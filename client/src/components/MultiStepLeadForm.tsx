@@ -127,6 +127,15 @@ export default function MultiStepLeadForm({ onSubmit, isPending, defaultValues }
   };
 
   const handleSubmit = (data: LeadFormData) => {
+    console.log('[DEBUG] handleSubmit called - currentStep:', currentStep, 'STEPS.length:', STEPS.length);
+    console.trace('[DEBUG] handleSubmit stack trace');
+    
+    // Solo permitir submit si estamos en el último paso
+    if (currentStep !== STEPS.length) {
+      console.warn('[DEBUG] Submit blocked - not on final step');
+      return;
+    }
+    
     // Auto-formateo
     const formattedData = {
       ...data,
@@ -134,6 +143,7 @@ export default function MultiStepLeadForm({ onSubmit, isPending, defaultValues }
       lastName: data.lastName.charAt(0).toUpperCase() + data.lastName.slice(1).toLowerCase(),
       email: data.email?.toLowerCase() || undefined,
     };
+    console.log('[DEBUG] Submitting lead:', formattedData);
     onSubmit(formattedData);
   };
 
