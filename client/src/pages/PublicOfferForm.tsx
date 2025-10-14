@@ -97,6 +97,8 @@ export default function PublicOfferForm() {
     },
   });
 
+  const property = validationData?.property;
+
   const usageType = form.watch("usageType");
   const contractDuration = form.watch("contractDuration");
   const monthlyRent = parseFloat(form.watch("monthlyRent") || "0");
@@ -353,7 +355,6 @@ export default function PublicOfferForm() {
     );
   }
 
-  const property = validationData?.property;
   const propertyRequiredServices = property?.includedServices || [];
   const availableServices = [
     { id: "agua", label: "Agua" },
