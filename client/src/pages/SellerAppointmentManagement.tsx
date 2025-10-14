@@ -264,6 +264,7 @@ export default function SellerAppointmentManagement() {
       appointmentData.unitNumber = manualUnit;
     }
 
+    console.log("📤 SENDING APPOINTMENT DATA:", appointmentData);
     createAppointmentMutation.mutate(appointmentData);
   };
 

@@ -9179,8 +9179,21 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const user = await storage.getUser(userId);
       const { leadId, propertyId, condominiumName, unitNumber, date, type, notes } = req.body;
 
+      // DEBUG: Log what we received
+      console.log("📋 CREATE APPOINTMENT REQUEST:", {
+        leadId,
+        propertyId,
+        condominiumName,
+        unitNumber,
+        date,
+        type,
+        notes,
+        fullBody: req.body
+      });
+
       // Validate required fields
       if (!leadId || !date || !type) {
+        console.log("❌ VALIDATION FAILED:", { leadId: !!leadId, date: !!date, type: !!type });
         return res.status(400).json({ message: "Lead, fecha y tipo son requeridos" });
       }
 
