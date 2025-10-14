@@ -26,7 +26,17 @@ export default function AdminOfferManagement() {
   const [statusFilter, setStatusFilter] = useState<"all" | "used" | "pending">("all");
 
   const { data: offers, isLoading } = useQuery({
-    queryKey: ["/api/offer-tokens", { status: statusFilter === "all" ? undefined : statusFilter }],
+    queryKey: ["/api/offer-tokens", statusFilter],
+    queryFn: async () => {
+      const params = new URLSearchParams();
+      if (statusFilter !== "all") {
+        params.append("status", statusFilter);
+      }
+      const url = `/api/offer-tokens${params.toString() ? `?${params.toString()}` : ""}`;
+      const response = await fetch(url);
+      if (!response.ok) throw new Error("Error al cargar ofertas");
+      return response.json();
+    },
     enabled: true,
   });
 
