@@ -12480,6 +12480,98 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Get all rental form submissions (admins only)
+  app.get("/api/rental-forms", isAuthenticated, requireRole(["admin", "master", "admin_jr"]), async (req, res) => {
+    try {
+      const { status } = req.query;
+
+      let query = db
+        .select()
+        .from(tenantRentalForms)
+        .orderBy(desc(tenantRentalForms.createdAt));
+
+      if (status && status !== "all") {
+        query = query.where(eq(tenantRentalForms.status, status as string));
+      }
+
+      const forms = await query;
+
+      // Enrich with property info
+      const enrichedForms = await Promise.all(
+        forms.map(async (form) => {
+          const property = await storage.getProperty(form.propertyId);
+          const lead = form.leadId ? await storage.getLead(form.leadId) : null;
+          return {
+            ...form,
+            property,
+            lead,
+          };
+        })
+      );
+
+      res.json(enrichedForms);
+    } catch (error) {
+      console.error("Error fetching rental forms:", error);
+      res.status(500).json({ message: "Error al obtener formularios de renta" });
+    }
+  });
+
+  // Review rental form (approve/reject)
+  app.patch("/api/rental-forms/:id/review", isAuthenticated, requireRole(["admin", "master", "admin_jr"]), async (req: any, res) => {
+    try {
+      const { id } = req.params;
+      const { status, adminNotes } = req.body;
+      const userId = req.user.claims.sub;
+
+      if (!["aprobado", "rechazado", "en_revision"].includes(status)) {
+        return res.status(400).json({ message: "Estado inválido" });
+      }
+
+      const [rentalForm] = await db
+        .select()
+        .from(tenantRentalForms)
+        .where(eq(tenantRentalForms.id, id))
+        .limit(1);
+
+      if (!rentalForm) {
+        return res.status(404).json({ message: "Formulario no encontrado" });
+      }
+
+      // Update rental form
+      await db
+        .update(tenantRentalForms)
+        .set({
+          status,
+          reviewedBy: userId,
+          reviewedAt: new Date(),
+          adminNotes: adminNotes || null,
+          updatedAt: new Date(),
+        })
+        .where(eq(tenantRentalForms.id, id));
+
+      // If approved, update lead status to 'documentos_aprobados'
+      if (status === "aprobado" && rentalForm.leadId) {
+        await db
+          .update(leads)
+          .set({ status: "documentos_aprobados" })
+          .where(eq(leads.id, rentalForm.leadId));
+      }
+
+      await createAuditLog(
+        req,
+        "update",
+        "rental_form",
+        id,
+        `Formulario de renta ${status}: ${rentalForm.fullName}`
+      );
+
+      res.json({ message: "Formulario actualizado exitosamente" });
+    } catch (error) {
+      console.error("Error reviewing rental form:", error);
+      res.status(500).json({ message: "Error al revisar formulario" });
+    }
+  });
+
   // Contract Legal Documents routes
   app.get("/api/contracts/:contractId/legal-documents", isAuthenticated, async (req: any, res) => {
     try {
