@@ -4291,6 +4291,7 @@ export const tenantRentalFormTokens = pgTable("tenant_rental_form_tokens", {
   createdBy: varchar("created_by").notNull().references(() => users.id, { onDelete: "cascade" }),
   expiresAt: timestamp("expires_at").notNull(),
   isUsed: boolean("is_used").notNull().default(false),
+  usedAt: timestamp("used_at"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });
