@@ -110,10 +110,7 @@ export default function SellerAppointmentManagement() {
       type: string;
       notes?: string;
     }) => {
-      return await apiRequest("POST", "/api/seller/appointments/create-with-lead", {
-        body: JSON.stringify(data),
-        headers: { "Content-Type": "application/json" },
-      });
+      return await apiRequest("POST", "/api/seller/appointments/create-with-lead", data);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/appointments"] });
@@ -158,10 +155,7 @@ export default function SellerAppointmentManagement() {
   // Cancel appointment mutation
   const cancelAppointmentMutation = useMutation({
     mutationFn: async ({ id, reason }: { id: string; reason?: string }) => {
-      return await apiRequest("POST", `/api/seller/appointments/${id}/cancel`, {
-        body: JSON.stringify({ reason }),
-        headers: { "Content-Type": "application/json" },
-      });
+      return await apiRequest("POST", `/api/seller/appointments/${id}/cancel`, { reason });
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/appointments"] });
@@ -185,10 +179,7 @@ export default function SellerAppointmentManagement() {
   // Reschedule appointment mutation
   const rescheduleAppointmentMutation = useMutation({
     mutationFn: async ({ id, newDate }: { id: string; newDate: string }) => {
-      return await apiRequest("PATCH", `/api/seller/appointments/${id}/reschedule`, {
-        body: JSON.stringify({ newDate }),
-        headers: { "Content-Type": "application/json" },
-      });
+      return await apiRequest("PATCH", `/api/seller/appointments/${id}/reschedule`, { newDate });
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/appointments"] });
