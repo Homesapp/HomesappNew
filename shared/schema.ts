@@ -913,9 +913,15 @@ export const properties = pgTable("properties", {
   index("idx_properties_active").on(table.active),
   index("idx_properties_created_at").on(table.createdAt),
   index("idx_properties_approval_status").on(table.approvalStatus),
+  index("idx_properties_featured").on(table.featured),
+  index("idx_properties_rating").on(table.rating),
+  index("idx_properties_colony_name").on(table.colonyName),
+  index("idx_properties_condo_name").on(table.condoName),
+  index("idx_properties_property_type").on(table.propertyType),
   // Composite indexes for common query patterns
   index("idx_properties_active_status").on(table.active, table.status),
   index("idx_properties_active_published").on(table.active, table.published),
+  index("idx_properties_published_featured").on(table.published, table.featured, table.rating),
 ]);
 
 // Schema for property access information
