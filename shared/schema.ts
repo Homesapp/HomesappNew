@@ -4217,6 +4217,7 @@ export const offerTokens = pgTable("offer_tokens", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   token: varchar("token").notNull().unique(), // Token único para la URL
   propertyId: varchar("property_id").notNull().references(() => properties.id, { onDelete: "cascade" }),
+  leadId: varchar("lead_id").references(() => leads.id, { onDelete: "set null" }), // Lead asociado al token (opcional)
   createdBy: varchar("created_by").notNull().references(() => users.id, { onDelete: "cascade" }), // Vendedor o admin que creó el link
   expiresAt: timestamp("expires_at").notNull(), // 24 horas después de creación
   isUsed: boolean("is_used").notNull().default(false),
@@ -4270,6 +4271,10 @@ export const offerTokensRelations = relations(offerTokens, ({ one }) => ({
   property: one(properties, {
     fields: [offerTokens.propertyId],
     references: [properties.id],
+  }),
+  lead: one(leads, {
+    fields: [offerTokens.leadId],
+    references: [leads.id],
   }),
   creator: one(users, {
     fields: [offerTokens.createdBy],
