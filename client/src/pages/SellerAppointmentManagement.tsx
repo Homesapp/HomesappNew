@@ -106,8 +106,7 @@ export default function SellerAppointmentManagement() {
       type: string;
       notes?: string;
     }) => {
-      return await apiRequest("/api/seller/appointments/create-with-lead", {
-        method: "POST",
+      return await apiRequest("POST", "/api/seller/appointments/create-with-lead", {
         body: JSON.stringify(data),
         headers: { "Content-Type": "application/json" },
       });
@@ -134,9 +133,7 @@ export default function SellerAppointmentManagement() {
   // Approve appointment mutation
   const approveAppointmentMutation = useMutation({
     mutationFn: async (appointmentId: string) => {
-      return await apiRequest(`/api/seller/appointments/${appointmentId}/approve`, {
-        method: "POST",
-      });
+      return await apiRequest("POST", `/api/seller/appointments/${appointmentId}/approve`);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/appointments"] });
@@ -157,8 +154,7 @@ export default function SellerAppointmentManagement() {
   // Cancel appointment mutation
   const cancelAppointmentMutation = useMutation({
     mutationFn: async ({ id, reason }: { id: string; reason?: string }) => {
-      return await apiRequest(`/api/seller/appointments/${id}/cancel`, {
-        method: "POST",
+      return await apiRequest("POST", `/api/seller/appointments/${id}/cancel`, {
         body: JSON.stringify({ reason }),
         headers: { "Content-Type": "application/json" },
       });
@@ -185,8 +181,7 @@ export default function SellerAppointmentManagement() {
   // Reschedule appointment mutation
   const rescheduleAppointmentMutation = useMutation({
     mutationFn: async ({ id, newDate }: { id: string; newDate: string }) => {
-      return await apiRequest(`/api/seller/appointments/${id}/reschedule`, {
-        method: "PATCH",
+      return await apiRequest("PATCH", `/api/seller/appointments/${id}/reschedule`, {
         body: JSON.stringify({ newDate }),
         headers: { "Content-Type": "application/json" },
       });
