@@ -8100,7 +8100,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.delete("/api/leads/:id", isAuthenticated, requireRole(["master", "admin", "admin_jr", "seller", "management"]), async (req: any, res) => {
+  app.delete("/api/leads/:id", isAuthenticated, requireRole(["master", "admin", "admin_jr"]), async (req: any, res) => {
     try {
       const { id } = req.params;
       
@@ -8116,6 +8116,110 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Error deleting lead:", error);
       res.status(500).json({ message: "Failed to delete lead" });
+    }
+  });
+
+  // Reassign lead to another seller (Admin only)
+  app.patch("/api/leads/:id/reassign", isAuthenticated, requireRole(["master", "admin", "admin_jr"]), async (req: any, res) => {
+    try {
+      const { id } = req.params;
+      const { newSellerId } = req.body;
+      
+      if (!newSellerId) {
+        return res.status(400).json({ message: "Nuevo vendedor requerido" });
+      }
+      
+      const existingLead = await storage.getLead(id);
+      if (!existingLead) {
+        return res.status(404).json({ message: "Lead not found" });
+      }
+      
+      const newSeller = await storage.getUser(newSellerId);
+      if (!newSeller || newSeller.role !== "seller") {
+        return res.status(400).json({ message: "El usuario seleccionado no es un vendedor válido" });
+      }
+      
+      const previousSeller = await storage.getUser(existingLead.registeredById);
+      
+      const updatedLead = await storage.updateLead(id, { registeredById: newSellerId });
+      
+      await createAuditLog(
+        req, 
+        "update", 
+        "lead", 
+        id, 
+        `Lead reasignado de ${previousSeller?.name || 'vendedor anterior'} a ${newSeller.name}`
+      );
+      
+      // Create notification for new seller
+      await storage.createSystemAlert({
+        userId: newSellerId,
+        alertType: "lead_assigned",
+        priority: "high",
+        title: "Nuevo lead asignado",
+        message: `Se te ha asignado el lead: ${updatedLead.firstName} ${updatedLead.lastName}`,
+        relatedEntityType: "lead",
+        relatedEntityId: id,
+      });
+      
+      res.json(updatedLead);
+    } catch (error) {
+      console.error("Error reassigning lead:", error);
+      res.status(500).json({ message: "Failed to reassign lead" });
+    }
+  });
+
+  // Get lead appointments history
+  app.get("/api/leads/:id/appointments", isAuthenticated, requireRole(["master", "admin", "admin_jr", "seller", "management"]), async (req: any, res) => {
+    try {
+      const { id } = req.params;
+      const userId = req.user.claims.sub;
+      const currentUser = await storage.getUser(userId);
+      
+      if (!currentUser) {
+        return res.status(404).json({ message: "User not found" });
+      }
+      
+      const lead = await storage.getLead(id);
+      if (!lead) {
+        return res.status(404).json({ message: "Lead no encontrado" });
+      }
+      
+      // Sellers can only access appointments for their own leads
+      if (currentUser.role === "seller" && lead.registeredById !== userId) {
+        return res.status(403).json({ message: "No tienes permiso para acceder a las citas de este lead" });
+      }
+      
+      const leadAppointments = await db
+        .select()
+        .from(appointments)
+        .where(eq(appointments.leadId, id))
+        .orderBy(desc(appointments.date));
+      
+      // Enrich with property and staff info
+      const enrichedAppointments = await Promise.all(
+        leadAppointments.map(async (apt) => {
+          const property = apt.propertyId ? await storage.getProperty(apt.propertyId) : null;
+          const staff = apt.assignedStaffId ? await storage.getUser(apt.assignedStaffId) : null;
+          return {
+            ...apt,
+            property: property ? {
+              id: property.id,
+              title: getPropertyTitle(property),
+              location: property.location,
+            } : null,
+            assignedStaff: staff ? {
+              id: staff.id,
+              name: staff.name,
+            } : null,
+          };
+        })
+      );
+      
+      res.json(enrichedAppointments);
+    } catch (error) {
+      console.error("Error fetching lead appointments:", error);
+      res.status(500).json({ message: "Failed to fetch lead appointments" });
     }
   });
 
