@@ -8,8 +8,18 @@ Preferred communication style: Simple, everyday language.
 
 ## Recent Updates (October 14, 2025)
 
-### Production URL & Public Routes Fix
-*   **Issue 1 - URL Generation Fixed**: Corrected URL generation for offer links and rental form links in production environment
+### Public Offer Form Fixes
+*   **Issue 1 - Submit Button Disabled Bug**: Fixed critical bug where offer form submission was blocked
+    - **Problem**: Submit button was disabled unless user drew a signature, even though signature field is optional per Zod schema
+    - **Root Cause**: Button had `disabled={isPending || !hasSignature}` condition that prevented submission without signature
+    - **Solution**: Removed `!hasSignature` from disabled condition; button now only disabled during mutation
+    - **UX Improvements**: 
+      - Changed label from "Firma aquí *" to "Firma aquí (Opcional)"
+      - Updated description to clarify "puedes enviar sin firmar"
+    - **Impact**: Users can now successfully submit offers without drawing a signature
+    - **File**: `client/src/pages/PublicOfferForm.tsx`
+
+*   **Issue 2 - URL Generation Fixed**: Corrected URL generation for offer links and rental form links in production environment
     - **Problem**: Backend was using incorrect environment variable `REPL_SLUG` which caused malformed URLs in production
     - **Solution**: Updated to use `REPLIT_DOMAINS` environment variable as per Replit documentation
     - **Affected Endpoints**: 
@@ -19,7 +29,7 @@ Preferred communication style: Simple, everyday language.
     - **Fallback**: Added fallback to 'app.replit.dev' if REPLIT_DOMAINS is not available
     - **Impact**: All new generated links will have correct production URLs
 
-*   **Issue 2 - Public Routes Access Fixed**: Public form routes now accessible for both authenticated and unauthenticated users
+*   **Issue 3 - Public Routes Access Fixed**: Public form routes now accessible for both authenticated and unauthenticated users
     - **Problem**: Routes `/offer/:token` and `/rental-form/:token` were only available to unauthenticated users, causing 404 errors when logged-in users clicked shared links
     - **Solution**: Added public form routes to authenticated user router in App.tsx
     - **Implementation**: Routes positioned at top of authenticated Switch to ensure they're always accessible
