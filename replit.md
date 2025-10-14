@@ -58,6 +58,11 @@ Preferred communication style: Simple, everyday language.
       - Sellers and management can now delete appointments associated with their leads (verified via `leadId` and `registeredById` match)
       - Property owners, clients, and assigned staff retain their deletion rights
 
+*   **SellerAppointmentManagement apiRequest Fixes** (October 14, 2025):
+    - Fixed all apiRequest calls to use correct signature: `apiRequest(method, url, options)` instead of incorrect `apiRequest(url, { method, ...options })`
+    - Corrected mutations: createAppointmentMutation (POST), approveAppointmentMutation (POST), cancelAppointmentMutation (POST), rescheduleAppointmentMutation (PATCH)
+    - All seller appointment actions (create, approve, cancel, reschedule) now function properly with correct HTTP requests
+
 ## System Architecture
 The platform is built with a modern web stack, emphasizing a professional, responsive, and accessible user experience with full internationalization.
 
