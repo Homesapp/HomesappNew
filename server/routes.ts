@@ -12079,6 +12079,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
         .where(eq(offerTokens.id, offerToken.id))
         .returning();
 
+      // Update lead status to "en_negociacion" if leadId exists
+      if (offerToken.leadId) {
+        await storage.updateLeadStatus(offerToken.leadId, "en_negociacion");
+      }
+
       res.json({
         message: "Oferta enviada exitosamente",
         tokenId: updatedToken.id,
