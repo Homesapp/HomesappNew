@@ -1261,7 +1261,27 @@ export function PropertyFormDialog({
                   Cancelar
                 </Button>
 
-                {currentStep < totalSteps ? (
+                {mode === "edit" ? (
+                  // En modo edición, mostrar "Siguiente" (si no es último paso) + "Guardar Cambios"
+                  <>
+                    {currentStep < totalSteps && (
+                      <Button
+                        type="button"
+                        onClick={nextStep}
+                        disabled={isPending}
+                        data-testid="button-next"
+                      >
+                        Siguiente
+                        <ChevronRight className="h-4 w-4 ml-1" />
+                      </Button>
+                    )}
+                    <Button type="submit" disabled={isPending} data-testid="button-submit">
+                      {isPending && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
+                      Guardar Cambios
+                    </Button>
+                  </>
+                ) : currentStep < totalSteps ? (
+                  // En modo creación, mostrar "Siguiente" hasta el último paso
                   <Button
                     type="button"
                     onClick={nextStep}
@@ -1272,9 +1292,10 @@ export function PropertyFormDialog({
                     <ChevronRight className="h-4 w-4 ml-1" />
                   </Button>
                 ) : (
+                  // En modo creación, último paso
                   <Button type="submit" disabled={isPending} data-testid="button-submit">
                     {isPending && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
-                    {mode === "create" ? "Crear Propiedad" : "Guardar Cambios"}
+                    Crear Propiedad
                   </Button>
                 )}
               </div>

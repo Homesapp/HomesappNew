@@ -5,8 +5,8 @@ export function getPropertyTitle(property: Property | null | undefined): string 
     return "Propiedad";
   }
 
-  if (property.condominiumName && property.unitNumber) {
-    return `${property.condominiumName} - ${property.unitNumber}`;
+  if (property.condoName && property.unitNumber) {
+    return `${property.condoName} - ${property.unitNumber}`;
   }
 
   return property.title || "Propiedad";

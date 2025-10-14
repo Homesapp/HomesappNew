@@ -17,6 +17,7 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigge
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { PropertyFormDialog } from "@/components/PropertyFormDialog";
 import { useLocation } from "wouter";
+import { getPropertyTitle } from "@/lib/propertyHelpers";
 
 type AccessInfo = 
   | {
@@ -53,6 +54,8 @@ type Property = {
   accessInfo?: AccessInfo;
   createdAt: string;
   updatedAt: string;
+  condoName?: string;
+  unitNumber?: string;
 };
 
 type PropertyStats = {
@@ -503,7 +506,7 @@ export default function AdminPropertyManagement() {
                     {coverImage ? (
                       <img
                         src={coverImage}
-                        alt={property.title}
+                        alt={getPropertyTitle(property)}
                         className="w-40 h-28 object-cover rounded-md border"
                         data-testid={`img-property-${property.id}`}
                       />
@@ -517,7 +520,7 @@ export default function AdminPropertyManagement() {
                       <div className="flex items-start justify-between gap-2 mb-2">
                         <div className="flex-1 min-w-0">
                           <h3 className="font-semibold text-lg truncate" data-testid={`text-property-title-${property.id}`}>
-                            {property.title}
+                            {getPropertyTitle(property)}
                           </h3>
                           <p className="text-sm text-muted-foreground line-clamp-1">{property.description}</p>
                         </div>
