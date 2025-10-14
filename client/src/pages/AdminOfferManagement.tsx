@@ -74,6 +74,14 @@ export default function AdminOfferManagement() {
   const completedOffers = offers?.filter((o: any) => o.isUsed) || [];
   const expiredOffers = offers?.filter((o: any) => !o.isUsed && new Date() > new Date(o.expiresAt)) || [];
 
+  const getFilteredOffers = () => {
+    if (statusFilter === "pending") return pendingOffers;
+    if (statusFilter === "used") return completedOffers;
+    return offers || [];
+  };
+
+  const filteredOffers = getFilteredOffers();
+
   return (
     <div className="flex-1 overflow-auto p-4 sm:p-6 lg:p-8">
       <div className="max-w-7xl mx-auto space-y-6">
@@ -153,9 +161,11 @@ export default function AdminOfferManagement() {
                   <div className="flex items-center justify-center py-8">
                     <Loader2 className="h-8 w-8 animate-spin text-primary" />
                   </div>
-                ) : offers?.length === 0 ? (
+                ) : filteredOffers.length === 0 ? (
                   <div className="text-center py-8 text-muted-foreground">
-                    No hay ofertas registradas
+                    {statusFilter === "all" ? "No hay ofertas registradas" : 
+                     statusFilter === "pending" ? "No hay ofertas pendientes" : 
+                     "No hay ofertas completadas"}
                   </div>
                 ) : (
                   <div className="overflow-x-auto">
@@ -171,7 +181,7 @@ export default function AdminOfferManagement() {
                         </TableRow>
                       </TableHeader>
                       <TableBody>
-                        {offers?.map((offer: any) => (
+                        {filteredOffers.map((offer: any) => (
                           <TableRow key={offer.id} data-testid={`row-offer-${offer.id}`}>
                             <TableCell className="font-medium">
                               {offer.property?.title || "Sin título"}
@@ -259,23 +269,23 @@ export default function AdminOfferManagement() {
                   <div className="grid grid-cols-2 gap-4 text-sm">
                     <div>
                       <p className="text-muted-foreground">Nombre</p>
-                      <p className="font-medium">{selectedOffer.offerData?.fullName}</p>
+                      <p className="font-medium">{selectedOffer.offerData?.fullName || "No especificado"}</p>
                     </div>
                     <div>
                       <p className="text-muted-foreground">Email</p>
-                      <p className="font-medium">{selectedOffer.offerData?.email}</p>
+                      <p className="font-medium">{selectedOffer.offerData?.email || "No especificado"}</p>
                     </div>
                     <div>
                       <p className="text-muted-foreground">Teléfono</p>
-                      <p className="font-medium">{selectedOffer.offerData?.phone}</p>
+                      <p className="font-medium">{selectedOffer.offerData?.phone || "No especificado"}</p>
                     </div>
                     <div>
                       <p className="text-muted-foreground">Nacionalidad</p>
-                      <p className="font-medium">{selectedOffer.offerData?.nationality}</p>
+                      <p className="font-medium">{selectedOffer.offerData?.nationality || "No especificado"}</p>
                     </div>
                     <div>
                       <p className="text-muted-foreground">Ocupación</p>
-                      <p className="font-medium">{selectedOffer.offerData?.occupation}</p>
+                      <p className="font-medium">{selectedOffer.offerData?.occupation || "No especificado"}</p>
                     </div>
                   </div>
                 </div>
@@ -284,14 +294,20 @@ export default function AdminOfferManagement() {
                   <h3 className="font-semibold mb-2">Detalles de la Oferta</h3>
                   <div className="grid grid-cols-2 gap-4 text-sm">
                     <div>
+                      <p className="text-muted-foreground">Tipo de Uso</p>
+                      <p className="font-medium">
+                        {selectedOffer.offerData?.usageType === "vivienda" ? "Vivienda" : selectedOffer.offerData?.usageType === "subarrendamiento" ? "Subarrendamiento" : "No especificado"}
+                      </p>
+                    </div>
+                    <div>
                       <p className="text-muted-foreground">Renta Mensual</p>
                       <p className="font-medium">
-                        ${selectedOffer.offerData?.monthlyRent} {selectedOffer.offerData?.currency}
+                        ${selectedOffer.offerData?.monthlyRent || "0"} {selectedOffer.offerData?.currency || "USD"}
                       </p>
                     </div>
                     <div>
                       <p className="text-muted-foreground">Duración del Contrato</p>
-                      <p className="font-medium">{selectedOffer.offerData?.contractDuration}</p>
+                      <p className="font-medium">{selectedOffer.offerData?.contractDuration || "No especificado"}</p>
                     </div>
                     <div>
                       <p className="text-muted-foreground">Fecha de Ingreso</p>
@@ -303,16 +319,39 @@ export default function AdminOfferManagement() {
                     </div>
                     <div>
                       <p className="text-muted-foreground">Ocupantes</p>
-                      <p className="font-medium">{selectedOffer.offerData?.numberOfOccupants}</p>
+                      <p className="font-medium">{selectedOffer.offerData?.numberOfOccupants || "No especificado"}</p>
+                    </div>
+                    <div>
+                      <p className="text-muted-foreground">Costo de Contrato</p>
+                      <p className="font-medium">
+                        ${selectedOffer.offerData?.contractCost || "0"} MXN
+                      </p>
+                    </div>
+                    <div>
+                      <p className="text-muted-foreground">Depósito de Seguridad</p>
+                      <p className="font-medium">
+                        ${selectedOffer.offerData?.securityDeposit || "0"} {selectedOffer.offerData?.currency || "USD"}
+                      </p>
                     </div>
                   </div>
                 </div>
 
-                {selectedOffer.offerData?.services && selectedOffer.offerData.services.length > 0 && (
+                {selectedOffer.offerData?.offeredServices && selectedOffer.offerData.offeredServices.length > 0 && (
                   <div>
-                    <h3 className="font-semibold mb-2">Servicios Solicitados</h3>
+                    <h3 className="font-semibold mb-2">Servicios Ofrecidos</h3>
                     <ul className="list-disc list-inside text-sm space-y-1">
-                      {selectedOffer.offerData.services.map((service: string, idx: number) => (
+                      {selectedOffer.offerData.offeredServices.map((service: string, idx: number) => (
+                        <li key={idx}>{service}</li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+
+                {selectedOffer.offerData?.propertyRequiredServices && selectedOffer.offerData.propertyRequiredServices.length > 0 && (
+                  <div>
+                    <h3 className="font-semibold mb-2">Servicios Requeridos por la Propiedad</h3>
+                    <ul className="list-disc list-inside text-sm space-y-1">
+                      {selectedOffer.offerData.propertyRequiredServices.map((service: string, idx: number) => (
                         <li key={idx}>{service}</li>
                       ))}
                     </ul>
@@ -323,6 +362,13 @@ export default function AdminOfferManagement() {
                   <div>
                     <h3 className="font-semibold mb-2">Mascotas</h3>
                     <p className="text-sm">{selectedOffer.offerData?.petDetails || "Tiene mascotas"}</p>
+                    {selectedOffer.offerData?.petPhotos && selectedOffer.offerData.petPhotos.length > 0 && (
+                      <div className="mt-2 grid grid-cols-3 gap-2">
+                        {selectedOffer.offerData.petPhotos.map((photoUrl: string, idx: number) => (
+                          <img key={idx} src={photoUrl} alt={`Mascota ${idx + 1}`} className="w-full h-24 object-cover rounded" />
+                        ))}
+                      </div>
+                    )}
                   </div>
                 )}
 
@@ -330,6 +376,33 @@ export default function AdminOfferManagement() {
                   <div>
                     <h3 className="font-semibold mb-2">Comentarios Adicionales</h3>
                     <p className="text-sm">{selectedOffer.offerData.additionalComments}</p>
+                  </div>
+                )}
+
+                {selectedOffer.offerData?.signature && (
+                  <div>
+                    <h3 className="font-semibold mb-2">Firma Digital</h3>
+                    <div className="border rounded-lg p-2 bg-white dark:bg-slate-950">
+                      <img 
+                        src={selectedOffer.offerData.signature} 
+                        alt="Firma del cliente" 
+                        className="max-h-24 mx-auto"
+                      />
+                    </div>
+                  </div>
+                )}
+
+                {selectedOffer.offerData?.submittedAt && (
+                  <div className="pt-2 border-t">
+                    <p className="text-xs text-muted-foreground">
+                      Oferta enviada el: {new Date(selectedOffer.offerData.submittedAt).toLocaleString("es-MX", {
+                        year: "numeric",
+                        month: "long",
+                        day: "numeric",
+                        hour: "2-digit",
+                        minute: "2-digit",
+                      })}
+                    </p>
                   </div>
                 )}
 
