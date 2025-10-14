@@ -34,8 +34,11 @@ import { getPropertyTitle } from "@/lib/propertyHelpers";
 
 type Appointment = {
   id: string;
-  propertyId: string;
-  clientId: string;
+  propertyId: string | null;
+  clientId: string | null;
+  condominiumName: string | null;
+  unitNumber: string | null;
+  leadName: string | null;
   date: string;
   type: string;
   status: string;
@@ -81,6 +84,7 @@ export default function SellerAppointmentManagement() {
   const [propertyInputMode, setPropertyInputMode] = useState<"registered" | "manual">("registered");
   const [manualCondominium, setManualCondominium] = useState("");
   const [manualUnit, setManualUnit] = useState("");
+  const [hideCancelled, setHideCancelled] = useState(true);
 
   // Fetch user's leads
   const { data: leads = [], isLoading: loadingLeads } = useQuery<Lead[]>({
@@ -290,6 +294,45 @@ export default function SellerAppointmentManagement() {
     }
   };
 
+  // Helper functions
+  const getAppointmentPropertyTitle = (appointment: Appointment) => {
+    // For registered properties, use the title from the property stub
+    if (appointment.property?.title) {
+      return appointment.property.title;
+    }
+    // For manual entry properties, use condominiumName - unitNumber
+    if (appointment.condominiumName && appointment.unitNumber) {
+      return `${appointment.condominiumName} - ${appointment.unitNumber}`;
+    }
+    return "Propiedad sin especificar";
+  };
+
+  const getAppointmentClientName = (appointment: Appointment) => {
+    if (appointment.leadName) {
+      return appointment.leadName;
+    }
+    if (appointment.client) {
+      return `${appointment.client.firstName || ""} ${appointment.client.lastName || ""}`.trim() || "Cliente";
+    }
+    return "Cliente sin especificar";
+  };
+
+  // Filter appointments
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const tomorrow = new Date(today);
+  tomorrow.setDate(tomorrow.getDate() + 1);
+
+  const todaysAppointments = appointments.filter(apt => {
+    const aptDate = new Date(apt.date);
+    aptDate.setHours(0, 0, 0, 0);
+    return aptDate.getTime() === today.getTime() && (!hideCancelled || apt.status !== "cancelled");
+  });
+
+  const filteredAppointments = appointments.filter(apt => 
+    !hideCancelled || apt.status !== "cancelled"
+  );
+
   const isLoading = loadingLeads || loadingProperties || loadingAppointments;
 
   if (isLoading) {
@@ -315,14 +358,26 @@ export default function SellerAppointmentManagement() {
             Crea y gestiona citas con tus leads
           </p>
         </div>
-        <Button
-          onClick={() => setIsCreateDialogOpen(true)}
-          data-testid="button-create-appointment"
-          disabled={leads.length === 0}
-        >
-          <Plus className="h-4 w-4 mr-2" />
-          Nueva Cita
-        </Button>
+        <div className="flex items-center gap-3 flex-wrap">
+          <label className="flex items-center gap-2 cursor-pointer" data-testid="checkbox-hide-cancelled-label">
+            <input
+              type="checkbox"
+              checked={hideCancelled}
+              onChange={(e) => setHideCancelled(e.target.checked)}
+              className="rounded border-gray-300"
+              data-testid="checkbox-hide-cancelled"
+            />
+            <span className="text-sm text-muted-foreground">Ocultar canceladas</span>
+          </label>
+          <Button
+            onClick={() => setIsCreateDialogOpen(true)}
+            data-testid="button-create-appointment"
+            disabled={leads.length === 0}
+          >
+            <Plus className="h-4 w-4 mr-2" />
+            Nueva Cita
+          </Button>
+        </div>
       </div>
 
       {leads.length === 0 && (
@@ -333,6 +388,86 @@ export default function SellerAppointmentManagement() {
             </p>
           </CardContent>
         </Card>
+      )}
+
+      {/* Today's Appointments Section */}
+      {todaysAppointments.length > 0 && (
+        <div className="space-y-3">
+          <h2 className="text-xl font-semibold" data-testid="heading-todays-appointments">
+            🗓️ Citas de Hoy
+          </h2>
+          <div className="grid gap-3">
+            {todaysAppointments.map((appointment) => (
+              <Card key={appointment.id} data-testid={`card-today-appointment-${appointment.id}`} className="border-primary/20">
+                <CardHeader>
+                  <div className="flex items-start justify-between gap-4">
+                    <div className="flex-1 min-w-0">
+                      <CardTitle className="truncate">
+                        {getAppointmentPropertyTitle(appointment)}
+                      </CardTitle>
+                      <p className="text-sm text-muted-foreground truncate">
+                        {getAppointmentClientName(appointment)}
+                      </p>
+                    </div>
+                    <Badge variant={statusColors[appointment.status]}>
+                      {statusLabels[appointment.status]}
+                    </Badge>
+                  </div>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div className="flex items-center gap-2 text-sm">
+                    <Calendar className="h-4 w-4 text-muted-foreground" />
+                    <span>
+                      {format(new Date(appointment.date), "PPP 'a las' p", { locale: es })}
+                    </span>
+                  </div>
+
+                  {appointment.notes && (
+                    <p className="text-sm text-muted-foreground">{appointment.notes}</p>
+                  )}
+
+                  <div className="flex items-center gap-2 flex-wrap">
+                    {appointment.status === "pending" && (
+                      <Button
+                        size="sm"
+                        onClick={() => handleApprove(appointment)}
+                        disabled={approveAppointmentMutation.isPending}
+                        data-testid={`button-approve-${appointment.id}`}
+                      >
+                        <CheckCircle className="h-4 w-4 mr-2" />
+                        Aprobar
+                      </Button>
+                    )}
+
+                    {appointment.status !== "cancelled" && appointment.status !== "completed" && (
+                      <>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => handleRescheduleClick(appointment)}
+                          data-testid={`button-reschedule-${appointment.id}`}
+                        >
+                          <Edit2 className="h-4 w-4 mr-2" />
+                          Reprogramar
+                        </Button>
+
+                        <Button
+                          size="sm"
+                          variant="destructive"
+                          onClick={() => handleCancelClick(appointment)}
+                          data-testid={`button-cancel-${appointment.id}`}
+                        >
+                          <X className="h-4 w-4 mr-2" />
+                          Cancelar
+                        </Button>
+                      </>
+                    )}
+                  </div>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+        </div>
       )}
 
       <Tabs defaultValue="all" className="w-full">
@@ -353,7 +488,7 @@ export default function SellerAppointmentManagement() {
 
         {["all", "pending", "confirmed", "completed"].map((status) => (
           <TabsContent key={status} value={status} className="space-y-4">
-            {appointments
+            {filteredAppointments
               .filter((apt) => status === "all" || apt.status === status)
               .map((appointment) => (
                 <Card key={appointment.id} data-testid={`card-appointment-${appointment.id}`}>
@@ -361,10 +496,10 @@ export default function SellerAppointmentManagement() {
                     <div className="flex items-start justify-between gap-4">
                       <div className="flex-1 min-w-0">
                         <CardTitle className="truncate">
-                          {appointment.property?.title || "Propiedad"}
+                          {getAppointmentPropertyTitle(appointment)}
                         </CardTitle>
                         <p className="text-sm text-muted-foreground truncate">
-                          {appointment.client?.firstName} {appointment.client?.lastName}
+                          {getAppointmentClientName(appointment)}
                         </p>
                       </div>
                       <Badge variant={statusColors[appointment.status]}>
@@ -425,7 +560,7 @@ export default function SellerAppointmentManagement() {
                 </Card>
               ))}
 
-            {appointments.filter((apt) => status === "all" || apt.status === status).length === 0 && (
+            {filteredAppointments.filter((apt) => status === "all" || apt.status === status).length === 0 && (
               <Card>
                 <CardContent className="pt-6">
                   <p className="text-muted-foreground text-center">

@@ -58,20 +58,29 @@ Preferred communication style: Simple, everyday language.
       - Sellers and management can now delete appointments associated with their leads (verified via `leadId` and `registeredById` match)
       - Property owners, clients, and assigned staff retain their deletion rights
 
-*   **SellerAppointmentManagement Improvements** (October 14, 2025):
-    - Fixed all apiRequest calls to use correct signature: `apiRequest(method, url, options)` instead of incorrect `apiRequest(url, { method, ...options })`
-    - Corrected mutations: createAppointmentMutation (POST), approveAppointmentMutation (POST), cancelAppointmentMutation (POST), rescheduleAppointmentMutation (PATCH)
-    - Removed `registeredLeads` filter that incorrectly blocked appointment creation for leads without user accounts
-    - System now allows creating appointments with ALL leads (both registered and unregistered), aligning with backend schema that supports nullable `clientId`
-    - Updated UI messaging: "No tienes leads creados" instead of misleading "No tienes leads registrados como usuarios"
-    - All seller appointment actions (create, approve, cancel, reschedule) now function properly with correct HTTP requests
-    - **Property Display Fix**: Fixed property selector to use `getPropertyTitle()` helper instead of non-existent `title` field
+*   **SellerAppointmentManagement Complete Overhaul** (October 14, 2025):
+    - **apiRequest Signature Fix**: Fixed all apiRequest calls to use correct signature: `apiRequest(method, url, data)` instead of incorrect `apiRequest(url, { method, body, headers })`
+      - The root cause was passing configuration object instead of data directly - `apiRequest` handles JSON.stringify and headers automatically
+      - Fixed createAppointmentMutation, approveAppointmentMutation, cancelAppointmentMutation, and rescheduleAppointmentMutation
     - **Manual Property Entry**: Implemented dual-mode property selection:
       - "Propiedad Registrada": Select from published properties dropdown
       - "Entrada Manual": Enter condominium name and unit number directly for properties not yet in system
-    - Updated POST `/api/seller/appointments/create-with-lead` endpoint to accept `condominiumName` and `unitNumber` fields
-    - Backend validates either `propertyId` OR (`condominiumName` + `unitNumber`) - one must be provided
-    - Appointments can now be created without registered properties, supporting early-stage lead engagement
+      - Backend validates either `propertyId` OR (`condominiumName` + `unitNumber`) - one must be provided
+    - **Unregistered Lead Support**: System now fully supports appointments with leads that don't have user accounts
+      - Removed `registeredLeads` filter that incorrectly blocked appointment creation
+      - Backend stores lead contact info (`leadId`, `leadEmail`, `leadPhone`, `leadName`) when `clientId` is null
+      - Notifications are only created if `clientId` exists (prevents database constraint errors)
+    - **UI/UX Improvements**:
+      - Added "Ocultar canceladas" checkbox filter (enabled by default) to hide cancelled appointments
+      - New "Citas de Hoy" section prominently displays today's appointments at the top
+      - Created helper functions `getAppointmentPropertyTitle()` and `getAppointmentClientName()` for correct data display:
+        - Properties: Shows `condominiumName - unitNumber` for manual entry, uses `getPropertyTitle()` for registered properties
+        - Clients: Shows `leadName` for unregistered leads, `client.firstName + lastName` for registered users
+      - Updated Appointment type definition to include nullable fields: `propertyId`, `clientId`, `condominiumName`, `unitNumber`, `leadName`
+      - All tabs now respect the "hide cancelled" filter
+    - **Backend Notification Fixes**:
+      - Added `if (appointment.clientId)` guards before creating notifications in approve, cancel, and reschedule endpoints
+      - Prevents "null value in column user_id violates not-null constraint" errors when working with unregistered leads
 
 ## System Architecture
 The platform is built with a modern web stack, emphasizing a professional, responsive, and accessible user experience with full internationalization.
