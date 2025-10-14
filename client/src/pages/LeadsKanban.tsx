@@ -852,6 +852,7 @@ export default function LeadsKanban() {
         <GenerateOfferLinkDialog
           open={offerDialogOpen}
           onOpenChange={setOfferDialogOpen}
+          leadId={selectedLeadForOffer.id}
           leadInfo={{
             name: `${selectedLeadForOffer.firstName} ${selectedLeadForOffer.lastName}`,
             email: selectedLeadForOffer.email || "",

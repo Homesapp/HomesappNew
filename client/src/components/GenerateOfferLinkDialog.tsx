@@ -39,6 +39,7 @@ interface GenerateOfferLinkDialogProps {
   trigger?: React.ReactNode;
   open?: boolean;
   onOpenChange?: (open: boolean) => void;
+  leadId?: string;
   leadInfo?: {
     name: string;
     email: string;
@@ -46,7 +47,7 @@ interface GenerateOfferLinkDialogProps {
   };
 }
 
-export default function GenerateOfferLinkDialog({ trigger, open: externalOpen, onOpenChange, leadInfo }: GenerateOfferLinkDialogProps) {
+export default function GenerateOfferLinkDialog({ trigger, open: externalOpen, onOpenChange, leadId, leadInfo }: GenerateOfferLinkDialogProps) {
   const { toast } = useToast();
   const [internalOpen, setInternalOpen] = useState(false);
   const open = externalOpen !== undefined ? externalOpen : internalOpen;
@@ -71,11 +72,16 @@ export default function GenerateOfferLinkDialog({ trigger, open: externalOpen, o
 
   const generateTokenMutation = useMutation({
     mutationFn: async (propertyId: string) => {
-      const response = await apiRequest("POST", "/api/offer-tokens", { propertyId });
+      const payload: any = { propertyId };
+      if (leadId) {
+        payload.leadId = leadId;
+      }
+      const response = await apiRequest("POST", "/api/offer-tokens", payload);
       return response.json();
     },
     onSuccess: (data) => {
       setGeneratedToken(data);
+      queryClient.invalidateQueries({ queryKey: ["/api/leads"] });
       toast({
         title: "Link generado exitosamente",
         description: "Ahora puedes compartir el link o enviarlo por email.",
