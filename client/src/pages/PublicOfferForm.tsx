@@ -46,7 +46,7 @@ const offerFormSchema = z.object({
 type OfferFormValues = z.infer<typeof offerFormSchema>;
 
 export default function PublicOfferForm() {
-  const { token } = useParams();
+  const { token } = useParams<{ token: string }>();
   const { toast } = useToast();
   const [isSubmitted, setIsSubmitted] = useState(false);
   const [petPhotoUrls, setPetPhotoUrls] = useState<string[]>([]);
