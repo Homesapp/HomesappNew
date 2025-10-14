@@ -58,9 +58,12 @@ Preferred communication style: Simple, everyday language.
       - Sellers and management can now delete appointments associated with their leads (verified via `leadId` and `registeredById` match)
       - Property owners, clients, and assigned staff retain their deletion rights
 
-*   **SellerAppointmentManagement apiRequest Fixes** (October 14, 2025):
+*   **SellerAppointmentManagement Improvements** (October 14, 2025):
     - Fixed all apiRequest calls to use correct signature: `apiRequest(method, url, options)` instead of incorrect `apiRequest(url, { method, ...options })`
     - Corrected mutations: createAppointmentMutation (POST), approveAppointmentMutation (POST), cancelAppointmentMutation (POST), rescheduleAppointmentMutation (PATCH)
+    - Removed `registeredLeads` filter that incorrectly blocked appointment creation for leads without user accounts
+    - System now allows creating appointments with ALL leads (both registered and unregistered), aligning with backend schema that supports nullable `clientId`
+    - Updated UI messaging: "No tienes leads creados" instead of misleading "No tienes leads registrados como usuarios"
     - All seller appointment actions (create, approve, cancel, reschedule) now function properly with correct HTTP requests
 
 ## System Architecture
