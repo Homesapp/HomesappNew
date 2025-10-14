@@ -23,12 +23,14 @@ import {
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Textarea } from "@/components/ui/textarea";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Calendar, Plus, CheckCircle, X, Edit2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { format } from "date-fns";
 import { es } from "date-fns/locale";
 import type { Lead, Property } from "@shared/schema";
+import { getPropertyTitle } from "@/lib/propertyHelpers";
 
 type Appointment = {
   id: string;
@@ -76,6 +78,9 @@ export default function SellerAppointmentManagement() {
   const [notes, setNotes] = useState("");
   const [cancelReason, setCancelReason] = useState("");
   const [rescheduleDate, setRescheduleDate] = useState("");
+  const [propertyInputMode, setPropertyInputMode] = useState<"registered" | "manual">("registered");
+  const [manualCondominium, setManualCondominium] = useState("");
+  const [manualUnit, setManualUnit] = useState("");
 
   // Fetch user's leads
   const { data: leads = [], isLoading: loadingLeads } = useQuery<Lead[]>({
@@ -208,10 +213,14 @@ export default function SellerAppointmentManagement() {
     setAppointmentDate("");
     setAppointmentType("in-person");
     setNotes("");
+    setPropertyInputMode("registered");
+    setManualCondominium("");
+    setManualUnit("");
   };
 
   const handleCreateAppointment = () => {
-    if (!selectedLeadId || !selectedPropertyId || !appointmentDate) {
+    // Validar campos básicos
+    if (!selectedLeadId || !appointmentDate) {
       toast({
         title: "Error",
         description: "Por favor completa todos los campos requeridos",
@@ -220,13 +229,40 @@ export default function SellerAppointmentManagement() {
       return;
     }
 
-    createAppointmentMutation.mutate({
+    // Validar según el modo de entrada
+    if (propertyInputMode === "registered" && !selectedPropertyId) {
+      toast({
+        title: "Error",
+        description: "Por favor selecciona una propiedad",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (propertyInputMode === "manual" && (!manualCondominium || !manualUnit)) {
+      toast({
+        title: "Error",
+        description: "Por favor completa el nombre del condominio y número de unidad",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    const appointmentData: any = {
       leadId: selectedLeadId,
-      propertyId: selectedPropertyId,
       date: appointmentDate,
       type: appointmentType,
       notes,
-    });
+    };
+
+    if (propertyInputMode === "registered") {
+      appointmentData.propertyId = selectedPropertyId;
+    } else {
+      appointmentData.condominiumName = manualCondominium;
+      appointmentData.unitNumber = manualUnit;
+    }
+
+    createAppointmentMutation.mutate(appointmentData);
   };
 
   const handleApprove = (appointment: Appointment) => {
@@ -289,7 +325,7 @@ export default function SellerAppointmentManagement() {
         <Button
           onClick={() => setIsCreateDialogOpen(true)}
           data-testid="button-create-appointment"
-          disabled={leads.length === 0 || publishedProperties.length === 0}
+          disabled={leads.length === 0}
         >
           <Plus className="h-4 w-4 mr-2" />
           Nueva Cita
@@ -301,16 +337,6 @@ export default function SellerAppointmentManagement() {
           <CardContent className="pt-6">
             <p className="text-muted-foreground text-center">
               No tienes leads creados. Crea al menos un lead antes de agendar citas.
-            </p>
-          </CardContent>
-        </Card>
-      )}
-
-      {publishedProperties.length === 0 && (
-        <Card>
-          <CardContent className="pt-6">
-            <p className="text-muted-foreground text-center">
-              No hay propiedades publicadas disponibles.
             </p>
           </CardContent>
         </Card>
@@ -447,20 +473,64 @@ export default function SellerAppointmentManagement() {
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="property">Propiedad *</Label>
-              <Select value={selectedPropertyId} onValueChange={setSelectedPropertyId}>
-                <SelectTrigger id="property" data-testid="select-property">
-                  <SelectValue placeholder="Selecciona una propiedad" />
-                </SelectTrigger>
-                <SelectContent>
-                  {publishedProperties.map((property) => (
-                    <SelectItem key={property.id} value={property.id}>
-                      {property.title}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <Label>Método de Selección de Propiedad *</Label>
+              <RadioGroup 
+                value={propertyInputMode} 
+                onValueChange={(value: "registered" | "manual") => setPropertyInputMode(value)}
+                className="flex gap-4"
+                data-testid="radio-property-mode"
+              >
+                <div className="flex items-center space-x-2">
+                  <RadioGroupItem value="registered" id="registered" data-testid="radio-property-registered" />
+                  <Label htmlFor="registered" className="cursor-pointer font-normal">Propiedad Registrada</Label>
+                </div>
+                <div className="flex items-center space-x-2">
+                  <RadioGroupItem value="manual" id="manual" data-testid="radio-property-manual" />
+                  <Label htmlFor="manual" className="cursor-pointer font-normal">Entrada Manual</Label>
+                </div>
+              </RadioGroup>
             </div>
+
+            {propertyInputMode === "registered" ? (
+              <div className="space-y-2">
+                <Label htmlFor="property">Propiedad *</Label>
+                <Select value={selectedPropertyId} onValueChange={setSelectedPropertyId}>
+                  <SelectTrigger id="property" data-testid="select-property">
+                    <SelectValue placeholder="Selecciona una propiedad" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {publishedProperties.map((property) => (
+                      <SelectItem key={property.id} value={property.id}>
+                        {getPropertyTitle(property)}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            ) : (
+              <div className="space-y-3">
+                <div className="space-y-2">
+                  <Label htmlFor="manual-condominium">Nombre del Condominio *</Label>
+                  <Input
+                    id="manual-condominium"
+                    value={manualCondominium}
+                    onChange={(e) => setManualCondominium(e.target.value)}
+                    placeholder="Ej: Aldea Zama, Lúum Zama, etc."
+                    data-testid="input-manual-condominium"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="manual-unit">Número de Unidad *</Label>
+                  <Input
+                    id="manual-unit"
+                    value={manualUnit}
+                    onChange={(e) => setManualUnit(e.target.value)}
+                    placeholder="Ej: 101, A-205, Casa 5, etc."
+                    data-testid="input-manual-unit"
+                  />
+                </div>
+              </div>
+            )}
 
             <div className="space-y-2">
               <Label htmlFor="date">Fecha y Hora *</Label>

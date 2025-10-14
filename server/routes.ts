@@ -9177,10 +9177,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const userId = req.user.claims.sub;
       const user = await storage.getUser(userId);
-      const { leadId, propertyId, date, type, notes } = req.body;
+      const { leadId, propertyId, condominiumName, unitNumber, date, type, notes } = req.body;
 
-      if (!leadId || !propertyId || !date || !type) {
-        return res.status(400).json({ message: "Lead, propiedad, fecha y tipo son requeridos" });
+      // Validate required fields
+      if (!leadId || !date || !type) {
+        return res.status(400).json({ message: "Lead, fecha y tipo son requeridos" });
+      }
+
+      // Validate property input: must have propertyId OR (condominiumName + unitNumber)
+      if (!propertyId && (!condominiumName || !unitNumber)) {
+        return res.status(400).json({ message: "Debes proporcionar un ID de propiedad O nombre de condominio y número de unidad" });
       }
 
       // Verify lead exists and belongs to seller (unless admin)
@@ -9194,14 +9200,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(403).json({ message: "Solo puedes crear citas con leads que tú registraste" });
       }
 
-      // Verify property exists and is published
-      const property = await storage.getProperty(propertyId);
-      if (!property) {
-        return res.status(404).json({ message: "Propiedad no encontrada" });
-      }
+      // Verify property exists and is published (only if propertyId provided)
+      let property = null;
+      if (propertyId) {
+        property = await storage.getProperty(propertyId);
+        if (!property) {
+          return res.status(404).json({ message: "Propiedad no encontrada" });
+        }
 
-      if (!property.published) {
-        return res.status(400).json({ message: "Solo puedes crear citas con propiedades publicadas" });
+        if (!property.published) {
+          return res.status(400).json({ message: "Solo puedes crear citas con propiedades publicadas" });
+        }
       }
 
       // Use clientId if lead is registered, otherwise use lead contact info
@@ -9215,13 +9224,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       // Create Google Meet event if type is video
       let meetLink = null;
+      const propertyTitle = property ? property.title : `${condominiumName} - ${unitNumber}`;
+      
       if (type === "video") {
         const appointmentDate = new Date(date);
         const endDate = new Date(appointmentDate.getTime() + 60 * 60 * 1000); // 1 hour later
 
         try {
           const eventResult = await createGoogleMeetEvent({
-            summary: `Visita Virtual: ${property.title}`,
+            summary: `Visita Virtual: ${propertyTitle}`,
             description: `Cita virtual para visitar la propiedad`,
             start: appointmentDate,
             end: endDate,
@@ -9239,7 +9250,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       // Create appointment with auto-approved status
       const appointment = await storage.createAppointment({
-        propertyId,
+        propertyId: propertyId || undefined,
+        condominiumName: condominiumName || undefined,
+        unitNumber: unitNumber || undefined,
         clientId,
         ...leadContactInfo, // Include lead info if no clientId
         date: new Date(date),
@@ -9265,7 +9278,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         "create",
         "appointment",
         appointment.id,
-        `${user?.role} creó cita con lead ${lead.firstName} ${lead.lastName} para ${property.title}`
+        `${user?.role} creó cita con lead ${lead.firstName} ${lead.lastName} para ${propertyTitle}`
       );
 
       // Notify client about the appointment (only if registered user)
@@ -9274,7 +9287,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           userId: clientId,
           type: "appointment",
           title: "Nueva Cita Agendada",
-          message: `Se ha agendado una cita para visitar ${property.title} el ${new Date(date).toLocaleDateString()}`,
+          message: `Se ha agendado una cita para visitar ${propertyTitle} el ${new Date(date).toLocaleDateString()}`,
           relatedEntityType: "appointment",
           relatedEntityId: appointment.id,
           priority: "high",
