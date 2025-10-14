@@ -359,11 +359,14 @@ export default function LeadsKanban() {
     mutationFn: async ({ leadId, newSellerId }: { leadId: string; newSellerId: string }) => {
       await apiRequest("PATCH", `/api/leads/${leadId}/reassign`, { newSellerId });
     },
-    onSuccess: () => {
+    onSuccess: (_, variables) => {
       queryClient.invalidateQueries({ queryKey: ["/api/leads"] });
+      queryClient.invalidateQueries({ queryKey: [`/api/leads/${variables.leadId}/appointments`] });
+      queryClient.invalidateQueries({ queryKey: [`/api/leads/${variables.leadId}/offered-properties`] });
       toast({ title: "Lead reasignado exitosamente" });
       setReassignDialogOpen(false);
       setSelectedNewSeller("");
+      setDetailsDialogOpen(false);
     },
     onError: (error: any) => {
       toast({ 
@@ -374,16 +377,16 @@ export default function LeadsKanban() {
     },
   });
 
-  // Query para obtener citas del lead seleccionado
-  const { data: leadAppointmentsHistory = [] } = useQuery({
-    queryKey: ["/api/leads", selectedLeadDetails?.id, "appointments"],
-    enabled: !!selectedLeadDetails?.id && showAppointmentsHistory,
+  // Query para obtener historial completo de citas del lead seleccionado
+  const { data: leadAppointmentsHistory = [], isLoading: loadingAppointments } = useQuery({
+    queryKey: [`/api/leads/${selectedLeadDetails?.id}/appointments`],
+    enabled: !!selectedLeadDetails?.id && detailsDialogOpen,
   });
 
   // Query para obtener propiedades ofrecidas al lead seleccionado
-  const { data: leadOfferedProperties = [] } = useQuery({
-    queryKey: ["/api/leads", selectedLeadDetails?.id, "offered-properties"],
-    enabled: !!selectedLeadDetails?.id && showOfferedProperties,
+  const { data: leadOfferedProperties = [], isLoading: loadingOfferedProperties } = useQuery({
+    queryKey: [`/api/leads/${selectedLeadDetails?.id}/offered-properties`],
+    enabled: !!selectedLeadDetails?.id && detailsDialogOpen,
   });
 
   const handleDragStart = (e: DragEvent, leadId: string) => {
@@ -1170,15 +1173,17 @@ export default function LeadsKanban() {
                   </>
                 )}
 
-                {/* Citas */}
+                {/* Historial de Citas */}
                 <div className="space-y-4">
                   <h3 className="text-lg font-semibold flex items-center gap-2">
                     <Calendar className="h-5 w-5" />
-                    Citas ({getLeadAppointments(selectedLeadDetails.id).length})
+                    Historial de Citas {loadingAppointments ? "" : `(${leadAppointmentsHistory.length})`}
                   </h3>
-                  {getLeadAppointments(selectedLeadDetails.id).length > 0 ? (
+                  {loadingAppointments ? (
+                    <p className="text-sm text-muted-foreground">Cargando citas...</p>
+                  ) : leadAppointmentsHistory.length > 0 ? (
                     <div className="space-y-2">
-                      {getLeadAppointments(selectedLeadDetails.id).map((apt: any) => (
+                      {leadAppointmentsHistory.map((apt: any) => (
                         <Card key={apt.id}>
                           <CardContent className="p-4">
                             <div className="flex items-start justify-between">
@@ -1190,6 +1195,11 @@ export default function LeadsKanban() {
                                 {apt.propertyId && (
                                   <p className="text-sm text-muted-foreground">
                                     Propiedad: {getPropertyTitle(properties.find((p: any) => p.id === apt.propertyId)) || "N/A"}
+                                  </p>
+                                )}
+                                {apt.status && (
+                                  <p className="text-sm text-muted-foreground">
+                                    Estado: {apt.status}
                                   </p>
                                 )}
                               </div>
@@ -1238,6 +1248,47 @@ export default function LeadsKanban() {
                     <p className="text-sm text-muted-foreground">No hay ofertas enviadas</p>
                   )}
                 </div>
+
+                {isAdmin && (
+                  <>
+                    <Separator />
+                    
+                    {/* Propiedades Ofrecidas (Solo Admin) */}
+                    <div className="space-y-4">
+                      <h3 className="text-lg font-semibold flex items-center gap-2">
+                        <FileText className="h-5 w-5" />
+                        Propiedades Ofrecidas {loadingOfferedProperties ? "" : `(${leadOfferedProperties.length})`}
+                      </h3>
+                      {loadingOfferedProperties ? (
+                        <p className="text-sm text-muted-foreground">Cargando propiedades ofrecidas...</p>
+                      ) : leadOfferedProperties.length > 0 ? (
+                        <div className="space-y-2">
+                          {leadOfferedProperties.map((prop: any) => (
+                            <Card key={prop.id}>
+                              <CardContent className="p-4">
+                                <div className="space-y-1">
+                                  <p className="font-medium">{getPropertyTitle(prop)}</p>
+                                  {prop.monthlyRent && (
+                                    <p className="text-sm text-muted-foreground">
+                                      Renta: {formatCurrency(prop.monthlyRent)}/mes
+                                    </p>
+                                  )}
+                                  {prop.offeredAt && (
+                                    <p className="text-sm text-muted-foreground">
+                                      Ofrecida: {format(new Date(prop.offeredAt), "d 'de' MMMM, yyyy", { locale: es })}
+                                    </p>
+                                  )}
+                                </div>
+                              </CardContent>
+                            </Card>
+                          ))}
+                        </div>
+                      ) : (
+                        <p className="text-sm text-muted-foreground">No se han ofrecido propiedades a este lead</p>
+                      )}
+                    </div>
+                  </>
+                )}
               </div>
             </ScrollArea>
           </DialogContent>
