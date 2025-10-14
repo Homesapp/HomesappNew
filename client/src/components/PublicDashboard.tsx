@@ -36,19 +36,21 @@ export default function PublicDashboard() {
   const { t } = useLanguage();
 
   const { data: properties = [] } = useQuery<Property[]>({
-    queryKey: ["/api/properties/search"],
+    queryKey: ["/api/properties/search?limit=12"],
   });
 
   const { data: colonies = [] } = useQuery<Colony[]>({
     queryKey: ["/api/colonies/approved"],
+    enabled: showFilters,
   });
 
   const { data: condominiums = [] } = useQuery<Condominium[]>({
     queryKey: ["/api/condominiums/approved"],
+    enabled: showFilters,
   });
 
   const featuredProperties = properties.filter(p => p.featured);
-  const allProperties = properties.slice(0, 12);
+  const allProperties = properties;
 
   const handleSearch = () => {
     const params = new URLSearchParams();

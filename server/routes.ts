@@ -3802,7 +3802,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         colonyName,
         condoName,
         unitType,
-        allowsSubleasing
+        allowsSubleasing,
+        limit
       } = req.query;
 
       const filters: any = {};
@@ -3849,6 +3850,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       if (allowsSubleasing !== undefined) {
         filters.allowsSubleasing = allowsSubleasing === "true";
+      }
+      if (limit) {
+        filters.limit = parseInt(limit as string);
       }
 
       // Only show published properties in public search (home and search pages) for non-authenticated users

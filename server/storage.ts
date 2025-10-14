@@ -400,6 +400,7 @@ export interface IStorage {
     unitType?: string;
     allowsSubleasing?: boolean;
     published?: boolean;
+    limit?: number;
   }): Promise<Property[]>;
   
   // Property staff operations
@@ -1740,6 +1741,7 @@ export class DatabaseStorage implements IStorage {
     allowsSubleasing?: boolean;
     approvalStatus?: string | string[];
     published?: boolean;
+    limit?: number;
   }): Promise<Property[]> {
     let query = db.select().from(properties);
     const conditions = [];
@@ -1855,11 +1857,17 @@ export class DatabaseStorage implements IStorage {
       query = query.where(and(...conditions)) as any;
     }
 
-    return await query.orderBy(
+    query = query.orderBy(
       desc(properties.featured),
       desc(properties.rating),
       desc(properties.createdAt)
-    );
+    ) as any;
+
+    if (filters.limit) {
+      query = query.limit(filters.limit) as any;
+    }
+
+    return await query;
   }
 
   // Property staff operations
