@@ -213,6 +213,11 @@ export default function LeadsKanban() {
   const [detailsDialogOpen, setDetailsDialogOpen] = useState(false);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [leadToDelete, setLeadToDelete] = useState<Lead | null>(null);
+  const [reassignDialogOpen, setReassignDialogOpen] = useState(false);
+  const [leadToReassign, setLeadToReassign] = useState<Lead | null>(null);
+  const [selectedNewSeller, setSelectedNewSeller] = useState<string>("");
+  const [showAppointmentsHistory, setShowAppointmentsHistory] = useState(false);
+  const [showOfferedProperties, setShowOfferedProperties] = useState(false);
   
   useEffect(() => {
     if (!dialogOpen) {
@@ -259,6 +264,17 @@ export default function LeadsKanban() {
   });
 
   const { data: sellers = [] } = useUsersByRole("seller");
+
+  const { data: currentUser } = useQuery({
+    queryKey: ["/api/auth/user"],
+  });
+
+  const isAdmin = currentUser?.role === "admin" || currentUser?.role === "master" || currentUser?.role === "admin_jr";
+
+  const getSellerName = (registeredById: string) => {
+    const seller = sellers.find((s: any) => s.id === registeredById);
+    return seller?.name || "Vendedor desconocido";
+  };
 
   const createLeadMutation = useMutation({
     mutationFn: async (data: any) => {
@@ -337,6 +353,37 @@ export default function LeadsKanban() {
     onError: () => {
       toast({ title: "Error al eliminar lead", variant: "destructive" });
     },
+  });
+
+  const reassignLeadMutation = useMutation({
+    mutationFn: async ({ leadId, newSellerId }: { leadId: string; newSellerId: string }) => {
+      await apiRequest("PATCH", `/api/leads/${leadId}/reassign`, { newSellerId });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/leads"] });
+      toast({ title: "Lead reasignado exitosamente" });
+      setReassignDialogOpen(false);
+      setSelectedNewSeller("");
+    },
+    onError: (error: any) => {
+      toast({ 
+        title: "Error al reasignar lead", 
+        description: error?.response?.data?.message || "Inténtalo de nuevo",
+        variant: "destructive" 
+      });
+    },
+  });
+
+  // Query para obtener citas del lead seleccionado
+  const { data: leadAppointmentsHistory = [] } = useQuery({
+    queryKey: ["/api/leads", selectedLeadDetails?.id, "appointments"],
+    enabled: !!selectedLeadDetails?.id && showAppointmentsHistory,
+  });
+
+  // Query para obtener propiedades ofrecidas al lead seleccionado
+  const { data: leadOfferedProperties = [] } = useQuery({
+    queryKey: ["/api/leads", selectedLeadDetails?.id, "offered-properties"],
+    enabled: !!selectedLeadDetails?.id && showOfferedProperties,
   });
 
   const handleDragStart = (e: DragEvent, leadId: string) => {
@@ -722,11 +769,19 @@ export default function LeadsKanban() {
                               <div className="font-semibold text-sm" data-testid={`text-lead-name-${lead.id}`}>
                                 {lead.firstName} {lead.lastName}
                               </div>
-                              {lead.emailVerified && (
-                                <Badge variant="secondary" className="mt-1 text-xs">
-                                  Verificado
-                                </Badge>
-                              )}
+                              <div className="flex flex-wrap gap-1.5 mt-1">
+                                {lead.emailVerified && (
+                                  <Badge variant="secondary" className="text-xs">
+                                    Verificado
+                                  </Badge>
+                                )}
+                                {isAdmin && (
+                                  <Badge variant="outline" className="text-xs gap-1" data-testid={`badge-seller-${lead.id}`}>
+                                    <User className="h-3 w-3" />
+                                    {getSellerName(lead.registeredById)}
+                                  </Badge>
+                                )}
+                              </div>
                             </div>
                           </div>
 
@@ -915,18 +970,34 @@ export default function LeadsKanban() {
                     <Edit className="h-4 w-4 mr-2" />
                     Editar
                   </Button>
-                  <Button
-                    size="sm"
-                    variant="destructive"
-                    onClick={() => {
-                      setLeadToDelete(selectedLeadDetails);
-                      setDeleteDialogOpen(true);
-                    }}
-                    data-testid="button-delete-lead"
-                  >
-                    <Trash2 className="h-4 w-4 mr-2" />
-                    Eliminar
-                  </Button>
+                  {isAdmin && (
+                    <>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => {
+                          setLeadToReassign(selectedLeadDetails);
+                          setReassignDialogOpen(true);
+                        }}
+                        data-testid="button-reassign-lead"
+                      >
+                        <User className="h-4 w-4 mr-2" />
+                        Reasignar
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="destructive"
+                        onClick={() => {
+                          setLeadToDelete(selectedLeadDetails);
+                          setDeleteDialogOpen(true);
+                        }}
+                        data-testid="button-delete-lead"
+                      >
+                        <Trash2 className="h-4 w-4 mr-2" />
+                        Eliminar
+                      </Button>
+                    </>
+                  )}
                 </div>
               </div>
             </DialogHeader>
@@ -1201,6 +1272,71 @@ export default function LeadsKanban() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* Reassign Lead Dialog */}
+      {isAdmin && leadToReassign && (
+        <Dialog open={reassignDialogOpen} onOpenChange={setReassignDialogOpen}>
+          <DialogContent data-testid="dialog-reassign-lead">
+            <DialogHeader>
+              <DialogTitle>Reasignar Lead</DialogTitle>
+              <p className="text-sm text-muted-foreground">
+                Reasignar el lead de <strong>{leadToReassign.firstName} {leadToReassign.lastName}</strong> a otro vendedor
+              </p>
+            </DialogHeader>
+            <div className="space-y-4 py-4">
+              <div>
+                <p className="text-sm text-muted-foreground mb-2">Vendedor actual:</p>
+                <p className="font-medium">{getSellerName(leadToReassign.registeredById)}</p>
+              </div>
+              <div className="space-y-2">
+                <label htmlFor="new-seller" className="text-sm font-medium">
+                  Nuevo vendedor:
+                </label>
+                <Select value={selectedNewSeller} onValueChange={setSelectedNewSeller}>
+                  <SelectTrigger id="new-seller" data-testid="select-new-seller">
+                    <SelectValue placeholder="Selecciona un vendedor" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {sellers
+                      .filter((s: any) => s.id !== leadToReassign.registeredById)
+                      .map((seller: any) => (
+                        <SelectItem key={seller.id} value={seller.id}>
+                          {seller.name}
+                        </SelectItem>
+                      ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+            <DialogFooter>
+              <Button
+                variant="outline"
+                onClick={() => {
+                  setReassignDialogOpen(false);
+                  setSelectedNewSeller("");
+                }}
+                data-testid="button-cancel-reassign"
+              >
+                Cancelar
+              </Button>
+              <Button
+                onClick={() => {
+                  if (selectedNewSeller) {
+                    reassignLeadMutation.mutate({
+                      leadId: leadToReassign.id,
+                      newSellerId: selectedNewSeller,
+                    });
+                  }
+                }}
+                disabled={!selectedNewSeller || reassignLeadMutation.isPending}
+                data-testid="button-confirm-reassign"
+              >
+                {reassignLeadMutation.isPending ? "Reasignando..." : "Reasignar"}
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+      )}
     </div>
   );
 }
