@@ -11893,13 +11893,21 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Offer Token routes - Enlaces privados para ofertas sin login
   app.post("/api/offer-tokens", isAuthenticated, requireRole(["admin", "master", "admin_jr", "seller"]), async (req: any, res) => {
     try {
-      const { propertyId } = req.body;
+      const { propertyId, leadId } = req.body;
       const userId = req.user.claims.sub;
 
       // Validate property exists
       const property = await storage.getProperty(propertyId);
       if (!property) {
         return res.status(404).json({ message: "Propiedad no encontrada" });
+      }
+
+      // If leadId provided, validate lead exists
+      if (leadId) {
+        const lead = await storage.getLead(leadId);
+        if (!lead) {
+          return res.status(404).json({ message: "Lead no encontrado" });
+        }
       }
 
       // Generate unique token
@@ -11913,17 +11921,23 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const offerToken = await db.insert(offerTokens).values({
         token,
         propertyId,
+        leadId: leadId || null,
         createdBy: userId,
         expiresAt,
         isUsed: false,
       }).returning();
+
+      // Update lead status to "oferta_enviada" if leadId provided
+      if (leadId) {
+        await storage.updateLeadStatus(leadId, "oferta_enviada");
+      }
 
       await createAuditLog(
         req,
         "create",
         "offer_token",
         offerToken[0].id,
-        `Token de oferta creado para propiedad ${property.title || propertyId}`
+        `Token de oferta creado para propiedad ${property.title || propertyId}${leadId ? ' y lead actualizado a oferta_enviada' : ''}`
       );
 
       // Return token with property info
