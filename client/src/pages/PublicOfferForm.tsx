@@ -287,8 +287,17 @@ export default function PublicOfferForm() {
   });
 
   const onSubmit = (data: OfferFormValues) => {
+    console.log("Form submitted with data:", data);
     submitOfferMutation.mutate(data);
   };
+
+  // Debug form errors
+  useEffect(() => {
+    const errors = form.formState.errors;
+    if (Object.keys(errors).length > 0) {
+      console.log("Form validation errors:", errors);
+    }
+  }, [form.formState.errors]);
 
   if (isValidating) {
     return (
