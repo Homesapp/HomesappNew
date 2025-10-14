@@ -8,16 +8,22 @@ Preferred communication style: Simple, everyday language.
 
 ## Recent Updates (October 14, 2025)
 
-### Production URL Fix
-*   **Issue Resolved**: Fixed incorrect URL generation for offer links and rental form links in production environment
-    - **Problem**: Backend was using incorrect environment variable `REPL_SLUG` which was causing malformed URLs in production
+### Production URL & Public Routes Fix
+*   **Issue 1 - URL Generation Fixed**: Corrected URL generation for offer links and rental form links in production environment
+    - **Problem**: Backend was using incorrect environment variable `REPL_SLUG` which caused malformed URLs in production
     - **Solution**: Updated to use `REPLIT_DOMAINS` environment variable as per Replit documentation
     - **Affected Endpoints**: 
       - POST `/api/offer-tokens/:id/send-email` - Now generates correct offer links in production
       - POST `/api/rental-form-tokens/:id/send-email` - Now generates correct rental form links in production
     - **Implementation**: Changed from `process.env.REPL_SLUG` to `process.env.REPLIT_DOMAINS?.split(',')[0]` for production URL base
     - **Fallback**: Added fallback to 'app.replit.dev' if REPLIT_DOMAINS is not available
-    - **Impact**: All generated links (offer tokens and rental form tokens) will now have correct production URLs
+    - **Impact**: All new generated links will have correct production URLs
+
+*   **Issue 2 - Public Routes Access Fixed**: Public form routes now accessible for both authenticated and unauthenticated users
+    - **Problem**: Routes `/offer/:token` and `/rental-form/:token` were only available to unauthenticated users, causing 404 errors when logged-in users clicked shared links
+    - **Solution**: Added public form routes to authenticated user router in App.tsx
+    - **Implementation**: Routes positioned at top of authenticated Switch to ensure they're always accessible
+    - **Impact**: Users can now access offer and rental form links regardless of authentication status
 
 ### Admin CRM Lead Management Enhancements
 *   **Lead Reassignment System**: Complete workflow for admin to reassign leads between sellers
