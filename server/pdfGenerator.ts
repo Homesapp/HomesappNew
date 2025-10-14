@@ -62,7 +62,7 @@ export async function generateOfferPDF(offerData: any, property: any): Promise<B
 
       doc.fontSize(16)
         .fillColor(primaryColor)
-        .text('📍 Propiedad', 60, yPosition + 5);
+        .text('PROPIEDAD', 60, yPosition + 5);
       
       yPosition += 30;
       doc.fontSize(12)
@@ -93,7 +93,7 @@ export async function generateOfferPDF(offerData: any, property: any): Promise<B
       // Client Information Section
       doc.fontSize(16)
         .fillColor(primaryColor)
-        .text('👤 Información del Solicitante', 50, yPosition);
+        .text('INFORMACIÓN DEL SOLICITANTE', 50, yPosition);
 
       yPosition += 25;
       const clientInfo = [
@@ -129,7 +129,7 @@ export async function generateOfferPDF(offerData: any, property: any): Promise<B
 
       doc.fontSize(16)
         .fillColor(accentColor)
-        .text('💰 Detalles de la Oferta', 60, yPosition + 5);
+        .text('DETALLES DE LA OFERTA', 60, yPosition + 5);
 
       yPosition += 30;
       const offerDetails = [
@@ -166,7 +166,7 @@ export async function generateOfferPDF(offerData: any, property: any): Promise<B
         
         doc.fontSize(16)
           .fillColor(primaryColor)
-          .text('🏠 Servicios', 50, yPosition);
+          .text('SERVICIOS', 50, yPosition);
 
         yPosition += 25;
 
@@ -206,7 +206,7 @@ export async function generateOfferPDF(offerData: any, property: any): Promise<B
       if (offerData.pets) {
         doc.fontSize(16)
           .fillColor(primaryColor)
-          .text('🐾 Mascotas', 50, yPosition);
+          .text('MASCOTAS', 50, yPosition);
 
         yPosition += 25;
         doc.fontSize(10)
@@ -235,7 +235,7 @@ export async function generateOfferPDF(offerData: any, property: any): Promise<B
       if (offerData.additionalComments) {
         doc.fontSize(16)
           .fillColor(primaryColor)
-          .text('💬 Comentarios Adicionales', 50, yPosition);
+          .text('COMENTARIOS ADICIONALES', 50, yPosition);
 
         yPosition += 25;
         doc.fontSize(10)
