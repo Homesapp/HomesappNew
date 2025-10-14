@@ -37,6 +37,7 @@ import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { useUsersByRole } from "@/hooks/useUsers";
 import GenerateOfferLinkDialog from "@/components/GenerateOfferLinkDialog";
+import GenerateRentalFormLinkDialog from "@/components/GenerateRentalFormLinkDialog";
 import { MultiSelectWithManual } from "@/components/MultiSelectWithManual";
 import MultiStepLeadForm from "@/components/MultiStepLeadForm";
 import { getPropertyTitle } from "@/lib/propertyHelpers";
@@ -807,20 +808,37 @@ export default function LeadsKanban() {
                               <CalendarCheck className="h-3 w-3" />
                               Agendar Cita
                             </Button>
-                            <Button
-                              size="sm"
-                              variant="outline"
-                              className="flex-1 text-xs gap-1"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                setSelectedLeadForOffer(lead);
-                                setOfferDialogOpen(true);
-                              }}
-                              data-testid={`button-create-offer-${lead.id}`}
-                            >
-                              <Send className="h-3 w-3" />
-                              Crear Oferta
-                            </Button>
+                            {lead.status === "en_negociacion" ? (
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                className="flex-1 text-xs gap-1"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setSelectedLeadForOffer(lead);
+                                  setOfferDialogOpen(true);
+                                }}
+                                data-testid={`button-send-rental-form-${lead.id}`}
+                              >
+                                <FileText className="h-3 w-3" />
+                                Enviar Formato de Renta
+                              </Button>
+                            ) : (
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                className="flex-1 text-xs gap-1"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setSelectedLeadForOffer(lead);
+                                  setOfferDialogOpen(true);
+                                }}
+                                data-testid={`button-create-offer-${lead.id}`}
+                              >
+                                <Send className="h-3 w-3" />
+                                Crear Oferta
+                              </Button>
+                            )}
                             <Button
                               size="sm"
                               variant="outline"
@@ -847,18 +865,31 @@ export default function LeadsKanban() {
         })}
       </div>
 
-      {/* Generate Offer Link Dialog */}
+      {/* Generate Offer Link Dialog or Rental Form Dialog */}
       {selectedLeadForOffer && (
-        <GenerateOfferLinkDialog
-          open={offerDialogOpen}
-          onOpenChange={setOfferDialogOpen}
-          leadId={selectedLeadForOffer.id}
-          leadInfo={{
-            name: `${selectedLeadForOffer.firstName} ${selectedLeadForOffer.lastName}`,
-            email: selectedLeadForOffer.email || "",
-            phone: selectedLeadForOffer.phone || "",
-          }}
-        />
+        selectedLeadForOffer.status === "en_negociacion" ? (
+          <GenerateRentalFormLinkDialog
+            open={offerDialogOpen}
+            onOpenChange={setOfferDialogOpen}
+            leadId={selectedLeadForOffer.id}
+            leadInfo={{
+              name: `${selectedLeadForOffer.firstName} ${selectedLeadForOffer.lastName}`,
+              email: selectedLeadForOffer.email || "",
+              phone: selectedLeadForOffer.phone || "",
+            }}
+          />
+        ) : (
+          <GenerateOfferLinkDialog
+            open={offerDialogOpen}
+            onOpenChange={setOfferDialogOpen}
+            leadId={selectedLeadForOffer.id}
+            leadInfo={{
+              name: `${selectedLeadForOffer.firstName} ${selectedLeadForOffer.lastName}`,
+              email: selectedLeadForOffer.email || "",
+              phone: selectedLeadForOffer.phone || "",
+            }}
+          />
+        )
       )}
 
       {/* Lead Details Dialog */}

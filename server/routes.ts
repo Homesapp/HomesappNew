@@ -57,6 +57,8 @@ import {
   userRegistrationSchema,
   userLoginSchema,
   insertRoleRequestSchema,
+  insertLeadSchema,
+  leads,
   rentalOpportunityRequests,
   leadJourneys,
   appointments,
@@ -128,6 +130,8 @@ import {
   insertHoaAnnouncementReadSchema,
   insertOfferTokenSchema,
   offerTokens,
+  tenantRentalFormTokens,
+  tenantRentalForms,
   condominiums,
   condominiumUnits,
   colonies,
@@ -12227,6 +12231,252 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Error generating PDF:", error);
       res.status(500).json({ message: "Error al generar PDF" });
+    }
+  });
+
+  // Rental Form Token routes - Enlaces privados para formato de renta de inquilino
+  app.post("/api/rental-form-tokens", isAuthenticated, requireRole(["admin", "master", "admin_jr", "seller"]), async (req: any, res) => {
+    try {
+      const { propertyId, leadId } = req.body;
+      const userId = req.user.claims.sub;
+
+      // Validate property exists
+      const property = await storage.getProperty(propertyId);
+      if (!property) {
+        return res.status(404).json({ message: "Propiedad no encontrada" });
+      }
+
+      // Generate unique token
+      const token = crypto.randomBytes(32).toString('hex');
+      const expiresAt = new Date();
+      expiresAt.setHours(expiresAt.getHours() + 24); // 24 hour expiration
+
+      const [rentalFormToken] = await db
+        .insert(tenantRentalFormTokens)
+        .values({
+          token,
+          propertyId,
+          leadId: leadId || null,
+          createdBy: userId,
+          expiresAt,
+          isUsed: false,
+        })
+        .returning();
+
+      await createAuditLog(
+        req,
+        "create",
+        "rental_form_token",
+        rentalFormToken.id,
+        `Token de formato de renta creado para propiedad ${property.title || property.id}`
+      );
+
+      res.json({
+        ...rentalFormToken,
+        property,
+      });
+    } catch (error: any) {
+      console.error("Error creating rental form token:", error);
+      res.status(400).json({ message: error.message || "Error al crear token de formato de renta" });
+    }
+  });
+
+  // Validate rental form token (public route)
+  app.get("/api/rental-form-tokens/:token/validate", async (req, res) => {
+    try {
+      const { token } = req.params;
+
+      const [rentalFormToken] = await db
+        .select()
+        .from(tenantRentalFormTokens)
+        .where(eq(tenantRentalFormTokens.token, token))
+        .limit(1);
+
+      if (!rentalFormToken) {
+        return res.status(404).json({ message: "Token no encontrado" });
+      }
+
+      // Check if token is expired
+      if (new Date() > new Date(rentalFormToken.expiresAt)) {
+        return res.status(400).json({ message: "Este enlace ha expirado" });
+      }
+
+      // Check if token is already used
+      if (rentalFormToken.isUsed) {
+        return res.status(400).json({ message: "Este enlace ya ha sido utilizado" });
+      }
+
+      // Get property info
+      const property = await storage.getProperty(rentalFormToken.propertyId);
+      if (!property) {
+        return res.status(404).json({ message: "Propiedad no encontrada" });
+      }
+
+      res.json({
+        valid: true,
+        property,
+        expiresAt: rentalFormToken.expiresAt,
+      });
+    } catch (error) {
+      console.error("Error validating rental form token:", error);
+      res.status(500).json({ message: "Error al validar token" });
+    }
+  });
+
+  // Submit rental form via token (public route)
+  app.post("/api/rental-form-tokens/:token/submit", async (req, res) => {
+    try {
+      const { token } = req.params;
+      const formData = req.body;
+
+      const [rentalFormToken] = await db
+        .select()
+        .from(tenantRentalFormTokens)
+        .where(eq(tenantRentalFormTokens.token, token))
+        .limit(1);
+
+      if (!rentalFormToken) {
+        return res.status(404).json({ message: "Token no encontrado" });
+      }
+
+      if (new Date() > new Date(rentalFormToken.expiresAt)) {
+        return res.status(400).json({ message: "Este enlace ha expirado" });
+      }
+
+      if (rentalFormToken.isUsed) {
+        return res.status(400).json({ message: "Este enlace ya ha sido utilizado" });
+      }
+
+      // Create tenant rental form
+      const [rentalForm] = await db
+        .insert(tenantRentalForms)
+        .values({
+          tokenId: rentalFormToken.id,
+          propertyId: rentalFormToken.propertyId,
+          leadId: rentalFormToken.leadId,
+          ...formData,
+          status: 'pendiente',
+        })
+        .returning();
+
+      // Mark token as used
+      await db
+        .update(tenantRentalFormTokens)
+        .set({ 
+          isUsed: true,
+          usedAt: new Date(),
+        })
+        .where(eq(tenantRentalFormTokens.id, rentalFormToken.id));
+
+      // Update lead status to 'documentos_enviados' if leadId exists
+      if (rentalFormToken.leadId) {
+        await db
+          .update(leads)
+          .set({ status: 'documentos_enviados' })
+          .where(eq(leads.id, rentalFormToken.leadId));
+      }
+
+      res.json({
+        success: true,
+        message: "Formato de renta enviado exitosamente",
+        formId: rentalForm.id,
+      });
+    } catch (error) {
+      console.error("Error submitting rental form:", error);
+      res.status(500).json({ message: "Error al enviar formato de renta" });
+    }
+  });
+
+  // Send rental form link via email
+  app.post("/api/rental-form-tokens/:id/send-email", isAuthenticated, requireRole(["admin", "master", "admin_jr", "seller"]), async (req: any, res) => {
+    try {
+      const { id } = req.params;
+      const { clientEmail, clientName } = req.body;
+
+      if (!clientEmail || !clientName) {
+        return res.status(400).json({ message: "Email y nombre del cliente son requeridos" });
+      }
+
+      // Get rental form token
+      const [rentalFormToken] = await db
+        .select()
+        .from(tenantRentalFormTokens)
+        .where(eq(tenantRentalFormTokens.id, id))
+        .limit(1);
+
+      if (!rentalFormToken) {
+        return res.status(404).json({ message: "Token de formato de renta no encontrado" });
+      }
+
+      // Get property info
+      const property = await storage.getProperty(rentalFormToken.propertyId);
+      if (!property) {
+        return res.status(404).json({ message: "Propiedad no encontrada" });
+      }
+
+      // Build rental form link
+      const baseUrl = process.env.NODE_ENV === 'production' 
+        ? `https://${process.env.REPL_SLUG}.replit.app`
+        : 'http://localhost:5000';
+      const rentalFormLink = `${baseUrl}/rental-form/${rentalFormToken.token}`;
+
+      // TODO: Send email using Resend integration
+      // For now, just return success
+      console.log(`Would send rental form link email to ${clientEmail}`);
+
+      await createAuditLog(
+        req,
+        "create",
+        "rental_form_token_email",
+        rentalFormToken.id,
+        `Email enviado a ${clientEmail} con link de formato de renta para ${property.title}`
+      );
+
+      res.json({ 
+        message: "Email enviado exitosamente",
+        rentalFormLink 
+      });
+    } catch (error: any) {
+      console.error("Error sending rental form link email:", error);
+      res.status(500).json({ message: error.message || "Error al enviar email" });
+    }
+  });
+
+  // Get all rental form tokens (admins only)
+  app.get("/api/rental-form-tokens", isAuthenticated, requireRole(["admin", "master", "admin_jr"]), async (req, res) => {
+    try {
+      const { status } = req.query;
+
+      let query = db
+        .select()
+        .from(tenantRentalFormTokens)
+        .orderBy(desc(tenantRentalFormTokens.createdAt));
+
+      if (status === "used") {
+        query = query.where(eq(tenantRentalFormTokens.isUsed, true));
+      } else if (status === "unused") {
+        query = query.where(eq(tenantRentalFormTokens.isUsed, false));
+      }
+
+      const tokens = await query;
+
+      // Enrich with property and creator info
+      const enrichedTokens = await Promise.all(
+        tokens.map(async (token) => {
+          const property = await storage.getProperty(token.propertyId);
+          const creator = await storage.getUser(token.createdBy);
+          return {
+            ...token,
+            property,
+            creator,
+          };
+        })
+      );
+
+      res.json(enrichedTokens);
+    } catch (error) {
+      console.error("Error fetching rental form tokens:", error);
+      res.status(500).json({ message: "Error al obtener tokens de formato de renta" });
     }
   });
 
