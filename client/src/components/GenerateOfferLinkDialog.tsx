@@ -71,7 +71,8 @@ export default function GenerateOfferLinkDialog({ trigger, open: externalOpen, o
 
   const generateTokenMutation = useMutation({
     mutationFn: async (propertyId: string) => {
-      return apiRequest("POST", "/api/offer-tokens", { propertyId });
+      const response = await apiRequest("POST", "/api/offer-tokens", { propertyId });
+      return response.json();
     },
     onSuccess: (data) => {
       setGeneratedToken(data);
