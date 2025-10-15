@@ -311,8 +311,9 @@ export default function LeadsKanban() {
     mutationFn: async ({ id, status }: { id: string; status: string }) => {
       await apiRequest("PATCH", `/api/leads/${id}/status`, { status });
     },
-    onSuccess: () => {
+    onSuccess: (_, variables) => {
       queryClient.invalidateQueries({ queryKey: ["/api/leads"] });
+      queryClient.invalidateQueries({ queryKey: [`/api/leads/${variables.id}/history`] });
       toast({ title: "Estado actualizado" });
     },
     onError: () => {
@@ -1194,6 +1195,16 @@ export default function LeadsKanban() {
                           >
                             <Eye className="h-4 w-4 mr-2" />
                             Ver Detalles
+                          </DropdownMenuItem>
+                          <DropdownMenuItem
+                            onClick={() => {
+                              setSelectedLeadForOffer(lead);
+                              setOfferDialogOpen(true);
+                            }}
+                            data-testid={`menu-send-offer-${lead.id}`}
+                          >
+                            <Send className="h-4 w-4 mr-2" />
+                            Enviar Oferta
                           </DropdownMenuItem>
                           {isAdmin && (
                             <>
