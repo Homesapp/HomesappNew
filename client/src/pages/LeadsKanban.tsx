@@ -688,22 +688,22 @@ export default function LeadsKanban() {
           </CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-2 md:gap-3">
             <Button 
               variant="outline" 
-              className="w-full justify-start gap-2"
+              className="w-full justify-start gap-2 text-xs sm:text-sm"
               onClick={() => {
                 setDialogOpen(true);
               }}
               data-testid="quick-action-new-lead"
             >
-              <Plus className="h-4 w-4" />
-              Registrar Nuevo Lead
+              <Plus className="h-4 w-4 flex-shrink-0" />
+              <span className="truncate">Nuevo Lead</span>
             </Button>
             
             <Button 
               variant="outline" 
-              className="w-full justify-start gap-2"
+              className="w-full justify-start gap-2 text-xs sm:text-sm"
               onClick={() => {
                 setDateFilter("today");
                 setSearchText("");
@@ -713,17 +713,17 @@ export default function LeadsKanban() {
               }}
               data-testid="quick-action-today-leads"
             >
-              <Calendar className="h-4 w-4" />
-              Leads de Hoy ({leads.filter(l => {
+              <Calendar className="h-4 w-4 flex-shrink-0" />
+              <span className="truncate">Hoy ({leads.filter(l => {
                 const today = new Date();
                 const leadDate = new Date(l.createdAt);
                 return leadDate.toDateString() === today.toDateString();
-              }).length})
+              }).length})</span>
             </Button>
 
             <Button 
               variant="outline" 
-              className="w-full justify-start gap-2"
+              className="w-full justify-start gap-2 text-xs sm:text-sm"
               onClick={() => {
                 setSearchText("");
                 setSellerFilter("");
@@ -733,13 +733,13 @@ export default function LeadsKanban() {
               }}
               data-testid="quick-action-pending-contact"
             >
-              <Mail className="h-4 w-4" />
-              Pendientes de Contacto ({getLeadsByStatus("nuevo").length + getLeadsByStatus("contactado").length})
+              <Mail className="h-4 w-4 flex-shrink-0" />
+              <span className="truncate">Pendientes ({getLeadsByStatus("nuevo").length + getLeadsByStatus("contactado").length})</span>
             </Button>
 
             <Button 
               variant="outline" 
-              className="w-full justify-start gap-2"
+              className="w-full justify-start gap-2 text-xs sm:text-sm"
               onClick={() => {
                 setSearchText("");
                 setSellerFilter("");
@@ -749,8 +749,8 @@ export default function LeadsKanban() {
               }}
               data-testid="quick-action-upcoming-appointments"
             >
-              <CalendarCheck className="h-4 w-4" />
-              Citas Agendadas ({getLeadsByStatus("cita_agendada").length})
+              <CalendarCheck className="h-4 w-4 flex-shrink-0" />
+              <span className="truncate">Citas ({getLeadsByStatus("cita_agendada").length})</span>
             </Button>
           </div>
         </CardContent>
@@ -1009,14 +1009,14 @@ export default function LeadsKanban() {
               </div>
               
               <Select
-                value={statusFilter.join(',')}
-                onValueChange={(value) => setStatusFilter(value ? value.split(',') : [])}
+                value={statusFilter.length > 0 ? statusFilter.join(',') : "all"}
+                onValueChange={(value) => setStatusFilter(value === "all" ? [] : value.split(','))}
               >
                 <SelectTrigger className="w-full md:w-[200px]" data-testid="select-status-filter">
                   <SelectValue placeholder="Filtrar por estado" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">Todos los estados</SelectItem>
+                  <SelectItem value="all">Todos los estados</SelectItem>
                   {LEAD_STATUSES.map((status) => (
                     <SelectItem key={status.value} value={status.value}>
                       {status.label}
@@ -1026,12 +1026,12 @@ export default function LeadsKanban() {
               </Select>
 
               {isAdmin && (
-                <Select value={sellerFilter} onValueChange={setSellerFilter}>
+                <Select value={sellerFilter || "all"} onValueChange={(value) => setSellerFilter(value === "all" ? "" : value)}>
                   <SelectTrigger className="w-full md:w-[200px]" data-testid="select-seller-filter">
                     <SelectValue placeholder="Filtrar por vendedor" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="">Todos los vendedores</SelectItem>
+                    <SelectItem value="all">Todos los vendedores</SelectItem>
                     {sellers.map((seller: any) => (
                       <SelectItem key={seller.id} value={seller.id}>
                         {seller.name}
