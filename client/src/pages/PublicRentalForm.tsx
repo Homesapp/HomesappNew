@@ -16,12 +16,16 @@ import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
 import { Loader2, CheckCircle2, AlertCircle, Home, Building2 } from "lucide-react";
 import { getPropertyTitle } from "@/lib/propertyHelpers";
+import { LanguageToggle } from "@/components/LanguageToggle";
 
 const rentalFormSchema = z.object({
   fullName: z.string().min(2, "Nombre completo es requerido"),
   address: z.string().optional(),
   nationality: z.string().optional(),
-  age: z.number().min(18, "Debe ser mayor de 18 años").optional(),
+  age: z.preprocess((val) => {
+    const num = Number(val);
+    return isNaN(num) ? undefined : num;
+  }, z.number().min(18, "Debe ser mayor de 18 años").optional()),
   timeInTulum: z.string().optional(),
   jobPosition: z.string().optional(),
   companyName: z.string().optional(),
@@ -35,7 +39,10 @@ const rentalFormSchema = z.object({
   idType: z.string().optional(),
   idNumber: z.string().optional(),
   checkInDate: z.string().optional(),
-  numberOfTenants: z.number().min(1).optional(),
+  numberOfTenants: z.preprocess((val) => {
+    const num = Number(val);
+    return isNaN(num) ? undefined : num;
+  }, z.number().min(1).optional()),
   paymentMethod: z.string().optional(),
   hasPets: z.boolean().default(false),
   petDetails: z.string().optional(),
@@ -188,6 +195,7 @@ export default function PublicRentalForm() {
                   {property && getPropertyTitle(property)}
                 </CardDescription>
               </div>
+              <LanguageToggle />
             </div>
           </CardHeader>
           {property && (

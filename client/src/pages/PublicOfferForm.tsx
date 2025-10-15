@@ -15,6 +15,7 @@ import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
 import { Loader2, Home, CheckCircle2, AlertCircle, Upload, X, Pen, ChevronLeft, ChevronRight } from "lucide-react";
 import logoPath from "@assets/H mes (500 x 300 px)_1759672952263.png";
+import { LanguageToggle } from "@/components/LanguageToggle";
 
 const offerFormSchema = z.object({
   fullName: z.string().min(2, "Nombre completo es requerido"),
@@ -414,7 +415,10 @@ export default function PublicOfferForm() {
     <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 dark:from-slate-900 dark:to-slate-800 py-8 px-4">
       <div className="max-w-4xl mx-auto">
         {/* Header with Logo */}
-        <div className="text-center mb-8">
+        <div className="relative text-center mb-8">
+          <div className="absolute top-0 right-0">
+            <LanguageToggle />
+          </div>
           <img 
             src={logoPath} 
             alt="HomesApp Logo" 
