@@ -9,6 +9,9 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Separator } from "@/components/ui/separator";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import {
   Plus,
   Mail,
@@ -31,6 +34,13 @@ import {
   ChevronUp,
   Edit,
   Trash2,
+  Download,
+  MessageCircle,
+  MoreVertical,
+  Search,
+  Filter,
+  List,
+  LayoutGrid,
 } from "lucide-react";
 import { type Lead, insertLeadSchema } from "@shared/schema";
 import { apiRequest, queryClient } from "@/lib/queryClient";
@@ -69,20 +79,7 @@ import { useForm } from "react-hook-form";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { format } from "date-fns";
 import { es } from "date-fns/locale";
-import { 
-  ChartContainer, 
-  ChartTooltip, 
-  ChartTooltipContent 
-} from "@/components/ui/chart";
-import { 
-  BarChart, 
-  Bar, 
-  XAxis, 
-  YAxis, 
-  CartesianGrid, 
-  ResponsiveContainer,
-  Cell
-} from "recharts";
+import { useMemo } from "react";
 
 const LEAD_STATUSES = [
   { 
@@ -208,8 +205,12 @@ export default function LeadsKanban() {
   } | null>(null);
   const [validatingPhone, setValidatingPhone] = useState(false);
   const [showMetrics, setShowMetrics] = useState(true);
-  const [showFunnel, setShowFunnel] = useState(true);
   const [selectedLeadDetails, setSelectedLeadDetails] = useState<Lead | null>(null);
+  const [viewMode, setViewMode] = useState<"kanban" | "table">("kanban");
+  const [searchText, setSearchText] = useState("");
+  const [statusFilter, setStatusFilter] = useState<string[]>([]);
+  const [sellerFilter, setSellerFilter] = useState<string>("");
+  const [dateFilter, setDateFilter] = useState<"all" | "today" | "week" | "month">("all");
   const [detailsDialogOpen, setDetailsDialogOpen] = useState(false);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [leadToDelete, setLeadToDelete] = useState<Lead | null>(null);
@@ -476,6 +477,71 @@ export default function LeadsKanban() {
     !["ganado", "perdido"].includes(l.status)
   ).length;
 
+  // Filtered leads based on search and filters
+  const filteredLeads = useMemo(() => {
+    return leads.filter((lead) => {
+      // Search filter
+      const searchLower = searchText.toLowerCase();
+      const matchesSearch = !searchText || 
+        lead.firstName.toLowerCase().includes(searchLower) ||
+        lead.lastName.toLowerCase().includes(searchLower) ||
+        lead.email?.toLowerCase().includes(searchLower) ||
+        lead.phone.includes(searchText);
+
+      // Status filter
+      const matchesStatus = statusFilter.length === 0 || statusFilter.includes(lead.status);
+
+      // Seller filter (only for admin)
+      const matchesSeller = !sellerFilter || 
+        lead.registeredById === sellerFilter || 
+        lead.assignedToId === sellerFilter;
+
+      // Date filter
+      const leadDate = new Date(lead.createdAt);
+      const today = new Date();
+      let matchesDate = true;
+      
+      if (dateFilter === "today") {
+        matchesDate = leadDate.toDateString() === today.toDateString();
+      } else if (dateFilter === "week") {
+        const weekAgo = new Date(today.getTime() - 7 * 24 * 60 * 60 * 1000);
+        matchesDate = leadDate >= weekAgo;
+      } else if (dateFilter === "month") {
+        const monthAgo = new Date(today.getTime() - 30 * 24 * 60 * 60 * 1000);
+        matchesDate = leadDate >= monthAgo;
+      }
+
+      return matchesSearch && matchesStatus && matchesSeller && matchesDate;
+    });
+  }, [leads, searchText, statusFilter, sellerFilter, dateFilter]);
+
+  // Export to CSV function
+  const exportToCSV = () => {
+    const csvData = filteredLeads.map(lead => ({
+      Nombre: `${lead.firstName} ${lead.lastName}`,
+      Email: lead.email || '',
+      Teléfono: lead.phone,
+      Presupuesto: lead.budget,
+      Estado: LEAD_STATUSES.find(s => s.value === lead.status)?.label || lead.status,
+      Fuente: lead.source?.join(', ') || '',
+      'Asignado a': lead.assignedToId ? getSellerName(lead.assignedToId) : 'Sin asignar',
+      'Registrado por': getSellerName(lead.registeredById),
+      'Fecha de creación': format(new Date(lead.createdAt), 'dd/MM/yyyy', { locale: es }),
+    }));
+
+    const headers = Object.keys(csvData[0] || {});
+    const csvContent = [
+      headers.join(','),
+      ...csvData.map(row => headers.map(header => `"${row[header as keyof typeof row]}"`).join(','))
+    ].join('\n');
+
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const link = document.createElement('a');
+    link.href = URL.createObjectURL(blob);
+    link.download = `leads_${format(new Date(), 'yyyy-MM-dd')}.csv`;
+    link.click();
+  };
+
   if (isLoading) {
     return (
       <div className="container mx-auto py-6 space-y-6">
@@ -613,107 +679,107 @@ export default function LeadsKanban() {
         </div>
       )}
 
-      {/* Sales Funnel Visualization */}
-      <div className="flex items-center justify-between mb-2">
-        <h2 className="text-lg font-semibold">Embudo de Ventas</h2>
-        <Button
-          size="sm"
-          variant="ghost"
-          onClick={() => setShowFunnel(!showFunnel)}
-          data-testid="button-toggle-funnel"
-        >
-          {showFunnel ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
-        </Button>
-      </div>
-      {showFunnel && (
-        <Card data-testid="sales-funnel-chart">
+      {/* Quick Actions for Sellers */}
+      <Card className="mb-4">
         <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <TrendingUp className="h-5 w-5" />
-            Embudo de Ventas - Distribución por Etapa
+          <CardTitle className="text-lg flex items-center gap-2">
+            <Clock className="h-5 w-5" />
+            Acciones Rápidas
           </CardTitle>
-          <p className="text-sm text-muted-foreground">
-            Visualización del flujo de leads a través del pipeline
-          </p>
         </CardHeader>
         <CardContent>
-          <ChartContainer
-            config={{
-              leads: {
-                label: "Leads",
-              },
-            }}
-            className="h-[300px] w-full"
-          >
-            <BarChart
-              data={LEAD_STATUSES.map((status) => ({
-                name: status.label,
-                value: getLeadsByStatus(status.value).length,
-                color: status.color.replace('bg-', ''),
-              }))}
-              layout="horizontal"
-              margin={{ top: 5, right: 30, left: 20, bottom: 5 }}
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
+            <Button 
+              variant="outline" 
+              className="w-full justify-start gap-2"
+              onClick={() => {
+                setDialogOpen(true);
+              }}
+              data-testid="quick-action-new-lead"
             >
-              <CartesianGrid strokeDasharray="3 3" />
-              <XAxis type="number" />
-              <YAxis 
-                dataKey="name" 
-                type="category"
-                width={120}
-                tick={{ fontSize: 12 }}
-              />
-              <ChartTooltip content={<ChartTooltipContent />} />
-              <Bar dataKey="value" radius={[0, 4, 4, 0]}>
-                {LEAD_STATUSES.map((status, index) => (
-                  <Cell 
-                    key={`cell-${index}`} 
-                    fill={`hsl(var(--chart-${(index % 5) + 1}))`}
-                  />
-                ))}
-              </Bar>
-            </BarChart>
-          </ChartContainer>
-          
-          {/* Funnel Statistics */}
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mt-6 pt-6 border-t">
-            <div className="space-y-1" data-testid="funnel-stat-calificado-to-cita">
-              <p className="text-xs text-muted-foreground">Calificado → Cita</p>
-              <p className="text-lg font-semibold">
-                {getLeadsByStatus("calificado").length > 0
-                  ? ((getLeadsByStatus("cita_agendada").length / getLeadsByStatus("calificado").length) * 100).toFixed(0)
-                  : "0"}%
-              </p>
-            </div>
-            <div className="space-y-1" data-testid="funnel-stat-cita-to-visita">
-              <p className="text-xs text-muted-foreground">Cita → Visita Completada</p>
-              <p className="text-lg font-semibold">
-                {getLeadsByStatus("cita_agendada").length > 0
-                  ? ((getLeadsByStatus("visita_completada").length / getLeadsByStatus("cita_agendada").length) * 100).toFixed(0)
-                  : "0"}%
-              </p>
-            </div>
-            <div className="space-y-1" data-testid="funnel-stat-visita-to-oferta">
-              <p className="text-xs text-muted-foreground">Visita → Oferta</p>
-              <p className="text-lg font-semibold">
-                {getLeadsByStatus("visita_completada").length > 0
-                  ? ((getLeadsByStatus("oferta_enviada").length / getLeadsByStatus("visita_completada").length) * 100).toFixed(0)
-                  : "0"}%
-              </p>
-            </div>
-            <div className="space-y-1" data-testid="funnel-stat-contrato-to-ganado">
-              <p className="text-xs text-muted-foreground">Contrato → Ganado</p>
-              <p className="text-lg font-semibold text-green-600">
-                {getLeadsByStatus("contrato_firmado").length > 0
-                  ? ((getLeadsByStatus("ganado").length / getLeadsByStatus("contrato_firmado").length) * 100).toFixed(0)
-                  : "0"}%
-              </p>
-            </div>
+              <Plus className="h-4 w-4" />
+              Registrar Nuevo Lead
+            </Button>
+            
+            <Button 
+              variant="outline" 
+              className="w-full justify-start gap-2"
+              onClick={() => {
+                setDateFilter("today");
+                setSearchText("");
+                setStatusFilter([]);
+                setSellerFilter("");
+                setViewMode("table");
+              }}
+              data-testid="quick-action-today-leads"
+            >
+              <Calendar className="h-4 w-4" />
+              Leads de Hoy ({leads.filter(l => {
+                const today = new Date();
+                const leadDate = new Date(l.createdAt);
+                return leadDate.toDateString() === today.toDateString();
+              }).length})
+            </Button>
+
+            <Button 
+              variant="outline" 
+              className="w-full justify-start gap-2"
+              onClick={() => {
+                setSearchText("");
+                setSellerFilter("");
+                setDateFilter("all");
+                setStatusFilter(["nuevo", "contactado"]);
+                setViewMode("table");
+              }}
+              data-testid="quick-action-pending-contact"
+            >
+              <Mail className="h-4 w-4" />
+              Pendientes de Contacto ({getLeadsByStatus("nuevo").length + getLeadsByStatus("contactado").length})
+            </Button>
+
+            <Button 
+              variant="outline" 
+              className="w-full justify-start gap-2"
+              onClick={() => {
+                setSearchText("");
+                setSellerFilter("");
+                setDateFilter("all");
+                setStatusFilter(["cita_agendada"]);
+                setViewMode("table");
+              }}
+              data-testid="quick-action-upcoming-appointments"
+            >
+              <CalendarCheck className="h-4 w-4" />
+              Citas Agendadas ({getLeadsByStatus("cita_agendada").length})
+            </Button>
           </div>
         </CardContent>
       </Card>
-      )}
 
-      {/* Kanban Board */}
+      {/* View Mode Tabs */}
+      <Tabs value={viewMode} onValueChange={(v) => setViewMode(v as "kanban" | "table")} className="w-full">
+        <div className="flex items-center justify-between mb-4">
+          <TabsList data-testid="view-mode-tabs">
+            <TabsTrigger value="kanban" data-testid="tab-kanban">
+              <LayoutGrid className="h-4 w-4 mr-2" />
+              Kanban
+            </TabsTrigger>
+            <TabsTrigger value="table" data-testid="tab-table">
+              <List className="h-4 w-4 mr-2" />
+              Tabla
+            </TabsTrigger>
+          </TabsList>
+          
+          {viewMode === "table" && (
+            <Button onClick={exportToCSV} variant="outline" size="sm" data-testid="button-export-csv">
+              <Download className="h-4 w-4 mr-2" />
+              Exportar CSV
+            </Button>
+          )}
+        </div>
+
+        <TabsContent value="kanban" className="mt-0">
+          {/* Kanban Board */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 xl:grid-cols-4 gap-4">
         {LEAD_STATUSES.map((status) => {
           const StatusIcon = status.icon;
@@ -922,6 +988,243 @@ export default function LeadsKanban() {
           );
         })}
       </div>
+      </TabsContent>
+
+      <TabsContent value="table" className="mt-0">
+        {/* Filter Section */}
+        <Card className="mb-4">
+          <CardContent className="pt-6">
+            <div className="flex flex-col md:flex-row gap-4">
+              <div className="flex-1">
+                <div className="relative">
+                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                  <Input
+                    placeholder="Buscar por nombre, email o teléfono..."
+                    value={searchText}
+                    onChange={(e) => setSearchText(e.target.value)}
+                    className="pl-10"
+                    data-testid="input-search-leads"
+                  />
+                </div>
+              </div>
+              
+              <Select
+                value={statusFilter.join(',')}
+                onValueChange={(value) => setStatusFilter(value ? value.split(',') : [])}
+              >
+                <SelectTrigger className="w-full md:w-[200px]" data-testid="select-status-filter">
+                  <SelectValue placeholder="Filtrar por estado" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="">Todos los estados</SelectItem>
+                  {LEAD_STATUSES.map((status) => (
+                    <SelectItem key={status.value} value={status.value}>
+                      {status.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+
+              {isAdmin && (
+                <Select value={sellerFilter} onValueChange={setSellerFilter}>
+                  <SelectTrigger className="w-full md:w-[200px]" data-testid="select-seller-filter">
+                    <SelectValue placeholder="Filtrar por vendedor" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="">Todos los vendedores</SelectItem>
+                    {sellers.map((seller: any) => (
+                      <SelectItem key={seller.id} value={seller.id}>
+                        {seller.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              )}
+
+              <Button 
+                variant="outline" 
+                size="icon"
+                onClick={() => {
+                  setSearchText("");
+                  setStatusFilter([]);
+                  setSellerFilter("");
+                  setDateFilter("all");
+                }}
+                data-testid="button-clear-filters"
+              >
+                <X className="h-4 w-4" />
+              </Button>
+            </div>
+            <div className="mt-2 text-sm text-muted-foreground">
+              Mostrando {filteredLeads.length} de {leads.length} leads
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Table View */}
+        <Card>
+          <CardContent className="p-0">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Lead</TableHead>
+                  <TableHead>Contacto</TableHead>
+                  <TableHead>Presupuesto</TableHead>
+                  <TableHead>Estado</TableHead>
+                  <TableHead>Fuente</TableHead>
+                  {isAdmin && <TableHead>Asignado a</TableHead>}
+                  <TableHead className="text-right">Acciones</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {filteredLeads.map((lead) => (
+                  <TableRow key={lead.id} data-testid={`row-lead-${lead.id}`}>
+                    <TableCell>
+                      <div>
+                        <div className="font-medium" data-testid={`text-lead-name-${lead.id}`}>
+                          {lead.firstName} {lead.lastName}
+                        </div>
+                        <div className="text-xs text-muted-foreground">
+                          {format(new Date(lead.createdAt), 'dd MMM yyyy', { locale: es })}
+                        </div>
+                      </div>
+                    </TableCell>
+                    <TableCell>
+                      <div className="flex flex-col gap-1">
+                        <div className="flex items-center gap-2">
+                          <Button
+                            size="icon"
+                            variant="ghost"
+                            className="h-6 w-6"
+                            onClick={() => window.location.href = `tel:${lead.phone}`}
+                            data-testid={`button-call-${lead.id}`}
+                          >
+                            <Phone className="h-3 w-3" />
+                          </Button>
+                          <span className="text-sm">{lead.phone}</span>
+                        </div>
+                        {lead.email && (
+                          <div className="flex items-center gap-2">
+                            <Button
+                              size="icon"
+                              variant="ghost"
+                              className="h-6 w-6"
+                              onClick={() => window.location.href = `mailto:${lead.email}`}
+                              data-testid={`button-email-${lead.id}`}
+                            >
+                              <Mail className="h-3 w-3" />
+                            </Button>
+                            <span className="text-sm">{lead.email}</span>
+                          </div>
+                        )}
+                        <div className="flex items-center gap-2">
+                          <Button
+                            size="icon"
+                            variant="ghost"
+                            className="h-6 w-6"
+                            onClick={() => window.open(`https://wa.me/${lead.phone.replace(/\D/g, '')}`, '_blank')}
+                            data-testid={`button-whatsapp-${lead.id}`}
+                          >
+                            <MessageCircle className="h-3 w-3" />
+                          </Button>
+                          <span className="text-sm">WhatsApp</span>
+                        </div>
+                      </div>
+                    </TableCell>
+                    <TableCell>{formatCurrency(lead.budget)}</TableCell>
+                    <TableCell>
+                      <Select
+                        value={lead.status}
+                        onValueChange={(value) => 
+                          updateLeadStatusMutation.mutate({ id: lead.id, status: value })
+                        }
+                      >
+                        <SelectTrigger className="w-[180px]" data-testid={`select-status-${lead.id}`}>
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {LEAD_STATUSES.map((status) => (
+                            <SelectItem key={status.value} value={status.value}>
+                              {status.label}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </TableCell>
+                    <TableCell>
+                      <div className="text-sm">{lead.source?.join(', ') || '-'}</div>
+                    </TableCell>
+                    {isAdmin && (
+                      <TableCell>
+                        <div className="text-sm">
+                          {lead.assignedToId ? getSellerName(lead.assignedToId) : 'Sin asignar'}
+                        </div>
+                      </TableCell>
+                    )}
+                    <TableCell className="text-right">
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button variant="ghost" size="icon" data-testid={`button-actions-${lead.id}`}>
+                            <MoreVertical className="h-4 w-4" />
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end">
+                          <DropdownMenuItem
+                            onClick={() => {
+                              setEditingLead(lead);
+                              setDialogOpen(true);
+                            }}
+                            data-testid={`menu-edit-${lead.id}`}
+                          >
+                            <Edit className="h-4 w-4 mr-2" />
+                            Editar
+                          </DropdownMenuItem>
+                          <DropdownMenuItem
+                            onClick={() => {
+                              setSelectedLeadDetails(lead);
+                              setDetailsDialogOpen(true);
+                            }}
+                            data-testid={`menu-details-${lead.id}`}
+                          >
+                            <Eye className="h-4 w-4 mr-2" />
+                            Ver Detalles
+                          </DropdownMenuItem>
+                          {isAdmin && (
+                            <>
+                              <DropdownMenuItem
+                                onClick={() => {
+                                  setLeadToReassign(lead);
+                                  setReassignDialogOpen(true);
+                                }}
+                                data-testid={`menu-reassign-${lead.id}`}
+                              >
+                                <User className="h-4 w-4 mr-2" />
+                                Reasignar
+                              </DropdownMenuItem>
+                              <DropdownMenuItem
+                                className="text-destructive"
+                                onClick={() => {
+                                  setLeadToDelete(lead);
+                                  setDeleteDialogOpen(true);
+                                }}
+                                data-testid={`menu-delete-${lead.id}`}
+                              >
+                                <Trash2 className="h-4 w-4 mr-2" />
+                                Eliminar
+                              </DropdownMenuItem>
+                            </>
+                          )}
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </CardContent>
+        </Card>
+      </TabsContent>
+      </Tabs>
 
       {/* Generate Offer Link Dialog or Rental Form Dialog */}
       {selectedLeadForOffer && (
