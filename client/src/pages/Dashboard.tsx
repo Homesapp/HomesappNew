@@ -185,7 +185,7 @@ export default function Dashboard() {
             </div>
           </Card>
 
-          {/* Quick Categories */}
+          {/* Quick Categories - Mobile optimized */}
           <div className="mt-6 grid grid-cols-3 gap-2 max-w-2xl mx-auto">
             <Button 
               variant="outline" 
