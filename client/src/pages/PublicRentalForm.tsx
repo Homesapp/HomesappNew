@@ -17,6 +17,7 @@ import { apiRequest } from "@/lib/queryClient";
 import { Loader2, CheckCircle2, AlertCircle, Home, Building2 } from "lucide-react";
 import { getPropertyTitle } from "@/lib/propertyHelpers";
 import { LanguageToggle } from "@/components/LanguageToggle";
+import { useLanguage } from "@/contexts/LanguageContext";
 
 const rentalFormSchema = z.object({
   // Datos Personales
@@ -98,6 +99,7 @@ export default function PublicRentalForm() {
   const { token } = useParams();
   const [, setLocation] = useLocation();
   const { toast } = useToast();
+  const { language } = useLanguage();
   const [currentStep, setCurrentStep] = useState(1);
   const [submitted, setSubmitted] = useState(false);
   const totalSteps = 8; // 8 steps without documents (will implement file upload separately)
@@ -924,30 +926,121 @@ export default function PublicRentalForm() {
               {currentStep === 8 && (
                 <div className="space-y-6">
                   <div className="p-6 border rounded-lg bg-muted/30 max-h-96 overflow-y-auto">
-                    <h3 className="font-semibold text-lg mb-4">Términos y Condiciones</h3>
-                    <div className="space-y-3 text-sm text-muted-foreground">
-                      <p>
-                        Al enviar este formulario, declaro que toda la información proporcionada es verdadera y correcta.
-                      </p>
-                      <p>
-                        Autorizo a HomesApp y al propietario de la propiedad a verificar la información proporcionada,
-                        incluyendo referencias laborales, personales y antecedentes crediticios.
-                      </p>
-                      <p>
-                        Entiendo que la aprobación de mi solicitud está sujeta a la revisión y aprobación del propietario
-                        y/o administrador de la propiedad.
-                      </p>
-                      <p>
-                        Me comprometo a cumplir con todas las reglas y regulaciones del condominio/comunidad, así como
-                        con los términos del contrato de arrendamiento.
-                      </p>
-                      <p>
-                        Acepto que el tiempo de respuesta para la revisión de mi solicitud es de 48-72 horas hábiles.
-                      </p>
-                      <p>
-                        Entiendo que proporcionar información falsa o incompleta puede resultar en el rechazo automático
-                        de mi solicitud.
-                      </p>
+                    <h3 className="font-semibold text-lg mb-4">
+                      {language === 'es' ? 'TÉRMINOS Y CONDICIONES' : 'TERMS AND CONDITIONS'}
+                    </h3>
+                    <div className="space-y-4 text-sm text-muted-foreground">
+                      {language === 'es' ? (
+                        <>
+                          <div>
+                            <p className="font-semibold text-foreground">1.- TIEMPO DE PAGOS POR PLATAFORMAS:</p>
+                            <p>ENTENDEMOS QUE CADA PLATAFORMA TIENE SU TIEMPO DE ESPERA Ó DE TRANSFERENCIA, PERO SÓLO SE CONSIDERA UNA TRANSFERENCIA COMO COMPLETADA, UNA VEZ QUE EL DINERO EFECTIVAMENTE SE VE REFLEJADO EN LA CUENTA DESTINO Y EL DESTINATARIO CONFIRMA LA RECEPCIÓN. PARA BANCOS Y/PLATAFORMAS NACIONALES E INTERNACIONALES, LOS RECIBOS SÓLO SE USAN COMO REFERENCIA PERO NO TIENEN VALIDEZ NI ACEPTACIÓN COMO PRUEBA PARA PRESENTAR ANTES DE LAS FECHAS ACORDADAS. PASANDO 5 DÍAS DE LA FECHA ESTIPULADA, LOS PRESENTES CONTRATOS CADUCARÁN Y SE PERDERÁ EL DEPÓSITO DEL APARTADO. ESTO APLICA PARA TRANSFERENCIAS NACIONALES E INTERNACIONALES DESDE PLATAFORMAS MÓVILES COMO WISE, VENMO, ZELLE, PAYPAL O CUALQUIER TIPO DE APLICACIÓN DE TRANSFERENCIA DE DINERO NACIONAL O INTERNACIONAL.</p>
+                          </div>
+                          <div>
+                            <p className="font-semibold text-foreground">2.- PRÓRROGAS DE TIEMPOS DE PAGO:</p>
+                            <p>SOLAMENTE ES VÁLIDA UNA PRÓRROGA DE TIEMPO MEDIANTE UN ACUERDO MUTUO ENTRE LAS PARTES Y MODIFICANDO EL PRESENTE CONTRATO, CON AL MENOS 48 HS DE ANTICIPACIÓN A LA FECHA DESIGNADA.</p>
+                          </div>
+                          <div>
+                            <p className="font-semibold text-foreground">3.- COSTOS ADMINISTRATIVOS:</p>
+                            <p>POR LA ELABORACIÓN DEL CONTRATO DE ARRENDAMIENTO LOS HONORARIOS A COBRAR SERÁN: $2.500 MXN PARA CONTRATOS DE USO DE PROPIEDAD PARA VIVIENDA PERSONAL, Ó $3.800 MXN PARA CONTRATOS DE RENTA PARA SUBARRENDAMIENTO LA CANTIDAD QUE CORRESPONDA DEBERA SER ABONADA EN UNA SOLA EXHIBICIÓN JUNTO CON EL MONTO CORRESPONDIENTE AL DEPOSITO PARA EL APARTADO DE LA UNIDAD.</p>
+                          </div>
+                          <div>
+                            <p className="font-semibold text-foreground">4.- RESERVA DE PROPIEDADES:</p>
+                            <p>TANTO PARA PODER RESERVAR, BLOQUEAR FECHAS Y DEJAR DE PROMOCIONAR LA UNIDAD CON NUEVOS CLIENTES, ASI COMO PARA SOLICITAR AL ESTUDIO JURÍDICO LA ELABORACIÓN DEL CONTRATO CORRESPONDIENTE, PODRÁ SOLICITARSE DEPÓSITO PARA EL APARTADO DE LA PROPIEDAD ANTES DE LA FECHA DE LA FIRMA DE CONTRATO. POR LO QUE EL PROMITENTE ARRENDATARIO ACEPTA QUE PARA EL CASO DE CANCELACIÓN DE LA RESERVACIÓN POR CAUSA IMPUTABLE A ÉL, DICHO DEPOSITO SE CONSTITUIRÁ COMO LA PENALIZACIÓN DERIVADA DE DICHA CANCELACIÓN, POR LO QUE NO SE HARÁ LA DEVOLUCIÓN DEL DEPÓSITO NI DEL PAGO DEL CONTRATO.</p>
+                          </div>
+                          <div>
+                            <p className="font-semibold text-foreground">5.- AVISO DE PRIVACIDAD:</p>
+                            <p>TODA LA INFORMACIÓN RECABADA SERÁ DE CARÁCTER CONFIDENCIAL Y DE NO DIVULGACIÓN DE ACUERDO A LOS ARTÍCULOS 15 Y 16 DE LA LEY FEDERAL DE PROTECCIÓN DE DATOS PERSONALES EN POSESIÓN DE PARTICULARES.</p>
+                          </div>
+                          <div>
+                            <p className="font-semibold text-foreground">6.- DECLARACIÓN JURADA DE INFORMACIÓN FIDEDIGNA:</p>
+                            <p>PROMITENTE ARRENDATARIO Y GARANTE, BAJO PROTESTA DE DECIR VERDAD MANIFIESTAN QUE LA INFORMACIÓN PROPORCIONADA ES VERIDICA, ASUMIENDO ASÍ MISMO TODO TIPO DE RESPONSABILIDAD DERIVADA DE CUALQUIER DECLARACIÓN EN FALSO SOBRE LAS MISMAS, ASEGURANDO QUE EL DINERO CON EL CUAL SERÁ PAGADO DEPÓSITO Y ARRENDAMIENTO, NO PROVIENE DE ACTIVIDADES ILÍCITAS, POR LO QUE AUTORIZAMOS AL PROPIETARIO DEL INMUEBLE MATERIA DE ARRENDAMIENTO, A SUS ASESORES INMOBILIARIOS Y ABOGADO, A REALIZAR LAS INVESTIGACIONES CORRESPONDIENTES PARA CORROBORAR QUE LA INFORMACIÓN ES FIDEDIGNA Y A QUE REALICE LA INVESTIGACIÓN DE INCIDENCIAS LEGALES CORRESPONDIENTE.</p>
+                          </div>
+                          <div>
+                            <p className="font-semibold text-foreground">7.- TOLERANCIA AMBIENTAL Y FALLA EN LOS SERVICIOS:</p>
+                            <p>EL ARRENDATARIO RECONOCE QUE, DEBIDO A LA UBICACIÓN GEOGRÁFICA Y CARACTERÍSTICAS NATURALES DE LA ZONA, PUEDEN PRESENTARSE FENÓMENOS COMO HUMEDAD EXCESIVA (HONGOS), APARICIÓN DE FAUNA LOCAL (INSECTOS, GECKOS, ETC.) O SARGAZO EN ZONAS CERCANAS ASI COMO LA FALLA DE LOS SERVICIOS BASICOS COMO LUZ, AGUA E INTERNET, Y QUE ESTAS SITUACIONES NO SERÁN CONSIDERADAS CAUSA DE INCUMPLIMIENTO NI PARA SOLICITUD DE COMPENSACIONES NI RESCINCION DEL CONTRATO.</p>
+                          </div>
+                          <div>
+                            <p className="font-semibold text-foreground">8.- CANCELACIÓN POR CAUSA DE FUERZA COMERCIAL:</p>
+                            <p>EN CASO DE QUE LA PROPIEDAD SEA PUESTA EN VENTA Y SE CONCRETE UNA OFERTA DE COMPRA FORMAL, EL ARRENDADOR PODRÁ CANCELAR EL CONTRATO CON 60 DÍAS DE PREAVISO Y SIN PENALIZACIÓN, REEMBOLSANDO ÍNTEGRAMENTE EL DEPÓSITO Y CUALQUIER RENTA PAGADA POR ADELANTADO.</p>
+                          </div>
+                          <div>
+                            <p className="font-semibold text-foreground">9.- USO DE ÁREAS COMUNES:</p>
+                            <p>EL ARRENDATARIO SE COMPROMETE A CUMPLIR EL REGLAMENTO DEL CONDOMINIO O INTERNO DEL APARTAMENTO, INCLUYENDO HORARIOS DE USO DE AMENIDADES, NORMAS DE CONVIVENCIA, Y USO RESPONSABLE DE ÁREAS COMO ALBERCA, GIMNASIO O ROOF GARDEN. CUALQUIER MULTA IMPUESTA POR LA ADMINISTRACIÓN Y/O PROPIETARIO SERÁ RESPONSABILIDAD DEL ARRENDATARIO Y POSIBLE RESCINCION DEL CONTRATO EN CASO DE QUE QUE ADQUIERA MULTAS REITERADAS.</p>
+                          </div>
+                          <div>
+                            <p className="font-semibold text-foreground">10.- CAMBIO DE MONEDA:</p>
+                            <p>EN CONTRATOS CELEBRADOS CON PERSONAS DE NACIONALIDAD EXTRANJERA, LOS MONTOS ESTABLECIDOS SERÁN DEFINIDOS EN PESOS MEXICANOS (MXN) Y DEBERÁN SER PAGADOS EN LA MISMA MONEDA EN LA QUE SE FIRMÓ EL CONTRATO, UTILIZANDO EL TIPO DE CAMBIO VIGENTE AL DÍA DE LA TRANSACCIÓN.</p>
+                          </div>
+                          <div>
+                            <p className="font-semibold text-foreground">11.- DECLARACIÓN DE IDIOMA Y ENTENDIMIENTO:</p>
+                            <p>EN CONTRATOS CON PERSONAS DE NACIONALIDAD EXTRANJERA O VERSIONES BILINGÜES SE ANEXARA LA SIGUIENTE CLAUSULA: "LAS PARTES DECLARAN QUE HAN ENTENDIDO ÍNTEGRAMENTE EL CONTENIDO DE ESTE CONTRATO EN SU IDIOMA NATIVO O IDIOMA DE PREFERENCIA, Y QUE EN CASO DE DISCREPANCIA ENTRE VERSIONES, PREVALECERÁ LA VERSIÓN EN ESPAÑOL."</p>
+                          </div>
+                          <div>
+                            <p className="font-semibold text-foreground">12.- TOLERANCIA ACÚSTICA URBANA:</p>
+                            <p>EL ARRENDATARIO RECONOCE QUE EL INMUEBLE SE UBICA EN UNA ZONA URBANA, TURÍSTICA O EN DESARROLLO, POR LO QUE ACEPTA LA POSIBILIDAD DE RUIDOS OCASIONALES (TRÁFICO, MÚSICA, OBRAS) Y QUE ESTOS NO CONSTITUYEN MOTIVO DE QUEJA, RESCISIÓN NI SOLICITUD DE REEMBOLSO.</p>
+                          </div>
+                          <div>
+                            <p className="font-semibold text-foreground">13.- MANTENIMIENTOS Y REPARACIONES:</p>
+                            <p>A PARTIR DE LOS 30 DÍAS POSTERIORES AL INICIO DEL CONTRATO DE ARRENDAMIENTO, EL INQUILINO SERÁ RESPONSABLE DE REALIZAR EL MANTENIMIENTO PREVENTIVO DE LOS AIRES ACONDICIONADOS CADA SEIS (6) MESES Y/O AL MOMENTO DE SU SALIDA (CHECK-OUT) DE LA PROPIEDAD. ASIMISMO, SERÁ RESPONSABLE DE CUBRIR CUALQUIER REPARACIÓN DE ARTÍCULOS, ELECTRODOMÉSTICOS O MOBILIARIO QUE PRESENTE DESPERFECTOS NO REPORTADOS DENTRO DE LOS PRIMEROS 30 DÍAS DE VIGENCIA DEL CONTRATO.</p>
+                          </div>
+                        </>
+                      ) : (
+                        <>
+                          <div>
+                            <p className="font-semibold text-foreground">1.- PAYMENT TIMING BY PLATFORMS:</p>
+                            <p>WE UNDERSTAND THAT EACH PLATFORM HAS ITS WAITING OR TRANSFER TIME, BUT A TRANSFER IS ONLY CONSIDERED COMPLETE ONCE THE MONEY IS ACTUALLY REFLECTED IN THE DESTINATION ACCOUNT AND THE RECIPIENT CONFIRMS RECEIPT. FOR NATIONAL AND INTERNATIONAL BANKS AND/PLATFORMS, RECEIPTS ARE ONLY USED AS A REFERENCE BUT HAVE NO VALIDITY OR ACCEPTANCE AS PROOF TO BE PRESENTED BEFORE THE AGREED DATES. AFTER 5 DAYS FROM THE STIPULATED DATE, THE PRESENT CONTRACTS WILL EXPIRE AND THE RESERVATION DEPOSIT WILL BE FORFEITED. THIS APPLIES TO NATIONAL AND INTERNATIONAL TRANSFERS FROM MOBILE PLATFORMS SUCH AS WISE, VENMO, ZELLE, PAYPAL OR ANY TYPE OF NATIONAL OR INTERNATIONAL MONEY TRANSFER APPLICATION.</p>
+                          </div>
+                          <div>
+                            <p className="font-semibold text-foreground">2.- PAYMENT TIME EXTENSIONS:</p>
+                            <p>A TIME EXTENSION IS ONLY VALID THROUGH A MUTUAL AGREEMENT BETWEEN THE PARTIES AND BY MODIFYING THIS CONTRACT, WITH AT LEAST 48 HOURS IN ADVANCE OF THE DESIGNATED DATE.</p>
+                          </div>
+                          <div>
+                            <p className="font-semibold text-foreground">3.- ADMINISTRATIVE COSTS:</p>
+                            <p>FOR THE PREPARATION OF THE LEASE AGREEMENT, THE FEES TO BE CHARGED WILL BE: $2,500 MXN FOR CONTRACTS FOR USE OF PROPERTY FOR PERSONAL HOUSING, OR $3,800 MXN FOR RENTAL CONTRACTS FOR SUBLEASING. THE CORRESPONDING AMOUNT MUST BE PAID IN A SINGLE PAYMENT ALONG WITH THE AMOUNT CORRESPONDING TO THE DEPOSIT FOR THE RESERVATION OF THE UNIT.</p>
+                          </div>
+                          <div>
+                            <p className="font-semibold text-foreground">4.- PROPERTY RESERVATION:</p>
+                            <p>TO BE ABLE TO RESERVE, BLOCK DATES AND STOP PROMOTING THE UNIT TO NEW CLIENTS, AS WELL AS TO REQUEST THE LEGAL OFFICE TO PREPARE THE CORRESPONDING CONTRACT, A DEPOSIT MAY BE REQUESTED FOR THE RESERVATION OF THE PROPERTY BEFORE THE CONTRACT SIGNING DATE. THEREFORE, THE PROSPECTIVE TENANT ACCEPTS THAT IN THE EVENT OF CANCELLATION OF THE RESERVATION DUE TO A CAUSE ATTRIBUTABLE TO THEM, SAID DEPOSIT WILL CONSTITUTE THE PENALTY DERIVED FROM SAID CANCELLATION, SO THE DEPOSIT AND CONTRACT PAYMENT WILL NOT BE REFUNDED.</p>
+                          </div>
+                          <div>
+                            <p className="font-semibold text-foreground">5.- PRIVACY NOTICE:</p>
+                            <p>ALL INFORMATION COLLECTED WILL BE CONFIDENTIAL AND NON-DISCLOSURE IN ACCORDANCE WITH ARTICLES 15 AND 16 OF THE FEDERAL LAW ON PROTECTION OF PERSONAL DATA HELD BY PRIVATE PARTIES.</p>
+                          </div>
+                          <div>
+                            <p className="font-semibold text-foreground">6.- SWORN STATEMENT OF RELIABLE INFORMATION:</p>
+                            <p>PROSPECTIVE TENANT AND GUARANTOR, UNDER OATH TO TELL THE TRUTH, DECLARE THAT THE INFORMATION PROVIDED IS TRUE, ASSUMING ALL RESPONSIBILITY DERIVED FROM ANY FALSE STATEMENT ABOUT THEM, ENSURING THAT THE MONEY WITH WHICH THE DEPOSIT AND RENT WILL BE PAID DOES NOT COME FROM ILLEGAL ACTIVITIES. THEREFORE, WE AUTHORIZE THE OWNER OF THE PROPERTY SUBJECT TO LEASE, THEIR REAL ESTATE ADVISORS AND LAWYER, TO CARRY OUT THE CORRESPONDING INVESTIGATIONS TO VERIFY THAT THE INFORMATION IS RELIABLE AND TO CARRY OUT THE CORRESPONDING LEGAL BACKGROUND INVESTIGATION.</p>
+                          </div>
+                          <div>
+                            <p className="font-semibold text-foreground">7.- ENVIRONMENTAL TOLERANCE AND SERVICE FAILURES:</p>
+                            <p>THE TENANT ACKNOWLEDGES THAT, DUE TO THE GEOGRAPHICAL LOCATION AND NATURAL CHARACTERISTICS OF THE AREA, PHENOMENA MAY OCCUR SUCH AS EXCESSIVE HUMIDITY (MOLD), APPEARANCE OF LOCAL FAUNA (INSECTS, GECKOS, ETC.) OR SARGASSUM IN NEARBY AREAS AS WELL AS FAILURE OF BASIC SERVICES SUCH AS ELECTRICITY, WATER AND INTERNET, AND THAT THESE SITUATIONS WILL NOT BE CONSIDERED GROUNDS FOR BREACH OR FOR REQUESTING COMPENSATION OR TERMINATION OF THE CONTRACT.</p>
+                          </div>
+                          <div>
+                            <p className="font-semibold text-foreground">8.- CANCELLATION DUE TO COMMERCIAL FORCE MAJEURE:</p>
+                            <p>IN THE EVENT THAT THE PROPERTY IS PUT UP FOR SALE AND A FORMAL PURCHASE OFFER IS FINALIZED, THE LANDLORD MAY CANCEL THE CONTRACT WITH 60 DAYS' NOTICE AND WITHOUT PENALTY, FULLY REFUNDING THE DEPOSIT AND ANY RENT PAID IN ADVANCE.</p>
+                          </div>
+                          <div>
+                            <p className="font-semibold text-foreground">9.- USE OF COMMON AREAS:</p>
+                            <p>THE TENANT AGREES TO COMPLY WITH THE CONDOMINIUM OR APARTMENT INTERNAL REGULATIONS, INCLUDING AMENITY USAGE HOURS, COEXISTENCE RULES, AND RESPONSIBLE USE OF AREAS SUCH AS POOL, GYM OR ROOF GARDEN. ANY FINE IMPOSED BY THE ADMINISTRATION AND/OR OWNER WILL BE THE RESPONSIBILITY OF THE TENANT AND POSSIBLE TERMINATION OF THE CONTRACT IN CASE OF REPEATED FINES.</p>
+                          </div>
+                          <div>
+                            <p className="font-semibold text-foreground">10.- CURRENCY EXCHANGE:</p>
+                            <p>IN CONTRACTS ENTERED INTO WITH PERSONS OF FOREIGN NATIONALITY, THE AMOUNTS ESTABLISHED WILL BE DEFINED IN MEXICAN PESOS (MXN) AND MUST BE PAID IN THE SAME CURRENCY IN WHICH THE CONTRACT WAS SIGNED, USING THE EXCHANGE RATE IN EFFECT ON THE DAY OF THE TRANSACTION.</p>
+                          </div>
+                          <div>
+                            <p className="font-semibold text-foreground">11.- LANGUAGE AND UNDERSTANDING DECLARATION:</p>
+                            <p>IN CONTRACTS WITH PERSONS OF FOREIGN NATIONALITY OR BILINGUAL VERSIONS, THE FOLLOWING CLAUSE WILL BE ATTACHED: "THE PARTIES DECLARE THAT THEY HAVE FULLY UNDERSTOOD THE CONTENT OF THIS CONTRACT IN THEIR NATIVE LANGUAGE OR LANGUAGE OF PREFERENCE, AND THAT IN CASE OF DISCREPANCY BETWEEN VERSIONS, THE SPANISH VERSION WILL PREVAIL."</p>
+                          </div>
+                          <div>
+                            <p className="font-semibold text-foreground">12.- URBAN ACOUSTIC TOLERANCE:</p>
+                            <p>THE TENANT ACKNOWLEDGES THAT THE PROPERTY IS LOCATED IN AN URBAN, TOURIST OR DEVELOPING AREA, SO THEY ACCEPT THE POSSIBILITY OF OCCASIONAL NOISE (TRAFFIC, MUSIC, CONSTRUCTION) AND THAT THESE DO NOT CONSTITUTE GROUNDS FOR COMPLAINT, TERMINATION OR REQUEST FOR REFUND.</p>
+                          </div>
+                          <div>
+                            <p className="font-semibold text-foreground">13.- MAINTENANCE AND REPAIRS:</p>
+                            <p>STARTING 30 DAYS AFTER THE START OF THE LEASE AGREEMENT, THE TENANT WILL BE RESPONSIBLE FOR PERFORMING PREVENTIVE MAINTENANCE ON THE AIR CONDITIONERS EVERY SIX (6) MONTHS AND/OR AT THE TIME OF THEIR DEPARTURE (CHECK-OUT) FROM THE PROPERTY. LIKEWISE, THEY WILL BE RESPONSIBLE FOR COVERING ANY REPAIR OF ITEMS, APPLIANCES OR FURNITURE THAT PRESENT DEFECTS NOT REPORTED WITHIN THE FIRST 30 DAYS OF THE CONTRACT'S VALIDITY.</p>
+                          </div>
+                        </>
+                      )}
                     </div>
                   </div>
 
@@ -961,8 +1054,9 @@ export default function PublicRentalForm() {
                       data-testid="checkbox-terms-accepted"
                     />
                     <Label htmlFor="acceptedTerms" className="cursor-pointer text-sm leading-relaxed">
-                      Acepto los términos y condiciones anteriores y confirmo que toda la información proporcionada
-                      es verdadera y correcta. *
+                      {language === 'es' 
+                        ? 'Acepto los términos y condiciones anteriores y confirmo que toda la información proporcionada es verdadera y correcta. *'
+                        : 'I accept the above terms and conditions and confirm that all information provided is true and correct. *'}
                     </Label>
                   </div>
                   {form.formState.errors.acceptedTerms && (
