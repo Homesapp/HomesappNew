@@ -1,7 +1,7 @@
-# HomesApp - Real Estate Property Management Platform
+# HomesApp - Smart Real Estate
 
 ## Overview
-HomesApp is a comprehensive SaaS platform designed for real estate property management in Tulum, Quintana Roo. It supports multiple user roles (master, admin, seller, owner, client, lawyer) and offers extensive features for property management, appointment scheduling, client presentations, service coordination, and offer processing with counter-negotiation. The platform aims to deliver a professional, data-rich user experience with robust role-based access, Google Calendar integration, a service provider marketplace, digital agreement signing, legal document elaboration, and a powerful back office. Its strategic ambition is to dominate the Tulum real estate market through advanced commission systems, marketing automation, predictive analytics, and AI-powered functionalities.
+HomesApp is a comprehensive SaaS platform designed for smart real estate property management in Tulum, Quintana Roo. It supports multiple user roles (master, admin, seller, owner, client, lawyer) and offers extensive features for property management, appointment scheduling, client presentations, service coordination, and offer processing with counter-negotiation. The platform aims to deliver a professional, data-rich user experience with robust role-based access, Google Calendar integration, a service provider marketplace, digital agreement signing, legal document elaboration, and a powerful back office. Its strategic ambition is to dominate the Tulum real estate market through advanced commission systems, marketing automation, predictive analytics, and AI-powered functionalities.
 
 ## User Preferences
 Preferred communication style: Simple, everyday language.
