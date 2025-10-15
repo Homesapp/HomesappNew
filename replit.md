@@ -49,3 +49,57 @@ Key features include:
 *   WebSocket (ws)
 *   cookie
 *   OpenAI GPT-5
+
+## Security Audit - Access Control Verification (October 15, 2025)
+
+### Comprehensive verification of role-based access control across all major system endpoints.
+
+### ✅ Verified Secure Endpoints
+
+**Leads (CRM):**
+- `GET /api/leads` - Sellers use `getLeadsForSeller(userId)` with SQL: `WHERE (registeredById = userId OR assignedToId = userId)`
+- `GET /api/leads/:id` - Validates sellers can only access leads they registered OR are assigned to
+- Admins use `getLeads(filters)` without user restrictions - correctly see all leads
+
+**Properties:**
+- `GET /api/owner/properties` - Filters by `ownerId = userId`, owners only see their properties
+- `GET /api/owner/properties/:id` - Verifies `property.ownerId === userId`
+- `GET /api/properties/:propertyId/documents` - Validates: isOwner OR isAdmin OR isAssignedStaff
+- Public endpoints (`/api/properties`, `/api/properties/:id`) correctly show only approved/published to unauthenticated users
+
+**Offer Tokens:**
+- `GET /api/offer-tokens` - Restricted to admins only with `requireRole(["admin", "master", "admin_jr"])`
+- `GET /api/offer-tokens/:token/validate` - Public route (correct for client validation)
+
+### 🔒 Security Fixes Implemented
+
+**1. Offers Endpoint (CRITICAL FIX):**
+- **Issue:** `GET /api/offers` accepted `clientId` parameter without validation - clients could view other clients' offers
+- **Fix (lines 11083-11118):** Added role-aware filtering:
+  - Clients: Force `filters.clientId = userId` (can only see own offers)
+  - Admins/Masters/Sellers: Can filter by any clientId
+  - Returns 403 if client attempts to access others' data
+
+**2. Appointments Endpoint (CRITICAL FIX):**
+- **Issue:** `GET /api/appointments` accepted `clientId` parameter without validation - clients could view other clients' appointments
+- **Fix (lines 8713-8742):** Added identical role-aware filtering:
+  - Clients: Force `filters.clientId = userId` (can only see own appointments)
+  - Admins/Masters/Sellers: Can filter by any clientId
+  - Returns 403 if client attempts to access others' data
+
+**3. Owner Offer Management:**
+- `GET /api/owner/offers` - Uses `getOffersByOwner(userId)` to filter offers for owner's properties
+- `PATCH /api/owner/offers/:id/accept` - Verifies `property.ownerId === userId`
+- `POST /api/client/offers/:id/counter-offer` - Verifies `offer.clientId === userId`
+
+### Architecture Review Findings
+- Both security fixes are localized to filter preparation
+- No new data fetch loops introduced
+- Reuses existing enrichment logic - no performance risk
+- Recommended next steps:
+  1. Add regression tests for client vs admin query behavior
+  2. Monitor logs for unexpected 403 responses
+  3. Document access expectations for frontend consumers
+
+### Summary
+All critical endpoints now enforce proper role-based access control. Clients are restricted to their own data, while admins/sellers retain full access. Two critical vulnerabilities were identified and fixed in offers and appointments endpoints.
