@@ -7735,14 +7735,22 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       
       const { status, assignedToId } = req.query;
+      
+      // For sellers: get leads they registered OR are assigned to
+      if (currentUser.role === "seller") {
+        const filters: any = {};
+        if (status) filters.status = status;
+        if (assignedToId) filters.assignedToId = assignedToId;
+        
+        // Get leads using the new seller filter
+        const leads = await storage.getLeadsForSeller(userId, filters);
+        return res.json(leads);
+      }
+      
+      // For admins: apply regular filters
       const filters: any = {};
       if (status) filters.status = status;
       if (assignedToId) filters.assignedToId = assignedToId;
-      
-      // Sellers can only see their own leads
-      if (currentUser.role === "seller") {
-        filters.registeredById = userId;
-      }
 
       const leads = await storage.getLeads(filters);
       res.json(leads);
@@ -7768,8 +7776,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ message: "Lead not found" });
       }
       
-      // Sellers can only access their own leads
-      if (currentUser.role === "seller" && lead.registeredById !== userId) {
+      // Sellers can only access leads they registered OR are assigned to
+      if (currentUser.role === "seller" && lead.registeredById !== userId && lead.assignedToId !== userId) {
         return res.status(403).json({ message: "No tienes permiso para acceder a este lead" });
       }
       

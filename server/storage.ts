@@ -3627,6 +3627,29 @@ export class DatabaseStorage implements IStorage {
     return await query.orderBy(desc(leads.createdAt));
   }
 
+  async getLeadsForSeller(sellerId: string, filters?: { status?: string; assignedToId?: string }): Promise<Lead[]> {
+    let query = db.select().from(leads);
+    
+    // Sellers see leads they registered OR are assigned to
+    const sellerCondition = or(
+      eq(leads.registeredById, sellerId),
+      eq(leads.assignedToId, sellerId)
+    );
+    
+    const conditions = [sellerCondition];
+    
+    if (filters?.status) {
+      conditions.push(eq(leads.status, filters.status as any));
+    }
+    if (filters?.assignedToId) {
+      conditions.push(eq(leads.assignedToId, filters.assignedToId));
+    }
+    
+    query = query.where(and(...conditions)) as any;
+    
+    return await query.orderBy(desc(leads.createdAt));
+  }
+
   async createLead(leadData: InsertLead): Promise<Lead> {
     const [lead] = await db.insert(leads).values(leadData).returning();
     return lead;
