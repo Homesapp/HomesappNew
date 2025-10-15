@@ -48,7 +48,7 @@ const rentalFormSchema = z.object({
   petDetails: z.string().optional(),
   desiredProperty: z.string().optional(),
   desiredCondoUnit: z.string().optional(),
-  termsAccepted: z.boolean().refine(val => val === true, "Debes aceptar los términos y condiciones"),
+  acceptedTerms: z.boolean().refine(val => val === true, "Debes aceptar los términos y condiciones"),
 });
 
 type RentalFormValues = z.infer<typeof rentalFormSchema>;
@@ -73,7 +73,7 @@ export default function PublicRentalForm() {
       whatsappNumber: "",
       email: "",
       hasPets: false,
-      termsAccepted: false,
+      acceptedTerms: false,
     },
   });
 
@@ -543,18 +543,18 @@ export default function PublicRentalForm() {
 
                   <div className="flex items-start space-x-2">
                     <Checkbox
-                      id="termsAccepted"
-                      checked={form.watch("termsAccepted")}
-                      onCheckedChange={(checked) => form.setValue("termsAccepted", checked as boolean)}
+                      id="acceptedTerms"
+                      checked={form.watch("acceptedTerms")}
+                      onCheckedChange={(checked) => form.setValue("acceptedTerms", checked as boolean)}
                       data-testid="checkbox-terms-accepted"
                     />
-                    <Label htmlFor="termsAccepted" className="cursor-pointer text-sm leading-relaxed">
+                    <Label htmlFor="acceptedTerms" className="cursor-pointer text-sm leading-relaxed">
                       Acepto los términos y condiciones anteriores y confirmo que toda la información proporcionada
                       es verdadera y correcta. *
                     </Label>
                   </div>
-                  {form.formState.errors.termsAccepted && (
-                    <p className="text-sm text-destructive">{form.formState.errors.termsAccepted.message}</p>
+                  {form.formState.errors.acceptedTerms && (
+                    <p className="text-sm text-destructive">{form.formState.errors.acceptedTerms.message}</p>
                   )}
                 </div>
               )}
@@ -583,7 +583,7 @@ export default function PublicRentalForm() {
               ) : (
                 <Button
                   type="submit"
-                  disabled={submitMutation.isPending || !form.watch("termsAccepted")}
+                  disabled={submitMutation.isPending || !form.watch("acceptedTerms")}
                   data-testid="button-submit"
                 >
                   {submitMutation.isPending && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
