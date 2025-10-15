@@ -6,7 +6,29 @@ HomesApp is a comprehensive SaaS platform designed for real estate property mana
 ## User Preferences
 Preferred communication style: Simple, everyday language.
 
-## Recent Updates (October 14, 2025)
+## Recent Updates (October 15, 2025)
+
+### Public Offer Form Lead Auto-Fill Enhancement
+*   **Issue - Form Pre-population**: Implemented automatic pre-filling of offer form with lead data
+    - **Problem**: When generating offer links from leads, users had to manually re-enter all lead information
+    - **Solution**: Backend GET `/api/offer-tokens/:token/validate` now returns lead data if token has associated leadId
+    - **Frontend Implementation**: Added useEffect in `PublicOfferForm.tsx` to auto-populate fields:
+      - Full name (firstName + lastName)
+      - Email address
+      - Phone number
+      - Contract duration (first option from lead's array)
+      - Move-in date (first option from lead's array)
+      - Pets information (converts to "si"/"no" and populates pet details)
+    - **User Experience**: Form fields pre-filled but still editable, reducing data entry time
+    - **Files**: `server/routes.ts`, `client/src/pages/PublicOfferForm.tsx`
+
+*   **Critical Clarification - Dual Offer Management Systems**:
+    - **System 1 (Legacy)**: Route `/backoffice` displays offers from `/api/offers` table
+    - **System 2 (Public Forms)**: Route `/admin/offers` displays offers from `/api/offer-tokens` table
+    - **Important**: Offers submitted via public form appear ONLY in `/admin/offers`, not in `/backoffice`
+    - **Recommendation**: Use `/admin/offers` for reviewing public offer form submissions
+
+## Previous Updates (October 14, 2025)
 
 ### Public Offer Form Fixes
 *   **Issue 1 - Submit Button Disabled Bug**: Fixed critical bug where offer form submission was blocked
