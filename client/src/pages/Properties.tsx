@@ -33,15 +33,12 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-  DialogFooter,
-} from "@/components/ui/dialog";
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger,
+} from "@/components/ui/collapsible";
 import { Label } from "@/components/ui/label";
-import { Search, Plus, SlidersHorizontal, LayoutGrid, List, Share2, Copy, X } from "lucide-react";
+import { Search, Plus, SlidersHorizontal, LayoutGrid, List, Share2, Copy, X, ChevronDown } from "lucide-react";
 import { useProperties, useSearchProperties, useDeleteProperty } from "@/hooks/useProperties";
 import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
@@ -316,20 +313,149 @@ export default function Properties() {
             </Button>
           </div>
         )}
-        <Button 
-          variant={hasActiveFilters ? "default" : "outline"} 
-          onClick={() => setFiltersOpen(true)}
-          data-testid="button-advanced-filters"
-        >
-          <SlidersHorizontal className="h-4 w-4 mr-2" />
-          Filtros Avanzados
-          {hasActiveFilters && (
-            <Badge variant="secondary" className="ml-2">
-              Activo
-            </Badge>
-          )}
-        </Button>
       </div>
+
+      <Collapsible open={filtersOpen} onOpenChange={setFiltersOpen}>
+        <div className="flex items-center justify-between">
+          <CollapsibleTrigger asChild>
+            <Button 
+              variant={hasActiveFilters ? "default" : "outline"} 
+              className="w-full md:w-auto"
+              data-testid="button-advanced-filters"
+            >
+              <SlidersHorizontal className="h-4 w-4 mr-2" />
+              Filtros Avanzados
+              {hasActiveFilters && (
+                <Badge variant="secondary" className="ml-2">
+                  Activo
+                </Badge>
+              )}
+              <ChevronDown className={`h-4 w-4 ml-2 transition-transform ${filtersOpen ? 'rotate-180' : ''}`} />
+            </Button>
+          </CollapsibleTrigger>
+          {hasActiveFilters && (
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={handleClearFilters}
+              className="ml-2"
+              data-testid="button-clear-filters-inline"
+            >
+              <X className="h-4 w-4 mr-2" />
+              Limpiar
+            </Button>
+          )}
+        </div>
+
+        <CollapsibleContent className="mt-4">
+          <div className="rounded-lg border bg-card p-6">
+            <div className="grid gap-6">
+              {/* Price Range */}
+              <div className="space-y-2">
+                <Label>Rango de Precio</Label>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="price-min" className="text-sm text-muted-foreground">Mínimo</Label>
+                    <Input
+                      id="price-min"
+                      type="number"
+                      placeholder="$0"
+                      value={priceMin}
+                      onChange={(e) => setPriceMin(e.target.value)}
+                      data-testid="input-price-min"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="price-max" className="text-sm text-muted-foreground">Máximo</Label>
+                    <Input
+                      id="price-max"
+                      type="number"
+                      placeholder="$999,999,999"
+                      value={priceMax}
+                      onChange={(e) => setPriceMax(e.target.value)}
+                      data-testid="input-price-max"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {/* Property Type and Bedrooms/Bathrooms */}
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="property-type">Tipo de Propiedad</Label>
+                  <Select value={propertyTypeFilter} onValueChange={setPropertyTypeFilter}>
+                    <SelectTrigger id="property-type" data-testid="select-property-type">
+                      <SelectValue placeholder="Todos" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">Todos</SelectItem>
+                      <SelectItem value="apartment">Departamento</SelectItem>
+                      <SelectItem value="house">Casa</SelectItem>
+                      <SelectItem value="commercial">Comercial</SelectItem>
+                      <SelectItem value="land">Terreno</SelectItem>
+                      <SelectItem value="office">Oficina</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="bedrooms-min">Recámaras (mín)</Label>
+                  <Input
+                    id="bedrooms-min"
+                    type="number"
+                    min="0"
+                    placeholder="0"
+                    value={bedroomsMin}
+                    onChange={(e) => setBedroomsMin(e.target.value)}
+                    data-testid="input-bedrooms-min"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="bathrooms-min">Baños (mín)</Label>
+                  <Input
+                    id="bathrooms-min"
+                    type="number"
+                    min="0"
+                    step="0.5"
+                    placeholder="0"
+                    value={bathroomsMin}
+                    onChange={(e) => setBathroomsMin(e.target.value)}
+                    data-testid="input-bathrooms-min"
+                  />
+                </div>
+              </div>
+
+              {/* Area Range */}
+              <div className="space-y-2">
+                <Label>Área (m²)</Label>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="area-min" className="text-sm text-muted-foreground">Mínimo</Label>
+                    <Input
+                      id="area-min"
+                      type="number"
+                      placeholder="0"
+                      value={areaMin}
+                      onChange={(e) => setAreaMin(e.target.value)}
+                      data-testid="input-area-min"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="area-max" className="text-sm text-muted-foreground">Máximo</Label>
+                    <Input
+                      id="area-max"
+                      type="number"
+                      placeholder="999"
+                      value={areaMax}
+                      onChange={(e) => setAreaMax(e.target.value)}
+                      data-testid="input-area-max"
+                    />
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </CollapsibleContent>
+      </Collapsible>
 
       {isAdminOrSeller && selectedProperties.size > 0 && (
         <div className="flex items-center justify-between p-4 bg-muted rounded-lg">
@@ -483,141 +609,6 @@ export default function Properties() {
           </Table>
         </div>
       )}
-
-      <Dialog open={filtersOpen} onOpenChange={setFiltersOpen}>
-        <DialogContent className="max-w-2xl" data-testid="dialog-advanced-filters">
-          <DialogHeader>
-            <DialogTitle>Filtros Avanzados</DialogTitle>
-            <DialogDescription>
-              Refina tu búsqueda con filtros específicos
-            </DialogDescription>
-          </DialogHeader>
-          
-          <div className="grid gap-6 py-4">
-            {/* Price Range */}
-            <div className="space-y-2">
-              <Label>Rango de Precio</Label>
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label htmlFor="price-min" className="text-sm text-muted-foreground">Mínimo</Label>
-                  <Input
-                    id="price-min"
-                    type="number"
-                    placeholder="$0"
-                    value={priceMin}
-                    onChange={(e) => setPriceMin(e.target.value)}
-                    data-testid="input-price-min"
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="price-max" className="text-sm text-muted-foreground">Máximo</Label>
-                  <Input
-                    id="price-max"
-                    type="number"
-                    placeholder="$999,999,999"
-                    value={priceMax}
-                    onChange={(e) => setPriceMax(e.target.value)}
-                    data-testid="input-price-max"
-                  />
-                </div>
-              </div>
-            </div>
-
-            {/* Property Type */}
-            <div className="space-y-2">
-              <Label htmlFor="property-type">Tipo de Propiedad</Label>
-              <Select value={propertyTypeFilter} onValueChange={setPropertyTypeFilter}>
-                <SelectTrigger id="property-type" data-testid="select-property-type">
-                  <SelectValue placeholder="Seleccionar tipo" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">Todos los tipos</SelectItem>
-                  <SelectItem value="apartment">Departamento</SelectItem>
-                  <SelectItem value="house">Casa</SelectItem>
-                  <SelectItem value="commercial">Comercial</SelectItem>
-                  <SelectItem value="land">Terreno</SelectItem>
-                  <SelectItem value="office">Oficina</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-
-            {/* Bedrooms and Bathrooms */}
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label htmlFor="bedrooms-min">Recámaras (mínimo)</Label>
-                <Input
-                  id="bedrooms-min"
-                  type="number"
-                  min="0"
-                  placeholder="0"
-                  value={bedroomsMin}
-                  onChange={(e) => setBedroomsMin(e.target.value)}
-                  data-testid="input-bedrooms-min"
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="bathrooms-min">Baños (mínimo)</Label>
-                <Input
-                  id="bathrooms-min"
-                  type="number"
-                  min="0"
-                  step="0.5"
-                  placeholder="0"
-                  value={bathroomsMin}
-                  onChange={(e) => setBathroomsMin(e.target.value)}
-                  data-testid="input-bathrooms-min"
-                />
-              </div>
-            </div>
-
-            {/* Area Range */}
-            <div className="space-y-2">
-              <Label>Área (m²)</Label>
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label htmlFor="area-min" className="text-sm text-muted-foreground">Mínimo</Label>
-                  <Input
-                    id="area-min"
-                    type="number"
-                    placeholder="0"
-                    value={areaMin}
-                    onChange={(e) => setAreaMin(e.target.value)}
-                    data-testid="input-area-min"
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="area-max" className="text-sm text-muted-foreground">Máximo</Label>
-                  <Input
-                    id="area-max"
-                    type="number"
-                    placeholder="999"
-                    value={areaMax}
-                    onChange={(e) => setAreaMax(e.target.value)}
-                    data-testid="input-area-max"
-                  />
-                </div>
-              </div>
-            </div>
-          </div>
-
-          <DialogFooter className="gap-2">
-            <Button
-              variant="outline"
-              onClick={handleClearFilters}
-              data-testid="button-clear-filters"
-            >
-              <X className="h-4 w-4 mr-2" />
-              Limpiar Filtros
-            </Button>
-            <Button
-              onClick={() => setFiltersOpen(false)}
-              data-testid="button-apply-filters"
-            >
-              Aplicar Filtros
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
 
       <PropertyFormDialog
         open={formOpen}
