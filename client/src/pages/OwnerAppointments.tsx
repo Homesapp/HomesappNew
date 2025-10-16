@@ -18,6 +18,7 @@ import { CheckCircle2, XCircle, Clock, Calendar as CalendarIcon, MapPin, User, S
 import { format, startOfWeek, endOfWeek, eachDayOfInterval, isWithinInterval, startOfDay, endOfDay, addWeeks, subWeeks, isSameDay } from "date-fns";
 import { es } from "date-fns/locale";
 import type { Appointment, Property, OwnerSettings } from "@shared/schema";
+import { datetimeLocalToCancunDate, dateToDatetimeLocalCancun } from "@/lib/timezoneHelpers";
 
 type OwnerApprovalStatus = "pending" | "approved" | "rejected";
 
@@ -1309,8 +1310,8 @@ export default function OwnerAppointments() {
               <Input
                 id="rescheduleDate"
                 type="datetime-local"
-                value={rescheduleDate ? format(rescheduleDate, "yyyy-MM-dd'T'HH:mm") : ""}
-                onChange={(e) => setRescheduleDate(new Date(e.target.value))}
+                value={rescheduleDate ? dateToDatetimeLocalCancun(rescheduleDate) : ""}
+                onChange={(e) => setRescheduleDate(datetimeLocalToCancunDate(e.target.value))}
                 data-testid="input-reschedule-date"
               />
             </div>
