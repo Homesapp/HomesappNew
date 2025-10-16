@@ -1,10 +1,11 @@
 import { useState } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useMutation } from "@tanstack/react-query";
 import { useRoute, useLocation } from "wouter";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
+import { Textarea } from "@/components/ui/textarea";
 import {
   Dialog,
   DialogContent,
@@ -16,7 +17,7 @@ import {
   User, Phone, Mail, Building, Image, Video, Map, Scan,
   CheckCircle2, XCircle, Home, Wifi, Droplets, Zap, Flame, Wrench,
   ChevronLeft, ChevronRight, X, Dumbbell, Trees, Car, Shield,
-  Waves, UtensilsCrossed, Dog, Wind, Snowflake, TrendingUp
+  Waves, UtensilsCrossed, Dog, Wind, Snowflake, TrendingUp, StickyNote, Trash2
 } from "lucide-react";
 import { type Property } from "@shared/schema";
 import { AppointmentSchedulingDialog } from "@/components/AppointmentSchedulingDialog";
@@ -24,6 +25,25 @@ import { AuthRequiredDialog } from "@/components/AuthRequiredDialog";
 import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
 import { getPropertyTitle } from "@/lib/propertyHelpers";
+import { apiRequest, queryClient } from "@/lib/queryClient";
+import { format } from "date-fns";
+import { es } from "date-fns/locale";
+
+interface PropertyNote {
+  id: string;
+  propertyId: string;
+  authorId: string;
+  content: string;
+  createdAt: string;
+  updatedAt: string;
+  author?: {
+    id: string;
+    firstName: string | null;
+    lastName: string | null;
+    email: string;
+    profileImageUrl: string | null;
+  };
+}
 
 export default function PropertyFullDetails() {
   const [, params] = useRoute("/propiedad/:id/completo");
@@ -36,10 +56,69 @@ export default function PropertyFullDetails() {
   const [mainImageIndex, setMainImageIndex] = useState(0);
   const [thumbnailStartIndex, setThumbnailStartIndex] = useState(0);
   const [expandedImageIndex, setExpandedImageIndex] = useState<number | null>(null);
+  const [noteContent, setNoteContent] = useState("");
+
+  const user = authUser || adminUser;
+  const isAdminOrSeller = user?.role === "admin" || user?.role === "seller" || user?.role === "master";
 
   const { data: property, isLoading } = useQuery<Property>({
     queryKey: ["/api/properties", params?.id],
     enabled: !!params?.id,
+  });
+
+  const { data: notes = [], isLoading: notesLoading } = useQuery<PropertyNote[]>({
+    queryKey: ["/api/property-notes", params?.id],
+    enabled: !!params?.id && isAdminOrSeller,
+  });
+
+  const createNoteMutation = useMutation({
+    mutationFn: async (content: string) => {
+      return await apiRequest(`/api/property-notes`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          propertyId: params?.id,
+          content,
+        }),
+      });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/property-notes", params?.id] });
+      setNoteContent("");
+      toast({
+        title: "Nota agregada",
+        description: "La nota interna ha sido agregada exitosamente",
+      });
+    },
+    onError: () => {
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: "No se pudo agregar la nota",
+      });
+    },
+  });
+
+  const deleteNoteMutation = useMutation({
+    mutationFn: async (noteId: string) => {
+      return await apiRequest(`/api/property-notes/${noteId}`, {
+        method: "DELETE",
+      });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/property-notes", params?.id] });
+      toast({
+        title: "Nota eliminada",
+        description: "La nota interna ha sido eliminada",
+      });
+    },
+    onError: () => {
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: "No se pudo eliminar la nota",
+      });
+    },
   });
 
   const formatPrice = (price: string) => {
@@ -711,6 +790,79 @@ export default function PropertyFullDetails() {
                       </div>
                     )}
                   </div>
+                </CardContent>
+              </Card>
+            )}
+
+            {/* Internal Notes - Admin/Seller Only */}
+            {isAdminOrSeller && (
+              <Card className="mt-6">
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <StickyNote className="h-5 w-5" />
+                    Anotaciones Internas
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div className="space-y-2">
+                    <Textarea
+                      placeholder="Agregar nota interna..."
+                      value={noteContent}
+                      onChange={(e) => setNoteContent(e.target.value)}
+                      className="min-h-[100px]"
+                      data-testid="input-note-content"
+                    />
+                    <Button
+                      onClick={() => createNoteMutation.mutate(noteContent)}
+                      disabled={!noteContent.trim() || createNoteMutation.isPending}
+                      data-testid="button-add-note"
+                    >
+                      Agregar Nota
+                    </Button>
+                  </div>
+
+                  {notesLoading ? (
+                    <div className="text-center py-4 text-muted-foreground">
+                      Cargando notas...
+                    </div>
+                  ) : notes.length === 0 ? (
+                    <div className="text-center py-8 text-muted-foreground">
+                      No hay anotaciones internas para esta propiedad
+                    </div>
+                  ) : (
+                    <div className="space-y-3">
+                      {notes.map((note) => (
+                        <Card key={note.id} className="bg-muted/50">
+                          <CardContent className="pt-4">
+                            <div className="flex items-start justify-between mb-2">
+                              <div className="flex-1">
+                                <div className="flex items-center gap-2 mb-1">
+                                  <span className="font-medium text-sm">
+                                    {note.author?.firstName && note.author?.lastName
+                                      ? `${note.author.firstName} ${note.author.lastName}`
+                                      : note.author?.email || "Usuario desconocido"}
+                                  </span>
+                                  <span className="text-xs text-muted-foreground">
+                                    {format(new Date(note.createdAt), "d 'de' MMMM 'de' yyyy 'a las' HH:mm", { locale: es })}
+                                  </span>
+                                </div>
+                                <p className="text-sm whitespace-pre-wrap">{note.content}</p>
+                              </div>
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                onClick={() => deleteNoteMutation.mutate(note.id)}
+                                disabled={deleteNoteMutation.isPending}
+                                data-testid={`button-delete-note-${note.id}`}
+                              >
+                                <Trash2 className="h-4 w-4" />
+                              </Button>
+                            </div>
+                          </CardContent>
+                        </Card>
+                      ))}
+                    </div>
+                  )}
                 </CardContent>
               </Card>
             )}
