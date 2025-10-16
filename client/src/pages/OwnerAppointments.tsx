@@ -18,7 +18,7 @@ import { CheckCircle2, XCircle, Clock, Calendar as CalendarIcon, MapPin, User, S
 import { format, startOfWeek, endOfWeek, eachDayOfInterval, isWithinInterval, startOfDay, endOfDay, addWeeks, subWeeks, isSameDay } from "date-fns";
 import { es } from "date-fns/locale";
 import type { Appointment, Property, OwnerSettings } from "@shared/schema";
-import { datetimeLocalToCancunDate, dateToDatetimeLocalCancun } from "@/lib/timezoneHelpers";
+import { datetimeLocalToCancunDate, dateToDatetimeLocalCancun, utcToCancunDate } from "@/lib/timezoneHelpers";
 
 type OwnerApprovalStatus = "pending" | "approved" | "rejected";
 
@@ -705,7 +705,7 @@ export default function OwnerAppointments() {
                       >
                         <div className="w-full">
                           <div className="font-medium text-xs truncate">
-                            {format(new Date(apt.date), "HH:mm")} - {getPropertyDisplay(apt.property)}
+                            {format(utcToCancunDate(apt.date), "HH:mm")} - {getPropertyDisplay(apt.property)}
                           </div>
                           {apt.client && (
                             <div className="text-xs text-muted-foreground truncate">
@@ -755,7 +755,7 @@ export default function OwnerAppointments() {
                         <div className="flex items-center gap-2">
                           <Clock className="h-4 w-4 text-muted-foreground" />
                           <span className="font-medium">
-                            {format(new Date(appointment.date), "HH:mm")}
+                            {format(utcToCancunDate(appointment.date), "HH:mm")}
                           </span>
                           <Badge variant="outline" className="ml-2">
                             {appointment.visitType === "visita_cliente" ? "Cliente" : 
@@ -856,7 +856,7 @@ export default function OwnerAppointments() {
                         <div className="flex items-center gap-6 text-sm text-muted-foreground flex-wrap">
                           <div className="flex items-center gap-2">
                             <CalendarIcon className="w-4 h-4" />
-                            <span>{format(new Date(appointment.date), "dd MMM, HH:mm", { locale: es })}</span>
+                            <span>{format(utcToCancunDate(appointment.date), "dd MMM, HH:mm", { locale: es })}</span>
                           </div>
                           {appointment.property?.location && (
                             <div className="flex items-center gap-2">
@@ -977,7 +977,7 @@ export default function OwnerAppointments() {
             <DialogHeader>
               <DialogTitle>Detalles de la Visita</DialogTitle>
               <DialogDescription>
-                {getPropertyDisplay(selectedAppointment.property)} - {format(new Date(selectedAppointment.date), "dd 'de' MMMM, yyyy 'a las' HH:mm", { locale: es })}
+                {getPropertyDisplay(selectedAppointment.property)} - {format(utcToCancunDate(selectedAppointment.date), "dd 'de' MMMM, yyyy 'a las' HH:mm", { locale: es })}
               </DialogDescription>
             </DialogHeader>
 
@@ -1300,7 +1300,7 @@ export default function OwnerAppointments() {
                 </div>
                 <div>
                   <span className="font-medium">Fecha actual:</span>{" "}
-                  {format(new Date(selectedAppointment.date), "dd 'de' MMMM, yyyy 'a las' HH:mm", { locale: es })}
+                  {format(utcToCancunDate(selectedAppointment.date), "dd 'de' MMMM, yyyy 'a las' HH:mm", { locale: es })}
                 </div>
               </div>
             )}
@@ -1611,7 +1611,7 @@ export default function OwnerAppointments() {
                 </div>
                 <div>
                   <span className="font-medium">Fecha:</span>{" "}
-                  {format(new Date(selectedAppointment.date), "dd 'de' MMMM, yyyy 'a las' HH:mm", { locale: es })}
+                  {format(utcToCancunDate(selectedAppointment.date), "dd 'de' MMMM, yyyy 'a las' HH:mm", { locale: es })}
                 </div>
                 {selectedAppointment.visitType && (
                   <div>

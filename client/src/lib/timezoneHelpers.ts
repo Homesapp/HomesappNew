@@ -128,3 +128,17 @@ export function getTimeCancun(date: Date | string): string {
   
   return `${hours}:${minutes}`;
 }
+
+/**
+ * Converts a UTC date to a Date object that represents Cancún local time
+ * This is useful for formatting with date-fns while maintaining Cancún timezone
+ * 
+ * @param date - Date object or ISO string (in UTC from backend)
+ * @returns Date object adjusted to Cancún timezone for formatting purposes
+ */
+export function utcToCancunDate(date: Date | string): Date {
+  const d = typeof date === 'string' ? new Date(date) : date;
+  
+  // Convert UTC to Cancún time by subtracting 6 hours
+  return new Date(d.getTime() - (6 * 60 * 60 * 1000));
+}

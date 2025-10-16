@@ -31,7 +31,7 @@ import { format } from "date-fns";
 import { es } from "date-fns/locale";
 import type { Lead, Property } from "@shared/schema";
 import { getPropertyTitle } from "@/lib/propertyHelpers";
-import { datetimeLocalToCancunDate } from "@/lib/timezoneHelpers";
+import { datetimeLocalToCancunDate, utcToCancunDate } from "@/lib/timezoneHelpers";
 
 type Appointment = {
   id: string;
@@ -425,7 +425,7 @@ export default function SellerAppointmentManagement() {
                   <div className="flex items-center gap-2 text-sm">
                     <Calendar className="h-4 w-4 text-muted-foreground" />
                     <span>
-                      {format(new Date(appointment.date), "PPP 'a las' p", { locale: es })}
+                      {format(utcToCancunDate(appointment.date), "PPP 'a las' p", { locale: es })}
                     </span>
                   </div>
 
@@ -518,7 +518,7 @@ export default function SellerAppointmentManagement() {
                     <div className="flex items-center gap-2 text-sm">
                       <Calendar className="h-4 w-4 text-muted-foreground" />
                       <span>
-                        {format(new Date(appointment.date), "PPP 'a las' p", { locale: es })}
+                        {format(utcToCancunDate(appointment.date), "PPP 'a las' p", { locale: es })}
                       </span>
                     </div>
 
