@@ -13,6 +13,7 @@ import type { Property, User, PresentationCard } from "@shared/schema";
 import { useMutation } from "@tanstack/react-query";
 import { queryClient, apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
+import { getPropertyTitle } from "@/lib/propertyHelpers";
 
 const MAX_CARDS = 3;
 
@@ -254,7 +255,18 @@ export default function PresentationCards() {
           ) : (
             <div className="grid gap-6 md:grid-cols-2 py-4">
               {matchingProperties.map((property) => (
-                <PropertyCard key={property.id} {...property} />
+                <PropertyCard 
+                  key={property.id} 
+                  id={property.id}
+                  title={getPropertyTitle(property)}
+                  price={Number(property.price)}
+                  bedrooms={property.bedrooms}
+                  bathrooms={Number(property.bathrooms)}
+                  area={Number(property.area)}
+                  location={property.location}
+                  status={property.status}
+                  image={property.primaryImages?.[property.coverImageIndex || 0] || property.images?.[0]}
+                />
               ))}
             </div>
           )}

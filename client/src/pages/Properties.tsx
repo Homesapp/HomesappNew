@@ -164,6 +164,7 @@ export default function Properties() {
                 area={Number(property.area)}
                 location={property.location}
                 status={property.status}
+                image={property.primaryImages?.[property.coverImageIndex || 0] || property.images?.[0]}
                 onView={() => console.log("Ver propiedad", property.id)}
                 onEdit={canEditProperty(property) ? () => handleEditClick(property) : undefined}
                 onDelete={canEditProperty(property) ? () => handleDeleteClick(property.id) : undefined}
