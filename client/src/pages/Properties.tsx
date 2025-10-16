@@ -5,6 +5,16 @@ import { PropertyFormDialog } from "@/components/PropertyFormDialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Badge } from "@/components/ui/badge";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -22,9 +32,10 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Search, Plus, SlidersHorizontal } from "lucide-react";
+import { Search, Plus, SlidersHorizontal, LayoutGrid, List, Share2, Copy } from "lucide-react";
 import { useProperties, useSearchProperties, useDeleteProperty } from "@/hooks/useProperties";
 import { useAuth } from "@/hooks/useAuth";
+import { useToast } from "@/hooks/use-toast";
 import { getPropertyTitle } from "@/lib/propertyHelpers";
 import type { Property } from "@shared/schema";
 
@@ -37,8 +48,11 @@ export default function Properties() {
   const [selectedProperty, setSelectedProperty] = useState<Property | undefined>();
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [propertyToDelete, setPropertyToDelete] = useState<string | null>(null);
+  const [viewMode, setViewMode] = useState<"grid" | "table">("grid");
+  const [selectedProperties, setSelectedProperties] = useState<Set<string>>(new Set());
 
   const { user } = useAuth();
+  const { toast } = useToast();
   const [, setLocation] = useLocation();
   const { data: properties, isLoading, error } = useProperties({
     status: statusFilter !== "all" ? statusFilter : undefined,
@@ -92,7 +106,7 @@ export default function Properties() {
     if (user?.role === "owner") {
       setLocation(`/owner/property/${propertyId}`);
     } else {
-      setLocation(`/propiedad/${propertyId}`);
+      setLocation(`/propiedad/${propertyId}/completo`);
     }
   };
 
@@ -108,6 +122,80 @@ export default function Properties() {
     }
   };
 
+  const handleSelectProperty = (propertyId: string) => {
+    setSelectedProperties(prev => {
+      const newSet = new Set(prev);
+      if (newSet.has(propertyId)) {
+        newSet.delete(propertyId);
+      } else {
+        newSet.add(propertyId);
+      }
+      return newSet;
+    });
+  };
+
+  const handleSelectAll = () => {
+    if (displayProperties && selectedProperties.size === displayProperties.length) {
+      setSelectedProperties(new Set());
+    } else if (displayProperties) {
+      setSelectedProperties(new Set(displayProperties.map(p => p.id)));
+    }
+  };
+
+  const handleShareWhatsApp = () => {
+    if (selectedProperties.size === 0) {
+      toast({
+        variant: "destructive",
+        title: "No hay propiedades seleccionadas",
+        description: "Selecciona al menos una propiedad para compartir",
+      });
+      return;
+    }
+
+    const baseUrl = window.location.origin;
+    const links = Array.from(selectedProperties).map(id => {
+      const property = displayProperties?.find(p => p.id === id);
+      const title = property ? getPropertyTitle(property) : 'Propiedad';
+      return `${title}: ${baseUrl}/propiedad/${id}/completo`;
+    }).join('\n\n');
+
+    const message = encodeURIComponent(`¡Hola! Te comparto estas propiedades:\n\n${links}`);
+    window.open(`https://wa.me/?text=${message}`, '_blank');
+  };
+
+  const handleCopyLinks = async () => {
+    if (selectedProperties.size === 0) {
+      toast({
+        variant: "destructive",
+        title: "No hay propiedades seleccionadas",
+        description: "Selecciona al menos una propiedad para copiar",
+      });
+      return;
+    }
+
+    const baseUrl = window.location.origin;
+    const links = Array.from(selectedProperties).map(id => {
+      const property = displayProperties?.find(p => p.id === id);
+      const title = property ? getPropertyTitle(property) : 'Propiedad';
+      return `${title}: ${baseUrl}/propiedad/${id}/completo`;
+    }).join('\n\n');
+
+    try {
+      await navigator.clipboard.writeText(links);
+      toast({
+        title: "Enlaces copiados",
+        description: `Se copiaron ${selectedProperties.size} enlaces al portapapeles`,
+      });
+    } catch (error) {
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: "No se pudieron copiar los enlaces",
+      });
+    }
+  };
+
+  const isAdminOrSeller = user && ["admin", "seller", "master"].includes(user.role);
   const displayProperties = debouncedSearch.trim() ? searchResults : properties;
 
   return (
@@ -149,11 +237,68 @@ export default function Properties() {
             <SelectItem value="both">Renta y Venta</SelectItem>
           </SelectContent>
         </Select>
+        {isAdminOrSeller && (
+          <div className="flex gap-2">
+            <Button
+              variant={viewMode === "grid" ? "default" : "outline"}
+              size="icon"
+              onClick={() => setViewMode("grid")}
+              data-testid="button-view-grid"
+            >
+              <LayoutGrid className="h-4 w-4" />
+            </Button>
+            <Button
+              variant={viewMode === "table" ? "default" : "outline"}
+              size="icon"
+              onClick={() => setViewMode("table")}
+              data-testid="button-view-table"
+            >
+              <List className="h-4 w-4" />
+            </Button>
+          </div>
+        )}
         <Button variant="outline" data-testid="button-advanced-filters">
           <SlidersHorizontal className="h-4 w-4 mr-2" />
           Filtros Avanzados
         </Button>
       </div>
+
+      {isAdminOrSeller && selectedProperties.size > 0 && (
+        <div className="flex items-center justify-between p-4 bg-muted rounded-lg">
+          <div className="flex items-center gap-3">
+            <span className="text-sm font-medium">
+              {selectedProperties.size} {selectedProperties.size === 1 ? 'propiedad seleccionada' : 'propiedades seleccionadas'}
+            </span>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => setSelectedProperties(new Set())}
+              data-testid="button-clear-selection"
+            >
+              Limpiar selección
+            </Button>
+          </div>
+          <div className="flex gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={handleCopyLinks}
+              data-testid="button-copy-links"
+            >
+              <Copy className="h-4 w-4 mr-2" />
+              Copiar Enlaces
+            </Button>
+            <Button
+              size="sm"
+              onClick={handleShareWhatsApp}
+              data-testid="button-share-whatsapp"
+            >
+              <Share2 className="h-4 w-4 mr-2" />
+              Compartir por WhatsApp
+            </Button>
+          </div>
+        </div>
+      )}
 
       {error && (
         <div className="rounded-md bg-destructive/10 p-4 text-destructive" data-testid="error-message">
@@ -172,7 +317,7 @@ export default function Properties() {
             </div>
           ))}
         </div>
-      ) : (
+      ) : viewMode === "grid" ? (
         <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
           {displayProperties && displayProperties.length > 0 ? (
             displayProperties.map((property) => (
@@ -198,6 +343,76 @@ export default function Properties() {
               <p className="text-muted-foreground">No se encontraron propiedades</p>
             </div>
           )}
+        </div>
+      ) : (
+        <div className="rounded-md border">
+          <Table>
+            <TableHeader>
+              <TableRow>
+                {isAdminOrSeller && (
+                  <TableHead className="w-12">
+                    <Checkbox
+                      checked={displayProperties && displayProperties.length > 0 && selectedProperties.size === displayProperties.length}
+                      onCheckedChange={handleSelectAll}
+                      data-testid="checkbox-select-all"
+                    />
+                  </TableHead>
+                )}
+                <TableHead>Propiedad</TableHead>
+                <TableHead>Ubicación</TableHead>
+                <TableHead>Precio</TableHead>
+                <TableHead>Tipo</TableHead>
+                <TableHead>Estado</TableHead>
+                <TableHead className="text-right">Acciones</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {displayProperties && displayProperties.length > 0 ? (
+                displayProperties.map((property) => (
+                  <TableRow key={property.id}>
+                    {isAdminOrSeller && (
+                      <TableCell>
+                        <Checkbox
+                          checked={selectedProperties.has(property.id)}
+                          onCheckedChange={() => handleSelectProperty(property.id)}
+                          data-testid={`checkbox-select-${property.id}`}
+                        />
+                      </TableCell>
+                    )}
+                    <TableCell className="font-medium">
+                      {getPropertyTitle(property)}
+                    </TableCell>
+                    <TableCell>{property.location}</TableCell>
+                    <TableCell>
+                      ${new Intl.NumberFormat('es-MX').format(Number(property.price))}
+                    </TableCell>
+                    <TableCell className="capitalize">{property.propertyType}</TableCell>
+                    <TableCell>
+                      <Badge variant={property.status === "rent" ? "default" : property.status === "sale" ? "secondary" : "outline"}>
+                        {property.status === "rent" ? "Renta" : property.status === "sale" ? "Venta" : "Ambos"}
+                      </Badge>
+                    </TableCell>
+                    <TableCell className="text-right">
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => handleViewProperty(property.id)}
+                        data-testid={`button-view-${property.id}`}
+                      >
+                        Ver
+                      </Button>
+                    </TableCell>
+                  </TableRow>
+                ))
+              ) : (
+                <TableRow>
+                  <TableCell colSpan={isAdminOrSeller ? 7 : 6} className="text-center py-12" data-testid="no-properties">
+                    <p className="text-muted-foreground">No se encontraron propiedades</p>
+                  </TableCell>
+                </TableRow>
+              )}
+            </TableBody>
+          </Table>
         </div>
       )}
 
