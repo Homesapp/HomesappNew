@@ -6391,7 +6391,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         "approve",
         "property",
         id,
-        `Propiedad aprobada: ${property.title}${notes ? ` - ${notes}` : ""}`
+        `Propiedad aprobada: ${getPropertyTitle(property)}${notes ? ` - ${notes}` : ""}`
       );
       
       res.json(updated);
@@ -6423,7 +6423,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         "publish",
         "property",
         id,
-        `Propiedad publicada: ${property.title}`
+        `Propiedad publicada: ${getPropertyTitle(property)}`
       );
       
       res.json(updated);
@@ -6513,7 +6513,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         "reject",
         "property",
         id,
-        `Propiedad rechazada: ${property.title}${notes ? ` - ${notes}` : ""}`
+        `Propiedad rechazada: ${getPropertyTitle(property)}${notes ? ` - ${notes}` : ""}`
       );
       
       res.json(updated);
@@ -6547,7 +6547,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
               "approve",
               "property",
               id,
-              `Propiedad aprobada en masa: ${property.title}`
+              `Propiedad aprobada en masa: ${getPropertyTitle(property)}`
             );
             
             return { id, success: true };
