@@ -449,20 +449,37 @@ export default function MyProperties() {
                             </Button>
                           </DropdownMenuTrigger>
                           <DropdownMenuContent align="end">
-                            <DropdownMenuItem
-                              onClick={() => setLocation(`/owner/property/${property.id}`)}
-                              data-testid={`menu-view-${property.id}`}
-                            >
-                              <Eye className="h-4 w-4 mr-2" />
-                              Ver Detalles
-                            </DropdownMenuItem>
-                            <DropdownMenuItem
-                              onClick={() => setLocation(`/owner/property/${property.id}/edit`)}
-                              data-testid={`menu-edit-${property.id}`}
-                            >
-                              <Edit className="h-4 w-4 mr-2" />
-                              Editar
-                            </DropdownMenuItem>
+                            {!(property as any).isDraft ? (
+                              <>
+                                <DropdownMenuItem
+                                  onClick={() => setLocation(`/owner/property/${property.id}`)}
+                                  data-testid={`menu-view-${property.id}`}
+                                >
+                                  <Eye className="h-4 w-4 mr-2" />
+                                  Ver Detalles
+                                </DropdownMenuItem>
+                                <DropdownMenuItem
+                                  onClick={() => setLocation(`/owner/property/${property.id}/edit`)}
+                                  data-testid={`menu-edit-${property.id}`}
+                                >
+                                  <Edit className="h-4 w-4 mr-2" />
+                                  Editar
+                                </DropdownMenuItem>
+                              </>
+                            ) : (
+                              <DropdownMenuItem
+                                onClick={() => {
+                                  toast({
+                                    title: t("myProperties.draftPendingTitle"),
+                                    description: t("myProperties.draftPendingMessage"),
+                                  });
+                                }}
+                                data-testid={`menu-view-${property.id}`}
+                              >
+                                <Eye className="h-4 w-4 mr-2" />
+                                {t("myProperties.viewDraft")}
+                              </DropdownMenuItem>
+                            )}
                             <DropdownMenuItem
                               onClick={() => setLocation(`/owner/appointments`)}
                               data-testid={`menu-appointments-${property.id}`}
