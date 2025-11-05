@@ -4666,6 +4666,31 @@ export class DatabaseStorage implements IStorage {
       throw new Error("Solo se pueden aprobar borradores enviados");
     }
     
+    // CRITICAL: Ensure admin exists in users table for foreign key constraint
+    // The managementId field references users table, so admin must exist there
+    const adminUser = await this.getUser(adminId);
+    if (!adminUser) {
+      // Admin doesn't exist in users table - get from admin_users and create
+      const adminUserData = await db.select().from(adminUsers).where(eq(adminUsers.id, adminId)).limit(1);
+      
+      if (adminUserData.length > 0) {
+        const admin = adminUserData[0];
+        // Create user record for this admin
+        await db.insert(users).values({
+          id: admin.id,
+          email: admin.email,
+          username: admin.username,
+          firstName: admin.firstName || "Admin",
+          lastName: admin.lastName || "User",
+          role: "admin",
+          approved: true,
+          active: true,
+        }).onConflictDoNothing();
+      } else {
+        throw new Error("Admin no encontrado en el sistema");
+      }
+    }
+    
     // Normalize termsAcceptance for rental lifecycle integration
     let normalizedTermsAcceptance = draft.termsAcceptance;
     if (draft.termsAcceptance) {
