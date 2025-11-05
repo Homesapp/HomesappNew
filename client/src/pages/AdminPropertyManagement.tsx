@@ -935,7 +935,10 @@ export default function AdminPropertyManagement() {
                             <Button
                               data-testid={`button-approve-${property.id}`}
                               size="sm"
-                              onClick={() => approveMutation.mutate(property.id)}
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                approveMutation.mutate(property.id);
+                              }}
                               disabled={approveMutation.isPending}
                               className="gap-2"
                             >
@@ -946,7 +949,10 @@ export default function AdminPropertyManagement() {
                               data-testid={`button-reject-${property.id}`}
                               size="sm"
                               variant="destructive"
-                              onClick={() => rejectMutation.mutate(property.id)}
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                rejectMutation.mutate(property.id);
+                              }}
                               disabled={rejectMutation.isPending}
                               className="gap-2"
                             >
