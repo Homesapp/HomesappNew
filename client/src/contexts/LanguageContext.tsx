@@ -305,6 +305,11 @@ const translations: Record<Language, Record<string, string>> = {
     "adminSellers.interested": "Interesado",
     "adminSellers.notInterested": "No interesado",
     
+    // My Properties
+    "myProperties.viewDraft": "Ver Borrador",
+    "myProperties.draftPendingTitle": "Borrador en progreso",
+    "myProperties.draftPendingMessage": "Este borrador aún no se ha completado. Continúa el proceso de publicación para enviarlo a revisión.",
+    
     // Public Dashboard - Additional translations
     "public.searchPlaceholder": "Buscar por ubicación, colonia, condominio o descripción...",
     "public.searchButton": "Buscar",
@@ -1175,6 +1180,11 @@ const translations: Record<Language, Record<string, string>> = {
     "adminSellers.noResponse": "No response",
     "adminSellers.interested": "Interested",
     "adminSellers.notInterested": "Not interested",
+    
+    // My Properties
+    "myProperties.viewDraft": "View Draft",
+    "myProperties.draftPendingTitle": "Draft in progress",
+    "myProperties.draftPendingMessage": "This draft has not been completed yet. Continue the publication process to submit it for review.",
     
     // Public Dashboard - Additional translations
     "public.searchPlaceholder": "Search by location, colony, condominium or description...",
