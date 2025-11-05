@@ -468,16 +468,11 @@ export default function MyProperties() {
                               </>
                             ) : (
                               <DropdownMenuItem
-                                onClick={() => {
-                                  toast({
-                                    title: t("myProperties.draftPendingTitle"),
-                                    description: t("myProperties.draftPendingMessage"),
-                                  });
-                                }}
+                                onClick={() => setLocation("/owner/property/new")}
                                 data-testid={`menu-view-${property.id}`}
                               >
-                                <Eye className="h-4 w-4 mr-2" />
-                                {t("myProperties.viewDraft")}
+                                <Edit className="h-4 w-4 mr-2" />
+                                Continuar Borrador
                               </DropdownMenuItem>
                             )}
                             <DropdownMenuItem
