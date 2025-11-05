@@ -388,18 +388,27 @@ export function PropertyFormDialog({
     try {
       if (mode === "edit" && property) {
         await updateMutation.mutateAsync({ id: property.id, data });
+        
+        // TODO: Upload documents if any (requires proper document type classification)
+        // Documents can be uploaded later through the property management interface
+        
         toast({
           title: "Propiedad actualizada",
           description: "Los cambios se han guardado correctamente.",
         });
       } else {
         await createMutation.mutateAsync(data);
+        
+        // TODO: Upload documents if any (requires proper document type classification)
+        // Documents can be uploaded later through the property management interface
+        
         toast({
           title: "Propiedad creada",
           description: "La propiedad se ha agregado correctamente.",
         });
       }
       setImageFiles([]);
+      setDocuments([]);
       form.reset();
       setCurrentStep(1);
       onOpenChange(false);
