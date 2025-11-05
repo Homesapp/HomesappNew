@@ -97,7 +97,7 @@ export function PropertyFormDialog({
       unitNumber: "",
       status: "rent",
       amenities: [],
-      images: [],
+      primaryImages: [],
       ownerId: "",
       managementId: undefined,
       active: true,
@@ -143,7 +143,7 @@ export function PropertyFormDialog({
         unitNumber: property.unitNumber,
         status: property.status,
         amenities: property.amenities || [],
-        images: property.images || [],
+        primaryImages: property.primaryImages || [],
         ownerId: property.ownerId,
         managementId: property.managementId || undefined,
         active: property.active,
@@ -162,8 +162,8 @@ export function PropertyFormDialog({
         referralPercent: property.referralPercent || "20.00",
       });
       
-      // Load existing images
-      const files = (property.images || []).map((data, index) => ({
+      // Load existing images from primaryImages
+      const files = (property.primaryImages || []).map((data, index) => ({
         name: `Imagen ${index + 1}`,
         data,
       }));
@@ -183,7 +183,7 @@ export function PropertyFormDialog({
         unitNumber: "",
         status: "rent",
         amenities: [],
-        images: [],
+        primaryImages: [],
         ownerId: "",
         managementId: undefined,
         active: true,
@@ -254,7 +254,8 @@ export function PropertyFormDialog({
     if (validFiles.length > 0) {
       const updatedFiles = [...imageFiles, ...validFiles];
       setImageFiles(updatedFiles);
-      form.setValue("images", updatedFiles.map(f => f.data));
+      // Save to primaryImages instead of images (old field)
+      form.setValue("primaryImages", updatedFiles.map(f => f.data));
     }
 
     // Reset input
@@ -264,7 +265,8 @@ export function PropertyFormDialog({
   const removeImage = (index: number) => {
     const updatedFiles = imageFiles.filter((_, i) => i !== index);
     setImageFiles(updatedFiles);
-    form.setValue("images", updatedFiles.map(f => f.data));
+    // Save to primaryImages instead of images (old field)
+    form.setValue("primaryImages", updatedFiles.map(f => f.data));
   };
 
   // Handle condominium selection/creation
