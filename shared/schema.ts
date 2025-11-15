@@ -2822,7 +2822,8 @@ export type AgreementTemplate = typeof agreementTemplates.$inferSelect;
 // Property Submission Drafts - for saving wizard progress
 export const propertySubmissionDrafts = pgTable("property_submission_drafts", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
-  userId: varchar("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  userId: varchar("user_id").references(() => users.id, { onDelete: "cascade" }), // Nullable for token-based submissions
+  tokenId: varchar("token_id"), // Token used to create this draft - will add FK constraint later
   propertyId: varchar("property_id").references(() => properties.id, { onDelete: "set null" }), // Set when approved and property created
   status: propertySubmissionStatusEnum("status").notNull().default("draft"),
   currentStep: integer("current_step").notNull().default(1),
@@ -2855,6 +2856,31 @@ export const insertPropertySubmissionDraftSchema = createInsertSchema(propertySu
 
 export type InsertPropertySubmissionDraft = z.infer<typeof insertPropertySubmissionDraftSchema>;
 export type PropertySubmissionDraft = typeof propertySubmissionDrafts.$inferSelect;
+
+// Property Submission Tokens - for inviting property owners without requiring account creation
+export const propertySubmissionTokens = pgTable("property_submission_tokens", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  token: varchar("token", { length: 64 }).notNull().unique(), // Unique token for the link
+  createdBy: varchar("created_by").notNull().references(() => users.id), // Admin who created the token
+  expiresAt: timestamp("expires_at").notNull(), // Token expiration (24 hours from creation)
+  used: boolean("used").notNull().default(false), // Whether token has been used
+  propertyDraftId: varchar("property_draft_id").references(() => propertySubmissionDrafts.id, { onDelete: "set null" }), // Draft created using this token
+  // Optional metadata about the invitee
+  inviteeEmail: varchar("invitee_email", { length: 255 }),
+  inviteePhone: varchar("invitee_phone", { length: 50 }),
+  inviteeName: text("invitee_name"),
+  notes: text("notes"), // Admin notes about this invitation
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  usedAt: timestamp("used_at"), // When the token was used
+});
+
+export const insertPropertySubmissionTokenSchema = createInsertSchema(propertySubmissionTokens).omit({
+  id: true,
+  createdAt: true,
+});
+
+export type InsertPropertySubmissionToken = z.infer<typeof insertPropertySubmissionTokenSchema>;
+export type PropertySubmissionToken = typeof propertySubmissionTokens.$inferSelect;
 
 // Property Agreements - for storing signed agreements
 export const propertyAgreements = pgTable("property_agreements", {

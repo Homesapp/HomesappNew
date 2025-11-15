@@ -7002,6 +7002,117 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Property Submission Token routes (for inviting owners without account)
+  
+  // Generate a cryptographically secure random token
+  function generateSecureToken(): string {
+    const { randomBytes } = require('crypto');
+    return randomBytes(32).toString('hex'); // 64 character hex string
+  }
+
+  // Admin: Create property submission token
+  app.post("/api/admin/property-tokens", isAuthenticated, requireRole(["master", "admin"]), async (req: any, res) => {
+    try {
+      const adminId = req.user.claims.sub;
+      const { inviteeEmail, inviteePhone, inviteeName, notes } = req.body;
+      
+      // Generate secure token
+      const token = generateSecureToken();
+      
+      // Set expiration to 24 hours from now
+      const expiresAt = new Date();
+      expiresAt.setHours(expiresAt.getHours() + 24);
+      
+      // Create token in database
+      const tokenRecord = await storage.createPropertySubmissionToken({
+        token,
+        createdBy: adminId,
+        expiresAt,
+        used: false,
+        inviteeEmail: inviteeEmail || null,
+        inviteePhone: inviteePhone || null,
+        inviteeName: inviteeName || null,
+        notes: notes || null,
+      });
+      
+      await createAuditLog(
+        req,
+        "create",
+        "property_submission_token",
+        tokenRecord.id,
+        `Token de invitación creado${inviteeName ? ` para ${inviteeName}` : ''}${inviteeEmail ? ` (${inviteeEmail})` : ''}`
+      );
+      
+      // Return token with full URL
+      const baseUrl = req.protocol + '://' + req.get('host');
+      const inviteUrl = `${baseUrl}/submit-property/${token}`;
+      
+      res.status(201).json({
+        ...tokenRecord,
+        inviteUrl,
+      });
+    } catch (error: any) {
+      console.error("Error creating property submission token:", error);
+      res.status(500).json({ message: error.message || "Error al crear token de invitación" });
+    }
+  });
+
+  // Admin: List property submission tokens
+  app.get("/api/admin/property-tokens", isAuthenticated, requireRole(["master", "admin"]), async (req: any, res) => {
+    try {
+      const adminId = req.user.claims.sub;
+      const tokens = await storage.getPropertySubmissionTokens({ createdBy: adminId });
+      res.json(tokens);
+    } catch (error: any) {
+      console.error("Error fetching property submission tokens:", error);
+      res.status(500).json({ message: error.message || "Error al obtener tokens" });
+    }
+  });
+
+  // Public: Validate property submission token
+  app.get("/api/property-tokens/:token/validate", async (req, res) => {
+    try {
+      const { token } = req.params;
+      
+      const tokenRecord = await storage.getPropertySubmissionTokenByToken(token);
+      
+      if (!tokenRecord) {
+        return res.status(404).json({ 
+          valid: false,
+          message: "Token no encontrado" 
+        });
+      }
+      
+      // Check if token is already used
+      if (tokenRecord.used) {
+        return res.status(400).json({ 
+          valid: false,
+          message: "Este enlace ya fue utilizado" 
+        });
+      }
+      
+      // Check if token is expired
+      if (new Date() > tokenRecord.expiresAt) {
+        return res.status(400).json({ 
+          valid: false,
+          message: "Este enlace ha expirado" 
+        });
+      }
+      
+      // Token is valid
+      res.json({ 
+        valid: true,
+        inviteeName: tokenRecord.inviteeName,
+        inviteeEmail: tokenRecord.inviteeEmail,
+        inviteePhone: tokenRecord.inviteePhone,
+        expiresAt: tokenRecord.expiresAt,
+      });
+    } catch (error: any) {
+      console.error("Error validating property submission token:", error);
+      res.status(500).json({ message: error.message || "Error al validar token" });
+    }
+  });
+
   // Property Agreement routes
   app.get("/api/property-agreements/:id", isAuthenticated, async (req: any, res) => {
     try {

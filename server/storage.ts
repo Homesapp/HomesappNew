@@ -48,6 +48,7 @@ import {
   chatbotConfig,
   agreementTemplates,
   propertySubmissionDrafts,
+  propertySubmissionTokens,
   propertyAgreements,
   serviceBookings,
   providerApplications,
@@ -172,6 +173,8 @@ import {
   type InsertAgreementTemplate,
   type PropertySubmissionDraft,
   type InsertPropertySubmissionDraft,
+  type PropertySubmissionToken,
+  type InsertPropertySubmissionToken,
   type PropertyAgreement,
   type InsertPropertyAgreement,
   type ServiceBooking,
@@ -727,6 +730,14 @@ export interface IStorage {
   updatePropertySubmissionDraft(id: string, updates: Partial<InsertPropertySubmissionDraft>): Promise<PropertySubmissionDraft>;
   deletePropertySubmissionDraft(id: string): Promise<void>;
   approvePropertySubmissionDraft(id: string, adminId: string): Promise<Property>;
+  
+  // Property Submission Token operations (for inviting property owners without account)
+  getPropertySubmissionToken(id: string): Promise<PropertySubmissionToken | undefined>;
+  getPropertySubmissionTokenByToken(token: string): Promise<PropertySubmissionToken | undefined>;
+  getPropertySubmissionTokens(filters?: { createdBy?: string; used?: boolean }): Promise<PropertySubmissionToken[]>;
+  createPropertySubmissionToken(token: InsertPropertySubmissionToken): Promise<PropertySubmissionToken>;
+  markPropertySubmissionTokenAsUsed(id: string, propertyDraftId: string): Promise<PropertySubmissionToken>;
+  deletePropertySubmissionToken(id: string): Promise<void>;
   
   // Property Agreement operations
   getPropertyAgreement(id: string): Promise<PropertyAgreement | undefined>;
@@ -4761,6 +4772,57 @@ export class DatabaseStorage implements IStorage {
     } else {
       return "optional";
     }
+  }
+
+  // Property Submission Token operations
+  async getPropertySubmissionToken(id: string): Promise<PropertySubmissionToken | undefined> {
+    const [token] = await db.select().from(propertySubmissionTokens).where(eq(propertySubmissionTokens.id, id));
+    return token;
+  }
+
+  async getPropertySubmissionTokenByToken(token: string): Promise<PropertySubmissionToken | undefined> {
+    const [tokenRecord] = await db.select().from(propertySubmissionTokens).where(eq(propertySubmissionTokens.token, token));
+    return tokenRecord;
+  }
+
+  async getPropertySubmissionTokens(filters?: { createdBy?: string; used?: boolean }): Promise<PropertySubmissionToken[]> {
+    let query = db.select().from(propertySubmissionTokens);
+    
+    const conditions = [];
+    if (filters?.createdBy) {
+      conditions.push(eq(propertySubmissionTokens.createdBy, filters.createdBy));
+    }
+    if (filters?.used !== undefined) {
+      conditions.push(eq(propertySubmissionTokens.used, filters.used));
+    }
+    
+    if (conditions.length > 0) {
+      query = query.where(and(...conditions)) as any;
+    }
+    
+    return await query.orderBy(desc(propertySubmissionTokens.createdAt));
+  }
+
+  async createPropertySubmissionToken(tokenData: InsertPropertySubmissionToken): Promise<PropertySubmissionToken> {
+    const [token] = await db.insert(propertySubmissionTokens).values(tokenData).returning();
+    return token;
+  }
+
+  async markPropertySubmissionTokenAsUsed(id: string, propertyDraftId: string): Promise<PropertySubmissionToken> {
+    const [updated] = await db
+      .update(propertySubmissionTokens)
+      .set({ 
+        used: true, 
+        propertyDraftId: propertyDraftId,
+        usedAt: new Date() 
+      })
+      .where(eq(propertySubmissionTokens.id, id))
+      .returning();
+    return updated;
+  }
+
+  async deletePropertySubmissionToken(id: string): Promise<void> {
+    await db.delete(propertySubmissionTokens).where(eq(propertySubmissionTokens.id, id));
   }
 
   // Property Agreement operations

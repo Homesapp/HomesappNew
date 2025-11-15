@@ -12,10 +12,11 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, Di
 import { Skeleton } from "@/components/ui/skeleton";
 import { useToast } from "@/hooks/use-toast";
 import { queryClient, apiRequest } from "@/lib/queryClient";
-import { CheckCircle2, XCircle, Clock, FileText, Search, Filter, Home, Building2, MapPin, Bed, Bath, DollarSign, Eye, CheckSquare, XSquare, MoreVertical, Key, User, Lock, Copy, Shield, Star, Trash2, Edit, Calendar } from "lucide-react";
+import { CheckCircle2, XCircle, Clock, FileText, Search, Filter, Home, Building2, MapPin, Bed, Bath, DollarSign, Eye, CheckSquare, XSquare, MoreVertical, Key, User, Lock, Copy, Shield, Star, Trash2, Edit, Calendar, Link2 } from "lucide-react";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { PropertyFormDialog } from "@/components/PropertyFormDialog";
+import { PropertyInviteDialog } from "@/components/PropertyInviteDialog";
 import { useLocation } from "wouter";
 import { getPropertyTitle } from "@/lib/propertyHelpers";
 
@@ -288,12 +289,24 @@ export default function AdminPropertyManagement() {
     return icons[type] || Home;
   };
 
+  const [showInviteDialog, setShowInviteDialog] = useState(false);
+
   return (
     <div className="p-6 space-y-6">
       {/* Header */}
-      <div>
-        <h1 className="text-3xl font-bold">Gestión de Propiedades</h1>
-        <p className="text-muted-foreground">Administra y aprueba propiedades del sistema</p>
+      <div className="flex items-start justify-between gap-4">
+        <div>
+          <h1 className="text-3xl font-bold">Gestión de Propiedades</h1>
+          <p className="text-muted-foreground">Administra y aprueba propiedades del sistema</p>
+        </div>
+        <Button 
+          onClick={() => setShowInviteDialog(true)}
+          className="gap-2"
+          data-testid="button-generate-invitation-link"
+        >
+          <Link2 className="w-4 h-4" />
+          Generar Link de Invitación
+        </Button>
       </div>
 
       {/* Stats Grid */}
@@ -1048,6 +1061,12 @@ export default function AdminPropertyManagement() {
         }}
         property={propertyToEdit || undefined}
         mode="edit"
+      />
+
+      {/* Property Invite Dialog */}
+      <PropertyInviteDialog
+        open={showInviteDialog}
+        onOpenChange={setShowInviteDialog}
       />
     </div>
   );
