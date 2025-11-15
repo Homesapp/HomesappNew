@@ -35,6 +35,15 @@ Key features include:
 *   **Referral System**: Sellers can refer property owners and earn 20% commission per referred property.
 *   **User Experience**: Airbnb-style role switching, full i18n support, real-time chat, granular email notification preferences, and auto-logout security.
 *   **Public Rental Form**: Comprehensive 8-step wizard for tenants to submit rental applications with guarantor option, featuring bilingual support (Spanish/English) including 13 legal sections of Terms & Conditions, Zod validation with `z.preprocess`, and conditional guarantor forms. Includes robust frontend and backend validation for integer fields to prevent overflow errors.
+*   **Property Invitation Token System**: Secure token-based property submission system allowing admins to generate time-limited, single-use invitation links for property owners to submit properties without creating accounts. Features include:
+    - 24-hour expiring tokens with UUID generation
+    - Optional metadata capture (email/phone of invitee)
+    - Public submission endpoints with comprehensive security validations
+    - Token ownership verification preventing draft hijacking
+    - Single-use enforcement: tokens remain valid during wizard completion but marked used upon final submission
+    - Draft age restrictions (48-hour limit)
+    - Cache isolation between authenticated and public sessions
+    - Admin UI for token generation with copy-to-clipboard functionality
 
 ## External Dependencies
 *   Google Calendar API
