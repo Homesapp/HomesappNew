@@ -7194,8 +7194,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   
   // Generate a cryptographically secure random token
   function generateSecureToken(): string {
-    const { randomBytes } = require('crypto');
-    return randomBytes(32).toString('hex'); // 64 character hex string
+    return crypto.randomBytes(32).toString('hex'); // 64 character hex string
   }
 
   // Admin: Create property submission token
