@@ -6789,6 +6789,69 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Public endpoint for creating property submission drafts via invitation token
+  app.post("/api/public/property-submission-drafts", propertySubmissionLimiter, async (req: any, res) => {
+    try {
+      const { invitationToken, ...draftData } = req.body;
+      
+      if (!invitationToken) {
+        return res.status(400).json({ message: "Token de invitación requerido" });
+      }
+
+      console.log("[DRAFT-CREATE-PUBLIC] Token:", invitationToken.substring(0, 10) + "...");
+
+      // Validate token
+      const token = await storage.getPropertySubmissionToken(invitationToken);
+      if (!token) {
+        return res.status(404).json({ message: "Token de invitación no encontrado" });
+      }
+
+      if (token.used) {
+        return res.status(400).json({ message: "Este token ya fue utilizado" });
+      }
+
+      if (new Date() > new Date(token.expiresAt)) {
+        return res.status(400).json({ message: "El token de invitación ha expirado" });
+      }
+
+      // Validate draft data
+      const validationResult = insertPropertySubmissionDraftSchema.safeParse({
+        ...draftData,
+        userId: null, // Public submissions have no userId
+        tokenId: token.id // Link draft to token
+      });
+
+      if (!validationResult.success) {
+        console.error("[DRAFT-CREATE-PUBLIC] Validation failed:", validationResult.error.errors);
+        return res.status(400).json({
+          message: "Datos inválidos",
+          errors: validationResult.error.errors,
+          code: "VALIDATION_ERROR"
+        });
+      }
+
+      // Create draft
+      const draft = await storage.createPropertySubmissionDraft(validationResult.data);
+      console.log("[DRAFT-CREATE-PUBLIC] Success, Draft ID:", draft.id);
+
+      // SECURITY: Link draft to token but DON'T mark as used yet
+      // Token will be marked used only when draft is submitted (status changes to submitted/pending_review)
+      await storage.updatePropertySubmissionToken(token.id, {
+        propertyDraftId: draft.id
+      });
+
+      console.log("[DRAFT-CREATE-PUBLIC] Draft linked to token (token not marked used yet)");
+
+      return res.status(201).json(draft);
+    } catch (error: any) {
+      console.error("[DRAFT-CREATE-PUBLIC] Error:", error);
+      return res.status(500).json({
+        message: error.message || "Error al crear borrador",
+        code: "INTERNAL_ERROR"
+      });
+    }
+  });
+
   app.post("/api/property-submission-drafts", propertySubmissionLimiter, isAuthenticated, async (req: any, res) => {
     try {
       const userId = req.user.claims.sub;
@@ -6826,6 +6889,131 @@ export async function registerRoutes(app: Express): Promise<Server> {
       console.error("[DRAFT-CREATE] Error:", error);
       return res.status(500).json({ 
         message: error.message || "Error al crear borrador",
+        code: "INTERNAL_ERROR"
+      });
+    }
+  });
+
+  // Public endpoint for updating property submission drafts via invitation token
+  app.patch("/api/public/property-submission-drafts/:id", propertySubmissionLimiter, async (req: any, res) => {
+    try {
+      const { id } = req.params;
+      const { invitationToken, ...draftData } = req.body;
+
+      if (!invitationToken) {
+        return res.status(400).json({ message: "Token de invitación requerido" });
+      }
+
+      console.log("[DRAFT-UPDATE-PUBLIC] Draft:", id, "Step:", draftData.currentStep);
+
+      // Validate token
+      const token = await storage.getPropertySubmissionToken(invitationToken);
+      if (!token) {
+        return res.status(404).json({ message: "Token de invitación no encontrado" });
+      }
+
+      // SECURITY: Enforce single-use semantics - once token is marked used, no more updates
+      if (token.used) {
+        return res.status(403).json({ 
+          message: "Este token ya fue utilizado y el borrador no puede ser modificado" 
+        });
+      }
+
+      if (new Date() > new Date(token.expiresAt)) {
+        return res.status(400).json({ message: "El token de invitación ha expirado" });
+      }
+
+      // SECURITY: Require token to have a linked draft before allowing updates
+      // This prevents attackers from using a token to hijack arbitrary drafts
+      if (!token.propertyDraftId) {
+        return res.status(400).json({ 
+          message: "Token no tiene un borrador asociado. Primero crea un borrador." 
+        });
+      }
+
+      // SECURITY: Verify that the draft ID in the URL matches the token's linked draft
+      if (token.propertyDraftId !== id) {
+        return res.status(403).json({ 
+          message: "No autorizado: este token no está vinculado a este borrador" 
+        });
+      }
+
+      // Get existing draft
+      const existingDraft = await storage.getPropertySubmissionDraft(id);
+      if (!existingDraft) {
+        return res.status(404).json({ message: "Borrador no encontrado" });
+      }
+
+      // Verify that the draft belongs to this token (double-check)
+      if (existingDraft.tokenId !== token.id) {
+        return res.status(403).json({ message: "No autorizado para modificar este borrador" });
+      }
+
+      // SECURITY: Only allow updates if draft is still in "draft" status
+      if (existingDraft.status !== "draft") {
+        return res.status(403).json({ 
+          message: "Este borrador ya fue enviado y no puede ser modificado" 
+        });
+      }
+
+      // SECURITY: Prevent updates to drafts created more than 48 hours ago
+      const draftAge = Date.now() - new Date(existingDraft.createdAt).getTime();
+      const MAX_DRAFT_AGE = 48 * 60 * 60 * 1000; // 48 hours
+      if (draftAge > MAX_DRAFT_AGE) {
+        return res.status(403).json({
+          message: "Este borrador ha expirado y no puede ser modificado"
+        });
+      }
+
+      // Validate input
+      const validationResult = insertPropertySubmissionDraftSchema.partial().safeParse(draftData);
+      if (!validationResult.success) {
+        console.error("[DRAFT-UPDATE-PUBLIC] Validation failed:", validationResult.error.errors);
+        return res.status(400).json({
+          message: "Datos inválidos",
+          errors: validationResult.error.errors,
+          code: "VALIDATION_ERROR"
+        });
+      }
+
+      // Remove server-controlled fields
+      const sanitizedData = { ...validationResult.data };
+      delete (sanitizedData as any).id;
+      delete (sanitizedData as any).userId;
+      delete (sanitizedData as any).tokenId;
+      delete (sanitizedData as any).createdAt;
+      delete (sanitizedData as any).updatedAt;
+      delete (sanitizedData as any).propertyId;
+      delete (sanitizedData as any).reviewedBy;
+      delete (sanitizedData as any).reviewedAt;
+
+      // Update draft
+      const updated = await storage.updatePropertySubmissionDraft(id, sanitizedData);
+
+      if (!updated) {
+        console.error("[DRAFT-UPDATE-PUBLIC] Draft not found or storage returned null");
+        return res.status(404).json({
+          message: "Borrador no encontrado",
+          code: "DRAFT_NOT_FOUND"
+        });
+      }
+
+      console.log("[DRAFT-UPDATE-PUBLIC] Success, updated step:", updated.currentStep);
+
+      // SECURITY: If draft status changed to "submitted", mark token as used
+      if (updated.status === "submitted" && !token.used) {
+        await storage.updatePropertySubmissionToken(token.id, {
+          used: true,
+          usedAt: new Date()
+        });
+        console.log("[DRAFT-UPDATE-PUBLIC] Token marked as used after submission");
+      }
+
+      return res.json(updated);
+    } catch (error: any) {
+      console.error("[DRAFT-UPDATE-PUBLIC] Error:", error);
+      return res.status(500).json({
+        message: error.message || "Error al actualizar borrador",
         code: "INTERNAL_ERROR"
       });
     }

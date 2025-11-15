@@ -120,6 +120,7 @@ import HoaManagement from "@/pages/HoaManagement";
 import OwnerHoaPortal from "@/pages/OwnerHoaPortal";
 import PublicOfferForm from "@/pages/PublicOfferForm";
 import PublicRentalForm from "@/pages/PublicRentalForm";
+import PublicPropertySubmission from "@/pages/PublicPropertySubmission";
 import AdminOfferManagement from "@/pages/AdminOfferManagement";
 import AdminRentalFormManagement from "@/pages/AdminRentalFormManagement";
 import NotFound from "@/pages/not-found";
@@ -179,6 +180,7 @@ function AuthenticatedApp() {
         <Route path="/privacidad" component={Privacy} />
         <Route path="/offer/:token" component={PublicOfferForm} />
         <Route path="/rental-form/:token" component={PublicRentalForm} />
+        <Route path="/submit-property/:token" component={PublicPropertySubmission} />
         <Route path="/" component={PublicDashboard} />
         <Route component={PublicDashboard} />
       </Switch>
@@ -252,6 +254,7 @@ function AuthenticatedApp() {
               {/* Public form routes - available even when authenticated */}
               <Route path="/offer/:token" component={PublicOfferForm} />
               <Route path="/rental-form/:token" component={PublicRentalForm} />
+              <Route path="/submit-property/:token" component={PublicPropertySubmission} />
               
               <Route path="/" component={getHomeDashboard()} />
               <Route path="/mis-citas" component={Appointments} />

@@ -32,7 +32,19 @@ type WizardData = {
   commercialTerms?: any;
 };
 
-export default function PropertySubmissionWizard() {
+interface PropertySubmissionWizardProps {
+  invitationToken?: string;
+  inviteeEmail?: string;
+  inviteePhone?: string;
+  inviteeName?: string;
+}
+
+export default function PropertySubmissionWizard({ 
+  invitationToken,
+  inviteeEmail,
+  inviteePhone,
+  inviteeName 
+}: PropertySubmissionWizardProps = {}) {
   const [_, setLocation] = useLocation();
   const { toast } = useToast();
   const [currentStep, setCurrentStep] = useState(1);
@@ -45,13 +57,16 @@ export default function PropertySubmissionWizard() {
   const [isSaving, setIsSaving] = useState(false);
 
   // Fetch existing draft if there's one in progress
+  // SECURITY: Disable authenticated draft fetching when using invitation token
   const { data: existingDrafts } = useQuery<PropertySubmissionDraft[]>({
     queryKey: ["/api/property-submission-drafts"],
+    enabled: !invitationToken, // Only fetch when NOT using invitation token
   });
 
   // Load existing draft if found
+  // SECURITY: Skip loading authenticated drafts when using invitation token
   useEffect(() => {
-    if (existingDrafts && existingDrafts.length > 0) {
+    if (!invitationToken && existingDrafts && existingDrafts.length > 0) {
       const draft = existingDrafts.find(d => d.status === "draft");
       if (draft) {
         setDraftId(draft.id);
@@ -74,14 +89,23 @@ export default function PropertySubmissionWizard() {
         }
       }
     }
-  }, [existingDrafts]);
+  }, [existingDrafts, invitationToken]);
 
   // Create draft mutation
   const createDraftMutation = useMutation<PropertySubmissionDraft, Error, Partial<WizardData> & { currentStep: number }>({
     mutationFn: async (data: Partial<WizardData> & { currentStep: number }) => {
-      const response = await apiRequest("POST", "/api/property-submission-drafts", data);
-      const json = await response.json();
-      return json;
+      if (invitationToken) {
+        // Use public endpoint for token-based submissions
+        const payload = { ...data, invitationToken };
+        const response = await apiRequest("POST", "/api/public/property-submission-drafts", payload);
+        const json = await response.json();
+        return json;
+      } else {
+        // Use authenticated endpoint for regular submissions
+        const response = await apiRequest("POST", "/api/property-submission-drafts", data);
+        const json = await response.json();
+        return json;
+      }
     },
     onSuccess: (data: PropertySubmissionDraft) => {
       setDraftId(data.id);
@@ -105,9 +129,18 @@ export default function PropertySubmissionWizard() {
   // Update draft mutation
   const updateDraftMutation = useMutation<PropertySubmissionDraft, Error, { id: string; data: Partial<WizardData> & { currentStep?: number } }>({
     mutationFn: async ({ id, data }: { id: string; data: Partial<WizardData> & { currentStep?: number } }) => {
-      const response = await apiRequest("PATCH", `/api/property-submission-drafts/${id}`, data);
-      const json = await response.json();
-      return json;
+      if (invitationToken) {
+        // Use public endpoint for token-based submissions
+        const payload = { ...data, invitationToken };
+        const response = await apiRequest("PATCH", `/api/public/property-submission-drafts/${id}`, payload);
+        const json = await response.json();
+        return json;
+      } else {
+        // Use authenticated endpoint for regular submissions
+        const response = await apiRequest("PATCH", `/api/property-submission-drafts/${id}`, data);
+        const json = await response.json();
+        return json;
+      }
     },
     onSuccess: (data: PropertySubmissionDraft) => {
       setLastSaved(new Date());
@@ -278,6 +311,7 @@ export default function PropertySubmissionWizard() {
             draftId={draftId}
             onUpdate={updateWizardData}
             onPrevious={handlePrevious}
+            invitationToken={invitationToken}
           />
         );
       default:

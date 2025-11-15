@@ -36,9 +36,10 @@ type Step5Props = {
   draftId: string | null;
   onUpdate: (data: any) => void;
   onPrevious: () => void;
+  invitationToken?: string;
 };
 
-export default function Step5TermsReview({ data, draftId, onUpdate, onPrevious }: Step5Props) {
+export default function Step5TermsReview({ data, draftId, onUpdate, onPrevious, invitationToken }: Step5Props) {
   const [_, setLocation] = useLocation();
   const { toast } = useToast();
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -58,20 +59,41 @@ export default function Step5TermsReview({ data, draftId, onUpdate, onPrevious }
         throw new Error("No hay borrador para enviar");
       }
       
-      // First save the acceptance flags
-      await apiRequest("PATCH", `/api/property-submission-drafts/${draftId}`, {
-        termsAcceptance: {
-          acceptedTerms: termsData.acceptTerms,
-          confirmedAccuracy: termsData.confirmAccuracy,
-          acceptedCommission: termsData.acceptCommission,
-          acceptedAt: new Date().toISOString(),
-        },
-      });
-      
-      // Then mark as submitted
-      return await apiRequest("PATCH", `/api/property-submission-drafts/${draftId}`, {
-        status: "submitted",
-      });
+      if (invitationToken) {
+        // Use public endpoint for token-based submissions
+        // First save the acceptance flags
+        await apiRequest("PATCH", `/api/public/property-submission-drafts/${draftId}`, {
+          invitationToken,
+          termsAcceptance: {
+            acceptedTerms: termsData.acceptTerms,
+            confirmedAccuracy: termsData.confirmAccuracy,
+            acceptedCommission: termsData.acceptCommission,
+            acceptedAt: new Date().toISOString(),
+          },
+        });
+        
+        // Then mark as submitted (this will also mark the token as used)
+        return await apiRequest("PATCH", `/api/public/property-submission-drafts/${draftId}`, {
+          invitationToken,
+          status: "submitted",
+        });
+      } else {
+        // Use authenticated endpoint for regular submissions
+        // First save the acceptance flags
+        await apiRequest("PATCH", `/api/property-submission-drafts/${draftId}`, {
+          termsAcceptance: {
+            acceptedTerms: termsData.acceptTerms,
+            confirmedAccuracy: termsData.confirmAccuracy,
+            acceptedCommission: termsData.acceptCommission,
+            acceptedAt: new Date().toISOString(),
+          },
+        });
+        
+        // Then mark as submitted
+        return await apiRequest("PATCH", `/api/property-submission-drafts/${draftId}`, {
+          status: "submitted",
+        });
+      }
     },
     onSuccess: () => {
       toast({
