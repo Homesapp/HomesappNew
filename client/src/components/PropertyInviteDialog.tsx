@@ -145,34 +145,68 @@ export function PropertyInviteDialog({ open, onOpenChange }: PropertyInviteDialo
             </>
           ) : (
             <>
-              <div className="space-y-2">
-                <Label>Link Generado</Label>
-                <div className="flex gap-2">
-                  <Input
-                    value={generatedLink}
-                    readOnly
-                    className="font-mono text-sm"
-                    data-testid="input-generated-link"
-                  />
+              <div className="space-y-3">
+                <div className="bg-green-50 dark:bg-green-950/20 border border-green-200 dark:border-green-800 rounded-lg p-4">
+                  <div className="flex items-start gap-2 mb-2">
+                    <Check className="w-5 h-5 text-green-600 dark:text-green-400 mt-0.5" />
+                    <div>
+                      <p className="font-medium text-green-900 dark:text-green-100">¡Link generado exitosamente!</p>
+                      <p className="text-sm text-green-700 dark:text-green-300 mt-0.5">
+                        Comparte este link con el propietario
+                      </p>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="space-y-2">
+                  <Label className="text-base font-semibold">Link de Invitación</Label>
+                  <div className="flex gap-2">
+                    <Input
+                      value={generatedLink}
+                      readOnly
+                      className="font-mono text-sm bg-muted"
+                      data-testid="input-generated-link"
+                      onClick={(e) => e.currentTarget.select()}
+                    />
+                    <Button
+                      variant="outline"
+                      size="icon"
+                      onClick={copyToClipboard}
+                      data-testid="button-copy-link"
+                    >
+                      {copied ? (
+                        <Check className="w-4 h-4 text-green-500" />
+                      ) : (
+                        <Copy className="w-4 h-4" />
+                      )}
+                    </Button>
+                  </div>
+                  <div className="bg-amber-50 dark:bg-amber-950/20 border border-amber-200 dark:border-amber-800 rounded px-3 py-2">
+                    <p className="text-sm text-amber-800 dark:text-amber-200">
+                      ⏱️ Este link expira en 24 horas y solo puede usarse una vez
+                    </p>
+                  </div>
+                </div>
+
+                {inviteePhone && (
                   <Button
                     variant="outline"
-                    size="icon"
-                    onClick={copyToClipboard}
-                    data-testid="button-copy-link"
+                    className="w-full gap-2 bg-green-50 hover:bg-green-100 dark:bg-green-950/20 dark:hover:bg-green-950/30 border-green-200 dark:border-green-800"
+                    onClick={() => {
+                      const message = encodeURIComponent(
+                        `Hola${inviteeName ? ` ${inviteeName}` : ''}! Te comparto este link para que puedas subir tu propiedad a nuestra plataforma. El link expira en 24 horas:\n\n${generatedLink}`
+                      );
+                      window.open(`https://wa.me/${inviteePhone.replace(/\D/g, '')}?text=${message}`, '_blank');
+                    }}
+                    data-testid="button-send-whatsapp"
                   >
-                    {copied ? (
-                      <Check className="w-4 h-4 text-green-500" />
-                    ) : (
-                      <Copy className="w-4 h-4" />
-                    )}
+                    <Phone className="w-4 h-4" />
+                    Enviar por WhatsApp
                   </Button>
-                </div>
-                <p className="text-sm text-muted-foreground">
-                  ⏱️ Este link expirará en 24 horas y solo puede usarse una vez.
-                </p>
+                )}
               </div>
 
-              <div className="flex gap-2">
+              <div className="flex gap-2 pt-2">
                 <Button
                   variant="outline"
                   className="flex-1"
