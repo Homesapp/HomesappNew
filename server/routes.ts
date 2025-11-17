@@ -6464,6 +6464,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
             condominiumAmenities: condoAmenityNames,
             images: draft.media?.images || [],
             primaryImages: draft.media?.primaryImages || [],
+            coverImageIndex: draft.media?.coverImageIndex ?? 0,
+            secondaryImages: draft.media?.secondaryImages || [],
             videos: draft.media?.videos || [],
             virtualTourUrl: draft.media?.virtualTourUrl || "",
             includedServices: includedServices,
