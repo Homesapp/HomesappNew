@@ -10,51 +10,58 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { ChevronLeft, ChevronRight, Lock, User, Key, Home, Shield } from "lucide-react";
 import { Label } from "@/components/ui/label";
+import { getTranslation, Language } from "@/lib/wizardTranslations";
 
-const accessInfoSchema = z.object({
-  accessType: z.enum(["unattended", "attended"]),
-  method: z.enum(["lockbox", "smart_lock"]).optional(),
-  lockboxCode: z.string().optional(),
-  lockboxLocation: z.string().optional(),
-  smartLockInstructions: z.string().optional(),
-  smartLockProvider: z.string().optional(),
-  contactPerson: z.string().optional(),
-  contactPhone: z.string().optional(),
-  contactNotes: z.string().optional(),
-}).superRefine((data, ctx) => {
-  if (data.accessType === "unattended" && data.method === "lockbox" && !data.lockboxCode) {
-    ctx.addIssue({
-      code: z.ZodIssueCode.custom,
-      message: "Código de lockbox requerido",
-      path: ["lockboxCode"],
-    });
-  }
-  if (data.accessType === "attended" && !data.contactPerson) {
-    ctx.addIssue({
-      code: z.ZodIssueCode.custom,
-      message: "Nombre de contacto requerido",
-      path: ["contactPerson"],
-    });
-  }
-  if (data.accessType === "attended" && !data.contactPhone) {
-    ctx.addIssue({
-      code: z.ZodIssueCode.custom,
-      message: "Teléfono de contacto requerido",
-      path: ["contactPhone"],
-    });
-  }
-});
+const getAccessInfoSchema = (language: Language) => {
+  const t = getTranslation(language);
+  return z.object({
+    accessType: z.enum(["unattended", "attended"]),
+    method: z.enum(["lockbox", "smart_lock"]).optional(),
+    lockboxCode: z.string().optional(),
+    lockboxLocation: z.string().optional(),
+    smartLockInstructions: z.string().optional(),
+    smartLockProvider: z.string().optional(),
+    contactPerson: z.string().optional(),
+    contactPhone: z.string().optional(),
+    contactNotes: z.string().optional(),
+  }).superRefine((data, ctx) => {
+    if (data.accessType === "unattended" && data.method === "lockbox" && !data.lockboxCode) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: t.step5.lockboxCodeRequired,
+        path: ["lockboxCode"],
+      });
+    }
+    if (data.accessType === "attended" && !data.contactPerson) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: t.step5.contactNameRequired,
+        path: ["contactPerson"],
+      });
+    }
+    if (data.accessType === "attended" && !data.contactPhone) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: t.step5.contactPhoneRequired,
+        path: ["contactPhone"],
+      });
+    }
+  });
+};
 
-type AccessInfoForm = z.infer<typeof accessInfoSchema>;
+type AccessInfoForm = z.infer<ReturnType<typeof getAccessInfoSchema>>;
 
 type Step5Props = {
   data: any;
   onUpdate: (data: any) => void;
   onNext: (stepData?: any) => void;
   onPrevious: () => void;
+  language?: Language;
 };
 
-export default function Step5AccessInfo({ data = {}, onUpdate, onNext, onPrevious }: Step5Props) {
+export default function Step5AccessInfo({ data = {}, onUpdate, onNext, onPrevious, language = "es" }: Step5Props) {
+  const t = getTranslation(language);
+  const accessInfoSchema = getAccessInfoSchema(language);
   const initialValues = data?.accessInfo ?? {
     accessType: "unattended" as const,
     method: "lockbox" as const,
@@ -78,10 +85,10 @@ export default function Step5AccessInfo({ data = {}, onUpdate, onNext, onPreviou
     <div className="space-y-6">
       <div>
         <h2 className="text-2xl font-bold mb-2" data-testid="heading-step5-title">
-          Información de Acceso a la Propiedad
+          {t.step5.title}
         </h2>
         <p className="text-muted-foreground" data-testid="text-step5-description">
-          Configura cómo el personal autorizado podrá acceder a tu propiedad para citas y mantenimiento
+          {t.step5.subtitle}
         </p>
       </div>
 
@@ -89,10 +96,10 @@ export default function Step5AccessInfo({ data = {}, onUpdate, onNext, onPreviou
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <Shield className="w-5 h-5" />
-            Privacidad y Seguridad
+            {t.step5.privacyTitle}
           </CardTitle>
           <CardDescription>
-            Esta información es privada y solo será compartida con personal autorizado (administradores, conserjes o mantenimiento) cuando tengan citas confirmadas en tu propiedad.
+            {t.step5.privacyNotice}
           </CardDescription>
         </CardHeader>
       </Card>
@@ -105,7 +112,7 @@ export default function Step5AccessInfo({ data = {}, onUpdate, onNext, onPreviou
             name="accessType"
             render={({ field }) => (
               <FormItem>
-                <FormLabel>Tipo de Acceso *</FormLabel>
+                <FormLabel>{t.step5.accessTypeLabel}</FormLabel>
                 <FormControl>
                   <RadioGroup
                     onValueChange={field.onChange}
@@ -125,9 +132,9 @@ export default function Step5AccessInfo({ data = {}, onUpdate, onNext, onPreviou
                       >
                         <Key className="mb-3 h-6 w-6" />
                         <div className="text-center">
-                          <div className="font-semibold">Desatendido</div>
+                          <div className="font-semibold">{t.step5.unattended}</div>
                           <div className="text-sm text-muted-foreground mt-1">
-                            Acceso con lockbox o cerradura inteligente
+                            {t.step5.unattendedDesc}
                           </div>
                         </div>
                       </Label>
@@ -145,9 +152,9 @@ export default function Step5AccessInfo({ data = {}, onUpdate, onNext, onPreviou
                       >
                         <User className="mb-3 h-6 w-6" />
                         <div className="text-center">
-                          <div className="font-semibold">Asistido</div>
+                          <div className="font-semibold">{t.step5.attended}</div>
                           <div className="text-sm text-muted-foreground mt-1">
-                            Alguien abrirá la propiedad
+                            {t.step5.attendedDesc}
                           </div>
                         </div>
                       </Label>
@@ -167,16 +174,16 @@ export default function Step5AccessInfo({ data = {}, onUpdate, onNext, onPreviou
                 name="method"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Método de Acceso *</FormLabel>
+                    <FormLabel>{t.step5.methodLabel}</FormLabel>
                     <Select onValueChange={field.onChange} value={field.value}>
                       <FormControl>
                         <SelectTrigger data-testid="select-access-method">
-                          <SelectValue placeholder="Selecciona el método" />
+                          <SelectValue placeholder={t.step5.methodPlaceholder} />
                         </SelectTrigger>
                       </FormControl>
                       <SelectContent>
-                        <SelectItem value="lockbox">Lockbox con clave única</SelectItem>
-                        <SelectItem value="smart_lock">Cerradura inteligente con clave variable</SelectItem>
+                        <SelectItem value="lockbox">{t.step5.lockbox}</SelectItem>
+                        <SelectItem value="smart_lock">{t.step5.smartLock}</SelectItem>
                       </SelectContent>
                     </Select>
                     <FormMessage />
@@ -191,16 +198,16 @@ export default function Step5AccessInfo({ data = {}, onUpdate, onNext, onPreviou
                     name="lockboxCode"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>Código del Lockbox *</FormLabel>
+                        <FormLabel>{t.step5.lockboxCodeLabel}</FormLabel>
                         <FormControl>
                           <Input
-                            placeholder="Ej: 1234"
+                            placeholder={t.step5.lockboxCodePlaceholder}
                             {...field}
                             data-testid="input-lockbox-code"
                           />
                         </FormControl>
                         <FormDescription>
-                          El código que el personal usará para abrir el lockbox
+                          {t.step5.lockboxCodeDesc}
                         </FormDescription>
                         <FormMessage />
                       </FormItem>
@@ -212,10 +219,10 @@ export default function Step5AccessInfo({ data = {}, onUpdate, onNext, onPreviou
                     name="lockboxLocation"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>Ubicación del Lockbox (opcional)</FormLabel>
+                        <FormLabel>{t.step5.lockboxLocationLabel}</FormLabel>
                         <FormControl>
                           <Input
-                            placeholder="Ej: En la puerta principal, lado derecho"
+                            placeholder={t.step5.lockboxLocationPlaceholder}
                             {...field}
                             data-testid="input-lockbox-location"
                           />
@@ -234,10 +241,10 @@ export default function Step5AccessInfo({ data = {}, onUpdate, onNext, onPreviou
                     name="smartLockProvider"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>Proveedor de Cerradura (opcional)</FormLabel>
+                        <FormLabel>{t.step5.smartLockProviderLabel}</FormLabel>
                         <FormControl>
                           <Input
-                            placeholder="Ej: August, Yale, Schlage"
+                            placeholder={t.step5.smartLockProviderPlaceholder}
                             {...field}
                             data-testid="input-smart-lock-provider"
                           />
@@ -252,17 +259,17 @@ export default function Step5AccessInfo({ data = {}, onUpdate, onNext, onPreviou
                     name="smartLockInstructions"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>Instrucciones para Generar Clave (opcional)</FormLabel>
+                        <FormLabel>{t.step5.smartLockInstructionsLabel}</FormLabel>
                         <FormControl>
                           <Textarea
-                            placeholder="Describe cómo generar una clave temporal única para cada visita..."
+                            placeholder={t.step5.smartLockInstructionsPlaceholder}
                             {...field}
                             data-testid="textarea-smart-lock-instructions"
                             className="min-h-[100px]"
                           />
                         </FormControl>
                         <FormDescription>
-                          Como propietario, deberás proporcionar una clave única antes de cada cita confirmada
+                          {t.step5.smartLockInstructionsDesc}
                         </FormDescription>
                         <FormMessage />
                       </FormItem>
@@ -281,10 +288,10 @@ export default function Step5AccessInfo({ data = {}, onUpdate, onNext, onPreviou
                 name="contactPerson"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Nombre de Contacto *</FormLabel>
+                    <FormLabel>{t.step5.contactNameLabel}</FormLabel>
                     <FormControl>
                       <Input
-                        placeholder="Nombre de la persona que abrirá"
+                        placeholder={t.step5.contactNamePlaceholder}
                         {...field}
                         data-testid="input-contact-person"
                       />
@@ -299,10 +306,10 @@ export default function Step5AccessInfo({ data = {}, onUpdate, onNext, onPreviou
                 name="contactPhone"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Teléfono de Contacto *</FormLabel>
+                    <FormLabel>{t.step5.contactPhoneLabel}</FormLabel>
                     <FormControl>
                       <Input
-                        placeholder="+52 998 123 4567"
+                        placeholder={t.step5.contactPhonePlaceholder}
                         {...field}
                         data-testid="input-contact-phone"
                       />
@@ -317,10 +324,10 @@ export default function Step5AccessInfo({ data = {}, onUpdate, onNext, onPreviou
                 name="contactNotes"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Notas Adicionales (opcional)</FormLabel>
+                    <FormLabel>{t.step5.contactNotesLabel}</FormLabel>
                     <FormControl>
                       <Textarea
-                        placeholder="Cualquier información adicional sobre el acceso..."
+                        placeholder={t.step5.contactNotesPlaceholder}
                         {...field}
                         data-testid="textarea-contact-notes"
                         className="min-h-[100px]"
@@ -342,13 +349,13 @@ export default function Step5AccessInfo({ data = {}, onUpdate, onNext, onPreviou
               data-testid="button-previous"
             >
               <ChevronLeft className="w-4 h-4 mr-2" />
-              Anterior
+              {t.previous}
             </Button>
             <Button
               type="submit"
               data-testid="button-next"
             >
-              Siguiente
+              {t.next}
               <ChevronRight className="w-4 h-4 ml-2" />
             </Button>
           </div>

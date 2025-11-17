@@ -10,29 +10,36 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { ChevronRight, Home, Building2 } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
+import { getTranslation, Language } from "@/lib/wizardTranslations";
 
-const step1Schema = z.object({
-  isForRent: z.boolean(),
-  isForSale: z.boolean(),
-  title: z.string().min(5, "El título debe tener al menos 5 caracteres"),
-  customListingTitle: z.string().max(60, "El nombre no puede exceder 60 caracteres").optional().or(z.literal("")),
-  description: z.string().min(20, "La descripción debe tener al menos 20 caracteres"),
-  propertyType: z.string().min(1, "Selecciona un tipo de propiedad"),
-  price: z.string().min(1, "El precio es requerido"),
-}).refine((data) => data.isForRent || data.isForSale, {
-  message: "Debes seleccionar al menos una opción (Renta o Venta)",
-  path: ["isForRent"],
-});
-
-type Step1Form = z.infer<typeof step1Schema>;
+const getStep1Schema = (language: Language) => {
+  const t = getTranslation(language);
+  return z.object({
+    isForRent: z.boolean(),
+    isForSale: z.boolean(),
+    title: z.string().min(5, t.errors.titleMin),
+    customListingTitle: z.string().max(60, t.errors.customListingTitleMax).optional().or(z.literal("")),
+    description: z.string().min(20, t.errors.descriptionMin),
+    propertyType: z.string().min(1, t.errors.propertyTypeRequired),
+    price: z.string().min(1, t.errors.priceRequired),
+  }).refine((data) => data.isForRent || data.isForSale, {
+    message: t.errors.operationTypeRequired,
+    path: ["isForRent"],
+  });
+};
 
 type Step1Props = {
   data: any;
   onUpdate: (data: any) => void;
   onNext: (stepData?: any) => void;
+  language?: Language;
 };
 
-export default function Step1BasicInfo({ data, onUpdate, onNext }: Step1Props) {
+export default function Step1BasicInfo({ data, onUpdate, onNext, language = "es" }: Step1Props) {
+  const t = getTranslation(language);
+  const step1Schema = getStep1Schema(language);
+  type Step1Form = z.infer<typeof step1Schema>;
+
   const form = useForm<Step1Form>({
     resolver: zodResolver(step1Schema),
     defaultValues: {
@@ -64,10 +71,10 @@ export default function Step1BasicInfo({ data, onUpdate, onNext }: Step1Props) {
     <div className="space-y-6">
       <div>
         <h2 className="text-2xl font-bold mb-2" data-testid="heading-step1-title">
-          Información de la Propiedad
+          {t.step1.title}
         </h2>
         <p className="text-muted-foreground" data-testid="text-step1-description">
-          Tipo de operación y detalles básicos
+          {t.step1.subtitle}
         </p>
       </div>
 
@@ -76,9 +83,9 @@ export default function Step1BasicInfo({ data, onUpdate, onNext }: Step1Props) {
           {/* Tipo de Operación */}
           <div className="space-y-4">
             <div>
-              <h3 className="text-lg font-semibold mb-2">Tipo de Operación</h3>
+              <h3 className="text-lg font-semibold mb-2">{t.step1.operationType}</h3>
               <p className="text-sm text-muted-foreground">
-                Selecciona si quieres rentar, vender o ambas opciones
+                {t.step1.operationTypeDescription}
               </p>
             </div>
 
@@ -98,10 +105,10 @@ export default function Step1BasicInfo({ data, onUpdate, onNext }: Step1Props) {
                         <Home className="w-12 h-12 text-primary" />
                         <div className="text-center space-y-1">
                           <h4 className="font-semibold" data-testid="text-rent-title">
-                            Renta
+                            {t.step1.rent}
                           </h4>
                           <p className="text-xs text-muted-foreground" data-testid="text-rent-description">
-                            Ofrecer en renta
+                            {t.step1.rentDescription}
                           </p>
                         </div>
                         <FormControl>
@@ -132,10 +139,10 @@ export default function Step1BasicInfo({ data, onUpdate, onNext }: Step1Props) {
                         <Building2 className="w-12 h-12 text-primary" />
                         <div className="text-center space-y-1">
                           <h4 className="font-semibold" data-testid="text-sale-title">
-                            Venta
+                            {t.step1.sale}
                           </h4>
                           <p className="text-xs text-muted-foreground" data-testid="text-sale-description">
-                            Ofrecer en venta
+                            {t.step1.saleDescription}
                           </p>
                         </div>
                         <FormControl>
@@ -164,7 +171,7 @@ export default function Step1BasicInfo({ data, onUpdate, onNext }: Step1Props) {
           {/* Información Básica */}
           <div className="space-y-4">
             <div>
-              <h3 className="text-lg font-semibold mb-2">Detalles Principales</h3>
+              <h3 className="text-lg font-semibold mb-2">{t.step1.mainDetails}</h3>
             </div>
 
             <FormField
@@ -172,10 +179,10 @@ export default function Step1BasicInfo({ data, onUpdate, onNext }: Step1Props) {
               name="title"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Título *</FormLabel>
+                  <FormLabel>{t.step1.titleLabel} *</FormLabel>
                   <FormControl>
                     <Input
-                      placeholder="Ej: Casa moderna en zona céntrica"
+                      placeholder={t.step1.titlePlaceholder}
                       {...field}
                       data-testid="input-title"
                     />
@@ -190,17 +197,17 @@ export default function Step1BasicInfo({ data, onUpdate, onNext }: Step1Props) {
               name="customListingTitle"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Nombre de la Casa (Opcional)</FormLabel>
+                  <FormLabel>{t.step1.customListingTitle}</FormLabel>
                   <FormControl>
                     <Input
-                      placeholder="Ej: Casa del Mar, Villa Aurora, etc."
+                      placeholder={t.step1.customListingTitlePlaceholder}
                       maxLength={60}
                       {...field}
                       data-testid="input-custom-listing-title"
                     />
                   </FormControl>
                   <p className="text-xs text-muted-foreground">
-                    Este nombre aparecerá en las citas y listados. Solo para casas privadas (no condominios).
+                    {t.step1.customListingTitleDescription}
                   </p>
                   <FormMessage />
                 </FormItem>
@@ -212,10 +219,10 @@ export default function Step1BasicInfo({ data, onUpdate, onNext }: Step1Props) {
               name="description"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Descripción *</FormLabel>
+                  <FormLabel>{t.step1.description} *</FormLabel>
                   <FormControl>
                     <Textarea
-                      placeholder="Describe la propiedad en detalle..."
+                      placeholder={t.step1.descriptionPlaceholder}
                       rows={4}
                       {...field}
                       data-testid="textarea-description"
@@ -232,31 +239,31 @@ export default function Step1BasicInfo({ data, onUpdate, onNext }: Step1Props) {
                 name="propertyType"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Tipo de Propiedad *</FormLabel>
+                    <FormLabel>{t.step1.propertyType} *</FormLabel>
                     <Select onValueChange={field.onChange} defaultValue={field.value}>
                       <FormControl>
                         <SelectTrigger data-testid="select-property-type">
-                          <SelectValue placeholder="Selecciona el tipo" />
+                          <SelectValue placeholder={t.step1.selectPropertyType} />
                         </SelectTrigger>
                       </FormControl>
                       <SelectContent>
                         <SelectItem value="house" data-testid="option-property-house">
-                          Casa
+                          {t.step1.propertyTypes.house}
                         </SelectItem>
                         <SelectItem value="apartment" data-testid="option-property-apartment">
-                          Apartamento
+                          {t.step1.propertyTypes.apartment}
                         </SelectItem>
                         <SelectItem value="condo" data-testid="option-property-condo">
-                          Condominio
+                          {t.step1.propertyTypes.condo}
                         </SelectItem>
                         <SelectItem value="land" data-testid="option-property-land">
-                          Terreno
+                          {t.step1.propertyTypes.land}
                         </SelectItem>
                         <SelectItem value="commercial" data-testid="option-property-commercial">
-                          Comercial
+                          {t.step1.propertyTypes.commercial}
                         </SelectItem>
                         <SelectItem value="office" data-testid="option-property-office">
-                          Oficina
+                          {t.step1.propertyTypes.office}
                         </SelectItem>
                       </SelectContent>
                     </Select>
@@ -270,13 +277,13 @@ export default function Step1BasicInfo({ data, onUpdate, onNext }: Step1Props) {
                 name="price"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Precio (MXN) *</FormLabel>
+                    <FormLabel>{t.step1.price} *</FormLabel>
                     <FormControl>
                       <Input
                         type="text"
                         inputMode="numeric"
                         pattern="[0-9]*"
-                        placeholder="Ej: 5000000"
+                        placeholder={t.step1.pricePlaceholder}
                         {...field}
                         data-testid="input-price"
                       />
@@ -290,7 +297,7 @@ export default function Step1BasicInfo({ data, onUpdate, onNext }: Step1Props) {
 
           <div className="flex justify-end pt-4">
             <Button type="submit" className="w-full sm:w-auto" data-testid="button-next-step1">
-              Continuar
+              {t.next}
               <ChevronRight className="w-4 h-4 ml-2" />
             </Button>
           </div>

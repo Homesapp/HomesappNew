@@ -8,6 +8,8 @@ import { Progress } from "@/components/ui/progress";
 import { useToast } from "@/hooks/use-toast";
 import { ChevronLeft, ChevronRight, Save, CheckCircle } from "lucide-react";
 import type { PropertySubmissionDraft } from "@shared/schema";
+import type { Language } from "@/lib/wizardTranslations";
+import { getTranslation } from "@/lib/wizardTranslations";
 
 import Step1BasicInfo from "@/components/wizard/Step1BasicInfo";
 import Step2LocationDetails from "@/components/wizard/Step2LocationDetails";
@@ -37,14 +39,17 @@ interface PropertySubmissionWizardProps {
   inviteeEmail?: string;
   inviteePhone?: string;
   inviteeName?: string;
+  language?: Language;
 }
 
 export default function PropertySubmissionWizard({ 
   invitationToken,
   inviteeEmail,
   inviteePhone,
-  inviteeName 
+  inviteeName,
+  language = "es"
 }: PropertySubmissionWizardProps = {}) {
+  const t = getTranslation(language);
   const [_, setLocation] = useLocation();
   const { toast } = useToast();
   const [currentStep, setCurrentStep] = useState(1);
@@ -157,8 +162,8 @@ export default function PropertySubmissionWizard({
       console.error("Error creating draft:", error);
       setIsSaving(false);
       toast({
-        title: "Error al guardar borrador",
-        description: error.message || "No se pudo crear el borrador de la propiedad",
+        title: language === "es" ? "Error al guardar borrador" : "Error saving draft",
+        description: error.message || (language === "es" ? "No se pudo crear el borrador de la propiedad" : "Could not create property draft"),
         variant: "destructive",
       });
     },
@@ -284,8 +289,8 @@ export default function PropertySubmissionWizard({
   const handleManualSave = async () => {
     await saveDraft(currentStep);
     toast({
-      title: "Progreso guardado",
-      description: "Tu progreso ha sido guardado exitosamente",
+      title: language === "es" ? "Progreso guardado" : "Progress saved",
+      description: language === "es" ? "Tu progreso ha sido guardado exitosamente" : "Your progress has been saved successfully",
     });
   };
 
@@ -297,6 +302,7 @@ export default function PropertySubmissionWizard({
             data={wizardData}
             onUpdate={updateWizardData}
             onNext={(stepData) => handleNext(stepData)}
+            language={language}
           />
         );
       case 2:
@@ -306,6 +312,7 @@ export default function PropertySubmissionWizard({
             onUpdate={updateWizardData}
             onNext={(stepData) => handleNext(stepData)}
             onPrevious={handlePrevious}
+            language={language}
           />
         );
       case 3:
@@ -315,6 +322,7 @@ export default function PropertySubmissionWizard({
             onUpdate={updateWizardData}
             onNext={(stepData) => handleNext(stepData)}
             onPrevious={handlePrevious}
+            language={language}
           />
         );
       case 4:
@@ -324,6 +332,7 @@ export default function PropertySubmissionWizard({
             onUpdate={updateWizardData}
             onNext={(stepData) => handleNext(stepData)}
             onPrevious={handlePrevious}
+            language={language}
           />
         );
       case 5:
@@ -333,6 +342,7 @@ export default function PropertySubmissionWizard({
             onUpdate={updateWizardData}
             onNext={(stepData) => handleNext(stepData)}
             onPrevious={handlePrevious}
+            language={language}
           />
         );
       case 6:
@@ -342,6 +352,7 @@ export default function PropertySubmissionWizard({
             onUpdate={updateWizardData}
             onNext={(stepData) => handleNext(stepData)}
             onPrevious={handlePrevious}
+            language={language}
           />
         );
       case 7:
@@ -352,6 +363,7 @@ export default function PropertySubmissionWizard({
             onUpdate={updateWizardData}
             onPrevious={handlePrevious}
             invitationToken={invitationToken}
+            language={language}
           />
         );
       default:
@@ -367,21 +379,21 @@ export default function PropertySubmissionWizard({
         <CardHeader className="space-y-4">
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
             <div>
-              <CardTitle data-testid="heading-wizard-title">Cargar Nueva Propiedad</CardTitle>
+              <CardTitle data-testid="heading-wizard-title">{t.title}</CardTitle>
               <CardDescription className="mt-2" data-testid="text-wizard-description">
-                Paso {currentStep} de {TOTAL_STEPS}
+                {t.step} {currentStep} {t.of} {TOTAL_STEPS}
               </CardDescription>
             </div>
             <div className="flex items-center gap-3 flex-wrap">
               {isSaving ? (
                 <div className="flex items-center gap-2 text-sm text-muted-foreground" data-testid="text-saving">
                   <div className="h-3 w-3 animate-spin rounded-full border-2 border-primary border-t-transparent"></div>
-                  <span>Guardando...</span>
+                  <span>{t.saving}</span>
                 </div>
               ) : lastSaved ? (
                 <div className="flex items-center gap-2 text-sm text-green-600 dark:text-green-400" data-testid="text-last-saved">
                   <CheckCircle className="w-3 h-3" />
-                  <span>Guardado {new Date(lastSaved).toLocaleTimeString()}</span>
+                  <span>{t.saved} {new Date(lastSaved).toLocaleTimeString()}</span>
                 </div>
               ) : null}
               <Button
@@ -392,7 +404,7 @@ export default function PropertySubmissionWizard({
                 data-testid="button-manual-save"
               >
                 <Save className="w-4 h-4 sm:mr-2" />
-                <span className="hidden sm:inline">Guardar</span>
+                <span className="hidden sm:inline">{t.save}</span>
               </Button>
             </div>
           </div>

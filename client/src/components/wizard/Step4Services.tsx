@@ -17,88 +17,90 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { ChevronLeft, ChevronRight, Droplet, Zap, Wifi, Plus, X } from "lucide-react";
 import { useState, useEffect } from "react";
+import { getTranslation, Language } from "@/lib/wizardTranslations";
 
-const servicesSchema = z.object({
-  // Basic services
-  waterIncluded: z.boolean(),
-  waterProvider: z.string().optional(),
-  waterCost: z.string().optional(),
-  
-  electricityIncluded: z.boolean(),
-  electricityProvider: z.string().optional(),
-  electricityCost: z.string().optional(),
-  electricityBillingCycle: z.enum(["monthly", "bimonthly"]).optional(),
-  
-  internetIncluded: z.boolean(),
-  internetProvider: z.string().optional(),
-  internetCost: z.string().optional(),
-  
-  // Accepted lease durations
-  acceptedLeaseDurations: z.array(z.string()).min(1, "Selecciona al menos una duración"),
-}).superRefine((data, ctx) => {
-  // Validate water service
-  if (!data.waterIncluded) {
-    if (!data.waterProvider || data.waterProvider.trim() === "") {
-      ctx.addIssue({
-        code: z.ZodIssueCode.custom,
-        message: "El proveedor es requerido si el agua no está incluida",
-        path: ["waterProvider"],
-      });
+const getServicesSchema = (language: Language) => {
+  const t = getTranslation(language);
+  return z.object({
+    // Basic services
+    waterIncluded: z.boolean(),
+    waterProvider: z.string().optional(),
+    waterCost: z.string().optional(),
+    
+    electricityIncluded: z.boolean(),
+    electricityProvider: z.string().optional(),
+    electricityCost: z.string().optional(),
+    electricityBillingCycle: z.enum(["monthly", "bimonthly"]).optional(),
+    
+    internetIncluded: z.boolean(),
+    internetProvider: z.string().optional(),
+    internetCost: z.string().optional(),
+    
+    // Accepted lease durations
+    acceptedLeaseDurations: z.array(z.string()).min(1, t.errors.leaseDurationMin),
+  }).superRefine((data, ctx) => {
+    // Validate water service
+    if (!data.waterIncluded) {
+      if (!data.waterProvider || data.waterProvider.trim() === "") {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: t.errors.waterProviderRequired,
+          path: ["waterProvider"],
+        });
+      }
+      if (!data.waterCost || data.waterCost.trim() === "") {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: t.errors.waterCostRequired,
+          path: ["waterCost"],
+        });
+      }
     }
-    if (!data.waterCost || data.waterCost.trim() === "") {
-      ctx.addIssue({
-        code: z.ZodIssueCode.custom,
-        message: "El costo es requerido si el agua no está incluida",
-        path: ["waterCost"],
-      });
+    
+    // Validate electricity service
+    if (!data.electricityIncluded) {
+      if (!data.electricityProvider || data.electricityProvider.trim() === "") {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: t.errors.electricityProviderRequired,
+          path: ["electricityProvider"],
+        });
+      }
+      if (!data.electricityCost || data.electricityCost.trim() === "") {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: t.errors.electricityCostRequired,
+          path: ["electricityCost"],
+        });
+      }
+      if (!data.electricityBillingCycle) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: t.errors.electricityBillingCycleRequired,
+          path: ["electricityBillingCycle"],
+        });
+      }
     }
-  }
-  
-  // Validate electricity service
-  if (!data.electricityIncluded) {
-    if (!data.electricityProvider || data.electricityProvider.trim() === "") {
-      ctx.addIssue({
-        code: z.ZodIssueCode.custom,
-        message: "El proveedor es requerido si la electricidad no está incluida",
-        path: ["electricityProvider"],
-      });
+    
+    // Validate internet service
+    if (!data.internetIncluded) {
+      if (!data.internetProvider || data.internetProvider.trim() === "") {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: t.errors.internetProviderRequired,
+          path: ["internetProvider"],
+        });
+      }
+      if (!data.internetCost || data.internetCost.trim() === "") {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: t.errors.internetCostRequired,
+          path: ["internetCost"],
+        });
+      }
     }
-    if (!data.electricityCost || data.electricityCost.trim() === "") {
-      ctx.addIssue({
-        code: z.ZodIssueCode.custom,
-        message: "El costo es requerido si la electricidad no está incluida",
-        path: ["electricityCost"],
-      });
-    }
-    if (!data.electricityBillingCycle) {
-      ctx.addIssue({
-        code: z.ZodIssueCode.custom,
-        message: "La periodicidad de pago es requerida",
-        path: ["electricityBillingCycle"],
-      });
-    }
-  }
-  
-  // Validate internet service
-  if (!data.internetIncluded) {
-    if (!data.internetProvider || data.internetProvider.trim() === "") {
-      ctx.addIssue({
-        code: z.ZodIssueCode.custom,
-        message: "El proveedor es requerido si el internet no está incluido",
-        path: ["internetProvider"],
-      });
-    }
-    if (!data.internetCost || data.internetCost.trim() === "") {
-      ctx.addIssue({
-        code: z.ZodIssueCode.custom,
-        message: "El costo es requerido si el internet no está incluido",
-        path: ["internetCost"],
-      });
-    }
-  }
-});
-
-type ServicesForm = z.infer<typeof servicesSchema>;
+  });
+};
 
 type AdditionalService = {
   id: string;
@@ -113,15 +115,19 @@ type Step4Props = {
   onUpdate: (data: any) => void;
   onNext: (data: any) => void;
   onPrevious: () => void;
+  language?: Language;
 };
 
-const serviceLabels = {
-  pool_cleaning: "Limpieza de Alberca",
-  garden: "Jardín",
-  gas: "Gas",
-};
+export default function Step4Services({ data, onUpdate, onNext, onPrevious, language = "es" }: Step4Props) {
+  const t = getTranslation(language);
+  const servicesSchema = getServicesSchema(language);
+  type ServicesForm = z.infer<typeof servicesSchema>;
 
-export default function Step4Services({ data, onUpdate, onNext, onPrevious }: Step4Props) {
+  const serviceLabels = {
+    pool_cleaning: t.step4.poolCleaning,
+    garden: t.step4.garden,
+    gas: t.step4.gas,
+  };
   const [additionalServices, setAdditionalServices] = useState<AdditionalService[]>(
     data.servicesInfo?.additionalServices?.map((s: any, idx: number) => ({ 
       id: `${s.type}-${idx}`, 
@@ -221,10 +227,10 @@ export default function Step4Services({ data, onUpdate, onNext, onPrevious }: St
     <div className="space-y-6">
       <div>
         <h2 className="text-2xl font-bold mb-2" data-testid="heading-step4-title">
-          Servicios y Utilidades
+          {t.step4.title}
         </h2>
         <p className="text-muted-foreground" data-testid="text-step4-description">
-          Configura los servicios básicos y adicionales de la propiedad
+          {t.step4.subtitle}
         </p>
       </div>
 
@@ -233,9 +239,9 @@ export default function Step4Services({ data, onUpdate, onNext, onPrevious }: St
           {/* Basic Services */}
           <Card>
             <CardHeader>
-              <CardTitle>Servicios Básicos</CardTitle>
+              <CardTitle>{t.step4.basicServices}</CardTitle>
               <CardDescription>
-                Los servicios incluidos no requieren información adicional. Los no incluidos necesitan proveedor y costo.
+                {t.step4.basicServicesDesc}
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-6">
@@ -245,9 +251,9 @@ export default function Step4Services({ data, onUpdate, onNext, onPrevious }: St
                   <div className="flex items-center gap-2">
                     <Droplet className="h-5 w-5 text-blue-500" />
                     <div>
-                      <FormLabel>Agua</FormLabel>
+                      <FormLabel>{t.step4.water}</FormLabel>
                       <p className="text-sm text-muted-foreground">
-                        {waterIncluded ? "Incluido en la renta" : "No incluido"}
+                        {waterIncluded ? t.step4.included : t.step4.notIncluded}
                       </p>
                     </div>
                   </div>
@@ -275,9 +281,9 @@ export default function Step4Services({ data, onUpdate, onNext, onPrevious }: St
                       name="waterProvider"
                       render={({ field }) => (
                         <FormItem>
-                          <FormLabel>Proveedor *</FormLabel>
+                          <FormLabel>{t.step4.providerRequired}</FormLabel>
                           <FormControl>
-                            <Input {...field} placeholder="CAPA, Pozo, etc" data-testid="input-water-provider" />
+                            <Input {...field} placeholder={t.step4.providerPlaceholder} data-testid="input-water-provider" />
                           </FormControl>
                           <FormMessage />
                         </FormItem>
@@ -288,9 +294,9 @@ export default function Step4Services({ data, onUpdate, onNext, onPrevious }: St
                       name="waterCost"
                       render={({ field }) => (
                         <FormItem>
-                          <FormLabel>Costo Estimado *</FormLabel>
+                          <FormLabel>{t.step4.estimatedCostRequired}</FormLabel>
                           <FormControl>
-                            <Input {...field} placeholder="$500 MXN/mes" data-testid="input-water-cost" />
+                            <Input {...field} placeholder={t.step4.estimatedCostPlaceholder} data-testid="input-water-cost" />
                           </FormControl>
                           <FormMessage />
                         </FormItem>
@@ -306,9 +312,9 @@ export default function Step4Services({ data, onUpdate, onNext, onPrevious }: St
                   <div className="flex items-center gap-2">
                     <Zap className="h-5 w-5 text-yellow-500" />
                     <div>
-                      <FormLabel>Electricidad</FormLabel>
+                      <FormLabel>{t.step4.electricity}</FormLabel>
                       <p className="text-sm text-muted-foreground">
-                        {electricityIncluded ? "Incluido en la renta" : "No incluido"}
+                        {electricityIncluded ? t.step4.included : t.step4.notIncluded}
                       </p>
                     </div>
                   </div>
@@ -337,9 +343,9 @@ export default function Step4Services({ data, onUpdate, onNext, onPrevious }: St
                         name="electricityProvider"
                         render={({ field }) => (
                           <FormItem>
-                            <FormLabel>Proveedor *</FormLabel>
+                            <FormLabel>{t.step4.providerRequired}</FormLabel>
                             <FormControl>
-                              <Input {...field} placeholder="CFE, Solar, etc" data-testid="input-electricity-provider" />
+                              <Input {...field} placeholder={t.step4.providerPlaceholder} data-testid="input-electricity-provider" />
                             </FormControl>
                             <FormMessage />
                           </FormItem>
@@ -350,16 +356,16 @@ export default function Step4Services({ data, onUpdate, onNext, onPrevious }: St
                         name="electricityBillingCycle"
                         render={({ field }) => (
                           <FormItem>
-                            <FormLabel>Periodicidad de Pago *</FormLabel>
+                            <FormLabel>{t.step4.billingCycleRequired}</FormLabel>
                             <Select onValueChange={field.onChange} value={field.value}>
                               <FormControl>
                                 <SelectTrigger data-testid="select-billing-cycle">
-                                  <SelectValue placeholder="Seleccionar" />
+                                  <SelectValue placeholder={t.step4.selectBillingCycle} />
                                 </SelectTrigger>
                               </FormControl>
                               <SelectContent>
-                                <SelectItem value="monthly">Mensual</SelectItem>
-                                <SelectItem value="bimonthly">Bimestral</SelectItem>
+                                <SelectItem value="monthly">{t.step4.monthly}</SelectItem>
+                                <SelectItem value="bimonthly">{t.step4.bimonthly}</SelectItem>
                               </SelectContent>
                             </Select>
                             <FormMessage />
@@ -372,9 +378,9 @@ export default function Step4Services({ data, onUpdate, onNext, onPrevious }: St
                       name="electricityCost"
                       render={({ field }) => (
                         <FormItem>
-                          <FormLabel>Costo Estimado *</FormLabel>
+                          <FormLabel>{t.step4.estimatedCostRequired}</FormLabel>
                           <FormControl>
-                            <Input {...field} placeholder="$800 MXN" data-testid="input-electricity-cost" />
+                            <Input {...field} placeholder={t.step4.estimatedCostPlaceholder} data-testid="input-electricity-cost" />
                           </FormControl>
                           <FormMessage />
                         </FormItem>
@@ -390,9 +396,9 @@ export default function Step4Services({ data, onUpdate, onNext, onPrevious }: St
                   <div className="flex items-center gap-2">
                     <Wifi className="h-5 w-5 text-purple-500" />
                     <div>
-                      <FormLabel>Internet</FormLabel>
+                      <FormLabel>{t.step4.internet}</FormLabel>
                       <p className="text-sm text-muted-foreground">
-                        {internetIncluded ? "Incluido en la renta" : "No incluido"}
+                        {internetIncluded ? t.step4.included : t.step4.notIncluded}
                       </p>
                     </div>
                   </div>
@@ -420,9 +426,9 @@ export default function Step4Services({ data, onUpdate, onNext, onPrevious }: St
                       name="internetProvider"
                       render={({ field }) => (
                         <FormItem>
-                          <FormLabel>Proveedor *</FormLabel>
+                          <FormLabel>{t.step4.providerRequired}</FormLabel>
                           <FormControl>
-                            <Input {...field} placeholder="Telmex, Abix, etc" data-testid="input-internet-provider" />
+                            <Input {...field} placeholder={t.step4.providerPlaceholder} data-testid="input-internet-provider" />
                           </FormControl>
                           <FormMessage />
                         </FormItem>
@@ -433,9 +439,9 @@ export default function Step4Services({ data, onUpdate, onNext, onPrevious }: St
                       name="internetCost"
                       render={({ field }) => (
                         <FormItem>
-                          <FormLabel>Costo Estimado *</FormLabel>
+                          <FormLabel>{t.step4.estimatedCostRequired}</FormLabel>
                           <FormControl>
-                            <Input {...field} placeholder="$600 MXN/mes" data-testid="input-internet-cost" />
+                            <Input {...field} placeholder={t.step4.estimatedCostPlaceholder} data-testid="input-internet-cost" />
                           </FormControl>
                           <FormMessage />
                         </FormItem>
@@ -450,9 +456,9 @@ export default function Step4Services({ data, onUpdate, onNext, onPrevious }: St
           {/* Additional Services */}
           <Card>
             <CardHeader>
-              <CardTitle>Servicios Adicionales (Opcional)</CardTitle>
+              <CardTitle>{t.step4.additionalServices}</CardTitle>
               <CardDescription>
-                Agrega servicios como limpieza de alberca, jardín o gas
+                {t.step4.additionalServicesDesc}
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
@@ -460,7 +466,7 @@ export default function Step4Services({ data, onUpdate, onNext, onPrevious }: St
                 <div key={service.id} className="space-y-3 p-4 border rounded-lg">
                   <div className="flex items-center justify-between">
                     <h4 className="font-medium">
-                      {service.type === "custom" ? "Servicio Personalizado" : serviceLabels[service.type as keyof typeof serviceLabels]}
+                      {service.type === "custom" ? t.step4.customService : serviceLabels[service.type as keyof typeof serviceLabels]}
                     </h4>
                     <Button
                       type="button"
@@ -475,11 +481,11 @@ export default function Step4Services({ data, onUpdate, onNext, onPrevious }: St
                   
                   {service.type === "custom" && (
                     <div>
-                      <FormLabel>Nombre del Servicio</FormLabel>
+                      <FormLabel>{t.step4.serviceName}</FormLabel>
                       <Input
                         value={service.customName || ""}
                         onChange={(e) => handleUpdateAdditionalService(service.id, "customName", e.target.value)}
-                        placeholder="Ej: Seguridad, Mantenimiento..."
+                        placeholder={t.step4.serviceNamePlaceholder}
                         data-testid={`input-${service.id}-custom-name`}
                       />
                     </div>
@@ -487,20 +493,20 @@ export default function Step4Services({ data, onUpdate, onNext, onPrevious }: St
                   
                   <div className="grid grid-cols-2 gap-3">
                     <div>
-                      <FormLabel>Proveedor</FormLabel>
+                      <FormLabel>{t.step4.provider}</FormLabel>
                       <Input
                         value={service.provider || ""}
                         onChange={(e) => handleUpdateAdditionalService(service.id, "provider", e.target.value)}
-                        placeholder="Nombre del proveedor"
+                        placeholder={t.step4.providerPlaceholder}
                         data-testid={`input-${service.type}-provider`}
                       />
                     </div>
                     <div>
-                      <FormLabel>Costo Estimado</FormLabel>
+                      <FormLabel>{t.step4.estimatedCost}</FormLabel>
                       <Input
                         value={service.cost || ""}
                         onChange={(e) => handleUpdateAdditionalService(service.id, "cost", e.target.value)}
-                        placeholder="$1000 MXN/mes"
+                        placeholder={t.step4.estimatedCostPlaceholder}
                         data-testid={`input-${service.type}-cost`}
                       />
                     </div>
@@ -519,7 +525,7 @@ export default function Step4Services({ data, onUpdate, onNext, onPrevious }: St
                     data-testid="button-add-pool-cleaning"
                   >
                     <Plus className="h-4 w-4 mr-2" />
-                    Alberca
+                    {t.step4.addPool}
                   </Button>
                 )}
                 {!additionalServices.find(s => s.type === "garden") && (
@@ -531,7 +537,7 @@ export default function Step4Services({ data, onUpdate, onNext, onPrevious }: St
                     data-testid="button-add-garden"
                   >
                     <Plus className="h-4 w-4 mr-2" />
-                    Jardín
+                    {t.step4.addGarden}
                   </Button>
                 )}
                 {!additionalServices.find(s => s.type === "gas") && (
@@ -543,7 +549,7 @@ export default function Step4Services({ data, onUpdate, onNext, onPrevious }: St
                     data-testid="button-add-gas"
                   >
                     <Plus className="h-4 w-4 mr-2" />
-                    Gas
+                    {t.step4.addGas}
                   </Button>
                 )}
                 <Button
@@ -554,7 +560,7 @@ export default function Step4Services({ data, onUpdate, onNext, onPrevious }: St
                   data-testid="button-add-custom-service"
                 >
                   <Plus className="h-4 w-4 mr-2" />
-                  Otro
+                  {t.step4.addOther}
                 </Button>
               </div>
             </CardContent>
@@ -564,9 +570,9 @@ export default function Step4Services({ data, onUpdate, onNext, onPrevious }: St
           {data.isForRent && (
             <Card>
               <CardHeader>
-                <CardTitle>Duraciones de Contrato Aceptadas</CardTitle>
+                <CardTitle>{t.step4.leaseDurations}</CardTitle>
                 <CardDescription>
-                  Selecciona las duraciones de arrendamiento que aceptas
+                  {t.step4.leaseDurationsDesc}
                 </CardDescription>
               </CardHeader>
               <CardContent>
@@ -582,7 +588,7 @@ export default function Step4Services({ data, onUpdate, onNext, onPrevious }: St
                           onClick={() => toggleDuration("6_months")}
                           data-testid="button-duration-6months"
                         >
-                          6 meses
+                          {t.step4.sixMonths}
                         </Button>
                         <Button
                           type="button"
@@ -590,7 +596,7 @@ export default function Step4Services({ data, onUpdate, onNext, onPrevious }: St
                           onClick={() => toggleDuration("1_year")}
                           data-testid="button-duration-1year"
                         >
-                          1 año
+                          {t.step4.oneYear}
                         </Button>
                         <Button
                           type="button"
@@ -598,7 +604,7 @@ export default function Step4Services({ data, onUpdate, onNext, onPrevious }: St
                           onClick={() => toggleDuration("more")}
                           data-testid="button-duration-more"
                         >
-                          Más de 1 año
+                          {t.step4.twoYears}+
                         </Button>
                       </div>
                       <FormMessage />
@@ -619,14 +625,14 @@ export default function Step4Services({ data, onUpdate, onNext, onPrevious }: St
               data-testid="button-previous-step4"
             >
               <ChevronLeft className="w-4 h-4 mr-2" />
-              Anterior
+              {t.previous}
             </Button>
             <Button 
               type="submit" 
               className="w-full sm:w-auto"
               data-testid="button-next-step4"
             >
-              Siguiente
+              {t.next}
               <ChevronRight className="w-4 h-4 ml-2" />
             </Button>
           </div>

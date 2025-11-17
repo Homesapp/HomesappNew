@@ -18,85 +18,93 @@ import { ChevronLeft, ChevronRight, Upload, X, FileText, User, Users } from "luc
 import { Separator } from "@/components/ui/separator";
 import { useToast } from "@/hooks/use-toast";
 import { Badge } from "@/components/ui/badge";
+import { getTranslation, Language } from "@/lib/wizardTranslations";
 
 // Schema for owner and referral data
-const ownerDataSchema = z.object({
-  // Owner private data
-  ownerFirstName: z.string().min(2, "El nombre debe tener al menos 2 caracteres"),
-  ownerLastName: z.string().min(2, "Los apellidos deben tener al menos 2 caracteres"),
-  ownerPhone: z.string().min(10, "El teléfono debe tener al menos 10 dígitos"),
-  ownerEmail: z.string().email("Email inválido").optional().or(z.literal("")),
-  
-  // Referral data (optional)
-  hasReferral: z.boolean().default(false),
-  referredByName: z.string().optional(),
-  referredByLastName: z.string().optional(),
-  referredByPhone: z.string().optional(),
-  referredByEmail: z.string().email("Email inválido").optional().or(z.literal("")),
-  
-  // Documents (optional but recommended)
-  documents: z.array(z.object({
-    type: z.string(),
-    url: z.string(),
-    name: z.string(),
-  })).optional().default([]),
-}).superRefine((data, ctx) => {
-  // Validate referral data if hasReferral is true
-  if (data.hasReferral) {
-    if (!data.referredByName || data.referredByName.trim() === "") {
-      ctx.addIssue({
-        code: z.ZodIssueCode.custom,
-        message: "El nombre del referido es requerido",
-        path: ["referredByName"],
-      });
+const getOwnerDataSchema = (language: Language) => {
+  const t = getTranslation(language);
+  return z.object({
+    // Owner private data
+    ownerFirstName: z.string().min(2, t.step6.firstNameMinLength),
+    ownerLastName: z.string().min(2, t.step6.lastNameMinLength),
+    ownerPhone: z.string().min(10, t.step6.phoneMinLength),
+    ownerEmail: z.string().email(t.step6.invalidEmail).optional().or(z.literal("")),
+    
+    // Referral data (optional)
+    hasReferral: z.boolean().default(false),
+    referredByName: z.string().optional(),
+    referredByLastName: z.string().optional(),
+    referredByPhone: z.string().optional(),
+    referredByEmail: z.string().email(t.step6.invalidEmail).optional().or(z.literal("")),
+    
+    // Documents (optional but recommended)
+    documents: z.array(z.object({
+      type: z.string(),
+      url: z.string(),
+      name: z.string(),
+    })).optional().default([]),
+  }).superRefine((data, ctx) => {
+    // Validate referral data if hasReferral is true
+    if (data.hasReferral) {
+      if (!data.referredByName || data.referredByName.trim() === "") {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: t.step6.referralNameRequired,
+          path: ["referredByName"],
+        });
+      }
+      if (!data.referredByLastName || data.referredByLastName.trim() === "") {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: t.step6.referralLastNameRequired,
+          path: ["referredByLastName"],
+        });
+      }
+      if (!data.referredByPhone || data.referredByPhone.trim() === "") {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: t.step6.referralPhoneRequired,
+          path: ["referredByPhone"],
+        });
+      }
     }
-    if (!data.referredByLastName || data.referredByLastName.trim() === "") {
-      ctx.addIssue({
-        code: z.ZodIssueCode.custom,
-        message: "Los apellidos del referido son requeridos",
-        path: ["referredByLastName"],
-      });
-    }
-    if (!data.referredByPhone || data.referredByPhone.trim() === "") {
-      ctx.addIssue({
-        code: z.ZodIssueCode.custom,
-        message: "El teléfono del referido es requerido",
-        path: ["referredByPhone"],
-      });
-    }
-  }
-});
+  });
+};
 
-type OwnerDataForm = z.infer<typeof ownerDataSchema>;
+type OwnerDataForm = z.infer<ReturnType<typeof getOwnerDataSchema>>;
 
 type Step6Props = {
   data: any;
   onUpdate: (data: any) => void;
   onNext: (stepData?: any) => void;
   onPrevious: () => void;
+  language?: Language;
 };
 
-// Available document types
-const DOCUMENT_TYPES = [
-  { value: "ife_ine_frente", label: "INE/IFE Frente" },
-  { value: "ife_ine_reverso", label: "INE/IFE Reverso" },
-  { value: "pasaporte", label: "Pasaporte" },
-  { value: "legal_estancia", label: "Legal Estancia" },
-  { value: "escrituras", label: "Escrituras" },
-  { value: "contrato_compraventa", label: "Contrato de Compraventa" },
-  { value: "fideicomiso", label: "Fideicomiso" },
-  { value: "recibo_agua", label: "Recibo de Agua" },
-  { value: "recibo_luz", label: "Recibo de Luz" },
-  { value: "recibo_internet", label: "Recibo de Internet" },
-  { value: "reglas_internas", label: "Reglas Internas" },
-  { value: "reglamento_condominio", label: "Reglamento de Condominio" },
-  { value: "comprobante_no_adeudo", label: "Comprobante de No Adeudo" },
-  { value: "acta_constitutiva", label: "Acta Constitutiva" },
-  { value: "poder_notarial", label: "Poder Notarial" },
-  { value: "identificacion_representante", label: "Identificación de Representante" },
+// Available document types - labels will be generated from translations
+const getDocumentTypes = (t: ReturnType<typeof getTranslation>) => [
+  { value: "ife_ine_frente", label: t.step6.doc_ife_ine_frente },
+  { value: "ife_ine_reverso", label: t.step6.doc_ife_ine_reverso },
+  { value: "pasaporte", label: t.step6.doc_pasaporte },
+  { value: "legal_estancia", label: t.step6.doc_legal_estancia },
+  { value: "escrituras", label: t.step6.doc_escrituras },
+  { value: "contrato_compraventa", label: t.step6.doc_contrato_compraventa },
+  { value: "fideicomiso", label: t.step6.doc_fideicomiso },
+  { value: "recibo_agua", label: t.step6.doc_recibo_agua },
+  { value: "recibo_luz", label: t.step6.doc_recibo_luz },
+  { value: "recibo_internet", label: t.step6.doc_recibo_internet },
+  { value: "reglas_internas", label: t.step6.doc_reglas_internas },
+  { value: "reglamento_condominio", label: t.step6.doc_reglamento_condominio },
+  { value: "comprobante_no_adeudo", label: t.step6.doc_comprobante_no_adeudo },
+  { value: "acta_constitutiva", label: t.step6.doc_acta_constitutiva },
+  { value: "poder_notarial", label: t.step6.doc_poder_notarial },
+  { value: "identificacion_representante", label: t.step6.doc_identificacion_representante },
 ];
 
-export default function Step6OwnerData({ data, onUpdate, onNext, onPrevious }: Step6Props) {
+export default function Step6OwnerData({ data, onUpdate, onNext, onPrevious, language = "es" }: Step6Props) {
+  const t = getTranslation(language);
+  const ownerDataSchema = getOwnerDataSchema(language);
+  const DOCUMENT_TYPES = getDocumentTypes(t);
   const { toast } = useToast();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [selectedDocType, setSelectedDocType] = useState<string>(DOCUMENT_TYPES[0].value);
@@ -139,8 +147,8 @@ export default function Step6OwnerData({ data, onUpdate, onNext, onPrevious }: S
     // Validate file size (max 10MB)
     if (file.size > 10 * 1024 * 1024) {
       toast({
-        title: "Error",
-        description: "El archivo no debe exceder 10MB",
+        title: t.step6.error,
+        description: t.step6.fileSizeError,
         variant: "destructive",
       });
       return;
@@ -150,8 +158,8 @@ export default function Step6OwnerData({ data, onUpdate, onNext, onPrevious }: S
     const allowedTypes = ["image/jpeg", "image/jpg", "image/png", "application/pdf"];
     if (!allowedTypes.includes(file.type)) {
       toast({
-        title: "Error",
-        description: "Solo se permiten archivos JPG, PNG o PDF",
+        title: t.step6.error,
+        description: t.step6.fileTypeError,
         variant: "destructive",
       });
       return;
@@ -172,15 +180,15 @@ export default function Step6OwnerData({ data, onUpdate, onNext, onPrevious }: S
         form.setValue("documents", updatedDocs);
         
         toast({
-          title: "Documento agregado",
-          description: `${file.name} ha sido agregado exitosamente`,
+          title: t.step6.documentAdded,
+          description: `${file.name} ${t.step6.documentAddedDesc}`,
         });
       };
       reader.readAsDataURL(file);
     } catch (error) {
       toast({
-        title: "Error",
-        description: "No se pudo cargar el documento",
+        title: t.step6.error,
+        description: t.step6.documentUploadError,
         variant: "destructive",
       });
     }
@@ -196,8 +204,8 @@ export default function Step6OwnerData({ data, onUpdate, onNext, onPrevious }: S
     form.setValue("documents", updatedDocs);
     
     toast({
-      title: "Documento eliminado",
-      description: "El documento ha sido eliminado",
+      title: t.step6.documentRemoved,
+      description: t.step6.documentRemovedDesc,
     });
   };
 
@@ -210,10 +218,10 @@ export default function Step6OwnerData({ data, onUpdate, onNext, onPrevious }: S
     <div className="space-y-6">
       <div>
         <h2 className="text-2xl font-bold mb-2" data-testid="heading-step6-title">
-          Datos del Propietario y Documentos
+          {t.step6.title}
         </h2>
         <p className="text-muted-foreground" data-testid="text-step6-description">
-          Información privada del propietario y documentación opcional
+          {t.step6.subtitle}
         </p>
       </div>
 
@@ -224,10 +232,10 @@ export default function Step6OwnerData({ data, onUpdate, onNext, onPrevious }: S
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
                 <User className="w-5 h-5" />
-                Datos Privados del Propietario Real
+                {t.step6.ownerDataTitle}
               </CardTitle>
               <CardDescription>
-                Esta información es confidencial y solo será visible para administradores
+                {t.step6.ownerDataDesc}
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
@@ -237,10 +245,10 @@ export default function Step6OwnerData({ data, onUpdate, onNext, onPrevious }: S
                   name="ownerFirstName"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Nombre(s) *</FormLabel>
+                      <FormLabel>{t.step6.firstNameLabel}</FormLabel>
                       <FormControl>
                         <Input
-                          placeholder="Juan Carlos"
+                          placeholder={t.step6.firstNamePlaceholder}
                           {...field}
                           data-testid="input-owner-first-name"
                         />
@@ -255,10 +263,10 @@ export default function Step6OwnerData({ data, onUpdate, onNext, onPrevious }: S
                   name="ownerLastName"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Apellidos *</FormLabel>
+                      <FormLabel>{t.step6.lastNameLabel}</FormLabel>
                       <FormControl>
                         <Input
-                          placeholder="García López"
+                          placeholder={t.step6.lastNamePlaceholder}
                           {...field}
                           data-testid="input-owner-last-name"
                         />
@@ -275,17 +283,17 @@ export default function Step6OwnerData({ data, onUpdate, onNext, onPrevious }: S
                   name="ownerPhone"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Teléfono WhatsApp *</FormLabel>
+                      <FormLabel>{t.step6.phoneLabel}</FormLabel>
                       <FormControl>
                         <Input
                           type="tel"
-                          placeholder="+52 984 123 4567"
+                          placeholder={t.step6.phonePlaceholder}
                           {...field}
                           data-testid="input-owner-phone"
                         />
                       </FormControl>
                       <FormDescription>
-                        Incluye código de país
+                        {t.step6.phoneDesc}
                       </FormDescription>
                       <FormMessage />
                     </FormItem>
@@ -297,11 +305,11 @@ export default function Step6OwnerData({ data, onUpdate, onNext, onPrevious }: S
                   name="ownerEmail"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Email (opcional)</FormLabel>
+                      <FormLabel>{t.step6.emailLabel}</FormLabel>
                       <FormControl>
                         <Input
                           type="email"
-                          placeholder="propietario@ejemplo.com"
+                          placeholder={t.step6.emailPlaceholder}
                           {...field}
                           data-testid="input-owner-email"
                         />
@@ -319,10 +327,10 @@ export default function Step6OwnerData({ data, onUpdate, onNext, onPrevious }: S
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
                 <Users className="w-5 h-5" />
-                Datos del Referido
+                {t.step6.referralDataTitle}
               </CardTitle>
               <CardDescription>
-                Si alguien refirió al propietario, registra sus datos aquí
+                {t.step6.referralDataDesc}
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
@@ -333,10 +341,10 @@ export default function Step6OwnerData({ data, onUpdate, onNext, onPrevious }: S
                   <FormItem className="flex flex-row items-center justify-between rounded-lg border p-4">
                     <div className="space-y-0.5">
                       <FormLabel className="text-base">
-                        ¿Esta propiedad fue referida?
+                        {t.step6.hasReferralLabel}
                       </FormLabel>
                       <FormDescription>
-                        Activa si alguien trajo a este propietario
+                        {t.step6.hasReferralDesc}
                       </FormDescription>
                     </div>
                     <FormControl>
@@ -361,10 +369,10 @@ export default function Step6OwnerData({ data, onUpdate, onNext, onPrevious }: S
                       name="referredByName"
                       render={({ field }) => (
                         <FormItem>
-                          <FormLabel>Nombre(s) del Referido *</FormLabel>
+                          <FormLabel>{t.step6.referralFirstNameLabel}</FormLabel>
                           <FormControl>
                             <Input
-                              placeholder="María"
+                              placeholder={t.step6.referralFirstNamePlaceholder}
                               {...field}
                               data-testid="input-referral-first-name"
                             />
@@ -379,10 +387,10 @@ export default function Step6OwnerData({ data, onUpdate, onNext, onPrevious }: S
                       name="referredByLastName"
                       render={({ field }) => (
                         <FormItem>
-                          <FormLabel>Apellidos del Referido *</FormLabel>
+                          <FormLabel>{t.step6.referralLastNameLabel}</FormLabel>
                           <FormControl>
                             <Input
-                              placeholder="González"
+                              placeholder={t.step6.referralLastNamePlaceholder}
                               {...field}
                               data-testid="input-referral-last-name"
                             />
@@ -399,17 +407,17 @@ export default function Step6OwnerData({ data, onUpdate, onNext, onPrevious }: S
                       name="referredByPhone"
                       render={({ field }) => (
                         <FormItem>
-                          <FormLabel>Teléfono WhatsApp del Referido *</FormLabel>
+                          <FormLabel>{t.step6.referralPhoneLabel}</FormLabel>
                           <FormControl>
                             <Input
                               type="tel"
-                              placeholder="+52 984 987 6543"
+                              placeholder={t.step6.referralPhonePlaceholder}
                               {...field}
                               data-testid="input-referral-phone"
                             />
                           </FormControl>
                           <FormDescription>
-                            Incluye código de país
+                            {t.step6.phoneDesc}
                           </FormDescription>
                           <FormMessage />
                         </FormItem>
@@ -421,11 +429,11 @@ export default function Step6OwnerData({ data, onUpdate, onNext, onPrevious }: S
                       name="referredByEmail"
                       render={({ field }) => (
                         <FormItem>
-                          <FormLabel>Email del Referido (opcional)</FormLabel>
+                          <FormLabel>{t.step6.referralEmailLabel}</FormLabel>
                           <FormControl>
                             <Input
                               type="email"
-                              placeholder="referido@ejemplo.com"
+                              placeholder={t.step6.referralEmailPlaceholder}
                               {...field}
                               data-testid="input-referral-email"
                             />
@@ -445,10 +453,10 @@ export default function Step6OwnerData({ data, onUpdate, onNext, onPrevious }: S
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
                 <FileText className="w-5 h-5" />
-                Documentos del Propietario
+                {t.step6.documentsTitle}
               </CardTitle>
               <CardDescription>
-                Sube documentos importantes (INE, escrituras, recibos, etc.) - Opcional pero recomendado
+                {t.step6.documentsDesc}
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
@@ -481,13 +489,13 @@ export default function Step6OwnerData({ data, onUpdate, onNext, onPrevious }: S
                   data-testid="button-upload-document"
                 >
                   <Upload className="w-4 h-4 mr-2" />
-                  Subir Documento
+                  {t.step6.uploadDocument}
                 </Button>
               </div>
 
               {documents.length > 0 && (
                 <div className="space-y-2">
-                  <p className="text-sm font-medium">Documentos cargados ({documents.length}):</p>
+                  <p className="text-sm font-medium">{t.step6.uploadedDocuments} ({documents.length}):</p>
                   <div className="grid grid-cols-1 gap-2">
                     {documents.map((doc, index) => (
                       <div
@@ -520,7 +528,7 @@ export default function Step6OwnerData({ data, onUpdate, onNext, onPrevious }: S
               )}
 
               <p className="text-xs text-muted-foreground">
-                Formatos permitidos: JPG, PNG, PDF. Tamaño máximo: 10MB por archivo.
+                {t.step6.fileFormatsInfo}
               </p>
             </CardContent>
           </Card>
@@ -535,14 +543,14 @@ export default function Step6OwnerData({ data, onUpdate, onNext, onPrevious }: S
               data-testid="button-previous-step6"
             >
               <ChevronLeft className="w-4 h-4 mr-2" />
-              Anterior
+              {t.previous}
             </Button>
             <Button
               type="submit"
               className="w-full sm:w-auto"
               data-testid="button-next-step6"
             >
-              Continuar
+              {t.next}
               <ChevronRight className="w-4 h-4 ml-2" />
             </Button>
           </div>

@@ -10,25 +10,31 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { useToast } from "@/hooks/use-toast";
+import { getTranslation, Language } from "@/lib/wizardTranslations";
 
-const mediaSchema = z.object({
-  primaryImages: z.array(z.string()).min(1, "Debes agregar al menos 1 imagen principal").max(5, "Máximo 5 imágenes principales"),
-  coverImageIndex: z.number().min(0).default(0),
-  secondaryImages: z.array(z.string()).max(20, "Máximo 20 imágenes secundarias").optional(),
-  videos: z.array(z.string()).optional(),
-  virtualTourUrl: z.string().url().optional().or(z.literal("")),
-});
-
-type MediaForm = z.infer<typeof mediaSchema>;
+const getMediaSchema = (language: Language) => {
+  const t = getTranslation(language);
+  return z.object({
+    primaryImages: z.array(z.string()).min(1, t.errors.primaryImagesMin).max(5, t.errors.primaryImagesMax),
+    coverImageIndex: z.number().min(0).default(0),
+    secondaryImages: z.array(z.string()).max(20, t.errors.secondaryImagesMax).optional(),
+    videos: z.array(z.string()).optional(),
+    virtualTourUrl: z.string().url().optional().or(z.literal("")),
+  });
+};
 
 type Step5Props = {
   data: any;
   onUpdate: (data: any) => void;
   onNext: (stepData?: any) => void;
   onPrevious: () => void;
+  language?: Language;
 };
 
-export default function Step5Media({ data, onUpdate, onNext, onPrevious }: Step5Props) {
+export default function Step5Media({ data, onUpdate, onNext, onPrevious, language = "es" }: Step5Props) {
+  const t = getTranslation(language);
+  const mediaSchema = getMediaSchema(language);
+  type MediaForm = z.infer<typeof mediaSchema>;
   // Migrate legacy data if needed
   const initializePrimaryImages = () => {
     if (data.media?.primaryImages && data.media.primaryImages.length > 0) {
@@ -196,8 +202,8 @@ export default function Step5Media({ data, onUpdate, onNext, onPrevious }: Step5
     filesArray.forEach((file) => {
       if (!file.type.startsWith("image/")) {
         toast({
-          title: "Error",
-          description: `${file.name}: Solo se permiten archivos de imagen`,
+          title: t.errors.error,
+          description: `${file.name}: ${t.step3.onlyImageFiles}`,
           variant: "destructive",
         });
         return;
@@ -205,8 +211,8 @@ export default function Step5Media({ data, onUpdate, onNext, onPrevious }: Step5
 
       if (file.size > 5 * 1024 * 1024) {
         toast({
-          title: "Error",
-          description: `${file.name} supera el límite de 5MB`,
+          title: t.errors.error,
+          description: `${file.name} ${t.step3.exceeds5MB}`,
           variant: "destructive",
         });
         return;
@@ -257,8 +263,8 @@ export default function Step5Media({ data, onUpdate, onNext, onPrevious }: Step5
     filesArray.forEach((file) => {
       if (!file.type.startsWith("image/")) {
         toast({
-          title: "Error",
-          description: `${file.name}: Solo se permiten archivos de imagen`,
+          title: t.errors.error,
+          description: `${file.name}: ${t.step3.onlyImageFiles}`,
           variant: "destructive",
         });
         return;
@@ -266,8 +272,8 @@ export default function Step5Media({ data, onUpdate, onNext, onPrevious }: Step5
 
       if (file.size > 5 * 1024 * 1024) {
         toast({
-          title: "Error",
-          description: `${file.name} supera el límite de 5MB`,
+          title: t.errors.error,
+          description: `${file.name} ${t.step3.exceeds5MB}`,
           variant: "destructive",
         });
         return;
@@ -311,10 +317,10 @@ export default function Step5Media({ data, onUpdate, onNext, onPrevious }: Step5
     <div className="space-y-6">
       <div>
         <h2 className="text-2xl font-bold mb-2" data-testid="heading-step5-title">
-          Fotos y Videos
+          {t.step3.title}
         </h2>
         <p className="text-muted-foreground" data-testid="text-step5-description">
-          Agrega imágenes y videos de la propiedad
+          {t.step3.subtitle}
         </p>
       </div>
 
@@ -323,11 +329,11 @@ export default function Step5Media({ data, onUpdate, onNext, onPrevious }: Step5
           <Card>
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
-                Imágenes Principales
+                {t.step3.primaryImages}
                 <Badge variant="secondary">{primaryImages.length}/5</Badge>
               </CardTitle>
               <p className="text-sm text-muted-foreground">
-                Agrega de 1 a 5 imágenes principales. Selecciona una como portada.
+                {t.step3.primaryImagesDescription}
               </p>
             </CardHeader>
             <CardContent className="space-y-4">
@@ -350,7 +356,7 @@ export default function Step5Media({ data, onUpdate, onNext, onPrevious }: Step5
                 className="w-full"
               >
                 <Upload className="w-4 h-4 mr-2" />
-                Agregar Imágenes
+                {t.step3.addImages}
               </Button>
 
               {form.formState.errors.primaryImages && (
@@ -402,7 +408,7 @@ export default function Step5Media({ data, onUpdate, onNext, onPrevious }: Step5
                             </Button>
                             {coverImageIndex === index && (
                               <Badge className="absolute top-1 left-1" data-testid={`badge-cover-${index}`}>
-                                Portada
+                                {t.step3.cover}
                               </Badge>
                             )}
                           </div>
@@ -420,11 +426,11 @@ export default function Step5Media({ data, onUpdate, onNext, onPrevious }: Step5
           <Card>
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
-                Imágenes Secundarias (Opcional)
+                {t.step3.secondaryImages}
                 <Badge variant="secondary">{secondaryImages.length}/20</Badge>
               </CardTitle>
               <p className="text-sm text-muted-foreground">
-                Agrega hasta 20 imágenes adicionales de la propiedad
+                {t.step3.secondaryImagesDescription}
               </p>
             </CardHeader>
             <CardContent className="space-y-4">
@@ -447,7 +453,7 @@ export default function Step5Media({ data, onUpdate, onNext, onPrevious }: Step5
                 className="w-full"
               >
                 <Upload className="w-4 h-4 mr-2" />
-                Agregar Imágenes
+                {t.step3.addImages}
               </Button>
 
               {secondaryImages.length > 0 && (
@@ -498,16 +504,16 @@ export default function Step5Media({ data, onUpdate, onNext, onPrevious }: Step5
             name="virtualTourUrl"
             render={({ field }) => (
               <FormItem>
-                <FormLabel>Tour Virtual (Opcional)</FormLabel>
+                <FormLabel>{t.step3.virtualTour}</FormLabel>
                 <FormControl>
                   <Input
-                    placeholder="https://ejemplo.com/tour-virtual"
+                    placeholder={t.step3.virtualTourPlaceholder}
                     {...field}
                     data-testid="input-virtual-tour"
                   />
                 </FormControl>
                 <FormDescription data-testid="text-tour-description">
-                  URL del recorrido virtual de la propiedad
+                  {t.step3.virtualTourDescription}
                 </FormDescription>
                 <FormMessage />
               </FormItem>
@@ -523,10 +529,10 @@ export default function Step5Media({ data, onUpdate, onNext, onPrevious }: Step5
               data-testid="button-previous-step5"
             >
               <ChevronLeft className="w-4 h-4 mr-2" />
-              Anterior
+              {t.previous}
             </Button>
             <Button type="submit" className="w-full sm:w-auto" data-testid="button-next-step5">
-              Continuar
+              {t.next}
               <ChevronRight className="w-4 h-4 ml-2" />
             </Button>
           </div>

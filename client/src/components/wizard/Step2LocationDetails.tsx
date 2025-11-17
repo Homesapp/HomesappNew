@@ -13,44 +13,48 @@ import { ChevronLeft, ChevronRight, Plus } from "lucide-react";
 import { SuggestColonyDialog } from "@/components/SuggestColonyDialog";
 import { SuggestCondoDialog } from "@/components/SuggestCondoDialog";
 import { SuggestAmenityDialog } from "@/components/SuggestAmenityDialog";
-import { useLanguage } from "@/contexts/LanguageContext";
+import { getTranslation, Language } from "@/lib/wizardTranslations";
 import type { Colony, Condominium, Amenity } from "@shared/schema";
 import { Badge } from "@/components/ui/badge";
 
-const step2Schema = z.object({
-  // Ubicación
-  address: z.string().min(5, "La dirección debe tener al menos 5 caracteres"),
-  city: z.string().min(2, "La ciudad es requerida"),
-  state: z.string().min(2, "El estado es requerido"),
-  zipCode: z.string().min(4, "El código postal debe tener al menos 4 caracteres"),
-  colonyId: z.string().optional(),
-  condominiumId: z.string().optional(),
-  unitNumber: z.string().optional(),
-  googleMapsUrl: z.string().url("Debe ser una URL válida").optional().or(z.literal("")),
-  latitude: z.string().optional(),
-  longitude: z.string().optional(),
-  // Detalles
-  bedrooms: z.coerce.number().int().min(0, "Las habitaciones deben ser un número positivo"),
-  bathrooms: z.coerce.number().min(0, "Los baños deben ser un número positivo"),
-  area: z.string()
-    .optional()
-    .transform((val) => (val === "" || val === undefined) ? undefined : Number(val))
-    .refine((val) => val === undefined || val >= 1, { message: "El área debe ser mayor a 0" }),
-  propertyAmenities: z.array(z.string()).optional().default([]),
-  condoAmenities: z.array(z.string()).optional().default([]),
-});
-
-type Step2Form = z.infer<typeof step2Schema>;
+const getStep2Schema = (language: Language) => {
+  const t = getTranslation(language);
+  return z.object({
+    // Ubicación
+    address: z.string().min(5, t.errors.addressMin),
+    city: z.string().min(2, t.errors.cityRequired),
+    state: z.string().min(2, t.errors.stateRequired),
+    zipCode: z.string().min(4, t.errors.zipCodeMin),
+    colonyId: z.string().optional(),
+    condominiumId: z.string().optional(),
+    unitNumber: z.string().optional(),
+    googleMapsUrl: z.string().url(t.errors.invalidUrl).optional().or(z.literal("")),
+    latitude: z.string().optional(),
+    longitude: z.string().optional(),
+    // Detalles
+    bedrooms: z.coerce.number().int().min(0, t.errors.bedroomsPositive),
+    bathrooms: z.coerce.number().min(0, t.errors.bathroomsPositive),
+    area: z.string()
+      .optional()
+      .transform((val) => (val === "" || val === undefined) ? undefined : Number(val))
+      .refine((val) => val === undefined || val >= 1, { message: t.errors.areaGreaterThanZero }),
+    propertyAmenities: z.array(z.string()).optional().default([]),
+    condoAmenities: z.array(z.string()).optional().default([]),
+  });
+};
 
 type Step2Props = {
   data: any;
   onUpdate: (data: any) => void;
   onNext: (stepData?: any) => void;
   onPrevious: () => void;
+  language?: Language;
 };
 
-export default function Step2LocationDetails({ data, onUpdate, onNext, onPrevious }: Step2Props) {
-  const { t } = useLanguage();
+export default function Step2LocationDetails({ data, onUpdate, onNext, onPrevious, language = "es" }: Step2Props) {
+  const t = getTranslation(language);
+  const step2Schema = getStep2Schema(language);
+  type Step2Form = z.infer<typeof step2Schema>;
   const [showColonyDialog, setShowColonyDialog] = useState(false);
   const [showCondoDialog, setShowCondoDialog] = useState(false);
   const [showAmenityDialog, setShowAmenityDialog] = useState(false);
@@ -142,10 +146,10 @@ export default function Step2LocationDetails({ data, onUpdate, onNext, onPreviou
     <div className="space-y-6">
       <div>
         <h2 className="text-2xl font-bold mb-2" data-testid="heading-step2-title">
-          Ubicación y Características
+          {t.step2.title}
         </h2>
         <p className="text-muted-foreground" data-testid="text-step2-description">
-          Detalles de la ubicación y características físicas
+          {t.step2.subtitle}
         </p>
       </div>
 
@@ -154,7 +158,7 @@ export default function Step2LocationDetails({ data, onUpdate, onNext, onPreviou
           {/* Sección de Ubicación */}
           <div className="space-y-4">
             <div>
-              <h3 className="text-lg font-semibold mb-2">Ubicación</h3>
+              <h3 className="text-lg font-semibold mb-2">{t.step2.location}</h3>
             </div>
 
             <FormField
@@ -162,10 +166,10 @@ export default function Step2LocationDetails({ data, onUpdate, onNext, onPreviou
               name="address"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Dirección *</FormLabel>
+                  <FormLabel>{t.step2.address} *</FormLabel>
                   <FormControl>
                     <Input
-                      placeholder="Ej: Calle Principal 123"
+                      placeholder={t.step2.addressPlaceholder}
                       {...field}
                       data-testid="input-address"
                     />
@@ -181,10 +185,10 @@ export default function Step2LocationDetails({ data, onUpdate, onNext, onPreviou
                 name="city"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Ciudad *</FormLabel>
+                    <FormLabel>{t.step2.city} *</FormLabel>
                     <FormControl>
                       <Input
-                        placeholder="Ej: Tulum"
+                        placeholder={t.step2.cityPlaceholder}
                         {...field}
                         data-testid="input-city"
                       />
@@ -199,10 +203,10 @@ export default function Step2LocationDetails({ data, onUpdate, onNext, onPreviou
                 name="state"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Estado *</FormLabel>
+                    <FormLabel>{t.step2.state} *</FormLabel>
                     <FormControl>
                       <Input
-                        placeholder="Ej: Quintana Roo"
+                        placeholder={t.step2.statePlaceholder}
                         {...field}
                         data-testid="input-state"
                       />
@@ -217,10 +221,10 @@ export default function Step2LocationDetails({ data, onUpdate, onNext, onPreviou
                 name="zipCode"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Código Postal *</FormLabel>
+                    <FormLabel>{t.step2.zipCode} *</FormLabel>
                     <FormControl>
                       <Input
-                        placeholder="Ej: 77760"
+                        placeholder={t.step2.zipCodePlaceholder}
                         {...field}
                         data-testid="input-zipcode"
                       />
@@ -236,7 +240,7 @@ export default function Step2LocationDetails({ data, onUpdate, onNext, onPreviou
               name="colonyId"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Colonia (Opcional)</FormLabel>
+                  <FormLabel>{t.step2.colony}</FormLabel>
                   <div className="flex gap-2">
                     <Select
                       value={field.value || undefined}
@@ -244,7 +248,7 @@ export default function Step2LocationDetails({ data, onUpdate, onNext, onPreviou
                     >
                       <FormControl>
                         <SelectTrigger data-testid="select-colony">
-                          <SelectValue placeholder="Sin colonia" />
+                          <SelectValue placeholder={t.step2.noColony} />
                         </SelectTrigger>
                       </FormControl>
                       <SelectContent>
@@ -279,7 +283,7 @@ export default function Step2LocationDetails({ data, onUpdate, onNext, onPreviou
               name="condominiumId"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Condominio (Opcional)</FormLabel>
+                  <FormLabel>{t.step2.condominium}</FormLabel>
                   <div className="flex gap-2">
                     <Select
                       value={field.value || undefined}
@@ -287,7 +291,7 @@ export default function Step2LocationDetails({ data, onUpdate, onNext, onPreviou
                     >
                       <FormControl>
                         <SelectTrigger data-testid="select-condominium">
-                          <SelectValue placeholder="Sin condominio" />
+                          <SelectValue placeholder={t.step2.noCondominium} />
                         </SelectTrigger>
                       </FormControl>
                       <SelectContent>
@@ -322,16 +326,16 @@ export default function Step2LocationDetails({ data, onUpdate, onNext, onPreviou
               name="unitNumber"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Número de Unidad (Opcional)</FormLabel>
+                  <FormLabel>{t.step2.unitNumber}</FormLabel>
                   <FormControl>
                     <Input
-                      placeholder="Ej: 101, A-5..."
+                      placeholder={t.step2.unitNumberPlaceholder}
                       {...field}
                       data-testid="input-unit-number"
                     />
                   </FormControl>
                   <FormDescription>
-                    Si la propiedad está en un condominio, especifica el número
+                    {t.step2.unitNumberDescription}
                   </FormDescription>
                   <FormMessage />
                 </FormItem>
@@ -343,10 +347,10 @@ export default function Step2LocationDetails({ data, onUpdate, onNext, onPreviou
               name="googleMapsUrl"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Link de Google Maps (Opcional)</FormLabel>
+                  <FormLabel>{t.step2.googleMapsUrl}</FormLabel>
                   <FormControl>
                     <Input
-                      placeholder="https://maps.google.com/..."
+                      placeholder={t.step2.googleMapsUrlPlaceholder}
                       {...field}
                       data-testid="input-google-maps-url"
                     />
@@ -362,7 +366,7 @@ export default function Step2LocationDetails({ data, onUpdate, onNext, onPreviou
           {/* Sección de Detalles */}
           <div className="space-y-4">
             <div>
-              <h3 className="text-lg font-semibold mb-2">Características</h3>
+              <h3 className="text-lg font-semibold mb-2">{t.step2.characteristics}</h3>
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -371,13 +375,13 @@ export default function Step2LocationDetails({ data, onUpdate, onNext, onPreviou
                 name="bedrooms"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Habitaciones *</FormLabel>
+                    <FormLabel>{t.step2.bedrooms} *</FormLabel>
                     <FormControl>
                       <Input
                         type="text"
                         inputMode="numeric"
                         pattern="[0-9]*"
-                        placeholder="Ej: 3"
+                        placeholder={t.step2.bedroomsPlaceholder}
                         {...field}
                         data-testid="input-bedrooms"
                       />
@@ -392,13 +396,13 @@ export default function Step2LocationDetails({ data, onUpdate, onNext, onPreviou
                 name="bathrooms"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Baños *</FormLabel>
+                    <FormLabel>{t.step2.bathrooms} *</FormLabel>
                     <FormControl>
                       <Input
                         type="text"
                         inputMode="decimal"
                         pattern="[0-9]*\.?[0-9]*"
-                        placeholder="Ej: 2"
+                        placeholder={t.step2.bathroomsPlaceholder}
                         {...field}
                         data-testid="input-bathrooms"
                       />
@@ -413,13 +417,13 @@ export default function Step2LocationDetails({ data, onUpdate, onNext, onPreviou
                 name="area"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Área (m²) *</FormLabel>
+                    <FormLabel>{t.step2.area} *</FormLabel>
                     <FormControl>
                       <Input
                         type="text"
                         inputMode="numeric"
                         pattern="[0-9]*"
-                        placeholder="Ej: 150"
+                        placeholder={t.step2.areaPlaceholder}
                         {...field}
                         data-testid="input-area"
                       />
@@ -437,7 +441,7 @@ export default function Step2LocationDetails({ data, onUpdate, onNext, onPreviou
               render={({ field }) => (
                 <FormItem>
                   <div className="flex items-center justify-between mb-2">
-                    <FormLabel>Características de la Propiedad</FormLabel>
+                    <FormLabel>{t.step2.propertyAmenities}</FormLabel>
                     <Button
                       type="button"
                       variant="outline"
@@ -446,7 +450,7 @@ export default function Step2LocationDetails({ data, onUpdate, onNext, onPreviou
                       data-testid="button-suggest-amenity"
                     >
                       <Plus className="w-4 h-4 mr-1" />
-                      Sugerir
+                      {t.step2.suggest}
                     </Button>
                   </div>
                   <FormControl>
@@ -484,7 +488,7 @@ export default function Step2LocationDetails({ data, onUpdate, onNext, onPreviou
                 name="condoAmenities"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Amenidades del Condominio (Si aplica)</FormLabel>
+                    <FormLabel>{t.step2.condoAmenities}</FormLabel>
                     <FormControl>
                       <div className="flex flex-wrap gap-2" data-testid="container-condo-amenities">
                         {condoAmenitiesList.map((amenity) => {
@@ -524,10 +528,10 @@ export default function Step2LocationDetails({ data, onUpdate, onNext, onPreviou
               data-testid="button-previous-step2"
             >
               <ChevronLeft className="w-4 h-4 mr-2" />
-              Anterior
+              {t.previous}
             </Button>
             <Button type="submit" className="w-full sm:w-auto" data-testid="button-next-step2">
-              Continuar
+              {t.next}
               <ChevronRight className="w-4 h-4 ml-2" />
             </Button>
           </div>
