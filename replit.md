@@ -44,6 +44,14 @@ Key features include:
     - Draft age restrictions (48-hour limit)
     - Cache isolation between authenticated and public sessions
     - Admin UI for token generation with copy-to-clipboard functionality
+*   **Sidebar Menu Visibility Control**: Admin configuration system allowing master and admin users to control sidebar menu item visibility for specific roles. Features include:
+    - Database-driven visibility configuration per role and menu item
+    - Admin UI at `/admin/sidebar-config` with role-based tabs
+    - Real-time visibility toggling with automatic persistence
+    - AppSidebar integration with react-query for efficient configuration fetching
+    - Master and admin roles always see all menu items regardless of configuration
+    - Granular control for roles: cliente, propietario, vendedor, conserje, abogado, contador, admin jr
+    - Bilingual support (Spanish/English) for all UI elements
 
 ## External Dependencies
 *   Google Calendar API
