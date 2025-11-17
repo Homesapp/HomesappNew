@@ -6801,7 +6801,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       console.log("[DRAFT-CREATE-PUBLIC] Token:", invitationToken.substring(0, 10) + "...");
 
       // Validate token
-      const token = await storage.getPropertySubmissionToken(invitationToken);
+      const token = await storage.getPropertySubmissionTokenByToken(invitationToken);
       if (!token) {
         return res.status(404).json({ message: "Token de invitación no encontrado" });
       }
@@ -6907,7 +6907,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       console.log("[DRAFT-UPDATE-PUBLIC] Draft:", id, "Step:", draftData.currentStep);
 
       // Validate token
-      const token = await storage.getPropertySubmissionToken(invitationToken);
+      const token = await storage.getPropertySubmissionTokenByToken(invitationToken);
       if (!token) {
         return res.status(404).json({ message: "Token de invitación no encontrado" });
       }
