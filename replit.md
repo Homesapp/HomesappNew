@@ -44,6 +44,9 @@ Key features include:
     - Draft age restrictions (48-hour limit)
     - Cache isolation between authenticated and public sessions
     - Admin UI for token generation with copy-to-clipboard functionality
+    - Management page at `/admin/property-invitations` to view all generated links with status tracking, copy functionality, and WhatsApp sharing
+    - Bilingual support (Spanish/English) for all invitation-related UI
+    - Bug fix (2025-11-17): Corrected token validation in public endpoints to use `getPropertySubmissionTokenByToken()` instead of `getPropertySubmissionToken()` for proper token string lookup
 *   **Sidebar Menu Visibility Control**: Admin configuration system allowing master and admin users to control sidebar menu item visibility for specific roles. Features include:
     - Database-driven visibility configuration per role and menu item
     - Admin UI at `/admin/sidebar-config` with role-based tabs
