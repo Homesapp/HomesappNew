@@ -76,6 +76,7 @@ Key features include:
       - Fixed image gallery: now displays ALL images (primary + secondary) with duplicate removal
       - Added individual image download buttons: each photo in the gallery has a download button that appears on hover
       - Google Maps link: already displayed in multimedia section when available
+      - **Fixed wizard Step 1 crash (2025-11-17)**: Corrected translation structure in `wizardTranslations.ts` to nest property types under `step1.propertyTypes` object instead of directly under `step1`, resolving "Cannot read properties of undefined (reading 'house')" error when accessing invitation links
 *   **Sidebar Menu Visibility Control**: Admin configuration system allowing master and admin users to control sidebar menu item visibility for specific roles and individual users. Features include:
     - Database-driven visibility configuration per role and menu item (`sidebar_menu_visibility` table)
     - Per-user override system (`sidebar_menu_visibility_user` table) with user-specific configuration taking precedence over role defaults
