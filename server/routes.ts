@@ -358,6 +358,66 @@ export async function registerRoutes(app: Express): Promise<Server> {
         res.status(500).json({ message: "Failed to update role" });
       }
     });
+    
+    // Test endpoint to bootstrap admin session without OIDC (development only, for e2e testing)
+    app.post("/api/test-auth/admin-session", async (req: any, res) => {
+      try {
+        // Get or create a test admin user
+        let testAdmin = await storage.getAdminByUsername("test-admin");
+        
+        if (!testAdmin) {
+          // Create a test admin user
+          testAdmin = await storage.createAdmin({
+            username: "test-admin",
+            email: "test-admin@test.com",
+            firstName: "Test",
+            lastName: "Admin",
+            passwordHash: await bcrypt.hash("test-password", 10),
+            role: "admin",
+            isActive: true,
+          });
+        }
+        
+        // Upsert to users table for foreign key constraints
+        await storage.upsertUser({
+          id: testAdmin.id,
+          email: testAdmin.email,
+          firstName: testAdmin.firstName,
+          lastName: testAdmin.lastName,
+          role: testAdmin.role,
+        });
+        
+        // Set admin session
+        req.session.adminUser = {
+          id: testAdmin.id,
+          username: testAdmin.username,
+          email: testAdmin.email,
+          firstName: testAdmin.firstName,
+          lastName: testAdmin.lastName,
+          role: testAdmin.role,
+        };
+        
+        // Save session explicitly
+        await new Promise<void>((resolve, reject) => {
+          req.session.save((err: any) => {
+            if (err) reject(err);
+            else resolve();
+          });
+        });
+        
+        res.json({ 
+          success: true, 
+          message: "Test admin session created",
+          admin: {
+            username: testAdmin.username,
+            role: testAdmin.role,
+          }
+        });
+      } catch (error) {
+        console.error("Error creating test admin session:", error);
+        res.status(500).json({ message: "Failed to create test session" });
+      }
+    });
   }
 
   // Admin login route (local authentication)
