@@ -19,6 +19,7 @@ import { PropertyInviteDialog } from "@/components/PropertyInviteDialog";
 import PropertyEditWizard from "@/components/PropertyEditWizard";
 import { useLocation } from "wouter";
 import { getPropertyTitle } from "@/lib/propertyHelpers";
+import type { Property } from "@shared/schema";
 
 type AccessInfo = 
   | {
@@ -35,29 +36,6 @@ type AccessInfo =
       contactPhone: string;
       contactNotes?: string;
     };
-
-type Property = {
-  id: string;
-  title: string;
-  description: string | null;
-  propertyType: string;
-  price: string;
-  bedrooms: number;
-  bathrooms: string;
-  area: string | null;
-  location: string;
-  approvalStatus: string;
-  published: boolean;
-  featured: boolean;
-  images: string[];
-  primaryImages: string[];
-  ownerId: string;
-  accessInfo?: AccessInfo;
-  createdAt: string;
-  updatedAt: string;
-  condoName?: string;
-  unitNumber?: string;
-};
 
 type PropertyStats = {
   total: number;
@@ -593,10 +571,15 @@ export default function AdminPropertyManagement() {
                               Ver
                             </Button>
                           </DialogTrigger>
-                          <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+                          <DialogContent className="max-w-6xl max-h-[90vh] overflow-y-auto">
                             <DialogHeader>
                               <DialogTitle className="text-2xl">{detailProperty?.title}</DialogTitle>
-                              <DialogDescription className="text-base">{detailProperty?.location}</DialogDescription>
+                              <DialogDescription className="text-base">
+                                <div className="flex items-center gap-2">
+                                  <MapPin className="w-4 h-4" />
+                                  {detailProperty?.location}
+                                </div>
+                              </DialogDescription>
                             </DialogHeader>
                             {detailProperty && (
                               <div className="space-y-6">
@@ -609,8 +592,8 @@ export default function AdminPropertyManagement() {
                                       className="w-full h-80 object-cover rounded-lg border"
                                     />
                                     {detailProperty.primaryImages.length > 1 && (
-                                      <div className="grid grid-cols-4 gap-2">
-                                        {detailProperty.primaryImages.slice(1, 5).map((img, idx) => (
+                                      <div className="grid grid-cols-5 gap-2">
+                                        {detailProperty.primaryImages.slice(1).map((img, idx) => (
                                           <img
                                             key={idx}
                                             src={img}
@@ -620,70 +603,12 @@ export default function AdminPropertyManagement() {
                                         ))}
                                       </div>
                                     )}
-                                    {detailProperty.primaryImages.length > 5 && (
-                                      <p className="text-sm text-muted-foreground text-center">
-                                        +{detailProperty.primaryImages.length - 5} imágenes más
-                                      </p>
-                                    )}
                                   </div>
                                 )}
-                                {/* Property Info Cards */}
-                                <div className="grid grid-cols-3 gap-3">
-                                  <Card>
-                                    <CardContent className="p-4">
-                                      <div className="flex items-center gap-2 mb-1">
-                                        <DollarSign className="w-4 h-4 text-muted-foreground" />
-                                        <label className="text-sm font-medium text-muted-foreground">Precio</label>
-                                      </div>
-                                      <p className="text-xl font-bold">${parseFloat(detailProperty.price).toLocaleString()} MXN</p>
-                                    </CardContent>
-                                  </Card>
-                                  <Card>
-                                    <CardContent className="p-4">
-                                      <div className="flex items-center gap-2 mb-1">
-                                        <TypeIcon className="w-4 h-4 text-muted-foreground" />
-                                        <label className="text-sm font-medium text-muted-foreground">Tipo</label>
-                                      </div>
-                                      <p className="text-lg font-semibold capitalize">{detailProperty.propertyType}</p>
-                                    </CardContent>
-                                  </Card>
-                                  <Card>
-                                    <CardContent className="p-4">
-                                      <label className="text-sm font-medium text-muted-foreground">Estado</label>
-                                      <div className="mt-2">{getStatusBadge(detailProperty.approvalStatus)}</div>
-                                    </CardContent>
-                                  </Card>
-                                </div>
 
-                                {/* Property Features */}
-                                <div className="grid grid-cols-3 gap-4">
-                                  <div className="flex items-center gap-2">
-                                    <Bed className="w-5 h-5 text-muted-foreground" />
-                                    <div>
-                                      <p className="text-sm text-muted-foreground">Habitaciones</p>
-                                      <p className="font-semibold">{detailProperty.bedrooms}</p>
-                                    </div>
-                                  </div>
-                                  <div className="flex items-center gap-2">
-                                    <Bath className="w-5 h-5 text-muted-foreground" />
-                                    <div>
-                                      <p className="text-sm text-muted-foreground">Baños</p>
-                                      <p className="font-semibold">{detailProperty.bathrooms}</p>
-                                    </div>
-                                  </div>
-                                  {detailProperty.area && (
-                                    <div className="flex items-center gap-2">
-                                      <Home className="w-5 h-5 text-muted-foreground" />
-                                      <div>
-                                        <p className="text-sm text-muted-foreground">Área</p>
-                                        <p className="font-semibold">{detailProperty.area} m²</p>
-                                      </div>
-                                    </div>
-                                  )}
-                                </div>
-
-                                {/* Publication Status */}
-                                <div className="flex gap-2">
+                                {/* Status Badges */}
+                                <div className="flex flex-wrap gap-2">
+                                  {getStatusBadge(detailProperty.approvalStatus)}
                                   {detailProperty.published && (
                                     <Badge variant="outline" className="gap-1">
                                       <Eye className="w-3 h-3" />
@@ -693,13 +618,445 @@ export default function AdminPropertyManagement() {
                                   {detailProperty.featured && (
                                     <Badge variant="default">Destacada</Badge>
                                   )}
+                                  {detailProperty.petFriendly && (
+                                    <Badge variant="secondary">Pet Friendly</Badge>
+                                  )}
+                                  {detailProperty.allowsSubleasing && (
+                                    <Badge variant="secondary">Permite Subarriendo</Badge>
+                                  )}
                                 </div>
+
+                                {/* Property Info Cards */}
+                                <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                                  <Card>
+                                    <CardContent className="p-4">
+                                      <div className="flex items-center gap-2 mb-1">
+                                        <DollarSign className="w-4 h-4 text-muted-foreground" />
+                                        <label className="text-xs font-medium text-muted-foreground">Precio Renta</label>
+                                      </div>
+                                      <p className="text-lg font-bold">${parseFloat(detailProperty.price).toLocaleString()} MXN/mes</p>
+                                    </CardContent>
+                                  </Card>
+                                  {detailProperty.salePrice && (
+                                    <Card>
+                                      <CardContent className="p-4">
+                                        <div className="flex items-center gap-2 mb-1">
+                                          <DollarSign className="w-4 h-4 text-muted-foreground" />
+                                          <label className="text-xs font-medium text-muted-foreground">Precio Venta</label>
+                                        </div>
+                                        <p className="text-lg font-bold">${parseFloat(detailProperty.salePrice).toLocaleString()} MXN</p>
+                                      </CardContent>
+                                    </Card>
+                                  )}
+                                  <Card>
+                                    <CardContent className="p-4">
+                                      <div className="flex items-center gap-2 mb-1">
+                                        <TypeIcon className="w-4 h-4 text-muted-foreground" />
+                                        <label className="text-xs font-medium text-muted-foreground">Tipo</label>
+                                      </div>
+                                      <p className="text-base font-semibold capitalize">{detailProperty.propertyType}</p>
+                                    </CardContent>
+                                  </Card>
+                                  <Card>
+                                    <CardContent className="p-4">
+                                      <div className="flex items-center gap-2 mb-1">
+                                        <Home className="w-4 h-4 text-muted-foreground" />
+                                        <label className="text-xs font-medium text-muted-foreground">Modalidad</label>
+                                      </div>
+                                      <p className="text-base font-semibold capitalize">
+                                        {detailProperty.status === 'rent' ? 'Renta' : detailProperty.status === 'sale' ? 'Venta' : 'Renta/Venta'}
+                                      </p>
+                                    </CardContent>
+                                  </Card>
+                                </div>
+
+                                {/* Property Features */}
+                                <Card>
+                                  <CardHeader>
+                                    <CardTitle className="text-base">Características</CardTitle>
+                                  </CardHeader>
+                                  <CardContent>
+                                    <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                                      <div className="flex items-center gap-2">
+                                        <Bed className="w-5 h-5 text-muted-foreground" />
+                                        <div>
+                                          <p className="text-xs text-muted-foreground">Recámaras</p>
+                                          <p className="font-semibold">{detailProperty.bedrooms}</p>
+                                        </div>
+                                      </div>
+                                      <div className="flex items-center gap-2">
+                                        <Bath className="w-5 h-5 text-muted-foreground" />
+                                        <div>
+                                          <p className="text-xs text-muted-foreground">Baños</p>
+                                          <p className="font-semibold">{detailProperty.bathrooms}</p>
+                                        </div>
+                                      </div>
+                                      {detailProperty.area && (
+                                        <div className="flex items-center gap-2">
+                                          <Home className="w-5 h-5 text-muted-foreground" />
+                                          <div>
+                                            <p className="text-xs text-muted-foreground">Área</p>
+                                            <p className="font-semibold">{detailProperty.area} m²</p>
+                                          </div>
+                                        </div>
+                                      )}
+                                      {detailProperty.condoName && (
+                                        <div className="flex items-center gap-2">
+                                          <Building className="w-5 h-5 text-muted-foreground" />
+                                          <div>
+                                            <p className="text-xs text-muted-foreground">Condominio</p>
+                                            <p className="font-semibold text-xs">{detailProperty.condoName}</p>
+                                            {detailProperty.unitNumber && (
+                                              <p className="text-xs text-muted-foreground">Unidad {detailProperty.unitNumber}</p>
+                                            )}
+                                          </div>
+                                        </div>
+                                      )}
+                                    </div>
+                                  </CardContent>
+                                </Card>
+
                                 {detailProperty.description && (
-                                  <div>
-                                    <label className="text-sm font-medium text-muted-foreground">Descripción</label>
-                                    <p className="mt-1 whitespace-pre-wrap">{detailProperty.description}</p>
-                                  </div>
+                                  <Card>
+                                    <CardHeader>
+                                      <CardTitle className="text-base">Descripción</CardTitle>
+                                    </CardHeader>
+                                    <CardContent>
+                                      <p className="whitespace-pre-wrap text-sm">{detailProperty.description}</p>
+                                    </CardContent>
+                                  </Card>
                                 )}
+
+                                {/* Amenities */}
+                                <Card>
+                                  <CardHeader>
+                                    <CardTitle className="text-base">Amenidades</CardTitle>
+                                  </CardHeader>
+                                  <CardContent>
+                                    {detailProperty.amenities && detailProperty.amenities.length > 0 ? (
+                                      <div className="flex flex-wrap gap-2">
+                                        {detailProperty.amenities.map((amenity, idx) => (
+                                          <Badge key={idx} variant="outline" className="gap-1">
+                                            <Star className="w-3 h-3" />
+                                            {amenity}
+                                          </Badge>
+                                        ))}
+                                      </div>
+                                    ) : (
+                                      <p className="text-sm text-muted-foreground">No registrado</p>
+                                    )}
+                                  </CardContent>
+                                </Card>
+
+                                {/* Included Services */}
+                                <Card>
+                                  <CardHeader>
+                                    <CardTitle className="text-base">Servicios Incluidos</CardTitle>
+                                  </CardHeader>
+                                  <CardContent>
+                                    {detailProperty.includedServices && Object.keys(detailProperty.includedServices).length > 0 ? (
+                                      <div className="flex flex-wrap gap-2">
+                                        {Object.entries(detailProperty.includedServices).map(([key, included]) => 
+                                          included ? (
+                                            <Badge key={key} variant="secondary" className="gap-1">
+                                              <CheckCircle2 className="w-3 h-3" />
+                                              {key === 'water' ? 'Agua' :
+                                               key === 'electricity' ? 'Luz' :
+                                               key === 'internet' ? 'Internet' :
+                                               key === 'gas' ? 'Gas' :
+                                               key === 'maintenance' ? 'Mantenimiento' :
+                                               key === 'security' ? 'Seguridad' :
+                                               key === 'cleaning' ? 'Limpieza' :
+                                               key === 'parking' ? 'Estacionamiento' : key}
+                                            </Badge>
+                                          ) : null
+                                        )}
+                                      </div>
+                                    ) : (
+                                      <p className="text-sm text-muted-foreground">No registrado</p>
+                                    )}
+                                  </CardContent>
+                                </Card>
+
+                                {/* Lease Durations */}
+                                {detailProperty.acceptedLeaseDurations && detailProperty.acceptedLeaseDurations.length > 0 && (
+                                  <Card>
+                                    <CardHeader>
+                                      <CardTitle className="text-base">Duraciones de Contrato Aceptadas</CardTitle>
+                                    </CardHeader>
+                                    <CardContent>
+                                      <div className="flex flex-wrap gap-2">
+                                        {detailProperty.acceptedLeaseDurations.map((duration, idx) => (
+                                          <Badge key={idx} variant="outline">{duration}</Badge>
+                                        ))}
+                                      </div>
+                                    </CardContent>
+                                  </Card>
+                                )}
+
+                                {/* Availability */}
+                                {(detailProperty.availableFrom || detailProperty.availableTo) && (
+                                  <Card>
+                                    <CardHeader>
+                                      <CardTitle className="text-base">Disponibilidad</CardTitle>
+                                    </CardHeader>
+                                    <CardContent>
+                                      <div className="grid grid-cols-2 gap-4">
+                                        {detailProperty.availableFrom && (
+                                          <div>
+                                            <p className="text-xs text-muted-foreground mb-1">Disponible desde</p>
+                                            <p className="font-medium">{new Date(detailProperty.availableFrom).toLocaleDateString('es-MX')}</p>
+                                          </div>
+                                        )}
+                                        {detailProperty.availableTo && (
+                                          <div>
+                                            <p className="text-xs text-muted-foreground mb-1">Disponible hasta</p>
+                                            <p className="font-medium">{new Date(detailProperty.availableTo).toLocaleDateString('es-MX')}</p>
+                                          </div>
+                                        )}
+                                      </div>
+                                    </CardContent>
+                                  </Card>
+                                )}
+
+                                {/* Multimedia Links */}
+                                {(detailProperty.videos?.length || detailProperty.virtualTourUrl || detailProperty.googleMapsUrl) && (
+                                  <Card>
+                                    <CardHeader>
+                                      <CardTitle className="text-base">Multimedia y Ubicación</CardTitle>
+                                    </CardHeader>
+                                    <CardContent className="space-y-2">
+                                      {detailProperty.videos && detailProperty.videos.length > 0 && (
+                                        <div>
+                                          <p className="text-xs text-muted-foreground mb-1">Videos</p>
+                                          {detailProperty.videos.map((video, idx) => (
+                                            <a key={idx} href={video} target="_blank" rel="noopener noreferrer" className="text-sm text-primary hover:underline block">
+                                              Video {idx + 1}
+                                            </a>
+                                          ))}
+                                        </div>
+                                      )}
+                                      {detailProperty.virtualTourUrl && (
+                                        <div>
+                                          <p className="text-xs text-muted-foreground mb-1">Tour Virtual 360°</p>
+                                          <a href={detailProperty.virtualTourUrl} target="_blank" rel="noopener noreferrer" className="text-sm text-primary hover:underline">
+                                            Ver tour virtual
+                                          </a>
+                                        </div>
+                                      )}
+                                      {detailProperty.googleMapsUrl && (
+                                        <div>
+                                          <p className="text-xs text-muted-foreground mb-1">Ubicación en Google Maps</p>
+                                          <a href={detailProperty.googleMapsUrl} target="_blank" rel="noopener noreferrer" className="text-sm text-primary hover:underline">
+                                            Ver en Google Maps
+                                          </a>
+                                        </div>
+                                      )}
+                                      {(detailProperty.latitude && detailProperty.longitude) && (
+                                        <div>
+                                          <p className="text-xs text-muted-foreground mb-1">Coordenadas GPS</p>
+                                          <p className="text-sm font-mono">{detailProperty.latitude}, {detailProperty.longitude}</p>
+                                        </div>
+                                      )}
+                                    </CardContent>
+                                  </Card>
+                                )}
+
+                                {/* Owner Information */}
+                                {(detailProperty.ownerFirstName || detailProperty.ownerLastName || detailProperty.ownerPhone || detailProperty.ownerEmail) && (
+                                  <Card>
+                                    <CardHeader>
+                                      <CardTitle className="text-base flex items-center gap-2">
+                                        <User className="w-4 h-4" />
+                                        Información del Propietario
+                                      </CardTitle>
+                                    </CardHeader>
+                                    <CardContent>
+                                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                        {(detailProperty.ownerFirstName || detailProperty.ownerLastName) && (
+                                          <div>
+                                            <p className="text-xs text-muted-foreground mb-1">Nombre</p>
+                                            <p className="font-medium">
+                                              {[detailProperty.ownerFirstName, detailProperty.ownerLastName].filter(Boolean).join(' ')}
+                                            </p>
+                                          </div>
+                                        )}
+                                        {detailProperty.ownerPhone && (
+                                          <div>
+                                            <p className="text-xs text-muted-foreground mb-1">Teléfono</p>
+                                            <div className="flex items-center gap-2">
+                                              <p className="font-medium">{detailProperty.ownerPhone}</p>
+                                              <Button
+                                                size="icon"
+                                                variant="ghost"
+                                                className="h-6 w-6"
+                                                onClick={() => {
+                                                  navigator.clipboard.writeText(detailProperty.ownerPhone!);
+                                                  toast({ title: "Copiado", description: "Teléfono copiado" });
+                                                }}
+                                              >
+                                                <Copy className="w-3 h-3" />
+                                              </Button>
+                                            </div>
+                                          </div>
+                                        )}
+                                        {detailProperty.ownerEmail && (
+                                          <div>
+                                            <p className="text-xs text-muted-foreground mb-1">Email</p>
+                                            <div className="flex items-center gap-2">
+                                              <p className="font-medium text-sm">{detailProperty.ownerEmail}</p>
+                                              <Button
+                                                size="icon"
+                                                variant="ghost"
+                                                className="h-6 w-6"
+                                                onClick={() => {
+                                                  navigator.clipboard.writeText(detailProperty.ownerEmail!);
+                                                  toast({ title: "Copiado", description: "Email copiado" });
+                                                }}
+                                              >
+                                                <Copy className="w-3 h-3" />
+                                              </Button>
+                                            </div>
+                                          </div>
+                                        )}
+                                      </div>
+                                    </CardContent>
+                                  </Card>
+                                )}
+
+                                {/* Additional Information */}
+                                <Card>
+                                  <CardHeader>
+                                    <CardTitle className="text-base">Información Adicional</CardTitle>
+                                  </CardHeader>
+                                  <CardContent>
+                                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
+                                      {detailProperty.colonyName && (
+                                        <div>
+                                          <p className="text-xs text-muted-foreground mb-1">Colonia</p>
+                                          <p className="font-medium">{detailProperty.colonyName}</p>
+                                        </div>
+                                      )}
+                                      <div>
+                                        <p className="text-xs text-muted-foreground mb-1">Tipo de Unidad</p>
+                                        <p className="font-medium capitalize">{detailProperty.unitType || 'Private'}</p>
+                                      </div>
+                                      <div>
+                                        <p className="text-xs text-muted-foreground mb-1">Estado del Propietario</p>
+                                        <p className="font-medium capitalize">{detailProperty.ownerStatus || 'active'}</p>
+                                      </div>
+                                      <div>
+                                        <p className="text-xs text-muted-foreground mb-1">Modo de Wizard</p>
+                                        <p className="font-medium capitalize">{detailProperty.wizardMode || 'simple'}</p>
+                                      </div>
+                                      {typeof detailProperty.rating !== 'undefined' && (
+                                        <div>
+                                          <p className="text-xs text-muted-foreground mb-1">Calificación</p>
+                                          <p className="font-medium">{Number(detailProperty.rating).toFixed(2)} ⭐</p>
+                                        </div>
+                                      )}
+                                      {typeof detailProperty.reviewCount !== 'undefined' && (
+                                        <div>
+                                          <p className="text-xs text-muted-foreground mb-1">Total Reseñas</p>
+                                          <p className="font-medium">{detailProperty.reviewCount}</p>
+                                        </div>
+                                      )}
+                                      {detailProperty.createdAt && (
+                                        <div>
+                                          <p className="text-xs text-muted-foreground mb-1">Fecha de Creación</p>
+                                          <p className="font-medium text-xs">{new Date(detailProperty.createdAt).toLocaleString('es-MX')}</p>
+                                        </div>
+                                      )}
+                                      {detailProperty.updatedAt && (
+                                        <div>
+                                          <p className="text-xs text-muted-foreground mb-1">Última Actualización</p>
+                                          <p className="font-medium text-xs">{new Date(detailProperty.updatedAt).toLocaleString('es-MX')}</p>
+                                        </div>
+                                      )}
+                                    </div>
+                                  </CardContent>
+                                </Card>
+
+                                {/* Referral Information (if exists) */}
+                                {(detailProperty.referredByName || detailProperty.referredByLastName || detailProperty.referredByPhone || detailProperty.referredByEmail) && (
+                                  <Card>
+                                    <CardHeader>
+                                      <CardTitle className="text-base">Información del Referido</CardTitle>
+                                    </CardHeader>
+                                    <CardContent>
+                                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                        {(detailProperty.referredByName || detailProperty.referredByLastName) && (
+                                          <div>
+                                            <p className="text-xs text-muted-foreground mb-1">Nombre</p>
+                                            <p className="font-medium">
+                                              {[detailProperty.referredByName, detailProperty.referredByLastName].filter(Boolean).join(' ')}
+                                            </p>
+                                          </div>
+                                        )}
+                                        {detailProperty.referredByPhone && (
+                                          <div>
+                                            <p className="text-xs text-muted-foreground mb-1">Teléfono</p>
+                                            <div className="flex items-center gap-2">
+                                              <p className="font-medium">{detailProperty.referredByPhone}</p>
+                                              <Button
+                                                size="icon"
+                                                variant="ghost"
+                                                className="h-6 w-6"
+                                                onClick={() => {
+                                                  navigator.clipboard.writeText(detailProperty.referredByPhone!);
+                                                  toast({ title: "Copiado", description: "Teléfono copiado" });
+                                                }}
+                                              >
+                                                <Copy className="w-3 h-3" />
+                                              </Button>
+                                            </div>
+                                          </div>
+                                        )}
+                                        {detailProperty.referredByEmail && (
+                                          <div>
+                                            <p className="text-xs text-muted-foreground mb-1">Email</p>
+                                            <div className="flex items-center gap-2">
+                                              <p className="font-medium text-sm">{detailProperty.referredByEmail}</p>
+                                              <Button
+                                                size="icon"
+                                                variant="ghost"
+                                                className="h-6 w-6"
+                                                onClick={() => {
+                                                  navigator.clipboard.writeText(detailProperty.referredByEmail!);
+                                                  toast({ title: "Copiado", description: "Email copiado" });
+                                                }}
+                                              >
+                                                <Copy className="w-3 h-3" />
+                                              </Button>
+                                            </div>
+                                          </div>
+                                        )}
+                                        {detailProperty.referralPercent && (
+                                          <div>
+                                            <p className="text-xs text-muted-foreground mb-1">Porcentaje de Comisión</p>
+                                            <p className="font-medium">{detailProperty.referralPercent}%</p>
+                                          </div>
+                                        )}
+                                      </div>
+                                    </CardContent>
+                                  </Card>
+                                )}
+
+                                {/* Specifications */}
+                                <Card>
+                                  <CardHeader>
+                                    <CardTitle className="text-base">Especificaciones Técnicas</CardTitle>
+                                  </CardHeader>
+                                  <CardContent>
+                                    {detailProperty.specifications && Object.keys(detailProperty.specifications).length > 0 ? (
+                                      <pre className="bg-muted p-3 rounded text-sm font-mono whitespace-pre-wrap overflow-x-auto">
+                                        {JSON.stringify(detailProperty.specifications, null, 2)}
+                                      </pre>
+                                    ) : (
+                                      <p className="text-sm text-muted-foreground">No registrado</p>
+                                    )}
+                                  </CardContent>
+                                </Card>
 
                                 {/* Access Information Section */}
                                 {detailProperty.accessInfo && (
