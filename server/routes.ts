@@ -7423,6 +7423,68 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Sidebar Menu Visibility Configuration routes
+  // Admin: Get sidebar configuration for a role
+  app.get("/api/admin/sidebar-config/:role", isAuthenticated, requireRole(["master", "admin"]), async (req: any, res) => {
+    try {
+      const { role } = req.params;
+      
+      const config = await storage.getSidebarMenuVisibility(role);
+      res.json(config);
+    } catch (error: any) {
+      console.error("Error fetching sidebar config:", error);
+      res.status(500).json({ message: error.message || "Error al obtener configuración del sidebar" });
+    }
+  });
+
+  // Admin: Update sidebar configuration in bulk
+  app.post("/api/admin/sidebar-config", isAuthenticated, requireRole(["master", "admin"]), async (req: any, res) => {
+    try {
+      const { configurations } = req.body;
+      
+      if (!Array.isArray(configurations)) {
+        return res.status(400).json({ message: "Se requiere un array de configuraciones" });
+      }
+      
+      const results = await storage.bulkSetSidebarMenuVisibility(configurations);
+      
+      await createAuditLog(
+        req,
+        "update",
+        "sidebar_menu_visibility",
+        null,
+        `Configuración del sidebar actualizada para ${configurations.length} items`
+      );
+      
+      res.json(results);
+    } catch (error: any) {
+      console.error("Error updating sidebar config:", error);
+      res.status(500).json({ message: error.message || "Error al actualizar configuración del sidebar" });
+    }
+  });
+
+  // Admin: Reset sidebar configuration for a role
+  app.delete("/api/admin/sidebar-config/:role", isAuthenticated, requireRole(["master", "admin"]), async (req: any, res) => {
+    try {
+      const { role } = req.params;
+      
+      await storage.resetSidebarMenuVisibility(role);
+      
+      await createAuditLog(
+        req,
+        "delete",
+        "sidebar_menu_visibility",
+        null,
+        `Configuración del sidebar reseteada para rol ${role}`
+      );
+      
+      res.json({ message: "Configuración reseteada exitosamente" });
+    } catch (error: any) {
+      console.error("Error resetting sidebar config:", error);
+      res.status(500).json({ message: error.message || "Error al resetear configuración del sidebar" });
+    }
+  });
+
   // Rental Opportunity Requests (SOR) routes
   app.post("/api/rental-opportunity-requests", isAuthenticated, async (req: any, res) => {
     try {
