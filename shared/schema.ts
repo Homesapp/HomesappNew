@@ -3773,6 +3773,28 @@ export const insertSidebarMenuVisibilitySchema = createInsertSchema(sidebarMenuV
 export type InsertSidebarMenuVisibility = z.infer<typeof insertSidebarMenuVisibilitySchema>;
 export type SidebarMenuVisibility = typeof sidebarMenuVisibility.$inferSelect;
 
+// Sidebar Menu Visibility Configuration - Per User
+export const sidebarMenuVisibilityUser = pgTable("sidebar_menu_visibility_user", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: varchar("user_id").notNull().references(() => users.id),
+  menuItemKey: varchar("menu_item_key", { length: 255 }).notNull(),
+  visible: boolean("visible").notNull().default(true),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+}, (table) => [
+  unique("unique_user_menu_item").on(table.userId, table.menuItemKey),
+  index("idx_user_sidebar_visibility").on(table.userId),
+]);
+
+export const insertSidebarMenuVisibilityUserSchema = createInsertSchema(sidebarMenuVisibilityUser).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export type InsertSidebarMenuVisibilityUser = z.infer<typeof insertSidebarMenuVisibilityUserSchema>;
+export type SidebarMenuVisibilityUser = typeof sidebarMenuVisibilityUser.$inferSelect;
+
 // Relations
 export const usersRelations = relations(users, ({ many }) => ({
   properties: many(properties, { relationName: "owner" }),
