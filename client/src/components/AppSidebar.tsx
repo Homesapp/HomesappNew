@@ -22,6 +22,7 @@ import {
   ClipboardList,
   FolderKanban,
   Settings,
+  Settings2,
   UserCog,
   Store,
   CreditCard,
@@ -64,6 +65,7 @@ import {
   CollapsibleTrigger,
 } from "@/components/ui/collapsible";
 import { useState, useEffect } from "react";
+import { useQuery } from "@tanstack/react-query";
 
 export type UserRole = "master" | "admin" | "admin_jr" | "seller" | "owner" | "management" | "concierge" | "provider" | "cliente" | "abogado" | "contador" | "agente_servicios_especiales";
 
@@ -90,6 +92,26 @@ export function AppSidebar({ userRole }: AppSidebarProps) {
   const [location] = useLocation();
   const { t, language } = useLanguage();
   const { state } = useSidebar();
+
+  // Fetch sidebar visibility configurations for the current role
+  const { data: visibilityConfig } = useQuery<Record<string, boolean>>({
+    queryKey: ['/api/admin/sidebar-config', userRole],
+    enabled: !!userRole && userRole !== "master" && userRole !== "admin",
+    staleTime: 5 * 60 * 1000, // Cache for 5 minutes
+  });
+
+  // Helper function to check if a menu item should be visible
+  const isMenuItemVisible = (menuItemKey: string): boolean => {
+    // Master and admin users see everything
+    if (userRole === "master" || userRole === "admin") {
+      return true;
+    }
+    // If no config or key not found, default to visible
+    if (!visibilityConfig || !(menuItemKey in visibilityConfig)) {
+      return true;
+    }
+    return visibilityConfig[menuItemKey];
+  };
 
   const [openGroups, setOpenGroups] = useState({
     processManagement: false,
@@ -221,63 +243,63 @@ export function AppSidebar({ userRole }: AppSidebarProps) {
   ];
 
   const filteredMain = userRole 
-    ? mainItems.filter((item) => item.roles.includes(userRole))
+    ? mainItems.filter((item) => item.roles.includes(userRole) && isMenuItemVisible(item.titleKey))
     : basicItems;
   
   const filteredAdminSingle = userRole 
-    ? adminSingleItems.filter((item) => item.roles.includes(userRole))
+    ? adminSingleItems.filter((item) => item.roles.includes(userRole) && isMenuItemVisible(item.titleKey))
     : [];
 
   const filteredProcessManagement = userRole 
-    ? processManagementGroup.filter((item) => item.roles.includes(userRole))
+    ? processManagementGroup.filter((item) => item.roles.includes(userRole) && isMenuItemVisible(item.titleKey))
     : [];
 
   const filteredUsersAndRoles = userRole 
-    ? usersAndRolesGroup.filter((item) => item.roles.includes(userRole))
+    ? usersAndRolesGroup.filter((item) => item.roles.includes(userRole) && isMenuItemVisible(item.titleKey))
     : [];
 
   const filteredProperties = userRole 
-    ? propertiesGroup.filter((item) => item.roles.includes(userRole))
+    ? propertiesGroup.filter((item) => item.roles.includes(userRole) && isMenuItemVisible(item.titleKey))
     : [];
 
   const filteredConfig = userRole 
-    ? configGroup.filter((item) => item.roles.includes(userRole))
+    ? configGroup.filter((item) => item.roles.includes(userRole) && isMenuItemVisible(item.titleKey))
     : [];
 
   const filteredCommunity = userRole 
-    ? communityGroup.filter((item) => item.roles.includes(userRole))
+    ? communityGroup.filter((item) => item.roles.includes(userRole) && isMenuItemVisible(item.titleKey))
     : [];
 
   const filteredService = userRole 
-    ? serviceItems.filter((item) => item.roles.includes(userRole))
+    ? serviceItems.filter((item) => item.roles.includes(userRole) && isMenuItemVisible(item.titleKey))
     : [];
 
   const filteredClientProperties = userRole 
-    ? clientPropertiesGroup.filter((item) => item.roles.includes(userRole))
+    ? clientPropertiesGroup.filter((item) => item.roles.includes(userRole) && isMenuItemVisible(item.titleKey))
     : [];
 
   const filteredClientActivity = userRole 
-    ? clientActivityGroup.filter((item) => item.roles.includes(userRole))
+    ? clientActivityGroup.filter((item) => item.roles.includes(userRole) && isMenuItemVisible(item.titleKey))
     : [];
 
   const filteredClientFinance = userRole 
-    ? clientFinanceGroup.filter((item) => item.roles.includes(userRole))
+    ? clientFinanceGroup.filter((item) => item.roles.includes(userRole) && isMenuItemVisible(item.titleKey))
     : [];
 
   const filteredOwnerProperties = userRole 
-    ? ownerPropertiesGroup.filter((item) => item.roles.includes(userRole))
+    ? ownerPropertiesGroup.filter((item) => item.roles.includes(userRole) && isMenuItemVisible(item.titleKey))
     : [];
 
   const filteredOwnerActivity = userRole 
-    ? ownerActivityGroup.filter((item) => item.roles.includes(userRole))
+    ? ownerActivityGroup.filter((item) => item.roles.includes(userRole) && isMenuItemVisible(item.titleKey))
     : [];
 
   const filteredOwnerFinance = userRole 
-    ? ownerFinanceGroup.filter((item) => item.roles.includes(userRole))
+    ? ownerFinanceGroup.filter((item) => item.roles.includes(userRole) && isMenuItemVisible(item.titleKey))
     : [];
 
   const filteredSellerFinance = userRole 
-    ? sellerFinanceGroup.filter((item) => item.roles.includes(userRole))
+    ? sellerFinanceGroup.filter((item) => item.roles.includes(userRole) && isMenuItemVisible(item.titleKey))
     : [];
 
   const hasAdminItems = filteredAdminSingle.length > 0 || 
