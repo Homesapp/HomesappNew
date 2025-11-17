@@ -8,10 +8,40 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { CheckCircle, XCircle, AlertCircle, Home } from "lucide-react";
 import PropertySubmissionWizard from "./PropertySubmissionWizard";
 
+type Language = "es" | "en";
+
 export default function PublicPropertySubmission() {
   const [, params] = useRoute("/submit-property/:token");
   const [, setLocation] = useLocation();
   const token = params?.token;
+  const [language, setLanguage] = useState<Language>("es");
+
+  const translations = {
+    es: {
+      invalidLink: "Enlace Inválido",
+      invalidLinkDesc: "El enlace que intentas acceder no es válido.",
+      goHome: "Ir al Inicio",
+      linkNotAvailable: "Enlace No Disponible",
+      linkExpiredDesc: "Este enlace ha expirado. Los enlaces de invitación son válidos por 24 horas.",
+      linkUsedDesc: "Este enlace ya fue utilizado para subir una propiedad.",
+      requestNewLink: "Por favor, solicita un nuevo enlace de invitación a tu administrador.",
+      welcome: "Bienvenido",
+      welcomeDesc: "Has sido invitado a subir tu propiedad a HomesApp. Completa el siguiente formulario para enviar tu propiedad para aprobación.",
+    },
+    en: {
+      invalidLink: "Invalid Link",
+      invalidLinkDesc: "The link you are trying to access is not valid.",
+      goHome: "Go to Home",
+      linkNotAvailable: "Link Not Available",
+      linkExpiredDesc: "This link has expired. Invitation links are valid for 24 hours.",
+      linkUsedDesc: "This link has already been used to submit a property.",
+      requestNewLink: "Please request a new invitation link from your administrator.",
+      welcome: "Welcome",
+      welcomeDesc: "You have been invited to submit your property to HomesApp. Complete the following form to send your property for approval.",
+    },
+  };
+
+  const t = translations[language];
 
   // Validate token
   const { data: validation, isLoading, error } = useQuery({
@@ -31,23 +61,44 @@ export default function PublicPropertySubmission() {
   if (!token) {
     return (
       <div className="min-h-screen flex items-center justify-center p-4 bg-muted/30">
-        <Card className="max-w-md w-full">
-          <CardHeader>
-            <div className="flex items-center gap-2">
-              <XCircle className="w-5 h-5 text-destructive" />
-              <CardTitle>Enlace Inválido</CardTitle>
-            </div>
-          </CardHeader>
-          <CardContent>
-            <p className="text-muted-foreground mb-4">
-              El enlace que intentas acceder no es válido.
-            </p>
-            <Button onClick={() => setLocation("/")} className="w-full">
-              <Home className="w-4 h-4 mr-2" />
-              Ir al Inicio
+        <div className="w-full max-w-md space-y-4">
+          {/* Language Toggle */}
+          <div className="flex justify-end gap-2">
+            <Button
+              variant={language === "es" ? "default" : "outline"}
+              size="sm"
+              onClick={() => setLanguage("es")}
+              data-testid="button-lang-es"
+            >
+              Español
             </Button>
-          </CardContent>
-        </Card>
+            <Button
+              variant={language === "en" ? "default" : "outline"}
+              size="sm"
+              onClick={() => setLanguage("en")}
+              data-testid="button-lang-en"
+            >
+              English
+            </Button>
+          </div>
+          <Card className="w-full">
+            <CardHeader>
+              <div className="flex items-center gap-2">
+                <XCircle className="w-5 h-5 text-destructive" />
+                <CardTitle>{t.invalidLink}</CardTitle>
+              </div>
+            </CardHeader>
+            <CardContent>
+              <p className="text-muted-foreground mb-4">
+                {t.invalidLinkDesc}
+              </p>
+              <Button onClick={() => setLocation("/")} className="w-full">
+                <Home className="w-4 h-4 mr-2" />
+                {t.goHome}
+              </Button>
+            </CardContent>
+          </Card>
+        </div>
       </div>
     );
   }
@@ -76,30 +127,51 @@ export default function PublicPropertySubmission() {
     
     return (
       <div className="min-h-screen flex items-center justify-center p-4 bg-muted/30">
-        <Card className="max-w-md w-full">
-          <CardHeader>
-            <div className="flex items-center gap-2">
-              <AlertCircle className="w-5 h-5 text-destructive" />
-              <CardTitle>Enlace No Disponible</CardTitle>
-            </div>
-          </CardHeader>
-          <CardContent>
-            <Alert variant="destructive" className="mb-4">
-              <AlertDescription>{errorMessage}</AlertDescription>
-            </Alert>
-            <p className="text-sm text-muted-foreground mb-4">
-              {errorMessage.includes("expirado") 
-                ? "Este enlace ha expirado. Los enlaces de invitación son válidos por 24 horas."
-                : errorMessage.includes("utilizado")
-                ? "Este enlace ya fue utilizado para subir una propiedad."
-                : "Por favor, solicita un nuevo enlace de invitación a tu administrador."}
-            </p>
-            <Button onClick={() => setLocation("/")} variant="outline" className="w-full">
-              <Home className="w-4 h-4 mr-2" />
-              Ir al Inicio
+        <div className="w-full max-w-md space-y-4">
+          {/* Language Toggle */}
+          <div className="flex justify-end gap-2">
+            <Button
+              variant={language === "es" ? "default" : "outline"}
+              size="sm"
+              onClick={() => setLanguage("es")}
+              data-testid="button-lang-es"
+            >
+              Español
             </Button>
-          </CardContent>
-        </Card>
+            <Button
+              variant={language === "en" ? "default" : "outline"}
+              size="sm"
+              onClick={() => setLanguage("en")}
+              data-testid="button-lang-en"
+            >
+              English
+            </Button>
+          </div>
+          <Card className="w-full">
+            <CardHeader>
+              <div className="flex items-center gap-2">
+                <AlertCircle className="w-5 h-5 text-destructive" />
+                <CardTitle>{t.linkNotAvailable}</CardTitle>
+              </div>
+            </CardHeader>
+            <CardContent>
+              <Alert variant="destructive" className="mb-4">
+                <AlertDescription>{errorMessage}</AlertDescription>
+              </Alert>
+              <p className="text-sm text-muted-foreground mb-4">
+                {errorMessage.includes("expirado") || errorMessage.includes("expired")
+                  ? t.linkExpiredDesc
+                  : errorMessage.includes("utilizado") || errorMessage.includes("used")
+                  ? t.linkUsedDesc
+                  : t.requestNewLink}
+              </p>
+              <Button onClick={() => setLocation("/")} variant="outline" className="w-full">
+                <Home className="w-4 h-4 mr-2" />
+                {t.goHome}
+              </Button>
+            </CardContent>
+          </Card>
+        </div>
       </div>
     );
   }
@@ -108,15 +180,37 @@ export default function PublicPropertySubmission() {
   return (
     <div className="min-h-screen bg-muted/30">
       <div className="container max-w-4xl py-8">
+        {/* Language Toggle */}
+        <div className="flex justify-end mb-4">
+          <div className="flex gap-2">
+            <Button
+              variant={language === "es" ? "default" : "outline"}
+              size="sm"
+              onClick={() => setLanguage("es")}
+              data-testid="button-lang-es"
+            >
+              Español
+            </Button>
+            <Button
+              variant={language === "en" ? "default" : "outline"}
+              size="sm"
+              onClick={() => setLanguage("en")}
+              data-testid="button-lang-en"
+            >
+              English
+            </Button>
+          </div>
+        </div>
+
         {/* Welcome Banner */}
         <Card className="mb-6 border-primary/20 bg-primary/5">
           <CardHeader>
             <div className="flex items-center gap-2">
               <CheckCircle className="w-5 h-5 text-primary" />
-              <CardTitle>Bienvenido{validation.inviteeName ? `, ${validation.inviteeName}` : ""}</CardTitle>
+              <CardTitle>{t.welcome}{validation.inviteeName ? `, ${validation.inviteeName}` : ""}</CardTitle>
             </div>
             <CardDescription>
-              Has sido invitado a subir tu propiedad a HomesApp. Completa el siguiente formulario para enviar tu propiedad para aprobación.
+              {t.welcomeDesc}
             </CardDescription>
           </CardHeader>
         </Card>
@@ -127,6 +221,7 @@ export default function PublicPropertySubmission() {
           inviteeEmail={validation.inviteeEmail}
           inviteePhone={validation.inviteePhone}
           inviteeName={validation.inviteeName}
+          language={language}
         />
       </div>
     </div>

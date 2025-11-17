@@ -123,6 +123,7 @@ import OwnerHoaPortal from "@/pages/OwnerHoaPortal";
 import PublicOfferForm from "@/pages/PublicOfferForm";
 import PublicRentalForm from "@/pages/PublicRentalForm";
 import PublicPropertySubmission from "@/pages/PublicPropertySubmission";
+import PropertySubmissionSuccess from "@/pages/PropertySubmissionSuccess";
 import AdminOfferManagement from "@/pages/AdminOfferManagement";
 import AdminRentalFormManagement from "@/pages/AdminRentalFormManagement";
 import NotFound from "@/pages/not-found";
@@ -183,6 +184,7 @@ function AuthenticatedApp() {
         <Route path="/offer/:token" component={PublicOfferForm} />
         <Route path="/rental-form/:token" component={PublicRentalForm} />
         <Route path="/submit-property/:token" component={PublicPropertySubmission} />
+        <Route path="/property-submission-success" component={PropertySubmissionSuccess} />
         <Route path="/" component={PublicDashboard} />
         <Route component={PublicDashboard} />
       </Switch>
@@ -257,6 +259,7 @@ function AuthenticatedApp() {
               <Route path="/offer/:token" component={PublicOfferForm} />
               <Route path="/rental-form/:token" component={PublicRentalForm} />
               <Route path="/submit-property/:token" component={PublicPropertySubmission} />
+              <Route path="/property-submission-success" component={PropertySubmissionSuccess} />
               
               <Route path="/" component={getHomeDashboard()} />
               <Route path="/mis-citas" component={Appointments} />
