@@ -60,7 +60,6 @@ Key features include:
       - Added services NOT included with cost information: displays water, electricity, internet, gas costs when not included in rent
       - Added condominium amenities display: shows amenities specific to the condominium if available
       - Fixed image gallery: now displays ALL images (primary + secondary) with duplicate removal
-      - Added bulk image download: one-click ZIP download of all property images with proper naming via backend endpoint `/api/properties/:id/download-images` to avoid CORS issues
       - Google Maps link: already displayed in multimedia section when available
 *   **Sidebar Menu Visibility Control**: Admin configuration system allowing master and admin users to control sidebar menu item visibility for specific roles. Features include:
     - Database-driven visibility configuration per role and menu item

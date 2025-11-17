@@ -138,7 +138,6 @@ import {
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, and, inArray, desc, sql } from "drizzle-orm";
-import JSZip from "jszip";
 
 // Helper function to create audit logs
 async function createAuditLog(
@@ -4393,88 +4392,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.json(updatedProperty);
     } catch (error: any) {
       return handleGenericError(res, error, "al cambiar el estado de la propiedad");
-    }
-  });
-
-  // Download all property images as ZIP
-  app.get("/api/properties/:id/download-images", isAuthenticated, requireRole(["master", "admin", "admin_jr"]), async (req: any, res) => {
-    try {
-      const { id } = req.params;
-      
-      // Get property (could be a draft)
-      let property: any = null;
-      let allImages: string[] = [];
-      let propertyTitle = "property";
-      
-      if (id.startsWith("draft-")) {
-        // Handle draft properties
-        const draftId = id.replace("draft-", "");
-        const draft = await storage.getPropertySubmissionDraft(draftId);
-        
-        if (!draft) {
-          return res.status(404).json({ message: "Draft not found" });
-        }
-        
-        const media = (draft.media as any) || {};
-        allImages = [
-          ...(media.primaryImages || []),
-          ...(media.images || [])
-        ].filter((img: string, idx: number, self: string[]) => self.indexOf(img) === idx);
-        
-        propertyTitle = (draft.basicInfo as any)?.title || (draft.basicInfo as any)?.customListingTitle || "draft";
-      } else {
-        // Handle regular properties
-        property = await storage.getProperty(id);
-        
-        if (!property) {
-          return res.status(404).json({ message: "Property not found" });
-        }
-        
-        allImages = [
-          ...(property.primaryImages || []),
-          ...(property.images || [])
-        ].filter((img, idx, self) => self.indexOf(img) === idx);
-        
-        propertyTitle = getPropertyTitle(property);
-      }
-      
-      if (allImages.length === 0) {
-        return res.status(404).json({ message: "No images found for this property" });
-      }
-      
-      // Create ZIP file
-      const zip = new JSZip();
-      const folder = zip.folder(propertyTitle.replace(/[^a-zA-Z0-9]/g, "_"));
-      
-      // Download each image and add to ZIP
-      const downloadPromises = allImages.map(async (imageUrl, index) => {
-        try {
-          const response = await fetch(imageUrl);
-          if (!response.ok) {
-            console.error(`Failed to download image ${index + 1}: ${response.statusText}`);
-            return;
-          }
-          const arrayBuffer = await response.arrayBuffer();
-          const buffer = Buffer.from(arrayBuffer);
-          const extension = imageUrl.split('.').pop()?.split('?')[0] || 'jpg';
-          folder?.file(`image_${index + 1}.${extension}`, buffer);
-        } catch (error) {
-          console.error(`Error downloading image ${index + 1}:`, error);
-        }
-      });
-      
-      await Promise.all(downloadPromises);
-      
-      // Generate ZIP buffer
-      const zipBuffer = await zip.generateAsync({ type: "nodebuffer" });
-      
-      // Send ZIP file
-      res.setHeader('Content-Type', 'application/zip');
-      res.setHeader('Content-Disposition', `attachment; filename="${propertyTitle.replace(/[^a-zA-Z0-9]/g, "_")}_fotos.zip"`);
-      res.send(zipBuffer);
-    } catch (error: any) {
-      console.error("Error downloading images:", error);
-      return handleGenericError(res, error, "al descargar las imágenes");
     }
   });
 
