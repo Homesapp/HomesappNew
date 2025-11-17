@@ -19,12 +19,16 @@ The backend is developed with Node.js, Express.js, and TypeScript, offering a RE
 PostgreSQL, provided by Neon serverless, is used with Drizzle ORM for type-safe database interactions. The schema supports comprehensive user management, property lifecycle, appointment scheduling, client presentation cards, service providers, offer workflows, staff assignments, audit logs, lead capture, condominium management, a bidirectional review system, financial tracking, payout management, and a robust rental contract system. Performance is enhanced with B-tree indexes, and security includes authorization auditing and role validation.
 
 ### System Design Choices
-The platform employs unified middleware for consistent authentication and automatic logging. The public dashboard dynamically adapts content based on user authentication status. Real-time chat is implemented via WebSockets with session-based authentication and per-conversation authorization. A development-only authentication endpoint is available for testing role-switching functionalities.
+The platform employs unified middleware for consistent authentication and automatic logging. The public dashboard dynamically adapts content based on user authentication status. Real-time chat is implemented via WebSockets with session-based authentication and per-conversation authorization. 
+
+**Development-Only Testing Endpoints:**
+- `/api/auth/test/set-role`: Role-switching for authenticated users (requires OIDC auth first)
+- `/api/test-auth/admin-session`: Bootstrap admin session without OIDC for e2e testing (creates/reuses `test-admin` user, strictly development-only)
 
 Key features include:
 *   **Role-Based Access Control**: Granular permissions across all user types with admin direct role assignment.
 *   **Advanced Appointment System**: Dual-type scheduling with concierge assignment, dynamic slot availability, and manual property entry.
-*   **Property Management Lifecycle**: Property approval workflows, two-stage publication, owner change requests, sublease functionality, comprehensive photo editing, and a 7-step property submission wizard with digital agreement signing.
+*   **Property Management Lifecycle**: Property approval workflows, two-stage publication, owner change requests, sublease functionality, comprehensive photo editing, and a 7-step property submission wizard with digital agreement signing. Admin property editing via 7-step wizard showing current vs. new values with comprehensive null-safe field handling. Property details view with photo download (individual/ZIP), URL copy functionality, and expanded owner information display.
 *   **Rental Management**: Active rental portals for clients and owners, including service-based payment tracking, owner payment approval, and tenant maintenance requests.
 *   **Rental Opportunity & Offer System**: Workflow for clients to request and create rental offers, followed by a bidirectional counter-offer negotiation system.
 *   **Contract Elaboration System**: Automated workflow after offer acceptance, involving forms, admin verification, lawyer elaboration, tripartite chat, and digital signatures.
