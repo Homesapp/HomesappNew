@@ -739,6 +739,7 @@ export interface IStorage {
   getPropertySubmissionTokenByToken(token: string): Promise<PropertySubmissionToken | undefined>;
   getPropertySubmissionTokens(filters?: { createdBy?: string; used?: boolean }): Promise<PropertySubmissionToken[]>;
   createPropertySubmissionToken(token: InsertPropertySubmissionToken): Promise<PropertySubmissionToken>;
+  updatePropertySubmissionToken(id: string, updates: Partial<InsertPropertySubmissionToken>): Promise<PropertySubmissionToken>;
   markPropertySubmissionTokenAsUsed(id: string, propertyDraftId: string): Promise<PropertySubmissionToken>;
   deletePropertySubmissionToken(id: string): Promise<void>;
   
@@ -4815,6 +4816,15 @@ export class DatabaseStorage implements IStorage {
   async createPropertySubmissionToken(tokenData: InsertPropertySubmissionToken): Promise<PropertySubmissionToken> {
     const [token] = await db.insert(propertySubmissionTokens).values(tokenData).returning();
     return token;
+  }
+
+  async updatePropertySubmissionToken(id: string, updates: Partial<InsertPropertySubmissionToken>): Promise<PropertySubmissionToken> {
+    const [updated] = await db
+      .update(propertySubmissionTokens)
+      .set(updates)
+      .where(eq(propertySubmissionTokens.id, id))
+      .returning();
+    return updated;
   }
 
   async markPropertySubmissionTokenAsUsed(id: string, propertyDraftId: string): Promise<PropertySubmissionToken> {
