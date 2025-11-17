@@ -6,6 +6,17 @@ HomesApp is a comprehensive SaaS platform for smart real estate property managem
 ## User Preferences
 Preferred communication style: Simple, everyday language.
 
+## Contact Information
+Official company contact details used throughout the application:
+- Email: administracion@tulumrentalhomes.com.mx
+- Phone: +52 984 321 3385
+
+These contact details are displayed in:
+- Property submission success page (PropertySubmissionSuccess.tsx)
+- Public dashboard footer (PublicDashboard.tsx)
+- Privacy policy page (Privacy.tsx)
+- Terms and conditions page (Terms.tsx)
+
 ## System Architecture
 The platform is built on a modern web stack, prioritizing a professional, responsive, accessible, and internationalized user experience.
 

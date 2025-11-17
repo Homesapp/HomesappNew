@@ -22,8 +22,8 @@ export default function PropertySubmissionSuccess({ language = "es" }: PropertyS
       step3: "Programaremos una visita de inspección",
       step4: "Tu propiedad será publicada tras la aprobación",
       contact: "Si tienes alguna duda, no dudes en contactarnos:",
-      email: "Email: contacto@homesapp.com",
-      phone: "Teléfono: +52 (984) 123-4567",
+      email: "Email: administracion@tulumrentalhomes.com.mx",
+      phone: "Teléfono: +52 984 321 3385",
       close: "Cerrar Ventana",
     },
     en: {
@@ -37,8 +37,8 @@ export default function PropertySubmissionSuccess({ language = "es" }: PropertyS
       step3: "We will schedule an inspection visit",
       step4: "Your property will be published after approval",
       contact: "If you have any questions, feel free to contact us:",
-      email: "Email: contact@homesapp.com",
-      phone: "Phone: +52 (984) 123-4567",
+      email: "Email: administracion@tulumrentalhomes.com.mx",
+      phone: "Phone: +52 984 321 3385",
       close: "Close Window",
     },
   };
