@@ -7715,6 +7715,60 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // System Settings routes
+  // Admin: Get a specific system setting
+  app.get("/api/admin/system-settings/:key", isAuthenticated, requireRole(["master", "admin"]), async (req: any, res) => {
+    try {
+      const { key } = req.params;
+      const setting = await storage.getSystemSetting(key);
+      if (!setting) {
+        return res.status(404).json({ message: "Configuración no encontrada" });
+      }
+      res.json(setting);
+    } catch (error: any) {
+      console.error("Error fetching system setting:", error);
+      res.status(500).json({ message: error.message || "Error al obtener configuración" });
+    }
+  });
+
+  // Admin: Get all system settings
+  app.get("/api/admin/system-settings", isAuthenticated, requireRole(["master", "admin"]), async (req: any, res) => {
+    try {
+      const settings = await storage.getAllSystemSettings();
+      res.json(settings);
+    } catch (error: any) {
+      console.error("Error fetching system settings:", error);
+      res.status(500).json({ message: error.message || "Error al obtener configuraciones" });
+    }
+  });
+
+  // Admin: Update a system setting
+  app.put("/api/admin/system-settings/:key", isAuthenticated, requireRole(["master", "admin"]), async (req: any, res) => {
+    try {
+      const { key } = req.params;
+      const { value } = req.body;
+
+      if (!value) {
+        return res.status(400).json({ message: "El valor es requerido" });
+      }
+
+      const setting = await storage.updateSystemSetting(key, value);
+
+      await createAuditLog(
+        req,
+        "update",
+        "system_settings",
+        key,
+        `Configuración ${key} actualizada a ${value}`
+      );
+
+      res.json(setting);
+    } catch (error: any) {
+      console.error("Error updating system setting:", error);
+      res.status(500).json({ message: error.message || "Error al actualizar configuración" });
+    }
+  });
+
   // Sidebar Menu Visibility Configuration routes (user-based)
   // Admin: Get users by role
   app.get("/api/admin/users-by-role/:role", isAuthenticated, requireRole(["master", "admin"]), async (req: any, res) => {

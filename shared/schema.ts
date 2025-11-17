@@ -3795,6 +3795,25 @@ export const insertSidebarMenuVisibilityUserSchema = createInsertSchema(sidebarM
 export type InsertSidebarMenuVisibilityUser = z.infer<typeof insertSidebarMenuVisibilityUserSchema>;
 export type SidebarMenuVisibilityUser = typeof sidebarMenuVisibilityUser.$inferSelect;
 
+// System Settings Configuration
+export const systemSettings = pgTable("system_settings", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  settingKey: varchar("setting_key", { length: 255 }).notNull().unique(),
+  settingValue: text("setting_value").notNull(),
+  description: text("description"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
+export const insertSystemSettingSchema = createInsertSchema(systemSettings).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export type InsertSystemSetting = z.infer<typeof insertSystemSettingSchema>;
+export type SystemSetting = typeof systemSettings.$inferSelect;
+
 // Relations
 export const usersRelations = relations(users, ({ many }) => ({
   properties: many(properties, { relationName: "owner" }),

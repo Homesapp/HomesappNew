@@ -305,6 +305,9 @@ import {
   sidebarMenuVisibilityUser,
   type SidebarMenuVisibilityUser,
   type InsertSidebarMenuVisibilityUser,
+  systemSettings,
+  type SystemSetting,
+  type InsertSystemSetting,
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, and, or, gte, lte, ilike, desc, sql, isNull, count, inArray } from "drizzle-orm";
@@ -1049,6 +1052,12 @@ export interface IStorage {
   bulkSetSidebarMenuVisibilityUser(userId: string, visibilities: InsertSidebarMenuVisibilityUser[]): Promise<SidebarMenuVisibilityUser[]>;
   resetSidebarMenuVisibilityUser(userId: string): Promise<void>;
   getUsersByRole(role: string): Promise<User[]>;
+  
+  // System Settings operations
+  getSystemSetting(settingKey: string): Promise<SystemSetting | undefined>;
+  getAllSystemSettings(): Promise<SystemSetting[]>;
+  setSystemSetting(setting: InsertSystemSetting): Promise<SystemSetting>;
+  updateSystemSetting(settingKey: string, settingValue: string): Promise<SystemSetting>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -6996,6 +7005,47 @@ export class DatabaseStorage implements IStorage {
       .from(users)
       .where(eq(users.role, role as any))
       .orderBy(users.firstName, users.lastName);
+  }
+
+  // System Settings operations
+  async getSystemSetting(settingKey: string): Promise<SystemSetting | undefined> {
+    const [setting] = await db.select()
+      .from(systemSettings)
+      .where(eq(systemSettings.settingKey, settingKey))
+      .limit(1);
+    return setting;
+  }
+
+  async getAllSystemSettings(): Promise<SystemSetting[]> {
+    return await db.select()
+      .from(systemSettings)
+      .orderBy(systemSettings.settingKey);
+  }
+
+  async setSystemSetting(setting: InsertSystemSetting): Promise<SystemSetting> {
+    const [result] = await db.insert(systemSettings)
+      .values(setting)
+      .onConflictDoUpdate({
+        target: systemSettings.settingKey,
+        set: {
+          settingValue: setting.settingValue,
+          description: setting.description,
+          updatedAt: new Date(),
+        },
+      })
+      .returning();
+    return result;
+  }
+
+  async updateSystemSetting(settingKey: string, settingValue: string): Promise<SystemSetting> {
+    const [result] = await db.update(systemSettings)
+      .set({
+        settingValue,
+        updatedAt: new Date(),
+      })
+      .where(eq(systemSettings.settingKey, settingKey))
+      .returning();
+    return result;
   }
 }
 
