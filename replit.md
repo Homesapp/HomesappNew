@@ -57,6 +57,11 @@ Key features include:
       - Expanded draft transformation to include all fields: accessInfo, amenities (with name lookup), includedServices, videos, virtualTourUrl, owner contact data
       - Fixed amenities display: batch lookup of amenity names by IDs to show readable names instead of UUIDs
       - Fixed services display: corrected mapping from `servicesInfo.basicServices` to `includedServices` structure
+      - Added services NOT included with cost information: displays water, electricity, internet, gas costs when not included in rent
+      - Added condominium amenities display: shows amenities specific to the condominium if available
+      - Fixed image gallery: now displays ALL images (primary + secondary) with duplicate removal
+      - Added bulk image download: one-click ZIP download of all property images with proper naming
+      - Google Maps link: already displayed in multimedia section when available
 *   **Sidebar Menu Visibility Control**: Admin configuration system allowing master and admin users to control sidebar menu item visibility for specific roles. Features include:
     - Database-driven visibility configuration per role and menu item
     - Admin UI at `/admin/sidebar-config` with role-based tabs

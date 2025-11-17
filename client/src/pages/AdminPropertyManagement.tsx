@@ -12,7 +12,7 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, Di
 import { Skeleton } from "@/components/ui/skeleton";
 import { useToast } from "@/hooks/use-toast";
 import { queryClient, apiRequest } from "@/lib/queryClient";
-import { CheckCircle2, XCircle, Clock, FileText, Search, Filter, Home, Building2, MapPin, Bed, Bath, DollarSign, Eye, CheckSquare, XSquare, MoreVertical, Key, User, Lock, Copy, Shield, Star, Trash2, Edit, Calendar, Link2 } from "lucide-react";
+import { CheckCircle2, XCircle, Clock, FileText, Search, Filter, Home, Building2, MapPin, Bed, Bath, DollarSign, Eye, CheckSquare, XSquare, MoreVertical, Key, User, Lock, Copy, Shield, Star, Trash2, Edit, Calendar, Link2, Download } from "lucide-react";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { PropertyInviteDialog } from "@/components/PropertyInviteDialog";
@@ -20,6 +20,7 @@ import PropertyEditWizard from "@/components/PropertyEditWizard";
 import { useLocation } from "wouter";
 import { getPropertyTitle } from "@/lib/propertyHelpers";
 import type { Property } from "@shared/schema";
+import JSZip from "jszip";
 
 type AccessInfo = 
   | {
@@ -268,6 +269,70 @@ export default function AdminPropertyManagement() {
   };
 
   const [showInviteDialog, setShowInviteDialog] = useState(false);
+
+  // Download all images as ZIP
+  const handleDownloadAllImages = async (property: Property) => {
+    try {
+      const allImages = [
+        ...(property.primaryImages || []),
+        ...(property.images || [])
+      ].filter((img, idx, self) => self.indexOf(img) === idx);
+
+      if (allImages.length === 0) {
+        toast({
+          title: "Sin imágenes",
+          description: "Esta propiedad no tiene imágenes para descargar",
+          variant: "destructive"
+        });
+        return;
+      }
+
+      toast({
+        title: "Descargando...",
+        description: `Preparando ${allImages.length} imagen(es) para descargar`
+      });
+
+      const zip = new JSZip();
+      const propertyFolder = zip.folder(getPropertyTitle(property).replace(/[^a-zA-Z0-9]/g, "_"));
+
+      // Download each image and add to ZIP
+      const promises = allImages.map(async (imageUrl, index) => {
+        try {
+          const response = await fetch(imageUrl);
+          const blob = await response.blob();
+          const extension = imageUrl.split('.').pop()?.split('?')[0] || 'jpg';
+          propertyFolder?.file(`image_${index + 1}.${extension}`, blob);
+        } catch (error) {
+          console.error(`Error downloading image ${index + 1}:`, error);
+        }
+      });
+
+      await Promise.all(promises);
+
+      // Generate and download ZIP
+      const content = await zip.generateAsync({ type: "blob" });
+      const url = window.URL.createObjectURL(content);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = `${getPropertyTitle(property).replace(/[^a-zA-Z0-9]/g, "_")}_fotos.zip`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      window.URL.revokeObjectURL(url);
+
+      toast({
+        title: "Descarga completa",
+        description: `${allImages.length} imagen(es) descargadas exitosamente`
+      });
+    } catch (error) {
+      console.error("Error downloading images:", error);
+      toast({
+        title: "Error",
+        description: "No se pudieron descargar las imágenes",
+        variant: "destructive"
+      });
+    }
+  };
 
   return (
     <div className="p-6 space-y-6">
@@ -592,6 +657,19 @@ export default function AdminPropertyManagement() {
                                   
                                   return allImages.length > 0 && (
                                     <div className="space-y-3">
+                                      <div className="flex items-center justify-between mb-2">
+                                        <p className="text-sm text-muted-foreground">{allImages.length} foto(s)</p>
+                                        <Button
+                                          variant="outline"
+                                          size="sm"
+                                          onClick={() => handleDownloadAllImages(detailProperty)}
+                                          className="gap-2"
+                                          data-testid="button-download-all-images"
+                                        >
+                                          <Download className="w-4 h-4" />
+                                          Descargar todas las fotos
+                                        </Button>
+                                      </div>
                                       <img
                                         src={allImages[0]}
                                         alt={detailProperty.title}
