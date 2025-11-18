@@ -4617,6 +4617,29 @@ export const insertOwnerDocumentSubmissionSchema = createInsertSchema(ownerDocum
 export type InsertOwnerDocumentSubmission = z.infer<typeof insertOwnerDocumentSubmissionSchema>;
 export type OwnerDocumentSubmission = typeof ownerDocumentSubmissions.$inferSelect;
 
+// Property Owner Terms - Términos y condiciones editables para propietarios
+export const propertyOwnerTerms = pgTable("property_owner_terms", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  title: text("title").notNull(), // Título en español
+  titleEn: text("title_en").notNull(), // Título en inglés
+  content: text("content").notNull(), // Contenido en español
+  contentEn: text("content_en").notNull(), // Contenido en inglés
+  orderIndex: integer("order_index").notNull().default(0), // Orden de visualización
+  isActive: boolean("is_active").notNull().default(true), // Si está activo
+  updatedBy: varchar("updated_by").references(() => users.id),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
+export const insertPropertyOwnerTermsSchema = createInsertSchema(propertyOwnerTerms).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export type InsertPropertyOwnerTerms = z.infer<typeof insertPropertyOwnerTermsSchema>;
+export type PropertyOwnerTerms = typeof propertyOwnerTerms.$inferSelect;
+
 // Relations
 export const tenantRentalFormTokensRelations = relations(tenantRentalFormTokens, ({ one }) => ({
   property: one(properties, {

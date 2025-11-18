@@ -308,6 +308,9 @@ import {
   systemSettings,
   type SystemSetting,
   type InsertSystemSetting,
+  propertyOwnerTerms,
+  type PropertyOwnerTerms,
+  type InsertPropertyOwnerTerms,
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, and, or, gte, lte, ilike, desc, sql, isNull, count, inArray } from "drizzle-orm";
@@ -646,6 +649,14 @@ export interface IStorage {
   getAllSystemConfigs(): Promise<SystemConfig[]>;
   upsertSystemConfig(config: InsertSystemConfig): Promise<SystemConfig>;
   deleteSystemConfig(key: string): Promise<void>;
+
+  // Property Owner Terms operations
+  getAllPropertyOwnerTerms(): Promise<PropertyOwnerTerms[]>;
+  getActivePropertyOwnerTerms(language?: string): Promise<PropertyOwnerTerms[]>;
+  getPropertyOwnerTerm(id: string): Promise<PropertyOwnerTerms | undefined>;
+  createPropertyOwnerTerm(term: InsertPropertyOwnerTerms): Promise<PropertyOwnerTerms>;
+  updatePropertyOwnerTerm(id: string, updates: Partial<InsertPropertyOwnerTerms>): Promise<PropertyOwnerTerms>;
+  deletePropertyOwnerTerm(id: string): Promise<void>;
   
   // Rental Application operations
   getRentalApplication(id: string): Promise<RentalApplication | undefined>;
@@ -3901,6 +3912,42 @@ export class DatabaseStorage implements IStorage {
 
   async deleteSystemConfig(key: string): Promise<void> {
     await db.delete(systemConfig).where(eq(systemConfig.key, key));
+  }
+
+  // Property Owner Terms operations
+  async getAllPropertyOwnerTerms(): Promise<PropertyOwnerTerms[]> {
+    return await db.select().from(propertyOwnerTerms).orderBy(propertyOwnerTerms.orderIndex);
+  }
+
+  async getActivePropertyOwnerTerms(language?: string): Promise<PropertyOwnerTerms[]> {
+    return await db
+      .select()
+      .from(propertyOwnerTerms)
+      .where(eq(propertyOwnerTerms.isActive, true))
+      .orderBy(propertyOwnerTerms.orderIndex);
+  }
+
+  async getPropertyOwnerTerm(id: string): Promise<PropertyOwnerTerms | undefined> {
+    const [term] = await db.select().from(propertyOwnerTerms).where(eq(propertyOwnerTerms.id, id));
+    return term;
+  }
+
+  async createPropertyOwnerTerm(termData: InsertPropertyOwnerTerms): Promise<PropertyOwnerTerms> {
+    const [term] = await db.insert(propertyOwnerTerms).values(termData).returning();
+    return term;
+  }
+
+  async updatePropertyOwnerTerm(id: string, updates: Partial<InsertPropertyOwnerTerms>): Promise<PropertyOwnerTerms> {
+    const [updated] = await db
+      .update(propertyOwnerTerms)
+      .set({ ...updates, updatedAt: new Date() })
+      .where(eq(propertyOwnerTerms.id, id))
+      .returning();
+    return updated;
+  }
+
+  async deletePropertyOwnerTerm(id: string): Promise<void> {
+    await db.delete(propertyOwnerTerms).where(eq(propertyOwnerTerms.id, id));
   }
   
   // Rental Application operations

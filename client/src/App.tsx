@@ -74,6 +74,7 @@ import AdminSuggestions from "@/pages/AdminSuggestions";
 import AdminChatbotConfig from "@/pages/AdminChatbotConfig";
 import AdminSidebarConfig from "@/pages/admin/SidebarConfig";
 import PropertyInvitations from "@/pages/admin/PropertyInvitations";
+import AdminPropertyOwnerTerms from "@/pages/AdminPropertyOwnerTerms";
 import PropertySubmissionWizard from "@/pages/PropertySubmissionWizard";
 import OwnerAppointments from "@/pages/OwnerAppointments";
 import OwnerOffers from "@/pages/OwnerOffers";
@@ -339,6 +340,7 @@ function AuthenticatedApp() {
               <Route path="/owner/rentas-activas" component={OwnerActiveRentals} />
               <Route path="/feedback" component={Feedback} />
               <Route path="/admin/feedback" component={AdminFeedback} />
+              <Route path="/admin/property-owner-terms" component={AdminPropertyOwnerTerms} />
               <Route path="/admin/role-requests" component={RoleRequests} />
               <Route path="/admin/sla-config" component={AdminSLAConfig} />
               <Route path="/admin/lead-scoring" component={AdminLeadScoring} />

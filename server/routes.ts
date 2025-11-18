@@ -3434,6 +3434,112 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Property Owner Terms routes
+  app.get("/api/property-owner-terms", isAuthenticated, requireRole(["master", "admin"]), async (req, res) => {
+    try {
+      const terms = await storage.getAllPropertyOwnerTerms();
+      res.json(terms);
+    } catch (error) {
+      console.error("Error fetching property owner terms:", error);
+      res.status(500).json({ message: "Error al obtener términos y condiciones" });
+    }
+  });
+
+  app.get("/api/property-owner-terms/active", async (req, res) => {
+    try {
+      const terms = await storage.getActivePropertyOwnerTerms();
+      res.json(terms);
+    } catch (error) {
+      console.error("Error fetching active property owner terms:", error);
+      res.status(500).json({ message: "Error al obtener términos activos" });
+    }
+  });
+
+  app.get("/api/property-owner-terms/:id", isAuthenticated, requireRole(["master", "admin"]), async (req, res) => {
+    try {
+      const { id } = req.params;
+      const term = await storage.getPropertyOwnerTerm(id);
+      
+      if (!term) {
+        return res.status(404).json({ message: "Término no encontrado" });
+      }
+      
+      res.json(term);
+    } catch (error) {
+      console.error("Error fetching property owner term:", error);
+      res.status(500).json({ message: "Error al obtener término" });
+    }
+  });
+
+  app.post("/api/property-owner-terms", isAuthenticated, requireRole(["master", "admin"]), async (req: any, res) => {
+    try {
+      const { title, titleEn, content, contentEn, orderIndex, isActive } = req.body;
+      
+      if (!title || !titleEn || !content || !contentEn) {
+        return res.status(400).json({ message: "Todos los campos son requeridos" });
+      }
+      
+      const userId = req.user.claims.sub;
+      const term = await storage.createPropertyOwnerTerm({
+        title,
+        titleEn,
+        content,
+        contentEn,
+        orderIndex: orderIndex || 0,
+        isActive: isActive !== undefined ? isActive : true,
+        updatedBy: userId,
+      });
+      
+      await createAuditLog(req, "create", "property_owner_terms", term.id, `Término creado: ${title}`);
+      
+      res.status(201).json(term);
+    } catch (error: any) {
+      console.error("Error creating property owner term:", error);
+      res.status(400).json({ message: error.message || "Error al crear término" });
+    }
+  });
+
+  app.patch("/api/property-owner-terms/:id", isAuthenticated, requireRole(["master", "admin"]), async (req: any, res) => {
+    try {
+      const { id } = req.params;
+      const { title, titleEn, content, contentEn, orderIndex, isActive } = req.body;
+      
+      const userId = req.user.claims.sub;
+      const updates: any = { updatedBy: userId };
+      
+      if (title !== undefined) updates.title = title;
+      if (titleEn !== undefined) updates.titleEn = titleEn;
+      if (content !== undefined) updates.content = content;
+      if (contentEn !== undefined) updates.contentEn = contentEn;
+      if (orderIndex !== undefined) updates.orderIndex = orderIndex;
+      if (isActive !== undefined) updates.isActive = isActive;
+      
+      const term = await storage.updatePropertyOwnerTerm(id, updates);
+      
+      await createAuditLog(req, "update", "property_owner_terms", id, `Término actualizado: ${term.title}`);
+      
+      res.json(term);
+    } catch (error: any) {
+      console.error("Error updating property owner term:", error);
+      res.status(400).json({ message: error.message || "Error al actualizar término" });
+    }
+  });
+
+  app.delete("/api/property-owner-terms/:id", isAuthenticated, requireRole(["master", "admin"]), async (req: any, res) => {
+    try {
+      const { id } = req.params;
+      
+      await storage.deletePropertyOwnerTerm(id);
+      
+      await createAuditLog(req, "delete", "property_owner_terms", id, `Término eliminado`);
+      
+      res.status(204).send();
+    } catch (error: any) {
+      console.error("Error deleting property owner term:", error);
+      res.status(400).json({ message: error.message || "Error al eliminar término" });
+    }
+  });
+
   // Amenity routes
   app.get("/api/amenities", async (req, res) => {
     try {
