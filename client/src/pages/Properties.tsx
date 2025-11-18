@@ -520,6 +520,8 @@ export default function Properties() {
                 id={property.id}
                 title={getPropertyTitle(property)}
                 price={Number(property.price)}
+                salePrice={property.salePrice ? Number(property.salePrice) : undefined}
+                currency={property.currency}
                 bedrooms={property.bedrooms}
                 bathrooms={Number(property.bathrooms)}
                 area={Number(property.area)}
