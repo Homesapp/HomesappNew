@@ -137,3 +137,57 @@ const dataToSave = stepData && Object.keys(stepData).length > 0
 - Initial draft creation still sends full payload (acceptable, happens once)
 
 **Impact:** Steps 4-7 now save as fast as steps 1-2 (1-2KB payloads instead of 2-5MB), dramatically improving wizard UX after photo upload.
+
+### Separate Rental and Sale Pricing with Deep JSONB Merge (November 2025)
+Implemented independent price and currency fields for rental and sale transactions, with deep merge functionality to prevent data loss during partial wizard saves.
+
+**Problem:** Properties needed separate rental and sale prices with independent currency selection (MXN/USD), but partial step saves were causing data concatenation/corruption in JSONB columns (e.g., rentalPrice showing "250005500000" instead of "25000").
+
+**Root Causes:**
+1. No separate fields for rental vs sale pricing in Step 1
+2. Backend was replacing entire JSONB columns on partial updates instead of merging
+3. Drizzle `.set({ ...updates })` with partial data overwrote existing keys causing data loss
+
+**Solution:**
+- **Frontend - Dual Price Fields** (`client/src/components/wizard/Step1BasicInfo.tsx`):
+  - Added rentalPrice, rentalPriceCurrency, salePrice, salePriceCurrency to Step 1
+  - Conditional validation: rentalPrice required if isForRent, salePrice required if isForSale
+  - Dynamic UI: price sections show/hide based on transaction type checkboxes
+  - Backward compatibility: legacy price/currency fields auto-migrated to new structure in defaultValues
+  - Legacy fields maintained in onSubmit for downstream components (Step5TermsReview, Step7Review)
+
+- **Backend - Deep JSONB Merge** (`server/storage.ts`):
+  - Implemented `deepMerge` helper that recursively merges objects while preserving existing keys
+  - `updatePropertySubmissionDraft` now loads existing draft before updating
+  - Merges 8 JSONB columns deeply: basicInfo, locationInfo, details, media, servicesInfo, accessInfo, ownerData, commercialTerms
+  - Arrays and primitives replaced completely, only nested objects merged recursively
+  - Prevents data loss when saving only partial step data (e.g., Step 2 locationInfo without Step 1 basicInfo)
+
+**Technical Implementation:**
+```typescript
+// Deep merge prevents data loss on partial updates
+const deepMerge = (target: any, source: any): any => {
+  if (!source || typeof source !== 'object' || Array.isArray(source)) {
+    return source; // Replace primitives and arrays completely
+  }
+  if (!target || typeof target !== 'object' || Array.isArray(target)) {
+    return source; // If target isn't an object, use source
+  }
+  
+  const result = { ...target }; // Start with all target keys
+  for (const key in source) {
+    if (source[key] !== undefined) {
+      result[key] = deepMerge(target[key], source[key]); // Recursively merge
+    }
+  }
+  return result;
+};
+```
+
+**Validation:**
+- E2E test confirmed rentalPrice="35000" and salePrice="6500000" persist correctly
+- No concatenation when navigating between wizard steps
+- Database stores clean JSON without string corruption
+- Performance optimization (partial payload) preserved
+
+**Impact:** Users can now specify different prices for rental and sale with independent currency selection, while the deep merge system ensures data integrity across all wizard steps with no performance regression.
