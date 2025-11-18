@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
-import { useMutation } from "@tanstack/react-query";
+import { useMutation, useQuery } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { useLocation } from "wouter";
 import { Button } from "@/components/ui/button";
@@ -17,6 +17,7 @@ import { ChevronLeft, Check, AlertCircle, FileText } from "lucide-react";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { getTranslation, Language } from "@/lib/wizardTranslations";
+import type { Colony, Condominium } from "@shared/schema";
 
 const getTermsSchema = (language: Language) => {
   const t = getTranslation(language);
@@ -50,6 +51,28 @@ export default function Step5TermsReview({ data, draftId, onUpdate, onPrevious, 
   const [_, setLocation] = useLocation();
   const { toast } = useToast();
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  // Fetch colonies and condominiums to display names
+  const { data: colonies = [] } = useQuery<Colony[]>({
+    queryKey: ["/api/colonies/approved"],
+  });
+
+  const { data: condominiums = [] } = useQuery<Condominium[]>({
+    queryKey: ["/api/condominiums/approved"],
+  });
+
+  // Helper functions to get names from IDs
+  const getColonyName = (colonyId: string | undefined) => {
+    if (!colonyId) return "N/A";
+    const colony = colonies.find(c => c.id === colonyId);
+    return colony?.name || "N/A";
+  };
+
+  const getCondominiumName = (condominiumId: string | undefined) => {
+    if (!condominiumId) return "N/A";
+    const condo = condominiums.find(c => c.id === condominiumId);
+    return condo?.name || "N/A";
+  };
 
   const form = useForm<TermsForm>({
     resolver: zodResolver(termsSchema),
@@ -245,11 +268,11 @@ export default function Step5TermsReview({ data, draftId, onUpdate, onPrevious, 
                     <div className="grid grid-cols-2 gap-4">
                       <div>
                         <span className="text-sm font-medium text-muted-foreground">{t.step7.colonyLabel}:</span>
-                        <p className="text-base" data-testid="text-review-colony">{data.locationInfo.colony || "N/A"}</p>
+                        <p className="text-base" data-testid="text-review-colony">{getColonyName(data.locationInfo.colonyId)}</p>
                       </div>
                       <div>
                         <span className="text-sm font-medium text-muted-foreground">{t.step7.condominiumLabel}:</span>
-                        <p className="text-base" data-testid="text-review-condominium">{data.locationInfo.condominium || "N/A"}</p>
+                        <p className="text-base" data-testid="text-review-condominium">{getCondominiumName(data.locationInfo.condominiumId)}</p>
                       </div>
                     </div>
                   </CardContent>
