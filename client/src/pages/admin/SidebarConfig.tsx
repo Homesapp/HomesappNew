@@ -7,6 +7,8 @@ import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { useToast } from "@/hooks/use-toast";
 import { Settings2, Save, RotateCcw, Loader2, Users, User } from "lucide-react";
+import { useLanguage } from "@/contexts/LanguageContext";
+import { getAdminTranslation } from "@/lib/adminTranslations";
 import {
   Select,
   SelectContent,
@@ -125,6 +127,8 @@ interface MenuItemVisibility {
 
 export default function SidebarConfig() {
   const { toast } = useToast();
+  const { language } = useLanguage();
+  const t = getAdminTranslation(language);
   const [configMode, setConfigMode] = useState<"role" | "user">("role");
   const [selectedRole, setSelectedRole] = useState<string>("cliente");
   const [selectedUserId, setSelectedUserId] = useState<string>("");
@@ -194,13 +198,13 @@ export default function SidebarConfig() {
       }
       setHasChanges(false);
       toast({
-        title: "Configuración guardada",
-        description: "Los cambios se han guardado exitosamente",
+        title: t.sidebarConfig.savedSuccess,
+        description: t.sidebarConfig.savedDescription,
       });
     },
     onError: (error: any) => {
       toast({
-        title: "Error",
+        title: t.common.error,
         description: error.message || "No se pudo guardar la configuración",
         variant: "destructive",
       });
@@ -225,15 +229,13 @@ export default function SidebarConfig() {
       setMenuVisibility({});
       setHasChanges(false);
       toast({
-        title: "Configuración reseteada",
-        description: configMode === "role" 
-          ? "Se ha restaurado la configuración por defecto del rol" 
-          : "Se ha restaurado la configuración del usuario (ahora usará la configuración del rol)",
+        title: t.sidebarConfig.resetSuccess,
+        description: t.sidebarConfig.resetDescription,
       });
     },
     onError: (error: any) => {
       toast({
-        title: "Error",
+        title: t.common.error,
         description: error.message || "No se pudo resetear la configuración",
         variant: "destructive",
       });
@@ -293,18 +295,18 @@ export default function SidebarConfig() {
       <div className="mb-6">
         <div className="flex items-center gap-2 mb-2">
           <Settings2 className="w-6 h-6" />
-          <h1 className="text-3xl font-bold">Configuración del Menú Lateral</h1>
+          <h1 className="text-3xl font-bold">{t.sidebarConfig.title}</h1>
         </div>
         <p className="text-muted-foreground">
-          Controla qué opciones del menú lateral son visibles para cada rol o usuario específico
+          {t.sidebarConfig.description}
         </p>
       </div>
 
       <Card className="mb-6">
         <CardHeader>
-          <CardTitle>Modo de Configuración</CardTitle>
+          <CardTitle>{t.sidebarConfig.modeConfig}</CardTitle>
           <CardDescription>
-            Elige si deseas configurar por rol o por usuario individual
+            {t.sidebarConfig.modeDescription}
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -312,11 +314,11 @@ export default function SidebarConfig() {
             <TabsList className="grid w-full grid-cols-2">
               <TabsTrigger value="role" className="gap-2" data-testid="tab-role">
                 <Users className="w-4 h-4" />
-                Por Rol
+                {t.sidebarConfig.byRole}
               </TabsTrigger>
               <TabsTrigger value="user" className="gap-2" data-testid="tab-user">
                 <User className="w-4 h-4" />
-                Por Usuario
+                {t.sidebarConfig.byUser}
               </TabsTrigger>
             </TabsList>
           </Tabs>

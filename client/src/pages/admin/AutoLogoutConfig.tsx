@@ -8,6 +8,8 @@ import { useToast } from "@/hooks/use-toast";
 import { queryClient, apiRequest } from "@/lib/queryClient";
 import { Loader2, Clock, AlertCircle } from "lucide-react";
 import { Alert, AlertDescription } from "@/components/ui/alert";
+import { useLanguage } from "@/contexts/LanguageContext";
+import { getAdminTranslation } from "@/lib/adminTranslations";
 
 interface SystemSetting {
   id: string;
@@ -20,6 +22,8 @@ interface SystemSetting {
 
 export default function AutoLogoutConfig() {
   const { toast } = useToast();
+  const { language } = useLanguage();
+  const t = getAdminTranslation(language);
   const [timeoutMinutes, setTimeoutMinutes] = useState<number>(5);
 
   const { data: setting, isLoading } = useQuery<SystemSetting>({
@@ -47,13 +51,13 @@ export default function AutoLogoutConfig() {
       queryClient.invalidateQueries({ queryKey: ["/api/admin/system-settings/auto_logout_timeout_ms"] });
       queryClient.invalidateQueries({ queryKey: ["/api/system-settings/auto-logout-timeout"] });
       toast({
-        title: "Configuración guardada",
-        description: "El tiempo de auto-logout ha sido actualizado correctamente.",
+        title: t.autoLogout.savedSuccess,
+        description: t.autoLogout.savedDescription,
       });
     },
     onError: (error: any) => {
       toast({
-        title: "Error",
+        title: t.common.error,
         description: error.message || "Error al actualizar la configuración",
         variant: "destructive",
       });
@@ -98,10 +102,10 @@ export default function AutoLogoutConfig() {
     <div className="container mx-auto p-6 max-w-4xl space-y-6">
       <div>
         <h1 className="text-3xl font-bold mb-2" data-testid="heading-auto-logout-config">
-          Configuración de Auto-Logout
+          {t.autoLogout.title}
         </h1>
         <p className="text-muted-foreground">
-          Define el tiempo de inactividad antes de cerrar sesión automáticamente
+          {t.autoLogout.description}
         </p>
       </div>
 
