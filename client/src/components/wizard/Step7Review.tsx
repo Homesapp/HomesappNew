@@ -8,14 +8,17 @@ import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
 import { ChevronLeft, Check, AlertCircle } from "lucide-react";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { getTranslation, Language } from "@/lib/wizardTranslations";
 
 type Step7Props = {
   data: any;
   draftId: string | null;
   onPrevious: () => void;
+  language?: Language;
 };
 
-export default function Step7Review({ data, draftId, onPrevious }: Step7Props) {
+export default function Step7Review({ data, draftId, onPrevious, language = "es" }: Step7Props) {
+  const t = getTranslation(language);
   const [_, setLocation] = useLocation();
   const { toast } = useToast();
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -23,7 +26,7 @@ export default function Step7Review({ data, draftId, onPrevious }: Step7Props) {
   const submitMutation = useMutation({
     mutationFn: async () => {
       if (!draftId) {
-        throw new Error("No hay borrador para enviar");
+        throw new Error(t.errors.noDraftToSubmit);
       }
       return await apiRequest("PATCH", `/api/property-submission-drafts/${draftId}`, {
         status: "submitted",
@@ -31,15 +34,15 @@ export default function Step7Review({ data, draftId, onPrevious }: Step7Props) {
     },
     onSuccess: () => {
       toast({
-        title: "Propiedad enviada",
-        description: "Tu propiedad ha sido enviada para revisión",
+        title: t.notifications.propertySubmitted,
+        description: t.notifications.propertySubmittedDesc,
       });
       setLocation("/mis-propiedades");
     },
     onError: (error: any) => {
       toast({
-        title: "Error",
-        description: error.message || "No se pudo enviar la propiedad",
+        title: t.notifications.error,
+        description: error.message || t.notifications.submitError,
         variant: "destructive",
       });
       setIsSubmitting(false);
@@ -57,19 +60,19 @@ export default function Step7Review({ data, draftId, onPrevious }: Step7Props) {
     <div className="space-y-6">
       <div>
         <h2 className="text-2xl font-bold mb-2" data-testid="heading-step7-title">
-          Revisión Final
+          {t.step7.title}
         </h2>
         <p className="text-muted-foreground" data-testid="text-step7-description">
-          Revisa toda la información antes de enviar
+          {t.step7.subtitle}
         </p>
       </div>
 
       {!isComplete && (
         <Alert variant="destructive" data-testid="alert-incomplete">
           <AlertCircle className="h-4 w-4" />
-          <AlertTitle data-testid="text-alert-title">Información Incompleta</AlertTitle>
+          <AlertTitle data-testid="text-alert-title">{t.step7.incompleteInfo}</AlertTitle>
           <AlertDescription data-testid="text-alert-description">
-            Por favor completa todos los pasos requeridos antes de enviar
+            {t.step7.completeAllSteps}
           </AlertDescription>
         </Alert>
       )}
@@ -78,15 +81,15 @@ export default function Step7Review({ data, draftId, onPrevious }: Step7Props) {
         {/* Property Type */}
         <Card data-testid="card-review-type">
           <CardHeader>
-            <CardTitle>Tipo de Operación</CardTitle>
+            <CardTitle>{t.step7.operationType}</CardTitle>
           </CardHeader>
           <CardContent className="space-y-2">
             <div className="flex gap-2">
               {data.isForRent && (
-                <Badge data-testid="badge-rent">Renta</Badge>
+                <Badge data-testid="badge-rent">{t.step7.rent}</Badge>
               )}
               {data.isForSale && (
-                <Badge data-testid="badge-sale">Venta</Badge>
+                <Badge data-testid="badge-sale">{t.step7.sale}</Badge>
               )}
             </div>
           </CardContent>
@@ -96,24 +99,24 @@ export default function Step7Review({ data, draftId, onPrevious }: Step7Props) {
         {data.basicInfo && (
           <Card data-testid="card-review-basic">
             <CardHeader>
-              <CardTitle>Información Básica</CardTitle>
+              <CardTitle>{t.step7.basicInfo}</CardTitle>
             </CardHeader>
             <CardContent className="space-y-2">
               <div>
-                <span className="text-sm font-medium text-muted-foreground">Título:</span>
+                <span className="text-sm font-medium text-muted-foreground">{t.step7.title}:</span>
                 <p className="text-base" data-testid="text-review-title">{data.basicInfo.title}</p>
               </div>
               <div>
-                <span className="text-sm font-medium text-muted-foreground">Descripción:</span>
+                <span className="text-sm font-medium text-muted-foreground">{t.step7.description}:</span>
                 <p className="text-base" data-testid="text-review-description">{data.basicInfo.description}</p>
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <span className="text-sm font-medium text-muted-foreground">Tipo:</span>
+                  <span className="text-sm font-medium text-muted-foreground">{t.step7.propertyType}:</span>
                   <p className="text-base" data-testid="text-review-property-type">{data.basicInfo.propertyType}</p>
                 </div>
                 <div>
-                  <span className="text-sm font-medium text-muted-foreground">Precio:</span>
+                  <span className="text-sm font-medium text-muted-foreground">{t.step7.price}:</span>
                   <p className="text-base" data-testid="text-review-price">
                     ${Number(data.basicInfo.price).toLocaleString()} MXN
                   </p>
@@ -127,24 +130,24 @@ export default function Step7Review({ data, draftId, onPrevious }: Step7Props) {
         {data.locationInfo && (
           <Card data-testid="card-review-location">
             <CardHeader>
-              <CardTitle>Ubicación</CardTitle>
+              <CardTitle>{t.step7.location}</CardTitle>
             </CardHeader>
             <CardContent className="space-y-2">
               <div>
-                <span className="text-sm font-medium text-muted-foreground">Dirección:</span>
+                <span className="text-sm font-medium text-muted-foreground">{t.step7.address}:</span>
                 <p className="text-base" data-testid="text-review-address">{data.locationInfo.address}</p>
               </div>
               <div className="grid grid-cols-3 gap-4">
                 <div>
-                  <span className="text-sm font-medium text-muted-foreground">Ciudad:</span>
+                  <span className="text-sm font-medium text-muted-foreground">{t.step7.city}:</span>
                   <p className="text-base" data-testid="text-review-city">{data.locationInfo.city}</p>
                 </div>
                 <div>
-                  <span className="text-sm font-medium text-muted-foreground">Estado:</span>
+                  <span className="text-sm font-medium text-muted-foreground">{t.step7.state}:</span>
                   <p className="text-base" data-testid="text-review-state">{data.locationInfo.state}</p>
                 </div>
                 <div>
-                  <span className="text-sm font-medium text-muted-foreground">C.P.:</span>
+                  <span className="text-sm font-medium text-muted-foreground">{t.step7.zipCode}:</span>
                   <p className="text-base" data-testid="text-review-zipcode">{data.locationInfo.zipCode}</p>
                 </div>
               </div>
@@ -156,26 +159,26 @@ export default function Step7Review({ data, draftId, onPrevious }: Step7Props) {
         {data.details && (
           <Card data-testid="card-review-details">
             <CardHeader>
-              <CardTitle>Detalles</CardTitle>
+              <CardTitle>{t.step7.details}</CardTitle>
             </CardHeader>
             <CardContent className="space-y-2">
               <div className="grid grid-cols-3 gap-4">
                 <div>
-                  <span className="text-sm font-medium text-muted-foreground">Habitaciones:</span>
+                  <span className="text-sm font-medium text-muted-foreground">{t.step7.bedrooms}:</span>
                   <p className="text-base" data-testid="text-review-bedrooms">{data.details.bedrooms}</p>
                 </div>
                 <div>
-                  <span className="text-sm font-medium text-muted-foreground">Baños:</span>
+                  <span className="text-sm font-medium text-muted-foreground">{t.step7.bathrooms}:</span>
                   <p className="text-base" data-testid="text-review-bathrooms">{data.details.bathrooms}</p>
                 </div>
                 <div>
-                  <span className="text-sm font-medium text-muted-foreground">Área:</span>
+                  <span className="text-sm font-medium text-muted-foreground">{t.step7.area}:</span>
                   <p className="text-base" data-testid="text-review-area">{data.details.area} m²</p>
                 </div>
               </div>
               {data.details.amenities && (
                 <div>
-                  <span className="text-sm font-medium text-muted-foreground">Amenidades:</span>
+                  <span className="text-sm font-medium text-muted-foreground">{t.step7.amenities}:</span>
                   <p className="text-base" data-testid="text-review-amenities">{data.details.amenities}</p>
                 </div>
               )}
@@ -187,22 +190,22 @@ export default function Step7Review({ data, draftId, onPrevious }: Step7Props) {
         {data.media && (data.media.primaryImages?.length > 0 || data.media.secondaryImages?.length > 0 || data.media.images?.length > 0 || data.media.virtualTourUrl) && (
           <Card data-testid="card-review-media">
             <CardHeader>
-              <CardTitle>Multimedia</CardTitle>
+              <CardTitle>{t.step7.media}</CardTitle>
             </CardHeader>
             <CardContent className="space-y-2">
               {data.media.primaryImages && data.media.primaryImages.length > 0 ? (
                 <>
                   <div>
-                    <span className="text-sm font-medium text-muted-foreground">Imágenes Principales:</span>
+                    <span className="text-sm font-medium text-muted-foreground">{t.step7.primaryImages}:</span>
                     <p className="text-base" data-testid="text-review-primary-images-count">
-                      {data.media.primaryImages.length} imagen(es) {data.media.coverImageIndex !== undefined && `(portada: #${data.media.coverImageIndex + 1})`}
+                      {data.media.primaryImages.length} {t.step7.images} {data.media.coverImageIndex !== undefined && `(${t.step7.coverImage}: #${data.media.coverImageIndex + 1})`}
                     </p>
                   </div>
                   {data.media.secondaryImages && data.media.secondaryImages.length > 0 && (
                     <div>
-                      <span className="text-sm font-medium text-muted-foreground">Imágenes Secundarias:</span>
+                      <span className="text-sm font-medium text-muted-foreground">{t.step7.secondaryImages}:</span>
                       <p className="text-base" data-testid="text-review-secondary-images-count">
-                        {data.media.secondaryImages.length} imagen(es)
+                        {data.media.secondaryImages.length} {t.step7.images}
                       </p>
                     </div>
                   )}
@@ -210,17 +213,17 @@ export default function Step7Review({ data, draftId, onPrevious }: Step7Props) {
               ) : (
                 data.media.images && data.media.images.length > 0 && (
                   <div>
-                    <span className="text-sm font-medium text-muted-foreground">Imágenes:</span>
+                    <span className="text-sm font-medium text-muted-foreground">{t.step7.images}:</span>
                     <p className="text-base" data-testid="text-review-images-count">
-                      {data.media.images.length} imagen(es)
+                      {data.media.images.length} {t.step7.images}
                     </p>
                   </div>
                 )
               )}
               {data.media.virtualTourUrl && (
                 <div>
-                  <span className="text-sm font-medium text-muted-foreground">Tour Virtual:</span>
-                  <p className="text-base" data-testid="text-review-tour">Disponible</p>
+                  <span className="text-sm font-medium text-muted-foreground">{t.step7.virtualTour}:</span>
+                  <p className="text-base" data-testid="text-review-tour">{t.step7.available}</p>
                 </div>
               )}
             </CardContent>
@@ -231,24 +234,24 @@ export default function Step7Review({ data, draftId, onPrevious }: Step7Props) {
         {data.commercialTerms && Object.keys(data.commercialTerms).some(key => data.commercialTerms[key]) && (
           <Card data-testid="card-review-terms">
             <CardHeader>
-              <CardTitle>Términos Comerciales</CardTitle>
+              <CardTitle>{t.step7.commercialTerms}</CardTitle>
             </CardHeader>
             <CardContent className="space-y-2">
               {data.commercialTerms.leaseDuration && (
                 <div>
-                  <span className="text-sm font-medium text-muted-foreground">Duración:</span>
+                  <span className="text-sm font-medium text-muted-foreground">{t.step7.duration}:</span>
                   <p className="text-base" data-testid="text-review-lease">{data.commercialTerms.leaseDuration}</p>
                 </div>
               )}
               {data.commercialTerms.securityDeposit && (
                 <div>
-                  <span className="text-sm font-medium text-muted-foreground">Depósito:</span>
+                  <span className="text-sm font-medium text-muted-foreground">{t.step7.deposit}:</span>
                   <p className="text-base" data-testid="text-review-deposit">{data.commercialTerms.securityDeposit}</p>
                 </div>
               )}
               {data.commercialTerms.additionalTerms && (
                 <div>
-                  <span className="text-sm font-medium text-muted-foreground">Términos Adicionales:</span>
+                  <span className="text-sm font-medium text-muted-foreground">{t.step7.additionalTerms}:</span>
                   <p className="text-base" data-testid="text-review-additional">{data.commercialTerms.additionalTerms}</p>
                 </div>
               )}
@@ -266,7 +269,7 @@ export default function Step7Review({ data, draftId, onPrevious }: Step7Props) {
           data-testid="button-previous-step7"
         >
           <ChevronLeft className="w-4 h-4 mr-2" />
-          Anterior
+          {t.previous}
         </Button>
         <Button
           onClick={handleSubmit}
@@ -274,7 +277,7 @@ export default function Step7Review({ data, draftId, onPrevious }: Step7Props) {
           data-testid="button-submit-property"
         >
           <Check className="w-4 h-4 mr-2" />
-          {isSubmitting ? "Enviando..." : "Enviar Propiedad"}
+          {isSubmitting ? t.step7.submitting : t.step7.submitProperty}
         </Button>
       </div>
     </div>

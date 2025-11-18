@@ -25,9 +25,9 @@ const getOwnerDataSchema = (language: Language) => {
   const t = getTranslation(language);
   return z.object({
     // Owner private data
-    ownerFirstName: z.string().min(2, t.step6.firstNameMinLength),
-    ownerLastName: z.string().min(2, t.step6.lastNameMinLength),
-    ownerPhone: z.string().min(10, t.step6.phoneMinLength),
+    ownerFirstName: z.string().min(2, t.errors.ownerFirstNameMin),
+    ownerLastName: z.string().min(2, t.errors.ownerLastNameMin),
+    ownerPhone: z.string().min(10, t.errors.ownerPhoneMin),
     ownerEmail: z.string().email(t.step6.invalidEmail).optional().or(z.literal("")),
     
     // Referral data (optional)
@@ -49,21 +49,21 @@ const getOwnerDataSchema = (language: Language) => {
       if (!data.referredByName || data.referredByName.trim() === "") {
         ctx.addIssue({
           code: z.ZodIssueCode.custom,
-          message: t.step6.referralNameRequired,
+          message: t.errors.referredByNameRequired,
           path: ["referredByName"],
         });
       }
       if (!data.referredByLastName || data.referredByLastName.trim() === "") {
         ctx.addIssue({
           code: z.ZodIssueCode.custom,
-          message: t.step6.referralLastNameRequired,
+          message: t.errors.referredByLastNameRequired,
           path: ["referredByLastName"],
         });
       }
       if (!data.referredByPhone || data.referredByPhone.trim() === "") {
         ctx.addIssue({
           code: z.ZodIssueCode.custom,
-          message: t.step6.referralPhoneRequired,
+          message: t.errors.referredByPhoneRequired,
           path: ["referredByPhone"],
         });
       }
@@ -232,10 +232,10 @@ export default function Step6OwnerData({ data, onUpdate, onNext, onPrevious, lan
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
                 <User className="w-5 h-5" />
-                {t.step6.ownerDataTitle}
+                {t.step6.ownerPrivateData}
               </CardTitle>
               <CardDescription>
-                {t.step6.ownerDataDesc}
+                {t.step6.ownerPrivateDataDesc}
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
@@ -245,10 +245,10 @@ export default function Step6OwnerData({ data, onUpdate, onNext, onPrevious, lan
                   name="ownerFirstName"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>{t.step6.firstNameLabel}</FormLabel>
+                      <FormLabel>{t.step6.ownerFirstName}</FormLabel>
                       <FormControl>
                         <Input
-                          placeholder={t.step6.firstNamePlaceholder}
+                          placeholder={t.step6.ownerFirstNamePlaceholder}
                           {...field}
                           data-testid="input-owner-first-name"
                         />
@@ -263,10 +263,10 @@ export default function Step6OwnerData({ data, onUpdate, onNext, onPrevious, lan
                   name="ownerLastName"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>{t.step6.lastNameLabel}</FormLabel>
+                      <FormLabel>{t.step6.ownerLastName}</FormLabel>
                       <FormControl>
                         <Input
-                          placeholder={t.step6.lastNamePlaceholder}
+                          placeholder={t.step6.ownerLastNamePlaceholder}
                           {...field}
                           data-testid="input-owner-last-name"
                         />
@@ -283,17 +283,17 @@ export default function Step6OwnerData({ data, onUpdate, onNext, onPrevious, lan
                   name="ownerPhone"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>{t.step6.phoneLabel}</FormLabel>
+                      <FormLabel>{t.step6.ownerPhone}</FormLabel>
                       <FormControl>
                         <Input
                           type="tel"
-                          placeholder={t.step6.phonePlaceholder}
+                          placeholder={t.step6.ownerPhonePlaceholder}
                           {...field}
                           data-testid="input-owner-phone"
                         />
                       </FormControl>
                       <FormDescription>
-                        {t.step6.phoneDesc}
+                        {t.step6.ownerPhoneDesc}
                       </FormDescription>
                       <FormMessage />
                     </FormItem>
@@ -305,11 +305,11 @@ export default function Step6OwnerData({ data, onUpdate, onNext, onPrevious, lan
                   name="ownerEmail"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>{t.step6.emailLabel}</FormLabel>
+                      <FormLabel>{t.step6.ownerEmail}</FormLabel>
                       <FormControl>
                         <Input
                           type="email"
-                          placeholder={t.step6.emailPlaceholder}
+                          placeholder={t.step6.ownerEmailPlaceholder}
                           {...field}
                           data-testid="input-owner-email"
                         />
@@ -327,7 +327,7 @@ export default function Step6OwnerData({ data, onUpdate, onNext, onPrevious, lan
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
                 <Users className="w-5 h-5" />
-                {t.step6.referralDataTitle}
+                {t.step6.referralData}
               </CardTitle>
               <CardDescription>
                 {t.step6.referralDataDesc}
@@ -341,7 +341,7 @@ export default function Step6OwnerData({ data, onUpdate, onNext, onPrevious, lan
                   <FormItem className="flex flex-row items-center justify-between rounded-lg border p-4">
                     <div className="space-y-0.5">
                       <FormLabel className="text-base">
-                        {t.step6.hasReferralLabel}
+                        {t.step6.hasReferral}
                       </FormLabel>
                       <FormDescription>
                         {t.step6.hasReferralDesc}
@@ -369,10 +369,10 @@ export default function Step6OwnerData({ data, onUpdate, onNext, onPrevious, lan
                       name="referredByName"
                       render={({ field }) => (
                         <FormItem>
-                          <FormLabel>{t.step6.referralFirstNameLabel}</FormLabel>
+                          <FormLabel>{t.step6.referredByName}</FormLabel>
                           <FormControl>
                             <Input
-                              placeholder={t.step6.referralFirstNamePlaceholder}
+                              placeholder={t.step6.referredByNamePlaceholder}
                               {...field}
                               data-testid="input-referral-first-name"
                             />
@@ -387,10 +387,10 @@ export default function Step6OwnerData({ data, onUpdate, onNext, onPrevious, lan
                       name="referredByLastName"
                       render={({ field }) => (
                         <FormItem>
-                          <FormLabel>{t.step6.referralLastNameLabel}</FormLabel>
+                          <FormLabel>{t.step6.referredByLastName}</FormLabel>
                           <FormControl>
                             <Input
-                              placeholder={t.step6.referralLastNamePlaceholder}
+                              placeholder={t.step6.referredByLastNamePlaceholder}
                               {...field}
                               data-testid="input-referral-last-name"
                             />
@@ -407,17 +407,17 @@ export default function Step6OwnerData({ data, onUpdate, onNext, onPrevious, lan
                       name="referredByPhone"
                       render={({ field }) => (
                         <FormItem>
-                          <FormLabel>{t.step6.referralPhoneLabel}</FormLabel>
+                          <FormLabel>{t.step6.referredByPhone}</FormLabel>
                           <FormControl>
                             <Input
                               type="tel"
-                              placeholder={t.step6.referralPhonePlaceholder}
+                              placeholder={t.step6.referredByPhonePlaceholder}
                               {...field}
                               data-testid="input-referral-phone"
                             />
                           </FormControl>
                           <FormDescription>
-                            {t.step6.phoneDesc}
+                            {t.step6.referredByPhoneDesc}
                           </FormDescription>
                           <FormMessage />
                         </FormItem>
@@ -429,11 +429,11 @@ export default function Step6OwnerData({ data, onUpdate, onNext, onPrevious, lan
                       name="referredByEmail"
                       render={({ field }) => (
                         <FormItem>
-                          <FormLabel>{t.step6.referralEmailLabel}</FormLabel>
+                          <FormLabel>{t.step6.referredByEmail}</FormLabel>
                           <FormControl>
                             <Input
                               type="email"
-                              placeholder={t.step6.referralEmailPlaceholder}
+                              placeholder={t.step6.referredByEmailPlaceholder}
                               {...field}
                               data-testid="input-referral-email"
                             />
@@ -453,7 +453,7 @@ export default function Step6OwnerData({ data, onUpdate, onNext, onPrevious, lan
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
                 <FileText className="w-5 h-5" />
-                {t.step6.documentsTitle}
+                {t.step6.documents}
               </CardTitle>
               <CardDescription>
                 {t.step6.documentsDesc}
@@ -495,7 +495,7 @@ export default function Step6OwnerData({ data, onUpdate, onNext, onPrevious, lan
 
               {documents.length > 0 && (
                 <div className="space-y-2">
-                  <p className="text-sm font-medium">{t.step6.uploadedDocuments} ({documents.length}):</p>
+                  <p className="text-sm font-medium">{t.step6.documentsLoaded} ({documents.length}):</p>
                   <div className="grid grid-cols-1 gap-2">
                     {documents.map((doc, index) => (
                       <div
@@ -528,7 +528,7 @@ export default function Step6OwnerData({ data, onUpdate, onNext, onPrevious, lan
               )}
 
               <p className="text-xs text-muted-foreground">
-                {t.step6.fileFormatsInfo}
+                {t.step6.documentsFormats}
               </p>
             </CardContent>
           </Card>

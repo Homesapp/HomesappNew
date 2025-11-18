@@ -28,21 +28,21 @@ const getAccessInfoSchema = (language: Language) => {
     if (data.accessType === "unattended" && data.method === "lockbox" && !data.lockboxCode) {
       ctx.addIssue({
         code: z.ZodIssueCode.custom,
-        message: t.step5.lockboxCodeRequired,
+        message: t.errors.lockboxCodeRequired,
         path: ["lockboxCode"],
       });
     }
     if (data.accessType === "attended" && !data.contactPerson) {
       ctx.addIssue({
         code: z.ZodIssueCode.custom,
-        message: t.step5.contactNameRequired,
+        message: t.errors.contactPersonRequired,
         path: ["contactPerson"],
       });
     }
     if (data.accessType === "attended" && !data.contactPhone) {
       ctx.addIssue({
         code: z.ZodIssueCode.custom,
-        message: t.step5.contactPhoneRequired,
+        message: t.errors.contactPhoneRequired,
         path: ["contactPhone"],
       });
     }
@@ -99,7 +99,7 @@ export default function Step5AccessInfo({ data = {}, onUpdate, onNext, onPreviou
             {t.step5.privacyTitle}
           </CardTitle>
           <CardDescription>
-            {t.step5.privacyNotice}
+            {t.step5.privacyDesc}
           </CardDescription>
         </CardHeader>
       </Card>
@@ -112,7 +112,7 @@ export default function Step5AccessInfo({ data = {}, onUpdate, onNext, onPreviou
             name="accessType"
             render={({ field }) => (
               <FormItem>
-                <FormLabel>{t.step5.accessTypeLabel}</FormLabel>
+                <FormLabel>{t.step5.accessType}</FormLabel>
                 <FormControl>
                   <RadioGroup
                     onValueChange={field.onChange}
@@ -174,11 +174,11 @@ export default function Step5AccessInfo({ data = {}, onUpdate, onNext, onPreviou
                 name="method"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>{t.step5.methodLabel}</FormLabel>
+                    <FormLabel>{t.step5.accessMethod}</FormLabel>
                     <Select onValueChange={field.onChange} value={field.value}>
                       <FormControl>
                         <SelectTrigger data-testid="select-access-method">
-                          <SelectValue placeholder={t.step5.methodPlaceholder} />
+                          <SelectValue placeholder={t.step5.selectAccessMethod} />
                         </SelectTrigger>
                       </FormControl>
                       <SelectContent>
@@ -198,7 +198,7 @@ export default function Step5AccessInfo({ data = {}, onUpdate, onNext, onPreviou
                     name="lockboxCode"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>{t.step5.lockboxCodeLabel}</FormLabel>
+                        <FormLabel>{t.step5.lockboxCode}</FormLabel>
                         <FormControl>
                           <Input
                             placeholder={t.step5.lockboxCodePlaceholder}
@@ -219,7 +219,7 @@ export default function Step5AccessInfo({ data = {}, onUpdate, onNext, onPreviou
                     name="lockboxLocation"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>{t.step5.lockboxLocationLabel}</FormLabel>
+                        <FormLabel>{t.step5.lockboxLocation}</FormLabel>
                         <FormControl>
                           <Input
                             placeholder={t.step5.lockboxLocationPlaceholder}
@@ -241,7 +241,7 @@ export default function Step5AccessInfo({ data = {}, onUpdate, onNext, onPreviou
                     name="smartLockProvider"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>{t.step5.smartLockProviderLabel}</FormLabel>
+                        <FormLabel>{t.step5.smartLockProvider}</FormLabel>
                         <FormControl>
                           <Input
                             placeholder={t.step5.smartLockProviderPlaceholder}
@@ -259,7 +259,7 @@ export default function Step5AccessInfo({ data = {}, onUpdate, onNext, onPreviou
                     name="smartLockInstructions"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>{t.step5.smartLockInstructionsLabel}</FormLabel>
+                        <FormLabel>{t.step5.smartLockInstructions}</FormLabel>
                         <FormControl>
                           <Textarea
                             placeholder={t.step5.smartLockInstructionsPlaceholder}
@@ -288,10 +288,10 @@ export default function Step5AccessInfo({ data = {}, onUpdate, onNext, onPreviou
                 name="contactPerson"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>{t.step5.contactNameLabel}</FormLabel>
+                    <FormLabel>{t.step5.contactPerson}</FormLabel>
                     <FormControl>
                       <Input
-                        placeholder={t.step5.contactNamePlaceholder}
+                        placeholder={t.step5.contactPersonPlaceholder}
                         {...field}
                         data-testid="input-contact-person"
                       />
@@ -306,7 +306,7 @@ export default function Step5AccessInfo({ data = {}, onUpdate, onNext, onPreviou
                 name="contactPhone"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>{t.step5.contactPhoneLabel}</FormLabel>
+                    <FormLabel>{t.step5.contactPhone}</FormLabel>
                     <FormControl>
                       <Input
                         placeholder={t.step5.contactPhonePlaceholder}
@@ -324,7 +324,7 @@ export default function Step5AccessInfo({ data = {}, onUpdate, onNext, onPreviou
                 name="contactNotes"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>{t.step5.contactNotesLabel}</FormLabel>
+                    <FormLabel>{t.step5.contactNotes}</FormLabel>
                     <FormControl>
                       <Textarea
                         placeholder={t.step5.contactNotesPlaceholder}
