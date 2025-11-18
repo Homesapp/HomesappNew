@@ -57,17 +57,17 @@ export default function ExternalAgencyConfig() {
   const updateMutation = useMutation({
     mutationFn: async (data: z.infer<typeof formSchema>) => {
       if (!agency) {
-        return await apiRequest("POST", "/api/external-agencies", data);
+        return await apiRequest("POST", "/api/external-agencies/register", data);
       }
       return await apiRequest("PATCH", `/api/external-agencies/${agency.id}`, data);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['/api/external-agencies'] });
       toast({
-        title: language === "es" ? "Agencia actualizada" : "Agency updated",
+        title: language === "es" ? (agency ? "Agencia actualizada" : "Agencia creada") : (agency ? "Agency updated" : "Agency created"),
         description: language === "es" 
-          ? "La información de la agencia ha sido actualizada exitosamente"
-          : "Agency information has been updated successfully",
+          ? (agency ? "La información de la agencia ha sido actualizada exitosamente" : "Tu agencia ha sido creada exitosamente. Ahora puedes gestionar propiedades.")
+          : (agency ? "Agency information has been updated successfully" : "Your agency has been created successfully. You can now manage properties."),
       });
     },
     onError: () => {
