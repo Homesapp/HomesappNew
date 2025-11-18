@@ -39,6 +39,7 @@ Key features include:
 *   **Sidebar Menu Visibility Control**: Admin configuration system allowing master and admin users to control sidebar menu item visibility for specific roles and individual users, with database-driven configurations and per-user overrides.
 *   **Auto-Logout Configuration**: System-wide configurable auto-logout timeout for enhanced security, managed via system settings and an admin UI.
 *   **Internationalization (i18n) System**: Comprehensive bilingual support (Spanish/English) with modular translation files organized by domain.
+*   **Social Media Integration**: Proper Open Graph meta tags for clean link previews on WhatsApp, Facebook, and Twitter with professional titles, descriptions, and images.
 
 ## External Dependencies
 *   Google Calendar API
