@@ -1073,39 +1073,30 @@ export class DatabaseStorage implements IStorage {
   }
 
   async upsertUser(userData: UpsertUser): Promise<User> {
-    // First check if a user with this email already exists  
-    const [existingUser] = await db
-      .select()
-      .from(users)
-      .where(eq(users.email, userData.email));
+    // Build update fields
+    const updateFields: any = {
+      firstName: userData.firstName,
+      lastName: userData.lastName,
+      profileImageUrl: userData.profileImageUrl,
+      updatedAt: new Date(),
+    };
 
-    if (existingUser) {
-      // Return existing user without modification to avoid breaking references
-      return existingUser;
-    } else {
-      // Insert new user
-      const updateFields: any = {
-        firstName: userData.firstName,
-        lastName: userData.lastName,
-        profileImageUrl: userData.profileImageUrl,
-        updatedAt: new Date(),
-      };
-
-      // Include role in update if provided (for development mode OIDC testing)
-      if (userData.role) {
-        updateFields.role = userData.role;
-      }
-
-      const [user] = await db
-        .insert(users)
-        .values(userData)
-        .onConflictDoUpdate({
-          target: users.id,
-          set: updateFields,
-        })
-        .returning();
-      return user;
+    // Include role in update if provided (for development mode OIDC testing)
+    if (userData.role) {
+      updateFields.role = userData.role;
     }
+
+    // Use onConflictDoUpdate with ID as target
+    // This will insert if ID doesn't exist, or update if it does
+    const [user] = await db
+      .insert(users)
+      .values(userData)
+      .onConflictDoUpdate({
+        target: users.id,
+        set: updateFields,
+      })
+      .returning();
+    return user;
   }
 
   async getUsersByStatus(status: string): Promise<User[]> {
