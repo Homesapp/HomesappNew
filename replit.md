@@ -55,3 +55,25 @@ Key features include:
 *   WebSocket (ws)
 *   cookie
 *   OpenAI GPT-5
+
+## Recent Technical Improvements
+
+### Property Invitation Token Bug Fix (November 2025)
+Fixed critical production bug preventing admin users from creating property invitation tokens.
+
+**Problem:** Error 500 with FK constraint violation when admins attempted to create invitation tokens because OIDC-authenticated admins did not exist in the `users` table.
+
+**Root Causes:**
+1. Admin users authenticated via Replit Auth (OIDC) were not automatically persisted to the `users` table
+2. Email addresses from OIDC claims could be null or duplicate across different users
+3. Race conditions in concurrent requests with duplicate emails caused UNIQUE constraint violations
+
+**Solution:** Implemented atomic `upsertUser` method with intelligent email handling:
+- Uses `onConflictDoUpdate` with user ID as target for atomic idempotent upserts
+- Automatically generates fallback emails (`user-${id}@homesapp.internal`) when claims email is null
+- Implements retry logic to handle duplicate email race conditions (error code 23505)
+- Preserves existing user emails on updates to maintain identity consistency
+- Allows legitimate email updates when new address is unique
+- Guarantees FK constraints are satisfied before token creation
+
+**Impact:** Property invitation token creation now works reliably in production, even under concurrent load with duplicate or null email addresses from OIDC providers.
