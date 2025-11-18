@@ -1073,7 +1073,10 @@ export class DatabaseStorage implements IStorage {
   }
 
   async upsertUser(userData: UpsertUser): Promise<User> {
-    // Build update fields
+    // Handle email: if null/empty, generate unique email from ID to avoid constraint violations
+    const safeEmail = userData.email || `user-${userData.id}@homesapp.internal`;
+    
+    // Build update fields (exclude email to avoid unique constraint violations on update)
     const updateFields: any = {
       firstName: userData.firstName,
       lastName: userData.lastName,
@@ -1090,10 +1093,13 @@ export class DatabaseStorage implements IStorage {
     // This will insert if ID doesn't exist, or update if it does
     const [user] = await db
       .insert(users)
-      .values(userData)
+      .values({
+        ...userData,
+        email: safeEmail,
+      })
       .onConflictDoUpdate({
         target: users.id,
-        set: updateFields,
+        set: updateFields, // Note: email is NOT in updateFields to preserve existing email
       })
       .returning();
     return user;

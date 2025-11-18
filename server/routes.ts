@@ -7397,19 +7397,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const { inviteeEmail, inviteePhone, inviteeName, notes } = req.body;
       
       // CRITICAL: Ensure admin exists in users table for foreign key constraint
-      // Admin might only exist in admin_users table, so we upsert to users table
-      try {
-        await storage.upsertUser({
-          id: adminId,
-          email: req.user.claims.email,
-          firstName: req.user.claims.first_name || "Admin",
-          lastName: req.user.claims.last_name || "User",
-          role: "admin",
-        });
-      } catch (upsertError) {
-        console.error("Error upserting admin to users table:", upsertError);
-        // Continue - the admin might already exist
-      }
+      // This must succeed before creating the token to avoid FK violations
+      await storage.upsertUser({
+        id: adminId,
+        email: req.user.claims.email,
+        firstName: req.user.claims.first_name || "Admin",
+        lastName: req.user.claims.last_name || "User",
+        role: "admin",
+      });
       
       // Generate secure token
       const token = generateSecureToken();
@@ -7522,18 +7517,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       
       // CRITICAL: Ensure admin exists in users table for foreign key constraint
-      try {
-        await storage.upsertUser({
-          id: adminId,
-          email: req.user.claims.email,
-          firstName: req.user.claims.first_name || "Admin",
-          lastName: req.user.claims.last_name || "User",
-          role: "admin",
-        });
-      } catch (upsertError) {
-        console.error("Error upserting admin to users table:", upsertError);
-        // Continue - the admin might already exist
-      }
+      // This must succeed before creating the token to avoid FK violations
+      await storage.upsertUser({
+        id: adminId,
+        email: req.user.claims.email,
+        firstName: req.user.claims.first_name || "Admin",
+        lastName: req.user.claims.last_name || "User",
+        role: "admin",
+      });
       
       // Delete old token
       await storage.deletePropertySubmissionToken(id);
