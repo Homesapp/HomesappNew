@@ -19,7 +19,7 @@ const getMediaSchema = (language: Language) => {
     coverImageIndex: z.number().min(0).default(0),
     secondaryImages: z.array(z.string()).max(20, t.errors.secondaryImagesMax).optional(),
     videos: z.array(z.string()).optional(),
-    virtualTourUrl: z.string().url().optional().or(z.literal("")),
+    virtualTourUrl: z.string().url(t.errors.invalidUrl).optional().or(z.literal("")),
   });
 };
 
