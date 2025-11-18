@@ -418,6 +418,7 @@ export interface IStorage {
     unitType?: string;
     allowsSubleasing?: boolean;
     published?: boolean;
+    requestVirtualTour?: boolean;
     limit?: number;
   }): Promise<Property[]>;
   
@@ -1802,6 +1803,7 @@ export class DatabaseStorage implements IStorage {
     allowsSubleasing?: boolean;
     approvalStatus?: string | string[];
     published?: boolean;
+    requestVirtualTour?: boolean;
     limit?: number;
   }): Promise<Property[]> {
     let query = db.select().from(properties);
@@ -1912,6 +1914,10 @@ export class DatabaseStorage implements IStorage {
 
     if (filters.published !== undefined) {
       conditions.push(eq(properties.published, filters.published));
+    }
+
+    if (filters.requestVirtualTour !== undefined) {
+      conditions.push(eq(properties.requestVirtualTour, filters.requestVirtualTour));
     }
 
     if (conditions.length > 0) {

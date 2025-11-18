@@ -141,6 +141,7 @@ export function draftToPropertyData(draft: PropertySubmissionDraft, adminId: str
     coverImageIndex: media.coverImageIndex || 0,
     videos: media.videos || [],
     virtualTourUrl: media.virtualTourUrl,
+    requestVirtualTour: media.requestVirtualTour || false,
     
     // Services and lease info
     includedServices: includedServices,

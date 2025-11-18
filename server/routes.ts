@@ -6314,6 +6314,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
       filtered = [];
     }
     
+    // Virtual tour request filter
+    if (queryParams.requestVirtualTour === "true") {
+      filtered = filtered.filter(p => p.requestVirtualTour === true);
+    }
+    
     // Note: approvalStatus filtering is handled upstream (not in filterDrafts)
     // Drafts have approvalStatus "pending_review" when submitted
     
@@ -6323,7 +6328,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Admin Property Management routes
   app.get("/api/admin/properties", isAuthenticated, requireRole(["master", "admin", "admin_jr"]), async (req, res) => {
     try {
-      const { approvalStatus, propertyType, status, featured, q, ownerId } = req.query;
+      const { approvalStatus, propertyType, status, featured, q, ownerId, requestVirtualTour } = req.query;
       
       // Get all other query params to detect complex filters
       const allQueryKeys = Object.keys(req.query);
@@ -6344,6 +6349,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       if (q && typeof q === "string") {
         filters.query = q;
+      }
+      if (requestVirtualTour === "true") {
+        filters.requestVirtualTour = true;
       }
       
       // Get real properties
@@ -6468,6 +6476,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
             secondaryImages: draft.media?.secondaryImages || [],
             videos: draft.media?.videos || [],
             virtualTourUrl: draft.media?.virtualTourUrl || "",
+            requestVirtualTour: draft.media?.requestVirtualTour || false,
             includedServices: includedServices,
             notIncludedServices: notIncludedServices,
             acceptedLeaseDurations: draft.servicesInfo?.acceptedLeaseDurations || [],
