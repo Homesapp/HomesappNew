@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useRef, useEffect } from "react";
 import { useMutation } from "@tanstack/react-query";
 import {
   Dialog,
@@ -26,6 +26,16 @@ export function PropertyInviteDialog({ open, onOpenChange }: PropertyInviteDialo
   const [inviteePhone, setInviteePhone] = useState("");
   const [generatedLink, setGeneratedLink] = useState("");
   const [copied, setCopied] = useState(false);
+  const autoCloseTimerRef = useRef<NodeJS.Timeout | null>(null);
+
+  // Cleanup timeout on unmount
+  useEffect(() => {
+    return () => {
+      if (autoCloseTimerRef.current) {
+        clearTimeout(autoCloseTimerRef.current);
+      }
+    };
+  }, []);
 
   const generateMutation = useMutation({
     mutationFn: async () => {
@@ -36,11 +46,23 @@ export function PropertyInviteDialog({ open, onOpenChange }: PropertyInviteDialo
       });
     },
     onSuccess: (data: any) => {
+      // Set generated link to show success UI
       setGeneratedLink(data.inviteUrl);
+      
+      // Copy to clipboard immediately
+      navigator.clipboard.writeText(data.inviteUrl);
+      setCopied(true);
+      
       toast({
-        title: "Link generado",
-        description: "El link de invitación se ha generado exitosamente",
+        title: "Link generado y copiado",
+        description: "El link de invitación se ha generado y copiado al portapapeles exitosamente",
       });
+
+      // Auto-close dialog after 2 seconds to show success UI
+      autoCloseTimerRef.current = setTimeout(() => {
+        handleReset();
+        onOpenChange(false);
+      }, 2000);
     },
     onError: (error: any) => {
       toast({
@@ -62,6 +84,12 @@ export function PropertyInviteDialog({ open, onOpenChange }: PropertyInviteDialo
   };
 
   const handleReset = () => {
+    // Cancel auto-close timer if user clicks "Generar Otro"
+    if (autoCloseTimerRef.current) {
+      clearTimeout(autoCloseTimerRef.current);
+      autoCloseTimerRef.current = null;
+    }
+    
     setInviteeName("");
     setInviteeEmail("");
     setInviteePhone("");
@@ -72,6 +100,11 @@ export function PropertyInviteDialog({ open, onOpenChange }: PropertyInviteDialo
   return (
     <Dialog open={open} onOpenChange={(isOpen) => {
       if (!isOpen) {
+        // Cancel auto-close timer if dialog is closed manually
+        if (autoCloseTimerRef.current) {
+          clearTimeout(autoCloseTimerRef.current);
+          autoCloseTimerRef.current = null;
+        }
         handleReset();
       }
       onOpenChange(isOpen);

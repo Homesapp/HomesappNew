@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useMutation } from "@tanstack/react-query";
 import { formatDistanceToNow, format } from "date-fns";
 import { es, enUS } from "date-fns/locale";
 import {
@@ -19,9 +19,20 @@ import {
 } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { useToast } from "@/hooks/use-toast";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { PropertyInviteDialog } from "@/components/PropertyInviteDialog";
+import { apiRequest, queryClient } from "@/lib/queryClient";
 import {
   Copy,
   Check,
@@ -33,6 +44,8 @@ import {
   Clock,
   ExternalLink,
   Plus,
+  Trash2,
+  RefreshCw,
 } from "lucide-react";
 import { Loader2 } from "lucide-react";
 
@@ -56,9 +69,54 @@ export default function PropertyInvitations() {
   const { t, language } = useLanguage();
   const [copiedId, setCopiedId] = useState<string | null>(null);
   const [showInviteDialog, setShowInviteDialog] = useState(false);
+  const [tokenToDelete, setTokenToDelete] = useState<PropertyInvitationToken | null>(null);
+  const [tokenToRegenerate, setTokenToRegenerate] = useState<PropertyInvitationToken | null>(null);
 
   const { data: tokens, isLoading, refetch } = useQuery<PropertyInvitationToken[]>({
     queryKey: ["/api/admin/property-tokens"],
+  });
+
+  const deleteMutation = useMutation({
+    mutationFn: async (tokenId: string) => {
+      return await apiRequest("DELETE", `/api/admin/property-tokens/${tokenId}`, {});
+    },
+    onSuccess: () => {
+      toast({
+        title: t("deleted") || "Eliminado",
+        description: t("tokenDeleted") || "El token ha sido eliminado exitosamente",
+      });
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/property-tokens"] });
+      setTokenToDelete(null);
+    },
+    onError: (error: any) => {
+      toast({
+        title: t("error") || "Error",
+        description: error.message || "No se pudo eliminar el token",
+        variant: "destructive",
+      });
+    },
+  });
+
+  const regenerateMutation = useMutation({
+    mutationFn: async (tokenId: string) => {
+      return await apiRequest("POST", `/api/admin/property-tokens/${tokenId}/regenerate`, {});
+    },
+    onSuccess: (data: any) => {
+      toast({
+        title: t("regenerated") || "Regenerado",
+        description: t("tokenRegenerated") || "El token ha sido regenerado exitosamente",
+      });
+      copyToClipboard(data.inviteUrl, data.id);
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/property-tokens"] });
+      setTokenToRegenerate(null);
+    },
+    onError: (error: any) => {
+      toast({
+        title: t("error") || "Error",
+        description: error.message || "No se pudo regenerar el token",
+        variant: "destructive",
+      });
+    },
   });
 
   const copyToClipboard = (link: string, id: string) => {
@@ -272,6 +330,28 @@ export default function PropertyInvitations() {
                           >
                             <ExternalLink className="w-4 h-4" />
                           </Button>
+                          {token.status !== "used" && (
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => setTokenToRegenerate(token)}
+                              disabled={regenerateMutation.isPending}
+                              data-testid={`button-regenerate-${token.id}`}
+                              className="gap-1"
+                            >
+                              <RefreshCw className="w-4 h-4" />
+                            </Button>
+                          )}
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => setTokenToDelete(token)}
+                            disabled={deleteMutation.isPending}
+                            data-testid={`button-delete-${token.id}`}
+                            className="text-destructive hover:text-destructive"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </Button>
                         </div>
                       </TableCell>
                     </TableRow>
@@ -292,6 +372,88 @@ export default function PropertyInvitations() {
           }
         }}
       />
+
+      <AlertDialog open={!!tokenToDelete} onOpenChange={(open) => !open && setTokenToDelete(null)}>
+        <AlertDialogContent data-testid="dialog-delete-confirmation">
+          <AlertDialogHeader>
+            <AlertDialogTitle>
+              {t("confirmDelete") || "¿Confirmar eliminación?"}
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              {t("deleteTokenConfirmation") || "¿Estás seguro de que quieres eliminar este token de invitación?"}
+              {tokenToDelete?.inviteeName && (
+                <span className="block mt-2 font-medium">
+                  {t("owner") || "Propietario"}: {tokenToDelete.inviteeName}
+                </span>
+              )}
+              <span className="block mt-1 text-destructive">
+                {t("deleteWarning") || "Esta acción no se puede deshacer."}
+              </span>
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel data-testid="button-cancel-delete">
+              {t("cancel") || "Cancelar"}
+            </AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => tokenToDelete && deleteMutation.mutate(tokenToDelete.id)}
+              className="bg-destructive hover:bg-destructive/90"
+              data-testid="button-confirm-delete"
+            >
+              {deleteMutation.isPending ? (
+                <>
+                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                  {t("deleting") || "Eliminando..."}
+                </>
+              ) : (
+                t("delete") || "Eliminar"
+              )}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      <AlertDialog open={!!tokenToRegenerate} onOpenChange={(open) => !open && setTokenToRegenerate(null)}>
+        <AlertDialogContent data-testid="dialog-regenerate-confirmation">
+          <AlertDialogHeader>
+            <AlertDialogTitle>
+              {t("confirmRegenerate") || "¿Regenerar token?"}
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              {t("regenerateTokenConfirmation") || "Se creará un nuevo token con la misma información del propietario. El token anterior será invalidado."}
+              {tokenToRegenerate?.inviteeName && (
+                <span className="block mt-2 font-medium">
+                  {t("owner") || "Propietario"}: {tokenToRegenerate.inviteeName}
+                </span>
+              )}
+              <span className="block mt-2 text-primary">
+                {t("regenerateNote") || "El nuevo token se copiará automáticamente al portapapeles."}
+              </span>
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel data-testid="button-cancel-regenerate">
+              {t("cancel") || "Cancelar"}
+            </AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => tokenToRegenerate && regenerateMutation.mutate(tokenToRegenerate.id)}
+              data-testid="button-confirm-regenerate"
+            >
+              {regenerateMutation.isPending ? (
+                <>
+                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                  {t("regenerating") || "Regenerando..."}
+                </>
+              ) : (
+                <>
+                  <RefreshCw className="w-4 h-4 mr-2" />
+                  {t("regenerate") || "Regenerar"}
+                </>
+              )}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
