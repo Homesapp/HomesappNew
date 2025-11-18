@@ -5,7 +5,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
-import { CheckCircle, XCircle, AlertCircle, Home } from "lucide-react";
+import { CheckCircle, XCircle, AlertCircle } from "lucide-react";
 import PropertySubmissionWizard from "./PropertySubmissionWizard";
 
 type Language = "es" | "en";
@@ -89,13 +89,9 @@ export default function PublicPropertySubmission() {
               </div>
             </CardHeader>
             <CardContent>
-              <p className="text-muted-foreground mb-4">
+              <p className="text-muted-foreground">
                 {t.invalidLinkDesc}
               </p>
-              <Button onClick={() => setLocation("/")} className="w-full">
-                <Home className="w-4 h-4 mr-2" />
-                {t.goHome}
-              </Button>
             </CardContent>
           </Card>
         </div>
@@ -158,17 +154,13 @@ export default function PublicPropertySubmission() {
               <Alert variant="destructive" className="mb-4">
                 <AlertDescription>{errorMessage}</AlertDescription>
               </Alert>
-              <p className="text-sm text-muted-foreground mb-4">
+              <p className="text-sm text-muted-foreground">
                 {errorMessage.includes("expirado") || errorMessage.includes("expired")
                   ? t.linkExpiredDesc
                   : errorMessage.includes("utilizado") || errorMessage.includes("used")
                   ? t.linkUsedDesc
                   : t.requestNewLink}
               </p>
-              <Button onClick={() => setLocation("/")} variant="outline" className="w-full">
-                <Home className="w-4 h-4 mr-2" />
-                {t.goHome}
-              </Button>
             </CardContent>
           </Card>
         </div>
