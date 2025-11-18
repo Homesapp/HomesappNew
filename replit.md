@@ -76,3 +76,29 @@ Fixed critical production bug preventing admin users from creating property invi
 - Guarantees FK constraints are satisfied before token creation
 
 **Impact:** Property invitation token creation now works reliably in production, even under concurrent load with duplicate or null email addresses from OIDC providers.
+
+### Client-Side Image Compression System (November 2025)
+Implemented automatic image compression with real-time progress tracking to prevent upload size errors and improve user experience.
+
+**Features:**
+- **Automatic Compression**: Images are compressed client-side before upload using Canvas API
+- **Smart Format Preservation**: Maintains original format (JPEG, PNG, WebP) including transparency
+- **Quality Settings**: Max dimensions 1920x1920px, quality 0.85 for optimal balance
+- **Real-Time Progress**: Individual progress bars (0-100%) for each image being compressed
+- **Multiple Uploads**: Supports simultaneous compression of multiple images with independent progress tracking
+- **User Feedback**: Toast notifications showing compression statistics when reduction exceeds 10%
+
+**Implementation:**
+- **File**: `client/src/lib/imageCompression.ts` - Canvas-based compression utility
+- **Component**: `client/src/components/wizard/Step5Media.tsx` - Property wizard media step
+- **State Management**: Map-based tracking for concurrent uploads with automatic cleanup
+- **Server Limits**: Increased to 100MB (Express) and 20MB (Multer) as backup for compressed payloads
+
+**Technical Details:**
+- Transparency detection preserves alpha channel for PNG and WebP
+- Progress callbacks update UI in real-time during compression
+- Disabled upload buttons during active compression to prevent conflicts
+- Compression ratio calculation for user feedback
+- Automatic format selection based on source type and transparency
+
+**Impact:** Users can now upload large images without errors, with clear visual feedback during compression. The system automatically reduces file sizes while maintaining image quality, improving upload speeds and reducing server load.
