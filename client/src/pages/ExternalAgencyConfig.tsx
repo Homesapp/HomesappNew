@@ -14,6 +14,7 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "
 import { insertExternalAgencySchema } from "@shared/schema";
 import type { ExternalAgency } from "@shared/schema";
 import { z } from "zod";
+import { useEffect } from "react";
 
 const formSchema = insertExternalAgencySchema.extend({});
 
@@ -31,28 +32,31 @@ export default function ExternalAgencyConfig() {
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
     defaultValues: {
-      name: agency?.name || "",
-      description: agency?.description || "",
-      contactName: agency?.contactName || "",
-      contactEmail: agency?.contactEmail || "",
-      contactPhone: agency?.contactPhone || "",
-      agencyLogoUrl: agency?.agencyLogoUrl || "",
-      isActive: agency?.isActive ?? true,
+      name: "",
+      description: "",
+      contactName: "",
+      contactEmail: "",
+      contactPhone: "",
+      agencyLogoUrl: "",
+      isActive: true,
     },
   });
 
   // Update form when agency data loads
-  if (agency && !form.formState.isDirty) {
-    form.reset({
-      name: agency.name,
-      description: agency.description || "",
-      contactName: agency.contactName || "",
-      contactEmail: agency.contactEmail || "",
-      contactPhone: agency.contactPhone || "",
-      agencyLogoUrl: agency.agencyLogoUrl || "",
-      isActive: agency.isActive,
-    });
-  }
+  useEffect(() => {
+    if (agency) {
+      form.reset({
+        name: agency.name,
+        description: agency.description || "",
+        contactName: agency.contactName || "",
+        contactEmail: agency.contactEmail || "",
+        contactPhone: agency.contactPhone || "",
+        agencyLogoUrl: agency.agencyLogoUrl || "",
+        isActive: agency.isActive,
+      });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [agency?.id]); // Only reset when the agency ID changes
 
   const updateMutation = useMutation({
     mutationFn: async (data: z.infer<typeof formSchema>) => {
