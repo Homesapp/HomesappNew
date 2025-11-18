@@ -143,18 +143,34 @@ export function PropertyCard({
 
       <CardContent className="space-y-3">
         {status === "both" && salePrice ? (
-          <div className="space-y-1">
-            <div className="text-2xl font-bold text-primary">
-              ${price.toLocaleString()} {currency}
+          <div className="space-y-2">
+            <div className="flex items-baseline gap-2">
+              <span className="text-2xl font-bold text-primary">
+                ${price.toLocaleString()}
+              </span>
+              <span className="text-sm font-semibold text-primary">{currency}</span>
               <span className="text-sm font-normal text-muted-foreground">{t("property.perMonth")}</span>
             </div>
-            <div className="text-base font-semibold text-muted-foreground">
-              {t("property.saleLabel")} ${salePrice.toLocaleString()} {currency}
+            <div className="flex items-baseline gap-2">
+              <span className="text-base font-semibold text-muted-foreground">
+                {t("property.saleLabel")} ${salePrice.toLocaleString()}
+              </span>
+              <span className="text-xs font-semibold text-muted-foreground">{currency}</span>
             </div>
           </div>
+        ) : status === "sale" && salePrice ? (
+          <div className="flex items-baseline gap-2">
+            <span className="text-2xl font-bold text-primary">
+              ${salePrice.toLocaleString()}
+            </span>
+            <span className="text-sm font-semibold text-primary">{currency}</span>
+          </div>
         ) : (
-          <div className="text-2xl font-bold text-primary">
-            ${price.toLocaleString()} {currency}
+          <div className="flex items-baseline gap-2">
+            <span className="text-2xl font-bold text-primary">
+              ${price.toLocaleString()}
+            </span>
+            <span className="text-sm font-semibold text-primary">{currency}</span>
             {status === "rent" && <span className="text-sm font-normal text-muted-foreground">{t("property.perMonth")}</span>}
           </div>
         )}
