@@ -5,11 +5,13 @@ import { useLocation } from "wouter";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
+import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { useToast } from "@/hooks/use-toast";
 import { ChevronLeft, ChevronRight, Save, CheckCircle } from "lucide-react";
 import type { PropertySubmissionDraft } from "@shared/schema";
 import type { Language } from "@/lib/wizardTranslations";
 import { getTranslation } from "@/lib/wizardTranslations";
+import logoPath from "@assets/H mes (500 x 300 px)_1759672952263.png";
 
 import Step1BasicInfo from "@/components/wizard/Step1BasicInfo";
 import Step2LocationDetails from "@/components/wizard/Step2LocationDetails";
@@ -348,40 +350,60 @@ export default function PropertySubmissionWizard({
       }
       
       const nextStep = currentStep + 1;
-      setIsSaving(true);
-      const dataToSave = {
-        ...updatedData,
-        currentStep: nextStep,
-      };
+      
+      // Check if data or step has changed
+      const stepChanged = lastSavedStep !== nextStep;
+      const dataChanged = hasDataChanged(updatedData, nextStep);
+      
+      // Only save if there are changes or no draft exists
+      if (stepChanged || dataChanged || !draftId) {
+        setIsSaving(true);
+        const dataToSave = {
+          ...updatedData,
+          currentStep: nextStep,
+        };
 
-      try {
-        if (draftId) {
-          await updateDraftMutation.mutateAsync({ id: draftId, data: dataToSave });
-        } else {
-          const newDraft = await createDraftMutation.mutateAsync(dataToSave);
-          setDraftId(newDraft.id);
+        try {
+          if (draftId) {
+            await updateDraftMutation.mutateAsync({ id: draftId, data: dataToSave });
+          } else {
+            const newDraft = await createDraftMutation.mutateAsync(dataToSave);
+            setDraftId(newDraft.id);
+          }
+          setLastSaved(new Date());
+        } catch (error: any) {
+          console.error("Save failed:", error);
+          toast({
+            title: language === "es" ? "Error al avanzar" : "Error advancing",
+            description: error?.message || (language === "es" ? "No se pudo guardar y avanzar al siguiente paso" : "Could not save and advance to the next step"),
+            variant: "destructive",
+          });
+          setIsSaving(false);
+          return; // Don't advance if save failed
+        } finally {
+          setIsSaving(false);
         }
-        setLastSaved(new Date());
-        // Only advance after successful save
-        setCurrentStep(nextStep);
-      } catch (error: any) {
-        console.error("Save failed:", error);
-        toast({
-          title: "Error al avanzar",
-          description: error?.message || "No se pudo guardar y avanzar al siguiente paso",
-          variant: "destructive",
-        });
-      } finally {
-        setIsSaving(false);
       }
+      
+      // Always advance to next step (whether we saved or not)
+      setCurrentStep(nextStep);
     }
   };
 
   const handlePrevious = async () => {
     if (currentStep > 1) {
       const prevStep = currentStep - 1;
-      // Save before navigating to ensure data consistency
-      await saveDraft(prevStep);
+      
+      // Check if data or step has changed before saving
+      const stepChanged = lastSavedStep !== prevStep;
+      const dataChanged = hasDataChanged(wizardData, prevStep);
+      
+      // Only save if there are changes
+      if (stepChanged || dataChanged) {
+        await saveDraft(prevStep);
+      }
+      
+      // Always move to previous step
       setCurrentStep(prevStep);
     }
   };
@@ -474,46 +496,81 @@ export default function PropertySubmissionWizard({
   const progress = (currentStep / TOTAL_STEPS) * 100;
 
   return (
-    <div className="container mx-auto p-4 sm:p-6 max-w-4xl">
-      <Card>
-        <CardHeader className="space-y-4">
-          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-            <div>
-              <CardTitle data-testid="heading-wizard-title">{t.title}</CardTitle>
-              <CardDescription className="mt-2" data-testid="text-wizard-description">
-                {t.step} {currentStep} {t.of} {TOTAL_STEPS}
-              </CardDescription>
+    <>
+      <div className="container mx-auto p-4 sm:p-6 max-w-4xl">
+        <Card>
+          <CardHeader className="space-y-4">
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+              <div>
+                <CardTitle data-testid="heading-wizard-title">{t.title}</CardTitle>
+                <CardDescription className="mt-2" data-testid="text-wizard-description">
+                  {t.step} {currentStep} {t.of} {TOTAL_STEPS}
+                </CardDescription>
+              </div>
+              <div className="flex items-center gap-3 flex-wrap">
+                {isSaving ? (
+                  <div className="flex items-center gap-2 text-sm text-muted-foreground" data-testid="text-saving">
+                    <div className="h-3 w-3 animate-spin rounded-full border-2 border-primary border-t-transparent"></div>
+                    <span>{t.saving}</span>
+                  </div>
+                ) : lastSaved ? (
+                  <div className="flex items-center gap-2 text-sm text-green-600 dark:text-green-400" data-testid="text-last-saved">
+                    <CheckCircle className="w-3 h-3" />
+                    <span>{t.saved} {new Date(lastSaved).toLocaleTimeString()}</span>
+                  </div>
+                ) : null}
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={handleManualSave}
+                  disabled={isSaving}
+                  data-testid="button-manual-save"
+                >
+                  <Save className="w-4 h-4 sm:mr-2" />
+                  <span className="hidden sm:inline">{t.save}</span>
+                </Button>
+              </div>
             </div>
-            <div className="flex items-center gap-3 flex-wrap">
-              {isSaving ? (
-                <div className="flex items-center gap-2 text-sm text-muted-foreground" data-testid="text-saving">
-                  <div className="h-3 w-3 animate-spin rounded-full border-2 border-primary border-t-transparent"></div>
-                  <span>{t.saving}</span>
-                </div>
-              ) : lastSaved ? (
-                <div className="flex items-center gap-2 text-sm text-green-600 dark:text-green-400" data-testid="text-last-saved">
-                  <CheckCircle className="w-3 h-3" />
-                  <span>{t.saved} {new Date(lastSaved).toLocaleTimeString()}</span>
-                </div>
-              ) : null}
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={handleManualSave}
-                disabled={isSaving}
-                data-testid="button-manual-save"
-              >
-                <Save className="w-4 h-4 sm:mr-2" />
-                <span className="hidden sm:inline">{t.save}</span>
-              </Button>
+            <Progress value={progress} data-testid="progress-wizard" />
+          </CardHeader>
+          <CardContent className="pt-4 pb-6">
+            {renderStep()}
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Saving Modal */}
+      <Dialog open={isSaving} onOpenChange={() => {}}>
+        <DialogContent 
+          className="sm:max-w-md [&>button]:hidden" 
+          onInteractOutside={(e) => e.preventDefault()}
+          onEscapeKeyDown={(e) => e.preventDefault()}
+        >
+          <div className="flex flex-col items-center justify-center gap-6 py-8">
+            <img 
+              src={logoPath} 
+              alt="HomesApp" 
+              className="h-20 w-auto animate-pulse-color"
+              data-testid="img-saving-logo"
+            />
+            <div className="text-center space-y-2">
+              <h3 className="text-lg font-semibold" data-testid="text-saving-title">
+                {language === "es" ? "Guardando información..." : "Saving information..."}
+              </h3>
+              <p className="text-sm text-muted-foreground" data-testid="text-saving-message">
+                {language === "es" 
+                  ? "Por favor espera mientras guardamos tu progreso" 
+                  : "Please wait while we save your progress"}
+              </p>
+            </div>
+            <div className="flex items-center gap-2">
+              <div className="h-2 w-2 bg-primary rounded-full animate-bounce [animation-delay:-0.3s]"></div>
+              <div className="h-2 w-2 bg-primary rounded-full animate-bounce [animation-delay:-0.15s]"></div>
+              <div className="h-2 w-2 bg-primary rounded-full animate-bounce"></div>
             </div>
           </div>
-          <Progress value={progress} data-testid="progress-wizard" />
-        </CardHeader>
-        <CardContent className="pt-4 pb-6">
-          {renderStep()}
-        </CardContent>
-      </Card>
-    </div>
+        </DialogContent>
+      </Dialog>
+    </>
   );
 }
