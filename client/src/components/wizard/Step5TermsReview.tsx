@@ -195,10 +195,10 @@ export default function Step5TermsReview({ data, draftId, onUpdate, onPrevious, 
         <form onSubmit={form.handleSubmit(handleSubmit)} className="space-y-4">
           <Tabs defaultValue="review" className="w-full">
             <TabsList className="grid w-full grid-cols-2 mb-4">
-              <TabsTrigger value="review" data-testid="tab-review" className="data-[state=active]:bg-background">
+              <TabsTrigger value="review" data-testid="tab-review">
                 {t.step7.reviewTab}
               </TabsTrigger>
-              <TabsTrigger value="terms" data-testid="tab-terms" className="data-[state=active]:bg-background">
+              <TabsTrigger value="terms" data-testid="tab-terms">
                 {t.step7.termsTab}
               </TabsTrigger>
             </TabsList>
@@ -353,6 +353,60 @@ export default function Step5TermsReview({ data, draftId, onUpdate, onPrevious, 
                         </div>
                       </div>
                     )}
+                    
+                    {/* Services NOT Included (with costs) */}
+                    {data.servicesInfo.basicServices && (
+                      <>
+                        {(!data.servicesInfo.basicServices.water?.included && (data.servicesInfo.basicServices.water?.provider || data.servicesInfo.basicServices.water?.cost)) && (
+                          <div>
+                            <span className="text-sm font-medium text-muted-foreground">{t.step7.water} ({language === "es" ? "No incluido" : "Not Included"}):</span>
+                            <p className="text-sm">
+                              {data.servicesInfo.basicServices.water.provider && `${language === "es" ? "Proveedor" : "Provider"}: ${data.servicesInfo.basicServices.water.provider}`}
+                              {data.servicesInfo.basicServices.water.cost && ` - ${language === "es" ? "Costo" : "Cost"}: $${data.servicesInfo.basicServices.water.cost}`}
+                            </p>
+                          </div>
+                        )}
+                        {(!data.servicesInfo.basicServices.electricity?.included && (data.servicesInfo.basicServices.electricity?.provider || data.servicesInfo.basicServices.electricity?.cost)) && (
+                          <div>
+                            <span className="text-sm font-medium text-muted-foreground">{t.step7.electricity} ({language === "es" ? "No incluido" : "Not Included"}):</span>
+                            <p className="text-sm">
+                              {data.servicesInfo.basicServices.electricity.provider && `${language === "es" ? "Proveedor" : "Provider"}: ${data.servicesInfo.basicServices.electricity.provider}`}
+                              {data.servicesInfo.basicServices.electricity.cost && ` - ${language === "es" ? "Costo" : "Cost"}: $${data.servicesInfo.basicServices.electricity.cost}`}
+                            </p>
+                          </div>
+                        )}
+                        {(!data.servicesInfo.basicServices.internet?.included && (data.servicesInfo.basicServices.internet?.provider || data.servicesInfo.basicServices.internet?.cost)) && (
+                          <div>
+                            <span className="text-sm font-medium text-muted-foreground">{t.step7.internet} ({language === "es" ? "No incluido" : "Not Included"}):</span>
+                            <p className="text-sm">
+                              {data.servicesInfo.basicServices.internet.provider && `${language === "es" ? "Proveedor" : "Provider"}: ${data.servicesInfo.basicServices.internet.provider}`}
+                              {data.servicesInfo.basicServices.internet.cost && ` - ${language === "es" ? "Costo" : "Cost"}: $${data.servicesInfo.basicServices.internet.cost}`}
+                            </p>
+                          </div>
+                        )}
+                      </>
+                    )}
+                    
+                    {/* Additional Services */}
+                    {data.servicesInfo.additionalServices && data.servicesInfo.additionalServices.length > 0 && (
+                      <div>
+                        <span className="text-sm font-medium text-muted-foreground">{language === "es" ? "Servicios Adicionales" : "Additional Services"}:</span>
+                        <div className="space-y-2 mt-1">
+                          {data.servicesInfo.additionalServices.map((service: any, idx: number) => (
+                            <div key={idx} className="text-sm">
+                              <span className="font-medium">
+                                {service.type === "pool_cleaning" ? (language === "es" ? "Limpieza de Piscina" : "Pool Cleaning") :
+                                 service.type === "garden" ? (language === "es" ? "Jardinería" : "Garden") :
+                                 service.type === "gas" ? "Gas" : service.type}:
+                              </span>
+                              {service.provider && ` ${language === "es" ? "Proveedor" : "Provider"}: ${service.provider}`}
+                              {service.cost && ` - ${language === "es" ? "Costo" : "Cost"}: $${service.cost}`}
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                    
                     {data.servicesInfo.acceptedLeaseDurations && data.servicesInfo.acceptedLeaseDurations.length > 0 && (
                       <div>
                         <span className="text-sm font-medium text-muted-foreground">{t.step7.acceptedDurations}:</span>
@@ -410,7 +464,7 @@ export default function Step5TermsReview({ data, draftId, onUpdate, onPrevious, 
                           {data.media.secondaryImages.length} {t.step7.images}
                         </p>
                         <div className="grid grid-cols-4 gap-2">
-                          {data.media.secondaryImages.slice(0, 8).map((img: string, idx: number) => (
+                          {data.media.secondaryImages.map((img: string, idx: number) => (
                             <div key={idx} className="relative aspect-square rounded-md overflow-hidden border">
                               <img 
                                 src={img} 
