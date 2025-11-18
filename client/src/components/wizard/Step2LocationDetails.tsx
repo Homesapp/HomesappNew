@@ -241,38 +241,19 @@ export default function Step2LocationDetails({ data, onUpdate, onNext, onPreviou
               render={({ field }) => (
                 <FormItem>
                   <FormLabel>{t.step2.colony}</FormLabel>
-                  <div className="flex gap-2">
-                    <Select
-                      value={field.value || undefined}
-                      onValueChange={field.onChange}
-                    >
-                      <FormControl>
-                        <SelectTrigger data-testid="select-colony">
-                          <SelectValue placeholder={t.step2.noColony} />
-                        </SelectTrigger>
-                      </FormControl>
-                      <SelectContent>
-                        {colonies.map((colony) => (
-                          <SelectItem
-                            key={colony.id}
-                            value={colony.id}
-                            data-testid={`option-colony-${colony.id}`}
-                          >
-                            {colony.name}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                    <Button
-                      type="button"
-                      variant="outline"
-                      size="icon"
-                      onClick={() => setShowColonyDialog(true)}
-                      data-testid="button-suggest-colony"
-                    >
-                      <Plus className="w-4 h-4" />
-                    </Button>
-                  </div>
+                  <FormControl>
+                    <Input
+                      placeholder={t.step2.colonyPlaceholder || "Ingrese el nombre de la colonia"}
+                      {...field}
+                      value={field.value || ""}
+                      data-testid="input-colony"
+                    />
+                  </FormControl>
+                  <FormDescription className="text-xs">
+                    {language === "es" 
+                      ? "Ingrese el nombre de la colonia manualmente" 
+                      : "Enter the colony name manually"}
+                  </FormDescription>
                   <FormMessage />
                 </FormItem>
               )}
@@ -284,38 +265,19 @@ export default function Step2LocationDetails({ data, onUpdate, onNext, onPreviou
               render={({ field }) => (
                 <FormItem>
                   <FormLabel>{t.step2.condominium}</FormLabel>
-                  <div className="flex gap-2">
-                    <Select
-                      value={field.value || undefined}
-                      onValueChange={field.onChange}
-                    >
-                      <FormControl>
-                        <SelectTrigger data-testid="select-condominium">
-                          <SelectValue placeholder={t.step2.noCondominium} />
-                        </SelectTrigger>
-                      </FormControl>
-                      <SelectContent>
-                        {condominiums.map((condo) => (
-                          <SelectItem
-                            key={condo.id}
-                            value={condo.id}
-                            data-testid={`option-condo-${condo.id}`}
-                          >
-                            {condo.name}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                    <Button
-                      type="button"
-                      variant="outline"
-                      size="icon"
-                      onClick={() => setShowCondoDialog(true)}
-                      data-testid="button-suggest-condo"
-                    >
-                      <Plus className="w-4 h-4" />
-                    </Button>
-                  </div>
+                  <FormControl>
+                    <Input
+                      placeholder={t.step2.condominiumPlaceholder || "Ingrese el nombre del condominio"}
+                      {...field}
+                      value={field.value || ""}
+                      data-testid="input-condominium"
+                    />
+                  </FormControl>
+                  <FormDescription className="text-xs">
+                    {language === "es" 
+                      ? "Ingrese el nombre del condominio manualmente" 
+                      : "Enter the condominium name manually"}
+                  </FormDescription>
                   <FormMessage />
                 </FormItem>
               )}

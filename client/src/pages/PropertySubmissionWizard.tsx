@@ -573,6 +573,13 @@ export default function PropertySubmissionWizard({
                   ? "Por favor espera mientras guardamos tu progreso" 
                   : "Please wait while we save your progress"}
               </p>
+              {currentStep === 3 && (
+                <p className="text-xs text-muted-foreground mt-2" data-testid="text-photo-upload-notice">
+                  {language === "es"
+                    ? "Este paso puede demorar un poco por la carga de las fotos"
+                    : "This step may take a moment due to photo uploads"}
+                </p>
+              )}
             </div>
             <div className="flex items-center gap-2">
               <div className="h-2 w-2 bg-primary rounded-full animate-bounce [animation-delay:-0.3s]"></div>

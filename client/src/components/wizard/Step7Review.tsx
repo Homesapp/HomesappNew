@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
-import { ChevronLeft, Check, AlertCircle } from "lucide-react";
+import { ChevronLeft, Check, AlertCircle, FileText, Home } from "lucide-react";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { getTranslation, Language } from "@/lib/wizardTranslations";
 
@@ -22,6 +22,7 @@ export default function Step7Review({ data, draftId, onPrevious, language = "es"
   const [_, setLocation] = useLocation();
   const { toast } = useToast();
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [viewMode, setViewMode] = useState<"summary" | "terms">("summary");
 
   const submitMutation = useMutation({
     mutationFn: async () => {
@@ -67,6 +68,30 @@ export default function Step7Review({ data, draftId, onPrevious, language = "es"
         </p>
       </div>
 
+      {/* View Mode Toggle Buttons */}
+      <div className="flex gap-2 mb-4">
+        <Button
+          type="button"
+          variant={viewMode === "summary" ? "default" : "outline"}
+          onClick={() => setViewMode("summary")}
+          data-testid="button-view-summary"
+          className="flex-1"
+        >
+          <Home className="w-4 h-4 mr-2" />
+          {language === "es" ? "Resumen de Propiedad" : "Property Summary"}
+        </Button>
+        <Button
+          type="button"
+          variant={viewMode === "terms" ? "default" : "outline"}
+          onClick={() => setViewMode("terms")}
+          data-testid="button-view-terms"
+          className="flex-1"
+        >
+          <FileText className="w-4 h-4 mr-2" />
+          {language === "es" ? "Términos y Condiciones" : "Terms and Conditions"}
+        </Button>
+      </div>
+
       {!isComplete && (
         <Alert variant="destructive" data-testid="alert-incomplete">
           <AlertCircle className="h-4 w-4" />
@@ -77,7 +102,9 @@ export default function Step7Review({ data, draftId, onPrevious, language = "es"
         </Alert>
       )}
 
-      <div className="space-y-4">
+      {/* Property Summary View */}
+      {viewMode === "summary" && (
+        <div className="space-y-4">
         {/* Property Type */}
         <Card data-testid="card-review-type">
           <CardHeader>
@@ -258,7 +285,88 @@ export default function Step7Review({ data, draftId, onPrevious, language = "es"
             </CardContent>
           </Card>
         )}
-      </div>
+        </div>
+      )}
+
+      {/* Terms and Conditions View */}
+      {viewMode === "terms" && (
+        <Card data-testid="card-terms-conditions">
+          <CardHeader>
+            <CardTitle data-testid="heading-terms-title">
+              {language === "es" ? "Términos y Condiciones Completos" : "Complete Terms and Conditions"}
+            </CardTitle>
+            <CardDescription data-testid="text-terms-description">
+              {language === "es" 
+                ? "Lee cuidadosamente los términos y condiciones antes de enviar tu propiedad" 
+                : "Please read the terms and conditions carefully before submitting your property"}
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4 prose dark:prose-invert max-w-none" data-testid="content-terms">
+            <section>
+              <h3 className="font-semibold text-base">1. {language === "es" ? "Propiedad y Titularidad" : "Property and Ownership"}</h3>
+              <p className="text-sm text-muted-foreground">
+                {language === "es" 
+                  ? "El Propietario declara bajo protesta de decir verdad que es el legítimo propietario de la propiedad descrita en este documento y que tiene pleno derecho legal para ofrecer la propiedad en renta y/o venta a través de HomesApp."
+                  : "The Owner declares under oath that they are the legitimate owner of the property described in this document and have full legal right to offer the property for rent and/or sale through HomesApp."}
+              </p>
+            </section>
+
+            <section>
+              <h3 className="font-semibold text-base">2. {language === "es" ? "Información Veraz" : "Truthful Information"}</h3>
+              <p className="text-sm text-muted-foreground">
+                {language === "es"
+                  ? "El Propietario se compromete a proporcionar información veraz, completa y actualizada sobre la propiedad, incluyendo pero no limitado a: características físicas, servicios, amenidades, documentación legal y cualquier gravamen o restricción que pueda afectar la propiedad."
+                  : "The Owner commits to providing truthful, complete and updated information about the property, including but not limited to: physical characteristics, services, amenities, legal documentation and any liens or restrictions that may affect the property."}
+              </p>
+            </section>
+
+            <section>
+              <h3 className="font-semibold text-base">3. {language === "es" ? "Estado de la Propiedad" : "Property Condition"}</h3>
+              <p className="text-sm text-muted-foreground">
+                {language === "es"
+                  ? "El Propietario declara que la propiedad se encuentra en buen estado de conservación y funcionamiento, cumpliendo con todos los estándares de habitabilidad y seguridad requeridos por las leyes aplicables."
+                  : "The Owner declares that the property is in good condition and working order, meeting all habitability and safety standards required by applicable laws."}
+              </p>
+            </section>
+
+            <section>
+              <h3 className="font-semibold text-base">4. {language === "es" ? "Cumplimiento Legal" : "Legal Compliance"}</h3>
+              <p className="text-sm text-muted-foreground">
+                {language === "es"
+                  ? "El Propietario certifica que la propiedad cumple con todas las regulaciones locales, estatales y federales aplicables, incluyendo zonificación, permisos de construcción, y regulaciones ambientales."
+                  : "The Owner certifies that the property complies with all applicable local, state and federal regulations, including zoning, building permits, and environmental regulations."}
+              </p>
+            </section>
+
+            <section>
+              <h3 className="font-semibold text-base">5. {language === "es" ? "Comisiones y Pagos" : "Commissions and Payments"}</h3>
+              <p className="text-sm text-muted-foreground">
+                {language === "es"
+                  ? "El Propietario acepta y autoriza a HomesApp a cobrar las comisiones acordadas por los servicios de intermediación inmobiliaria según lo establecido en el contrato de prestación de servicios."
+                  : "The Owner accepts and authorizes HomesApp to collect the agreed commissions for real estate intermediation services as established in the service agreement."}
+              </p>
+            </section>
+
+            <section>
+              <h3 className="font-semibold text-base">6. {language === "es" ? "Responsabilidad" : "Liability"}</h3>
+              <p className="text-sm text-muted-foreground">
+                {language === "es"
+                  ? "El Propietario exime a HomesApp de cualquier responsabilidad derivada de información incorrecta o incompleta proporcionada por el Propietario, así como de cualquier defecto oculto o problema legal relacionado con la propiedad."
+                  : "The Owner releases HomesApp from any liability arising from incorrect or incomplete information provided by the Owner, as well as from any hidden defects or legal issues related to the property."}
+              </p>
+            </section>
+
+            <section>
+              <h3 className="font-semibold text-base">7. {language === "es" ? "Modificaciones" : "Modifications"}</h3>
+              <p className="text-sm text-muted-foreground">
+                {language === "es"
+                  ? "HomesApp se reserva el derecho de modificar estos términos y condiciones en cualquier momento. Los cambios entrarán en vigor inmediatamente después de su publicación en la plataforma."
+                  : "HomesApp reserves the right to modify these terms and conditions at any time. Changes will take effect immediately after being published on the platform."}
+              </p>
+            </section>
+          </CardContent>
+        </Card>
+      )}
 
       <div className="flex justify-between pt-4">
         <Button
