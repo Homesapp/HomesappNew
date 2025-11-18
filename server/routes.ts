@@ -19755,12 +19755,45 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post("/api/external-agencies", isAuthenticated, requireRole(["master", "admin"]), async (req: any, res) => {
     try {
       const validatedData = insertExternalAgencySchema.parse(req.body);
+      
+      // Admin can assign an agency to a specific user via createdBy field
+      const assignedUserId = validatedData.createdBy || req.user.id;
+      
+      // Verify that the assigned user exists
+      const assignedUser = await storage.getUserById(assignedUserId);
+      if (!assignedUser) {
+        return res.status(404).json({ message: "Assigned user not found" });
+      }
+      
+      // Check if the assigned user already has an agency
+      const existingAgencies = await storage.getExternalAgenciesByCreator(assignedUserId);
+      if (existingAgencies && existingAgencies.length > 0) {
+        return res.status(400).json({ message: "User already has an external agency" });
+      }
+      
+      // Create agency first
       const agency = await storage.createExternalAgency({
         ...validatedData,
-        createdBy: req.user.id,
+        createdBy: assignedUserId,
       });
       
-      await createAuditLog(req, "create", "external_agency", agency.id, "Created external agency");
+      try {
+        // Update assigned user's role to external_agency_admin
+        await storage.updateUserRole(assignedUserId, "external_agency_admin");
+      } catch (roleError) {
+        // Rollback: Delete the agency if role update fails
+        console.error("Role update failed, attempting rollback:", roleError);
+        try {
+          await storage.deleteExternalAgency(agency.id);
+          console.log("Successfully rolled back agency creation");
+        } catch (deleteError) {
+          console.error("CRITICAL: Rollback failed - manual cleanup required for agency", agency.id, deleteError);
+          // Agency exists but role was not assigned - admin must manually fix
+        }
+        throw new Error("Failed to assign user role. Please contact support if this persists.");
+      }
+      
+      await createAuditLog(req, "create", "external_agency", agency.id, `Created external agency for user ${assignedUserId}`);
       res.status(201).json(agency);
     } catch (error: any) {
       console.error("Error creating external agency:", error);

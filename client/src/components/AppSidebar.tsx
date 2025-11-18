@@ -246,6 +246,7 @@ export function AppSidebar({ userRole, userId }: AppSidebarProps) {
 
   const usersAndRolesGroup = [
     { titleKey: "sidebar.userManagement", url: "/admin/users", icon: UserCog, roles: ["master", "admin"] },
+    { titleKey: "sidebar.externalAgenciesAdmin", url: "/admin/external-agencies", icon: Building, roles: ["master", "admin"] },
     { titleKey: "sidebar.permissions", url: "/permissions", icon: Settings, roles: ["master", "admin"] },
   ];
 

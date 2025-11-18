@@ -57,17 +57,17 @@ export default function ExternalAgencyConfig() {
   const updateMutation = useMutation({
     mutationFn: async (data: z.infer<typeof formSchema>) => {
       if (!agency) {
-        return await apiRequest("POST", "/api/external-agencies/register", data);
+        throw new Error("No agency assigned");
       }
       return await apiRequest("PATCH", `/api/external-agencies/${agency.id}`, data);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['/api/external-agencies'] });
       toast({
-        title: language === "es" ? (agency ? "Agencia actualizada" : "Agencia creada") : (agency ? "Agency updated" : "Agency created"),
+        title: language === "es" ? "Agencia actualizada" : "Agency updated",
         description: language === "es" 
-          ? (agency ? "La información de la agencia ha sido actualizada exitosamente" : "Tu agencia ha sido creada exitosamente. Ahora puedes gestionar propiedades.")
-          : (agency ? "Agency information has been updated successfully" : "Your agency has been created successfully. You can now manage properties."),
+          ? "La información de la agencia ha sido actualizada exitosamente"
+          : "Agency information has been updated successfully",
       });
     },
     onError: () => {
@@ -116,6 +116,14 @@ export default function ExternalAgencyConfig() {
               <Skeleton className="h-10 w-full" />
               <Skeleton className="h-10 w-full" />
               <Skeleton className="h-20 w-full" />
+            </div>
+          ) : !agency ? (
+            <div className="text-center py-8" data-testid="div-no-agency">
+              <p className="text-muted-foreground">
+                {language === "es" 
+                  ? "No tienes una agencia asignada. Por favor contacta al administrador de HomesApp para crear tu cuenta de agencia externa."
+                  : "You don't have an assigned agency. Please contact the HomesApp administrator to create your external agency account."}
+              </p>
             </div>
           ) : (
             <Form {...form}>

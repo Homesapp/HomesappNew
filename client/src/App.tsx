@@ -132,6 +132,7 @@ import ExternalAgencyConfig from "@/pages/ExternalAgencyConfig";
 import ExternalProperties from "@/pages/ExternalProperties";
 import ExternalPayments from "@/pages/ExternalPayments";
 import ExternalMaintenanceTickets from "@/pages/ExternalMaintenanceTickets";
+import AdminExternalAgencies from "@/pages/AdminExternalAgencies";
 import NotFound from "@/pages/not-found";
 
 function AuthenticatedApp() {
@@ -360,6 +361,7 @@ function AuthenticatedApp() {
               <Route path="/admin/rental-opportunity-requests" component={AdminRentalOpportunityRequests} />
               <Route path="/admin/offers" component={AdminOfferManagement} />
               <Route path="/admin/rental-forms" component={AdminRentalFormManagement} />
+              <Route path="/admin/external-agencies" component={AdminExternalAgencies} />
               <Route path="/external/dashboard" component={ExternalDashboard} />
               <Route path="/external/agency" component={ExternalAgencyConfig} />
               <Route path="/external/properties" component={ExternalProperties} />
