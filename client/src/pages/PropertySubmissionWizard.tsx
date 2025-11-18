@@ -60,6 +60,8 @@ export default function PropertySubmissionWizard({
   });
   const [lastSaved, setLastSaved] = useState<Date | null>(null);
   const [isSaving, setIsSaving] = useState(false);
+  const [lastSavedData, setLastSavedData] = useState<WizardData | null>(null);
+  const [lastSavedStep, setLastSavedStep] = useState<number | null>(null);
 
   // Fetch existing draft if there's one in progress
   // SECURITY: Disable authenticated draft fetching when using invitation token
@@ -108,6 +110,20 @@ export default function PropertySubmissionWizard({
         if (draft.updatedAt) {
           setLastSaved(new Date(draft.updatedAt));
         }
+        // Track the loaded data and step as last saved
+        setLastSavedStep(draft.currentStep);
+        setLastSavedData({
+          isForRent: draft.isForRent,
+          isForSale: draft.isForSale,
+          basicInfo: draft.basicInfo,
+          locationInfo: draft.locationInfo,
+          details: draft.details,
+          media: draft.media,
+          servicesInfo: draft.servicesInfo,
+          accessInfo: draft.accessInfo,
+          ownerData: draft.ownerData,
+          commercialTerms: draft.commercialTerms,
+        });
       }
     }
   }, [existingDrafts, invitationToken]);
@@ -133,6 +149,20 @@ export default function PropertySubmissionWizard({
       if (tokenDraft.updatedAt) {
         setLastSaved(new Date(tokenDraft.updatedAt));
       }
+      // Track the loaded data and step as last saved
+      setLastSavedStep(tokenDraft.currentStep);
+      setLastSavedData({
+        isForRent: tokenDraft.isForRent,
+        isForSale: tokenDraft.isForSale,
+        basicInfo: tokenDraft.basicInfo,
+        locationInfo: tokenDraft.locationInfo,
+        details: tokenDraft.details,
+        media: tokenDraft.media,
+        servicesInfo: tokenDraft.servicesInfo,
+        accessInfo: tokenDraft.accessInfo,
+        ownerData: tokenDraft.ownerData,
+        commercialTerms: tokenDraft.commercialTerms,
+      });
     }
   }, [tokenDraft, invitationToken]);
 
@@ -156,6 +186,20 @@ export default function PropertySubmissionWizard({
       setDraftId(data.id);
       setLastSaved(new Date());
       setIsSaving(false);
+      // Update lastSavedData and step to track what's persisted
+      setLastSavedStep(data.currentStep);
+      setLastSavedData({
+        isForRent: data.isForRent,
+        isForSale: data.isForSale,
+        basicInfo: data.basicInfo,
+        locationInfo: data.locationInfo,
+        details: data.details,
+        media: data.media,
+        servicesInfo: data.servicesInfo,
+        accessInfo: data.accessInfo,
+        ownerData: data.ownerData,
+        commercialTerms: data.commercialTerms,
+      });
       queryClient.invalidateQueries({ queryKey: ["/api/property-submission-drafts"] });
     },
     onError: (error: Error) => {
@@ -190,6 +234,20 @@ export default function PropertySubmissionWizard({
     onSuccess: (data: PropertySubmissionDraft) => {
       setLastSaved(new Date());
       setIsSaving(false);
+      // Update lastSavedData and step to track what's persisted
+      setLastSavedStep(data.currentStep);
+      setLastSavedData({
+        isForRent: data.isForRent,
+        isForSale: data.isForSale,
+        basicInfo: data.basicInfo,
+        locationInfo: data.locationInfo,
+        details: data.details,
+        media: data.media,
+        servicesInfo: data.servicesInfo,
+        accessInfo: data.accessInfo,
+        ownerData: data.ownerData,
+        commercialTerms: data.commercialTerms,
+      });
       queryClient.invalidateQueries({ queryKey: ["/api/property-submission-drafts"] });
     },
     onError: (error: Error) => {
@@ -205,14 +263,56 @@ export default function PropertySubmissionWizard({
     retryDelay: (attemptIndex) => Math.min(1000 * 2 ** attemptIndex, 30000),
   });
 
+  // Check if data has changed
+  const hasDataChanged = useCallback((newData: WizardData, step: number) => {
+    if (!lastSavedData) return true; // No previous save, must save
+    
+    // Deep comparison of wizard data (excluding currentStep)
+    return JSON.stringify({
+      isForRent: newData.isForRent,
+      isForSale: newData.isForSale,
+      basicInfo: newData.basicInfo,
+      locationInfo: newData.locationInfo,
+      details: newData.details,
+      media: newData.media,
+      servicesInfo: newData.servicesInfo,
+      accessInfo: newData.accessInfo,
+      ownerData: newData.ownerData,
+      commercialTerms: newData.commercialTerms,
+    }) !== JSON.stringify({
+      isForRent: lastSavedData.isForRent,
+      isForSale: lastSavedData.isForSale,
+      basicInfo: lastSavedData.basicInfo,
+      locationInfo: lastSavedData.locationInfo,
+      details: lastSavedData.details,
+      media: lastSavedData.media,
+      servicesInfo: lastSavedData.servicesInfo,
+      accessInfo: lastSavedData.accessInfo,
+      ownerData: lastSavedData.ownerData,
+      commercialTerms: lastSavedData.commercialTerms,
+    });
+  }, [lastSavedData]);
+
   // Save function - accepts optional step number to save
   const saveDraft = useCallback(async (stepToSave?: number) => {
     if (isSaving) return;
 
+    const targetStep = stepToSave !== undefined ? stepToSave : currentStep;
+    
+    // Check if either step or data has changed
+    const stepChanged = lastSavedStep !== targetStep;
+    const dataChanged = hasDataChanged(wizardData, targetStep);
+    
+    // Skip save if neither step nor data changed
+    if (!stepChanged && !dataChanged && draftId) {
+      console.log("No changes detected (step or data), skipping save");
+      return;
+    }
+
     setIsSaving(true);
     const dataToSave = {
       ...wizardData,
-      currentStep: stepToSave !== undefined ? stepToSave : currentStep,
+      currentStep: targetStep,
     };
 
     try {
@@ -233,7 +333,7 @@ export default function PropertySubmissionWizard({
     } finally {
       setIsSaving(false);
     }
-  }, [wizardData, currentStep, draftId, isSaving, toast, updateDraftMutation, createDraftMutation]);
+  }, [wizardData, currentStep, draftId, isSaving, lastSavedStep, hasDataChanged, toast, updateDraftMutation, createDraftMutation]);
 
   const updateWizardData = (stepData: Partial<WizardData>) => {
     setWizardData(prev => ({ ...prev, ...stepData }));
