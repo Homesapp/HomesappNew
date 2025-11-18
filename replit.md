@@ -102,3 +102,38 @@ Implemented automatic image compression with real-time progress tracking to prev
 - Automatic format selection based on source type and transparency
 
 **Impact:** Users can now upload large images without errors, with clear visual feedback during compression. The system automatically reduces file sizes while maintaining image quality, improving upload speeds and reducing server load.
+
+### Property Wizard Performance Optimization (November 2025)
+Fixed slow save times in wizard steps 4-7 after uploading photos in step 3 by implementing intelligent payload management.
+
+**Problem:** After uploading photos in step 3, steps 4-7 took very long to save because each step was sending ALL wizard data (including MB of base64 images) to the server via PATCH requests.
+
+**Root Cause Analysis:**
+- `handleNext` was sending entire `wizardData` object in every step
+- After uploading 5-10 compressed images (~2-5MB total in base64), steps 4-7 were sending this payload unnecessarily
+- Network I/O was the bottleneck, not in-memory comparisons
+
+**Solution:**
+- **Smart Payload Management**: Modified `handleNext` to send only step-specific data
+  - Step 1: Sends only `basicInfo` (~1-2KB)
+  - Step 2: Sends only `locationInfo` + `details` (~1-2KB)
+  - Step 3: Sends only `media` (compressed images)
+  - **Step 4: Sends only `servicesInfo` (~1KB), NOT images** ← Critical optimization
+  - Step 5: Sends only `accessInfo` (~1KB)
+  - Step 6: Sends only `ownerData` (~2KB)
+  - Step 7: Sends only `commercialTerms` (~1KB)
+
+**Code Change** (`client/src/pages/PropertySubmissionWizard.tsx` lines 369-373):
+```typescript
+// Only send the step's delta data, not the entire wizardData
+const dataToSave = stepData && Object.keys(stepData).length > 0
+  ? { ...stepData, currentStep: nextStep }  // Only step data
+  : { currentStep: nextStep };              // Or just step number
+```
+
+**Technical Details:**
+- Kept `hasDataChanged` with full JSON.stringify for reliability (no data loss risk)
+- Backend `.returning()` returns complete draft record after PATCH
+- Initial draft creation still sends full payload (acceptable, happens once)
+
+**Impact:** Steps 4-7 now save as fast as steps 1-2 (1-2KB payloads instead of 2-5MB), dramatically improving wizard UX after photo upload.

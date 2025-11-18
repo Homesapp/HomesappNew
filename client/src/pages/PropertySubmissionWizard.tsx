@@ -266,10 +266,14 @@ export default function PropertySubmissionWizard({
   });
 
   // Check if data has changed
+  // Note: The real performance optimization is in handleNext (sending only stepData)
+  // This function needs to be reliable, not necessarily ultra-fast, since it runs in-memory
   const hasDataChanged = useCallback((newData: WizardData, step: number) => {
     if (!lastSavedData) return true; // No previous save, must save
     
-    // Deep comparison of wizard data (excluding currentStep)
+    // Deep comparison of all wizard data
+    // We use JSON.stringify here which is safe and reliable
+    // The performance bottleneck is network (sending MB of data), not this comparison
     return JSON.stringify({
       isForRent: newData.isForRent,
       isForSale: newData.isForSale,
@@ -358,16 +362,23 @@ export default function PropertySubmissionWizard({
       // Only save if there are changes or no draft exists
       if (stepChanged || dataChanged || !draftId) {
         setIsSaving(true);
-        const dataToSave = {
-          ...updatedData,
-          currentStep: nextStep,
-        };
+        
+        // Critical optimization: Only send the step's delta data, not the entire wizardData
+        // This prevents sending multi-MB image payloads in steps 4-7
+        const dataToSave = stepData && Object.keys(stepData).length > 0
+          ? { ...stepData, currentStep: nextStep } 
+          : { currentStep: nextStep }; // If no stepData, only send currentStep
 
         try {
           if (draftId) {
             await updateDraftMutation.mutateAsync({ id: draftId, data: dataToSave });
           } else {
-            const newDraft = await createDraftMutation.mutateAsync(dataToSave);
+            // For initial draft creation, send all data
+            const fullDataToSave = {
+              ...updatedData,
+              currentStep: nextStep,
+            };
+            const newDraft = await createDraftMutation.mutateAsync(fullDataToSave);
             setDraftId(newDraft.id);
           }
           setLastSaved(new Date());

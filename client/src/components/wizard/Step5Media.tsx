@@ -235,6 +235,7 @@ export default function Step5Media({ data, onUpdate, onNext, onPrevious, languag
         try {
           // Update progress state
           setUploadingPrimary(prev => new Map(prev).set(fileId, 0));
+          console.log('[Primary] Starting compression for:', file.name);
           
           // Compress image with progress callback
           const result = await compressImage(file, {
@@ -242,9 +243,11 @@ export default function Step5Media({ data, onUpdate, onNext, onPrevious, languag
             maxHeight: 1920,
             quality: 0.85,
             onProgress: (progress) => {
+              console.log('[Primary] Compression progress:', progress);
               setUploadingPrimary(prev => new Map(prev).set(fileId, progress));
             },
           });
+          console.log('[Primary] Compression complete for:', file.name);
           
           compressedImages.push(result.base64);
           
@@ -332,6 +335,7 @@ export default function Step5Media({ data, onUpdate, onNext, onPrevious, languag
         try {
           // Update progress state
           setUploadingSecondary(prev => new Map(prev).set(fileId, 0));
+          console.log('[Secondary] Starting compression for:', file.name);
           
           // Compress image with progress callback
           const result = await compressImage(file, {
@@ -339,9 +343,11 @@ export default function Step5Media({ data, onUpdate, onNext, onPrevious, languag
             maxHeight: 1920,
             quality: 0.85,
             onProgress: (progress) => {
+              console.log('[Secondary] Compression progress:', progress);
               setUploadingSecondary(prev => new Map(prev).set(fileId, progress));
             },
           });
+          console.log('[Secondary] Compression complete for:', file.name);
           
           compressedImages.push(result.base64);
           
