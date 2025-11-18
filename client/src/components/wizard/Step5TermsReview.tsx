@@ -195,11 +195,11 @@ export default function Step5TermsReview({ data, draftId, onUpdate, onPrevious, 
         <form onSubmit={form.handleSubmit(handleSubmit)} className="space-y-4">
           <Tabs defaultValue="review" className="w-full">
             <TabsList className="grid w-full grid-cols-2 mb-4">
-              <TabsTrigger value="review" data-testid="tab-review" style={{ color: 'hsl(var(--foreground))' }}>
-                {t.step7.reviewTab}
+              <TabsTrigger value="review" data-testid="tab-review">
+                {t.step7.tabReview}
               </TabsTrigger>
-              <TabsTrigger value="terms" data-testid="tab-terms" style={{ color: 'hsl(var(--foreground))' }}>
-                {t.step7.termsTab}
+              <TabsTrigger value="terms" data-testid="tab-terms">
+                {t.step7.tabTerms}
               </TabsTrigger>
             </TabsList>
 
