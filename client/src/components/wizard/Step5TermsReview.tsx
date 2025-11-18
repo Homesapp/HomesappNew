@@ -61,6 +61,11 @@ export default function Step5TermsReview({ data, draftId, onUpdate, onPrevious, 
     queryKey: ["/api/condominiums/approved"],
   });
 
+  // Fetch property owner terms from database
+  const { data: ownerTerms = [], isLoading: termsLoading } = useQuery<any[]>({
+    queryKey: ["/api/property-owner-terms/active"],
+  });
+
   // Helper functions to get names from IDs
   const getColonyName = (colonyId: string | undefined) => {
     if (!colonyId) return "N/A";
@@ -238,18 +243,27 @@ export default function Step5TermsReview({ data, draftId, onUpdate, onPrevious, 
                       <span className="text-sm font-medium text-muted-foreground">{t.step7.descriptionLabel}:</span>
                       <p className="text-base" data-testid="text-review-description">{data.basicInfo.description}</p>
                     </div>
-                    <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <span className="text-sm font-medium text-muted-foreground">{t.step7.typeLabel}:</span>
+                      <p className="text-base" data-testid="text-review-property-type">{data.basicInfo.propertyType}</p>
+                    </div>
+                    {/* Separate Rental and Sale Prices */}
+                    {data.isForRent && data.basicInfo.rentalPrice && (
                       <div>
-                        <span className="text-sm font-medium text-muted-foreground">{t.step7.typeLabel}:</span>
-                        <p className="text-base" data-testid="text-review-property-type">{data.basicInfo.propertyType}</p>
-                      </div>
-                      <div>
-                        <span className="text-sm font-medium text-muted-foreground">{t.step7.priceLabel}:</span>
-                        <p className="text-base" data-testid="text-review-price">
-                          ${Number(data.basicInfo.price).toLocaleString()} MXN
+                        <span className="text-sm font-medium text-muted-foreground">{t.step7.rentalPriceLabel || "Precio de Renta"}:</span>
+                        <p className="text-base" data-testid="text-review-rental-price">
+                          ${Number(data.basicInfo.rentalPrice).toLocaleString()} {data.basicInfo.rentalCurrency || "MXN"}
                         </p>
                       </div>
-                    </div>
+                    )}
+                    {data.isForSale && data.basicInfo.salePrice && (
+                      <div>
+                        <span className="text-sm font-medium text-muted-foreground">{t.step7.salePriceLabel || "Precio de Venta"}:</span>
+                        <p className="text-base" data-testid="text-review-sale-price">
+                          ${Number(data.basicInfo.salePrice).toLocaleString()} {data.basicInfo.saleCurrency || "MXN"}
+                        </p>
+                      </div>
+                    )}
                   </CardContent>
                 </Card>
               )}
@@ -398,7 +412,33 @@ export default function Step5TermsReview({ data, draftId, onUpdate, onPrevious, 
                 </CardHeader>
                 <CardContent>
                   <ScrollArea className="h-[500px] w-full rounded-md border p-4">
-                    <div className="space-y-4 text-sm" dangerouslySetInnerHTML={{ __html: t.step7.termsContent }} />
+                    {termsLoading ? (
+                      <div className="text-center py-8">
+                        <div className="inline-block h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent"></div>
+                        <p className="mt-2 text-sm text-muted-foreground">
+                          {t.step7.loadingTerms || "Cargando términos..."}
+                        </p>
+                      </div>
+                    ) : ownerTerms.length > 0 ? (
+                      <div className="space-y-6 prose dark:prose-invert max-w-none">
+                        {ownerTerms.map((term, index) => (
+                          <section key={term.id}>
+                            <h3 className="font-semibold text-lg mb-2">
+                              {index + 1}. {language === "es" ? term.title : term.titleEn}
+                            </h3>
+                            <p className="text-sm text-muted-foreground whitespace-pre-wrap">
+                              {language === "es" ? term.content : term.contentEn}
+                            </p>
+                          </section>
+                        ))}
+                      </div>
+                    ) : (
+                      <div className="text-center py-8">
+                        <p className="text-sm text-muted-foreground">
+                          {t.step7.noTermsConfigured || "No hay términos configurados"}
+                        </p>
+                      </div>
+                    )}
                   </ScrollArea>
                 </CardContent>
               </Card>
