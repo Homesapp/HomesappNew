@@ -303,6 +303,87 @@ export default function Step1BasicInfo({ data, onUpdate, onNext, language = "es"
                 )}
               />
             </div>
+
+            {/* Moneda */}
+            <FormField
+              control={form.control}
+              name="currency"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>{t.step1.currency} *</FormLabel>
+                  <Select onValueChange={field.onChange} value={field.value}>
+                    <FormControl>
+                      <SelectTrigger data-testid="select-currency">
+                        <SelectValue placeholder={t.step1.currency} />
+                      </SelectTrigger>
+                    </FormControl>
+                    <SelectContent>
+                      <SelectItem value="MXN" data-testid="option-currency-mxn">
+                        {t.step1.mxn}
+                      </SelectItem>
+                      <SelectItem value="USD" data-testid="option-currency-usd">
+                        {t.step1.usd}
+                      </SelectItem>
+                    </SelectContent>
+                  </Select>
+                  <FormDescription className="text-xs">
+                    {t.step1.currencyDesc}
+                  </FormDescription>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
+            {/* Mascotas y Subarrendamiento */}
+            <div className="space-y-4">
+              <FormField
+                control={form.control}
+                name="petFriendly"
+                render={({ field }) => (
+                  <FormItem className="flex flex-row items-center justify-between rounded-lg border p-4">
+                    <div className="space-y-0.5">
+                      <FormLabel className="text-base">
+                        {t.step1.petFriendly}
+                      </FormLabel>
+                      <FormDescription>
+                        {t.step1.petFriendlyDesc}
+                      </FormDescription>
+                    </div>
+                    <FormControl>
+                      <Switch
+                        checked={field.value}
+                        onCheckedChange={field.onChange}
+                        data-testid="switch-pet-friendly"
+                      />
+                    </FormControl>
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={form.control}
+                name="allowsSubleasing"
+                render={({ field }) => (
+                  <FormItem className="flex flex-row items-center justify-between rounded-lg border p-4">
+                    <div className="space-y-0.5">
+                      <FormLabel className="text-base">
+                        {t.step1.allowsSubleasing}
+                      </FormLabel>
+                      <FormDescription>
+                        {t.step1.allowsSubleasingDesc}
+                      </FormDescription>
+                    </div>
+                    <FormControl>
+                      <Switch
+                        checked={field.value}
+                        onCheckedChange={field.onChange}
+                        data-testid="switch-allows-subleasing"
+                      />
+                    </FormControl>
+                  </FormItem>
+                )}
+              />
+            </div>
           </div>
 
           <div className="flex justify-end pt-4">

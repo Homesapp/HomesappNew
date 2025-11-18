@@ -113,6 +113,8 @@ export function draftToPropertyData(draft: PropertySubmissionDraft, adminId: str
     price: basicInfo.price || "0",
     salePrice: basicInfo.salePrice,
     currency: basicInfo.currency || "MXN",
+    petFriendly: basicInfo.petFriendly || false,
+    allowsSubleasing: basicInfo.allowsSubleasing || false,
     
     // Location
     location: locationInfo.location || "Tulum, Quintana Roo",
@@ -154,9 +156,6 @@ export function draftToPropertyData(draft: PropertySubmissionDraft, adminId: str
     approvalStatus: "approved" as const,
     active: true,
     published: true,
-    
-    // Commercial terms
-    allowsSubleasing: commercialTerms.allowsSubleasing || false,
     
     // Owner private data
     ownerFirstName: ownerData.ownerFirstName,
