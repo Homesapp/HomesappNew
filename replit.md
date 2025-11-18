@@ -33,11 +33,10 @@ Key features include:
 *   **AI-Powered Capabilities**: Predictive analytics, automated legal document generation, intelligent tenant screening, and a virtual assistant (MARCO) powered by OpenAI GPT-4.
 *   **CRM Lead Management System**: Kanban-style lead management with a 10-stage rental pipeline.
 *   **Referral System**: Sellers can refer property owners and earn 20% commission per referred property.
-*   **User Experience**: Airbnb-style role switching, full i18n support, real-time chat, granular email notification preferences, and auto-logout security.
+*   **User Experience**: Airbnb-style role switching, full i18n support, real-time chat, granular email notification preferences, and 30-minute auto-logout security.
 *   **Public Rental Form**: Comprehensive 8-step wizard for tenants to submit rental applications with guarantor option, featuring bilingual support and robust validation.
 *   **Property Invitation Token System**: Secure token-based property submission system allowing admins to generate time-limited, single-use invitation links for property owners to submit properties without creating accounts.
 *   **Sidebar Menu Visibility Control**: Admin configuration system allowing master and admin users to control sidebar menu item visibility for specific roles and individual users, with database-driven configurations and per-user overrides.
-*   **Auto-Logout Configuration**: System-wide configurable auto-logout timeout for enhanced security, managed via system settings and an admin UI.
 *   **Internationalization (i18n) System**: Comprehensive bilingual support (Spanish/English) with modular translation files organized by domain.
 *   **Social Media Integration**: Proper Open Graph meta tags for clean link previews on WhatsApp, Facebook, and Twitter with professional titles, descriptions, and images.
 

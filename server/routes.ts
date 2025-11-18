@@ -7811,20 +7811,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // System Settings routes
-  // Public: Get auto-logout timeout (available to all authenticated users)
-  app.get("/api/system-settings/auto-logout-timeout", isAuthenticated, async (req: any, res) => {
-    try {
-      const setting = await storage.getSystemSetting("auto_logout_timeout_ms");
-      if (!setting) {
-        return res.json({ timeout: 300000 }); // Default 5 minutes
-      }
-      res.json({ timeout: parseInt(setting.settingValue) });
-    } catch (error: any) {
-      console.error("Error fetching auto-logout timeout:", error);
-      res.json({ timeout: 300000 }); // Default on error
-    }
-  });
-
   // Admin: Get a specific system setting
   app.get("/api/admin/system-settings/:key", isAuthenticated, requireRole(["master", "admin"]), async (req: any, res) => {
     try {
