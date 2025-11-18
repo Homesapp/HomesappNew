@@ -16,7 +16,7 @@ Developed with React 18, TypeScript, Vite, Wouter for routing, and TanStack Quer
 Implemented with Node.js, Express.js, and TypeScript, providing a RESTful API. Features include role-based middleware, JSON error handling, dual authentication (Replit Auth/OpenID Connect, local, Google OAuth), session management, user approval workflows, and centralized OpenAI service integration (GPT-4). Contract routes enforce Zod validation, data sanitization, and role-based authorization.
 
 ### Data Storage
-Utilizes PostgreSQL (Neon serverless) with Drizzle ORM for type-safe interactions. The schema supports comprehensive user management, property lifecycle, appointment scheduling, client presentation cards, service providers, offer workflows, staff assignments, audit logs, lead capture, condominium management, a bidirectional review system, financial tracking, payout management, and rental contracts.
+Utilizes PostgreSQL (Neon serverless) with Drizzle ORM for type-safe interactions. The schema supports comprehensive user management, property lifecycle, appointment scheduling, client presentation cards, service providers, offer workflows, staff assignments, audit logs, lead capture, condominium management, a bidirectional review system, financial tracking, payout management, rental contracts, and external property management (agencies, properties, contracts, payment schedules, payments, maintenance tickets).
 
 ### System Design Choices
 The platform employs unified middleware for consistent authentication and logging. The public dashboard adapts content based on authentication status. Real-time chat is via WebSockets with session-based authentication and per-conversation authorization.
@@ -43,6 +43,7 @@ Key features include:
 *   **Property Wizard Optimization**: Intelligent payload management to speed up wizard step saves after image uploads.
 *   **Separate Rental and Sale Pricing**: Independent price and currency fields for rental and sale transactions with deep JSONB merge for data integrity.
 *   **Editable Owner Terms**: Admin-editable property owner terms and conditions with wizard UI enhancements.
+*   **External Property Management System**: Multi-tenant module for managing external agency properties independently, with payment calendar, maintenance tickets, and optional property linking to main system.
 
 ## External Dependencies
 *   Google Calendar API

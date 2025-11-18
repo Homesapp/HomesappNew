@@ -41,6 +41,8 @@ export const userRoleEnum = pgEnum("user_role", [
   "contador",
   "agente_servicios_especiales",
   "hoa_manager",
+  "external_agency_admin",
+  "external_staff",
 ]);
 
 export const userStatusEnum = pgEnum("user_status", [
@@ -322,6 +324,41 @@ export const ownerApprovalStatusEnum = pgEnum("owner_approval_status", [
   "pending",   // Pendiente de aprobación
   "approved",  // Aprobado
   "rejected",  // Rechazado
+]);
+
+// External Management System Enums
+export const externalPropertyStatusEnum = pgEnum("external_property_status", [
+  "active",       // Activa
+  "inactive",     // Inactiva
+  "rented",       // Rentada
+  "linked",       // Vinculada a propiedad real del sistema
+]);
+
+export const externalContractStatusEnum = pgEnum("external_contract_status", [
+  "active",       // Activo
+  "completed",    // Completado
+  "cancelled",    // Cancelado
+]);
+
+export const externalPaymentStatusEnum = pgEnum("external_payment_status", [
+  "pending",      // Pendiente
+  "paid",         // Pagado
+  "overdue",      // Atrasado
+  "cancelled",    // Cancelado
+]);
+
+export const externalTicketStatusEnum = pgEnum("external_ticket_status", [
+  "open",         // Abierto
+  "in_progress",  // En progreso
+  "resolved",     // Resuelto
+  "closed",       // Cerrado
+]);
+
+export const externalTicketPriorityEnum = pgEnum("external_ticket_priority", [
+  "low",          // Baja
+  "medium",       // Media
+  "high",         // Alta
+  "urgent",       // Urgente
 ]);
 
 export const leadJourneyActionEnum = pgEnum("lead_journey_action", [
@@ -4639,6 +4676,215 @@ export const insertPropertyOwnerTermsSchema = createInsertSchema(propertyOwnerTe
 
 export type InsertPropertyOwnerTerms = z.infer<typeof insertPropertyOwnerTermsSchema>;
 export type PropertyOwnerTerms = typeof propertyOwnerTerms.$inferSelect;
+
+// ============================================================================
+// EXTERNAL PROPERTY MANAGEMENT SYSTEM
+// Sistema independiente para gestionar propiedades externas sin proceso de aprobación
+// ============================================================================
+
+// External Agencies - Agencias externas que usan el sistema
+export const externalAgencies = pgTable("external_agencies", {
+  id: varchar("id").primaryKey().$defaultFn(() => crypto.randomUUID()),
+  name: varchar("name", { length: 255 }).notNull(), // Nombre de la agencia
+  description: text("description"), // Descripción
+  agencyLogoUrl: text("agency_logo_url"), // Logo de la agencia
+  contactName: varchar("contact_name", { length: 255 }), // Nombre de contacto
+  contactEmail: varchar("contact_email", { length: 255 }), // Email de contacto
+  contactPhone: varchar("contact_phone", { length: 50 }), // Teléfono de contacto
+  isActive: boolean("is_active").notNull().default(true), // Si está activa
+  createdBy: varchar("created_by").references(() => users.id),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+}, (table) => [
+  index("idx_external_agencies_active").on(table.isActive),
+]);
+
+export const insertExternalAgencySchema = createInsertSchema(externalAgencies).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export type InsertExternalAgency = z.infer<typeof insertExternalAgencySchema>;
+export type ExternalAgency = typeof externalAgencies.$inferSelect;
+
+// External Properties - Propiedades gestionadas externamente
+export const externalProperties = pgTable("external_properties", {
+  id: varchar("id").primaryKey().$defaultFn(() => crypto.randomUUID()),
+  agencyId: varchar("agency_id").notNull().references(() => externalAgencies.id, { onDelete: "cascade" }),
+  linkedPropertyId: varchar("linked_property_id").references(() => properties.id), // Si se vincula a propiedad real
+  name: varchar("name", { length: 255 }).notNull(), // Nombre de la propiedad
+  address: text("address"), // Dirección completa
+  city: varchar("city", { length: 100 }),
+  state: varchar("state", { length: 100 }),
+  country: varchar("country", { length: 100 }).default("México"),
+  postalCode: varchar("postal_code", { length: 20 }),
+  propertyType: varchar("property_type", { length: 50 }), // casa, departamento, etc
+  bedrooms: integer("bedrooms"),
+  bathrooms: decimal("bathrooms", { precision: 3, scale: 1 }),
+  area: decimal("area", { precision: 10, scale: 2 }), // m²
+  status: externalPropertyStatusEnum("status").notNull().default("active"),
+  notes: text("notes"), // Notas adicionales
+  createdBy: varchar("created_by").references(() => users.id),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+}, (table) => [
+  index("idx_external_properties_agency").on(table.agencyId),
+  index("idx_external_properties_status").on(table.status),
+  index("idx_external_properties_linked").on(table.linkedPropertyId),
+]);
+
+export const insertExternalPropertySchema = createInsertSchema(externalProperties).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export type InsertExternalProperty = z.infer<typeof insertExternalPropertySchema>;
+export type ExternalProperty = typeof externalProperties.$inferSelect;
+
+// External Rental Contracts - Contratos de renta externos
+export const externalRentalContracts = pgTable("external_rental_contracts", {
+  id: varchar("id").primaryKey().$defaultFn(() => crypto.randomUUID()),
+  agencyId: varchar("agency_id").notNull().references(() => externalAgencies.id, { onDelete: "cascade" }),
+  propertyId: varchar("property_id").notNull().references(() => externalProperties.id, { onDelete: "cascade" }),
+  tenantName: varchar("tenant_name", { length: 255 }).notNull(), // Nombre del inquilino
+  tenantEmail: varchar("tenant_email", { length: 255 }),
+  tenantPhone: varchar("tenant_phone", { length: 50 }),
+  ownerName: varchar("owner_name", { length: 255 }), // Nombre del propietario
+  ownerEmail: varchar("owner_email", { length: 255 }),
+  ownerPhone: varchar("owner_phone", { length: 50 }),
+  monthlyRent: decimal("monthly_rent", { precision: 10, scale: 2 }).notNull(), // Renta mensual
+  currency: varchar("currency", { length: 10 }).notNull().default("MXN"), // MXN o USD
+  leaseDurationMonths: integer("lease_duration_months").notNull(), // 6, 12, etc
+  startDate: timestamp("start_date").notNull(), // Inicio del contrato
+  endDate: timestamp("end_date").notNull(), // Fin del contrato
+  status: externalContractStatusEnum("status").notNull().default("active"),
+  notes: text("notes"),
+  createdBy: varchar("created_by").references(() => users.id),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+}, (table) => [
+  index("idx_external_contracts_agency").on(table.agencyId),
+  index("idx_external_contracts_property").on(table.propertyId),
+  index("idx_external_contracts_status").on(table.status),
+  index("idx_external_contracts_dates").on(table.startDate, table.endDate),
+]);
+
+export const insertExternalRentalContractSchema = createInsertSchema(externalRentalContracts).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export type InsertExternalRentalContract = z.infer<typeof insertExternalRentalContractSchema>;
+export type ExternalRentalContract = typeof externalRentalContracts.$inferSelect;
+
+// External Payment Schedules - Pagos programados/recurrentes
+export const externalPaymentSchedules = pgTable("external_payment_schedules", {
+  id: varchar("id").primaryKey().$defaultFn(() => crypto.randomUUID()),
+  agencyId: varchar("agency_id").notNull().references(() => externalAgencies.id, { onDelete: "cascade" }),
+  contractId: varchar("contract_id").notNull().references(() => externalRentalContracts.id, { onDelete: "cascade" }),
+  serviceType: serviceTypeEnum("service_type").notNull(), // rent, electricity, water, internet, etc
+  amount: decimal("amount", { precision: 10, scale: 2 }).notNull(), // Monto a pagar
+  currency: varchar("currency", { length: 10 }).notNull().default("MXN"),
+  dayOfMonth: integer("day_of_month").notNull(), // Día del mes para pagar (1-31)
+  isActive: boolean("is_active").notNull().default(true), // Si está activo
+  sendReminderDaysBefore: integer("send_reminder_days_before").default(3), // Días antes para enviar recordatorio
+  notes: text("notes"),
+  createdBy: varchar("created_by").references(() => users.id),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+}, (table) => [
+  index("idx_external_schedules_agency").on(table.agencyId),
+  index("idx_external_schedules_contract").on(table.contractId),
+  index("idx_external_schedules_active").on(table.isActive),
+]);
+
+export const insertExternalPaymentScheduleSchema = createInsertSchema(externalPaymentSchedules).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export type InsertExternalPaymentSchedule = z.infer<typeof insertExternalPaymentScheduleSchema>;
+export type ExternalPaymentSchedule = typeof externalPaymentSchedules.$inferSelect;
+
+// External Payments - Registro de pagos realizados
+export const externalPayments = pgTable("external_payments", {
+  id: varchar("id").primaryKey().$defaultFn(() => crypto.randomUUID()),
+  agencyId: varchar("agency_id").notNull().references(() => externalAgencies.id, { onDelete: "cascade" }),
+  contractId: varchar("contract_id").notNull().references(() => externalRentalContracts.id, { onDelete: "cascade" }),
+  scheduleId: varchar("schedule_id").references(() => externalPaymentSchedules.id), // Si viene de un schedule
+  serviceType: serviceTypeEnum("service_type").notNull(),
+  amount: decimal("amount", { precision: 10, scale: 2 }).notNull(),
+  currency: varchar("currency", { length: 10 }).notNull().default("MXN"),
+  dueDate: timestamp("due_date").notNull(), // Fecha de vencimiento
+  paidDate: timestamp("paid_date"), // Fecha de pago real
+  status: externalPaymentStatusEnum("status").notNull().default("pending"),
+  paymentMethod: varchar("payment_method", { length: 100 }), // Transferencia, efectivo, etc
+  paymentReference: varchar("payment_reference", { length: 255 }), // Número de referencia
+  paymentProofUrl: text("payment_proof_url"), // URL del comprobante
+  reminderSentAt: timestamp("reminder_sent_at"), // Cuándo se envió el recordatorio
+  notes: text("notes"),
+  createdBy: varchar("created_by").references(() => users.id),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+}, (table) => [
+  index("idx_external_payments_agency").on(table.agencyId),
+  index("idx_external_payments_contract").on(table.contractId),
+  index("idx_external_payments_status").on(table.status),
+  index("idx_external_payments_due_date").on(table.dueDate),
+  index("idx_external_payments_service_type").on(table.serviceType),
+]);
+
+export const insertExternalPaymentSchema = createInsertSchema(externalPayments).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export type InsertExternalPayment = z.infer<typeof insertExternalPaymentSchema>;
+export type ExternalPayment = typeof externalPayments.$inferSelect;
+
+// External Maintenance Tickets - Sistema de tickets de mantenimiento
+export const externalMaintenanceTickets = pgTable("external_maintenance_tickets", {
+  id: varchar("id").primaryKey().$defaultFn(() => crypto.randomUUID()),
+  agencyId: varchar("agency_id").notNull().references(() => externalAgencies.id, { onDelete: "cascade" }),
+  contractId: varchar("contract_id").references(() => externalRentalContracts.id, { onDelete: "set null" }),
+  propertyId: varchar("property_id").notNull().references(() => externalProperties.id, { onDelete: "cascade" }),
+  title: varchar("title", { length: 255 }).notNull(), // Título del ticket
+  description: text("description").notNull(), // Descripción del problema
+  category: tenantMaintenanceTypeEnum("category").notNull(), // plumbing, electrical, etc
+  priority: externalTicketPriorityEnum("priority").notNull().default("medium"),
+  status: externalTicketStatusEnum("status").notNull().default("open"),
+  reportedBy: varchar("reported_by", { length: 255 }), // Quién lo reportó
+  assignedTo: varchar("assigned_to").references(() => users.id), // A quién está asignado
+  estimatedCost: decimal("estimated_cost", { precision: 10, scale: 2 }), // Costo estimado
+  actualCost: decimal("actual_cost", { precision: 10, scale: 2 }), // Costo real
+  scheduledDate: timestamp("scheduled_date"), // Fecha programada para resolver
+  resolvedDate: timestamp("resolved_date"), // Fecha de resolución
+  photos: text("photos").array().default(sql`ARRAY[]::text[]`), // URLs de fotos
+  notes: text("notes"),
+  createdBy: varchar("created_by").references(() => users.id),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+}, (table) => [
+  index("idx_external_tickets_agency").on(table.agencyId),
+  index("idx_external_tickets_property").on(table.propertyId),
+  index("idx_external_tickets_status").on(table.status),
+  index("idx_external_tickets_priority").on(table.priority),
+  index("idx_external_tickets_assigned").on(table.assignedTo),
+]);
+
+export const insertExternalMaintenanceTicketSchema = createInsertSchema(externalMaintenanceTickets).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export type InsertExternalMaintenanceTicket = z.infer<typeof insertExternalMaintenanceTicketSchema>;
+export type ExternalMaintenanceTicket = typeof externalMaintenanceTickets.$inferSelect;
 
 // Relations
 export const tenantRentalFormTokensRelations = relations(tenantRentalFormTokens, ({ one }) => ({
