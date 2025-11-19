@@ -10,7 +10,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Badge } from "@/components/ui/badge";
-import { ArrowLeft, Home, User, Key, Plus, Edit, Trash2, Eye, EyeOff } from "lucide-react";
+import { ArrowLeft, Home, User, Key, Plus, Edit, Trash2, Eye, EyeOff, Copy, Check } from "lucide-react";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { useAuth } from "@/hooks/useAuth";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -60,6 +60,8 @@ export default function ExternalUnitDetail() {
   const [editingOwner, setEditingOwner] = useState<ExternalUnitOwner | null>(null);
   const [editingAccess, setEditingAccess] = useState<ExternalUnitAccessControl | null>(null);
   const [visiblePasswords, setVisiblePasswords] = useState<Set<string>>(new Set());
+  const [copiedUnitInfo, setCopiedUnitInfo] = useState(false);
+  const [copiedAccessInfo, setCopiedAccessInfo] = useState(false);
 
   const { data: unit, isLoading: unitLoading } = useQuery<ExternalUnit>({
     queryKey: [`/api/external-units/${id}`],
@@ -382,6 +384,92 @@ export default function ExternalUnitDetail() {
     });
   };
 
+  const copyUnitInfo = async () => {
+    if (!unit || !condominium) return;
+    
+    const info = `${language === "es" ? "INFORMACIÓN DE UNIDAD" : "UNIT INFORMATION"}
+
+${language === "es" ? "Condominio" : "Condominium"}: ${condominium.name}
+${language === "es" ? "Unidad" : "Unit"}: ${unit.unitNumber}
+${unit.bedrooms ? `${language === "es" ? "Recámaras" : "Bedrooms"}: ${unit.bedrooms}\n` : ""}${unit.bathrooms ? `${language === "es" ? "Baños" : "Bathrooms"}: ${unit.bathrooms}\n` : ""}${unit.area ? `${language === "es" ? "Área" : "Area"}: ${unit.area} m²\n` : ""}${unit.airbnbPhotosLink ? `${language === "es" ? "Link Fotos Airbnb" : "Airbnb Photos Link"}: ${unit.airbnbPhotosLink}` : ""}`;
+
+    try {
+      await navigator.clipboard.writeText(info);
+      setCopiedUnitInfo(true);
+      setTimeout(() => setCopiedUnitInfo(false), 2000);
+      toast({
+        title: language === "es" ? "Copiado" : "Copied",
+        description: language === "es" 
+          ? "Información de unidad copiada al portapapeles"
+          : "Unit information copied to clipboard",
+      });
+    } catch (err) {
+      toast({
+        title: language === "es" ? "Error" : "Error",
+        description: language === "es"
+          ? "No se pudo copiar al portapapeles"
+          : "Could not copy to clipboard",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const copyAccessInfo = async () => {
+    if (!unit || !condominium || !accessControls || accessControls.length === 0) return;
+    
+    const activeAccesses = accessControls.filter(a => a.isActive);
+    if (activeAccesses.length === 0) {
+      toast({
+        title: language === "es" ? "Sin accesos" : "No accesses",
+        description: language === "es"
+          ? "No hay accesos activos para compartir"
+          : "No active accesses to share",
+        variant: "default",
+      });
+      return;
+    }
+
+    let info = `${language === "es" ? "INFORMACIÓN DE ACCESO" : "ACCESS INFORMATION"}
+
+${language === "es" ? "Condominio" : "Condominium"}: ${condominium.name}
+${language === "es" ? "Unidad" : "Unit"}: ${unit.unitNumber}
+
+${language === "es" ? "ACCESOS" : "ACCESSES"}:
+`;
+
+    activeAccesses.forEach((access) => {
+      const typeLabel = (accessTypeTranslations as any)[access.accessType]?.[language] || access.accessType;
+      info += `\n• ${typeLabel}`;
+      if (access.accessCode) {
+        info += `: ${access.accessCode}`;
+      }
+      if (access.description) {
+        info += `\n  ${language === "es" ? "Descripción" : "Description"}: ${access.description}`;
+      }
+      info += '\n';
+    });
+
+    try {
+      await navigator.clipboard.writeText(info);
+      setCopiedAccessInfo(true);
+      setTimeout(() => setCopiedAccessInfo(false), 2000);
+      toast({
+        title: language === "es" ? "Copiado" : "Copied",
+        description: language === "es" 
+          ? "Información de acceso copiada al portapapeles"
+          : "Access information copied to clipboard",
+      });
+    } catch (err) {
+      toast({
+        title: language === "es" ? "Error" : "Error",
+        description: language === "es"
+          ? "No se pudo copiar al portapapeles"
+          : "Could not copy to clipboard",
+        variant: "destructive",
+      });
+    }
+  };
+
   const activeOwner = owners?.find(o => o.isActive);
 
   if (unitLoading || condoLoading) {
@@ -460,10 +548,26 @@ export default function ExternalUnitDetail() {
       {/* Unit Information */}
       <Card data-testid="card-unit-info">
         <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Home className="h-5 w-5" />
-            {language === "es" ? "Información de la Unidad" : "Unit Information"}
-          </CardTitle>
+          <div className="flex justify-between items-center">
+            <CardTitle className="flex items-center gap-2">
+              <Home className="h-5 w-5" />
+              {language === "es" ? "Información de la Unidad" : "Unit Information"}
+            </CardTitle>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={copyUnitInfo}
+              disabled={!unit || !condominium}
+              data-testid="button-copy-unit-info"
+            >
+              {copiedUnitInfo ? (
+                <Check className="mr-2 h-4 w-4 text-green-600" />
+              ) : (
+                <Copy className="mr-2 h-4 w-4" />
+              )}
+              {language === "es" ? "Copiar Info" : "Copy Info"}
+            </Button>
+          </div>
         </CardHeader>
         <CardContent className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           <div>
@@ -522,6 +626,22 @@ export default function ExternalUnitDetail() {
               </Badge>
             </div>
           </div>
+          {unit.airbnbPhotosLink && (
+            <div className="md:col-span-2 lg:col-span-3">
+              <Label className="text-sm font-medium text-muted-foreground">
+                {language === "es" ? "Link de Fotos Airbnb" : "Airbnb Photos Link"}
+              </Label>
+              <a 
+                href={unit.airbnbPhotosLink} 
+                target="_blank" 
+                rel="noopener noreferrer" 
+                className="text-base text-primary hover:underline" 
+                data-testid="link-airbnb"
+              >
+                {unit.airbnbPhotosLink}
+              </a>
+            </div>
+          )}
           {unit.notes && (
             <div className="md:col-span-2 lg:col-span-3">
               <Label className="text-sm font-medium text-muted-foreground">
@@ -632,15 +752,31 @@ export default function ExternalUnitDetail() {
               <Key className="h-5 w-5" />
               {language === "es" ? "Control de Acceso" : "Access Control"}
             </CardTitle>
-            <Button
-              size="sm"
-              onClick={handleAddAccess}
-              disabled={isLoadingAuth || !user}
-              data-testid="button-add-access"
-            >
-              <Plus className="mr-2 h-4 w-4" />
-              {language === "es" ? "Agregar Acceso" : "Add Access"}
-            </Button>
+            <div className="flex gap-2">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={copyAccessInfo}
+                disabled={!accessControls || accessControls.filter(a => a.isActive).length === 0}
+                data-testid="button-copy-access-info"
+              >
+                {copiedAccessInfo ? (
+                  <Check className="mr-2 h-4 w-4 text-green-600" />
+                ) : (
+                  <Copy className="mr-2 h-4 w-4" />
+                )}
+                {language === "es" ? "Copiar Accesos" : "Copy Accesses"}
+              </Button>
+              <Button
+                size="sm"
+                onClick={handleAddAccess}
+                disabled={isLoadingAuth || !user}
+                data-testid="button-add-access"
+              >
+                <Plus className="mr-2 h-4 w-4" />
+                {language === "es" ? "Agregar Acceso" : "Add Access"}
+              </Button>
+            </div>
           </div>
         </CardHeader>
         <CardContent>
