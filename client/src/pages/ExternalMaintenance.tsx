@@ -98,9 +98,14 @@ export default function ExternalMaintenance() {
     queryKey: ['/api/external-units'],
   });
 
-  const { data: users } = useQuery<any[]>({
-    queryKey: ['/api/users'],
+  const { data: agencyUsers } = useQuery<any[]>({
+    queryKey: ['/api/external-agency-users'],
   });
+
+  // Filter to get only maintenance workers
+  const maintenanceWorkers = agencyUsers?.filter(u => 
+    u.role === 'external_agency_maintenance' && u.maintenanceSpecialty
+  ) || [];
 
   useEffect(() => {
     setSelectedUnitId(null);
@@ -243,8 +248,27 @@ export default function ExternalMaintenance() {
 
   const getAssignedUserName = (userId: string | null) => {
     if (!userId) return null;
-    const user = (users ?? []).find(u => u.id === userId);
-    return user ? `${user.firstName || ''} ${user.lastName || ''}`.trim() || user.email : null;
+    const user = (agencyUsers ?? []).find(u => u.id === userId);
+    if (!user) return null;
+    const name = `${user.firstName || ''} ${user.lastName || ''}`.trim() || user.email;
+    const specialty = user.maintenanceSpecialty;
+    if (specialty) {
+      const specialtyLabels: Record<string, { es: string; en: string }> = {
+        encargado_mantenimiento: { es: "Encargado", en: "Manager" },
+        mantenimiento_general: { es: "General", en: "General" },
+        electrico: { es: "Eléctrico", en: "Electrical" },
+        plomero: { es: "Plomero", en: "Plumber" },
+        refrigeracion: { es: "Refrigeración", en: "HVAC" },
+        carpintero: { es: "Carpintero", en: "Carpenter" },
+        pintor: { es: "Pintor", en: "Painter" },
+        jardinero: { es: "Jardinero", en: "Gardener" },
+        albanil: { es: "Albañil", en: "Mason" },
+        limpieza: { es: "Limpieza", en: "Cleaning" },
+      };
+      const specialtyLabel = specialtyLabels[specialty]?.[language] || specialty;
+      return `${name} (${specialtyLabel})`;
+    }
+    return name;
   };
 
   return (
@@ -676,11 +700,28 @@ export default function ExternalMaintenance() {
                         data-testid="select-maintenance-assigned-user"
                       >
                         <option value="">{language === "es" ? "Sin asignar" : "Unassigned"}</option>
-                        {users?.map(user => (
-                          <option key={user.id} value={user.id}>
-                            {`${user.firstName || ''} ${user.lastName || ''}`.trim() || user.email}
-                          </option>
-                        ))}
+                        {maintenanceWorkers.map(worker => {
+                          const name = `${worker.firstName || ''} ${worker.lastName || ''}`.trim() || worker.email;
+                          const specialtyLabels: Record<string, { es: string; en: string }> = {
+                            encargado_mantenimiento: { es: "Encargado", en: "Manager" },
+                            mantenimiento_general: { es: "General", en: "General" },
+                            electrico: { es: "Eléctrico", en: "Electrical" },
+                            plomero: { es: "Plomero", en: "Plumber" },
+                            refrigeracion: { es: "Refrigeración", en: "HVAC" },
+                            carpintero: { es: "Carpintero", en: "Carpenter" },
+                            pintor: { es: "Pintor", en: "Painter" },
+                            jardinero: { es: "Jardinero", en: "Gardener" },
+                            albanil: { es: "Albañil", en: "Mason" },
+                            limpieza: { es: "Limpieza", en: "Cleaning" },
+                          };
+                          const specialtyLabel = worker.maintenanceSpecialty ? 
+                            (specialtyLabels[worker.maintenanceSpecialty]?.[language] || worker.maintenanceSpecialty) : '';
+                          return (
+                            <option key={worker.id} value={worker.id}>
+                              {specialtyLabel ? `${name} (${specialtyLabel})` : name}
+                            </option>
+                          );
+                        })}
                       </select>
                     </FormControl>
                     <FormMessage />
