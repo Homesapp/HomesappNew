@@ -4993,6 +4993,9 @@ export const insertExternalUnitSchema = createInsertSchema(externalUnits).omit({
   createdAt: true,
   updatedAt: true,
   isActive: true,
+}).extend({
+  bathrooms: z.union([z.string(), z.number()]).transform(val => val === undefined ? undefined : String(val)).optional(),
+  area: z.union([z.string(), z.number()]).transform(val => val === undefined ? undefined : String(val)).optional(),
 });
 
 export const updateExternalUnitSchema = insertExternalUnitSchema.partial();

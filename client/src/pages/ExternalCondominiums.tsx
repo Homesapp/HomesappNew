@@ -65,10 +65,7 @@ export default function ExternalCondominiums() {
 
   const createCondoMutation = useMutation({
     mutationFn: async (data: CondominiumFormData) => {
-      return await apiRequest('/api/external-condominiums', {
-        method: 'POST',
-        body: JSON.stringify(data),
-      });
+      return await apiRequest('POST', '/api/external-condominiums', data);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['/api/external-condominiums'] });
@@ -90,10 +87,7 @@ export default function ExternalCondominiums() {
 
   const updateCondoMutation = useMutation({
     mutationFn: async ({ id, data }: { id: string; data: CondominiumFormData }) => {
-      return await apiRequest(`/api/external-condominiums/${id}`, {
-        method: 'PATCH',
-        body: JSON.stringify(data),
-      });
+      return await apiRequest('PATCH', `/api/external-condominiums/${id}`, data);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['/api/external-condominiums'] });
@@ -116,10 +110,7 @@ export default function ExternalCondominiums() {
 
   const createUnitMutation = useMutation({
     mutationFn: async (data: UnitFormData) => {
-      return await apiRequest('/api/external-units', {
-        method: 'POST',
-        body: JSON.stringify(data),
-      });
+      return await apiRequest('POST', '/api/external-units', data);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['/api/external-units'] });
@@ -142,10 +133,7 @@ export default function ExternalCondominiums() {
 
   const updateUnitMutation = useMutation({
     mutationFn: async ({ id, data }: { id: string; data: UnitFormData }) => {
-      return await apiRequest(`/api/external-units/${id}`, {
-        method: 'PATCH',
-        body: JSON.stringify(data),
-      });
+      return await apiRequest('PATCH', `/api/external-units/${id}`, data);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['/api/external-units'] });
