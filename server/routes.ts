@@ -22326,6 +22326,49 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Cancel active rental contract
+  app.patch("/api/external-rental-contracts/:id/cancel", isAuthenticated, requireRole(EXTERNAL_ADMIN_ROLES), async (req: any, res) => {
+    try {
+      const { id } = req.params;
+      
+      // Verify contract exists
+      const existing = await storage.getExternalRentalContract(id);
+      if (!existing) {
+        return res.status(404).json({ message: "Contract not found" });
+      }
+      
+      // Verify ownership
+      const hasAccess = await verifyExternalAgencyOwnership(req, res, existing.agencyId);
+      if (!hasAccess) return;
+      
+      // Can only cancel active contracts
+      if (existing.status !== 'active') {
+        return res.status(400).json({ 
+          message: "Only active contracts can be cancelled" 
+        });
+      }
+      
+      // Update contract status to completed
+      await storage.updateExternalRentalContract(id, { status: 'completed' });
+      
+      // Delete all pending future payments for this contract
+      await db.delete(externalPayments)
+        .where(
+          and(
+            eq(externalPayments.contractId, id),
+            eq(externalPayments.status, 'pending'),
+            sql`${externalPayments.dueDate} > CURRENT_DATE`
+          )
+        );
+      
+      await createAuditLog(req, "update", "external_rental_contract", id, "Cancelled rental contract and deleted future pending payments");
+      res.json({ message: "Contract cancelled successfully" });
+    } catch (error: any) {
+      console.error("Error cancelling rental contract:", error);
+      handleGenericError(res, error);
+    }
+  });
+
   // External Agency - Owners Routes
   app.get("/api/external/owners", isAuthenticated, requireRole(EXTERNAL_ALL_ROLES), async (req: any, res) => {
     try {
