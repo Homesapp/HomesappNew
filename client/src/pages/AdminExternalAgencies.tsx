@@ -115,15 +115,19 @@ export default function AdminExternalAgencies() {
         },
       });
 
-      setLogoPreview(result.compressedBase64);
-      form.setValue("agencyLogoUrl", result.compressedBase64);
+      // Convert bytes to KB for display
+      const originalSizeKB = Math.round(result.originalSize / 1024);
+      const compressedSizeKB = Math.round(result.compressedSize / 1024);
+
+      setLogoPreview(result.base64);
+      form.setValue("agencyLogoUrl", result.base64);
       setUploadProgress(100);
       
       toast({
         title: language === "es" ? "Logo cargado" : "Logo uploaded",
         description: language === "es" 
-          ? `Imagen comprimida de ${result.originalSizeKB}KB a ${result.compressedSizeKB}KB`
-          : `Image compressed from ${result.originalSizeKB}KB to ${result.compressedSizeKB}KB`,
+          ? `Imagen comprimida de ${originalSizeKB}KB a ${compressedSizeKB}KB`
+          : `Image compressed from ${originalSizeKB}KB to ${compressedSizeKB}KB`,
       });
     } catch (error) {
       console.error("Error uploading logo:", error);

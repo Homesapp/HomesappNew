@@ -20040,7 +20040,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Handle user reassignment if createdBy is changing
       if (newCreatedBy && newCreatedBy !== currentAgency.createdBy) {
         // Verify new user exists and is approved
-        const newUser = await storage.getUserById(newCreatedBy);
+        const newUser = await storage.getUser(newCreatedBy);
         if (!newUser) {
           return res.status(404).json({ message: "New assigned user not found" });
         }

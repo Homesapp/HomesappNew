@@ -43,11 +43,15 @@ Key features include:
 *   **Property Wizard Optimization**: Intelligent payload management to speed up wizard step saves after image uploads.
 *   **Separate Rental and Sale Pricing**: Independent price and currency fields for rental and sale transactions with deep JSONB merge for data integrity.
 *   **Editable Owner Terms**: Admin-editable property owner terms and conditions with wizard UI enhancements.
-*   **External Property Management System**: Multi-tenant module for managing external agency properties independently, with payment calendar, maintenance tickets, and optional property linking to main system. Admin-only creation: External agencies can only be created by HomesApp administrators. Granular role-based permissions with four external agency roles:
-    - `external_agency_admin`: Full administrative access to agency operations
-    - `external_agency_accounting`: Financial operations (dashboard, payments, payment schedules, agency view-only)
-    - `external_agency_maintenance`: Property operations (dashboard, properties, contracts, maintenance tickets)
-    - `external_agency_staff`: Read-only access to all external agency data (view-only dashboard, properties, payments, tickets)
+*   **External Property Management System**: Multi-tenant module for managing external agency properties independently, with payment calendar, maintenance tickets, and optional property linking to main system. Admin-only creation: External agencies can only be created by HomesApp administrators. Features include:
+    - Granular role-based permissions with four external agency roles:
+      - `external_agency_admin`: Full administrative access to agency operations
+      - `external_agency_accounting`: Financial operations (dashboard, payments, payment schedules, agency view-only)
+      - `external_agency_maintenance`: Property operations (dashboard, properties, contracts, maintenance tickets)
+      - `external_agency_staff`: Read-only access to all external agency data (view-only dashboard, properties, payments, tickets)
+    - **Agency Logo Upload**: File-based logo upload with client-side image compression (max 800x800px, 85% quality) replacing URL text field
+    - **User Reassignment**: Ability to reassign agencies to different users through edit dialog with automatic role updates
+    - **Backend Validation**: Server-side validation ensures new assigned users are approved and don't already manage other agencies
 
 ## External Dependencies
 *   Google Calendar API
