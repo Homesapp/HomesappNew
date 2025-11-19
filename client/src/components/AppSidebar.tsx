@@ -282,7 +282,8 @@ export function AppSidebar({ userRole, userId }: AppSidebarProps) {
 
   const externalManagementGroup = [
     { titleKey: "sidebar.externalDashboard", url: "/external/dashboard", icon: Home, roles: ["master", "admin", "external_agency_admin", "external_agency_accounting", "external_agency_maintenance", "external_agency_staff"] },
-    { titleKey: "sidebar.externalAgency", url: "/external/agency", icon: Building, roles: ["master", "admin", "external_agency_admin"] },
+    { titleKey: "sidebar.externalAccounts", url: "/external/accounts", icon: Users, roles: ["master", "admin", "external_agency_admin"] },
+    { titleKey: "sidebar.externalAccesses", url: "/external/accesses", icon: Key, roles: ["master", "admin", "external_agency_admin", "external_agency_maintenance", "external_agency_staff"] },
     { titleKey: "sidebar.externalCondominiums", url: "/external/condominiums", icon: Building2, roles: ["master", "admin", "external_agency_admin", "external_agency_maintenance", "external_agency_staff"] },
     { titleKey: "sidebar.externalAccounting", url: "/external/accounting", icon: DollarSign, roles: ["master", "admin", "external_agency_admin", "external_agency_accounting"] },
     { titleKey: "sidebar.externalMaintenance", url: "/external/maintenance", icon: Wrench, roles: ["master", "admin", "external_agency_admin", "external_agency_maintenance"] },
