@@ -212,20 +212,24 @@ export default function ExternalMaintenanceWorkers() {
     // If editing, first delete all existing assignments for this worker
     if (editingWorkerId) {
       const workerAssignments = assignments?.filter(a => a.userId === editingWorkerId) || [];
-      const deletePromises = workerAssignments.map(assignment =>
-        apiRequest("DELETE", `/api/external-worker-assignments/${assignment.id}`, {})
-      );
-      try {
-        await Promise.all(deletePromises);
-      } catch (error) {
-        toast({
-          title: language === "es" ? "Error" : "Error",
-          description: language === "es"
-            ? "No se pudieron eliminar las asignaciones anteriores"
-            : "Could not delete previous assignments",
-          variant: "destructive",
-        });
-        return;
+      
+      // Delete assignments sequentially to avoid race conditions
+      for (const assignment of workerAssignments) {
+        try {
+          await apiRequest("DELETE", `/api/external-worker-assignments/${assignment.id}`, {});
+        } catch (error: any) {
+          // Ignore 404 errors (assignment already deleted)
+          if (error?.status !== 404) {
+            toast({
+              title: language === "es" ? "Error" : "Error",
+              description: language === "es"
+                ? "No se pudieron eliminar las asignaciones anteriores"
+                : "Could not delete previous assignments",
+              variant: "destructive",
+            });
+            return;
+          }
+        }
       }
     }
     
