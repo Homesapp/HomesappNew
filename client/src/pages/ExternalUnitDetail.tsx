@@ -114,10 +114,7 @@ export default function ExternalUnitDetail() {
 
   const createOwnerMutation = useMutation({
     mutationFn: async (data: OwnerFormData) => {
-      return await apiRequest('/api/external-unit-owners', {
-        method: 'POST',
-        body: JSON.stringify(data),
-      });
+      return await apiRequest('POST', '/api/external-unit-owners', data);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: [`/api/external-unit-owners/by-unit/${id}`] });
@@ -139,10 +136,7 @@ export default function ExternalUnitDetail() {
 
   const updateOwnerMutation = useMutation({
     mutationFn: async ({ id, data }: { id: string; data: Partial<OwnerFormData> }) => {
-      return await apiRequest(`/api/external-unit-owners/${id}`, {
-        method: 'PATCH',
-        body: JSON.stringify(data),
-      });
+      return await apiRequest('PATCH', `/api/external-unit-owners/${id}`, data);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: [`/api/external-unit-owners/by-unit/${id}`] });
@@ -165,9 +159,7 @@ export default function ExternalUnitDetail() {
 
   const deleteOwnerMutation = useMutation({
     mutationFn: async (ownerId: string) => {
-      return await apiRequest(`/api/external-unit-owners/${ownerId}`, {
-        method: 'DELETE',
-      });
+      return await apiRequest('DELETE', `/api/external-unit-owners/${ownerId}`);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: [`/api/external-unit-owners/by-unit/${id}`] });
@@ -187,10 +179,7 @@ export default function ExternalUnitDetail() {
 
   const createAccessMutation = useMutation({
     mutationFn: async (data: AccessControlFormData) => {
-      return await apiRequest('/api/external-unit-access-controls', {
-        method: 'POST',
-        body: JSON.stringify(data),
-      });
+      return await apiRequest('POST', '/api/external-unit-access-controls', data);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: [`/api/external-unit-access-controls/by-unit/${id}`] });
@@ -212,10 +201,7 @@ export default function ExternalUnitDetail() {
 
   const updateAccessMutation = useMutation({
     mutationFn: async ({ id, data }: { id: string; data: Partial<AccessControlFormData> }) => {
-      return await apiRequest(`/api/external-unit-access-controls/${id}`, {
-        method: 'PATCH',
-        body: JSON.stringify(data),
-      });
+      return await apiRequest('PATCH', `/api/external-unit-access-controls/${id}`, data);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: [`/api/external-unit-access-controls/by-unit/${id}`] });
@@ -238,9 +224,7 @@ export default function ExternalUnitDetail() {
 
   const deleteAccessMutation = useMutation({
     mutationFn: async (accessId: string) => {
-      return await apiRequest(`/api/external-unit-access-controls/${accessId}`, {
-        method: 'DELETE',
-      });
+      return await apiRequest('DELETE', `/api/external-unit-access-controls/${accessId}`);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: [`/api/external-unit-access-controls/by-unit/${id}`] });
@@ -277,10 +261,7 @@ export default function ExternalUnitDetail() {
 
   const createRentalMutation = useMutation({
     mutationFn: async (data: RentalFormData) => {
-      return await apiRequest('/api/external-rental-contracts', {
-        method: 'POST',
-        body: JSON.stringify(data),
-      });
+      return await apiRequest('POST', '/api/external-rental-contracts', data);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: [`/api/external-rental-contracts/by-unit/${id}`] });
