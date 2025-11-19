@@ -173,10 +173,7 @@ export default function ExternalMaintenance() {
 
   const createMaintenanceMutation = useMutation({
     mutationFn: async (data: MaintenanceFormData) => {
-      return await apiRequest('/api/external-tickets', {
-        method: 'POST',
-        body: JSON.stringify(data),
-      });
+      return await apiRequest('POST', '/api/external-tickets', data);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['/api/external-tickets'] });
