@@ -69,9 +69,12 @@ export default function ExternalMaintenanceWorkers() {
   const [deleteAssignmentId, setDeleteAssignmentId] = useState<string | null>(null);
   const [assignmentType, setAssignmentType] = useState<"condominium" | "unit">("condominium");
 
-  const { data: workers, isLoading: loadingWorkers } = useQuery<any[]>({
+  const { data: allUsers, isLoading: loadingWorkers } = useQuery<any[]>({
     queryKey: ['/api/external-agency-users'],
   });
+
+  // Filter only maintenance workers (external_agency_maintenance role)
+  const workers = allUsers?.filter(user => user.role === 'external_agency_maintenance') || [];
 
   const { data: assignments, isLoading: loadingAssignments } = useQuery<any[]>({
     queryKey: ['/api/external-worker-assignments'],
