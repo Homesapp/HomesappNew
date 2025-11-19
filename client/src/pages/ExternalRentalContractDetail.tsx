@@ -11,7 +11,12 @@ import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { ArrowLeft, Plus, Edit, Trash2, Calendar, DollarSign, FileText, Wrench, Download, ExternalLink } from "lucide-react";
+import { Textarea } from "@/components/ui/textarea";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { CalendarIcon } from "lucide-react";
+import { Calendar as CalendarComponent } from "@/components/ui/calendar";
+import { cn } from "@/lib/utils";
+import { ArrowLeft, Plus, Edit, Trash2, Calendar, DollarSign, FileText, Wrench, Download, ExternalLink, CheckCircle2 } from "lucide-react";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { useAuth } from "@/hooks/useAuth";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -30,6 +35,16 @@ import { insertExternalPaymentScheduleSchema } from "@shared/schema";
 
 type ScheduleFormData = z.infer<typeof insertExternalPaymentScheduleSchema>;
 
+// Payment registration form schema
+const paymentRegistrationSchema = z.object({
+  paidDate: z.date(),
+  paymentMethod: z.string().min(1, "Payment method is required"),
+  paymentReference: z.string().optional(),
+  notes: z.string().optional(),
+});
+
+type PaymentRegistrationData = z.infer<typeof paymentRegistrationSchema>;
+
 const serviceTypeTranslations = {
   rent: { es: "Renta", en: "Rent" },
   electricity: { es: "Electricidad", en: "Electricity" },
@@ -47,6 +62,15 @@ const statusTranslations = {
   cancelled: { es: "Cancelado", en: "Cancelled" },
 };
 
+const paymentMethodTranslations = {
+  cash: { es: "Efectivo", en: "Cash" },
+  bank_transfer: { es: "Transferencia Bancaria", en: "Bank Transfer" },
+  credit_card: { es: "Tarjeta de Crédito", en: "Credit Card" },
+  debit_card: { es: "Tarjeta de Débito", en: "Debit Card" },
+  check: { es: "Cheque", en: "Check" },
+  other: { es: "Otro", en: "Other" },
+};
+
 export default function ExternalRentalContractDetail() {
   const { id } = useParams();
   const [, navigate] = useLocation();
@@ -57,6 +81,8 @@ export default function ExternalRentalContractDetail() {
   const [showScheduleDialog, setShowScheduleDialog] = useState(false);
   const [editingSchedule, setEditingSchedule] = useState<ExternalPaymentSchedule | null>(null);
   const [activeTab, setActiveTab] = useState("general");
+  const [showPaymentDialog, setShowPaymentDialog] = useState(false);
+  const [editingPayment, setEditingPayment] = useState<ExternalPayment | null>(null);
 
   const { data: contract, isLoading: contractLoading } = useQuery<ExternalRentalContract>({
     queryKey: [`/api/external-rental-contracts/${id}`],
@@ -83,6 +109,16 @@ export default function ExternalRentalContractDetail() {
       dayOfMonth: 1,
       isActive: true,
       sendReminderDaysBefore: 3,
+    },
+  });
+
+  const paymentForm = useForm<PaymentRegistrationData>({
+    resolver: zodResolver(paymentRegistrationSchema),
+    defaultValues: {
+      paidDate: new Date(),
+      paymentMethod: "",
+      paymentReference: "",
+      notes: "",
     },
   });
 
@@ -142,12 +178,39 @@ export default function ExternalRentalContractDetail() {
       return await apiRequest('POST', `/api/external-payment-schedules/generate-payments/${contractId}`, { monthsAhead });
     },
     onSuccess: (data: any) => {
-      queryClient.invalidateQueries({ queryKey: [`/api/external-payments`] });
+      queryClient.invalidateQueries({ queryKey: [`/api/external-payments?contractId=${id}`] });
       toast({
         title: language === "es" ? "Éxito" : "Success",
         description: language === "es" 
           ? `Se generaron ${data.generated} pagos exitosamente` 
           : `${data.generated} payments generated successfully`,
+      });
+    },
+  });
+
+  const registerPaymentMutation = useMutation({
+    mutationFn: async ({ paymentId, data }: { paymentId: string, data: PaymentRegistrationData }) => {
+      return await apiRequest('PATCH', `/api/external-payments/${paymentId}`, {
+        ...data,
+        paidDate: data.paidDate.toISOString(),
+        status: 'paid',
+      });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: [`/api/external-payments?contractId=${id}`] });
+      setShowPaymentDialog(false);
+      setEditingPayment(null);
+      paymentForm.reset();
+      toast({
+        title: language === "es" ? "Éxito" : "Success",
+        description: language === "es" ? "El pago se registró exitosamente" : "Payment registered successfully",
+      });
+    },
+    onError: (error: any) => {
+      toast({
+        title: language === "es" ? "Error" : "Error",
+        description: error.message || (language === "es" ? "Error al registrar el pago" : "Error registering payment"),
+        variant: "destructive",
       });
     },
   });
@@ -181,6 +244,22 @@ export default function ExternalRentalContractDetail() {
     } else {
       createScheduleMutation.mutate({ ...data, contractId: id });
     }
+  };
+
+  const handleRegisterPayment = (payment: ExternalPayment) => {
+    setEditingPayment(payment);
+    paymentForm.reset({
+      paidDate: payment.paidDate ? new Date(payment.paidDate) : new Date(),
+      paymentMethod: payment.paymentMethod || "",
+      paymentReference: payment.paymentReference || "",
+      notes: payment.notes || "",
+    });
+    setShowPaymentDialog(true);
+  };
+
+  const handleSubmitPayment = async (data: PaymentRegistrationData) => {
+    if (!editingPayment) return;
+    registerPaymentMutation.mutate({ paymentId: editingPayment.id, data });
   };
 
   if (contractLoading || isLoadingAuth) {
@@ -442,11 +521,11 @@ export default function ExternalRentalContractDetail() {
                   {payments.map((payment) => (
                     <div 
                       key={payment.id}
-                      className="flex items-center justify-between p-3 border rounded-md"
+                      className="flex items-center justify-between p-3 border rounded-md hover-elevate"
                       data-testid={`payment-item-${payment.id}`}
                     >
                       <div className="flex-1">
-                        <div className="flex items-center gap-2">
+                        <div className="flex items-center gap-2 flex-wrap">
                           <Badge variant="outline" data-testid={`badge-payment-type-${payment.id}`}>
                             {serviceTypeTranslations[payment.serviceType][language]}
                           </Badge>
@@ -467,7 +546,49 @@ export default function ExternalRentalContractDetail() {
                         <p className="text-xs text-muted-foreground" data-testid={`text-payment-due-${payment.id}`}>
                           {language === "es" ? "Vence:" : "Due:"} {format(new Date(payment.dueDate), "PPP", { locale: language === "es" ? es : enUS })}
                         </p>
+                        {payment.status === 'paid' && payment.paidDate && (
+                          <div className="mt-2 pt-2 border-t space-y-1">
+                            <p className="text-xs text-muted-foreground flex items-center gap-1" data-testid={`text-payment-paid-date-${payment.id}`}>
+                              <CheckCircle2 className="h-3 w-3" />
+                              {language === "es" ? "Pagado:" : "Paid:"} {format(new Date(payment.paidDate), "PPP", { locale: language === "es" ? es : enUS })}
+                            </p>
+                            {payment.paymentMethod && (
+                              <p className="text-xs text-muted-foreground" data-testid={`text-payment-method-${payment.id}`}>
+                                {language === "es" ? "Método:" : "Method:"} {
+                                  paymentMethodTranslations[payment.paymentMethod as keyof typeof paymentMethodTranslations]?.[language] || payment.paymentMethod
+                                }
+                              </p>
+                            )}
+                            {payment.paymentReference && (
+                              <p className="text-xs text-muted-foreground" data-testid={`text-payment-reference-${payment.id}`}>
+                                {language === "es" ? "Referencia:" : "Reference:"} {payment.paymentReference}
+                              </p>
+                            )}
+                          </div>
+                        )}
                       </div>
+                      {payment.status === 'pending' && (
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => handleRegisterPayment(payment)}
+                          disabled={isLoadingAuth || !user}
+                          data-testid={`button-register-payment-${payment.id}`}
+                        >
+                          {language === "es" ? "Registrar" : "Register"}
+                        </Button>
+                      )}
+                      {payment.status === 'paid' && (
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => handleRegisterPayment(payment)}
+                          disabled={isLoadingAuth || !user}
+                          data-testid={`button-edit-payment-${payment.id}`}
+                        >
+                          <Edit className="h-4 w-4" />
+                        </Button>
+                      )}
                     </div>
                   ))}
                 </div>
@@ -722,6 +843,151 @@ export default function ExternalRentalContractDetail() {
                     : editingSchedule
                       ? (language === "es" ? "Actualizar" : "Update")
                       : (language === "es" ? "Crear" : "Create")
+                  }
+                </Button>
+              </DialogFooter>
+            </form>
+          </Form>
+        </DialogContent>
+      </Dialog>
+
+      {/* Payment Registration Dialog */}
+      <Dialog open={showPaymentDialog} onOpenChange={setShowPaymentDialog}>
+        <DialogContent data-testid="dialog-payment-form">
+          <DialogHeader>
+            <DialogTitle>
+              {language === "es" ? "Registrar Pago" : "Register Payment"}
+            </DialogTitle>
+            <DialogDescription>
+              {language === "es" 
+                ? "Registre los detalles del pago realizado" 
+                : "Register the payment details"}
+            </DialogDescription>
+          </DialogHeader>
+          <Form {...paymentForm}>
+            <form onSubmit={paymentForm.handleSubmit(handleSubmitPayment)} className="space-y-4">
+              <FormField
+                control={paymentForm.control}
+                name="paidDate"
+                render={({ field }) => (
+                  <FormItem className="flex flex-col">
+                    <FormLabel>{language === "es" ? "Fecha de Pago *" : "Payment Date *"}</FormLabel>
+                    <Popover>
+                      <PopoverTrigger asChild>
+                        <FormControl>
+                          <Button
+                            variant="outline"
+                            className={cn(
+                              "w-full pl-3 text-left font-normal",
+                              !field.value && "text-muted-foreground"
+                            )}
+                            data-testid="button-select-paid-date"
+                          >
+                            {field.value ? (
+                              format(field.value, "PPP", { locale: language === "es" ? es : enUS })
+                            ) : (
+                              <span>{language === "es" ? "Seleccione una fecha" : "Pick a date"}</span>
+                            )}
+                            <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
+                          </Button>
+                        </FormControl>
+                      </PopoverTrigger>
+                      <PopoverContent className="w-auto p-0" align="start">
+                        <CalendarComponent
+                          mode="single"
+                          selected={field.value}
+                          onSelect={field.onChange}
+                          disabled={(date) => date > new Date() || date < new Date("1900-01-01")}
+                          initialFocus
+                        />
+                      </PopoverContent>
+                    </Popover>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={paymentForm.control}
+                name="paymentMethod"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>{language === "es" ? "Método de Pago *" : "Payment Method *"}</FormLabel>
+                    <Select onValueChange={field.onChange} value={field.value}>
+                      <FormControl>
+                        <SelectTrigger data-testid="select-payment-method">
+                          <SelectValue placeholder={language === "es" ? "Seleccione un método" : "Select a method"} />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        <SelectItem value="cash">{language === "es" ? "Efectivo" : "Cash"}</SelectItem>
+                        <SelectItem value="bank_transfer">{language === "es" ? "Transferencia Bancaria" : "Bank Transfer"}</SelectItem>
+                        <SelectItem value="credit_card">{language === "es" ? "Tarjeta de Crédito" : "Credit Card"}</SelectItem>
+                        <SelectItem value="debit_card">{language === "es" ? "Tarjeta de Débito" : "Debit Card"}</SelectItem>
+                        <SelectItem value="check">{language === "es" ? "Cheque" : "Check"}</SelectItem>
+                        <SelectItem value="other">{language === "es" ? "Otro" : "Other"}</SelectItem>
+                      </SelectContent>
+                    </Select>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={paymentForm.control}
+                name="paymentReference"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>{language === "es" ? "Referencia de Pago" : "Payment Reference"}</FormLabel>
+                    <FormControl>
+                      <Input 
+                        {...field} 
+                        placeholder={language === "es" ? "Número de referencia, confirmación, etc." : "Reference number, confirmation, etc."}
+                        data-testid="input-payment-reference" 
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={paymentForm.control}
+                name="notes"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>{language === "es" ? "Notas" : "Notes"}</FormLabel>
+                    <FormControl>
+                      <Textarea 
+                        {...field} 
+                        placeholder={language === "es" ? "Notas adicionales sobre el pago..." : "Additional notes about the payment..."}
+                        rows={3}
+                        data-testid="textarea-payment-notes" 
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <DialogFooter>
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => {
+                    setShowPaymentDialog(false);
+                    setEditingPayment(null);
+                    paymentForm.reset();
+                  }}
+                  data-testid="button-cancel-payment"
+                >
+                  {language === "es" ? "Cancelar" : "Cancel"}
+                </Button>
+                <Button
+                  type="submit"
+                  disabled={registerPaymentMutation.isPending}
+                  data-testid="button-submit-payment"
+                >
+                  {registerPaymentMutation.isPending
+                    ? (language === "es" ? "Guardando..." : "Saving...")
+                    : (language === "es" ? "Registrar Pago" : "Register Payment")
                   }
                 </Button>
               </DialogFooter>
