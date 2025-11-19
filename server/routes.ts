@@ -22200,6 +22200,176 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // External Check-Out Reports Routes
+  // GET /api/external-checkout-reports/:contractId - Get checkout report by contract
+  app.get("/api/external-checkout-reports/contract/:contractId", isAuthenticated, requireRole(EXTERNAL_ALL_ROLES), async (req: any, res) => {
+    try {
+      const { contractId } = req.params;
+      
+      // Verify contract exists and user has access
+      const contract = await storage.getExternalRentalContract(contractId);
+      if (!contract) {
+        return res.status(404).json({ message: "Contract not found" });
+      }
+      
+      const hasAccess = await verifyExternalAgencyOwnership(req, res, contract.agencyId);
+      if (!hasAccess) return;
+      
+      const report = await storage.getExternalCheckoutReportByContract(contractId);
+      res.json(report || null);
+    } catch (error: any) {
+      console.error("Error fetching checkout report:", error);
+      handleGenericError(res, error);
+    }
+  });
+
+  // GET /api/external-checkout-reports/:id - Get specific checkout report
+  app.get("/api/external-checkout-reports/:id", isAuthenticated, requireRole(EXTERNAL_ALL_ROLES), async (req: any, res) => {
+    try {
+      const { id } = req.params;
+      const report = await storage.getExternalCheckoutReport(id);
+      
+      if (!report) {
+        return res.status(404).json({ message: "Checkout report not found" });
+      }
+      
+      const hasAccess = await verifyExternalAgencyOwnership(req, res, report.agencyId);
+      if (!hasAccess) return;
+      
+      res.json(report);
+    } catch (error: any) {
+      console.error("Error fetching checkout report:", error);
+      handleGenericError(res, error);
+    }
+  });
+
+  // GET /api/external-checkout-reports - Get all checkout reports for agency
+  app.get("/api/external-checkout-reports", isAuthenticated, requireRole(EXTERNAL_ALL_ROLES), async (req: any, res) => {
+    try {
+      const agencyId = await getUserAgencyId(req);
+      if (!agencyId) {
+        return res.status(403).json({ message: "No agency access" });
+      }
+      
+      const { status } = req.query;
+      const reports = await storage.getExternalCheckoutReportsByAgency(agencyId, {
+        status: status as string | undefined,
+      });
+      
+      res.json(reports);
+    } catch (error: any) {
+      console.error("Error fetching checkout reports:", error);
+      handleGenericError(res, error);
+    }
+  });
+
+  // POST /api/external-checkout-reports - Create new checkout report
+  app.post("/api/external-checkout-reports", isAuthenticated, requireRole(EXTERNAL_ADMIN_ROLES), async (req: any, res) => {
+    try {
+      const agencyId = await getUserAgencyId(req);
+      if (!agencyId) {
+        return res.status(403).json({ message: "No agency access" });
+      }
+      
+      // Verify contract exists and belongs to agency
+      const contract = await storage.getExternalRentalContract(req.body.contractId);
+      if (!contract) {
+        return res.status(404).json({ message: "Contract not found" });
+      }
+      
+      if (contract.agencyId !== agencyId) {
+        return res.status(403).json({ message: "Access denied" });
+      }
+      
+      // Check if checkout report already exists for this contract
+      const existing = await storage.getExternalCheckoutReportByContract(req.body.contractId);
+      if (existing) {
+        return res.status(400).json({ message: "Checkout report already exists for this contract" });
+      }
+      
+      const report = await storage.createExternalCheckoutReport({
+        ...req.body,
+        agencyId,
+        createdBy: req.user.id,
+      });
+      
+      await createAuditLog(req, "create", "external_checkout_report", report.id, "Created checkout report");
+      res.status(201).json(report);
+    } catch (error: any) {
+      console.error("Error creating checkout report:", error);
+      handleGenericError(res, error);
+    }
+  });
+
+  // PATCH /api/external-checkout-reports/:id - Update checkout report
+  app.patch("/api/external-checkout-reports/:id", isAuthenticated, requireRole(EXTERNAL_ADMIN_ROLES), async (req: any, res) => {
+    try {
+      const { id } = req.params;
+      const existing = await storage.getExternalCheckoutReport(id);
+      
+      if (!existing) {
+        return res.status(404).json({ message: "Checkout report not found" });
+      }
+      
+      const hasAccess = await verifyExternalAgencyOwnership(req, res, existing.agencyId);
+      if (!hasAccess) return;
+      
+      const report = await storage.updateExternalCheckoutReport(id, req.body);
+      
+      await createAuditLog(req, "update", "external_checkout_report", id, "Updated checkout report");
+      res.json(report);
+    } catch (error: any) {
+      console.error("Error updating checkout report:", error);
+      handleGenericError(res, error);
+    }
+  });
+
+  // POST /api/external-checkout-reports/:id/complete - Complete checkout report
+  app.post("/api/external-checkout-reports/:id/complete", isAuthenticated, requireRole(EXTERNAL_ADMIN_ROLES), async (req: any, res) => {
+    try {
+      const { id } = req.params;
+      const existing = await storage.getExternalCheckoutReport(id);
+      
+      if (!existing) {
+        return res.status(404).json({ message: "Checkout report not found" });
+      }
+      
+      const hasAccess = await verifyExternalAgencyOwnership(req, res, existing.agencyId);
+      if (!hasAccess) return;
+      
+      const report = await storage.completeExternalCheckoutReport(id);
+      
+      await createAuditLog(req, "update", "external_checkout_report", id, "Completed checkout report");
+      res.json(report);
+    } catch (error: any) {
+      console.error("Error completing checkout report:", error);
+      handleGenericError(res, error);
+    }
+  });
+
+  // DELETE /api/external-checkout-reports/:id - Delete checkout report
+  app.delete("/api/external-checkout-reports/:id", isAuthenticated, requireRole(EXTERNAL_ADMIN_ROLES), async (req: any, res) => {
+    try {
+      const { id } = req.params;
+      const existing = await storage.getExternalCheckoutReport(id);
+      
+      if (!existing) {
+        return res.status(404).json({ message: "Checkout report not found" });
+      }
+      
+      const hasAccess = await verifyExternalAgencyOwnership(req, res, existing.agencyId);
+      if (!hasAccess) return;
+      
+      await storage.deleteExternalCheckoutReport(id);
+      
+      await createAuditLog(req, "delete", "external_checkout_report", id, "Deleted checkout report");
+      res.status(204).send();
+    } catch (error: any) {
+      console.error("Error deleting checkout report:", error);
+      handleGenericError(res, error);
+    }
+  });
+
   // Optimized endpoints for rental filters
   // Get distinct condominiums for filter dropdowns
   app.get("/api/external-condominiums-for-filters", isAuthenticated, requireRole(EXTERNAL_ALL_ROLES), async (req: any, res) => {
