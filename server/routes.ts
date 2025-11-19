@@ -20029,10 +20029,48 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.patch("/api/external-agencies/:id", isAuthenticated, requireRole(EXTERNAL_ADMIN_ROLES), async (req: any, res) => {
     try {
       const { id } = req.params;
-      const agency = await storage.updateExternalAgency(id, req.body);
+      const { createdBy: newCreatedBy, ...updateData } = req.body;
       
-      await createAuditLog(req, "update", "external_agency", id, "Updated external agency");
-      res.json(agency);
+      // Get current agency to check if createdBy is changing
+      const currentAgency = await storage.getExternalAgency(id);
+      if (!currentAgency) {
+        return res.status(404).json({ message: "Agency not found" });
+      }
+      
+      // Handle user reassignment if createdBy is changing
+      if (newCreatedBy && newCreatedBy !== currentAgency.createdBy) {
+        // Verify new user exists and is approved
+        const newUser = await storage.getUserById(newCreatedBy);
+        if (!newUser) {
+          return res.status(404).json({ message: "New assigned user not found" });
+        }
+        if (newUser.status !== "approved") {
+          return res.status(400).json({ message: "User must be approved" });
+        }
+        
+        // Check if new user already has an agency
+        const existingAgencies = await storage.getExternalAgenciesByCreator(newCreatedBy);
+        if (existingAgencies && existingAgencies.length > 0) {
+          return res.status(400).json({ message: "New user already has an external agency" });
+        }
+        
+        // Update agency with new createdBy
+        const agency = await storage.updateExternalAgency(id, {
+          ...updateData,
+          createdBy: newCreatedBy,
+        });
+        
+        // Update new user's role to external_agency_admin
+        await storage.updateUserRole(newCreatedBy, "external_agency_admin");
+        
+        await createAuditLog(req, "update", "external_agency", id, `Reassigned agency from user ${currentAgency.createdBy} to ${newCreatedBy}`);
+        res.json(agency);
+      } else {
+        // No user reassignment, just update agency data
+        const agency = await storage.updateExternalAgency(id, updateData);
+        await createAuditLog(req, "update", "external_agency", id, "Updated external agency");
+        res.json(agency);
+      }
     } catch (error: any) {
       console.error("Error updating external agency:", error);
       handleGenericError(error, res);

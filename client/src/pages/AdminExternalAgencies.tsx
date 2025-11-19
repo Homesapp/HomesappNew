@@ -45,12 +45,13 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { insertExternalAgencySchema } from "@shared/schema";
 import type { ExternalAgency } from "@shared/schema";
 import { z } from "zod";
-import { Plus, Pencil, Trash2, Building2, Search, Key, Copy } from "lucide-react";
+import { Plus, Pencil, Trash2, Building2, Search, Key, Copy, Upload, X } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useToast } from "@/hooks/use-toast";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { format } from "date-fns";
+import { compressImage } from "@/lib/imageCompression";
 
 const formSchema = insertExternalAgencySchema.extend({
   assignedUserId: z.string().min(1, "Please select a user"),
@@ -75,6 +76,9 @@ export default function AdminExternalAgencies() {
   const [isPasswordDialogOpen, setIsPasswordDialogOpen] = useState(false);
   const [selectedAgency, setSelectedAgency] = useState<ExternalAgency | null>(null);
   const [generatedPassword, setGeneratedPassword] = useState<{password: string, email: string} | null>(null);
+  const [logoPreview, setLogoPreview] = useState<string | null>(null);
+  const [isUploadingLogo, setIsUploadingLogo] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState(0);
 
   const { data: agencies = [], isLoading: isLoadingAgencies } = useQuery<ExternalAgency[]>({
     queryKey: ['/api/external-agencies'],
@@ -84,6 +88,61 @@ export default function AdminExternalAgencies() {
     queryKey: ['/api/users'],
     select: (users) => users.filter(user => user.status === "approved"),
   });
+
+  const handleLogoUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    if (!file.type.startsWith("image/")) {
+      toast({
+        title: language === "es" ? "Error" : "Error",
+        description: language === "es" ? "Solo se permiten imágenes" : "Only images are allowed",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    try {
+      setIsUploadingLogo(true);
+      setUploadProgress(0);
+
+      const result = await compressImage(file, {
+        maxWidth: 800,
+        maxHeight: 800,
+        quality: 0.85,
+        onProgress: (progress) => {
+          setUploadProgress(progress);
+        },
+      });
+
+      setLogoPreview(result.compressedBase64);
+      form.setValue("agencyLogoUrl", result.compressedBase64);
+      setUploadProgress(100);
+      
+      toast({
+        title: language === "es" ? "Logo cargado" : "Logo uploaded",
+        description: language === "es" 
+          ? `Imagen comprimida de ${result.originalSizeKB}KB a ${result.compressedSizeKB}KB`
+          : `Image compressed from ${result.originalSizeKB}KB to ${result.compressedSizeKB}KB`,
+      });
+    } catch (error) {
+      console.error("Error uploading logo:", error);
+      toast({
+        title: language === "es" ? "Error" : "Error",
+        description: language === "es" 
+          ? "No se pudo cargar el logo"
+          : "Could not upload logo",
+        variant: "destructive",
+      });
+    } finally {
+      setIsUploadingLogo(false);
+    }
+  };
+
+  const handleRemoveLogo = () => {
+    setLogoPreview(null);
+    form.setValue("agencyLogoUrl", "");
+  };
 
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
@@ -135,7 +194,10 @@ export default function AdminExternalAgencies() {
     mutationFn: async (data: z.infer<typeof formSchema>) => {
       if (!selectedAgency) return;
       const { assignedUserId, ...agencyData } = data;
-      return await apiRequest("PATCH", `/api/external-agencies/${selectedAgency.id}`, agencyData);
+      return await apiRequest("PATCH", `/api/external-agencies/${selectedAgency.id}`, {
+        ...agencyData,
+        createdBy: assignedUserId,
+      });
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['/api/external-agencies'] });
@@ -245,6 +307,7 @@ export default function AdminExternalAgencies() {
 
   const handleEdit = (agency: ExternalAgency) => {
     setSelectedAgency(agency);
+    setLogoPreview(agency.agencyLogoUrl || null);
     form.reset({
       name: agency.name,
       description: agency.description || "",
@@ -443,23 +506,59 @@ export default function AdminExternalAgencies() {
                   )}
                 />
 
-                <FormField
-                  control={form.control}
-                  name="agencyLogoUrl"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>{language === "es" ? "URL del Logo" : "Logo URL"}</FormLabel>
-                      <FormControl>
-                        <Input 
-                          {...field} 
-                          data-testid="input-logo-url"
-                          placeholder="https://example.com/logo.png"
-                        />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
+                <div className="space-y-2">
+                  <label className="text-sm font-medium">
+                    {language === "es" ? "Logo de la Agencia" : "Agency Logo"}
+                  </label>
+                  
+                  {logoPreview ? (
+                    <div className="relative inline-block">
+                      <img 
+                        src={logoPreview} 
+                        alt="Logo preview" 
+                        className="w-32 h-32 object-contain border rounded-lg"
+                      />
+                      <Button
+                        type="button"
+                        variant="destructive"
+                        size="icon"
+                        className="absolute -top-2 -right-2 h-6 w-6 rounded-full"
+                        onClick={handleRemoveLogo}
+                        data-testid="button-remove-logo"
+                      >
+                        <X className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  ) : (
+                    <div className="border-2 border-dashed rounded-lg p-6 text-center">
+                      <Upload className="h-8 w-8 mx-auto mb-2 text-muted-foreground" />
+                      <p className="text-sm text-muted-foreground mb-2">
+                        {language === "es" 
+                          ? "Haz clic para subir el logo"
+                          : "Click to upload logo"}
+                      </p>
+                      <input
+                        type="file"
+                        accept="image/*"
+                        onChange={handleLogoUpload}
+                        className="hidden"
+                        id="logo-upload"
+                        data-testid="input-logo-upload"
+                      />
+                      <Button
+                        type="button"
+                        variant="outline"
+                        onClick={() => document.getElementById('logo-upload')?.click()}
+                        disabled={isUploadingLogo}
+                        data-testid="button-upload-logo"
+                      >
+                        {isUploadingLogo 
+                          ? `${uploadProgress}%` 
+                          : (language === "es" ? "Seleccionar archivo" : "Select file")}
+                      </Button>
+                    </div>
                   )}
-                />
+                </div>
 
                 <DialogFooter>
                   <Button
@@ -725,21 +824,91 @@ export default function AdminExternalAgencies() {
 
               <FormField
                 control={form.control}
-                name="agencyLogoUrl"
+                name="assignedUserId"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>{language === "es" ? "URL del Logo" : "Logo URL"}</FormLabel>
-                    <FormControl>
-                      <Input 
-                        {...field} 
-                        data-testid="input-edit-logo-url"
-                        placeholder="https://example.com/logo.png"
-                      />
-                    </FormControl>
+                    <FormLabel>{language === "es" ? "Usuario Asignado" : "Assigned User"}</FormLabel>
+                    <Select 
+                      onValueChange={field.onChange} 
+                      value={field.value}
+                      disabled={isLoadingUsers}
+                    >
+                      <FormControl>
+                        <SelectTrigger data-testid="select-edit-assigned-user">
+                          <SelectValue placeholder={language === "es" ? "Seleccionar usuario" : "Select user"} />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        {users.map((user) => (
+                          <SelectItem key={user.id} value={user.id}>
+                            {user.firstName} {user.lastName} ({user.email})
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <FormDescription>
+                      {language === "es" 
+                        ? "Cambiar el usuario asignado reasignará el rol de administrador"
+                        : "Changing the assigned user will reassign the admin role"}
+                    </FormDescription>
                     <FormMessage />
                   </FormItem>
                 )}
               />
+
+              <div className="space-y-2">
+                <label className="text-sm font-medium">
+                  {language === "es" ? "Logo de la Agencia" : "Agency Logo"}
+                </label>
+                
+                {logoPreview ? (
+                  <div className="relative inline-block">
+                    <img 
+                      src={logoPreview} 
+                      alt="Logo preview" 
+                      className="w-32 h-32 object-contain border rounded-lg"
+                    />
+                    <Button
+                      type="button"
+                      variant="destructive"
+                      size="icon"
+                      className="absolute -top-2 -right-2 h-6 w-6 rounded-full"
+                      onClick={handleRemoveLogo}
+                      data-testid="button-remove-logo-edit"
+                    >
+                      <X className="h-4 w-4" />
+                    </Button>
+                  </div>
+                ) : (
+                  <div className="border-2 border-dashed rounded-lg p-6 text-center">
+                    <Upload className="h-8 w-8 mx-auto mb-2 text-muted-foreground" />
+                    <p className="text-sm text-muted-foreground mb-2">
+                      {language === "es" 
+                        ? "Haz clic para subir el logo"
+                        : "Click to upload logo"}
+                    </p>
+                    <input
+                      type="file"
+                      accept="image/*"
+                      onChange={handleLogoUpload}
+                      className="hidden"
+                      id="logo-upload-edit"
+                      data-testid="input-logo-upload-edit"
+                    />
+                    <Button
+                      type="button"
+                      variant="outline"
+                      onClick={() => document.getElementById('logo-upload-edit')?.click()}
+                      disabled={isUploadingLogo}
+                      data-testid="button-upload-logo-edit"
+                    >
+                      {isUploadingLogo 
+                        ? `${uploadProgress}%` 
+                        : (language === "es" ? "Seleccionar archivo" : "Select file")}
+                    </Button>
+                  </div>
+                )}
+              </div>
 
               <DialogFooter>
                 <Button
