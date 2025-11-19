@@ -20479,7 +20479,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // External Payments Routes
   app.get("/api/external-payments", isAuthenticated, requireRole(EXTERNAL_ALL_ROLES), async (req: any, res) => {
     try {
-      const { agencyId, contractId, status, serviceType, upcomingDays } = req.query;
+      const { contractId, status, serviceType, upcomingDays } = req.query;
       
       if (contractId) {
         const filters = status ? { status } : undefined;
@@ -20487,8 +20487,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.json(payments);
       }
       
+      // Get agency ID from authenticated user (admin/master can pass agencyId to view other agencies)
+      let agencyId = req.query.agencyId;
       if (!agencyId) {
-        return res.status(400).json({ message: "Agency ID or Contract ID is required" });
+        agencyId = await getUserAgencyId(req);
+        if (!agencyId) {
+          return res.status(400).json({ message: "User is not assigned to any agency" });
+        }
       }
       
       if (upcomingDays) {
@@ -20605,7 +20610,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // External Maintenance Tickets Routes
   app.get("/api/external-tickets", isAuthenticated, requireRole(EXTERNAL_ALL_ROLES), async (req: any, res) => {
     try {
-      const { agencyId, propertyId, assignedTo, status, priority } = req.query;
+      const { propertyId, assignedTo, status, priority } = req.query;
       
       if (propertyId) {
         const tickets = await storage.getExternalMaintenanceTicketsByProperty(propertyId);
@@ -20617,8 +20622,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.json(tickets);
       }
       
+      // Get agency ID from authenticated user (admin/master can pass agencyId to view other agencies)
+      let agencyId = req.query.agencyId;
       if (!agencyId) {
-        return res.status(400).json({ message: "Agency ID, Property ID, or Assigned To is required" });
+        agencyId = await getUserAgencyId(req);
+        if (!agencyId) {
+          return res.status(400).json({ message: "User is not assigned to any agency" });
+        }
       }
       
       const filters: any = {};
@@ -20736,10 +20746,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // External Condominiums Routes
   app.get("/api/external-condominiums", isAuthenticated, requireRole(EXTERNAL_ALL_ROLES), async (req: any, res) => {
     try {
-      const { agencyId, isActive } = req.query;
+      const { isActive } = req.query;
       
+      // Get agency ID from authenticated user (admin/master can pass agencyId to view other agencies)
+      let agencyId = req.query.agencyId;
       if (!agencyId) {
-        return res.status(400).json({ message: "Agency ID is required" });
+        agencyId = await getUserAgencyId(req);
+        if (!agencyId) {
+          return res.status(400).json({ message: "User is not assigned to any agency" });
+        }
       }
       
       // Verify ownership
@@ -20780,9 +20795,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.post("/api/external-condominiums", isAuthenticated, requireRole(EXTERNAL_ADMIN_ROLES), async (req: any, res) => {
     try {
+      // Get agency ID from authenticated user
+      const agencyId = await getUserAgencyId(req);
+      if (!agencyId) {
+        return res.status(400).json({ message: "User is not assigned to any agency" });
+      }
+      
       const validatedData = insertExternalCondominiumSchema.parse(req.body);
       const condominium = await storage.createExternalCondominium({
         ...validatedData,
+        agencyId,
         createdBy: req.user.id,
       });
       
@@ -20858,10 +20880,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // External Units Routes
   app.get("/api/external-units", isAuthenticated, requireRole(EXTERNAL_ALL_ROLES), async (req: any, res) => {
     try {
-      const { agencyId, condominiumId, isActive } = req.query;
+      const { condominiumId, isActive } = req.query;
       
+      // Get agency ID from authenticated user (admin/master can pass agencyId to view other agencies)
+      let agencyId = req.query.agencyId;
       if (!agencyId) {
-        return res.status(400).json({ message: "Agency ID is required" });
+        agencyId = await getUserAgencyId(req);
+        if (!agencyId) {
+          return res.status(400).json({ message: "User is not assigned to any agency" });
+        }
       }
       
       // Verify ownership
@@ -20927,8 +20954,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post("/api/external-units", isAuthenticated, requireRole(EXTERNAL_ADMIN_ROLES), async (req: any, res) => {
     try {
       const validatedData = insertExternalUnitSchema.parse(req.body);
+      
+      // Get agency ID from the condominium
+      const condominium = await storage.getExternalCondominium(validatedData.condominiumId);
+      if (!condominium) {
+        return res.status(404).json({ message: "Condominium not found" });
+      }
+      
+      // Verify user has access to this agency
+      const hasAccess = await verifyExternalAgencyOwnership(req, res, condominium.agencyId);
+      if (!hasAccess) return;
+      
       const unit = await storage.createExternalUnit({
         ...validatedData,
+        agencyId: condominium.agencyId,
         createdBy: req.user.id,
       });
       
