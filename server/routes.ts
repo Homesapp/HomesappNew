@@ -166,6 +166,10 @@ import {
   externalOwnerCharges,
   externalOwnerNotifications,
   externalWorkerAssignments,
+  externalRentalContracts,
+  externalPayments,
+  externalPaymentSchedules,
+  externalMaintenanceTickets,
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, and, inArray, desc, sql } from "drizzle-orm";
@@ -22237,7 +22241,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         monthOffset++;
       }
       
-      await createAuditLog(req, "create", "external_rental_contract", contract.id, `Created external rental contract with payment schedule and ${monthsToGenerate} rent payments`);
+      await createAuditLog(req, "create", "external_rental_contract", contract.id, `Created external rental contract with payment schedule and ${paymentsCreated} rent payments`);
       res.status(201).json(contract);
     } catch (error: any) {
       console.error("Error creating rental contract:", error);
