@@ -864,11 +864,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const passwordHash = await bcrypt.hash(temporaryPassword, 10);
       
       // Update user password and set requirePasswordChange flag
-      await storage.updateUser(userId, {
-        passwordHash,
-        requirePasswordChange: true,
-        emailVerified: true, // Auto-verify email when admin sets password
-      });
+      await db
+        .update(users)
+        .set({
+          passwordHash,
+          requirePasswordChange: true,
+          emailVerified: true,
+          updatedAt: new Date()
+        })
+        .where(eq(users.id, userId));
       
       await createAuditLog(req, "update", "user", userId, `Admin set temporary password for user ${user.email}`);
       
@@ -902,10 +906,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const passwordHash = await bcrypt.hash(temporaryPassword, 10);
       
       // Update user password and set requirePasswordChange flag
-      await storage.updateUser(userId, {
-        passwordHash,
-        requirePasswordChange: true,
-      });
+      await db
+        .update(users)
+        .set({
+          passwordHash,
+          requirePasswordChange: true,
+          updatedAt: new Date()
+        })
+        .where(eq(users.id, userId));
       
       await createAuditLog(req, "update", "user", userId, `Admin reset password for user ${user.email}`);
       
