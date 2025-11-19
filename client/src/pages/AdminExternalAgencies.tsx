@@ -62,6 +62,7 @@ interface User {
   lastName: string;
   email: string;
   role: string;
+  status: string;
 }
 
 export default function AdminExternalAgencies() {
@@ -80,7 +81,8 @@ export default function AdminExternalAgencies() {
   });
 
   const { data: users = [], isLoading: isLoadingUsers } = useQuery<User[]>({
-    queryKey: ['/api/admin/users'],
+    queryKey: ['/api/users'],
+    select: (users) => users.filter(user => user.status === "approved"),
   });
 
   const form = useForm<z.infer<typeof formSchema>>({
@@ -108,7 +110,7 @@ export default function AdminExternalAgencies() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['/api/external-agencies'] });
-      queryClient.invalidateQueries({ queryKey: ['/api/admin/users'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/users'] });
       setIsCreateDialogOpen(false);
       form.reset();
       toast({
