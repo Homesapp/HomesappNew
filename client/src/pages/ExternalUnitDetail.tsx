@@ -545,206 +545,220 @@ ${language === "es" ? "ACCESOS" : "ACCESSES"}:
         </div>
       </div>
 
-      {/* Unit Information */}
-      <Card data-testid="card-unit-info">
-        <CardHeader>
-          <div className="flex justify-between items-center">
-            <CardTitle className="flex items-center gap-2">
-              <Home className="h-5 w-5" />
-              {language === "es" ? "Información de la Unidad" : "Unit Information"}
-            </CardTitle>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={copyUnitInfo}
-              disabled={!unit || !condominium}
-              data-testid="button-copy-unit-info"
-            >
-              {copiedUnitInfo ? (
-                <Check className="mr-2 h-4 w-4 text-green-600" />
-              ) : (
-                <Copy className="mr-2 h-4 w-4" />
-              )}
-              {language === "es" ? "Copiar Info" : "Copy Info"}
-            </Button>
-          </div>
-        </CardHeader>
-        <CardContent className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-          <div>
-            <Label className="text-sm font-medium text-muted-foreground">
-              {language === "es" ? "Número de Unidad" : "Unit Number"}
-            </Label>
-            <p className="text-base" data-testid="text-unit-number">{unit.unitNumber}</p>
-          </div>
-          {unit.propertyType && (
-            <div>
-              <Label className="text-sm font-medium text-muted-foreground">
-                {language === "es" ? "Tipo de Propiedad" : "Property Type"}
-              </Label>
-              <p className="text-base" data-testid="text-property-type">{unit.propertyType}</p>
-            </div>
-          )}
-          {unit.bedrooms && (
-            <div>
-              <Label className="text-sm font-medium text-muted-foreground">
-                {language === "es" ? "Recámaras" : "Bedrooms"}
-              </Label>
-              <p className="text-base" data-testid="text-bedrooms">{unit.bedrooms}</p>
-            </div>
-          )}
-          {unit.bathrooms && (
-            <div>
-              <Label className="text-sm font-medium text-muted-foreground">
-                {language === "es" ? "Baños" : "Bathrooms"}
-              </Label>
-              <p className="text-base" data-testid="text-bathrooms">{unit.bathrooms}</p>
-            </div>
-          )}
-          {unit.area && (
-            <div>
-              <Label className="text-sm font-medium text-muted-foreground">
-                {language === "es" ? "Área (m²)" : "Area (m²)"}
-              </Label>
-              <p className="text-base" data-testid="text-area">{unit.area}</p>
-            </div>
-          )}
-          {unit.floor !== null && unit.floor !== undefined && (
-            <div>
-              <Label className="text-sm font-medium text-muted-foreground">
-                {language === "es" ? "Piso" : "Floor"}
-              </Label>
-              <p className="text-base" data-testid="text-floor">{unit.floor}</p>
-            </div>
-          )}
-          <div>
-            <Label className="text-sm font-medium text-muted-foreground">
-              {language === "es" ? "Estado" : "Status"}
-            </Label>
-            <div className="mt-1">
-              <Badge variant={unit.isActive ? "default" : "secondary"} data-testid="badge-status">
-                {unit.isActive ? (language === "es" ? "Activa" : "Active") : (language === "es" ? "Inactiva" : "Inactive")}
-              </Badge>
-            </div>
-          </div>
-          {unit.airbnbPhotosLink && (
-            <div className="md:col-span-2 lg:col-span-3">
-              <Label className="text-sm font-medium text-muted-foreground">
-                {language === "es" ? "Link de Fotos Airbnb" : "Airbnb Photos Link"}
-              </Label>
-              <a 
-                href={unit.airbnbPhotosLink} 
-                target="_blank" 
-                rel="noopener noreferrer" 
-                className="text-base text-primary hover:underline" 
-                data-testid="link-airbnb"
+      {/* Unit Information and Owner - Side by Side */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        {/* Unit Information */}
+        <Card data-testid="card-unit-info">
+          <CardHeader>
+            <div className="flex justify-between items-center">
+              <CardTitle className="flex items-center gap-2">
+                <Home className="h-5 w-5" />
+                {language === "es" ? "Información de la Unidad" : "Unit Information"}
+              </CardTitle>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={copyUnitInfo}
+                disabled={!unit || !condominium}
+                data-testid="button-copy-unit-info"
               >
-                {unit.airbnbPhotosLink}
-              </a>
+                {copiedUnitInfo ? (
+                  <Check className="h-4 w-4 text-green-600" />
+                ) : (
+                  <Copy className="h-4 w-4" />
+                )}
+              </Button>
             </div>
-          )}
-          {unit.notes && (
-            <div className="md:col-span-2 lg:col-span-3">
-              <Label className="text-sm font-medium text-muted-foreground">
-                {language === "es" ? "Notas" : "Notes"}
-              </Label>
-              <p className="text-base" data-testid="text-notes">{unit.notes}</p>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <Label className="text-xs text-muted-foreground">
+                  {language === "es" ? "Número de Unidad" : "Unit Number"}
+                </Label>
+                <p className="text-sm font-medium mt-1" data-testid="text-unit-number">{unit.unitNumber}</p>
+              </div>
+              {unit.propertyType && (
+                <div>
+                  <Label className="text-xs text-muted-foreground">
+                    {language === "es" ? "Tipo" : "Type"}
+                  </Label>
+                  <p className="text-sm font-medium mt-1" data-testid="text-property-type">{unit.propertyType}</p>
+                </div>
+              )}
             </div>
-          )}
-        </CardContent>
-      </Card>
+            
+            <div className="grid grid-cols-3 gap-4">
+              {unit.bedrooms && (
+                <div>
+                  <Label className="text-xs text-muted-foreground">
+                    {language === "es" ? "Recámaras" : "Bedrooms"}
+                  </Label>
+                  <p className="text-sm font-medium mt-1" data-testid="text-bedrooms">{unit.bedrooms}</p>
+                </div>
+              )}
+              {unit.bathrooms && (
+                <div>
+                  <Label className="text-xs text-muted-foreground">
+                    {language === "es" ? "Baños" : "Bathrooms"}
+                  </Label>
+                  <p className="text-sm font-medium mt-1" data-testid="text-bathrooms">{unit.bathrooms}</p>
+                </div>
+              )}
+              {unit.area && (
+                <div>
+                  <Label className="text-xs text-muted-foreground">
+                    {language === "es" ? "Área (m²)" : "Area (m²)"}
+                  </Label>
+                  <p className="text-sm font-medium mt-1" data-testid="text-area">{unit.area}</p>
+                </div>
+              )}
+            </div>
 
-      {/* Owner Information */}
-      <Card data-testid="card-owner-info">
-        <CardHeader>
-          <div className="flex justify-between items-center">
-            <CardTitle className="flex items-center gap-2">
-              <User className="h-5 w-5" />
-              {language === "es" ? "Propietario" : "Owner"}
-            </CardTitle>
-            <Button
-              size="sm"
-              onClick={handleAddOwner}
-              disabled={isLoadingAuth || !user}
-              data-testid="button-add-owner"
-            >
-              <Plus className="mr-2 h-4 w-4" />
-              {language === "es" ? "Agregar Propietario" : "Add Owner"}
-            </Button>
-          </div>
-        </CardHeader>
-        <CardContent>
-          {ownersLoading ? (
-            <div className="space-y-3">
-              <Skeleton className="h-16 w-full" />
-              <Skeleton className="h-16 w-full" />
+            {unit.floor !== null && unit.floor !== undefined && (
+              <div>
+                <Label className="text-xs text-muted-foreground">
+                  {language === "es" ? "Piso" : "Floor"}
+                </Label>
+                <p className="text-sm font-medium mt-1" data-testid="text-floor">{unit.floor}</p>
+              </div>
+            )}
+            
+            <div>
+              <Label className="text-xs text-muted-foreground">
+                {language === "es" ? "Estado" : "Status"}
+              </Label>
+              <div className="mt-1">
+                <Badge variant={unit.isActive ? "default" : "secondary"} data-testid="badge-status">
+                  {unit.isActive ? (language === "es" ? "Activa" : "Active") : (language === "es" ? "Inactiva" : "Inactive")}
+                </Badge>
+              </div>
             </div>
-          ) : !owners || owners.length === 0 ? (
-            <div className="text-center py-8 text-muted-foreground" data-testid="text-no-owners">
-              {language === "es" ? "No hay propietarios registrados" : "No owners registered"}
-            </div>
-          ) : (
-            <div className="space-y-3">
-              {owners.map(owner => (
-                <div
-                  key={owner.id}
-                  className={`p-4 rounded-md border ${owner.isActive ? "border-primary/50 bg-primary/5" : "border-border"}`}
-                  data-testid={`owner-card-${owner.id}`}
+
+            {unit.airbnbPhotosLink && (
+              <div>
+                <Label className="text-xs text-muted-foreground">
+                  {language === "es" ? "Fotos Airbnb" : "Airbnb Photos"}
+                </Label>
+                <a 
+                  href={unit.airbnbPhotosLink} 
+                  target="_blank" 
+                  rel="noopener noreferrer" 
+                  className="text-sm text-primary hover:underline block mt-1 truncate" 
+                  data-testid="link-airbnb"
+                  title={unit.airbnbPhotosLink}
                 >
-                  <div className="flex justify-between items-start">
-                    <div className="flex-1">
-                      <div className="flex items-center gap-2 mb-2">
-                        <p className="font-medium" data-testid={`text-owner-name-${owner.id}`}>{owner.ownerName}</p>
-                        {owner.isActive && (
-                          <Badge variant="default" data-testid={`badge-active-${owner.id}`}>
-                            {language === "es" ? "Actual" : "Current"}
-                          </Badge>
+                  {language === "es" ? "Ver fotos →" : "View photos →"}
+                </a>
+              </div>
+            )}
+            
+            {unit.notes && (
+              <div>
+                <Label className="text-xs text-muted-foreground">
+                  {language === "es" ? "Notas" : "Notes"}
+                </Label>
+                <p className="text-sm mt-1 text-muted-foreground" data-testid="text-notes">{unit.notes}</p>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+
+        {/* Owner Information */}
+        <Card data-testid="card-owner-info">
+          <CardHeader>
+            <div className="flex justify-between items-center">
+              <CardTitle className="flex items-center gap-2">
+                <User className="h-5 w-5" />
+                {language === "es" ? "Propietario" : "Owner"}
+              </CardTitle>
+              <Button
+                size="sm"
+                onClick={handleAddOwner}
+                disabled={isLoadingAuth || !user}
+                data-testid="button-add-owner"
+              >
+                <Plus className="h-4 w-4" />
+              </Button>
+            </div>
+          </CardHeader>
+          <CardContent>
+            {ownersLoading ? (
+              <div className="space-y-3">
+                <Skeleton className="h-20 w-full" />
+              </div>
+            ) : !owners || owners.length === 0 ? (
+              <div className="text-center py-8 text-muted-foreground" data-testid="text-no-owners">
+                {language === "es" ? "No hay propietarios registrados" : "No owners registered"}
+              </div>
+            ) : (
+              <div className="space-y-3">
+                {owners.map(owner => (
+                  <div
+                    key={owner.id}
+                    className={`p-3 rounded-lg border ${owner.isActive ? "border-primary/30 bg-primary/5" : "border-border bg-muted/30"}`}
+                    data-testid={`owner-card-${owner.id}`}
+                  >
+                    <div className="flex justify-between items-start gap-3">
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2 mb-1">
+                          <p className="font-medium truncate" data-testid={`text-owner-name-${owner.id}`}>
+                            {owner.ownerName}
+                          </p>
+                          {owner.isActive && (
+                            <Badge variant="default" className="shrink-0" data-testid={`badge-active-${owner.id}`}>
+                              {language === "es" ? "Actual" : "Current"}
+                            </Badge>
+                          )}
+                        </div>
+                        {owner.ownerEmail && (
+                          <p className="text-xs text-muted-foreground truncate" data-testid={`text-owner-email-${owner.id}`}>
+                            {owner.ownerEmail}
+                          </p>
+                        )}
+                        {owner.ownerPhone && (
+                          <p className="text-xs text-muted-foreground" data-testid={`text-owner-phone-${owner.id}`}>
+                            {owner.ownerPhone}
+                          </p>
+                        )}
+                        {owner.notes && (
+                          <p className="text-xs text-muted-foreground mt-1" data-testid={`text-owner-notes-${owner.id}`}>
+                            {owner.notes}
+                          </p>
                         )}
                       </div>
-                      {owner.ownerEmail && (
-                        <p className="text-sm text-muted-foreground" data-testid={`text-owner-email-${owner.id}`}>
-                          {owner.ownerEmail}
-                        </p>
-                      )}
-                      {owner.ownerPhone && (
-                        <p className="text-sm text-muted-foreground" data-testid={`text-owner-phone-${owner.id}`}>
-                          {owner.ownerPhone}
-                        </p>
-                      )}
-                      {owner.notes && (
-                        <p className="text-sm text-muted-foreground mt-2" data-testid={`text-owner-notes-${owner.id}`}>
-                          {owner.notes}
-                        </p>
-                      )}
-                    </div>
-                    <div className="flex gap-2">
-                      <Button
-                        variant="outline"
-                        size="icon"
-                        onClick={() => handleEditOwner(owner)}
-                        disabled={isLoadingAuth || !user}
-                        data-testid={`button-edit-owner-${owner.id}`}
-                      >
-                        <Edit className="h-4 w-4" />
-                      </Button>
-                      <Button
-                        variant="outline"
-                        size="icon"
-                        onClick={() => deleteOwnerMutation.mutate(owner.id)}
-                        disabled={deleteOwnerMutation.isPending || isLoadingAuth || !user}
-                        data-testid={`button-delete-owner-${owner.id}`}
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
+                      <div className="flex gap-1 shrink-0">
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-8 w-8"
+                          onClick={() => handleEditOwner(owner)}
+                          disabled={isLoadingAuth || !user}
+                          data-testid={`button-edit-owner-${owner.id}`}
+                        >
+                          <Edit className="h-3.5 w-3.5" />
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-8 w-8"
+                          onClick={() => deleteOwnerMutation.mutate(owner.id)}
+                          disabled={deleteOwnerMutation.isPending || isLoadingAuth || !user}
+                          data-testid={`button-delete-owner-${owner.id}`}
+                        >
+                          <Trash2 className="h-3.5 w-3.5" />
+                        </Button>
+                      </div>
                     </div>
                   </div>
-                </div>
-              ))}
-            </div>
-          )}
-        </CardContent>
-      </Card>
+                ))}
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      </div>
 
-      {/* Access Controls */}
+      {/* Access Controls - Full Width */}
       <Card data-testid="card-access-controls">
         <CardHeader>
           <div className="flex justify-between items-center">
@@ -761,11 +775,10 @@ ${language === "es" ? "ACCESOS" : "ACCESSES"}:
                 data-testid="button-copy-access-info"
               >
                 {copiedAccessInfo ? (
-                  <Check className="mr-2 h-4 w-4 text-green-600" />
+                  <Check className="h-4 w-4 text-green-600" />
                 ) : (
-                  <Copy className="mr-2 h-4 w-4" />
+                  <Copy className="h-4 w-4" />
                 )}
-                {language === "es" ? "Copiar Accesos" : "Copy Accesses"}
               </Button>
               <Button
                 size="sm"
@@ -773,70 +786,72 @@ ${language === "es" ? "ACCESOS" : "ACCESSES"}:
                 disabled={isLoadingAuth || !user}
                 data-testid="button-add-access"
               >
-                <Plus className="mr-2 h-4 w-4" />
-                {language === "es" ? "Agregar Acceso" : "Add Access"}
+                <Plus className="h-4 w-4" />
               </Button>
             </div>
           </div>
         </CardHeader>
         <CardContent>
           {accessLoading ? (
-            <div className="space-y-3">
-              <Skeleton className="h-20 w-full" />
-              <Skeleton className="h-20 w-full" />
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+              <Skeleton className="h-24 w-full" />
+              <Skeleton className="h-24 w-full" />
+              <Skeleton className="h-24 w-full" />
             </div>
           ) : !accessControls || accessControls.length === 0 ? (
             <div className="text-center py-8 text-muted-foreground" data-testid="text-no-access">
               {language === "es" ? "No hay controles de acceso registrados" : "No access controls registered"}
             </div>
           ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
               {accessControls.map(access => (
                 <div
                   key={access.id}
-                  className={`p-4 rounded-md border ${access.isActive ? "border-primary/50 bg-primary/5" : "border-border opacity-60"}`}
+                  className={`p-3 rounded-lg border ${access.isActive ? "border-primary/30 bg-primary/5" : "border-border bg-muted/30 opacity-60"}`}
                   data-testid={`access-card-${access.id}`}
                 >
-                  <div className="flex justify-between items-start mb-3">
-                    <div>
-                      <Badge variant="outline" data-testid={`badge-access-type-${access.id}`}>
+                  <div className="flex justify-between items-start mb-2">
+                    <div className="flex flex-wrap gap-1">
+                      <Badge variant="outline" className="text-xs" data-testid={`badge-access-type-${access.id}`}>
                         {(accessTypeTranslations as any)[access.accessType]?.[language] || access.accessType}
                       </Badge>
                       {!access.isActive && (
-                        <Badge variant="secondary" className="ml-2" data-testid={`badge-inactive-${access.id}`}>
+                        <Badge variant="secondary" className="text-xs" data-testid={`badge-inactive-${access.id}`}>
                           {language === "es" ? "Inactivo" : "Inactive"}
                         </Badge>
                       )}
                     </div>
-                    <div className="flex gap-2">
+                    <div className="flex gap-1 shrink-0">
                       <Button
-                        variant="outline"
+                        variant="ghost"
                         size="icon"
+                        className="h-7 w-7"
                         onClick={() => handleEditAccess(access)}
                         disabled={isLoadingAuth || !user}
                         data-testid={`button-edit-access-${access.id}`}
                       >
-                        <Edit className="h-4 w-4" />
+                        <Edit className="h-3 w-3" />
                       </Button>
                       <Button
-                        variant="outline"
+                        variant="ghost"
                         size="icon"
+                        className="h-7 w-7"
                         onClick={() => deleteAccessMutation.mutate(access.id)}
                         disabled={deleteAccessMutation.isPending || isLoadingAuth || !user}
                         data-testid={`button-delete-access-${access.id}`}
                       >
-                        <Trash2 className="h-4 w-4" />
+                        <Trash2 className="h-3 w-3" />
                       </Button>
                     </div>
                   </div>
                   {access.accessCode && (
                     <div className="mb-2">
-                      <Label className="text-xs font-medium text-muted-foreground">
-                        {language === "es" ? "Código/Clave" : "Code/Password"}
+                      <Label className="text-xs text-muted-foreground">
+                        {language === "es" ? "Código" : "Code"}
                       </Label>
-                      <div className="flex items-center gap-2 mt-1">
+                      <div className="flex items-center gap-1 mt-1">
                         <code 
-                          className="text-sm font-mono bg-muted px-2 py-1 rounded flex-1" 
+                          className="text-xs font-mono bg-muted px-2 py-1 rounded flex-1 truncate" 
                           data-testid={`text-access-code-${access.id}`}
                         >
                           {visiblePasswords.has(access.id) ? access.accessCode : "••••••••"}
@@ -844,26 +859,27 @@ ${language === "es" ? "ACCESOS" : "ACCESSES"}:
                         <Button
                           variant="ghost"
                           size="icon"
+                          className="h-6 w-6 shrink-0"
                           onClick={() => togglePasswordVisibility(access.id)}
                           data-testid={`button-toggle-visibility-${access.id}`}
                         >
-                          {visiblePasswords.has(access.id) ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                          {visiblePasswords.has(access.id) ? <EyeOff className="h-3 w-3" /> : <Eye className="h-3 w-3" />}
                         </Button>
                       </div>
                     </div>
                   )}
                   {access.description && (
-                    <div className="mb-2">
-                      <Label className="text-xs font-medium text-muted-foreground">
+                    <div className="mb-1">
+                      <Label className="text-xs text-muted-foreground">
                         {language === "es" ? "Descripción" : "Description"}
                       </Label>
-                      <p className="text-sm mt-1" data-testid={`text-access-description-${access.id}`}>
+                      <p className="text-xs mt-0.5 text-muted-foreground" data-testid={`text-access-description-${access.id}`}>
                         {access.description}
                       </p>
                     </div>
                   )}
                   {access.canShareWithMaintenance && (
-                    <div className="text-xs text-muted-foreground" data-testid={`text-share-maintenance-${access.id}`}>
+                    <div className="text-xs text-muted-foreground mt-2 pt-2 border-t" data-testid={`text-share-maintenance-${access.id}`}>
                       ✓ {language === "es" ? "Compartible con mantenimiento" : "Shareable with maintenance"}
                     </div>
                   )}
