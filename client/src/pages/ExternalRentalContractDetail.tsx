@@ -377,23 +377,34 @@ export default function ExternalRentalContractDetail() {
   return (
     <div className="container mx-auto px-4 py-6 space-y-4">
       {/* Header */}
-      <div className="flex items-center gap-3">
-        <Button
-          variant="ghost"
-          size="icon"
-          onClick={() => navigate('/external-agency/rentals')}
-          data-testid="button-back"
-        >
-          <ArrowLeft className="h-5 w-5" />
-        </Button>
-        <div>
-          <h1 className="text-2xl font-bold" data-testid="text-contract-title">
-            {language === "es" ? "Detalle del Contrato" : "Contract Details"}
-          </h1>
-          <p className="text-sm text-muted-foreground">
-            {contract.tenantName}
-          </p>
+      <div className="flex items-center justify-between gap-3">
+        <div className="flex items-center gap-3">
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={() => navigate('/external-agency/rentals')}
+            data-testid="button-back"
+          >
+            <ArrowLeft className="h-5 w-5" />
+          </Button>
+          <div>
+            <h1 className="text-2xl font-bold" data-testid="text-contract-title">
+              {language === "es" ? "Detalle del Contrato" : "Contract Details"}
+            </h1>
+            <p className="text-sm text-muted-foreground">
+              {contract.tenantName}
+            </p>
+          </div>
         </div>
+        {contract.status === 'completed' && (
+          <Button
+            onClick={() => navigate(`/external/checkout/${contract.id}`)}
+            data-testid="button-checkout"
+          >
+            <CheckCircle2 className="h-4 w-4 mr-2" />
+            {language === "es" ? "Check-Out" : "Check-Out"}
+          </Button>
+        )}
       </div>
 
       {/* Tabs */}
