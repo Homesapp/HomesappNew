@@ -48,6 +48,11 @@ export default function ExternalCalendar() {
     queryKey: ["/api/external-owners"],
   });
 
+  // Fetch rental contracts for tenant info
+  const { data: contracts = [] } = useQuery<any[]>({
+    queryKey: ["/api/external-rental-contracts"],
+  });
+
   // Fetch users for assignment details
   const { data: users = [] } = useQuery<SelectUser[]>({
     queryKey: ["/api/external-agency-users"],
@@ -336,6 +341,35 @@ export default function ExternalCalendar() {
                         const unit = units.find(u => u.id === payment.unitId);
                         const owner = owners.find(o => o.unitId === payment.unitId);
                         
+                        // Check if there's an active rental contract for this unit
+                        const now = new Date();
+                        const activeContract = contracts.find(c => {
+                          if (c.unitId !== payment.unitId || c.status !== 'active') return false;
+                          
+                          // Verify contract dates
+                          const startDate = c.startDate ? new Date(c.startDate) : null;
+                          const endDate = c.endDate ? new Date(c.endDate) : null;
+                          
+                          if (startDate && startDate > now) return false; // Not started yet
+                          if (endDate && endDate < now) return false; // Already ended
+                          
+                          return true;
+                        });
+                        
+                        // Determine who pays based on payment type
+                        // Rent payments: tenant pays if active contract
+                        // HOA/special fees: owner always pays
+                        const isRentPayment = payment.serviceType?.toLowerCase().includes('rent') || 
+                                             payment.serviceType?.toLowerCase().includes('renta');
+                        const isTenantPayment = isRentPayment && activeContract && activeContract.tenantName;
+                        
+                        const payerName = isTenantPayment 
+                          ? activeContract.tenantName 
+                          : owner?.name;
+                        const payerLabel = isTenantPayment
+                          ? (language === "es" ? "Inquilino" : "Tenant")
+                          : (language === "es" ? "Propietario" : "Owner");
+                        
                         return (
                           <>
                             <div>
@@ -368,13 +402,13 @@ export default function ExternalCalendar() {
                                 </div>
                               )}
 
-                              {owner && (
+                              {payerName && (
                                 <div className="flex items-start gap-2">
                                   <User className="h-4 w-4 mt-0.5 text-muted-foreground" />
                                   <div>
-                                    <p className="font-medium">{language === "es" ? "Propietario" : "Owner"}</p>
+                                    <p className="font-medium">{payerLabel}</p>
                                     <p className="text-muted-foreground">
-                                      {owner.name}
+                                      {payerName}
                                     </p>
                                   </div>
                                 </div>
