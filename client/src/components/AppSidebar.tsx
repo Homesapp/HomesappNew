@@ -69,7 +69,7 @@ import {
 import { useState, useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
 
-export type UserRole = "master" | "admin" | "admin_jr" | "seller" | "owner" | "management" | "concierge" | "provider" | "cliente" | "abogado" | "contador" | "agente_servicios_especiales";
+export type UserRole = "master" | "admin" | "admin_jr" | "seller" | "owner" | "management" | "concierge" | "provider" | "cliente" | "abogado" | "contador" | "agente_servicios_especiales" | "hoa_manager" | "external_agency_admin" | "external_agency_accounting" | "external_agency_maintenance" | "external_agency_staff";
 
 export type AppSidebarProps = {
   userRole: UserRole | undefined;
@@ -89,6 +89,11 @@ const roleLabels: Record<UserRole, string> = {
   abogado: "Abogado",
   contador: "Contador",
   agente_servicios_especiales: "Agente de Servicios Especiales",
+  hoa_manager: "Administrador HOA",
+  external_agency_admin: "Admin Agencia Externa",
+  external_agency_accounting: "Contabilidad Externa",
+  external_agency_maintenance: "Mantenimiento Externo",
+  external_agency_staff: "Staff Agencia Externa",
 };
 
 export function AppSidebar({ userRole, userId }: AppSidebarProps) {
@@ -276,11 +281,11 @@ export function AppSidebar({ userRole, userId }: AppSidebarProps) {
   ];
 
   const externalManagementGroup = [
-    { titleKey: "sidebar.externalDashboard", url: "/external/dashboard", icon: Home, roles: ["master", "admin", "external_agency_admin", "external_staff"] },
+    { titleKey: "sidebar.externalDashboard", url: "/external/dashboard", icon: Home, roles: ["master", "admin", "external_agency_admin", "external_agency_accounting", "external_agency_maintenance", "external_agency_staff"] },
     { titleKey: "sidebar.externalAgency", url: "/external/agency", icon: Building, roles: ["master", "admin", "external_agency_admin"] },
-    { titleKey: "sidebar.externalProperties", url: "/external/properties", icon: Building2, roles: ["master", "admin", "external_agency_admin", "external_staff"] },
-    { titleKey: "sidebar.externalPayments", url: "/external/payments", icon: DollarSign, roles: ["master", "admin", "external_agency_admin", "external_staff"] },
-    { titleKey: "sidebar.externalTickets", url: "/external/tickets", icon: Wrench, roles: ["master", "admin", "external_agency_admin", "external_staff"] },
+    { titleKey: "sidebar.externalProperties", url: "/external/properties", icon: Building2, roles: ["master", "admin", "external_agency_admin", "external_agency_maintenance", "external_agency_staff"] },
+    { titleKey: "sidebar.externalPayments", url: "/external/payments", icon: DollarSign, roles: ["master", "admin", "external_agency_admin", "external_agency_accounting"] },
+    { titleKey: "sidebar.externalTickets", url: "/external/tickets", icon: Wrench, roles: ["master", "admin", "external_agency_admin", "external_agency_maintenance"] },
   ];
 
   const serviceItems = [

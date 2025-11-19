@@ -42,7 +42,9 @@ export const userRoleEnum = pgEnum("user_role", [
   "agente_servicios_especiales",
   "hoa_manager",
   "external_agency_admin",
-  "external_staff",
+  "external_agency_accounting",
+  "external_agency_maintenance",
+  "external_agency_staff",
 ]);
 
 export const userStatusEnum = pgEnum("user_status", [
