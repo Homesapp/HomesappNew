@@ -964,11 +964,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Hash new password
       const passwordHash = await bcrypt.hash(newPassword, 10);
       
-      // Update password and clear requirePasswordChange flag
-      await storage.updateUser(userId, {
-        passwordHash,
-        requirePasswordChange: false,
-      });
+      // Update password and clear requirePasswordChange flag using direct DB update
+      await db
+        .update(users)
+        .set({
+          passwordHash,
+          requirePasswordChange: false,
+          updatedAt: new Date()
+        })
+        .where(eq(users.id, userId));
       
       await createAuditLog(req, "update", "user", userId, `User changed their password`);
       
@@ -1013,11 +1017,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Hash new password
       const passwordHash = await bcrypt.hash(newPassword, 10);
       
-      // Update password and clear requirePasswordChange flag
-      await storage.updateUser(userId, {
-        passwordHash,
-        requirePasswordChange: false,
-      });
+      // Update password and clear requirePasswordChange flag using direct DB update
+      await db
+        .update(users)
+        .set({
+          passwordHash,
+          requirePasswordChange: false,
+          updatedAt: new Date()
+        })
+        .where(eq(users.id, userId));
       
       await createAuditLog(req, "update", "user", userId, `User completed forced password change`);
       
