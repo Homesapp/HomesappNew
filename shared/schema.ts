@@ -4991,6 +4991,7 @@ export const externalUnits = pgTable("external_units", {
   bathrooms: decimal("bathrooms", { precision: 3, scale: 1 }),
   area: decimal("area", { precision: 10, scale: 2 }), // m²
   floor: integer("floor"), // Piso
+  airbnbPhotosLink: text("airbnb_photos_link"), // Link de fotos de Airbnb
   isActive: boolean("is_active").notNull().default(true),
   notes: text("notes"),
   createdBy: varchar("created_by").references(() => users.id),

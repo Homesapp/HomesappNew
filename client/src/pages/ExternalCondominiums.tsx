@@ -74,6 +74,7 @@ export default function ExternalCondominiums() {
       bedrooms: undefined,
       bathrooms: undefined,
       squareMeters: undefined,
+      airbnbPhotosLink: "",
     },
   });
 
@@ -1091,6 +1092,25 @@ export default function ExternalCondominiums() {
                         value={field.value || ""} 
                         onChange={e => field.onChange(e.target.value ? parseFloat(e.target.value) : undefined)}
                         data-testid="input-unit-sqm" 
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={unitForm.control}
+                name="airbnbPhotosLink"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>{language === "es" ? "Link de Fotos Airbnb" : "Airbnb Photos Link"}</FormLabel>
+                    <FormControl>
+                      <Input 
+                        type="url"
+                        placeholder="https://..."
+                        {...field} 
+                        value={field.value || ""} 
+                        data-testid="input-unit-airbnb-link" 
                       />
                     </FormControl>
                     <FormMessage />
