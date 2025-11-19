@@ -34,6 +34,7 @@ const createUserSchema = z.object({
   lastName: z.string().min(1, "Apellido requerido"),
   phone: z.string().optional(),
   role: z.enum(["external_agency_admin", "external_agency_accounting", "external_agency_maintenance", "external_agency_staff"]),
+  maintenanceSpecialty: z.enum(["encargado", "electrico", "plomero", "refrigeracion", "carpintero", "pintor", "jardinero", "limpieza", "seguridad", "general"]).optional(),
 });
 
 type CreateUserForm = z.infer<typeof createUserSchema>;
@@ -50,6 +51,33 @@ const ROLE_LABELS = {
     external_agency_accounting: "Accounting",
     external_agency_maintenance: "Maintenance",
     external_agency_staff: "Staff",
+  },
+};
+
+const SPECIALTY_LABELS = {
+  es: {
+    encargado: "Encargado",
+    electrico: "Eléctrico",
+    plomero: "Plomero",
+    refrigeracion: "Refrigeración",
+    carpintero: "Carpintero",
+    pintor: "Pintor",
+    jardinero: "Jardinero",
+    limpieza: "Limpieza",
+    seguridad: "Seguridad",
+    general: "General",
+  },
+  en: {
+    encargado: "Manager",
+    electrico: "Electrician",
+    plomero: "Plumber",
+    refrigeracion: "HVAC",
+    carpintero: "Carpenter",
+    pintor: "Painter",
+    jardinero: "Gardener",
+    limpieza: "Cleaning",
+    seguridad: "Security",
+    general: "General",
   },
 };
 
@@ -284,6 +312,37 @@ export default function ExternalAccounts() {
                     </FormItem>
                   )}
                 />
+                {form.watch("role") === "external_agency_maintenance" && (
+                  <FormField
+                    control={form.control}
+                    name="maintenanceSpecialty"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>{language === "es" ? "Especialidad" : "Specialty"}</FormLabel>
+                        <Select onValueChange={field.onChange} defaultValue={field.value}>
+                          <FormControl>
+                            <SelectTrigger data-testid="select-specialty">
+                              <SelectValue placeholder={language === "es" ? "Selecciona especialidad..." : "Select specialty..."} />
+                            </SelectTrigger>
+                          </FormControl>
+                          <SelectContent>
+                            <SelectItem value="encargado">{SPECIALTY_LABELS[language].encargado}</SelectItem>
+                            <SelectItem value="electrico">{SPECIALTY_LABELS[language].electrico}</SelectItem>
+                            <SelectItem value="plomero">{SPECIALTY_LABELS[language].plomero}</SelectItem>
+                            <SelectItem value="refrigeracion">{SPECIALTY_LABELS[language].refrigeracion}</SelectItem>
+                            <SelectItem value="carpintero">{SPECIALTY_LABELS[language].carpintero}</SelectItem>
+                            <SelectItem value="pintor">{SPECIALTY_LABELS[language].pintor}</SelectItem>
+                            <SelectItem value="jardinero">{SPECIALTY_LABELS[language].jardinero}</SelectItem>
+                            <SelectItem value="limpieza">{SPECIALTY_LABELS[language].limpieza}</SelectItem>
+                            <SelectItem value="seguridad">{SPECIALTY_LABELS[language].seguridad}</SelectItem>
+                            <SelectItem value="general">{SPECIALTY_LABELS[language].general}</SelectItem>
+                          </SelectContent>
+                        </Select>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                )}
                 <DialogFooter>
                   <Button type="submit" disabled={createMutation.isPending} data-testid="button-submit-user">
                     {createMutation.isPending 
@@ -374,6 +433,9 @@ export default function ExternalAccounts() {
                     <TableHead className="min-w-[150px]">
                       {language === "es" ? "Rol" : "Role"}
                     </TableHead>
+                    <TableHead className="min-w-[150px]">
+                      {language === "es" ? "Especialidad" : "Specialty"}
+                    </TableHead>
                     <TableHead className="min-w-[120px]">
                       {language === "es" ? "Estado" : "Status"}
                     </TableHead>
@@ -394,6 +456,13 @@ export default function ExternalAccounts() {
                         <Badge variant="outline">
                           {ROLE_LABELS[language][user.role as keyof typeof ROLE_LABELS['es']]}
                         </Badge>
+                      </TableCell>
+                      <TableCell>
+                        {user.maintenanceSpecialty ? (
+                          <Badge variant="secondary">
+                            {SPECIALTY_LABELS[language][user.maintenanceSpecialty as keyof typeof SPECIALTY_LABELS['es']]}
+                          </Badge>
+                        ) : '-'}
                       </TableCell>
                       <TableCell>
                         <Badge variant={user.status === 'approved' ? 'default' : 'secondary'}>

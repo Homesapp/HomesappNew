@@ -20423,6 +20423,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           phone: users.phone,
           role: users.role,
           status: users.status,
+          maintenanceSpecialty: users.maintenanceSpecialty,
           createdAt: users.createdAt,
         })
         .from(users)
@@ -20450,6 +20451,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         lastName: z.string().min(1, "Last name required"),
         phone: z.string().optional(),
         role: z.enum(["external_agency_admin", "external_agency_accounting", "external_agency_maintenance", "external_agency_staff"]),
+        maintenanceSpecialty: z.enum(["encargado", "electrico", "plomero", "refrigeracion", "carpintero", "pintor", "jardinero", "limpieza", "seguridad", "general"]).optional(),
       });
 
       const validatedData = createUserSchema.parse(req.body);
@@ -20474,6 +20476,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         role: validatedData.role,
         status: "approved",
         assignedToUser: agencyId, // Link user to agency via assignedToUser field
+        maintenanceSpecialty: validatedData.maintenanceSpecialty || null,
       });
 
       await createAuditLog(req, "create", "user", user.id, `Created external agency user with role ${validatedData.role}`);
