@@ -22089,9 +22089,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ message: "No agency assigned to user" });
       }
 
-      const assignments = await db.query.maintenanceWorkerAssignments.findMany({
-        where: eq(maintenanceWorkerAssignments.agencyId, agencyId),
-        orderBy: desc(maintenanceWorkerAssignments.assignedAt),
+      const assignments = await db.query.externalWorkerAssignments.findMany({
+        where: eq(externalWorkerAssignments.agencyId, agencyId),
+        orderBy: desc(externalWorkerAssignments.createdAt),
       });
 
       res.json(assignments);
@@ -22108,14 +22108,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ message: "No agency assigned to user" });
       }
 
-      const assignmentData = insertMaintenanceWorkerAssignmentSchema.parse(req.body);
+      const assignmentData = insertExternalWorkerAssignmentSchema.parse(req.body);
 
       // SECURITY: Verify worker belongs to user's agency
       const [worker] = await db
         .select({ assignedToUser: users.assignedToUser })
         .from(users)
         .where(and(
-          eq(users.id, assignmentData.workerId),
+          eq(users.id, assignmentData.userId),
           eq(users.role, "external_agency_maintenance")
         ))
         .limit(1);
@@ -22151,14 +22151,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       const [assignment] = await db
-        .insert(maintenanceWorkerAssignments)
+        .insert(externalWorkerAssignments)
         .values({
           ...assignmentData,
           agencyId,
         })
         .returning();
 
-      await createAuditLog(req, "create", "maintenance_worker_assignment", assignment.id, "Created worker assignment");
+      await createAuditLog(req, "create", "external_worker_assignment", assignment.id, "Created worker assignment");
       res.json(assignment);
     } catch (error: any) {
       console.error("Error creating worker assignment:", error);
@@ -22179,17 +22179,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       // SECURITY: Verify assignment belongs to user's agency
       const [assignment] = await db
-        .select({ agencyId: maintenanceWorkerAssignments.agencyId })
-        .from(maintenanceWorkerAssignments)
-        .where(eq(maintenanceWorkerAssignments.id, id))
+        .select({ agencyId: externalWorkerAssignments.agencyId })
+        .from(externalWorkerAssignments)
+        .where(eq(externalWorkerAssignments.id, id))
         .limit(1);
 
       if (!assignment || assignment.agencyId !== agencyId) {
         return res.status(403).json({ message: "Forbidden: Cannot delete assignments from other agencies" });
       }
 
-      await db.delete(maintenanceWorkerAssignments).where(eq(maintenanceWorkerAssignments.id, id));
-      await createAuditLog(req, "delete", "maintenance_worker_assignment", id, "Deleted worker assignment");
+      await db.delete(externalWorkerAssignments).where(eq(externalWorkerAssignments.id, id));
+      await createAuditLog(req, "delete", "external_worker_assignment", id, "Deleted worker assignment");
 
       res.status(204).send();
     } catch (error: any) {

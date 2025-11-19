@@ -5252,3 +5252,85 @@ export const insertExternalOwnerNotificationSchema = createInsertSchema(external
 
 export type InsertExternalOwnerNotification = z.infer<typeof insertExternalOwnerNotificationSchema>;
 export type ExternalOwnerNotification = typeof externalOwnerNotifications.$inferSelect;
+
+// External Relations - Defined at the end after all tables are declared
+export const externalCondominiumsRelations = relations(externalCondominiums, ({ one, many }) => ({
+  agency: one(externalAgencies, {
+    fields: [externalCondominiums.agencyId],
+    references: [externalAgencies.id],
+  }),
+  units: many(externalUnits),
+}));
+
+export const externalUnitsRelations = relations(externalUnits, ({ one, many }) => ({
+  agency: one(externalAgencies, {
+    fields: [externalUnits.agencyId],
+    references: [externalAgencies.id],
+  }),
+  condominium: one(externalCondominiums, {
+    fields: [externalUnits.condominiumId],
+    references: [externalCondominiums.id],
+  }),
+  owners: many(externalUnitOwners),
+  rentalContracts: many(externalRentalContracts),
+}));
+
+export const externalUnitOwnersRelations = relations(externalUnitOwners, ({ one }) => ({
+  unit: one(externalUnits, {
+    fields: [externalUnitOwners.unitId],
+    references: [externalUnits.id],
+  }),
+}));
+
+export const externalOwnerChargesRelations = relations(externalOwnerCharges, ({ one }) => ({
+  agency: one(externalAgencies, {
+    fields: [externalOwnerCharges.agencyId],
+    references: [externalAgencies.id],
+  }),
+  owner: one(externalUnitOwners, {
+    fields: [externalOwnerCharges.ownerId],
+    references: [externalUnitOwners.id],
+  }),
+  unit: one(externalUnits, {
+    fields: [externalOwnerCharges.unitId],
+    references: [externalUnits.id],
+  }),
+}));
+
+export const externalOwnerNotificationsRelations = relations(externalOwnerNotifications, ({ one }) => ({
+  agency: one(externalAgencies, {
+    fields: [externalOwnerNotifications.agencyId],
+    references: [externalAgencies.id],
+  }),
+  owner: one(externalUnitOwners, {
+    fields: [externalOwnerNotifications.ownerId],
+    references: [externalUnitOwners.id],
+  }),
+  unit: one(externalUnits, {
+    fields: [externalOwnerNotifications.unitId],
+    references: [externalUnits.id],
+  }),
+  condominium: one(externalCondominiums, {
+    fields: [externalOwnerNotifications.condominiumId],
+    references: [externalCondominiums.id],
+  }),
+}));
+
+export const externalWorkerAssignmentsRelations = relations(externalWorkerAssignments, ({ one }) => ({
+  agency: one(externalAgencies, {
+    fields: [externalWorkerAssignments.agencyId],
+    references: [externalAgencies.id],
+  }),
+  worker: one(users, {
+    fields: [externalWorkerAssignments.userId],
+    references: [users.id],
+  }),
+  condominium: one(externalCondominiums, {
+    fields: [externalWorkerAssignments.condominiumId],
+    references: [externalCondominiums.id],
+  }),
+  unit: one(externalUnits, {
+    fields: [externalWorkerAssignments.unitId],
+    references: [externalUnits.id],
+  }),
+}));
