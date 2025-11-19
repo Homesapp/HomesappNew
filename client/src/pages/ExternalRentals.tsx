@@ -326,7 +326,7 @@ export default function ExternalRentals() {
                     className="flex-1"
                     data-testid={`button-view-rental-${contract.id}`}
                   >
-                    <Link href={`/external/rentals/${contract.id}`}>
+                    <Link href={`/external/contracts/${contract.id}`}>
                       <FileText className="h-4 w-4 mr-2" />
                       {language === "es" ? "Ver Detalles" : "View Details"}
                     </Link>
