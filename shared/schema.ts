@@ -4828,13 +4828,13 @@ export const externalRentalContracts = pgTable("external_rental_contracts", {
   index("idx_external_contracts_dates").on(table.startDate, table.endDate),
 ]);
 
-export const insertExternalRentalContractSchema = createInsertSchema(externalRentalContracts, {
-  startDate: z.union([z.date(), z.string()]).pipe(z.coerce.date()),
-  endDate: z.union([z.date(), z.string()]).pipe(z.coerce.date()),
-}).omit({
+export const insertExternalRentalContractSchema = createInsertSchema(externalRentalContracts).omit({
   id: true,
   createdAt: true,
   updatedAt: true,
+}).extend({
+  startDate: z.coerce.date(),
+  endDate: z.coerce.date(),
 });
 
 export const updateExternalRentalContractSchema = insertExternalRentalContractSchema.partial().omit({

@@ -22094,6 +22094,43 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // External Rental Contracts Routes
+  // Get all rental contracts for user's agency with unit and condominium info
+  app.get("/api/external-rental-contracts", isAuthenticated, requireRole(EXTERNAL_ALL_ROLES), async (req: any, res) => {
+    try {
+      const agencyId = await getUserAgencyId(req);
+      if (!agencyId) {
+        return res.status(403).json({ message: "No agency access" });
+      }
+      
+      const { status } = req.query;
+      const filters = status ? { status: status as string } : undefined;
+      
+      // Get rental contracts with unit and condominium information using SQL joins
+      const contractsWithDetails = await db.select({
+        contract: externalRentalContracts,
+        unit: externalUnits,
+        condominium: externalCondominiums,
+      })
+        .from(externalRentalContracts)
+        .leftJoin(externalUnits, eq(externalRentalContracts.unitId, externalUnits.id))
+        .leftJoin(externalCondominiums, eq(externalUnits.condominiumId, externalCondominiums.id))
+        .where(
+          filters?.status 
+            ? and(
+                eq(externalRentalContracts.agencyId, agencyId),
+                eq(externalRentalContracts.status, filters.status as any)
+              )
+            : eq(externalRentalContracts.agencyId, agencyId)
+        )
+        .orderBy(desc(externalRentalContracts.createdAt));
+      
+      res.json(contractsWithDetails);
+    } catch (error: any) {
+      console.error("Error fetching rental contracts:", error);
+      handleGenericError(res, error);
+    }
+  });
+  
   app.get("/api/external-rental-contracts/by-unit/:unitId", isAuthenticated, requireRole(EXTERNAL_ALL_ROLES), async (req: any, res) => {
     try {
       const { unitId } = req.params;
