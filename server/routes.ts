@@ -31,6 +31,7 @@ import {
 } from "./sanitize";
 import { handleGenericError, handleZodError } from "./errorHandling";
 import { cache, CacheKeys, CacheTTL } from "./cache";
+import { generateTemporaryPassword, validatePasswordStrength } from "./utils/password";
 import bcrypt from "bcryptjs";
 import crypto from "crypto";
 import { z } from "zod";
@@ -56,6 +57,9 @@ import {
   updateAdminPasswordSchema,
   userRegistrationSchema,
   userLoginSchema,
+  setTemporaryPasswordSchema,
+  changePasswordSchema,
+  forcePasswordChangeSchema,
   insertRoleRequestSchema,
   insertLeadSchema,
   leads,
@@ -742,7 +746,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       // Return user info (without password hash)
       const { passwordHash, ...userWithoutPassword } = user;
-      res.json(userWithoutPassword);
+      res.json({
+        ...userWithoutPassword,
+        requirePasswordChange: user.requirePasswordChange || false,
+      });
     } catch (error) {
       console.error("Error during login:", error);
       res.status(500).json({ message: "Error al iniciar sesión" });
@@ -766,6 +773,180 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Error during logout:", error);
       res.status(500).json({ message: "Error al cerrar sesión" });
+    }
+  });
+
+  // Admin: Set temporary password for a user
+  app.post("/api/admin/users/:userId/set-password", isAuthenticated, requireRole(["master", "admin"]), async (req: any, res) => {
+    try {
+      const { userId } = req.params;
+      
+      // Check if user exists
+      const user = await storage.getUserById(userId);
+      if (!user) {
+        return res.status(404).json({ message: "User not found" });
+      }
+
+      // Generate temporary password
+      const temporaryPassword = generateTemporaryPassword();
+      
+      // Hash the password
+      const passwordHash = await bcrypt.hash(temporaryPassword, 10);
+      
+      // Update user password and set requirePasswordChange flag
+      await storage.updateUser(userId, {
+        passwordHash,
+        requirePasswordChange: true,
+        emailVerified: true, // Auto-verify email when admin sets password
+      });
+      
+      await createAuditLog(req, "update", "user", userId, `Admin set temporary password for user ${user.email}`);
+      
+      // Return the temporary password (only shown once)
+      res.json({ 
+        message: "Temporary password set successfully",
+        temporaryPassword,
+        email: user.email 
+      });
+    } catch (error) {
+      console.error("Error setting temporary password:", error);
+      res.status(500).json({ message: "Failed to set temporary password" });
+    }
+  });
+
+  // Admin: Reset password for a user (generate new temporary password)
+  app.post("/api/admin/users/:userId/reset-password", isAuthenticated, requireRole(["master", "admin"]), async (req: any, res) => {
+    try {
+      const { userId } = req.params;
+      
+      // Check if user exists
+      const user = await storage.getUserById(userId);
+      if (!user) {
+        return res.status(404).json({ message: "User not found" });
+      }
+
+      // Generate new temporary password
+      const temporaryPassword = generateTemporaryPassword();
+      
+      // Hash the password
+      const passwordHash = await bcrypt.hash(temporaryPassword, 10);
+      
+      // Update user password and set requirePasswordChange flag
+      await storage.updateUser(userId, {
+        passwordHash,
+        requirePasswordChange: true,
+      });
+      
+      await createAuditLog(req, "update", "user", userId, `Admin reset password for user ${user.email}`);
+      
+      // Return the new temporary password (only shown once)
+      res.json({ 
+        message: "Password reset successfully",
+        temporaryPassword,
+        email: user.email 
+      });
+    } catch (error) {
+      console.error("Error resetting password:", error);
+      res.status(500).json({ message: "Failed to reset password" });
+    }
+  });
+
+  // User: Change own password
+  app.post("/api/auth/change-password", isAuthenticated, async (req: any, res) => {
+    try {
+      const validationResult = changePasswordSchema.safeParse(req.body);
+      if (!validationResult.success) {
+        return res.status(400).json({
+          message: "Invalid request data",
+          errors: validationResult.error.errors,
+        });
+      }
+
+      const { currentPassword, newPassword } = validationResult.data;
+      const userId = req.user.claims.sub;
+      
+      // Get user
+      const user = await storage.getUserById(userId);
+      if (!user || !user.passwordHash) {
+        return res.status(400).json({ message: "User not found or no password set" });
+      }
+
+      // Verify current password
+      const isValidPassword = await bcrypt.compare(currentPassword, user.passwordHash);
+      if (!isValidPassword) {
+        return res.status(401).json({ message: "Current password is incorrect" });
+      }
+
+      // Validate new password strength
+      const strengthValidation = validatePasswordStrength(newPassword);
+      if (!strengthValidation.valid) {
+        return res.status(400).json({ message: strengthValidation.message });
+      }
+
+      // Hash new password
+      const passwordHash = await bcrypt.hash(newPassword, 10);
+      
+      // Update password and clear requirePasswordChange flag
+      await storage.updateUser(userId, {
+        passwordHash,
+        requirePasswordChange: false,
+      });
+      
+      await createAuditLog(req, "update", "user", userId, `User changed their password`);
+      
+      res.json({ message: "Password changed successfully" });
+    } catch (error) {
+      console.error("Error changing password:", error);
+      res.status(500).json({ message: "Failed to change password" });
+    }
+  });
+
+  // User: Force password change (first time login)
+  app.post("/api/auth/force-password-change", isAuthenticated, async (req: any, res) => {
+    try {
+      const validationResult = forcePasswordChangeSchema.safeParse(req.body);
+      if (!validationResult.success) {
+        return res.status(400).json({
+          message: "Invalid request data",
+          errors: validationResult.error.errors,
+        });
+      }
+
+      const { newPassword } = validationResult.data;
+      const userId = req.user.claims.sub;
+      
+      // Get user
+      const user = await storage.getUserById(userId);
+      if (!user) {
+        return res.status(404).json({ message: "User not found" });
+      }
+
+      // Check if user actually needs to change password
+      if (!user.requirePasswordChange) {
+        return res.status(400).json({ message: "Password change not required" });
+      }
+
+      // Validate new password strength
+      const strengthValidation = validatePasswordStrength(newPassword);
+      if (!strengthValidation.valid) {
+        return res.status(400).json({ message: strengthValidation.message });
+      }
+
+      // Hash new password
+      const passwordHash = await bcrypt.hash(newPassword, 10);
+      
+      // Update password and clear requirePasswordChange flag
+      await storage.updateUser(userId, {
+        passwordHash,
+        requirePasswordChange: false,
+      });
+      
+      await createAuditLog(req, "update", "user", userId, `User completed forced password change`);
+      
+      res.json({ message: "Password changed successfully" });
+    } catch (error) {
+      console.error("Error in force password change:", error);
+      res.status(500).json({ message: "Failed to change password" });
     }
   });
 

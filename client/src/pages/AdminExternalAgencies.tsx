@@ -45,7 +45,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { insertExternalAgencySchema } from "@shared/schema";
 import type { ExternalAgency } from "@shared/schema";
 import { z } from "zod";
-import { Plus, Pencil, Trash2, Building2, Search } from "lucide-react";
+import { Plus, Pencil, Trash2, Building2, Search, Key, Copy } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useToast } from "@/hooks/use-toast";
 import { useLanguage } from "@/contexts/LanguageContext";
@@ -71,7 +71,9 @@ export default function AdminExternalAgencies() {
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
+  const [isPasswordDialogOpen, setIsPasswordDialogOpen] = useState(false);
   const [selectedAgency, setSelectedAgency] = useState<ExternalAgency | null>(null);
+  const [generatedPassword, setGeneratedPassword] = useState<{password: string, email: string} | null>(null);
 
   const { data: agencies = [], isLoading: isLoadingAgencies } = useQuery<ExternalAgency[]>({
     queryKey: ['/api/external-agencies'],
@@ -176,6 +178,56 @@ export default function AdminExternalAgencies() {
         description: language === "es"
           ? "No se pudo eliminar la agencia"
           : "Could not delete agency",
+        variant: "destructive",
+      });
+    },
+  });
+
+  const setPasswordMutation = useMutation({
+    mutationFn: async (userId: string) => {
+      return await apiRequest("POST", `/api/admin/users/${userId}/set-password`, {});
+    },
+    onSuccess: (data: any) => {
+      setGeneratedPassword({ password: data.temporaryPassword, email: data.email });
+      setIsPasswordDialogOpen(true);
+      toast({
+        title: language === "es" ? "Contraseña generada" : "Password generated",
+        description: language === "es" 
+          ? "La contraseña temporal ha sido generada exitosamente"
+          : "Temporary password has been generated successfully",
+      });
+    },
+    onError: () => {
+      toast({
+        title: language === "es" ? "Error" : "Error",
+        description: language === "es"
+          ? "No se pudo generar la contraseña"
+          : "Could not generate password",
+        variant: "destructive",
+      });
+    },
+  });
+
+  const resetPasswordMutation = useMutation({
+    mutationFn: async (userId: string) => {
+      return await apiRequest("POST", `/api/admin/users/${userId}/reset-password`, {});
+    },
+    onSuccess: (data: any) => {
+      setGeneratedPassword({ password: data.temporaryPassword, email: data.email });
+      setIsPasswordDialogOpen(true);
+      toast({
+        title: language === "es" ? "Contraseña restablecida" : "Password reset",
+        description: language === "es" 
+          ? "La contraseña ha sido restablecida exitosamente"
+          : "Password has been reset successfully",
+      });
+    },
+    onError: () => {
+      toast({
+        title: language === "es" ? "Error" : "Error",
+        description: language === "es"
+          ? "No se pudo restablecer la contraseña"
+          : "Could not reset password",
         variant: "destructive",
       });
     },
@@ -516,6 +568,23 @@ export default function AdminExternalAgencies() {
                       </TableCell>
                       <TableCell className="text-right">
                         <div className="flex items-center justify-end gap-2">
+                          {assignedUser && (
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              onClick={() => {
+                                if (assignedUser.id) {
+                                  // Check if user already has a password (reset) or not (set new)
+                                  resetPasswordMutation.mutate(assignedUser.id);
+                                }
+                              }}
+                              disabled={resetPasswordMutation.isPending}
+                              title={language === "es" ? "Gestionar contraseña" : "Manage password"}
+                              data-testid={`button-password-${agency.id}`}
+                            >
+                              <Key className="h-4 w-4" />
+                            </Button>
+                          )}
                           <Button
                             variant="ghost"
                             size="icon"
@@ -721,6 +790,98 @@ export default function AdminExternalAgencies() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* Password Display Dialog */}
+      <Dialog open={isPasswordDialogOpen} onOpenChange={setIsPasswordDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>
+              {language === "es" ? "Contraseña Temporal Generada" : "Temporary Password Generated"}
+            </DialogTitle>
+            <DialogDescription>
+              {language === "es" 
+                ? "Comparte estas credenciales con el usuario. La contraseña solo se mostrará una vez."
+                : "Share these credentials with the user. The password will only be shown once."}
+            </DialogDescription>
+          </DialogHeader>
+          {generatedPassword && (
+            <div className="space-y-4">
+              <div className="space-y-2">
+                <label className="text-sm font-medium">
+                  {language === "es" ? "Email" : "Email"}
+                </label>
+                <div className="flex items-center gap-2">
+                  <Input 
+                    value={generatedPassword.email} 
+                    readOnly 
+                    className="bg-muted"
+                    data-testid="input-generated-email"
+                  />
+                  <Button
+                    size="icon"
+                    variant="outline"
+                    onClick={() => {
+                      navigator.clipboard.writeText(generatedPassword.email);
+                      toast({
+                        title: language === "es" ? "Copiado" : "Copied",
+                        description: language === "es" ? "Email copiado al portapapeles" : "Email copied to clipboard",
+                      });
+                    }}
+                    data-testid="button-copy-email"
+                  >
+                    <Copy className="h-4 w-4" />
+                  </Button>
+                </div>
+              </div>
+              <div className="space-y-2">
+                <label className="text-sm font-medium">
+                  {language === "es" ? "Contraseña Temporal" : "Temporary Password"}
+                </label>
+                <div className="flex items-center gap-2">
+                  <Input 
+                    value={generatedPassword.password} 
+                    readOnly 
+                    className="bg-muted font-mono"
+                    data-testid="input-generated-password"
+                  />
+                  <Button
+                    size="icon"
+                    variant="outline"
+                    onClick={() => {
+                      navigator.clipboard.writeText(generatedPassword.password);
+                      toast({
+                        title: language === "es" ? "Copiado" : "Copied",
+                        description: language === "es" ? "Contraseña copiada al portapapeles" : "Password copied to clipboard",
+                      });
+                    }}
+                    data-testid="button-copy-password"
+                  >
+                    <Copy className="h-4 w-4" />
+                  </Button>
+                </div>
+              </div>
+              <div className="p-4 bg-yellow-50 dark:bg-yellow-900/20 rounded-md border border-yellow-200 dark:border-yellow-900">
+                <p className="text-sm text-yellow-800 dark:text-yellow-200">
+                  {language === "es" 
+                    ? "⚠️ El usuario deberá cambiar esta contraseña en su primer inicio de sesión."
+                    : "⚠️ The user must change this password on their first login."}
+                </p>
+              </div>
+            </div>
+          )}
+          <DialogFooter>
+            <Button
+              onClick={() => {
+                setIsPasswordDialogOpen(false);
+                setGeneratedPassword(null);
+              }}
+              data-testid="button-close-password-dialog"
+            >
+              {language === "es" ? "Cerrar" : "Close"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
