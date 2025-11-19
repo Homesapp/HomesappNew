@@ -52,6 +52,16 @@ Key features include:
         - Contract detail view with complete overview of services and payment schedules
         - **Contract Editing**: Full CRUD for active rental contracts including tenant information, monthly rent, end date, and notes with backend validation and multi-tenant security
         - **Payment Schedule Management**: Complete CRUD operations for payment schedules (rent, electricity, water, internet, gas, maintenance) with automatic cache invalidation using TanStack Query v5 array-based query keys
+    *   **Unit Status Management**: Complete system for managing unit availability and operational status. Features include:
+        - PATCH endpoint `/api/external-units/:id/toggle-status` for toggling unit active/suspended state with multi-tenant security
+        - Soft state changes preserving all historical records (no physical deletion)
+        - Professional condominium statistics dashboard showing total units, active/suspended counts, and rented/available breakdown
+        - Enhanced units table with dedicated status columns: Unit Status (active/suspended), Rental Status (rented/available), and Services (count with tooltip)
+        - GET endpoint `/api/external-units/:id/services` returning configured payment schedules for each unit with parallel fetching
+        - Visual toggle buttons with Power/PowerOff icons and descriptive tooltips
+        - Comprehensive filtering by unit status, rental status, and condominium
+        - Color-coded badges with semantic icons (Power, PowerOff, DoorClosed, DoorOpen, Key)
+        - Audit logging of all status changes with user tracking
 
 ## External Dependencies
 *   Google Calendar API

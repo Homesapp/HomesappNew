@@ -4,7 +4,7 @@ import { useLocation } from "wouter";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Building2, Plus, AlertCircle, AlertTriangle, Home, Edit, Trash2, Search, Filter } from "lucide-react";
+import { Building2, Plus, AlertCircle, AlertTriangle, Home, Edit, Trash2, Search, Filter, CheckCircle2, XCircle, DoorOpen, DoorClosed, Key, Power, PowerOff } from "lucide-react";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useLanguage } from "@/contexts/LanguageContext";
@@ -18,7 +18,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
 import { queryClient, apiRequest } from "@/lib/queryClient";
-import type { ExternalCondominium, ExternalUnit, ExternalRentalContract } from "@shared/schema";
+import type { ExternalCondominium, ExternalUnit, ExternalRentalContract, ExternalPaymentSchedule } from "@shared/schema";
 import { insertExternalCondominiumSchema, insertExternalUnitSchema } from "@shared/schema";
 import { z } from "zod";
 
@@ -41,6 +41,7 @@ export default function ExternalCondominiums() {
   const [unitSearchText, setUnitSearchText] = useState("");
   const [selectedCondoFilter, setSelectedCondoFilter] = useState<string>("all");
   const [rentalStatusFilter, setRentalStatusFilter] = useState<string>("all");
+  const [unitStatusFilter, setUnitStatusFilter] = useState<string>("all"); // active, suspended, all
 
   const { data: condominiums, isLoading: condosLoading, isError: condosError, error: condosErrorMsg } = useQuery<ExternalCondominium[]>({
     queryKey: ['/api/external-condominiums'],
@@ -54,6 +55,37 @@ export default function ExternalCondominiums() {
     queryKey: ['/api/external-rental-contracts'],
   });
   const { data: rentalContracts, isLoading: contractsLoading, isError: contractsError, refetch: refetchContracts } = contractsQuery;
+
+  // Get services for all units - we'll create a map of unitId -> services[]
+  const { data: allUnitServices } = useQuery<Record<string, ExternalPaymentSchedule[]>>({
+    queryKey: ['/api/external-units/all-services'],
+    queryFn: async () => {
+      if (!units || units.length === 0) return {};
+      
+      // Fetch services for all units in parallel
+      const servicesPromises = units.map(async (unit) => {
+        try {
+          const response = await fetch(`/api/external-units/${unit.id}/services`, { credentials: 'include' });
+          if (!response.ok) return { unitId: unit.id, services: [] };
+          const services = await response.json();
+          return { unitId: unit.id, services };
+        } catch (error) {
+          return { unitId: unit.id, services: [] };
+        }
+      });
+
+      const results = await Promise.all(servicesPromises);
+      
+      // Convert to map
+      const servicesMap: Record<string, ExternalPaymentSchedule[]> = {};
+      results.forEach(({ unitId, services }) => {
+        servicesMap[unitId] = services;
+      });
+      
+      return servicesMap;
+    },
+    enabled: !!units && units.length > 0,
+  });
 
   const condoForm = useForm<CondominiumFormData>({
     resolver: zodResolver(insertExternalCondominiumSchema),
@@ -159,6 +191,26 @@ export default function ExternalCondominiums() {
       toast({
         title: language === "es" ? "Unidad actualizada" : "Unit updated",
         description: language === "es" ? "La unidad se actualizó exitosamente" : "The unit was updated successfully",
+      });
+    },
+    onError: (error: Error) => {
+      toast({
+        title: language === "es" ? "Error" : "Error",
+        description: error.message,
+        variant: "destructive",
+      });
+    },
+  });
+
+  const toggleUnitStatusMutation = useMutation({
+    mutationFn: async (unitId: string) => {
+      return await apiRequest('PATCH', `/api/external-units/${unitId}/toggle-status`, {});
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/external-units'] });
+      toast({
+        title: language === "es" ? "Estado actualizado" : "Status updated",
+        description: language === "es" ? "El estado de la unidad se actualizó exitosamente" : "The unit status was updated successfully",
       });
     },
     onError: (error: Error) => {
@@ -300,7 +352,12 @@ export default function ExternalCondominiums() {
       (rentalStatusFilter === "with-rental" && hasRental === true) ||
       (rentalStatusFilter === "without-rental" && hasRental === false);
 
-    return matchesSearch && matchesCondominium && matchesRentalStatus;
+    // Filter by unit status (active/suspended)
+    const matchesUnitStatus = unitStatusFilter === "all" ||
+      (unitStatusFilter === "active" && unit.isActive) ||
+      (unitStatusFilter === "suspended" && !unit.isActive);
+
+    return matchesSearch && matchesCondominium && matchesRentalStatus && matchesUnitStatus;
   }) || [];
 
   return (
@@ -524,6 +581,11 @@ export default function ExternalCondominiums() {
               <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
                 {condominiums.map((condo) => {
                   const condoUnits = getUnitsForCondo(condo.id);
+                  const activeUnits = condoUnits.filter(u => u.isActive);
+                  const suspendedUnits = condoUnits.filter(u => !u.isActive);
+                  const rentedUnits = condoUnits.filter(u => hasActiveRental(u.id) === true);
+                  const availableUnits = condoUnits.filter(u => hasActiveRental(u.id) === false && u.isActive);
+                  
                   return (
                     <Card 
                       key={condo.id} 
@@ -567,28 +629,75 @@ export default function ExternalCondominiums() {
                         </CardDescription>
                       </CardHeader>
                       <CardContent className="space-y-3">
-                        <div className="flex justify-between items-center">
-                          <span className="text-sm text-muted-foreground">
-                            {language === "es" ? "Total de unidades:" : "Total units:"}
-                          </span>
-                          <Badge variant="secondary" data-testid={`badge-total-units-${condo.id}`}>
-                            {condo.totalUnits || condoUnits.length}
+                        {/* Units Stats Grid */}
+                        <div className="grid grid-cols-2 gap-3 pb-3 border-b">
+                          <div className="space-y-1">
+                            <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                              <Home className="h-3.5 w-3.5" />
+                              <span>{language === "es" ? "Total" : "Total"}</span>
+                            </div>
+                            <div className="text-2xl font-bold" data-testid={`stat-total-${condo.id}`}>
+                              {condoUnits.length}
+                            </div>
+                          </div>
+                          <div className="space-y-1">
+                            <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                              <DoorClosed className="h-3.5 w-3.5" />
+                              <span>{language === "es" ? "Rentadas" : "Rented"}</span>
+                            </div>
+                            <div className="text-2xl font-bold text-blue-600 dark:text-blue-400" data-testid={`stat-rented-${condo.id}`}>
+                              {rentedUnits.length}
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* Status Stats */}
+                        <div className="grid grid-cols-2 gap-2">
+                          <div className="flex items-center justify-between p-2 rounded-md bg-green-50 dark:bg-green-950/20">
+                            <div className="flex items-center gap-1.5">
+                              <Power className="h-3.5 w-3.5 text-green-600 dark:text-green-400" />
+                              <span className="text-xs text-green-700 dark:text-green-300">
+                                {language === "es" ? "Activas" : "Active"}
+                              </span>
+                            </div>
+                            <Badge variant="outline" className="bg-white dark:bg-gray-900 text-green-700 dark:text-green-300 border-green-200 dark:border-green-800" data-testid={`badge-active-${condo.id}`}>
+                              {activeUnits.length}
+                            </Badge>
+                          </div>
+                          
+                          <div className="flex items-center justify-between p-2 rounded-md bg-gray-50 dark:bg-gray-900/50">
+                            <div className="flex items-center gap-1.5">
+                              <PowerOff className="h-3.5 w-3.5 text-gray-600 dark:text-gray-400" />
+                              <span className="text-xs text-gray-700 dark:text-gray-300">
+                                {language === "es" ? "Inactivas" : "Inactive"}
+                              </span>
+                            </div>
+                            <Badge variant="outline" className="bg-white dark:bg-gray-950" data-testid={`badge-suspended-${condo.id}`}>
+                              {suspendedUnits.length}
+                            </Badge>
+                          </div>
+                        </div>
+
+                        {/* Availability */}
+                        <div className="flex items-center justify-between p-2 rounded-md bg-blue-50 dark:bg-blue-950/20">
+                          <div className="flex items-center gap-1.5">
+                            <DoorOpen className="h-3.5 w-3.5 text-blue-600 dark:text-blue-400" />
+                            <span className="text-xs text-blue-700 dark:text-blue-300">
+                              {language === "es" ? "Disponibles" : "Available"}
+                            </span>
+                          </div>
+                          <Badge variant="outline" className="bg-white dark:bg-gray-900 text-blue-700 dark:text-blue-300 border-blue-200 dark:border-blue-800" data-testid={`badge-available-${condo.id}`}>
+                            {availableUnits.length}
                           </Badge>
                         </div>
-                        <div className="flex justify-between items-center">
-                          <span className="text-sm text-muted-foreground">
-                            {language === "es" ? "Unidades registradas:" : "Registered units:"}
-                          </span>
-                          <Badge variant="outline" data-testid={`badge-registered-units-${condo.id}`}>
-                            {condoUnits.length}
-                          </Badge>
-                        </div>
+
                         {condo.description && (
-                          <p className="text-sm mt-2 line-clamp-2">{condo.description}</p>
+                          <p className="text-xs text-muted-foreground mt-2 line-clamp-2 pt-2 border-t">{condo.description}</p>
                         )}
+                        
                         <Button 
                           variant="outline" 
-                          className="w-full mt-4"
+                          className="w-full mt-2"
                           onClick={(e) => {
                             e.stopPropagation();
                             handleAddUnit(condo.id);
@@ -631,7 +740,7 @@ export default function ExternalCondominiums() {
               </CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="grid gap-4 md:grid-cols-3">
+              <div className="grid gap-4 md:grid-cols-4">
                 <div className="space-y-2">
                   <label className="text-sm font-medium">
                     {language === "es" ? "Buscar" : "Search"}
@@ -669,6 +778,31 @@ export default function ExternalCondominiums() {
                           {condo.name}
                         </SelectItem>
                       ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div className="space-y-2">
+                  <label className="text-sm font-medium">
+                    {language === "es" ? "Estado de Unidad" : "Unit Status"}
+                  </label>
+                  <Select 
+                    value={unitStatusFilter} 
+                    onValueChange={setUnitStatusFilter}
+                  >
+                    <SelectTrigger data-testid="select-filter-unit-status">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">
+                        {language === "es" ? "Todas" : "All"}
+                      </SelectItem>
+                      <SelectItem value="active">
+                        {language === "es" ? "Activas" : "Active"}
+                      </SelectItem>
+                      <SelectItem value="suspended">
+                        {language === "es" ? "Suspendidas" : "Suspended"}
+                      </SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
@@ -768,14 +902,29 @@ export default function ExternalCondominiums() {
                       <TableHead className="min-w-[100px]">{language === "es" ? "Recámaras" : "Bedrooms"}</TableHead>
                       <TableHead className="min-w-[80px]">{language === "es" ? "Baños" : "Bathrooms"}</TableHead>
                       <TableHead className="min-w-[80px]">{language === "es" ? "m²" : "sqm"}</TableHead>
-                      <TableHead className="min-w-[120px]">{language === "es" ? "Estado" : "Status"}</TableHead>
-                      <TableHead className="text-right min-w-[100px]">{language === "es" ? "Acciones" : "Actions"}</TableHead>
+                      <TableHead className="min-w-[120px]">{language === "es" ? "Estado Unidad" : "Unit Status"}</TableHead>
+                      <TableHead className="min-w-[120px]">{language === "es" ? "Renta" : "Rental"}</TableHead>
+                      <TableHead className="min-w-[100px]">{language === "es" ? "Servicios" : "Services"}</TableHead>
+                      <TableHead className="text-right min-w-[150px]">{language === "es" ? "Acciones" : "Actions"}</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
                     {filteredUnits.map((unit) => {
                       const condo = condominiums?.find(c => c.id === unit.condominiumId);
                       const hasRental = hasActiveRental(unit.id);
+                      const unitServices = allUnitServices?.[unit.id] || [];
+                      const serviceTypes = unitServices.map(s => {
+                        const typeMap: Record<string, string> = {
+                          rent: language === "es" ? "Renta" : "Rent",
+                          electricity: language === "es" ? "Electricidad" : "Electricity",
+                          water: language === "es" ? "Agua" : "Water",
+                          internet: "Internet",
+                          gas: "Gas",
+                          maintenance: language === "es" ? "Mantenimiento" : "Maintenance"
+                        };
+                        return typeMap[s.serviceType] || s.serviceType;
+                      });
+                      
                       return (
                         <TableRow 
                           key={unit.id}
@@ -795,6 +944,19 @@ export default function ExternalCondominiums() {
                           <TableCell>{unit.bathrooms ?? '-'}</TableCell>
                           <TableCell>{unit.squareMeters ?? '-'}</TableCell>
                           <TableCell>
+                            {unit.isActive ? (
+                              <Badge variant="outline" className="bg-green-50 dark:bg-green-950/20 text-green-700 dark:text-green-300 border-green-200 dark:border-green-800" data-testid={`badge-unit-active-${unit.id}`}>
+                                <Power className="h-3 w-3 mr-1" />
+                                {language === "es" ? "Activa" : "Active"}
+                              </Badge>
+                            ) : (
+                              <Badge variant="outline" className="bg-gray-50 dark:bg-gray-900/50 text-gray-700 dark:text-gray-300" data-testid={`badge-unit-suspended-${unit.id}`}>
+                                <PowerOff className="h-3 w-3 mr-1" />
+                                {language === "es" ? "Suspendida" : "Suspended"}
+                              </Badge>
+                            )}
+                          </TableCell>
+                          <TableCell>
                             {hasRental === undefined ? (
                               contractsLoading ? (
                                 <Skeleton className="h-5 w-20" />
@@ -805,26 +967,68 @@ export default function ExternalCondominiums() {
                               )
                             ) : hasRental ? (
                               <Badge variant="default" data-testid={`badge-rental-active-${unit.id}`}>
-                                {language === "es" ? "Con renta" : "Rented"}
+                                <DoorClosed className="h-3 w-3 mr-1" />
+                                {language === "es" ? "Rentada" : "Rented"}
                               </Badge>
                             ) : (
                               <Badge variant="secondary" data-testid={`badge-rental-inactive-${unit.id}`}>
+                                <DoorOpen className="h-3 w-3 mr-1" />
                                 {language === "es" ? "Disponible" : "Available"}
                               </Badge>
                             )}
                           </TableCell>
+                          <TableCell>
+                            {unitServices.length > 0 ? (
+                              <div className="flex items-center gap-1" title={serviceTypes.join(', ')}>
+                                <Badge 
+                                  variant="outline" 
+                                  className="bg-purple-50 dark:bg-purple-950/20 text-purple-700 dark:text-purple-300 border-purple-200 dark:border-purple-800"
+                                  data-testid={`badge-services-${unit.id}`}
+                                >
+                                  <Key className="h-3 w-3 mr-1" />
+                                  {unitServices.length}
+                                </Badge>
+                              </div>
+                            ) : (
+                              <Badge variant="outline" className="text-muted-foreground" data-testid={`badge-no-services-${unit.id}`}>
+                                -
+                              </Badge>
+                            )}
+                          </TableCell>
                           <TableCell className="text-right">
-                            <Button
-                              size="icon"
-                              variant="ghost"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                handleEditUnit(unit);
-                              }}
-                              data-testid={`button-edit-unit-${unit.id}`}
-                            >
-                              <Edit className="h-4 w-4" />
-                            </Button>
+                            <div className="flex items-center justify-end gap-1">
+                              <Button
+                                size="icon"
+                                variant="ghost"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  toggleUnitStatusMutation.mutate(unit.id);
+                                }}
+                                disabled={toggleUnitStatusMutation.isPending}
+                                data-testid={`button-toggle-status-${unit.id}`}
+                                title={unit.isActive ? 
+                                  (language === "es" ? "Suspender unidad" : "Suspend unit") : 
+                                  (language === "es" ? "Activar unidad" : "Activate unit")
+                                }
+                              >
+                                {unit.isActive ? (
+                                  <PowerOff className="h-4 w-4 text-orange-600 dark:text-orange-400" />
+                                ) : (
+                                  <Power className="h-4 w-4 text-green-600 dark:text-green-400" />
+                                )}
+                              </Button>
+                              <Button
+                                size="icon"
+                                variant="ghost"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleEditUnit(unit);
+                                }}
+                                data-testid={`button-edit-unit-${unit.id}`}
+                              >
+                                <Edit className="h-4 w-4" />
+                              </Button>
+                            </div>
                           </TableCell>
                         </TableRow>
                       );

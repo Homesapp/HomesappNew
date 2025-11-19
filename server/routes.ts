@@ -21727,6 +21727,75 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Toggle unit active status (suspend/activate)
+  app.patch("/api/external-units/:id/toggle-status", isAuthenticated, requireRole(EXTERNAL_ADMIN_ROLES), async (req: any, res) => {
+    try {
+      const { id } = req.params;
+      
+      // Verify unit exists
+      const existing = await storage.getExternalUnit(id);
+      if (!existing) {
+        return res.status(404).json({ message: "Unit not found" });
+      }
+      
+      // Verify ownership
+      const hasAccess = await verifyExternalAgencyOwnership(req, res, existing.agencyId);
+      if (!hasAccess) return;
+      
+      // Toggle status
+      const newStatus = !existing.isActive;
+      const unit = await storage.updateExternalUnit(id, { isActive: newStatus });
+      
+      await createAuditLog(
+        req, 
+        "update", 
+        "external_unit", 
+        id, 
+        `${newStatus ? 'Activated' : 'Suspended'} external unit`
+      );
+      
+      res.json(unit);
+    } catch (error: any) {
+      console.error("Error toggling unit status:", error);
+      handleGenericError(res, error);
+    }
+  });
+
+  // Get services (payment schedules) for a unit - useful to show what services are configured
+  app.get("/api/external-units/:id/services", isAuthenticated, requireRole(EXTERNAL_ALL_ROLES), async (req: any, res) => {
+    try {
+      const { id } = req.params;
+      
+      // Verify unit exists
+      const unit = await storage.getExternalUnit(id);
+      if (!unit) {
+        return res.status(404).json({ message: "Unit not found" });
+      }
+      
+      // Verify ownership
+      const hasAccess = await verifyExternalAgencyOwnership(req, res, unit.agencyId);
+      if (!hasAccess) return;
+      
+      // Get all rental contracts for this agency
+      const allContracts = await storage.getExternalRentalContractsByAgency(unit.agencyId);
+      
+      // Filter to find active contract for this unit
+      const activeContract = allContracts.find(c => c.unitId === id && c.status === 'active');
+      
+      if (!activeContract) {
+        return res.json([]);
+      }
+      
+      // Get payment schedules for the active contract
+      const schedules = await storage.getExternalPaymentSchedulesByContract(activeContract.id);
+      
+      res.json(schedules);
+    } catch (error: any) {
+      console.error("Error fetching unit services:", error);
+      handleGenericError(res, error);
+    }
+  });
+
   // External Owners - Consolidated endpoint for all agency owners
   app.get("/api/external-owners", isAuthenticated, requireRole(EXTERNAL_ALL_ROLES), async (req: any, res) => {
     try {
