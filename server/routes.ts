@@ -22172,6 +22172,23 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const hasAccess = await verifyExternalAgencyOwnership(req, res, unit.agencyId);
       if (!hasAccess) return;
       
+      // Check if there's already an active rental contract for this unit
+      const existingActiveContract = await db.select()
+        .from(externalRentalContracts)
+        .where(
+          and(
+            eq(externalRentalContracts.unitId, validatedData.unitId),
+            eq(externalRentalContracts.status, 'active')
+          )
+        )
+        .limit(1);
+      
+      if (existingActiveContract.length > 0) {
+        return res.status(400).json({ 
+          message: "Esta unidad ya tiene un contrato de renta activo. Solo puede haber una renta activa por unidad a la vez." 
+        });
+      }
+      
       const contract = await storage.createExternalRentalContract({
         ...validatedData,
         agencyId: unit.agencyId,
