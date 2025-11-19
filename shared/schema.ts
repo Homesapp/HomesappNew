@@ -4723,12 +4723,14 @@ export const externalAgencies = pgTable("external_agencies", {
   contactName: varchar("contact_name", { length: 255 }), // Nombre de contacto
   contactEmail: varchar("contact_email", { length: 255 }), // Email de contacto
   contactPhone: varchar("contact_phone", { length: 50 }), // Teléfono de contacto
+  assignedToUser: varchar("assigned_to_user").references(() => users.id), // Usuario responsable de la agencia
   isActive: boolean("is_active").notNull().default(true), // Si está activa
   createdBy: varchar("created_by").references(() => users.id),
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
 }, (table) => [
   index("idx_external_agencies_active").on(table.isActive),
+  index("idx_external_agencies_assigned_user").on(table.assignedToUser),
 ]);
 
 export const insertExternalAgencySchema = createInsertSchema(externalAgencies).omit({
@@ -4946,7 +4948,10 @@ export const insertExternalCondominiumSchema = createInsertSchema(externalCondom
   updatedAt: true,
 });
 
+export const updateExternalCondominiumSchema = insertExternalCondominiumSchema.partial();
+
 export type InsertExternalCondominium = z.infer<typeof insertExternalCondominiumSchema>;
+export type UpdateExternalCondominium = z.infer<typeof updateExternalCondominiumSchema>;
 export type ExternalCondominium = typeof externalCondominiums.$inferSelect;
 
 // External Units - Unidades/apartamentos dentro de condominios
@@ -4978,7 +4983,10 @@ export const insertExternalUnitSchema = createInsertSchema(externalUnits).omit({
   updatedAt: true,
 });
 
+export const updateExternalUnitSchema = insertExternalUnitSchema.partial();
+
 export type InsertExternalUnit = z.infer<typeof insertExternalUnitSchema>;
+export type UpdateExternalUnit = z.infer<typeof updateExternalUnitSchema>;
 export type ExternalUnit = typeof externalUnits.$inferSelect;
 
 // External Unit Owners - Propietarios de unidades
@@ -5004,7 +5012,10 @@ export const insertExternalUnitOwnerSchema = createInsertSchema(externalUnitOwne
   updatedAt: true,
 });
 
+export const updateExternalUnitOwnerSchema = insertExternalUnitOwnerSchema.partial();
+
 export type InsertExternalUnitOwner = z.infer<typeof insertExternalUnitOwnerSchema>;
+export type UpdateExternalUnitOwner = z.infer<typeof updateExternalUnitOwnerSchema>;
 export type ExternalUnitOwner = typeof externalUnitOwners.$inferSelect;
 
 // External Unit Access Controls - Controles de acceso/claves de unidades
@@ -5030,7 +5041,10 @@ export const insertExternalUnitAccessControlSchema = createInsertSchema(external
   updatedAt: true,
 });
 
+export const updateExternalUnitAccessControlSchema = insertExternalUnitAccessControlSchema.partial();
+
 export type InsertExternalUnitAccessControl = z.infer<typeof insertExternalUnitAccessControlSchema>;
+export type UpdateExternalUnitAccessControl = z.infer<typeof updateExternalUnitAccessControlSchema>;
 export type ExternalUnitAccessControl = typeof externalUnitAccessControls.$inferSelect;
 
 // Relations

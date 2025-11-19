@@ -145,6 +145,14 @@ import {
   insertExternalPaymentScheduleSchema,
   insertExternalPaymentSchema,
   insertExternalMaintenanceTicketSchema,
+  insertExternalCondominiumSchema,
+  updateExternalCondominiumSchema,
+  insertExternalUnitSchema,
+  updateExternalUnitSchema,
+  insertExternalUnitOwnerSchema,
+  updateExternalUnitOwnerSchema,
+  insertExternalUnitAccessControlSchema,
+  updateExternalUnitAccessControlSchema,
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, and, inArray, desc, sql } from "drizzle-orm";
@@ -20643,6 +20651,437 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.status(204).send();
     } catch (error: any) {
       console.error("Error deleting external ticket:", error);
+      handleGenericError(error, res);
+    }
+  });
+
+  // External Condominiums Routes
+  app.get("/api/external-condominiums", isAuthenticated, requireRole(EXTERNAL_ALL_ROLES), async (req: any, res) => {
+    try {
+      const { agencyId, isActive } = req.query;
+      
+      if (!agencyId) {
+        return res.status(400).json({ message: "Agency ID is required" });
+      }
+      
+      const filters: any = {};
+      if (isActive !== undefined) filters.isActive = isActive === 'true';
+      
+      const condominiums = await storage.getExternalCondominiumsByAgency(agencyId, filters);
+      
+      res.json(condominiums);
+    } catch (error: any) {
+      console.error("Error fetching external condominiums:", error);
+      handleGenericError(error, res);
+    }
+  });
+
+  app.get("/api/external-condominiums/:id", isAuthenticated, requireRole(EXTERNAL_ALL_ROLES), async (req: any, res) => {
+    try {
+      const { id } = req.params;
+      const condominium = await storage.getExternalCondominium(id);
+      
+      if (!condominium) {
+        return res.status(404).json({ message: "Condominium not found" });
+      }
+      
+      res.json(condominium);
+    } catch (error: any) {
+      console.error("Error fetching external condominium:", error);
+      handleGenericError(error, res);
+    }
+  });
+
+  app.post("/api/external-condominiums", isAuthenticated, requireRole(EXTERNAL_ADMIN_ROLES), async (req: any, res) => {
+    try {
+      const validatedData = insertExternalCondominiumSchema.parse(req.body);
+      const condominium = await storage.createExternalCondominium({
+        ...validatedData,
+        createdBy: req.user.id,
+      });
+      
+      await createAuditLog(req, "create", "external_condominium", condominium.id, "Created external condominium");
+      res.status(201).json(condominium);
+    } catch (error: any) {
+      console.error("Error creating external condominium:", error);
+      if (error.name === "ZodError") {
+        return handleZodError(error, res);
+      }
+      handleGenericError(error, res);
+    }
+  });
+
+  app.patch("/api/external-condominiums/:id", isAuthenticated, requireRole(EXTERNAL_ADMIN_ROLES), async (req: any, res) => {
+    try {
+      const { id } = req.params;
+      
+      // Verify condominium exists
+      const existing = await storage.getExternalCondominium(id);
+      if (!existing) {
+        return res.status(404).json({ message: "Condominium not found" });
+      }
+      
+      // Validate update data
+      const validatedData = updateExternalCondominiumSchema.parse(req.body);
+      
+      // Prevent agencyId modification
+      const updateData = { ...validatedData };
+      delete (updateData as any).agencyId;
+      delete (updateData as any).createdBy;
+      
+      const condominium = await storage.updateExternalCondominium(id, updateData);
+      
+      await createAuditLog(req, "update", "external_condominium", id, "Updated external condominium");
+      res.json(condominium);
+    } catch (error: any) {
+      console.error("Error updating external condominium:", error);
+      if (error.name === "ZodError") {
+        return handleZodError(error, res);
+      }
+      handleGenericError(error, res);
+    }
+  });
+
+  app.delete("/api/external-condominiums/:id", isAuthenticated, requireRole(EXTERNAL_ADMIN_ROLES), async (req: any, res) => {
+    try {
+      const { id } = req.params;
+      await storage.deleteExternalCondominium(id);
+      
+      await createAuditLog(req, "delete", "external_condominium", id, "Deleted external condominium");
+      res.status(204).send();
+    } catch (error: any) {
+      console.error("Error deleting external condominium:", error);
+      handleGenericError(error, res);
+    }
+  });
+
+  // External Units Routes
+  app.get("/api/external-units", isAuthenticated, requireRole(EXTERNAL_ALL_ROLES), async (req: any, res) => {
+    try {
+      const { agencyId, condominiumId, isActive } = req.query;
+      
+      if (!agencyId) {
+        return res.status(400).json({ message: "Agency ID is required" });
+      }
+      
+      const filters: any = {};
+      if (isActive !== undefined) filters.isActive = isActive === 'true';
+      if (condominiumId) filters.condominiumId = condominiumId;
+      
+      const units = await storage.getExternalUnitsByAgency(agencyId, filters);
+      
+      res.json(units);
+    } catch (error: any) {
+      console.error("Error fetching external units:", error);
+      handleGenericError(error, res);
+    }
+  });
+
+  app.get("/api/external-units/by-condominium/:condominiumId", isAuthenticated, requireRole(EXTERNAL_ALL_ROLES), async (req: any, res) => {
+    try {
+      const { condominiumId } = req.params;
+      const units = await storage.getExternalUnitsByCondominium(condominiumId);
+      
+      res.json(units);
+    } catch (error: any) {
+      console.error("Error fetching units by condominium:", error);
+      handleGenericError(error, res);
+    }
+  });
+
+  app.get("/api/external-units/:id", isAuthenticated, requireRole(EXTERNAL_ALL_ROLES), async (req: any, res) => {
+    try {
+      const { id } = req.params;
+      const unit = await storage.getExternalUnit(id);
+      
+      if (!unit) {
+        return res.status(404).json({ message: "Unit not found" });
+      }
+      
+      res.json(unit);
+    } catch (error: any) {
+      console.error("Error fetching external unit:", error);
+      handleGenericError(error, res);
+    }
+  });
+
+  app.post("/api/external-units", isAuthenticated, requireRole(EXTERNAL_ADMIN_ROLES), async (req: any, res) => {
+    try {
+      const validatedData = insertExternalUnitSchema.parse(req.body);
+      const unit = await storage.createExternalUnit({
+        ...validatedData,
+        createdBy: req.user.id,
+      });
+      
+      await createAuditLog(req, "create", "external_unit", unit.id, "Created external unit");
+      res.status(201).json(unit);
+    } catch (error: any) {
+      console.error("Error creating external unit:", error);
+      if (error.name === "ZodError") {
+        return handleZodError(error, res);
+      }
+      handleGenericError(error, res);
+    }
+  });
+
+  app.patch("/api/external-units/:id", isAuthenticated, requireRole(EXTERNAL_ADMIN_ROLES), async (req: any, res) => {
+    try {
+      const { id } = req.params;
+      
+      // Verify unit exists
+      const existing = await storage.getExternalUnit(id);
+      if (!existing) {
+        return res.status(404).json({ message: "Unit not found" });
+      }
+      
+      // Validate update data
+      const validatedData = updateExternalUnitSchema.parse(req.body);
+      
+      // Prevent agencyId modification
+      const updateData = { ...validatedData };
+      delete (updateData as any).agencyId;
+      delete (updateData as any).createdBy;
+      
+      const unit = await storage.updateExternalUnit(id, updateData);
+      
+      await createAuditLog(req, "update", "external_unit", id, "Updated external unit");
+      res.json(unit);
+    } catch (error: any) {
+      console.error("Error updating external unit:", error);
+      if (error.name === "ZodError") {
+        return handleZodError(error, res);
+      }
+      handleGenericError(error, res);
+    }
+  });
+
+  app.delete("/api/external-units/:id", isAuthenticated, requireRole(EXTERNAL_ADMIN_ROLES), async (req: any, res) => {
+    try {
+      const { id } = req.params;
+      await storage.deleteExternalUnit(id);
+      
+      await createAuditLog(req, "delete", "external_unit", id, "Deleted external unit");
+      res.status(204).send();
+    } catch (error: any) {
+      console.error("Error deleting external unit:", error);
+      handleGenericError(error, res);
+    }
+  });
+
+  // External Unit Owners Routes
+  app.get("/api/external-unit-owners/by-unit/:unitId", isAuthenticated, requireRole(EXTERNAL_ALL_ROLES), async (req: any, res) => {
+    try {
+      const { unitId } = req.params;
+      const owners = await storage.getExternalUnitOwnersByUnit(unitId);
+      
+      res.json(owners);
+    } catch (error: any) {
+      console.error("Error fetching unit owners:", error);
+      handleGenericError(error, res);
+    }
+  });
+
+  app.get("/api/external-unit-owners/active/:unitId", isAuthenticated, requireRole(EXTERNAL_ALL_ROLES), async (req: any, res) => {
+    try {
+      const { unitId } = req.params;
+      const owner = await storage.getActiveExternalUnitOwner(unitId);
+      
+      if (!owner) {
+        return res.status(404).json({ message: "No active owner found for this unit" });
+      }
+      
+      res.json(owner);
+    } catch (error: any) {
+      console.error("Error fetching active unit owner:", error);
+      handleGenericError(error, res);
+    }
+  });
+
+  app.get("/api/external-unit-owners/:id", isAuthenticated, requireRole(EXTERNAL_ALL_ROLES), async (req: any, res) => {
+    try {
+      const { id } = req.params;
+      const owner = await storage.getExternalUnitOwner(id);
+      
+      if (!owner) {
+        return res.status(404).json({ message: "Unit owner not found" });
+      }
+      
+      res.json(owner);
+    } catch (error: any) {
+      console.error("Error fetching external unit owner:", error);
+      handleGenericError(error, res);
+    }
+  });
+
+  app.post("/api/external-unit-owners", isAuthenticated, requireRole(EXTERNAL_ADMIN_ROLES), async (req: any, res) => {
+    try {
+      const validatedData = insertExternalUnitOwnerSchema.parse(req.body);
+      const owner = await storage.createExternalUnitOwner({
+        ...validatedData,
+        createdBy: req.user.id,
+      });
+      
+      await createAuditLog(req, "create", "external_unit_owner", owner.id, "Created external unit owner");
+      res.status(201).json(owner);
+    } catch (error: any) {
+      console.error("Error creating external unit owner:", error);
+      if (error.name === "ZodError") {
+        return handleZodError(error, res);
+      }
+      handleGenericError(error, res);
+    }
+  });
+
+  app.patch("/api/external-unit-owners/:id", isAuthenticated, requireRole(EXTERNAL_ADMIN_ROLES), async (req: any, res) => {
+    try {
+      const { id } = req.params;
+      
+      // Verify owner exists
+      const existing = await storage.getExternalUnitOwner(id);
+      if (!existing) {
+        return res.status(404).json({ message: "Unit owner not found" });
+      }
+      
+      // Validate update data
+      const validatedData = updateExternalUnitOwnerSchema.parse(req.body);
+      
+      // Prevent unitId and createdBy modification
+      const updateData = { ...validatedData };
+      delete (updateData as any).unitId;
+      delete (updateData as any).createdBy;
+      
+      const owner = await storage.updateExternalUnitOwner(id, updateData);
+      
+      await createAuditLog(req, "update", "external_unit_owner", id, "Updated external unit owner");
+      res.json(owner);
+    } catch (error: any) {
+      console.error("Error updating external unit owner:", error);
+      if (error.name === "ZodError") {
+        return handleZodError(error, res);
+      }
+      handleGenericError(error, res);
+    }
+  });
+
+  app.patch("/api/external-unit-owners/:unitId/set-active/:ownerId", isAuthenticated, requireRole(EXTERNAL_ADMIN_ROLES), async (req: any, res) => {
+    try {
+      const { unitId, ownerId } = req.params;
+      const owner = await storage.setActiveExternalUnitOwner(unitId, ownerId);
+      
+      await createAuditLog(req, "update", "external_unit_owner", ownerId, `Set as active owner for unit ${unitId}`);
+      res.json(owner);
+    } catch (error: any) {
+      console.error("Error setting active unit owner:", error);
+      handleGenericError(error, res);
+    }
+  });
+
+  app.delete("/api/external-unit-owners/:id", isAuthenticated, requireRole(EXTERNAL_ADMIN_ROLES), async (req: any, res) => {
+    try {
+      const { id } = req.params;
+      await storage.deleteExternalUnitOwner(id);
+      
+      await createAuditLog(req, "delete", "external_unit_owner", id, "Deleted external unit owner");
+      res.status(204).send();
+    } catch (error: any) {
+      console.error("Error deleting external unit owner:", error);
+      handleGenericError(error, res);
+    }
+  });
+
+  // External Unit Access Controls Routes
+  app.get("/api/external-unit-access-controls/by-unit/:unitId", isAuthenticated, requireRole(EXTERNAL_ALL_ROLES), async (req: any, res) => {
+    try {
+      const { unitId } = req.params;
+      const { isActive } = req.query;
+      
+      const filters: any = {};
+      if (isActive !== undefined) filters.isActive = isActive === 'true';
+      
+      const controls = await storage.getExternalUnitAccessControlsByUnit(unitId, filters);
+      
+      res.json(controls);
+    } catch (error: any) {
+      console.error("Error fetching unit access controls:", error);
+      handleGenericError(error, res);
+    }
+  });
+
+  app.get("/api/external-unit-access-controls/:id", isAuthenticated, requireRole(EXTERNAL_ALL_ROLES), async (req: any, res) => {
+    try {
+      const { id } = req.params;
+      const control = await storage.getExternalUnitAccessControl(id);
+      
+      if (!control) {
+        return res.status(404).json({ message: "Access control not found" });
+      }
+      
+      res.json(control);
+    } catch (error: any) {
+      console.error("Error fetching external unit access control:", error);
+      handleGenericError(error, res);
+    }
+  });
+
+  app.post("/api/external-unit-access-controls", isAuthenticated, requireRole(EXTERNAL_ADMIN_ROLES), async (req: any, res) => {
+    try {
+      const validatedData = insertExternalUnitAccessControlSchema.parse(req.body);
+      const control = await storage.createExternalUnitAccessControl({
+        ...validatedData,
+        createdBy: req.user.id,
+      });
+      
+      await createAuditLog(req, "create", "external_unit_access_control", control.id, "Created external unit access control");
+      res.status(201).json(control);
+    } catch (error: any) {
+      console.error("Error creating external unit access control:", error);
+      if (error.name === "ZodError") {
+        return handleZodError(error, res);
+      }
+      handleGenericError(error, res);
+    }
+  });
+
+  app.patch("/api/external-unit-access-controls/:id", isAuthenticated, requireRole(EXTERNAL_ADMIN_ROLES), async (req: any, res) => {
+    try {
+      const { id } = req.params;
+      
+      // Verify access control exists
+      const existing = await storage.getExternalUnitAccessControl(id);
+      if (!existing) {
+        return res.status(404).json({ message: "Access control not found" });
+      }
+      
+      // Validate update data
+      const validatedData = updateExternalUnitAccessControlSchema.parse(req.body);
+      
+      // Prevent unitId and createdBy modification
+      const updateData = { ...validatedData };
+      delete (updateData as any).unitId;
+      delete (updateData as any).createdBy;
+      
+      const control = await storage.updateExternalUnitAccessControl(id, updateData);
+      
+      await createAuditLog(req, "update", "external_unit_access_control", id, "Updated external unit access control");
+      res.json(control);
+    } catch (error: any) {
+      console.error("Error updating external unit access control:", error);
+      if (error.name === "ZodError") {
+        return handleZodError(error, res);
+      }
+      handleGenericError(error, res);
+    }
+  });
+
+  app.delete("/api/external-unit-access-controls/:id", isAuthenticated, requireRole(EXTERNAL_ADMIN_ROLES), async (req: any, res) => {
+    try {
+      const { id } = req.params;
+      await storage.deleteExternalUnitAccessControl(id);
+      
+      await createAuditLog(req, "delete", "external_unit_access_control", id, "Deleted external unit access control");
+      res.status(204).send();
+    } catch (error: any) {
+      console.error("Error deleting external unit access control:", error);
       handleGenericError(error, res);
     }
   });
