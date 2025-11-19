@@ -31,7 +31,7 @@ export default function ExternalCondominiums() {
   const [showUnitDialog, setShowUnitDialog] = useState(false);
   const [editingCondo, setEditingCondo] = useState<ExternalCondominium | null>(null);
   const [editingUnit, setEditingUnit] = useState<ExternalUnit | null>(null);
-  const [selectedCondoId, setSelectedCondoId] = useState<number | null>(null);
+  const [selectedCondoId, setSelectedCondoId] = useState<string | null>(null);
 
   const { data: condominiums, isLoading: condosLoading, isError: condosError, error: condosErrorMsg } = useQuery<ExternalCondominium[]>({
     queryKey: ['/api/external-condominiums'],
@@ -89,7 +89,7 @@ export default function ExternalCondominiums() {
   });
 
   const updateCondoMutation = useMutation({
-    mutationFn: async ({ id, data }: { id: number; data: CondominiumFormData }) => {
+    mutationFn: async ({ id, data }: { id: string; data: CondominiumFormData }) => {
       return await apiRequest(`/api/external-condominiums/${id}`, {
         method: 'PATCH',
         body: JSON.stringify(data),
@@ -141,7 +141,7 @@ export default function ExternalCondominiums() {
   });
 
   const updateUnitMutation = useMutation({
-    mutationFn: async ({ id, data }: { id: number; data: UnitFormData }) => {
+    mutationFn: async ({ id, data }: { id: string; data: UnitFormData }) => {
       return await apiRequest(`/api/external-units/${id}`, {
         method: 'PATCH',
         body: JSON.stringify(data),
@@ -197,7 +197,7 @@ export default function ExternalCondominiums() {
     }
   };
 
-  const handleAddUnit = (condoId?: number) => {
+  const handleAddUnit = (condoId?: string) => {
     setEditingUnit(null);
     unitForm.reset({
       condominiumId: condoId || undefined,
@@ -231,7 +231,7 @@ export default function ExternalCondominiums() {
     }
   };
 
-  const getUnitsForCondo = (condoId: number) => {
+  const getUnitsForCondo = (condoId: string) => {
     return units?.filter(u => u.condominiumId === condoId) || [];
   };
 
@@ -770,7 +770,7 @@ export default function ExternalCondominiums() {
                       <select
                         {...field}
                         value={field.value || ""}
-                        onChange={e => field.onChange(e.target.value ? parseInt(e.target.value) : undefined)}
+                        onChange={e => field.onChange(e.target.value || undefined)}
                         className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-base shadow-sm transition-colors file:border-0 file:bg-transparent file:text-sm file:font-medium file:text-foreground placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50 md:text-sm"
                         data-testid="select-unit-condo"
                       >
