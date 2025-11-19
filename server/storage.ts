@@ -329,6 +329,18 @@ import {
   externalMaintenanceTickets,
   type ExternalMaintenanceTicket,
   type InsertExternalMaintenanceTicket,
+  externalCondominiums,
+  type ExternalCondominium,
+  type InsertExternalCondominium,
+  externalUnits,
+  type ExternalUnit,
+  type InsertExternalUnit,
+  externalUnitOwners,
+  type ExternalUnitOwner,
+  type InsertExternalUnitOwner,
+  externalUnitAccessControls,
+  type ExternalUnitAccessControl,
+  type InsertExternalUnitAccessControl,
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, and, or, gte, lte, ilike, desc, sql, isNull, count, inArray } from "drizzle-orm";
@@ -1139,12 +1151,44 @@ export interface IStorage {
   getExternalMaintenanceTicket(id: string): Promise<ExternalMaintenanceTicket | undefined>;
   getExternalMaintenanceTicketsByAgency(agencyId: string, filters?: { status?: string; priority?: string }): Promise<ExternalMaintenanceTicket[]>;
   getExternalMaintenanceTicketsByProperty(propertyId: string): Promise<ExternalMaintenanceTicket[]>;
+  getExternalMaintenanceTicketsByUnit(unitId: string): Promise<ExternalMaintenanceTicket[]>;
   getExternalMaintenanceTicketsByAssignee(assignedTo: string): Promise<ExternalMaintenanceTicket[]>;
   createExternalMaintenanceTicket(ticket: InsertExternalMaintenanceTicket): Promise<ExternalMaintenanceTicket>;
   updateExternalMaintenanceTicket(id: string, updates: Partial<InsertExternalMaintenanceTicket>): Promise<ExternalMaintenanceTicket>;
   updateExternalTicketStatus(id: string, status: string, resolvedDate?: Date): Promise<ExternalMaintenanceTicket>;
   assignExternalTicket(id: string, assignedTo: string): Promise<ExternalMaintenanceTicket>;
   deleteExternalMaintenanceTicket(id: string): Promise<void>;
+
+  // External Management System - Condominium operations
+  getExternalCondominium(id: string): Promise<ExternalCondominium | undefined>;
+  getExternalCondominiumsByAgency(agencyId: string, filters?: { isActive?: boolean }): Promise<ExternalCondominium[]>;
+  createExternalCondominium(condominium: InsertExternalCondominium): Promise<ExternalCondominium>;
+  updateExternalCondominium(id: string, updates: Partial<InsertExternalCondominium>): Promise<ExternalCondominium>;
+  deleteExternalCondominium(id: string): Promise<void>;
+
+  // External Management System - Unit operations
+  getExternalUnit(id: string): Promise<ExternalUnit | undefined>;
+  getExternalUnitsByAgency(agencyId: string, filters?: { isActive?: boolean; condominiumId?: string }): Promise<ExternalUnit[]>;
+  getExternalUnitsByCondominium(condominiumId: string): Promise<ExternalUnit[]>;
+  createExternalUnit(unit: InsertExternalUnit): Promise<ExternalUnit>;
+  updateExternalUnit(id: string, updates: Partial<InsertExternalUnit>): Promise<ExternalUnit>;
+  deleteExternalUnit(id: string): Promise<void>;
+
+  // External Management System - Unit Owner operations
+  getExternalUnitOwner(id: string): Promise<ExternalUnitOwner | undefined>;
+  getExternalUnitOwnersByUnit(unitId: string): Promise<ExternalUnitOwner[]>;
+  getActiveExternalUnitOwner(unitId: string): Promise<ExternalUnitOwner | undefined>;
+  createExternalUnitOwner(owner: InsertExternalUnitOwner): Promise<ExternalUnitOwner>;
+  updateExternalUnitOwner(id: string, updates: Partial<InsertExternalUnitOwner>): Promise<ExternalUnitOwner>;
+  setActiveExternalUnitOwner(unitId: string, ownerId: string): Promise<ExternalUnitOwner>;
+  deleteExternalUnitOwner(id: string): Promise<void>;
+
+  // External Management System - Unit Access Control operations
+  getExternalUnitAccessControl(id: string): Promise<ExternalUnitAccessControl | undefined>;
+  getExternalUnitAccessControlsByUnit(unitId: string, filters?: { isActive?: boolean }): Promise<ExternalUnitAccessControl[]>;
+  createExternalUnitAccessControl(control: InsertExternalUnitAccessControl): Promise<ExternalUnitAccessControl>;
+  updateExternalUnitAccessControl(id: string, updates: Partial<InsertExternalUnitAccessControl>): Promise<ExternalUnitAccessControl>;
+  deleteExternalUnitAccessControl(id: string): Promise<void>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -7623,6 +7667,205 @@ export class DatabaseStorage implements IStorage {
   async deleteExternalMaintenanceTicket(id: string): Promise<void> {
     await db.delete(externalMaintenanceTickets)
       .where(eq(externalMaintenanceTickets.id, id));
+  }
+
+  async getExternalMaintenanceTicketsByUnit(unitId: string): Promise<ExternalMaintenanceTicket[]> {
+    return await db.select()
+      .from(externalMaintenanceTickets)
+      .where(eq(externalMaintenanceTickets.unitId, unitId))
+      .orderBy(desc(externalMaintenanceTickets.createdAt));
+  }
+
+  // External Condominium operations
+  async getExternalCondominium(id: string): Promise<ExternalCondominium | undefined> {
+    const [result] = await db.select()
+      .from(externalCondominiums)
+      .where(eq(externalCondominiums.id, id));
+    return result;
+  }
+
+  async getExternalCondominiumsByAgency(agencyId: string, filters?: { isActive?: boolean }): Promise<ExternalCondominium[]> {
+    const conditions: any[] = [eq(externalCondominiums.agencyId, agencyId)];
+    
+    if (filters?.isActive !== undefined) {
+      conditions.push(eq(externalCondominiums.isActive, filters.isActive));
+    }
+
+    return await db.select()
+      .from(externalCondominiums)
+      .where(and(...conditions))
+      .orderBy(externalCondominiums.name);
+  }
+
+  async createExternalCondominium(condominium: InsertExternalCondominium): Promise<ExternalCondominium> {
+    const [result] = await db.insert(externalCondominiums)
+      .values(condominium)
+      .returning();
+    return result;
+  }
+
+  async updateExternalCondominium(id: string, updates: Partial<InsertExternalCondominium>): Promise<ExternalCondominium> {
+    const [result] = await db.update(externalCondominiums)
+      .set({ ...updates, updatedAt: new Date() })
+      .where(eq(externalCondominiums.id, id))
+      .returning();
+    return result;
+  }
+
+  async deleteExternalCondominium(id: string): Promise<void> {
+    await db.delete(externalCondominiums)
+      .where(eq(externalCondominiums.id, id));
+  }
+
+  // External Unit operations
+  async getExternalUnit(id: string): Promise<ExternalUnit | undefined> {
+    const [result] = await db.select()
+      .from(externalUnits)
+      .where(eq(externalUnits.id, id));
+    return result;
+  }
+
+  async getExternalUnitsByAgency(agencyId: string, filters?: { isActive?: boolean; condominiumId?: string }): Promise<ExternalUnit[]> {
+    const conditions: any[] = [eq(externalUnits.agencyId, agencyId)];
+    
+    if (filters?.isActive !== undefined) {
+      conditions.push(eq(externalUnits.isActive, filters.isActive));
+    }
+    if (filters?.condominiumId) {
+      conditions.push(eq(externalUnits.condominiumId, filters.condominiumId));
+    }
+
+    return await db.select()
+      .from(externalUnits)
+      .where(and(...conditions))
+      .orderBy(externalUnits.unitNumber);
+  }
+
+  async getExternalUnitsByCondominium(condominiumId: string): Promise<ExternalUnit[]> {
+    return await db.select()
+      .from(externalUnits)
+      .where(eq(externalUnits.condominiumId, condominiumId))
+      .orderBy(externalUnits.unitNumber);
+  }
+
+  async createExternalUnit(unit: InsertExternalUnit): Promise<ExternalUnit> {
+    const [result] = await db.insert(externalUnits)
+      .values(unit)
+      .returning();
+    return result;
+  }
+
+  async updateExternalUnit(id: string, updates: Partial<InsertExternalUnit>): Promise<ExternalUnit> {
+    const [result] = await db.update(externalUnits)
+      .set({ ...updates, updatedAt: new Date() })
+      .where(eq(externalUnits.id, id))
+      .returning();
+    return result;
+  }
+
+  async deleteExternalUnit(id: string): Promise<void> {
+    await db.delete(externalUnits)
+      .where(eq(externalUnits.id, id));
+  }
+
+  // External Unit Owner operations
+  async getExternalUnitOwner(id: string): Promise<ExternalUnitOwner | undefined> {
+    const [result] = await db.select()
+      .from(externalUnitOwners)
+      .where(eq(externalUnitOwners.id, id));
+    return result;
+  }
+
+  async getExternalUnitOwnersByUnit(unitId: string): Promise<ExternalUnitOwner[]> {
+    return await db.select()
+      .from(externalUnitOwners)
+      .where(eq(externalUnitOwners.unitId, unitId))
+      .orderBy(desc(externalUnitOwners.isActive), desc(externalUnitOwners.createdAt));
+  }
+
+  async getActiveExternalUnitOwner(unitId: string): Promise<ExternalUnitOwner | undefined> {
+    const [result] = await db.select()
+      .from(externalUnitOwners)
+      .where(and(
+        eq(externalUnitOwners.unitId, unitId),
+        eq(externalUnitOwners.isActive, true)
+      ));
+    return result;
+  }
+
+  async createExternalUnitOwner(owner: InsertExternalUnitOwner): Promise<ExternalUnitOwner> {
+    const [result] = await db.insert(externalUnitOwners)
+      .values(owner)
+      .returning();
+    return result;
+  }
+
+  async updateExternalUnitOwner(id: string, updates: Partial<InsertExternalUnitOwner>): Promise<ExternalUnitOwner> {
+    const [result] = await db.update(externalUnitOwners)
+      .set({ ...updates, updatedAt: new Date() })
+      .where(eq(externalUnitOwners.id, id))
+      .returning();
+    return result;
+  }
+
+  async setActiveExternalUnitOwner(unitId: string, ownerId: string): Promise<ExternalUnitOwner> {
+    // Deactivate all owners for this unit
+    await db.update(externalUnitOwners)
+      .set({ isActive: false, updatedAt: new Date() })
+      .where(eq(externalUnitOwners.unitId, unitId));
+
+    // Activate the specified owner
+    const [result] = await db.update(externalUnitOwners)
+      .set({ isActive: true, updatedAt: new Date() })
+      .where(eq(externalUnitOwners.id, ownerId))
+      .returning();
+    return result;
+  }
+
+  async deleteExternalUnitOwner(id: string): Promise<void> {
+    await db.delete(externalUnitOwners)
+      .where(eq(externalUnitOwners.id, id));
+  }
+
+  // External Unit Access Control operations
+  async getExternalUnitAccessControl(id: string): Promise<ExternalUnitAccessControl | undefined> {
+    const [result] = await db.select()
+      .from(externalUnitAccessControls)
+      .where(eq(externalUnitAccessControls.id, id));
+    return result;
+  }
+
+  async getExternalUnitAccessControlsByUnit(unitId: string, filters?: { isActive?: boolean }): Promise<ExternalUnitAccessControl[]> {
+    const conditions: any[] = [eq(externalUnitAccessControls.unitId, unitId)];
+    
+    if (filters?.isActive !== undefined) {
+      conditions.push(eq(externalUnitAccessControls.isActive, filters.isActive));
+    }
+
+    return await db.select()
+      .from(externalUnitAccessControls)
+      .where(and(...conditions))
+      .orderBy(externalUnitAccessControls.accessType);
+  }
+
+  async createExternalUnitAccessControl(control: InsertExternalUnitAccessControl): Promise<ExternalUnitAccessControl> {
+    const [result] = await db.insert(externalUnitAccessControls)
+      .values(control)
+      .returning();
+    return result;
+  }
+
+  async updateExternalUnitAccessControl(id: string, updates: Partial<InsertExternalUnitAccessControl>): Promise<ExternalUnitAccessControl> {
+    const [result] = await db.update(externalUnitAccessControls)
+      .set({ ...updates, updatedAt: new Date() })
+      .where(eq(externalUnitAccessControls.id, id))
+      .returning();
+    return result;
+  }
+
+  async deleteExternalUnitAccessControl(id: string): Promise<void> {
+    await db.delete(externalUnitAccessControls)
+      .where(eq(externalUnitAccessControls.id, id));
   }
 }
 

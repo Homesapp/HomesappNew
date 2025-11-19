@@ -16,7 +16,7 @@ Developed with React 18, TypeScript, Vite, Wouter for routing, and TanStack Quer
 Implemented with Node.js, Express.js, and TypeScript, providing a RESTful API. Features include role-based middleware, JSON error handling, dual authentication (Replit Auth/OpenID Connect, local, Google OAuth), session management, user approval workflows, and centralized OpenAI service integration (GPT-4). Contract routes enforce Zod validation, data sanitization, and role-based authorization.
 
 ### Data Storage
-Utilizes PostgreSQL (Neon serverless) with Drizzle ORM for type-safe interactions. The schema supports comprehensive user management, property lifecycle, appointment scheduling, client presentation cards, service providers, offer workflows, staff assignments, audit logs, lead capture, condominium management, a bidirectional review system, financial tracking, payout management, rental contracts, and external property management (agencies, properties, contracts, payment schedules, payments, maintenance tickets).
+Utilizes PostgreSQL (Neon serverless) with Drizzle ORM for type-safe interactions. The schema supports comprehensive user management, property lifecycle, appointment scheduling, client presentation cards, service providers, offer workflows, staff assignments, audit logs, lead capture, condominium management, a bidirectional review system, financial tracking, payout management, rental contracts, and external property management (agencies, properties, contracts, payment schedules, payments, maintenance tickets, condominiums, units, unit owners, unit access controls).
 
 ### System Design Choices
 The platform employs unified middleware for consistent authentication and logging. The public dashboard adapts content based on authentication status. Real-time chat is via WebSockets with session-based authentication and per-conversation authorization.
@@ -52,6 +52,14 @@ Key features include:
     - **Agency Logo Upload**: File-based logo upload with client-side image compression (max 800x800px, 85% quality) replacing URL text field
     - **User Reassignment**: Ability to reassign agencies to different users through edit dialog with automatic role updates
     - **Backend Validation**: Server-side validation ensures new assigned users are approved and don't already manage other agencies
+    - **Condominium-Unit Management System**: Hierarchical property structure enabling agencies to manage multi-unit condominiums with:
+      - **Condominium Management**: Properties that contain multiple units (condominiums) or standalone properties (units optional)
+      - **Unit Management**: Individual units within condominiums with unit numbers, floor numbers, and rental status tracking
+      - **Unit Owner Tracking**: Complete owner information (name, phone, email) with active owner identification and historical records
+      - **Access Control System**: Unit-level access codes for gate, garage, elevator, door with active/inactive status management
+      - **Payment Calendar Integration**: Color-coded payment types (rent, electricity, water, internet, HOA fees, special payments) at unit level
+      - **Maintenance Calendar Integration**: Unit-level maintenance tickets with color-coded types and user assignment capability
+      - **MISTIQ Tulum Implementation**: 7 pre-configured condominiums (MISTIQ TULUM, GARDENS I & II, TEMPLE I & II, VILLAS, PREMIUM) ready for unit population
 
 ## External Dependencies
 *   Google Calendar API
@@ -67,3 +75,76 @@ Key features include:
 *   WebSocket (ws)
 *   cookie
 *   OpenAI GPT-5
+
+## Recent Development Notes
+
+### Condominium-Unit Management System (November 19, 2025)
+
+#### ✅ Completed Components
+
+**Database Schema (shared/schema.ts)**
+- `external_condominiums` table: Stores condominium properties (name, total units, floors, features, notes)
+- `external_units` table: Individual units with unit number, floor, rental status, condominium reference
+- `external_unit_owners` table: Owner records with contact info, active status, historical tracking
+- `external_unit_access_controls` table: Access codes for gate, garage, elevator, door with active/inactive status
+- Extended `service_type` enum with "hoa" and "special" payment types for HOA fees and special payments
+- Added `unitId` foreign key to `external_rental_contracts` for unit-level contract assignment
+- Added `unitId` foreign key to `external_maintenance_tickets` for unit-level maintenance tracking
+
+**Storage Layer (server/storage.ts)**
+- Complete CRUD operations for all new tables (condominiums, units, owners, access controls)
+- Specialized queries: `getExternalUnitsByCondominium`, `getActiveExternalUnitOwner`, `setActiveExternalUnitOwner`
+- Filter support for active/inactive records and condominium-specific queries
+- Unit-level maintenance ticket retrieval: `getExternalMaintenanceTicketsByUnit`
+
+**Database Seeding**
+- 7 MISTIQ Tulum condominiums created in database:
+  - MISTIQ TULUM (85 units, 7 floors)
+  - MISTIQ GARDENS I (24 units, 3 floors)
+  - MISTIQ GARDENS II (24 units, 3 floors)
+  - MISTIQ TEMPLE I (24 units, 3 floors)
+  - MISTIQ TEMPLE II (24 units, 3 floors)
+  - MISTIQ VILLAS (8 units, 2 floors)
+  - MISTIQ PREMIUM (10 units, 3 floors)
+- Each condominium assigned to MISTIQ Tulum agency (admin@mistiq.com)
+- Test credentials: admin@mistiq.com / MistiqAdmin2025! (requires password change on first login)
+
+#### 🚧 Pending Implementation
+
+**Backend Routes (server/routes.ts)**
+- API endpoints for condominium operations (GET, POST, PUT, DELETE)
+- API endpoints for unit operations with filtering by condominium
+- API endpoints for unit owner management (create, update, set active owner)
+- API endpoints for access control management
+- Update existing payment/maintenance routes to support unit-level operations
+
+**Frontend Pages & Components**
+- Condominium management page (list, create, edit condominiums)
+- Unit management page with condominium filter/grouping
+- Unit detail view with owner history, access controls, payment calendar, maintenance calendar
+- Owner management modal/dialog for adding/updating owners
+- Access control management interface
+- Payment calendar with color-coded service types (rent=blue, electricity=yellow, water=cyan, internet=purple, hoa=green, special=orange)
+- Maintenance calendar with color-coded maintenance types and user assignment
+- Sidebar menu updates for external agency users (Dashboard, Propiedades, Contabilidad by unit/condo/global, Mantenimientos)
+
+**Data Integration**
+- Connect payment schedules UI to unit-level data
+- Connect maintenance tickets UI to unit-level data
+- Implement unit selection in contract creation/editing forms
+- Color-coding system for calendars based on service/maintenance types
+
+#### Technical Notes
+- Address fields intentionally not required for condominiums/units (optional in this context)
+- Units can exist as standalone properties (condominiumId can be null)
+- Active owner system allows only one active owner per unit at a time
+- Access controls support active/inactive status for security rotation
+- Payment calendar uses existing `service_type` field with extended enum
+- Maintenance calendar uses existing maintenance types with color mapping
+
+#### Next Steps Priority
+1. Create backend API routes for all CRUD operations
+2. Build condominium/unit management frontend pages
+3. Implement unit detail view with integrated calendars
+4. Add sidebar menu configuration for external agency roles
+5. Test complete workflow: condominium → units → owners → access controls → payments → maintenance
