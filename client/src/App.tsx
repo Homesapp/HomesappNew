@@ -1,3 +1,4 @@
+import { useEffect } from "react";
 import { Switch, Route, useLocation } from "wouter";
 import { queryClient } from "./lib/queryClient";
 import { QueryClientProvider, useMutation } from "@tanstack/react-query";
@@ -26,6 +27,7 @@ import Register from "@/pages/Register";
 import VerifyEmail from "@/pages/VerifyEmail";
 import ForgotPassword from "@/pages/ForgotPassword";
 import ResetPassword from "@/pages/ResetPassword";
+import ForcePasswordChange from "@/pages/ForcePasswordChange";
 import PropertySearch from "@/pages/PropertySearch";
 import PropertyDetails from "@/pages/PropertyDetails";
 import PropertyFullDetails from "@/pages/PropertyFullDetails";
@@ -136,7 +138,7 @@ import AdminExternalAgencies from "@/pages/AdminExternalAgencies";
 import NotFound from "@/pages/not-found";
 
 function AuthenticatedApp() {
-  const [_, setLocation] = useLocation();
+  const [location, setLocation] = useLocation();
   
   // Enable global error handler
   useGlobalErrorHandler();
@@ -180,6 +182,7 @@ function AuthenticatedApp() {
         <Route path="/verify-email" component={VerifyEmail} />
         <Route path="/forgot-password" component={ForgotPassword} />
         <Route path="/reset-password" component={ResetPassword} />
+        <Route path="/force-password-change" component={ForcePasswordChange} />
         <Route path="/buscar-propiedades" component={PropertySearch} />
         <Route path="/solicitud-proveedor" component={ProviderApplication} />
         <Route path="/aplicar" component={Apply} />
@@ -208,6 +211,26 @@ function AuthenticatedApp() {
   const userRole = isAdminAuthenticated 
     ? (currentUser?.role || "admin") 
     : currentUser?.role;
+
+  // Check if user needs to change password (regular users only, not admin)
+  const needsPasswordChange = !isAdminAuthenticated && user?.requirePasswordChange;
+  
+  // Redirect to force-password-change if needed (using useEffect to avoid render-time redirect)
+  useEffect(() => {
+    if (needsPasswordChange && location !== "/force-password-change") {
+      setLocation("/force-password-change");
+    }
+  }, [needsPasswordChange, location, setLocation]);
+  
+  // If user is on force-password-change page OR needs to change password, render the force-password-change page
+  // This prevents 404 flash after successful password change while waiting for redirect
+  if (needsPasswordChange || location === "/force-password-change") {
+    return (
+      <div className="min-h-screen">
+        <ForcePasswordChange />
+      </div>
+    );
+  }
 
   // Determine home dashboard based on authentication type and role
   const getHomeDashboard = () => {
