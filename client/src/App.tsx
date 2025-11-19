@@ -179,6 +179,16 @@ function AuthenticatedApp() {
     }
   }, [needsPasswordChange, location, setLocation]);
 
+  // Redirect external agency users to their dashboard when on home page
+  useEffect(() => {
+    const isExternalAgencyUser = user?.role && 
+      ["external_agency_admin", "external_agency_accounting", "external_agency_maintenance", "external_agency_staff"].includes(user.role);
+    
+    if (isExternalAgencyUser && location === "/" && !needsPasswordChange) {
+      setLocation("/external/dashboard");
+    }
+  }, [user?.role, location, setLocation, needsPasswordChange]);
+
   // Wait for both auth checks to complete
   if (isLoading || isAdminLoading) {
     return <LoadingScreen className="h-screen" />;
@@ -259,6 +269,11 @@ function AuthenticatedApp() {
         return AdminDashboard;
       case "seller":
         return SellerDashboard;
+      case "external_agency_admin":
+      case "external_agency_accounting":
+      case "external_agency_maintenance":
+      case "external_agency_staff":
+        return ExternalDashboard;
       case "management":
       case "concierge":
       case "provider":
