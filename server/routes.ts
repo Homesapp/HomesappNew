@@ -154,10 +154,15 @@ import {
   updateExternalUnitOwnerSchema,
   insertExternalUnitAccessControlSchema,
   updateExternalUnitAccessControlSchema,
+  insertExternalOwnerChargeSchema,
+  insertExternalOwnerNotificationSchema,
   externalAgencies,
   externalCondominiums,
   externalUnits,
   externalUnitAccessControls,
+  externalUnitOwners,
+  externalOwnerCharges,
+  externalOwnerNotifications,
   users,
 } from "@shared/schema";
 import { db } from "./db";
@@ -21790,6 +21795,254 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.status(204).send();
     } catch (error: any) {
       console.error("Error deleting rental contract:", error);
+      handleGenericError(error, res);
+    }
+  });
+
+  // External Agency - Owners Routes
+  app.get("/api/external/owners", isAuthenticated, requireRole(EXTERNAL_ALL_ROLES), async (req: any, res) => {
+    try {
+      const agencyId = await getUserAgencyId(req);
+      if (!agencyId) {
+        return res.status(400).json({ message: "No agency assigned to user" });
+      }
+
+      // Get all units for this agency
+      const units = await db.query.externalUnits.findMany({
+        where: eq(externalUnits.agencyId, agencyId),
+        with: {
+          condominium: true,
+        },
+      });
+
+      // Get all owners for these units
+      const owners = await db.query.externalUnitOwners.findMany({
+        where: inArray(
+          externalUnitOwners.unitId,
+          units.map((u) => u.id)
+        ),
+      });
+
+      // Combine owners with unit info
+      const ownersWithUnits = owners.map((owner) => {
+        const unit = units.find((u) => u.id === owner.unitId);
+        return {
+          ...owner,
+          unit: unit
+            ? {
+                id: unit.id,
+                unitNumber: unit.unitNumber,
+                condominium: {
+                  id: unit.condominium.id,
+                  name: unit.condominium.name,
+                },
+              }
+            : undefined,
+        };
+      });
+
+      res.json(ownersWithUnits);
+    } catch (error: any) {
+      console.error("Error fetching owners:", error);
+      handleGenericError(error, res);
+    }
+  });
+
+  // External Agency - Owner Charges Routes
+  app.get("/api/external/owner-charges", isAuthenticated, requireRole(EXTERNAL_ALL_ROLES), async (req: any, res) => {
+    try {
+      const agencyId = await getUserAgencyId(req);
+      if (!agencyId) {
+        return res.status(400).json({ message: "No agency assigned to user" });
+      }
+
+      const charges = await db.query.externalOwnerCharges.findMany({
+        where: eq(externalOwnerCharges.agencyId, agencyId),
+        orderBy: desc(externalOwnerCharges.createdAt),
+      });
+
+      res.json(charges);
+    } catch (error: any) {
+      console.error("Error fetching charges:", error);
+      handleGenericError(error, res);
+    }
+  });
+
+  app.post("/api/external/owner-charges", isAuthenticated, requireRole(EXTERNAL_ADMIN_ROLES), async (req: any, res) => {
+    try {
+      const agencyId = await getUserAgencyId(req);
+      if (!agencyId) {
+        return res.status(400).json({ message: "No agency assigned to user" });
+      }
+
+      const chargeData = insertExternalOwnerChargeSchema.parse(req.body);
+
+      // SECURITY: Verify owner and unit belong to the user's agency
+      const [owner] = await db
+        .select({ unitId: externalUnitOwners.unitId })
+        .from(externalUnitOwners)
+        .where(eq(externalUnitOwners.id, chargeData.ownerId))
+        .limit(1);
+
+      if (!owner) {
+        return res.status(404).json({ message: "Owner not found" });
+      }
+
+      // Verify unit belongs to user's agency
+      const [unit] = await db
+        .select({ agencyId: externalUnits.agencyId })
+        .from(externalUnits)
+        .where(eq(externalUnits.id, chargeData.unitId))
+        .limit(1);
+
+      if (!unit || unit.agencyId !== agencyId) {
+        return res.status(403).json({ message: "Forbidden: Cannot create charges for other agencies" });
+      }
+
+      const [charge] = await db
+        .insert(externalOwnerCharges)
+        .values({
+          ...chargeData,
+          agencyId,
+          createdBy: req.user?.id || req.session?.adminUser?.id,
+        })
+        .returning();
+
+      await createAuditLog(req, "create", "external_owner_charge", charge.id, "Created owner charge");
+      res.json(charge);
+    } catch (error: any) {
+      console.error("Error creating charge:", error);
+      if (error.name === "ZodError") {
+        return handleZodError(error, res);
+      }
+      handleGenericError(error, res);
+    }
+  });
+
+  // External Agency - Owner Notifications Routes
+  app.get("/api/external/owner-notifications", isAuthenticated, requireRole(EXTERNAL_ALL_ROLES), async (req: any, res) => {
+    try {
+      const agencyId = await getUserAgencyId(req);
+      if (!agencyId) {
+        return res.status(400).json({ message: "No agency assigned to user" });
+      }
+
+      const notifications = await db.query.externalOwnerNotifications.findMany({
+        where: eq(externalOwnerNotifications.agencyId, agencyId),
+        orderBy: desc(externalOwnerNotifications.createdAt),
+      });
+
+      res.json(notifications);
+    } catch (error: any) {
+      console.error("Error fetching notifications:", error);
+      handleGenericError(error, res);
+    }
+  });
+
+  app.post("/api/external/owner-notifications", isAuthenticated, requireRole(EXTERNAL_ADMIN_ROLES), async (req: any, res) => {
+    try {
+      const agencyId = await getUserAgencyId(req);
+      if (!agencyId) {
+        return res.status(400).json({ message: "No agency assigned to user" });
+      }
+
+      const notificationData = insertExternalOwnerNotificationSchema.parse(req.body);
+
+      // If no specific owner but condominium is specified, send to all owners in that condominium
+      if (!notificationData.ownerId && notificationData.condominiumId) {
+        // SECURITY: Verify condominium belongs to user's agency
+        const [condo] = await db
+          .select({ agencyId: externalCondominiums.agencyId })
+          .from(externalCondominiums)
+          .where(eq(externalCondominiums.id, notificationData.condominiumId))
+          .limit(1);
+
+        if (!condo || condo.agencyId !== agencyId) {
+          return res.status(403).json({ message: "Forbidden: Cannot send notifications for other agencies" });
+        }
+
+        const units = await db.query.externalUnits.findMany({
+          where: and(
+            eq(externalUnits.agencyId, agencyId),
+            eq(externalUnits.condominiumId, notificationData.condominiumId)
+          ),
+        });
+
+        const owners = await db.query.externalUnitOwners.findMany({
+          where: inArray(
+            externalUnitOwners.unitId,
+            units.map((u) => u.id)
+          ),
+        });
+
+        // Create notification for each owner
+        const notifications = await Promise.all(
+          owners.map((owner) =>
+            db
+              .insert(externalOwnerNotifications)
+              .values({
+                ...notificationData,
+                agencyId,
+                ownerId: owner.id,
+                unitId: owner.unitId,
+                createdBy: req.user?.id || req.session?.adminUser?.id,
+              })
+              .returning()
+          )
+        );
+
+        await createAuditLog(
+          req,
+          "create",
+          "external_owner_notification",
+          "bulk",
+          `Created ${notifications.length} notifications`
+        );
+
+        return res.json({ count: notifications.length, notifications: notifications.flat() });
+      }
+
+      // Single notification
+      // SECURITY: Verify owner/unit belong to user's agency if specified
+      if (notificationData.ownerId) {
+        const [owner] = await db
+          .select({ unitId: externalUnitOwners.unitId })
+          .from(externalUnitOwners)
+          .where(eq(externalUnitOwners.id, notificationData.ownerId))
+          .limit(1);
+
+        if (!owner) {
+          return res.status(404).json({ message: "Owner not found" });
+        }
+
+        // Verify owner's unit belongs to user's agency
+        const [unit] = await db
+          .select({ agencyId: externalUnits.agencyId })
+          .from(externalUnits)
+          .where(eq(externalUnits.id, owner.unitId))
+          .limit(1);
+
+        if (!unit || unit.agencyId !== agencyId) {
+          return res.status(403).json({ message: "Forbidden: Cannot send notifications for other agencies" });
+        }
+      }
+
+      const [notification] = await db
+        .insert(externalOwnerNotifications)
+        .values({
+          ...notificationData,
+          agencyId,
+          createdBy: req.user?.id || req.session?.adminUser?.id,
+        })
+        .returning();
+
+      await createAuditLog(req, "create", "external_owner_notification", notification.id, "Created owner notification");
+      res.json(notification);
+    } catch (error: any) {
+      console.error("Error creating notification:", error);
+      if (error.name === "ZodError") {
+        return handleZodError(error, res);
+      }
       handleGenericError(error, res);
     }
   });
