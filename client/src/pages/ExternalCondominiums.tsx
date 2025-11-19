@@ -51,7 +51,7 @@ export default function ExternalCondominiums() {
   });
 
   const contractsQuery = useQuery<ExternalRentalContract[]>({
-    queryKey: ['/api/external-contracts'],
+    queryKey: ['/api/external-rental-contracts'],
   });
   const { data: rentalContracts, isLoading: contractsLoading, isError: contractsError, refetch: refetchContracts } = contractsQuery;
 
