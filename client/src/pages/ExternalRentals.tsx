@@ -74,6 +74,7 @@ interface RentalWithDetails {
     serviceType: string;
     amount: string;
     currency: string;
+    dayOfMonth: number;
   }>;
   nextPaymentDue?: string | null;
   nextPaymentAmount?: string | null;
@@ -162,6 +163,15 @@ export default function ExternalRentals() {
       return false;
     }
     return true;
+  }).sort((a, b) => {
+    // When viewing "all", put completed rentals at the end
+    if (statusFilter === "all") {
+      const aCompleted = a.contract.status === "completed";
+      const bCompleted = b.contract.status === "completed";
+      if (aCompleted && !bCompleted) return 1;
+      if (!aCompleted && bCompleted) return -1;
+    }
+    return 0;
   });
 
   const getServiceLabel = (serviceType: string) => {

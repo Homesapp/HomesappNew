@@ -1147,6 +1147,7 @@ export interface IStorage {
   updateExternalPaymentStatus(id: string, status: string, paidDate?: Date): Promise<ExternalPayment>;
   markExternalPaymentReminderSent(id: string): Promise<ExternalPayment>;
   deleteExternalPayment(id: string): Promise<void>;
+  generateNextExternalPayment(paymentId: string, createdBy: string): Promise<ExternalPayment | null>;
 
   // External Management System - Maintenance Ticket operations
   getExternalMaintenanceTicket(id: string): Promise<ExternalMaintenanceTicket | undefined>;
@@ -7600,6 +7601,76 @@ export class DatabaseStorage implements IStorage {
   async deleteExternalPayment(id: string): Promise<void> {
     await db.delete(externalPayments)
       .where(eq(externalPayments.id, id));
+  }
+
+  async generateNextExternalPayment(paymentId: string, createdBy: string): Promise<ExternalPayment | null> {
+    // Get the payment that was just paid
+    const existingPayment = await this.getExternalPayment(paymentId);
+    if (!existingPayment || !existingPayment.scheduleId) {
+      return null;
+    }
+
+    // Get the payment schedule
+    const schedule = await this.getExternalPaymentSchedule(existingPayment.scheduleId);
+    if (!schedule || !schedule.isActive) {
+      return null;
+    }
+
+    // Get the contract to verify it's active and check end date
+    const contract = await this.getExternalRentalContract(existingPayment.contractId);
+    if (!contract || contract.status !== 'active') {
+      return null;
+    }
+
+    // Calculate next payment date
+    const currentDueDate = new Date(existingPayment.dueDate);
+    const nextMonth = currentDueDate.getMonth() + 1;
+    const nextYear = nextMonth > 11 
+      ? currentDueDate.getFullYear() + 1 
+      : currentDueDate.getFullYear();
+    const adjustedMonth = nextMonth > 11 ? 0 : nextMonth;
+    
+    // Get last day of next month to clamp dayOfMonth
+    const lastDayOfMonth = new Date(nextYear, adjustedMonth + 1, 0).getDate();
+    const clampedDay = Math.min(schedule.dayOfMonth, lastDayOfMonth);
+    
+    // Create next payment date at UTC midnight
+    const nextPaymentDue = new Date(Date.UTC(nextYear, adjustedMonth, clampedDay, 0, 0, 0, 0));
+    
+    // Check if next payment would be within contract duration
+    const contractEnd = new Date(contract.endDate);
+    if (nextPaymentDue > contractEnd) {
+      return null;
+    }
+
+    // Check if payment doesn't already exist
+    const existingPayments = await db.select()
+      .from(externalPayments)
+      .where(
+        and(
+          eq(externalPayments.contractId, existingPayment.contractId),
+          eq(externalPayments.scheduleId, existingPayment.scheduleId),
+          eq(externalPayments.dueDate, nextPaymentDue)
+        )
+      )
+      .limit(1);
+    
+    if (existingPayments.length > 0) {
+      return null; // Payment already exists
+    }
+
+    // Create the next payment
+    return await this.createExternalPayment({
+      agencyId: existingPayment.agencyId,
+      contractId: existingPayment.contractId,
+      scheduleId: existingPayment.scheduleId,
+      serviceType: schedule.serviceType,
+      amount: schedule.amount,
+      currency: schedule.currency,
+      dueDate: nextPaymentDue,
+      status: 'pending',
+      createdBy: createdBy,
+    });
   }
 
   // External Management System - Maintenance Ticket operations

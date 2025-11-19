@@ -21250,9 +21250,38 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ message: "Status is required" });
       }
       
+      // Verify payment exists
+      const existingPayment = await storage.getExternalPayment(id);
+      if (!existingPayment) {
+        return res.status(404).json({ message: "Payment not found" });
+      }
+      
+      // Verify ownership (master/admin roles have agencyId === null and can access all payments)
+      const agencyId = await getUserAgencyId(req);
+      if (agencyId !== null && existingPayment.agencyId !== agencyId) {
+        return res.status(403).json({ message: "Access denied" });
+      }
+      
       const payment = await storage.updateExternalPaymentStatus(id, status, paidDate ? new Date(paidDate) : undefined);
       
-      await createAuditLog(req, "update", "external_payment", id, `Changed payment status to ${status}`);
+      // If payment is marked as paid, automatically generate next payment
+      if (status === 'paid') {
+        try {
+          const nextPayment = await storage.generateNextExternalPayment(id, req.user.id);
+          if (nextPayment) {
+            await createAuditLog(req, "update", "external_payment", id, `Changed payment status to ${status} and auto-generated next payment`);
+          } else {
+            await createAuditLog(req, "update", "external_payment", id, `Changed payment status to ${status} (no next payment generated)`);
+          }
+        } catch (error: any) {
+          console.error("Error generating next payment:", error);
+          // Don't fail the main request, just log the error
+          await createAuditLog(req, "update", "external_payment", id, `Changed payment status to ${status} (error generating next payment: ${error.message})`);
+        }
+      } else {
+        await createAuditLog(req, "update", "external_payment", id, `Changed payment status to ${status}`);
+      }
+      
       res.json(payment);
     } catch (error: any) {
       console.error("Error updating external payment status:", error);
@@ -22335,6 +22364,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
             serviceType: s.serviceType,
             amount: s.amount,
             currency: s.currency,
+            dayOfMonth: s.dayOfMonth,
           })),
           nextPaymentDue: nextPayment?.dueDate || null,
           nextPaymentAmount: nextPayment?.amount || null,
@@ -22519,53 +22549,35 @@ export async function registerRoutes(app: Express): Promise<Server> {
         createdBy: req.user.id,
       });
       
-      // Generate first 3 rent payments automatically
-      // Normalize contract start to UTC midnight for comparison
-      const contractStartNormalized = new Date(Date.UTC(
-        startDate.getFullYear(),
-        startDate.getMonth(),
-        startDate.getDate(),
-        0, 0, 0, 0
-      ));
+      // Generate first rent payment automatically (next month from start date)
+      // First month is considered paid (tenant already moved in), so generate payment for next month
+      const targetMonth = startDate.getMonth() + 1;
+      const targetYear = targetMonth > 11 
+        ? startDate.getFullYear() + 1 
+        : startDate.getFullYear();
+      const adjustedMonth = targetMonth > 11 ? 0 : targetMonth;
       
-      const paymentsToGenerate = Math.min(3, validatedData.leaseDurationMonths);
-      let paymentsCreated = 0;
-      let monthOffset = 0;
+      // Get last day of target month to clamp dayOfMonth
+      const lastDayOfMonth = new Date(targetYear, adjustedMonth + 1, 0).getDate();
+      const clampedDay = Math.min(dayOfMonth, lastDayOfMonth);
       
-      // Keep iterating until we have created the desired number of valid payments
-      while (paymentsCreated < paymentsToGenerate && monthOffset < validatedData.leaseDurationMonths) {
-        // Calculate the target year and month
-        const targetYear = startDate.getFullYear();
-        const targetMonth = startDate.getMonth() + monthOffset;
-        
-        // Get last day of target month to clamp dayOfMonth
-        const lastDayOfMonth = new Date(targetYear, targetMonth + 1, 0).getDate();
-        const clampedDay = Math.min(dayOfMonth, lastDayOfMonth);
-        
-        // Create date at UTC midnight to avoid timezone issues
-        const dueDateNormalized = new Date(Date.UTC(targetYear, targetMonth, clampedDay, 0, 0, 0, 0));
-        
-        // Only create payment if due date is on or after contract start
-        if (dueDateNormalized >= contractStartNormalized) {
-          await db.insert(externalPayments).values({
-            id: crypto.randomUUID(),
-            agencyId: unit.agencyId,
-            contractId: contract.id,
-            scheduleId: schedule.id,
-            serviceType: 'rent',
-            amount: validatedData.monthlyRent,
-            currency: validatedData.currency,
-            dueDate: dueDateNormalized,
-            status: 'pending',
-            createdBy: req.user.id,
-          });
-          paymentsCreated++;
-        }
-        
-        monthOffset++;
-      }
+      // Create date at UTC midnight to avoid timezone issues
+      const firstPaymentDue = new Date(Date.UTC(targetYear, adjustedMonth, clampedDay, 0, 0, 0, 0));
       
-      await createAuditLog(req, "create", "external_rental_contract", contract.id, `Created external rental contract with payment schedule and ${paymentsCreated} rent payments`);
+      await db.insert(externalPayments).values({
+        id: crypto.randomUUID(),
+        agencyId: unit.agencyId,
+        contractId: contract.id,
+        scheduleId: schedule.id,
+        serviceType: 'rent',
+        amount: validatedData.monthlyRent,
+        currency: validatedData.currency,
+        dueDate: firstPaymentDue,
+        status: 'pending',
+        createdBy: req.user.id,
+      });
+      
+      await createAuditLog(req, "create", "external_rental_contract", contract.id, `Created external rental contract with payment schedule and first rent payment`);
       res.status(201).json(contract);
     } catch (error: any) {
       console.error("Error creating rental contract:", error);
