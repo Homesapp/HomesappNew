@@ -9,7 +9,7 @@ import { Separator } from "@/components/ui/separator";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { format, isSameDay, isWithinInterval, addDays, startOfDay } from "date-fns";
 import { es, enUS } from "date-fns/locale";
-import type { ExternalPayment, ExternalMaintenanceTicket } from "@shared/schema";
+import type { ExternalPayment, ExternalMaintenanceTicket, SelectUser } from "@shared/schema";
 
 type SelectedEvent = {
   type: 'payment' | 'ticket';
@@ -37,9 +37,8 @@ export default function ExternalCalendar() {
   });
 
   // Fetch users for assignment details
-  const { data: users = [] } = useQuery<any[]>({
-    queryKey: ["/api/users"],
-    enabled: false, // Solo para admins, pero lo mantenemos para evitar errores
+  const { data: users = [] } = useQuery<SelectUser[]>({
+    queryKey: ["/api/external-agency-users"],
   });
 
   // Calculate statistics
@@ -237,17 +236,20 @@ export default function ExternalCalendar() {
                                 </div>
                               )}
 
-                              {ticket.assignedTo && (
-                                <div className="flex items-start gap-2">
-                                  <User className="h-4 w-4 mt-0.5 text-muted-foreground" />
-                                  <div>
-                                    <p className="font-medium">{language === "es" ? "Asignado a" : "Assigned to"}</p>
-                                    <p className="text-muted-foreground">
-                                      {ticket.assignedTo}
-                                    </p>
+                              {ticket.assignedTo && (() => {
+                                const assignedUser = users.find(u => u.id === ticket.assignedTo);
+                                return (
+                                  <div className="flex items-start gap-2">
+                                    <User className="h-4 w-4 mt-0.5 text-muted-foreground" />
+                                    <div>
+                                      <p className="font-medium">{language === "es" ? "Asignado a" : "Assigned to"}</p>
+                                      <p className="text-muted-foreground">
+                                        {assignedUser ? `${assignedUser.name}${assignedUser.maintenanceSpecialty ? ` (${assignedUser.maintenanceSpecialty})` : ''}` : ticket.assignedTo}
+                                      </p>
+                                    </div>
                                   </div>
-                                </div>
-                              )}
+                                );
+                              })()}
 
                               {ticket.estimatedCost && (
                                 <div className="flex items-start gap-2">

@@ -76,10 +76,10 @@ export async function syncMaintenanceTicketToGoogleCalendar(
     const fullDescription = [
       eventDetails.description,
       '',
-      eventDetails.accessInfo ? `🔑 Información de Acceso:\n${eventDetails.accessInfo}` : null,
-      eventDetails.notes ? `📝 Notas:\n${eventDetails.notes}` : null,
+      eventDetails.accessInfo ? `ACCESO A LA PROPIEDAD:\n${eventDetails.accessInfo}` : null,
+      eventDetails.notes ? `NOTAS:\n${eventDetails.notes}` : null,
       '',
-      `🎫 Ticket ID: ${ticketId}`,
+      `Ticket ID: ${ticketId}`,
     ].filter(Boolean).join('\n');
 
     const event = {
