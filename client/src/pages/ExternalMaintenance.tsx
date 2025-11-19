@@ -3,7 +3,7 @@ import { useQuery, useMutation } from "@tanstack/react-query";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Wrench, Plus, AlertCircle, AlertTriangle, Filter, Calendar as CalendarIcon } from "lucide-react";
+import { Wrench, Plus, AlertCircle, AlertTriangle, Filter, Calendar as CalendarIcon, Clock } from "lucide-react";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { useAuth } from "@/hooks/useAuth";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -17,11 +17,12 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
 import { queryClient, apiRequest } from "@/lib/queryClient";
-import type { ExternalMaintenanceTicket, ExternalCondominium, ExternalUnit } from "@shared/schema";
+import type { ExternalMaintenanceTicket, ExternalCondominium, ExternalUnit, ExternalWorkerAssignment } from "@shared/schema";
 import { insertExternalMaintenanceTicketSchema } from "@shared/schema";
 import { z } from "zod";
-import { format } from "date-fns";
+import { format, toZonedTime, fromZonedTime } from "date-fns-tz";
 import { es } from "date-fns/locale";
+import { Calendar } from "@/components/ui/calendar";
 
 type MaintenanceFormData = z.infer<typeof insertExternalMaintenanceTicketSchema>;
 
@@ -75,6 +76,9 @@ const statusColors: Record<string, { bg: string; label: { es: string; en: string
   },
 };
 
+// Timezone constant for Cancun
+const CANCUN_TIMEZONE = "America/Cancun";
+
 export default function ExternalMaintenance() {
   const { language } = useLanguage();
   const { toast } = useToast();
@@ -85,6 +89,11 @@ export default function ExternalMaintenance() {
   const [selectedCondoId, setSelectedCondoId] = useState<string | null>(null);
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [typeFilter, setTypeFilter] = useState<string>("all");
+  
+  // Form-specific states
+  const [formCondominiumId, setFormCondominiumId] = useState<string>("");
+  const [formDate, setFormDate] = useState<Date | undefined>(undefined);
+  const [formTime, setFormTime] = useState<string>("09:00");
 
   const { data: maintenances, isLoading: maintenancesLoading, isError: maintenancesError } = useQuery<ExternalMaintenanceTicket[]>({
     queryKey: ['/api/external-tickets'],
@@ -102,10 +111,37 @@ export default function ExternalMaintenance() {
     queryKey: ['/api/external-agency-users'],
   });
 
+  const { data: workerAssignments } = useQuery<ExternalWorkerAssignment[]>({
+    queryKey: ['/api/external-worker-assignments'],
+  });
+
   // Filter to get only maintenance workers
   const maintenanceWorkers = agencyUsers?.filter(u => 
     u.role === 'external_agency_maintenance' && u.maintenanceSpecialty
   ) || [];
+
+  // Filter units by selected condominium in form
+  const filteredUnitsForForm = formCondominiumId 
+    ? (units ?? []).filter(u => u.condominiumId === formCondominiumId)
+    : [];
+
+  // Filter workers by assignments to the selected unit or condominium
+  const getAvailableWorkersForLocation = (unitId: string | undefined) => {
+    if (!workerAssignments || !unitId) return [];
+    
+    const unit = units?.find(u => u.id === unitId);
+    if (!unit) return [];
+    
+    // Get workers assigned to this specific unit or to the entire condominium
+    const assignedWorkerIds = workerAssignments
+      .filter(a => 
+        (a.unitId === unitId) || 
+        (a.condominiumId === unit.condominiumId && !a.unitId)
+      )
+      .map(a => a.userId);
+    
+    return maintenanceWorkers.filter(w => assignedWorkerIds.includes(w.id));
+  };
 
   useEffect(() => {
     setSelectedUnitId(null);
@@ -177,12 +213,23 @@ export default function ExternalMaintenance() {
   });
 
   const handleSubmitMaintenance = (data: MaintenanceFormData) => {
+    // Combine date and time into Cancun timezone
+    if (formDate && formTime) {
+      const [hours, minutes] = formTime.split(':').map(Number);
+      const combinedDate = new Date(formDate);
+      combinedDate.setHours(hours, minutes, 0, 0);
+      
+      // Convert to Cancun timezone
+      const cancunDate = fromZonedTime(combinedDate, CANCUN_TIMEZONE);
+      data.scheduledDate = cancunDate;
+    }
+    
     createMaintenanceMutation.mutate(data);
   };
 
   const handleAddMaintenance = () => {
     maintenanceForm.reset({
-      unitId: selectedUnitId || "",
+      unitId: "",
       title: "",
       description: "",
       category: "other",
@@ -192,6 +239,9 @@ export default function ExternalMaintenance() {
       assignedTo: undefined,
       notes: "",
     });
+    setFormCondominiumId("");
+    setFormDate(undefined);
+    setFormTime("09:00");
     setShowMaintenanceDialog(true);
   };
 
@@ -572,7 +622,7 @@ export default function ExternalMaintenance() {
       )}
 
       <Dialog open={showMaintenanceDialog} onOpenChange={setShowMaintenanceDialog}>
-        <DialogContent data-testid="dialog-maintenance-form">
+        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto" data-testid="dialog-maintenance-form">
           <DialogHeader>
             <DialogTitle>
               {language === "es" ? "Nuevo Mantenimiento" : "New Maintenance"}
@@ -585,6 +635,26 @@ export default function ExternalMaintenance() {
           </DialogHeader>
           <Form {...maintenanceForm}>
             <form onSubmit={maintenanceForm.handleSubmit(handleSubmitMaintenance)} className="space-y-4">
+              {/* Step 1: Select Condominium */}
+              <div className="space-y-2">
+                <label className="text-sm font-medium">{language === "es" ? "Condominio" : "Condominium"} *</label>
+                <select
+                  value={formCondominiumId}
+                  onChange={(e) => {
+                    setFormCondominiumId(e.target.value);
+                    maintenanceForm.setValue("unitId", ""); // Reset unit when condo changes
+                  }}
+                  className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-base shadow-sm transition-colors placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50 md:text-sm"
+                  data-testid="select-maintenance-condominium"
+                >
+                  <option value="">{language === "es" ? "Selecciona un condominio" : "Select a condominium"}</option>
+                  {condominiums?.map(condo => (
+                    <option key={condo.id} value={condo.id}>{condo.name}</option>
+                  ))}
+                </select>
+              </div>
+
+              {/* Step 2: Select Unit (filtered by condominium) */}
               <FormField
                 control={maintenanceForm.control}
                 name="unitId"
@@ -596,18 +666,20 @@ export default function ExternalMaintenance() {
                         {...field}
                         value={field.value || ""}
                         onChange={e => field.onChange(e.target.value)}
-                        className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-base shadow-sm transition-colors file:border-0 file:bg-transparent file:text-sm file:font-medium file:text-foreground placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50 md:text-sm"
+                        disabled={!formCondominiumId}
+                        className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-base shadow-sm transition-colors placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50 md:text-sm"
                         data-testid="select-maintenance-unit"
                       >
-                        <option value="">{language === "es" ? "Selecciona una unidad" : "Select a unit"}</option>
-                        {units?.map(unit => {
-                          const condo = condominiums?.find(c => c.id === unit.condominiumId);
-                          return (
-                            <option key={unit.id} value={unit.id}>
-                              {condo?.name} - {unit.unitNumber}
-                            </option>
-                          );
-                        })}
+                        <option value="">
+                          {!formCondominiumId 
+                            ? (language === "es" ? "Primero selecciona un condominio" : "First select a condominium")
+                            : (language === "es" ? "Selecciona una unidad" : "Select a unit")}
+                        </option>
+                        {filteredUnitsForForm.map(unit => (
+                          <option key={unit.id} value={unit.id}>
+                            {unit.unitNumber}
+                          </option>
+                        ))}
                       </select>
                     </FormControl>
                     <FormMessage />
@@ -640,93 +712,142 @@ export default function ExternalMaintenance() {
                   </FormItem>
                 )}
               />
-              <div className="grid grid-cols-2 gap-4">
-                <FormField
-                  control={maintenanceForm.control}
-                  name="category"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>{language === "es" ? "Categoría" : "Category"} *</FormLabel>
-                      <Select onValueChange={field.onChange} value={field.value}>
-                        <FormControl>
-                          <SelectTrigger data-testid="select-maintenance-category">
-                            <SelectValue />
-                          </SelectTrigger>
-                        </FormControl>
-                        <SelectContent>
-                          {Object.entries(serviceTypeColors).map(([type, config]) => (
-                            <SelectItem key={type} value={type}>
-                              {config.label[language]}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                <FormField
-                  control={maintenanceForm.control}
-                  name="scheduledDate"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>{language === "es" ? "Fecha Programada" : "Scheduled Date"}</FormLabel>
+              <FormField
+                control={maintenanceForm.control}
+                name="category"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>{language === "es" ? "Categoría" : "Category"} *</FormLabel>
+                    <Select onValueChange={field.onChange} value={field.value}>
                       <FormControl>
-                        <Input 
-                          type="datetime-local" 
-                          {...field}
-                          value={field.value ? new Date(field.value).toISOString().slice(0, 16) : ""}
-                          onChange={e => field.onChange(e.target.value ? new Date(e.target.value) : undefined)}
-                          data-testid="input-maintenance-scheduled-date" 
-                        />
+                        <SelectTrigger data-testid="select-maintenance-category">
+                          <SelectValue />
+                        </SelectTrigger>
                       </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
+                      <SelectContent>
+                        {Object.entries(serviceTypeColors).map(([type, config]) => (
+                          <SelectItem key={type} value={type}>
+                            {config.label[language]}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              {/* Date and Time Picker - Always Visible */}
+              <div className="space-y-3">
+                <label className="text-sm font-medium">
+                  {language === "es" ? "Fecha y Hora Programada" : "Scheduled Date & Time"}
+                </label>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {/* Calendar */}
+                  <div className="border rounded-md p-3">
+                    <Calendar
+                      mode="single"
+                      selected={formDate}
+                      onSelect={setFormDate}
+                      locale={language === "es" ? es : undefined}
+                      disabled={(date) => date < new Date(new Date().setHours(0, 0, 0, 0))}
+                      className="mx-auto"
+                      data-testid="calendar-maintenance-date"
+                    />
+                  </div>
+                  
+                  {/* Time Picker */}
+                  <div className="space-y-3">
+                    <div className="flex items-center gap-2">
+                      <Clock className="h-4 w-4 text-muted-foreground" />
+                      <span className="text-sm font-medium">
+                        {language === "es" ? "Hora (Cancún)" : "Time (Cancun)"}
+                      </span>
+                    </div>
+                    <Input
+                      type="time"
+                      value={formTime}
+                      onChange={(e) => setFormTime(e.target.value)}
+                      className="w-full"
+                      data-testid="input-maintenance-time"
+                    />
+                    {formDate && (
+                      <div className="mt-4 p-3 bg-muted rounded-md">
+                        <p className="text-sm font-medium mb-1">
+                          {language === "es" ? "Programado para:" : "Scheduled for:"}
+                        </p>
+                        <p className="text-sm text-muted-foreground">
+                          {format(formDate, language === "es" ? "d 'de' MMMM, yyyy" : "MMMM d, yyyy", {
+                            locale: language === "es" ? es : undefined
+                          })}
+                        </p>
+                        <p className="text-sm text-muted-foreground">
+                          {formTime} ({CANCUN_TIMEZONE})
+                        </p>
+                      </div>
+                    )}
+                  </div>
+                </div>
               </div>
               <FormField
                 control={maintenanceForm.control}
                 name="assignedTo"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>{language === "es" ? "Asignar a" : "Assign to"}</FormLabel>
-                    <FormControl>
-                      <select
-                        {...field}
-                        value={field.value || ""}
-                        onChange={e => field.onChange(e.target.value || undefined)}
-                        className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-base shadow-sm transition-colors file:border-0 file:bg-transparent file:text-sm file:font-medium file:text-foreground placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50 md:text-sm"
-                        data-testid="select-maintenance-assigned-user"
-                      >
-                        <option value="">{language === "es" ? "Sin asignar" : "Unassigned"}</option>
-                        {maintenanceWorkers.map(worker => {
-                          const name = `${worker.firstName || ''} ${worker.lastName || ''}`.trim() || worker.email;
-                          const specialtyLabels: Record<string, { es: string; en: string }> = {
-                            encargado_mantenimiento: { es: "Encargado", en: "Manager" },
-                            mantenimiento_general: { es: "General", en: "General" },
-                            electrico: { es: "Eléctrico", en: "Electrical" },
-                            plomero: { es: "Plomero", en: "Plumber" },
-                            refrigeracion: { es: "Refrigeración", en: "HVAC" },
-                            carpintero: { es: "Carpintero", en: "Carpenter" },
-                            pintor: { es: "Pintor", en: "Painter" },
-                            jardinero: { es: "Jardinero", en: "Gardener" },
-                            albanil: { es: "Albañil", en: "Mason" },
-                            limpieza: { es: "Limpieza", en: "Cleaning" },
-                          };
-                          const specialtyLabel = worker.maintenanceSpecialty ? 
-                            (specialtyLabels[worker.maintenanceSpecialty]?.[language] || worker.maintenanceSpecialty) : '';
-                          return (
-                            <option key={worker.id} value={worker.id}>
-                              {specialtyLabel ? `${name} (${specialtyLabel})` : name}
-                            </option>
-                          );
-                        })}
-                      </select>
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
+                render={({ field }) => {
+                  const selectedUnitId = maintenanceForm.watch("unitId");
+                  const availableWorkers = getAvailableWorkersForLocation(selectedUnitId);
+                  
+                  return (
+                    <FormItem>
+                      <FormLabel>{language === "es" ? "Asignar a" : "Assign to"}</FormLabel>
+                      <FormControl>
+                        <select
+                          {...field}
+                          value={field.value || ""}
+                          onChange={e => field.onChange(e.target.value || undefined)}
+                          disabled={!selectedUnitId}
+                          className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-base shadow-sm transition-colors placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50 md:text-sm"
+                          data-testid="select-maintenance-assigned-user"
+                        >
+                          <option value="">
+                            {!selectedUnitId 
+                              ? (language === "es" ? "Primero selecciona una unidad" : "First select a unit")
+                              : (language === "es" ? "Sin asignar" : "Unassigned")}
+                          </option>
+                          {availableWorkers.map(worker => {
+                            const name = `${worker.firstName || ''} ${worker.lastName || ''}`.trim() || worker.email;
+                            const specialtyLabels: Record<string, { es: string; en: string }> = {
+                              encargado_mantenimiento: { es: "Encargado", en: "Manager" },
+                              mantenimiento_general: { es: "General", en: "General" },
+                              electrico: { es: "Eléctrico", en: "Electrical" },
+                              plomero: { es: "Plomero", en: "Plumber" },
+                              refrigeracion: { es: "Refrigeración", en: "HVAC" },
+                              carpintero: { es: "Carpintero", en: "Carpenter" },
+                              pintor: { es: "Pintor", en: "Painter" },
+                              jardinero: { es: "Jardinero", en: "Gardener" },
+                              albanil: { es: "Albañil", en: "Mason" },
+                              limpieza: { es: "Limpieza", en: "Cleaning" },
+                            };
+                            const specialtyLabel = worker.maintenanceSpecialty ? 
+                              (specialtyLabels[worker.maintenanceSpecialty]?.[language] || worker.maintenanceSpecialty) : '';
+                            return (
+                              <option key={worker.id} value={worker.id}>
+                                {specialtyLabel ? `${name} (${specialtyLabel})` : name}
+                              </option>
+                            );
+                          })}
+                        </select>
+                      </FormControl>
+                      {selectedUnitId && availableWorkers.length === 0 && (
+                        <p className="text-sm text-muted-foreground mt-1">
+                          {language === "es" 
+                            ? "No hay trabajadores asignados a esta ubicación" 
+                            : "No workers assigned to this location"}
+                        </p>
+                      )}
+                      <FormMessage />
+                    </FormItem>
+                  );
+                }}
               />
               <FormField
                 control={maintenanceForm.control}

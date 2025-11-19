@@ -20553,6 +20553,34 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // External Worker Assignments Routes
+  app.get("/api/external-worker-assignments", isAuthenticated, requireRole(EXTERNAL_ADMIN_ROLES), async (req: any, res) => {
+    try {
+      const agencyId = await getUserAgencyId(req);
+      if (!agencyId) {
+        return res.status(400).json({ message: "No agency assigned to user" });
+      }
+
+      // Get all worker assignments for this agency
+      const assignments = await db
+        .select({
+          id: externalWorkerAssignments.id,
+          agencyId: externalWorkerAssignments.agencyId,
+          userId: externalWorkerAssignments.userId,
+          condominiumId: externalWorkerAssignments.condominiumId,
+          unitId: externalWorkerAssignments.unitId,
+          createdAt: externalWorkerAssignments.createdAt,
+        })
+        .from(externalWorkerAssignments)
+        .where(eq(externalWorkerAssignments.agencyId, agencyId));
+
+      res.json(assignments);
+    } catch (error: any) {
+      console.error("Error fetching worker assignments:", error);
+      handleGenericError(res, error);
+    }
+  });
+
   // External All Access Controls Routes (Consolidated view)
   // Send access control by email
   app.post("/api/external-access-controls/send-email", isAuthenticated, requireRole(EXTERNAL_ADMIN_ROLES), async (req: any, res) => {
