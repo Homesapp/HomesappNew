@@ -682,6 +682,7 @@ const translations: Record<Language, Record<string, string>> = {
     "sidebar.externalCondominiums": "Condominios y Unidades",
     "sidebar.externalAccounting": "Contabilidad",
     "sidebar.externalMaintenance": "Mantenimiento",
+    "sidebar.externalCalendar": "Calendario",
     
     // Chat Page
     "chat.title": "Mensajes",
@@ -1946,6 +1947,7 @@ const translations: Record<Language, Record<string, string>> = {
     "sidebar.externalCondominiums": "Condominiums & Units",
     "sidebar.externalAccounting": "Accounting",
     "sidebar.externalMaintenance": "Maintenance",
+    "sidebar.externalCalendar": "Calendar",
     
     // Chat Page
     "chat.title": "Messages",

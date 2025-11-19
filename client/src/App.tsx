@@ -141,6 +141,7 @@ import ExternalCondominiums from "@/pages/ExternalCondominiums";
 import ExternalUnitDetail from "@/pages/ExternalUnitDetail";
 import ExternalAccounting from "@/pages/ExternalAccounting";
 import ExternalMaintenance from "@/pages/ExternalMaintenance";
+import ExternalCalendar from "@/pages/ExternalCalendar";
 import AdminExternalAgencies from "@/pages/AdminExternalAgencies";
 import NotFound from "@/pages/not-found";
 
@@ -421,6 +422,7 @@ function AuthenticatedApp() {
               <Route path="/external/units/:id" component={ExternalUnitDetail} />
               <Route path="/external/accounting" component={ExternalAccounting} />
               <Route path="/external/maintenance" component={ExternalMaintenance} />
+              <Route path="/external/calendar" component={ExternalCalendar} />
               <Route path="/ayuda" component={Help} />
               <Route path="/terminos" component={Terms} />
               <Route path="/privacidad" component={Privacy} />
