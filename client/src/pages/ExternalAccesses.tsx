@@ -11,7 +11,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { useToast } from "@/hooks/use-toast";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { Eye, EyeOff, Search, Copy, Check, Mail, Filter } from "lucide-react";
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { Link } from "wouter";
 import { apiRequest } from "@/lib/queryClient";
 import type { User, ExternalCondominium } from "@shared/schema";
@@ -155,6 +155,11 @@ ${access.description ? `${language === "es" ? "Descripción" : "Description"}: $
     setSelectedCondominium(value);
     setSelectedUnit("all");
   };
+
+  // Clear selection when filters change
+  useEffect(() => {
+    setSelectedAccesses(new Set());
+  }, [selectedCondominium, selectedUnit, selectedAccessType, searchTerm]);
 
   const filteredAccesses = accesses?.filter(access => {
     const searchLower = searchTerm.toLowerCase();
