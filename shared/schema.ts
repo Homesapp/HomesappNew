@@ -881,6 +881,33 @@ export const userLoginSchema = z.object({
 
 export type UserLogin = z.infer<typeof userLoginSchema>;
 
+// Set temporary password schema (admin only)
+export const setTemporaryPasswordSchema = z.object({
+  userId: z.string().min(1, "User ID is required"),
+  temporaryPassword: z.string().min(8, "Temporary password must be at least 8 characters"),
+});
+
+export type SetTemporaryPassword = z.infer<typeof setTemporaryPasswordSchema>;
+
+// Change password schema (user)
+export const changePasswordSchema = z.object({
+  currentPassword: z.string().min(1, "Current password is required"),
+  newPassword: z.string().min(8, "New password must be at least 8 characters"),
+});
+
+export type ChangePassword = z.infer<typeof changePasswordSchema>;
+
+// Force password change schema (first time users)
+export const forcePasswordChangeSchema = z.object({
+  newPassword: z.string().min(8, "New password must be at least 8 characters"),
+  confirmPassword: z.string().min(8, "Confirm password must be at least 8 characters"),
+}).refine((data) => data.newPassword === data.confirmPassword, {
+  message: "Passwords don't match",
+  path: ["confirmPassword"],
+});
+
+export type ForcePasswordChange = z.infer<typeof forcePasswordChangeSchema>;
+
 // Properties table
 export const properties = pgTable("properties", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
