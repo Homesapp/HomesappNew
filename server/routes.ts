@@ -154,6 +154,11 @@ import {
   updateExternalUnitOwnerSchema,
   insertExternalUnitAccessControlSchema,
   updateExternalUnitAccessControlSchema,
+  externalAgencies,
+  externalCondominiums,
+  externalUnits,
+  externalUnitAccessControls,
+  users,
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, and, inArray, desc, sql } from "drizzle-orm";
