@@ -310,21 +310,33 @@ export default function ExternalRentals() {
 
       {/* Rentals List */}
       {isLoading ? (
-        <div className="grid gap-4 grid-cols-1 lg:grid-cols-2">
-          {[1, 2, 3, 4].map((i) => (
-            <Card key={i}>
-              <CardHeader>
-                <Skeleton className="h-6 w-3/4" />
-                <Skeleton className="h-4 w-1/2" />
-              </CardHeader>
-              <CardContent className="space-y-2">
-                <Skeleton className="h-4 w-full" />
-                <Skeleton className="h-4 w-full" />
-                <Skeleton className="h-4 w-2/3" />
-              </CardContent>
-            </Card>
-          ))}
-        </div>
+        viewMode === "cards" ? (
+          <div className="grid gap-4 grid-cols-1 lg:grid-cols-2">
+            {[1, 2, 3, 4].map((i) => (
+              <Card key={i}>
+                <CardHeader>
+                  <Skeleton className="h-6 w-3/4" />
+                  <Skeleton className="h-4 w-1/2" />
+                </CardHeader>
+                <CardContent className="space-y-2">
+                  <Skeleton className="h-4 w-full" />
+                  <Skeleton className="h-4 w-full" />
+                  <Skeleton className="h-4 w-2/3" />
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+        ) : (
+          <Card>
+            <CardContent className="p-6">
+              <div className="space-y-2">
+                {[1, 2, 3, 4].map((i) => (
+                  <Skeleton key={i} className="h-12 w-full" />
+                ))}
+              </div>
+            </CardContent>
+          </Card>
+        )
       ) : isError ? (
         <Card>
           <CardContent className="flex flex-col items-center justify-center py-12">
@@ -354,135 +366,271 @@ export default function ExternalRentals() {
             </p>
           </CardContent>
         </Card>
-      ) : rentals && rentals.length > 0 ? (
-        <div className="grid gap-4 grid-cols-1 lg:grid-cols-2">
-          {rentals.map(({ contract, unit, condominium }) => (
-            <Card key={contract.id} className="hover-elevate" data-testid={`card-rental-${contract.id}`}>
-              <CardHeader>
-                <div className="flex items-start justify-between gap-2">
-                  <div className="flex-1 min-w-0">
-                    <CardTitle className="text-lg flex items-center gap-2">
-                      <Home className="h-5 w-5 text-muted-foreground flex-shrink-0" />
-                      <span className="truncate" data-testid={`text-rental-unit-${contract.id}`}>
-                        {condominium?.name} - {unit?.unitNumber}
-                      </span>
-                    </CardTitle>
-                    <CardDescription className="flex items-center gap-2 mt-1">
-                      <User className="h-4 w-4 flex-shrink-0" />
-                      <span className="truncate" data-testid={`text-rental-tenant-${contract.id}`}>
-                        {contract.tenantName}
-                      </span>
-                    </CardDescription>
+      ) : filteredRentals && filteredRentals.length > 0 ? (
+        viewMode === "cards" ? (
+          <div className="grid gap-4 grid-cols-1 lg:grid-cols-2">
+            {filteredRentals.map(({ contract, unit, condominium }) => (
+              <Card key={contract.id} className="hover-elevate" data-testid={`card-rental-${contract.id}`}>
+                <CardHeader>
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="flex-1 min-w-0">
+                      <CardTitle className="text-lg flex items-center gap-2">
+                        <Home className="h-5 w-5 text-muted-foreground flex-shrink-0" />
+                        <span className="truncate" data-testid={`text-rental-unit-${contract.id}`}>
+                          {condominium?.name} - {unit?.unitNumber}
+                        </span>
+                      </CardTitle>
+                      <CardDescription className="flex items-center gap-2 mt-1">
+                        <User className="h-4 w-4 flex-shrink-0" />
+                        <span className="truncate" data-testid={`text-rental-tenant-${contract.id}`}>
+                          {contract.tenantName}
+                        </span>
+                      </CardDescription>
+                    </div>
+                    <Badge 
+                      className={`flex items-center gap-1 ${getStatusColor(contract.status)}`}
+                      data-testid={`badge-rental-status-${contract.id}`}
+                    >
+                      {getStatusIcon(contract.status)}
+                      {getStatusLabel(contract.status)}
+                    </Badge>
                   </div>
-                  <Badge 
-                    className={`flex items-center gap-1 ${getStatusColor(contract.status)}`}
-                    data-testid={`badge-rental-status-${contract.id}`}
-                  >
-                    {getStatusIcon(contract.status)}
-                    {getStatusLabel(contract.status)}
-                  </Badge>
-                </div>
-              </CardHeader>
-              <CardContent className="space-y-3">
-                <Separator />
-                
-                <div className="grid grid-cols-2 gap-3 text-sm">
-                  <div className="flex items-center gap-2">
-                    <DollarSign className="h-4 w-4 text-muted-foreground" />
-                    <div>
-                      <p className="text-xs text-muted-foreground">
-                        {language === "es" ? "Renta Mensual" : "Monthly Rent"}
-                      </p>
-                      <p className="font-semibold" data-testid={`text-rental-rent-${contract.id}`}>
-                        ${parseFloat(contract.monthlyRent).toLocaleString()} {contract.currency}
-                      </p>
+                </CardHeader>
+                <CardContent className="space-y-3">
+                  <Separator />
+                  
+                  <div className="grid grid-cols-2 gap-3 text-sm">
+                    <div className="flex items-center gap-2">
+                      <DollarSign className="h-4 w-4 text-muted-foreground" />
+                      <div>
+                        <p className="text-xs text-muted-foreground">
+                          {language === "es" ? "Renta Mensual" : "Monthly Rent"}
+                        </p>
+                        <p className="font-semibold" data-testid={`text-rental-rent-${contract.id}`}>
+                          ${parseFloat(contract.monthlyRent).toLocaleString()} {contract.currency}
+                        </p>
+                      </div>
+                    </div>
+
+                    <div className="flex items-center gap-2">
+                      <Calendar className="h-4 w-4 text-muted-foreground" />
+                      <div>
+                        <p className="text-xs text-muted-foreground">
+                          {language === "es" ? "Duración" : "Duration"}
+                        </p>
+                        <p className="font-semibold" data-testid={`text-rental-duration-${contract.id}`}>
+                          {contract.leaseDurationMonths} {language === "es" ? "meses" : "months"}
+                        </p>
+                      </div>
+                    </div>
+
+                    <div className="flex items-center gap-2">
+                      <Calendar className="h-4 w-4 text-muted-foreground" />
+                      <div>
+                        <p className="text-xs text-muted-foreground">
+                          {language === "es" ? "Inicio" : "Start Date"}
+                        </p>
+                        <p className="font-semibold text-xs" data-testid={`text-rental-start-${contract.id}`}>
+                          {format(new Date(contract.startDate), "dd MMM yyyy", { locale: language === "es" ? es : enUS })}
+                        </p>
+                      </div>
+                    </div>
+
+                    <div className="flex items-center gap-2">
+                      <Calendar className="h-4 w-4 text-muted-foreground" />
+                      <div>
+                        <p className="text-xs text-muted-foreground">
+                          {language === "es" ? "Fin" : "End Date"}
+                        </p>
+                        <p className="font-semibold text-xs" data-testid={`text-rental-end-${contract.id}`}>
+                          {format(new Date(contract.endDate), "dd MMM yyyy", { locale: language === "es" ? es : enUS })}
+                        </p>
+                      </div>
                     </div>
                   </div>
 
-                  <div className="flex items-center gap-2">
-                    <Calendar className="h-4 w-4 text-muted-foreground" />
-                    <div>
-                      <p className="text-xs text-muted-foreground">
-                        {language === "es" ? "Duración" : "Duration"}
-                      </p>
-                      <p className="font-semibold" data-testid={`text-rental-duration-${contract.id}`}>
-                        {contract.leaseDurationMonths} {language === "es" ? "meses" : "months"}
-                      </p>
-                    </div>
-                  </div>
+                  <Separator />
 
-                  <div className="flex items-center gap-2">
-                    <Calendar className="h-4 w-4 text-muted-foreground" />
-                    <div>
-                      <p className="text-xs text-muted-foreground">
-                        {language === "es" ? "Inicio" : "Start Date"}
-                      </p>
-                      <p className="font-semibold text-xs" data-testid={`text-rental-start-${contract.id}`}>
-                        {format(new Date(contract.startDate), "dd MMM yyyy", { locale: language === "es" ? es : enUS })}
-                      </p>
-                    </div>
-                  </div>
-
-                  <div className="flex items-center gap-2">
-                    <Calendar className="h-4 w-4 text-muted-foreground" />
-                    <div>
-                      <p className="text-xs text-muted-foreground">
-                        {language === "es" ? "Fin" : "End Date"}
-                      </p>
-                      <p className="font-semibold text-xs" data-testid={`text-rental-end-${contract.id}`}>
-                        {format(new Date(contract.endDate), "dd MMM yyyy", { locale: language === "es" ? es : enUS })}
-                      </p>
-                    </div>
-                  </div>
-                </div>
-
-                <Separator />
-
-                <div className="flex gap-2">
-                  <Button 
-                    asChild 
-                    size="sm" 
-                    className="flex-1"
-                    data-testid={`button-view-rental-${contract.id}`}
-                  >
-                    <Link href={`/external/contracts/${contract.id}`}>
-                      <FileText className="h-4 w-4 mr-2" />
-                      {language === "es" ? "Ver Detalles" : "View Details"}
-                    </Link>
-                  </Button>
-                  {unit && (
+                  <div className="flex gap-2">
                     <Button 
                       asChild 
-                      variant="outline" 
-                      size="sm"
-                      data-testid={`button-view-unit-${contract.id}`}
+                      size="sm" 
+                      className="flex-1"
+                      data-testid={`button-view-rental-${contract.id}`}
                     >
-                      <Link href={`/external/units/${unit.id}`}>
-                        <Building2 className="h-4 w-4 mr-2" />
-                        {language === "es" ? "Unidad" : "Unit"}
+                      <Link href={`/external/contracts/${contract.id}`}>
+                        <FileText className="h-4 w-4 mr-2" />
+                        {language === "es" ? "Ver Detalles" : "View Details"}
                       </Link>
                     </Button>
-                  )}
-                </div>
-              </CardContent>
-            </Card>
-          ))}
-        </div>
+                    {unit && (
+                      <Button 
+                        asChild 
+                        variant="outline" 
+                        size="sm"
+                        data-testid={`button-view-unit-${contract.id}`}
+                      >
+                        <Link href={`/external/units/${unit.id}`}>
+                          <Building2 className="h-4 w-4 mr-2" />
+                          {language === "es" ? "Unidad" : "Unit"}
+                        </Link>
+                      </Button>
+                    )}
+                    {contract.status === 'active' && (
+                      <Button 
+                        variant="destructive" 
+                        size="sm"
+                        onClick={() => {
+                          setContractToCancel(contract.id);
+                          setCancelDialogOpen(true);
+                        }}
+                        data-testid={`button-cancel-rental-${contract.id}`}
+                      >
+                        <XCircle className="h-4 w-4 mr-2" />
+                        {language === "es" ? "Cancelar" : "Cancel"}
+                      </Button>
+                    )}
+                  </div>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+        ) : (
+          <Card>
+            <CardContent className="p-0">
+              <div className="overflow-x-auto">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>{language === "es" ? "Condominio" : "Condominium"}</TableHead>
+                      <TableHead>{language === "es" ? "Unidad" : "Unit"}</TableHead>
+                      <TableHead>{language === "es" ? "Inquilino" : "Tenant"}</TableHead>
+                      <TableHead>{language === "es" ? "Renta Mensual" : "Monthly Rent"}</TableHead>
+                      <TableHead>{language === "es" ? "Inicio" : "Start Date"}</TableHead>
+                      <TableHead>{language === "es" ? "Fin" : "End Date"}</TableHead>
+                      <TableHead>{language === "es" ? "Estado" : "Status"}</TableHead>
+                      <TableHead className="text-right">{language === "es" ? "Acciones" : "Actions"}</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {filteredRentals.map(({ contract, unit, condominium }) => (
+                      <TableRow key={contract.id} data-testid={`row-rental-${contract.id}`}>
+                        <TableCell data-testid={`cell-condominium-${contract.id}`}>
+                          {condominium?.name || "-"}
+                        </TableCell>
+                        <TableCell data-testid={`cell-unit-${contract.id}`}>
+                          {unit?.unitNumber || "-"}
+                        </TableCell>
+                        <TableCell data-testid={`cell-tenant-${contract.id}`}>
+                          {contract.tenantName}
+                        </TableCell>
+                        <TableCell data-testid={`cell-rent-${contract.id}`}>
+                          ${parseFloat(contract.monthlyRent).toLocaleString()} {contract.currency}
+                        </TableCell>
+                        <TableCell data-testid={`cell-start-${contract.id}`}>
+                          {format(new Date(contract.startDate), "dd/MM/yyyy")}
+                        </TableCell>
+                        <TableCell data-testid={`cell-end-${contract.id}`}>
+                          {format(new Date(contract.endDate), "dd/MM/yyyy")}
+                        </TableCell>
+                        <TableCell>
+                          <Badge 
+                            className={`flex items-center gap-1 w-fit ${getStatusColor(contract.status)}`}
+                            data-testid={`badge-status-${contract.id}`}
+                          >
+                            {getStatusIcon(contract.status)}
+                            {getStatusLabel(contract.status)}
+                          </Badge>
+                        </TableCell>
+                        <TableCell className="text-right">
+                          <div className="flex items-center justify-end gap-2">
+                            <Button 
+                              asChild 
+                              size="sm" 
+                              variant="ghost"
+                              data-testid={`button-view-details-${contract.id}`}
+                            >
+                              <Link href={`/external/contracts/${contract.id}`}>
+                                <FileText className="h-4 w-4" />
+                              </Link>
+                            </Button>
+                            {contract.status === 'active' && (
+                              <Button 
+                                variant="ghost" 
+                                size="sm"
+                                onClick={() => {
+                                  setContractToCancel(contract.id);
+                                  setCancelDialogOpen(true);
+                                }}
+                                data-testid={`button-cancel-${contract.id}`}
+                              >
+                                <XCircle className="h-4 w-4 text-destructive" />
+                              </Button>
+                            )}
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </div>
+            </CardContent>
+          </Card>
+        )
       ) : (
         <Card>
           <CardContent className="flex flex-col items-center justify-center py-12">
             <FileText className="h-12 w-12 text-muted-foreground mb-4" />
             <p className="text-lg font-medium" data-testid="text-no-rentals">
-              {language === "es" ? "No hay rentas registradas" : "No rentals found"}
+              {language === "es" ? "No hay rentas que coincidan con los filtros" : "No rentals match the filters"}
             </p>
             <p className="text-sm text-muted-foreground text-center mt-2">
               {language === "es" 
-                ? "Las rentas aparecerán aquí cuando se creen desde las unidades" 
-                : "Rentals will appear here when created from units"}
+                ? "Intenta ajustar los filtros o crea una nueva renta desde las unidades" 
+                : "Try adjusting the filters or create a new rental from units"}
             </p>
           </CardContent>
         </Card>
       )}
+
+      {/* Cancel Confirmation Dialog */}
+      <Dialog open={cancelDialogOpen} onOpenChange={setCancelDialogOpen}>
+        <DialogContent data-testid="dialog-cancel-rental">
+          <DialogHeader>
+            <DialogTitle>
+              {language === "es" ? "Cancelar Renta" : "Cancel Rental"}
+            </DialogTitle>
+            <DialogDescription>
+              {language === "es" 
+                ? "¿Estás seguro de que deseas cancelar esta renta? Esta acción cambiará el estado a completado y eliminará todos los pagos futuros pendientes." 
+                : "Are you sure you want to cancel this rental? This action will change the status to completed and delete all pending future payments."}
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button 
+              variant="outline" 
+              onClick={() => setCancelDialogOpen(false)}
+              data-testid="button-cancel-dialog-no"
+            >
+              {language === "es" ? "No, Mantener" : "No, Keep"}
+            </Button>
+            <Button 
+              variant="destructive" 
+              onClick={() => {
+                if (contractToCancel) {
+                  cancelMutation.mutate(contractToCancel);
+                }
+              }}
+              disabled={cancelMutation.isPending}
+              data-testid="button-cancel-dialog-yes"
+            >
+              {cancelMutation.isPending 
+                ? (language === "es" ? "Cancelando..." : "Cancelling...") 
+                : (language === "es" ? "Sí, Cancelar Renta" : "Yes, Cancel Rental")}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
