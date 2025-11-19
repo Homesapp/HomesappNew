@@ -1,15 +1,19 @@
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useMutation } from "@tanstack/react-query";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
 import { useLanguage } from "@/contexts/LanguageContext";
-import { Eye, EyeOff, Search } from "lucide-react";
+import { Eye, EyeOff, Search, Copy, Check, Mail } from "lucide-react";
 import { useState } from "react";
 import { Link } from "wouter";
+import { apiRequest } from "@/lib/queryClient";
+import type { User } from "@shared/schema";
 
 type AccessControl = {
   id: string;
@@ -31,9 +35,17 @@ export default function ExternalAccesses() {
   const { toast } = useToast();
   const [searchTerm, setSearchTerm] = useState("");
   const [visiblePasswords, setVisiblePasswords] = useState<Set<string>>(new Set());
+  const [copiedId, setCopiedId] = useState<string | null>(null);
+  const [sendEmailAccessId, setSendEmailAccessId] = useState<string | null>(null);
+  const [selectedMaintenanceUser, setSelectedMaintenanceUser] = useState<string>("");
 
   const { data: accesses, isLoading } = useQuery<AccessControl[]>({
     queryKey: ['/api/external-all-access-controls'],
+  });
+
+  const { data: maintenanceUsers } = useQuery<User[]>({
+    queryKey: ['/api/external-agency-users'],
+    select: (users) => users?.filter(u => u.role === 'external_agency_maintenance') || [],
   });
 
   const togglePasswordVisibility = (id: string) => {
@@ -45,6 +57,71 @@ export default function ExternalAccesses() {
         newSet.add(id);
       }
       return newSet;
+    });
+  };
+
+  const copyToClipboard = async (access: AccessControl) => {
+    const text = `${language === "es" ? "Acceso" : "Access"}: ${getAccessTypeLabel(access.accessType)}
+${language === "es" ? "Condominio" : "Condominium"}: ${access.condominiumName}
+${language === "es" ? "Unidad" : "Unit"}: ${access.unitNumber}
+${language === "es" ? "Código" : "Code"}: ${access.accessCode || 'N/A'}
+${access.description ? `${language === "es" ? "Descripción" : "Description"}: ${access.description}` : ''}`;
+
+    try {
+      await navigator.clipboard.writeText(text);
+      setCopiedId(access.id);
+      setTimeout(() => setCopiedId(null), 2000);
+      toast({
+        title: language === "es" ? "Copiado" : "Copied",
+        description: language === "es" 
+          ? "Información de acceso copiada al portapapeles"
+          : "Access information copied to clipboard",
+      });
+    } catch (err) {
+      console.error("Failed to copy:", err);
+      toast({
+        title: language === "es" ? "Error" : "Error",
+        description: language === "es"
+          ? "No se pudo copiar al portapapeles"
+          : "Could not copy to clipboard",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const sendEmailMutation = useMutation({
+    mutationFn: async ({ accessId, userId }: { accessId: string; userId: string }) => {
+      return await apiRequest("POST", "/api/external-access-controls/send-email", {
+        accessId,
+        userId,
+      });
+    },
+    onSuccess: () => {
+      setSendEmailAccessId(null);
+      setSelectedMaintenanceUser("");
+      toast({
+        title: language === "es" ? "Email enviado" : "Email sent",
+        description: language === "es"
+          ? "El código de acceso ha sido enviado por email"
+          : "Access code has been sent by email",
+      });
+    },
+    onError: () => {
+      toast({
+        title: language === "es" ? "Error" : "Error",
+        description: language === "es"
+          ? "No se pudo enviar el email"
+          : "Could not send email",
+        variant: "destructive",
+      });
+    },
+  });
+
+  const handleSendEmail = () => {
+    if (!sendEmailAccessId || !selectedMaintenanceUser) return;
+    sendEmailMutation.mutate({
+      accessId: sendEmailAccessId,
+      userId: selectedMaintenanceUser,
     });
   };
 
@@ -167,7 +244,7 @@ export default function ExternalAccesses() {
                     <TableHead className="min-w-[150px]">
                       {language === "es" ? "Compartir" : "Share"}
                     </TableHead>
-                    <TableHead className="text-right min-w-[100px]">
+                    <TableHead className="text-right min-w-[200px]">
                       {language === "es" ? "Acciones" : "Actions"}
                     </TableHead>
                   </TableRow>
@@ -226,11 +303,33 @@ export default function ExternalAccesses() {
                           </Badge>
                         </TableCell>
                         <TableCell className="text-right">
-                          <Link href={`/external/condominiums/${access.condominiumId}/units/${access.unitId}`}>
-                            <Button variant="outline" size="sm" data-testid={`button-view-unit-${access.unitId}`}>
-                              {language === "es" ? "Ver Unidad" : "View Unit"}
+                          <div className="flex justify-end gap-2">
+                            <Button
+                              variant="outline"
+                              size="icon"
+                              onClick={() => copyToClipboard(access)}
+                              data-testid={`button-copy-${access.id}`}
+                            >
+                              {copiedId === access.id ? (
+                                <Check className="h-4 w-4" />
+                              ) : (
+                                <Copy className="h-4 w-4" />
+                              )}
                             </Button>
-                          </Link>
+                            <Button
+                              variant="outline"
+                              size="icon"
+                              onClick={() => setSendEmailAccessId(access.id)}
+                              data-testid={`button-email-${access.id}`}
+                            >
+                              <Mail className="h-4 w-4" />
+                            </Button>
+                            <Link href={`/external/condominiums/${access.condominiumId}/units/${access.unitId}`}>
+                              <Button variant="outline" size="sm" data-testid={`button-view-unit-${access.unitId}`}>
+                                {language === "es" ? "Ver" : "View"}
+                              </Button>
+                            </Link>
+                          </div>
                         </TableCell>
                       </TableRow>
                     );
@@ -241,6 +340,62 @@ export default function ExternalAccesses() {
           )}
         </CardContent>
       </Card>
+
+      <Dialog open={!!sendEmailAccessId} onOpenChange={(open) => !open && setSendEmailAccessId(null)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>
+              {language === "es" ? "Enviar por Email" : "Send by Email"}
+            </DialogTitle>
+            <DialogDescription>
+              {language === "es"
+                ? "Selecciona el usuario de mantenimiento al que deseas enviar este código de acceso"
+                : "Select the maintenance user to send this access code to"}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <label className="text-sm font-medium">
+                {language === "es" ? "Usuario de Mantenimiento" : "Maintenance User"}
+              </label>
+              <Select value={selectedMaintenanceUser} onValueChange={setSelectedMaintenanceUser}>
+                <SelectTrigger data-testid="select-maintenance-user">
+                  <SelectValue placeholder={language === "es" ? "Seleccionar usuario..." : "Select user..."} />
+                </SelectTrigger>
+                <SelectContent>
+                  {maintenanceUsers && maintenanceUsers.length > 0 ? (
+                    maintenanceUsers.map((user) => (
+                      <SelectItem key={user.id} value={user.id}>
+                        {user.firstName} {user.lastName} ({user.email})
+                      </SelectItem>
+                    ))
+                  ) : (
+                    <SelectItem value="no-users" disabled>
+                      {language === "es" 
+                        ? "No hay usuarios de mantenimiento"
+                        : "No maintenance users available"}
+                    </SelectItem>
+                  )}
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setSendEmailAccessId(null)} data-testid="button-cancel-email">
+              {language === "es" ? "Cancelar" : "Cancel"}
+            </Button>
+            <Button
+              onClick={handleSendEmail}
+              disabled={!selectedMaintenanceUser || sendEmailMutation.isPending}
+              data-testid="button-confirm-email"
+            >
+              {sendEmailMutation.isPending
+                ? (language === "es" ? "Enviando..." : "Sending...")
+                : (language === "es" ? "Enviar" : "Send")}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

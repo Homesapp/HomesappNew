@@ -20402,6 +20402,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       // Get all users assigned to this agency via assignedToUser field
+      const externalRoles = ["external_agency_admin", "external_agency_accounting", "external_agency_maintenance", "external_agency_staff"];
       const externalUsers = await db
         .select({
           id: users.id,
@@ -20417,7 +20418,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         .where(
           and(
             eq(users.assignedToUser, agencyId),
-            inArray(users.role, ["external_agency_admin", "external_agency_accounting", "external_agency_maintenance", "external_agency_staff"])
+            inArray(users.role, externalRoles)
           )
         )
         .orderBy(users.createdAt);
@@ -20540,6 +20541,96 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // External All Access Controls Routes (Consolidated view)
+  // Send access control by email
+  app.post("/api/external-access-controls/send-email", isAuthenticated, requireRole(EXTERNAL_ADMIN_ROLES), async (req: any, res) => {
+    try {
+      const agencyId = await getUserAgencyId(req);
+      if (!agencyId) {
+        return res.status(400).json({ message: "No agency assigned to user" });
+      }
+
+      const sendEmailSchema = z.object({
+        accessId: z.string().uuid(),
+        userId: z.string().uuid(),
+      });
+
+      const { accessId, userId } = sendEmailSchema.parse(req.body);
+
+      // Get access control and verify ownership
+      const [accessControl] = await db
+        .select({
+          id: externalUnitAccessControls.id,
+          accessType: externalUnitAccessControls.accessType,
+          accessCode: externalUnitAccessControls.accessCode,
+          description: externalUnitAccessControls.description,
+          unitId: externalUnitAccessControls.unitId,
+          unitNumber: externalUnits.unitNumber,
+          condominiumId: externalUnits.condominiumId,
+        })
+        .from(externalUnitAccessControls)
+        .innerJoin(externalUnits, eq(externalUnitAccessControls.unitId, externalUnits.id))
+        .where(eq(externalUnitAccessControls.id, accessId))
+        .limit(1);
+
+      if (!accessControl) {
+        return res.status(404).json({ message: "Access control not found" });
+      }
+
+      // Verify unit belongs to agency's condominium
+      const [condo] = await db
+        .select()
+        .from(externalCondominiums)
+        .where(eq(externalCondominiums.id, accessControl.condominiumId))
+        .limit(1);
+
+      if (!condo || condo.agencyId !== agencyId) {
+        return res.status(403).json({ message: "Access denied" });
+      }
+
+      // Get recipient user and verify they belong to the same agency
+      const [recipient] = await db
+        .select()
+        .from(users)
+        .where(eq(users.id, userId))
+        .limit(1);
+
+      if (!recipient || recipient.assignedToUser !== agencyId) {
+        return res.status(404).json({ message: "Recipient user not found or not in your agency" });
+      }
+
+      // Send email using Resend
+      const { sendAccessCodeEmail } = await import('./resend-service');
+      
+      await sendAccessCodeEmail(
+        recipient.email,
+        `${recipient.firstName} ${recipient.lastName}`,
+        {
+          condominiumName: condo.name,
+          unitNumber: accessControl.unitNumber,
+          accessType: accessControl.accessType,
+          accessCode: accessControl.accessCode || '',
+          description: accessControl.description || undefined,
+        }
+      );
+
+      await createAuditLog(
+        req,
+        "email",
+        "access_control",
+        accessControl.id,
+        `Sent access code to ${recipient.email}`
+      );
+
+      res.json({ success: true, message: "Email sent successfully" });
+    } catch (error: any) {
+      console.error("Error sending access control email:", error);
+      if (error.name === "ZodError") {
+        return handleZodError(error, res);
+      }
+      handleGenericError(error, res);
+    }
+  });
+
   app.get("/api/external-all-access-controls", isAuthenticated, requireRole(EXTERNAL_ALL_ROLES), async (req: any, res) => {
     try {
       const agencyId = await getUserAgencyId(req);
