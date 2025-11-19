@@ -5138,3 +5138,117 @@ export const ownerDocumentSubmissionsRelations = relations(ownerDocumentSubmissi
     references: [users.id],
   }),
 }));
+
+// External Maintenance Specialties Enum
+export const maintenanceSpecialtyEnum = pgEnum("maintenance_specialty", [
+  "encargado_mantenimiento", // Supervisor/Manager
+  "mantenimiento_general", // General Maintenance
+  "electrico", // Electrician
+  "plomero", // Plumber
+  "refrigeracion", // HVAC/Refrigeration
+  "carpintero", // Carpenter
+  "pintor", // Painter
+  "jardinero", // Gardener
+  "albanil", // Mason
+  "limpieza", // Cleaning
+]);
+
+// External Worker Assignments - Asignación de trabajadores a condominios/unidades
+export const externalWorkerAssignments = pgTable("external_worker_assignments", {
+  id: varchar("id").primaryKey().$defaultFn(() => crypto.randomUUID()),
+  agencyId: varchar("agency_id").notNull().references(() => externalAgencies.id, { onDelete: "cascade" }),
+  userId: varchar("user_id").notNull().references(() => users.id, { onDelete: "cascade" }), // Trabajador
+  specialty: maintenanceSpecialtyEnum("specialty").notNull(), // Especialidad
+  condominiumId: varchar("condominium_id").references(() => externalCondominiums.id, { onDelete: "cascade" }), // Opcional: asignado a condominio específico
+  unitId: varchar("unit_id").references(() => externalUnits.id, { onDelete: "cascade" }), // Opcional: asignado a unidad específica
+  isActive: boolean("is_active").notNull().default(true),
+  notes: text("notes"),
+  createdBy: varchar("created_by").references(() => users.id),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+}, (table) => [
+  index("idx_external_worker_assignments_agency").on(table.agencyId),
+  index("idx_external_worker_assignments_user").on(table.userId),
+  index("idx_external_worker_assignments_condo").on(table.condominiumId),
+  index("idx_external_worker_assignments_unit").on(table.unitId),
+  index("idx_external_worker_assignments_specialty").on(table.specialty),
+]);
+
+export const insertExternalWorkerAssignmentSchema = createInsertSchema(externalWorkerAssignments).omit({
+  id: true,
+  agencyId: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export type InsertExternalWorkerAssignment = z.infer<typeof insertExternalWorkerAssignmentSchema>;
+export type ExternalWorkerAssignment = typeof externalWorkerAssignments.$inferSelect;
+
+// External Owner Charges - Cobros a propietarios
+export const externalOwnerCharges = pgTable("external_owner_charges", {
+  id: varchar("id").primaryKey().$defaultFn(() => crypto.randomUUID()),
+  agencyId: varchar("agency_id").notNull().references(() => externalAgencies.id, { onDelete: "cascade" }),
+  ownerId: varchar("owner_id").notNull().references(() => externalUnitOwners.id, { onDelete: "cascade" }),
+  unitId: varchar("unit_id").notNull().references(() => externalUnits.id, { onDelete: "cascade" }),
+  description: text("description").notNull(), // Descripción del cobro
+  amount: decimal("amount", { precision: 10, scale: 2 }).notNull(),
+  currency: varchar("currency", { length: 10 }).notNull().default("MXN"),
+  dueDate: timestamp("due_date").notNull(), // Fecha límite de pago
+  status: varchar("status", { length: 50 }).notNull().default("pending"), // pending, paid, overdue
+  paidDate: timestamp("paid_date"),
+  notes: text("notes"),
+  createdBy: varchar("created_by").references(() => users.id),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+}, (table) => [
+  index("idx_external_charges_agency").on(table.agencyId),
+  index("idx_external_charges_owner").on(table.ownerId),
+  index("idx_external_charges_unit").on(table.unitId),
+  index("idx_external_charges_status").on(table.status),
+  index("idx_external_charges_due_date").on(table.dueDate),
+]);
+
+export const insertExternalOwnerChargeSchema = createInsertSchema(externalOwnerCharges).omit({
+  id: true,
+  agencyId: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export type InsertExternalOwnerCharge = z.infer<typeof insertExternalOwnerChargeSchema>;
+export type ExternalOwnerCharge = typeof externalOwnerCharges.$inferSelect;
+
+// External Owner Notifications - Notificaciones a propietarios
+export const externalOwnerNotifications = pgTable("external_owner_notifications", {
+  id: varchar("id").primaryKey().$defaultFn(() => crypto.randomUUID()),
+  agencyId: varchar("agency_id").notNull().references(() => externalAgencies.id, { onDelete: "cascade" }),
+  condominiumId: varchar("condominium_id").references(() => externalCondominiums.id, { onDelete: "cascade" }), // Notificación a nivel condominio
+  unitId: varchar("unit_id").references(() => externalUnits.id, { onDelete: "cascade" }), // Notificación a unidad específica
+  ownerId: varchar("owner_id").references(() => externalUnitOwners.id, { onDelete: "cascade" }), // Propietario específico
+  title: varchar("title", { length: 255 }).notNull(),
+  message: text("message").notNull(),
+  type: varchar("type", { length: 50 }).notNull(), // work, failure, general, emergency
+  priority: varchar("priority", { length: 20 }).notNull().default("normal"), // low, normal, high, urgent
+  isRead: boolean("is_read").notNull().default(false),
+  readAt: timestamp("read_at"),
+  createdBy: varchar("created_by").references(() => users.id),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+}, (table) => [
+  index("idx_external_notifications_agency").on(table.agencyId),
+  index("idx_external_notifications_condo").on(table.condominiumId),
+  index("idx_external_notifications_unit").on(table.unitId),
+  index("idx_external_notifications_owner").on(table.ownerId),
+  index("idx_external_notifications_type").on(table.type),
+  index("idx_external_notifications_read").on(table.isRead),
+]);
+
+export const insertExternalOwnerNotificationSchema = createInsertSchema(externalOwnerNotifications).omit({
+  id: true,
+  agencyId: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export type InsertExternalOwnerNotification = z.infer<typeof insertExternalOwnerNotificationSchema>;
+export type ExternalOwnerNotification = typeof externalOwnerNotifications.$inferSelect;
