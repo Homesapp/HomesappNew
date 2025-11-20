@@ -38,8 +38,7 @@ import {
   Wifi,
   Flame,
   Wrench,
-  Building2,
-  ChevronUp
+  Building2
 } from "lucide-react";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { useForm } from "react-hook-form";
@@ -697,7 +696,7 @@ export default function ExternalAccounting() {
               data-testid="button-toggle-filters"
               title={t.filters}
             >
-              {filtersExpanded ? <ChevronUp className="h-4 w-4" /> : <Filter className="h-4 w-4" />}
+              <Filter className="h-4 w-4" />
             </Button>
             <div className="flex gap-1 border rounded-md p-1">
               <Button
