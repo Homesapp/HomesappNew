@@ -44,6 +44,13 @@ The platform implements enterprise-grade security measures compliant with 2025 s
 
 ## Recent Changes
 
+**2025-01-20**: Professional redesign of External Management maintenance and owner portfolio sections:
+- **Maintenance List (ExternalMaintenance.tsx)**: Complete redesign with professional table view, 6 key metrics (total/open/in-progress/resolved/estimated cost/actual cost), advanced filters (search, status, priority, category, condominium), improved create dialog with cascading unit selection
+- **Maintenance Detail (ExternalMaintenanceDetail.tsx)**: Three-column layout, professional timeline with infinite scroll and color-coded update types, photo organization by phase (before/during/after/other) with visual badges, cost editing dialogs, comprehensive update system with type selection and status changes
+- **Owner Portfolio (ExternalOwnerPortfolio.tsx)**: New consolidated dashboard aggregating units by owner (name+email), 6 global metrics (owners/units/income/expenses/balance/occupancy), sortable table with financial data, detail modal showing all owner units with contract status, CSV export functionality
+- **Navigation**: Updated AppSidebar to point to improved portfolio view at /external/owners/portfolio
+- Files: client/src/pages/ExternalMaintenance.tsx, ExternalMaintenanceDetail.tsx, ExternalOwnerPortfolio.tsx, client/src/App.tsx, client/src/components/AppSidebar.tsx
+
 **2025-01-20**: Completed External Management UI/UX improvements:
 - **Enhanced Dashboard**: Added monthly KPI cards (income, expenses, balance) with real-time calculations from financial transactions
 - **Improved Calendar**: Enhanced event cards with color-coded backgrounds (green=payments, blue=tickets, purple=contracts) for better visual distinction
