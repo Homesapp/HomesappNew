@@ -390,7 +390,7 @@ export default function ExternalRentalContractDetail() {
           <Button
             variant="ghost"
             size="icon"
-            onClick={() => navigate('/external-agency/rentals')}
+            onClick={() => navigate('/external/rentals')}
             data-testid="button-back"
           >
             <ArrowLeft className="h-5 w-5" />

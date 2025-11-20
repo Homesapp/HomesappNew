@@ -228,7 +228,7 @@ export default function ExternalRentals() {
   return (
     <div className="container mx-auto p-6 space-y-6">
       {/* Header */}
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between gap-4 flex-wrap">
         <div>
           <h1 className="text-3xl font-bold tracking-tight" data-testid="text-page-title">
             {language === "es" ? "Rentas Activas" : "Active Rentals"}
@@ -239,6 +239,12 @@ export default function ExternalRentals() {
               : "Manage all rental contracts and payments"}
           </p>
         </div>
+        <Link href="/external/units" data-testid="link-create-rental">
+          <Button>
+            <Home className="h-4 w-4 mr-2" />
+            {language === "es" ? "Nueva Renta" : "New Rental"}
+          </Button>
+        </Link>
       </div>
 
       <Separator />

@@ -15,7 +15,7 @@ import { ArrowLeft, Home, User, Key, Plus, Edit, Trash2, Eye, EyeOff, Copy, Chec
 import { useLanguage } from "@/contexts/LanguageContext";
 import { useAuth } from "@/hooks/useAuth";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
+import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -1304,6 +1304,24 @@ ${language === "es" ? "ACCESOS" : "ACCESSES"}:
                       )}
                     />
                   </div>
+                  <FormField
+                    control={rentalForm.control}
+                    name="securityDeposit"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>{language === "es" ? "Depósito de Seguridad" : "Security Deposit"}</FormLabel>
+                        <FormControl>
+                          <Input {...field} type="number" step="0.01" min="0" placeholder="0.00" data-testid="input-security-deposit" />
+                        </FormControl>
+                        <FormDescription>
+                          {language === "es" 
+                            ? "Monto reembolsable al finalizar el contrato" 
+                            : "Refundable amount at the end of the contract"}
+                        </FormDescription>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
                   <div className="grid grid-cols-2 gap-4">
                     <FormField
                       control={rentalForm.control}
