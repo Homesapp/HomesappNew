@@ -911,66 +911,109 @@ export default function ExternalCondominiums() {
 
                     {condoUnits.length > 0 ? (
                       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-                        {condoUnits.map((unit) => (
-                          <Card 
-                            key={unit.id} 
-                            data-testid={`card-unit-detail-${unit.id}`}
-                            className="hover-elevate active-elevate-2 cursor-pointer"
-                            onClick={() => navigate(`/external/units/${unit.id}`)}
-                          >
-                            <CardHeader>
-                              <CardTitle className="flex items-center gap-2 justify-between">
-                                <div className="flex items-center gap-2">
-                                  <Home className="h-5 w-5" />
-                                  <span>{language === "es" ? "Unidad" : "Unit"} {unit.unitNumber}</span>
+                        {condoUnits.map((unit) => {
+                          const activeContract = getActiveRentalContract(unit.id);
+                          const isRented = activeContract !== null;
+                          
+                          return (
+                            <Card 
+                              key={unit.id} 
+                              data-testid={`card-unit-detail-${unit.id}`}
+                              className="hover-elevate active-elevate-2 cursor-pointer"
+                              onClick={() => navigate(`/external/units/${unit.id}`)}
+                            >
+                              <CardHeader className="pb-3">
+                                <CardTitle className="flex items-center gap-2 justify-between">
+                                  <div className="flex items-center gap-2">
+                                    <Home className="h-5 w-5" />
+                                    <span>{language === "es" ? "Unidad" : "Unit"} {unit.unitNumber}</span>
+                                  </div>
+                                  <Button
+                                    size="icon"
+                                    variant="ghost"
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      handleEditUnit(unit);
+                                    }}
+                                    data-testid={`button-edit-unit-detail-${unit.id}`}
+                                  >
+                                    <Edit className="h-4 w-4" />
+                                  </Button>
+                                </CardTitle>
+                              </CardHeader>
+                              <CardContent className="space-y-3">
+                                {/* Rental Status */}
+                                <div className="flex items-center justify-between pb-3 border-b">
+                                  <span className="text-sm text-muted-foreground">{language === "es" ? "Estado:" : "Status:"}</span>
+                                  {isRented ? (
+                                    <div className="flex flex-col items-end gap-1">
+                                      <Badge variant="secondary" className="text-xs">
+                                        {language === "es" ? "Rentada" : "Rented"}
+                                      </Badge>
+                                      {(() => {
+                                        const endDate = activeContract?.endDate;
+                                        if (endDate) {
+                                          try {
+                                            const date = new Date(endDate);
+                                            if (!isNaN(date.getTime())) {
+                                              return (
+                                                <span className="text-xs text-muted-foreground">
+                                                  {language === "es" ? "Hasta " : "Until "}
+                                                  {format(date, "dd/MM/yyyy")}
+                                                </span>
+                                              );
+                                            }
+                                          } catch (e) {
+                                            // Invalid date
+                                          }
+                                        }
+                                        return null;
+                                      })()}
+                                    </div>
+                                  ) : (
+                                    <Badge variant="outline" className="text-xs text-green-600 dark:text-green-400 border-green-200 dark:border-green-800">
+                                      {language === "es" ? "Disponible" : "Available"}
+                                    </Badge>
+                                  )}
                                 </div>
-                                <Button
-                                  size="icon"
-                                  variant="ghost"
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    handleEditUnit(unit);
-                                  }}
-                                  data-testid={`button-edit-unit-detail-${unit.id}`}
-                                >
-                                  <Edit className="h-4 w-4" />
-                                </Button>
-                              </CardTitle>
-                            </CardHeader>
-                            <CardContent className="space-y-2">
-                              {unit.typology && (
-                                <div className="flex justify-between text-sm">
-                                  <span className="text-muted-foreground">{language === "es" ? "Tipología:" : "Typology:"}</span>
-                                  <span data-testid={`text-typology-detail-${unit.id}`}>{formatTypology(unit.typology, language)}</span>
+
+                                {/* Unit Details */}
+                                <div className="space-y-2">
+                                  {unit.typology && (
+                                    <div className="flex justify-between text-sm">
+                                      <span className="text-muted-foreground">{language === "es" ? "Tipología:" : "Typology:"}</span>
+                                      <span className="font-medium" data-testid={`text-typology-detail-${unit.id}`}>{formatTypology(unit.typology, language)}</span>
+                                    </div>
+                                  )}
+                                  {unit.floor && (
+                                    <div className="flex justify-between text-sm">
+                                      <span className="text-muted-foreground">{language === "es" ? "Piso:" : "Floor:"}</span>
+                                      <span className="font-medium" data-testid={`text-floor-detail-${unit.id}`}>{formatFloor(unit.floor, language)}</span>
+                                    </div>
+                                  )}
+                                  {unit.bedrooms !== null && (
+                                    <div className="flex justify-between text-sm">
+                                      <span className="text-muted-foreground">{language === "es" ? "Recámaras:" : "Bedrooms:"}</span>
+                                      <span className="font-medium" data-testid={`text-bedrooms-detail-${unit.id}`}>{unit.bedrooms}</span>
+                                    </div>
+                                  )}
+                                  {unit.bathrooms !== null && (
+                                    <div className="flex justify-between text-sm">
+                                      <span className="text-muted-foreground">{language === "es" ? "Baños:" : "Bathrooms:"}</span>
+                                      <span className="font-medium" data-testid={`text-bathrooms-detail-${unit.id}`}>{unit.bathrooms}</span>
+                                    </div>
+                                  )}
+                                  {unit.squareMeters !== null && (
+                                    <div className="flex justify-between text-sm">
+                                      <span className="text-muted-foreground">{language === "es" ? "m²:" : "sqm:"}</span>
+                                      <span className="font-medium" data-testid={`text-sqm-detail-${unit.id}`}>{unit.squareMeters}</span>
+                                    </div>
+                                  )}
                                 </div>
-                              )}
-                              {unit.floor && (
-                                <div className="flex justify-between text-sm">
-                                  <span className="text-muted-foreground">{language === "es" ? "Piso:" : "Floor:"}</span>
-                                  <span data-testid={`text-floor-detail-${unit.id}`}>{formatFloor(unit.floor, language)}</span>
-                                </div>
-                              )}
-                              {unit.bedrooms !== null && (
-                                <div className="flex justify-between text-sm">
-                                  <span className="text-muted-foreground">{language === "es" ? "Recámaras:" : "Bedrooms:"}</span>
-                                  <span data-testid={`text-bedrooms-detail-${unit.id}`}>{unit.bedrooms}</span>
-                                </div>
-                              )}
-                              {unit.bathrooms !== null && (
-                                <div className="flex justify-between text-sm">
-                                  <span className="text-muted-foreground">{language === "es" ? "Baños:" : "Bathrooms:"}</span>
-                                  <span data-testid={`text-bathrooms-detail-${unit.id}`}>{unit.bathrooms}</span>
-                                </div>
-                              )}
-                              {unit.squareMeters !== null && (
-                                <div className="flex justify-between text-sm">
-                                  <span className="text-muted-foreground">{language === "es" ? "m²:" : "sqm:"}</span>
-                                  <span data-testid={`text-sqm-detail-${unit.id}`}>{unit.squareMeters}</span>
-                                </div>
-                              )}
-                            </CardContent>
-                          </Card>
-                        ))}
+                              </CardContent>
+                            </Card>
+                          );
+                        })}
                       </div>
                     ) : (
                       <Card data-testid="card-no-units-in-condo">
