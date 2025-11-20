@@ -38,7 +38,11 @@ Key features include:
     *   **Maintenance Worker Management**: System for assigning specialized maintenance workers to specific condominiums or units, including specialty tracking and bulk assignment capabilities.
     *   **Owner Management System**: Comprehensive CRUD for unit owners, including charge creation and notification sending, with multi-tenant security.
     *   **External Calendar System**: Displays payments, maintenance tickets, and rental contract start dates for external agencies. Features include:
-        - **Rental contract events:** Contract start dates now appear in calendar with purple icon
+        - **Compact two-column layout:** Optimized grid with calendar and inline-expandable event list for efficient space utilization
+        - **Inline event expansion:** Collapsible event details replace full-screen modal for seamless navigation
+        - **Comprehensive condominium display:** Helper function resolves unit and condominium information with localized fallbacks
+        - **Condensed filters and statistics:** Single-row horizontal layout with compact checkboxes and metrics
+        - **Rental contract events:** Contract start dates appear in calendar with purple icon
         - **Complete contract details:** Shows tenant info, unit, monthly rent (with validation), duration, start/end dates, contact info, and rental purpose
         - **Type-safe event handling:** Discriminated union with ExternalPayment, ExternalMaintenanceTicket, and ExternalRentalContract
         - Event highlighting with color-coded icons (green for payments, blue for tickets, purple for contracts)
