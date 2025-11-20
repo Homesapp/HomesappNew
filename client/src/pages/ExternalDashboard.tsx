@@ -10,6 +10,15 @@ import { format, addDays, startOfDay, isBefore } from "date-fns";
 import { es, enUS } from "date-fns/locale";
 import type { ExternalCondominium, ExternalUnit, ExternalRentalContract, ExternalPayment, ExternalMaintenanceTicket, ExternalOwner } from "@shared/schema";
 
+// Type for the enhanced contract response from the API
+type RentalContractWithDetails = {
+  contract: ExternalRentalContract;
+  unit: ExternalUnit | null;
+  condominium: ExternalCondominium | null;
+  activeServices?: Array<{ serviceType: string; amount: number; dayOfMonth: number }>;
+  nextPayment?: ExternalPayment | null;
+};
+
 export default function ExternalDashboard() {
   const { language } = useLanguage();
 
@@ -21,7 +30,7 @@ export default function ExternalDashboard() {
     queryKey: ['/api/external-units'],
   });
 
-  const { data: rentalContracts, isLoading: contractsLoading } = useQuery<ExternalRentalContract[]>({
+  const { data: rentalContractsData, isLoading: contractsLoading } = useQuery<RentalContractWithDetails[]>({
     queryKey: ['/api/external-rental-contracts'],
   });
 
@@ -43,7 +52,8 @@ export default function ExternalDashboard() {
   const next30Days = addDays(today, 30);
 
   // Active rentals (status=active AND today between start and end dates)
-  const activeRentals = (rentalContracts ?? []).filter(contract => {
+  const activeRentals = (rentalContractsData ?? []).filter(item => {
+    const contract = item.contract;
     if (contract.status !== 'active') return false;
     const startDate = new Date(contract.startDate);
     const endDate = new Date(contract.endDate);
@@ -51,18 +61,18 @@ export default function ExternalDashboard() {
   });
 
   // Rentals ending soon (within next 30 days)
-  const rentalsEndingSoon = activeRentals.filter(contract => {
-    const endDate = new Date(contract.endDate);
+  const rentalsEndingSoon = activeRentals.filter(item => {
+    const endDate = new Date(item.contract.endDate);
     return endDate >= today && endDate <= next30Days;
   });
 
   // Completed rentals (past end date, status could be active or completed)
-  const completedRentals = (rentalContracts ?? []).filter(contract => {
-    const endDate = new Date(contract.endDate);
+  const completedRentals = (rentalContractsData ?? []).filter(item => {
+    const endDate = new Date(item.contract.endDate);
     return isBefore(endDate, today);
   });
 
-  const unitsWithActiveContracts = new Set(activeRentals.map(c => c.unitId));
+  const unitsWithActiveContracts = new Set(activeRentals.map(item => item.contract.unitId));
 
   const totalCondominiums = condominiums?.length || 0;
   const totalUnits = units?.length || 0;
@@ -89,6 +99,8 @@ export default function ExternalDashboard() {
 
   const totalOwners = owners?.length || 0;
 
+  const isLoading = condosLoading || unitsLoading || contractsLoading || paymentsLoading || ticketsLoading || ownersLoading;
+
   const stats = {
     totalCondominiums,
     totalUnits,
@@ -109,8 +121,6 @@ export default function ExternalDashboard() {
   const occupancyRate = activeUnits > 0 
     ? Math.round((occupiedUnits / activeUnits) * 100) 
     : 0;
-
-  const isLoading = condosLoading || unitsLoading || contractsLoading || paymentsLoading || ticketsLoading || ownersLoading;
 
   // Quick access links
   const quickActions = [
@@ -196,12 +206,14 @@ export default function ExternalDashboard() {
   }
 
   // Add rentals ending soon
-  rentalsEndingSoon.slice(0, 2).forEach(contract => {
-    const unit = units?.find(u => u.id === contract.unitId);
+  rentalsEndingSoon.slice(0, 2).forEach(item => {
+    const contract = item.contract;
+    const unit = item.unit || units?.find(u => u.id === contract.unitId);
+    const condoName = item.condominium?.name || unit?.condominium?.name || '';
     upcomingEvents.push({
       type: 'rental',
       title: `${language === "es" ? "Fin de renta" : "Rental ending"}: ${contract.tenantName}`,
-      subtitle: unit ? `${unit.condominium?.name || ''} - ${unit.unitNumber}` : '',
+      subtitle: unit ? `${condoName} - ${unit.unitNumber}` : '',
       date: new Date(contract.endDate),
       icon: ClipboardCheck,
       color: 'text-purple-600',
