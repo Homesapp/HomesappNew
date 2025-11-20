@@ -125,6 +125,7 @@ export default function ExternalCondominiums() {
     defaultValues: {
       condominiumId: undefined,
       unitNumber: "",
+      typology: undefined,
       floor: undefined,
       bedrooms: undefined,
       bathrooms: undefined,
@@ -281,10 +282,12 @@ export default function ExternalCondominiums() {
     unitForm.reset({
       condominiumId: undefined,
       unitNumber: "",
+      typology: undefined,
       floor: undefined,
       bedrooms: undefined,
       bathrooms: undefined,
       squareMeters: undefined,
+      airbnbPhotosLink: "",
     });
     setShowUnifiedDialog(true);
   };
@@ -324,10 +327,12 @@ export default function ExternalCondominiums() {
     unitForm.reset({
       condominiumId: condoId || undefined,
       unitNumber: "",
+      typology: undefined,
       floor: undefined,
       bedrooms: undefined,
       bathrooms: undefined,
       squareMeters: undefined,
+      airbnbPhotosLink: "",
     });
     setShowUnitDialog(true);
   };
@@ -337,10 +342,12 @@ export default function ExternalCondominiums() {
     unitForm.reset({
       condominiumId: unit.condominiumId,
       unitNumber: unit.unitNumber,
+      typology: unit.typology || undefined,
       floor: unit.floor || undefined,
       bedrooms: unit.bedrooms || undefined,
       bathrooms: unit.bathrooms || undefined,
       squareMeters: unit.squareMeters || undefined,
+      airbnbPhotosLink: unit.airbnbPhotosLink || "",
     });
     setShowUnitDialog(true);
   };
@@ -1752,7 +1759,7 @@ export default function ExternalCondominiums() {
             </DialogDescription>
           </DialogHeader>
           <Form {...condoForm}>
-            <form onSubmit={condoForm.handleSubmit(handleSubmitCondo)} className="space-y-4">
+            <form onSubmit={condoForm.handleSubmit(handleSubmitCondo)} className="space-y-6">
               <FormField
                 control={condoForm.control}
                 name="name"
@@ -1760,12 +1767,17 @@ export default function ExternalCondominiums() {
                   <FormItem>
                     <FormLabel>{language === "es" ? "Nombre" : "Name"} *</FormLabel>
                     <FormControl>
-                      <Input {...field} data-testid="input-condo-name" />
+                      <Input 
+                        {...field} 
+                        placeholder={language === "es" ? "Nombre del condominio" : "Condominium name"} 
+                        data-testid="input-condo-name" 
+                      />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
                 )}
               />
+              
               <FormField
                 control={condoForm.control}
                 name="address"
@@ -1773,12 +1785,18 @@ export default function ExternalCondominiums() {
                   <FormItem>
                     <FormLabel>{language === "es" ? "Dirección" : "Address"}</FormLabel>
                     <FormControl>
-                      <Input {...field} value={field.value || ""} data-testid="input-condo-address" />
+                      <Input 
+                        {...field} 
+                        value={field.value || ""} 
+                        placeholder={language === "es" ? "Dirección completa" : "Full address"} 
+                        data-testid="input-condo-address" 
+                      />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
                 )}
               />
+              
               <FormField
                 control={condoForm.control}
                 name="totalUnits"
@@ -1791,6 +1809,7 @@ export default function ExternalCondominiums() {
                         {...field} 
                         value={field.value || ""} 
                         onChange={e => field.onChange(e.target.value ? parseInt(e.target.value) : undefined)}
+                        placeholder={language === "es" ? "Ej: 16" : "E.g: 16"}
                         data-testid="input-condo-total-units" 
                       />
                     </FormControl>
@@ -1798,6 +1817,7 @@ export default function ExternalCondominiums() {
                   </FormItem>
                 )}
               />
+              
               <FormField
                 control={condoForm.control}
                 name="description"
@@ -1805,7 +1825,13 @@ export default function ExternalCondominiums() {
                   <FormItem>
                     <FormLabel>{language === "es" ? "Descripción" : "Description"}</FormLabel>
                     <FormControl>
-                      <Textarea {...field} value={field.value || ""} data-testid="input-condo-description" />
+                      <Textarea 
+                        {...field} 
+                        value={field.value || ""} 
+                        placeholder={language === "es" ? "Desarrollo moderno cerca del centro" : "Modern development near downtown"} 
+                        className="min-h-[100px] resize-none"
+                        data-testid="input-condo-description" 
+                      />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -1851,63 +1877,117 @@ export default function ExternalCondominiums() {
             </DialogDescription>
           </DialogHeader>
           <Form {...unitForm}>
-            <form onSubmit={unitForm.handleSubmit(handleSubmitUnit)} className="space-y-4">
+            <form onSubmit={unitForm.handleSubmit(handleSubmitUnit)} className="space-y-6">
               <FormField
                 control={unitForm.control}
                 name="condominiumId"
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel>{language === "es" ? "Condominio" : "Condominium"} *</FormLabel>
-                    <FormControl>
-                      <select
-                        {...field}
-                        value={field.value || ""}
-                        onChange={e => field.onChange(e.target.value || undefined)}
-                        className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-base shadow-sm transition-colors file:border-0 file:bg-transparent file:text-sm file:font-medium file:text-foreground placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50 md:text-sm"
-                        data-testid="select-unit-condo"
-                      >
-                        <option value="">{language === "es" ? "Selecciona un condominio" : "Select a condominium"}</option>
+                    <Select value={field.value || ""} onValueChange={field.onChange}>
+                      <FormControl>
+                        <SelectTrigger data-testid="select-unit-condo">
+                          <SelectValue placeholder={language === "es" ? "Selecciona un condominio" : "Select a condominium"} />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
                         {condominiums?.map(condo => (
-                          <option key={condo.id} value={condo.id}>{condo.name}</option>
+                          <SelectItem key={condo.id} value={condo.id}>{condo.name}</SelectItem>
                         ))}
-                      </select>
-                    </FormControl>
+                      </SelectContent>
+                    </Select>
                     <FormMessage />
                   </FormItem>
                 )}
               />
-              <FormField
-                control={unitForm.control}
-                name="unitNumber"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>{language === "es" ? "Número de Unidad" : "Unit Number"} *</FormLabel>
-                    <FormControl>
-                      <Input {...field} data-testid="input-unit-number" />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              <FormField
-                control={unitForm.control}
-                name="floor"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>{language === "es" ? "Piso" : "Floor"}</FormLabel>
-                    <FormControl>
-                      <Input 
-                        type="number" 
-                        {...field} 
-                        value={field.value || ""} 
-                        onChange={e => field.onChange(e.target.value ? parseInt(e.target.value) : undefined)}
-                        data-testid="input-unit-floor" 
-                      />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
+              
+              <div className="grid grid-cols-2 gap-4">
+                <FormField
+                  control={unitForm.control}
+                  name="unitNumber"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>{language === "es" ? "Número de Unidad" : "Unit Number"} *</FormLabel>
+                      <FormControl>
+                        <Input {...field} data-testid="input-unit-number" />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={unitForm.control}
+                  name="typology"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>{language === "es" ? "Tipología" : "Typology"}</FormLabel>
+                      <Select value={field.value || ""} onValueChange={field.onChange}>
+                        <FormControl>
+                          <SelectTrigger data-testid="select-unit-typology">
+                            <SelectValue placeholder={language === "es" ? "Selecciona" : "Select"} />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          {typologyOptions.map(opt => (
+                            <SelectItem key={opt.value} value={opt.value}>
+                              {language === "es" ? opt.labelEs : opt.labelEn}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <FormField
+                  control={unitForm.control}
+                  name="floor"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>{language === "es" ? "Piso" : "Floor"}</FormLabel>
+                      <Select value={field.value || ""} onValueChange={field.onChange}>
+                        <FormControl>
+                          <SelectTrigger data-testid="select-unit-floor">
+                            <SelectValue placeholder={language === "es" ? "Selecciona" : "Select"} />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          {floorOptions.map(opt => (
+                            <SelectItem key={opt.value} value={opt.value}>
+                              {language === "es" ? opt.labelEs : opt.labelEn}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={unitForm.control}
+                  name="squareMeters"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>{language === "es" ? "Metros Cuadrados" : "Square Meters"}</FormLabel>
+                      <FormControl>
+                        <Input 
+                          type="number" 
+                          step="0.01"
+                          {...field} 
+                          value={field.value || ""} 
+                          onChange={e => field.onChange(e.target.value ? parseFloat(e.target.value) : undefined)}
+                          data-testid="input-unit-sqm" 
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              </div>
+              
               <div className="grid grid-cols-2 gap-4">
                 <FormField
                   control={unitForm.control}
@@ -1949,26 +2029,6 @@ export default function ExternalCondominiums() {
                   )}
                 />
               </div>
-              <FormField
-                control={unitForm.control}
-                name="squareMeters"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>{language === "es" ? "Metros Cuadrados" : "Square Meters"}</FormLabel>
-                    <FormControl>
-                      <Input 
-                        type="number" 
-                        step="0.01"
-                        {...field} 
-                        value={field.value || ""} 
-                        onChange={e => field.onChange(e.target.value ? parseFloat(e.target.value) : undefined)}
-                        data-testid="input-unit-sqm" 
-                      />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
               <FormField
                 control={unitForm.control}
                 name="airbnbPhotosLink"

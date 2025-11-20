@@ -1027,7 +1027,7 @@ export default function ExternalRentalContractDetail() {
             </DialogDescription>
           </DialogHeader>
           <Form {...contractEditForm}>
-            <form onSubmit={contractEditForm.handleSubmit(handleSubmitContractEdit)} className="space-y-4">
+            <form onSubmit={contractEditForm.handleSubmit(handleSubmitContractEdit)} className="space-y-6">
               <FormField
                 control={contractEditForm.control}
                 name="tenantName"
@@ -1035,40 +1035,55 @@ export default function ExternalRentalContractDetail() {
                   <FormItem>
                     <FormLabel>{language === "es" ? "Nombre del Inquilino" : "Tenant Name"}</FormLabel>
                     <FormControl>
-                      <Input {...field} data-testid="input-tenant-name" />
+                      <Input 
+                        {...field} 
+                        placeholder={language === "es" ? "Nombre completo del inquilino" : "Tenant full name"}
+                        data-testid="input-tenant-name" 
+                      />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
                 )}
               />
 
-              <FormField
-                control={contractEditForm.control}
-                name="tenantEmail"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>{language === "es" ? "Email (opcional)" : "Email (optional)"}</FormLabel>
-                    <FormControl>
-                      <Input type="email" {...field} data-testid="input-tenant-email-edit" />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
+              <div className="grid grid-cols-2 gap-4">
+                <FormField
+                  control={contractEditForm.control}
+                  name="tenantEmail"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>{language === "es" ? "Email (opcional)" : "Email (optional)"}</FormLabel>
+                      <FormControl>
+                        <Input 
+                          type="email" 
+                          {...field} 
+                          placeholder={language === "es" ? "email@ejemplo.com" : "email@example.com"}
+                          data-testid="input-tenant-email-edit" 
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
 
-              <FormField
-                control={contractEditForm.control}
-                name="tenantPhone"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>{language === "es" ? "Teléfono (opcional)" : "Phone (optional)"}</FormLabel>
-                    <FormControl>
-                      <Input {...field} data-testid="input-tenant-phone-edit" />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
+                <FormField
+                  control={contractEditForm.control}
+                  name="tenantPhone"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>{language === "es" ? "Teléfono (opcional)" : "Phone (optional)"}</FormLabel>
+                      <FormControl>
+                        <Input 
+                          {...field} 
+                          placeholder={language === "es" ? "+52 998 555 6666" : "+52 998 555 6666"}
+                          data-testid="input-tenant-phone-edit" 
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              </div>
 
               <div className="grid grid-cols-2 gap-4">
                 <FormField
@@ -1169,7 +1184,12 @@ export default function ExternalRentalContractDetail() {
                   <FormItem>
                     <FormLabel>{language === "es" ? "Notas (opcional)" : "Notes (optional)"}</FormLabel>
                     <FormControl>
-                      <Textarea {...field} data-testid="textarea-contract-notes" />
+                      <Textarea 
+                        {...field} 
+                        placeholder={language === "es" ? "Con opción a renovación" : "Option to renew"}
+                        className="min-h-[80px] resize-none"
+                        data-testid="textarea-contract-notes" 
+                      />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
