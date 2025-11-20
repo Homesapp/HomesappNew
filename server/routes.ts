@@ -21470,6 +21470,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const { id } = req.params;
       const userRole = req.user?.role || req.session?.adminUser?.role;
       
+      // Only admins and maintenance managers can modify tickets directly
+      // Regular users should use POST /updates and POST /photos endpoints
+      if (!storage.canModifyMaintenanceTicket(userRole)) {
+        return res.status(403).json({ 
+          message: "Only administrators and maintenance managers can modify tickets. Use the updates endpoint to add comments." 
+        });
+      }
+      
       // Verify ticket exists and belongs to user's agency
       const ticket = await storage.getExternalMaintenanceTicket(id);
       if (!ticket) {
@@ -21483,17 +21491,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       const hasAccess = await verifyExternalAgencyOwnership(req, res, unit.agencyId);
       if (!hasAccess) return;
-      
-      // Check if user is trying to modify privileged fields
-      const privilegedFields = ['status', 'priority', 'category', 'estimatedCost', 'actualCost', 'assignedTo'];
-      const isModifyingPrivilegedFields = privilegedFields.some(field => req.body.hasOwnProperty(field));
-      
-      // Only admins and maintenance managers can modify privileged fields
-      if (isModifyingPrivilegedFields && !storage.canModifyMaintenanceTicket(userRole)) {
-        return res.status(403).json({ 
-          message: "Only administrators and maintenance managers can modify ticket status, priority, costs, or assignments" 
-        });
-      }
       
       const updatedTicket = await storage.updateExternalMaintenanceTicket(id, req.body);
       
@@ -21530,10 +21527,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const hasAccess = await verifyExternalAgencyOwnership(req, res, unit.agencyId);
       if (!hasAccess) return;
       
-      // Only admin and maintenance managers can close/complete tickets
-      if ((status === 'closed' || status === 'resolved') && !storage.canModifyMaintenanceTicket(userRole)) {
+      // Only admin and maintenance managers can modify ticket status
+      if (!storage.canModifyMaintenanceTicket(userRole)) {
         return res.status(403).json({ 
-          message: "Only administrators and maintenance managers can close or complete tickets" 
+          message: "Only administrators and maintenance managers can modify ticket status" 
         });
       }
       

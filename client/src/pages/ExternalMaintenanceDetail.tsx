@@ -168,6 +168,11 @@ export default function ExternalMaintenanceDetail() {
     mutationFn: async (data: UpdateFormData) => {
       if (!user?.id) throw new Error("Not authenticated");
       
+      // Only admins/managers can modify ticket status
+      if (data.newStatus && !canModifyTicket) {
+        throw new Error("Only administrators and maintenance managers can modify ticket status");
+      }
+      
       const updateData = {
         ticketId: id!,
         type: data.type,
@@ -178,8 +183,8 @@ export default function ExternalMaintenanceDetail() {
         createdBy: user.id,
       };
 
-      // If status changed, also update the ticket
-      if (data.newStatus && data.newStatus !== ticket?.status) {
+      // If status changed, also update the ticket (only for authorized users)
+      if (data.newStatus && data.newStatus !== ticket?.status && canModifyTicket) {
         await apiRequest('PATCH', `/api/external-tickets/${id}/status`, {
           status: data.newStatus,
           updatedByUserId: user.id,
