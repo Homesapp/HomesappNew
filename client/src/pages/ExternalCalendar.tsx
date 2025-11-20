@@ -212,7 +212,7 @@ export default function ExternalCalendar() {
     if (!selectedDate) return [];
 
     // Separate rent payments from service payments
-    const dayPayments = showPayments ? filteredPayments
+    const dayPayments = showPayments && units.length > 0 && condominiums.length > 0 ? filteredPayments
       .filter((p) => p.dueDate && isSameDay(new Date(p.dueDate), selectedDate) && p.serviceType === 'rent')
       .map((p) => {
         const { condominium, unitNumber } = getCondominiumInfo(p.unitId);
@@ -234,7 +234,7 @@ export default function ExternalCalendar() {
       }) : [];
 
     // Service payments from ExternalPayment table (non-rent)
-    const dayServicePayments = showServices ? filteredPayments
+    const dayServicePayments = showServices && units.length > 0 && condominiums.length > 0 ? filteredPayments
       .filter((p) => p.dueDate && isSameDay(new Date(p.dueDate), selectedDate) && p.serviceType !== 'rent')
       .map((p) => {
         const { condominium, unitNumber } = getCondominiumInfo(p.unitId);
@@ -286,7 +286,7 @@ export default function ExternalCalendar() {
         };
       }) : [];
 
-    const dayTickets = showTickets ? filteredTickets
+    const dayTickets = showTickets && units.length > 0 && condominiums.length > 0 ? filteredTickets
       .filter((t) => t.scheduledDate && isSameDay(new Date(t.scheduledDate), selectedDate))
       .map((t) => {
         const { condominium, unitNumber } = getCondominiumInfo(t.unitId);
@@ -303,7 +303,7 @@ export default function ExternalCalendar() {
       }) : [];
 
     // Add contract start dates as events - only include if startDate exists
-    const dayContracts = showContracts ? filteredContracts
+    const dayContracts = showContracts && units.length > 0 && condominiums.length > 0 ? filteredContracts
       .filter((item: any) => item.contract.startDate && isSameDay(new Date(item.contract.startDate), selectedDate))
       .map((item: any) => {
         // Use condominium and unit from normalized data if available
@@ -332,7 +332,7 @@ export default function ExternalCalendar() {
     const today = new Date();
     
     // Separate rent payments from service payments
-    const todayPayments = showPayments ? filteredPayments
+    const todayPayments = showPayments && units.length > 0 && condominiums.length > 0 ? filteredPayments
       .filter((p) => p.dueDate && isSameDay(new Date(p.dueDate), today) && p.serviceType === 'rent')
       .map((p) => {
         const { condominium, unitNumber } = getCondominiumInfo(p.unitId);
@@ -354,7 +354,7 @@ export default function ExternalCalendar() {
       }) : [];
 
     // Service payments from ExternalPayment table (non-rent)
-    const todayServicePayments = showServices ? filteredPayments
+    const todayServicePayments = showServices && units.length > 0 && condominiums.length > 0 ? filteredPayments
       .filter((p) => p.dueDate && isSameDay(new Date(p.dueDate), today) && p.serviceType !== 'rent')
       .map((p) => {
         const { condominium, unitNumber } = getCondominiumInfo(p.unitId);
@@ -405,7 +405,7 @@ export default function ExternalCalendar() {
         };
       }) : [];
 
-    const todayTickets = showTickets ? filteredTickets
+    const todayTickets = showTickets && units.length > 0 && condominiums.length > 0 ? filteredTickets
       .filter((t) => t.scheduledDate && isSameDay(new Date(t.scheduledDate), today))
       .map((t) => {
         const { condominium, unitNumber } = getCondominiumInfo(t.unitId);
@@ -421,7 +421,7 @@ export default function ExternalCalendar() {
         };
       }) : [];
 
-    const todayContracts = showContracts ? filteredContracts
+    const todayContracts = showContracts && units.length > 0 && condominiums.length > 0 ? filteredContracts
       .filter((item: any) => item.contract.startDate && isSameDay(new Date(item.contract.startDate), today))
       .map((item: any) => {
         const condominium = item.condominium?.name || getCondominiumInfo(item.contract.unitId).condominium;
@@ -447,7 +447,7 @@ export default function ExternalCalendar() {
   // All events (for AgendaView)
   const allEvents = useMemo((): EventData[] => {
     // Separate rent payments from service payments
-    const allPayments = showPayments ? filteredPayments
+    const allPayments = showPayments && units.length > 0 && condominiums.length > 0 ? filteredPayments
       .filter((p) => p.dueDate && p.serviceType === 'rent')
       .map((p) => {
         const { condominium, unitNumber } = getCondominiumInfo(p.unitId);
@@ -469,7 +469,7 @@ export default function ExternalCalendar() {
       }) : [];
 
     // Service payments from ExternalPayment table (non-rent)
-    const allServicePayments = showServices ? filteredPayments
+    const allServicePayments = showServices && units.length > 0 && condominiums.length > 0 ? filteredPayments
       .filter((p) => p.dueDate && p.serviceType !== 'rent')
       .map((p) => {
         const { condominium, unitNumber } = getCondominiumInfo(p.unitId);
@@ -520,7 +520,7 @@ export default function ExternalCalendar() {
         };
       }) : [];
 
-    const allTickets = showTickets ? filteredTickets
+    const allTickets = showTickets && units.length > 0 && condominiums.length > 0 ? filteredTickets
       .filter((t) => t.scheduledDate)
       .map((t) => {
         const { condominium, unitNumber } = getCondominiumInfo(t.unitId);
@@ -536,7 +536,7 @@ export default function ExternalCalendar() {
         };
       }) : [];
 
-    const allContracts = showContracts ? filteredContracts
+    const allContracts = showContracts && units.length > 0 && condominiums.length > 0 ? filteredContracts
       .filter((item: any) => item.contract.startDate)
       .map((item: any) => {
         const condominium = item.condominium?.name || getCondominiumInfo(item.contract.unitId).condominium;
