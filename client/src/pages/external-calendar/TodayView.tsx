@@ -108,12 +108,8 @@ export function TodayView({ events, language }: TodayViewProps) {
                   {condoEvents.payments.map((event, idx) => (
                     <div key={idx} className="flex items-center justify-between p-2 rounded-md bg-muted/50" data-testid={`payment-${idx}`}>
                       <div className="flex items-center gap-3">
-                        <Badge variant="outline" className="text-xs" data-testid={`payment-time-${idx}`}>{event.time}</Badge>
                         <div>
-                          <p className="text-sm font-medium" data-testid={`payment-unit-${idx}`}>{t.unit}: {event.unitNumber}</p>
-                          {event.tenantName && (
-                            <p className="text-xs text-muted-foreground" data-testid={`payment-tenant-${idx}`}>{t.tenant}: {event.tenantName}</p>
-                          )}
+                          <p className="text-sm font-medium" data-testid={`payment-title-${idx}`}>{event.title}</p>
                         </div>
                       </div>
                       <Badge variant={event.status === 'paid' ? 'default' : 'secondary'} data-testid={`payment-status-${idx}`}>
@@ -136,10 +132,8 @@ export function TodayView({ events, language }: TodayViewProps) {
                     <div key={idx} className="flex items-center justify-between p-2 rounded-md bg-muted/50" data-testid={`service-${idx}`}>
                       <div className="flex items-center gap-3">
                         {getServiceIcon(event.serviceType)}
-                        <Badge variant="outline" className="text-xs" data-testid={`service-time-${idx}`}>{event.time}</Badge>
                         <div>
-                          <p className="text-sm font-medium" data-testid={`service-unit-${idx}`}>{t.unit}: {event.unitNumber}</p>
-                          <p className="text-xs text-muted-foreground" data-testid={`service-title-${idx}`}>{event.title}</p>
+                          <p className="text-sm font-medium" data-testid={`service-title-${idx}`}>{event.title}</p>
                         </div>
                       </div>
                       <Badge variant={event.status === 'paid' ? 'default' : 'secondary'} data-testid={`service-status-${idx}`}>

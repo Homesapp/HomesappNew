@@ -213,12 +213,22 @@ export default function ExternalCalendar() {
         );
         const tenantName = contractItem?.contract.tenantName || '';
         
+        // Get service type label
+        const serviceTypeLabel = language === "es"
+          ? (p.serviceType === 'rent' ? 'Renta' :
+             p.serviceType === 'electricity' ? 'Electricidad' :
+             p.serviceType === 'water' ? 'Agua' :
+             p.serviceType === 'internet' ? 'Internet' :
+             p.serviceType === 'gas' ? 'Gas' : p.serviceType)
+          : (p.serviceType === 'rent' ? 'Rent' : p.serviceType);
+        
+        // Determine who is responsible for payment (tenant for rent, usually owner for services)
+        const responsiblePerson = p.serviceType === 'rent' ? tenantName : (language === "es" ? "Propietario" : "Owner");
+        
         return {
           type: 'payment' as const,
-          title: language === "es" 
-            ? `Pago: ${p.serviceType}`
-            : `Payment: ${p.serviceType}`,
-          time: format(new Date(p.dueDate!), 'HH:mm'),
+          title: `${condominium} - ${unitNumber} - ${serviceTypeLabel}${responsiblePerson ? ` (${responsiblePerson})` : ''}`,
+          time: '',  // No time for payments
           status: p.status,
           data: p,
           condominium,
@@ -238,12 +248,14 @@ export default function ExternalCalendar() {
              s.serviceType === 'internet' ? 'Internet' :
              s.serviceType === 'gas' ? 'Gas' : s.serviceType || 'Servicio')
           : s.serviceType || 'Service';
+        
+        // Services are typically paid by owner
+        const responsiblePerson = language === "es" ? "Propietario" : "Owner";
+        
         return {
           type: 'service' as const,
-          title: language === "es" 
-            ? `Servicio: ${serviceTypeLabel}`
-            : `Service: ${serviceTypeLabel}`,
-          time: format(new Date(s.dueDate!), 'HH:mm'),
+          title: `${condominium} - ${unitNumber} - ${serviceTypeLabel} (${responsiblePerson})`,
+          time: '',  // No time for services
           status: s.status,
           serviceType: s.serviceType,
           data: s,
@@ -306,12 +318,22 @@ export default function ExternalCalendar() {
         );
         const tenantName = contractItem?.contract.tenantName || '';
         
+        // Get service type label
+        const serviceTypeLabel = language === "es"
+          ? (p.serviceType === 'rent' ? 'Renta' :
+             p.serviceType === 'electricity' ? 'Electricidad' :
+             p.serviceType === 'water' ? 'Agua' :
+             p.serviceType === 'internet' ? 'Internet' :
+             p.serviceType === 'gas' ? 'Gas' : p.serviceType)
+          : (p.serviceType === 'rent' ? 'Rent' : p.serviceType);
+        
+        // Determine who is responsible for payment
+        const responsiblePerson = p.serviceType === 'rent' ? tenantName : (language === "es" ? "Propietario" : "Owner");
+        
         return {
           type: 'payment' as const,
-          title: language === "es" 
-            ? `Pago: ${p.serviceType}`
-            : `Payment: ${p.serviceType}`,
-          time: format(new Date(p.dueDate!), 'HH:mm'),
+          title: `${condominium} - ${unitNumber} - ${serviceTypeLabel}${responsiblePerson ? ` (${responsiblePerson})` : ''}`,
+          time: '',
           status: p.status,
           data: p,
           condominium,
@@ -330,12 +352,14 @@ export default function ExternalCalendar() {
              s.serviceType === 'internet' ? 'Internet' :
              s.serviceType === 'gas' ? 'Gas' : s.serviceType || 'Servicio')
           : s.serviceType || 'Service';
+        
+        // Services are typically paid by owner
+        const responsiblePerson = language === "es" ? "Propietario" : "Owner";
+        
         return {
           type: 'service' as const,
-          title: language === "es" 
-            ? `Servicio: ${serviceTypeLabel}`
-            : `Service: ${serviceTypeLabel}`,
-          time: format(new Date(s.dueDate!), 'HH:mm'),
+          title: `${condominium} - ${unitNumber} - ${serviceTypeLabel} (${responsiblePerson})`,
+          time: '',
           status: s.status,
           serviceType: s.serviceType,
           data: s,
@@ -394,12 +418,22 @@ export default function ExternalCalendar() {
         );
         const tenantName = contractItem?.contract.tenantName || '';
         
+        // Get service type label
+        const serviceTypeLabel = language === "es"
+          ? (p.serviceType === 'rent' ? 'Renta' :
+             p.serviceType === 'electricity' ? 'Electricidad' :
+             p.serviceType === 'water' ? 'Agua' :
+             p.serviceType === 'internet' ? 'Internet' :
+             p.serviceType === 'gas' ? 'Gas' : p.serviceType)
+          : (p.serviceType === 'rent' ? 'Rent' : p.serviceType);
+        
+        // Determine who is responsible for payment
+        const responsiblePerson = p.serviceType === 'rent' ? tenantName : (language === "es" ? "Propietario" : "Owner");
+        
         return {
           type: 'payment' as const,
-          title: language === "es" 
-            ? `Pago: ${p.serviceType}`
-            : `Payment: ${p.serviceType}`,
-          time: format(new Date(p.dueDate!), 'HH:mm'),
+          title: `${condominium} - ${unitNumber} - ${serviceTypeLabel}${responsiblePerson ? ` (${responsiblePerson})` : ''}`,
+          time: '',
           status: p.status,
           data: p,
           condominium,
@@ -418,12 +452,14 @@ export default function ExternalCalendar() {
              s.serviceType === 'internet' ? 'Internet' :
              s.serviceType === 'gas' ? 'Gas' : s.serviceType || 'Servicio')
           : s.serviceType || 'Service';
+        
+        // Services are typically paid by owner
+        const responsiblePerson = language === "es" ? "Propietario" : "Owner";
+        
         return {
           type: 'service' as const,
-          title: language === "es" 
-            ? `Servicio: ${serviceTypeLabel}`
-            : `Service: ${serviceTypeLabel}`,
-          time: format(new Date(s.dueDate!), 'HH:mm'),
+          title: `${condominium} - ${unitNumber} - ${serviceTypeLabel} (${responsiblePerson})`,
+          time: '',
           status: s.status,
           serviceType: s.serviceType,
           data: s,

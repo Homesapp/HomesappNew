@@ -139,21 +139,14 @@ export function AgendaView({ allEvents, language }: AgendaViewProps) {
                     <div className="flex items-center gap-3 flex-1">
                       {getEventIcon(event)}
                       <div className="flex items-center gap-2">
-                        <Badge variant="outline" className="text-xs font-mono" data-testid={`agenda-time-${dateKey}-${idx}`}>{event.time}</Badge>
-                        <Separator orientation="vertical" className="h-4" />
+                        {event.time && (
+                          <>
+                            <Badge variant="outline" className="text-xs font-mono" data-testid={`agenda-time-${dateKey}-${idx}`}>{event.time}</Badge>
+                            <Separator orientation="vertical" className="h-4" />
+                          </>
+                        )}
                         <div>
                           <p className="text-sm font-medium" data-testid={`agenda-title-${dateKey}-${idx}`}>{event.title}</p>
-                          <div className="flex items-center gap-2 text-xs text-muted-foreground" data-testid={`agenda-location-${dateKey}-${idx}`}>
-                            <span>{event.condominium}</span>
-                            <span>•</span>
-                            <span>{t.unit}: {event.unitNumber}</span>
-                            {event.tenantName && (
-                              <>
-                                <span>•</span>
-                                <span>{event.tenantName}</span>
-                              </>
-                            )}
-                          </div>
                         </div>
                       </div>
                     </div>
