@@ -1172,8 +1172,12 @@ export default function ExternalCondominiums() {
                                 return (
                                   <div 
                                     key={unit.id} 
-                                    className="flex items-center justify-between p-2 text-xs rounded-md bg-muted/50 hover:bg-muted"
+                                    className="flex items-center justify-between p-2 text-xs rounded-md bg-muted/50 hover:bg-muted cursor-pointer"
                                     data-testid={`unit-row-${unit.id}`}
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      navigate(`/external/units/${unit.id}`);
+                                    }}
                                   >
                                     <div className="flex-1 grid grid-cols-3 gap-2">
                                       <div>
