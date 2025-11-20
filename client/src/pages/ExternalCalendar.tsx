@@ -159,6 +159,7 @@ export default function ExternalCalendar() {
 
     const pendingPayments = filteredPayments.filter(
       (p) => p.dueDate && 
+      p.serviceType === 'rent' &&
       p.status === "pending" && 
       new Date(p.dueDate) >= startOfDay(now) &&
       new Date(p.dueDate) <= next30Days
@@ -172,7 +173,13 @@ export default function ExternalCalendar() {
 
     // Count events separately to avoid mixing different data structures
     const paymentsThisMonth = showPayments ? filteredPayments.filter((p) => {
-      if (!p.dueDate) return false;
+      if (!p.dueDate || p.serviceType !== 'rent') return false;
+      const date = new Date(p.dueDate);
+      return date.getMonth() === now.getMonth() && date.getFullYear() === now.getFullYear();
+    }).length : 0;
+
+    const servicePaymentsThisMonth = showServices ? filteredPayments.filter((p) => {
+      if (!p.dueDate || p.serviceType === 'rent') return false;
       const date = new Date(p.dueDate);
       return date.getMonth() === now.getMonth() && date.getFullYear() === now.getFullYear();
     }).length : 0;
@@ -195,7 +202,7 @@ export default function ExternalCalendar() {
       return date.getMonth() === now.getMonth() && date.getFullYear() === now.getFullYear();
     }).length : 0;
     
-    const thisMonthEvents = paymentsThisMonth + servicesThisMonth + ticketsThisMonth + contractsThisMonth;
+    const thisMonthEvents = paymentsThisMonth + servicePaymentsThisMonth + servicesThisMonth + ticketsThisMonth + contractsThisMonth;
 
     return { pendingPayments, scheduledTickets, thisMonthEvents };
   }, [filteredPayments, filteredServices, filteredTickets, filteredContracts, showPayments, showServices, showTickets, showContracts]);
@@ -204,8 +211,9 @@ export default function ExternalCalendar() {
   const eventsForDate = useMemo((): EventData[] => {
     if (!selectedDate) return [];
 
+    // Separate rent payments from service payments
     const dayPayments = showPayments ? filteredPayments
-      .filter((p) => p.dueDate && isSameDay(new Date(p.dueDate), selectedDate))
+      .filter((p) => p.dueDate && isSameDay(new Date(p.dueDate), selectedDate) && p.serviceType === 'rent')
       .map((p) => {
         const { condominium, unitNumber } = getCondominiumInfo(p.unitId);
         const contractItem = normalizedContracts.find((item: any) => 
@@ -213,27 +221,41 @@ export default function ExternalCalendar() {
         );
         const tenantName = contractItem?.contract.tenantName || '';
         
-        // Get service type label
-        const serviceTypeLabel = language === "es"
-          ? (p.serviceType === 'rent' ? 'Renta' :
-             p.serviceType === 'electricity' ? 'Electricidad' :
-             p.serviceType === 'water' ? 'Agua' :
-             p.serviceType === 'internet' ? 'Internet' :
-             p.serviceType === 'gas' ? 'Gas' : p.serviceType)
-          : (p.serviceType === 'rent' ? 'Rent' : p.serviceType);
-        
-        // Determine who is responsible for payment (tenant for rent, usually owner for services)
-        const responsiblePerson = p.serviceType === 'rent' ? tenantName : (language === "es" ? "Propietario" : "Owner");
-        
         return {
           type: 'payment' as const,
-          title: `${condominium} - ${unitNumber} - ${serviceTypeLabel}${responsiblePerson ? ` (${responsiblePerson})` : ''}`,
-          time: '',  // No time for payments
+          title: `${condominium} - ${unitNumber} - ${language === "es" ? "Renta" : "Rent"}${tenantName ? ` (${tenantName})` : ''}`,
+          time: '',
           status: p.status,
           data: p,
           condominium,
           unitNumber,
           tenantName,
+        };
+      }) : [];
+
+    // Service payments from ExternalPayment table (non-rent)
+    const dayServicePayments = showServices ? filteredPayments
+      .filter((p) => p.dueDate && isSameDay(new Date(p.dueDate), selectedDate) && p.serviceType !== 'rent')
+      .map((p) => {
+        const { condominium, unitNumber } = getCondominiumInfo(p.unitId);
+        const serviceTypeLabel = language === "es"
+          ? (p.serviceType === 'electricity' ? 'Electricidad' :
+             p.serviceType === 'water' ? 'Agua' :
+             p.serviceType === 'internet' ? 'Internet' :
+             p.serviceType === 'gas' ? 'Gas' : p.serviceType)
+          : p.serviceType;
+        
+        const responsiblePerson = language === "es" ? "Propietario" : "Owner";
+        
+        return {
+          type: 'service' as const,
+          title: `${condominium} - ${unitNumber} - ${serviceTypeLabel} (${responsiblePerson})`,
+          time: '',
+          status: p.status,
+          serviceType: p.serviceType,
+          data: p,
+          condominium,
+          unitNumber,
         };
       }) : [];
 
@@ -300,7 +322,7 @@ export default function ExternalCalendar() {
         };
       }) : [];
 
-    return [...dayPayments, ...dayServices, ...dayTickets, ...dayContracts].sort((a, b) => 
+    return [...dayPayments, ...dayServicePayments, ...dayServices, ...dayTickets, ...dayContracts].sort((a, b) => 
       a.time.localeCompare(b.time)
     );
   }, [selectedDate, filteredPayments, filteredServices, filteredTickets, filteredContracts, language, units, showPayments, showServices, showTickets, showContracts]);
@@ -309,8 +331,9 @@ export default function ExternalCalendar() {
   const eventsForToday = useMemo((): EventData[] => {
     const today = new Date();
     
+    // Separate rent payments from service payments
     const todayPayments = showPayments ? filteredPayments
-      .filter((p) => p.dueDate && isSameDay(new Date(p.dueDate), today))
+      .filter((p) => p.dueDate && isSameDay(new Date(p.dueDate), today) && p.serviceType === 'rent')
       .map((p) => {
         const { condominium, unitNumber } = getCondominiumInfo(p.unitId);
         const contractItem = normalizedContracts.find((item: any) => 
@@ -318,27 +341,41 @@ export default function ExternalCalendar() {
         );
         const tenantName = contractItem?.contract.tenantName || '';
         
-        // Get service type label
-        const serviceTypeLabel = language === "es"
-          ? (p.serviceType === 'rent' ? 'Renta' :
-             p.serviceType === 'electricity' ? 'Electricidad' :
-             p.serviceType === 'water' ? 'Agua' :
-             p.serviceType === 'internet' ? 'Internet' :
-             p.serviceType === 'gas' ? 'Gas' : p.serviceType)
-          : (p.serviceType === 'rent' ? 'Rent' : p.serviceType);
-        
-        // Determine who is responsible for payment
-        const responsiblePerson = p.serviceType === 'rent' ? tenantName : (language === "es" ? "Propietario" : "Owner");
-        
         return {
           type: 'payment' as const,
-          title: `${condominium} - ${unitNumber} - ${serviceTypeLabel}${responsiblePerson ? ` (${responsiblePerson})` : ''}`,
+          title: `${condominium} - ${unitNumber} - ${language === "es" ? "Renta" : "Rent"}${tenantName ? ` (${tenantName})` : ''}`,
           time: '',
           status: p.status,
           data: p,
           condominium,
           unitNumber,
           tenantName,
+        };
+      }) : [];
+
+    // Service payments from ExternalPayment table (non-rent)
+    const todayServicePayments = showServices ? filteredPayments
+      .filter((p) => p.dueDate && isSameDay(new Date(p.dueDate), today) && p.serviceType !== 'rent')
+      .map((p) => {
+        const { condominium, unitNumber } = getCondominiumInfo(p.unitId);
+        const serviceTypeLabel = language === "es"
+          ? (p.serviceType === 'electricity' ? 'Electricidad' :
+             p.serviceType === 'water' ? 'Agua' :
+             p.serviceType === 'internet' ? 'Internet' :
+             p.serviceType === 'gas' ? 'Gas' : p.serviceType)
+          : p.serviceType;
+        
+        const responsiblePerson = language === "es" ? "Propietario" : "Owner";
+        
+        return {
+          type: 'service' as const,
+          title: `${condominium} - ${unitNumber} - ${serviceTypeLabel} (${responsiblePerson})`,
+          time: '',
+          status: p.status,
+          serviceType: p.serviceType,
+          data: p,
+          condominium,
+          unitNumber,
         };
       }) : [];
 
@@ -402,15 +439,16 @@ export default function ExternalCalendar() {
         };
       }) : [];
 
-    return [...todayPayments, ...todayServices, ...todayTickets, ...todayContracts].sort((a, b) => 
+    return [...todayPayments, ...todayServicePayments, ...todayServices, ...todayTickets, ...todayContracts].sort((a, b) => 
       a.time.localeCompare(b.time)
     );
   }, [filteredPayments, filteredServices, filteredTickets, filteredContracts, language, units, normalizedContracts, showPayments, showServices, showTickets, showContracts]);
 
   // All events (for AgendaView)
   const allEvents = useMemo((): EventData[] => {
+    // Separate rent payments from service payments
     const allPayments = showPayments ? filteredPayments
-      .filter((p) => p.dueDate)
+      .filter((p) => p.dueDate && p.serviceType === 'rent')
       .map((p) => {
         const { condominium, unitNumber } = getCondominiumInfo(p.unitId);
         const contractItem = normalizedContracts.find((item: any) => 
@@ -418,27 +456,41 @@ export default function ExternalCalendar() {
         );
         const tenantName = contractItem?.contract.tenantName || '';
         
-        // Get service type label
-        const serviceTypeLabel = language === "es"
-          ? (p.serviceType === 'rent' ? 'Renta' :
-             p.serviceType === 'electricity' ? 'Electricidad' :
-             p.serviceType === 'water' ? 'Agua' :
-             p.serviceType === 'internet' ? 'Internet' :
-             p.serviceType === 'gas' ? 'Gas' : p.serviceType)
-          : (p.serviceType === 'rent' ? 'Rent' : p.serviceType);
-        
-        // Determine who is responsible for payment
-        const responsiblePerson = p.serviceType === 'rent' ? tenantName : (language === "es" ? "Propietario" : "Owner");
-        
         return {
           type: 'payment' as const,
-          title: `${condominium} - ${unitNumber} - ${serviceTypeLabel}${responsiblePerson ? ` (${responsiblePerson})` : ''}`,
+          title: `${condominium} - ${unitNumber} - ${language === "es" ? "Renta" : "Rent"}${tenantName ? ` (${tenantName})` : ''}`,
           time: '',
           status: p.status,
           data: p,
           condominium,
           unitNumber,
           tenantName,
+        };
+      }) : [];
+
+    // Service payments from ExternalPayment table (non-rent)
+    const allServicePayments = showServices ? filteredPayments
+      .filter((p) => p.dueDate && p.serviceType !== 'rent')
+      .map((p) => {
+        const { condominium, unitNumber } = getCondominiumInfo(p.unitId);
+        const serviceTypeLabel = language === "es"
+          ? (p.serviceType === 'electricity' ? 'Electricidad' :
+             p.serviceType === 'water' ? 'Agua' :
+             p.serviceType === 'internet' ? 'Internet' :
+             p.serviceType === 'gas' ? 'Gas' : p.serviceType)
+          : p.serviceType;
+        
+        const responsiblePerson = language === "es" ? "Propietario" : "Owner";
+        
+        return {
+          type: 'service' as const,
+          title: `${condominium} - ${unitNumber} - ${serviceTypeLabel} (${responsiblePerson})`,
+          time: '',
+          status: p.status,
+          serviceType: p.serviceType,
+          data: p,
+          condominium,
+          unitNumber,
         };
       }) : [];
 
@@ -502,14 +554,14 @@ export default function ExternalCalendar() {
         };
       }) : [];
 
-    return [...allPayments, ...allServices, ...allTickets, ...allContracts];
+    return [...allPayments, ...allServicePayments, ...allServices, ...allTickets, ...allContracts];
   }, [filteredPayments, filteredServices, filteredTickets, filteredContracts, language, units, normalizedContracts, showPayments, showServices, showTickets, showContracts]);
 
   // Get event modifiers for calendar highlighting
   const datesWithPayments = useMemo(() => {
     if (!showPayments) return [];
     return filteredPayments
-      .filter((p) => p.dueDate)
+      .filter((p) => p.dueDate && p.serviceType === 'rent')
       .map((p) => new Date(p.dueDate!));
   }, [filteredPayments, showPayments]);
 
@@ -533,7 +585,7 @@ export default function ExternalCalendar() {
     
     if (showPayments) {
       filteredPayments.forEach((p) => {
-        if (!p.dueDate) return;
+        if (!p.dueDate || p.serviceType !== 'rent') return;
         const dateKey = format(new Date(p.dueDate), 'yyyy-MM-dd');
         const current = dateMap.get(dateKey) || { payments: 0, services: 0, tickets: 0, contracts: 0 };
         dateMap.set(dateKey, { ...current, payments: current.payments + 1 });
@@ -541,6 +593,15 @@ export default function ExternalCalendar() {
     }
     
     if (showServices) {
+      // Service payments from ExternalPayment (non-rent)
+      filteredPayments.forEach((p) => {
+        if (!p.dueDate || p.serviceType === 'rent') return;
+        const dateKey = format(new Date(p.dueDate), 'yyyy-MM-dd');
+        const current = dateMap.get(dateKey) || { payments: 0, services: 0, tickets: 0, contracts: 0 };
+        dateMap.set(dateKey, { ...current, services: current.services + 1 });
+      });
+      
+      // Service schedules
       filteredServices.forEach((s: ExternalPaymentSchedule) => {
         if (s.dueDate) {
           const dateKey = format(new Date(s.dueDate), 'yyyy-MM-dd');
