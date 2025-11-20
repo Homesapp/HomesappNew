@@ -661,8 +661,8 @@ export default function ExternalAccounting() {
         <p className="text-muted-foreground">{t.subtitle}</p>
       </div>
 
-      <Tabs defaultValue="summary" className="space-y-0">
-        <TabsList className="border-b">
+      <Tabs defaultValue="summary" className="space-y-6">
+        <TabsList>
           <TabsTrigger value="summary" data-testid="tab-summary">{t.summaryTab}</TabsTrigger>
           <TabsTrigger value="transactions" data-testid="tab-transactions">{t.transactionsTab}</TabsTrigger>
         </TabsList>
@@ -814,24 +814,24 @@ export default function ExternalAccounting() {
           )}
         </TabsContent>
 
-        <TabsContent value="transactions" className="space-y-4 pt-6">
-          <div className="flex items-center justify-between gap-4 mb-4">
-            <div className="flex gap-1 border rounded-md p-1">
+        <TabsContent value="transactions" className="space-y-6">
+          <div className="flex items-center justify-between gap-4">
+            <div className="flex gap-2">
               <Button
-                variant={viewMode === "cards" ? "default" : "ghost"}
-                size="sm"
-                onClick={() => setViewMode("cards")}
-                data-testid="button-view-cards"
+                onClick={() => setShowCreateDialog(true)}
+                data-testid="button-create-transaction"
               >
-                <LayoutGrid className="h-4 w-4" />
+                <Plus className="h-4 w-4 mr-2" />
+                {t.createTransaction}
               </Button>
               <Button
-                variant={viewMode === "table" ? "default" : "ghost"}
-                size="sm"
-                onClick={() => setViewMode("table")}
-                data-testid="button-view-table"
+                variant="outline"
+                onClick={handleExportExcel}
+                disabled={!sortedAndFilteredTransactions || sortedAndFilteredTransactions.length === 0}
+                data-testid="button-export-excel"
               >
-                <TableIcon className="h-4 w-4" />
+                <Download className="h-4 w-4 mr-1" />
+                {t.exportExcel}
               </Button>
             </div>
             <div className="flex gap-2">
@@ -845,24 +845,24 @@ export default function ExternalAccounting() {
                 {t.filters}
                 {activeFilters > 0 && <Badge variant="secondary" className="ml-1">{activeFilters}</Badge>}
               </Button>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={handleExportExcel}
-                disabled={!sortedAndFilteredTransactions || sortedAndFilteredTransactions.length === 0}
-                data-testid="button-export-excel"
-              >
-                <Download className="h-4 w-4 mr-1" />
-                {t.exportExcel}
-              </Button>
-              <Button
-                onClick={() => setShowCreateDialog(true)}
-                size="sm"
-                data-testid="button-create-transaction"
-              >
-                <Plus className="h-4 w-4 mr-1" />
-                {t.createTransaction}
-              </Button>
+              <div className="flex gap-1 border rounded-md p-1">
+                <Button
+                  variant={viewMode === "cards" ? "default" : "ghost"}
+                  size="sm"
+                  onClick={() => setViewMode("cards")}
+                  data-testid="button-view-cards"
+                >
+                  <LayoutGrid className="h-4 w-4" />
+                </Button>
+                <Button
+                  variant={viewMode === "table" ? "default" : "ghost"}
+                  size="sm"
+                  onClick={() => setViewMode("table")}
+                  data-testid="button-view-table"
+                >
+                  <TableIcon className="h-4 w-4" />
+                </Button>
+              </div>
             </div>
           </div>
 
