@@ -639,12 +639,10 @@ export default function ExternalCondominiums() {
               : "Manage your condominiums and units"}
           </p>
         </div>
-        {!selectedCondoId && (
-          <Button onClick={handleOpenUnifiedDialog} data-testid="button-add-unified">
-            <Plus className="mr-2 h-4 w-4" />
-            {language === "es" ? "Agregar" : "Add"}
-          </Button>
-        )}
+        <Button onClick={handleOpenUnifiedDialog} data-testid="button-add-unified">
+          <Plus className="mr-2 h-4 w-4" />
+          {language === "es" ? "Agregar" : "Add"}
+        </Button>
       </div>
 
       <Tabs value={activeTab} onValueChange={(value) => {
