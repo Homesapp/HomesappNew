@@ -25,6 +25,40 @@ import { z } from "zod";
 type CondominiumFormData = z.infer<typeof insertExternalCondominiumSchema>;
 type UnitFormData = z.infer<typeof insertExternalUnitSchema>;
 
+// Tipología options
+const typologyOptions = [
+  { value: "estudio", labelEs: "Estudio", labelEn: "Studio" },
+  { value: "estudio_plus", labelEs: "Estudio Plus", labelEn: "Studio Plus" },
+  { value: "1_recamara", labelEs: "1 Recámara", labelEn: "1 Bedroom" },
+  { value: "2_recamaras", labelEs: "2 Recámaras", labelEn: "2 Bedrooms" },
+  { value: "3_recamaras", labelEs: "3 Recámaras", labelEn: "3 Bedrooms" },
+  { value: "loft_mini", labelEs: "Loft Mini", labelEn: "Mini Loft" },
+  { value: "loft_normal", labelEs: "Loft Normal", labelEn: "Normal Loft" },
+  { value: "loft_plus", labelEs: "Loft Plus", labelEn: "Loft Plus" },
+];
+
+// Floor options
+const floorOptions = [
+  { value: "planta_baja", labelEs: "Planta Baja", labelEn: "Ground Floor" },
+  { value: "primer_piso", labelEs: "Primer Piso", labelEn: "First Floor" },
+  { value: "segundo_piso", labelEs: "Segundo Piso", labelEn: "Second Floor" },
+  { value: "tercer_piso", labelEs: "Tercer Piso", labelEn: "Third Floor" },
+  { value: "penthouse", labelEs: "Penthouse", labelEn: "Penthouse" },
+];
+
+// Helper functions to format typology and floor for display
+const formatTypology = (typology: string | null | undefined, language: string): string => {
+  if (!typology) return '-';
+  const option = typologyOptions.find(opt => opt.value === typology);
+  return option ? (language === "es" ? option.labelEs : option.labelEn) : typology;
+};
+
+const formatFloor = (floor: string | null | undefined, language: string): string => {
+  if (!floor) return '-';
+  const option = floorOptions.find(opt => opt.value === floor);
+  return option ? (language === "es" ? option.labelEs : option.labelEn) : floor;
+};
+
 export default function ExternalCondominiums() {
   const { language } = useLanguage();
   const { toast } = useToast();
@@ -38,12 +72,12 @@ export default function ExternalCondominiums() {
   const [selectedCondoId, setSelectedCondoId] = useState<string | null>(null);
   
   // For creating condominium with multiple units
-  const [tempUnits, setTempUnits] = useState<Array<{ unitNumber: string; floor?: number; bedrooms?: number; bathrooms?: number; squareMeters?: number }>>([]);
+  const [tempUnits, setTempUnits] = useState<Array<{ unitNumber: string; typology?: string; floor?: string; bedrooms?: number; bathrooms?: number; squareMeters?: number }>>([]);
   
   // For adding multiple units to existing condominium
   const [showAddUnitsDialog, setShowAddUnitsDialog] = useState(false);
   const [selectedCondoForAddUnits, setSelectedCondoForAddUnits] = useState<ExternalCondominium | null>(null);
-  const [addUnitsTemp, setAddUnitsTemp] = useState<Array<{ unitNumber: string; floor?: number; bedrooms?: number; bathrooms?: number; squareMeters?: number }>>([{ unitNumber: '' }]);
+  const [addUnitsTemp, setAddUnitsTemp] = useState<Array<{ unitNumber: string; typology?: string; floor?: string; bedrooms?: number; bathrooms?: number; squareMeters?: number }>>([{ unitNumber: '' }]);
   
   // Legacy states for backwards compatibility with edit mode
   const [showCondoDialog, setShowCondoDialog] = useState(false);
@@ -349,7 +383,7 @@ export default function ExternalCondominiums() {
   };
 
   const handleAddTempUnit = () => {
-    setTempUnits([...tempUnits, { unitNumber: "", floor: undefined, bedrooms: undefined, bathrooms: undefined, squareMeters: undefined }]);
+    setTempUnits([...tempUnits, { unitNumber: "", typology: undefined, floor: undefined, bedrooms: undefined, bathrooms: undefined, squareMeters: undefined }]);
   };
 
   const handleRemoveTempUnit = (index: number) => {
@@ -472,7 +506,7 @@ export default function ExternalCondominiums() {
   };
 
   const handleAddMoreUnit = () => {
-    setAddUnitsTemp([...addUnitsTemp, { unitNumber: "", floor: undefined, bedrooms: undefined, bathrooms: undefined, squareMeters: undefined }]);
+    setAddUnitsTemp([...addUnitsTemp, { unitNumber: "", typology: undefined, floor: undefined, bedrooms: undefined, bathrooms: undefined, squareMeters: undefined }]);
   };
 
   const handleRemoveAddUnit = (index: number) => {
@@ -1129,7 +1163,8 @@ export default function ExternalCondominiums() {
                     <TableRow>
                       <TableHead className="min-w-[120px]">{language === "es" ? "Número" : "Number"}</TableHead>
                       <TableHead className="min-w-[180px]">{language === "es" ? "Condominio" : "Condominium"}</TableHead>
-                      <TableHead className="min-w-[80px]">{language === "es" ? "Piso" : "Floor"}</TableHead>
+                      <TableHead className="min-w-[120px]">{language === "es" ? "Tipología" : "Typology"}</TableHead>
+                      <TableHead className="min-w-[120px]">{language === "es" ? "Piso" : "Floor"}</TableHead>
                       <TableHead className="min-w-[100px]">{language === "es" ? "Recámaras" : "Bedrooms"}</TableHead>
                       <TableHead className="min-w-[80px]">{language === "es" ? "Baños" : "Bathrooms"}</TableHead>
                       <TableHead className="min-w-[80px]">{language === "es" ? "m²" : "sqm"}</TableHead>
@@ -1170,7 +1205,8 @@ export default function ExternalCondominiums() {
                             </div>
                           </TableCell>
                           <TableCell>{condo?.name || '-'}</TableCell>
-                          <TableCell>{unit.floor ?? '-'}</TableCell>
+                          <TableCell>{formatTypology(unit.typology, language)}</TableCell>
+                          <TableCell>{formatFloor(unit.floor, language)}</TableCell>
                           <TableCell>{unit.bedrooms ?? '-'}</TableCell>
                           <TableCell>{unit.bathrooms ?? '-'}</TableCell>
                           <TableCell>{unit.squareMeters ?? '-'}</TableCell>
@@ -1426,7 +1462,7 @@ export default function ExternalCondominiums() {
                         <Card key={index}>
                           <CardContent className="pt-4">
                             <div className="flex items-start gap-4">
-                              <div className="flex-1 grid gap-3 md:grid-cols-4">
+                              <div className="flex-1 grid gap-3 md:grid-cols-5">
                                 <div className="space-y-1">
                                   <label className="text-xs font-medium">{language === "es" ? "Número *" : "Number *"}</label>
                                   <Input
@@ -1437,14 +1473,36 @@ export default function ExternalCondominiums() {
                                   />
                                 </div>
                                 <div className="space-y-1">
+                                  <label className="text-xs font-medium">{language === "es" ? "Tipología" : "Typology"}</label>
+                                  <select
+                                    value={unit.typology || ""}
+                                    onChange={(e) => handleUpdateTempUnit(index, 'typology', e.target.value || undefined)}
+                                    className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-base shadow-sm transition-colors file:border-0 file:bg-transparent file:text-sm file:font-medium file:text-foreground placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50 md:text-sm"
+                                    data-testid={`select-temp-unit-typology-${index}`}
+                                  >
+                                    <option value="">{language === "es" ? "Selecciona" : "Select"}</option>
+                                    {typologyOptions.map(opt => (
+                                      <option key={opt.value} value={opt.value}>
+                                        {language === "es" ? opt.labelEs : opt.labelEn}
+                                      </option>
+                                    ))}
+                                  </select>
+                                </div>
+                                <div className="space-y-1">
                                   <label className="text-xs font-medium">{language === "es" ? "Piso" : "Floor"}</label>
-                                  <Input
-                                    type="number"
-                                    placeholder="1"
+                                  <select
                                     value={unit.floor || ""}
-                                    onChange={(e) => handleUpdateTempUnit(index, 'floor', e.target.value ? parseInt(e.target.value) : undefined)}
-                                    data-testid={`input-temp-unit-floor-${index}`}
-                                  />
+                                    onChange={(e) => handleUpdateTempUnit(index, 'floor', e.target.value || undefined)}
+                                    className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-base shadow-sm transition-colors file:border-0 file:bg-transparent file:text-sm file:font-medium file:text-foreground placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50 md:text-sm"
+                                    data-testid={`select-temp-unit-floor-${index}`}
+                                  >
+                                    <option value="">{language === "es" ? "Selecciona" : "Select"}</option>
+                                    {floorOptions.map(opt => (
+                                      <option key={opt.value} value={opt.value}>
+                                        {language === "es" ? opt.labelEs : opt.labelEn}
+                                      </option>
+                                    ))}
+                                  </select>
                                 </div>
                                 <div className="space-y-1">
                                   <label className="text-xs font-medium">{language === "es" ? "Recámaras" : "Bedrooms"}</label>
@@ -1558,7 +1616,7 @@ export default function ExternalCondominiums() {
                         <Card key={index}>
                           <CardContent className="pt-4">
                             <div className="flex items-start gap-4">
-                              <div className="flex-1 grid gap-3 md:grid-cols-4">
+                              <div className="flex-1 grid gap-3 md:grid-cols-5">
                                 <div className="space-y-1">
                                   <label className="text-xs font-medium">{language === "es" ? "Número *" : "Number *"}</label>
                                   <Input
@@ -1569,14 +1627,36 @@ export default function ExternalCondominiums() {
                                   />
                                 </div>
                                 <div className="space-y-1">
+                                  <label className="text-xs font-medium">{language === "es" ? "Tipología" : "Typology"}</label>
+                                  <select
+                                    value={unit.typology || ""}
+                                    onChange={(e) => handleUpdateTempUnit(index, 'typology', e.target.value || undefined)}
+                                    className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-base shadow-sm transition-colors file:border-0 file:bg-transparent file:text-sm file:font-medium file:text-foreground placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50 md:text-sm"
+                                    data-testid={`select-temp-unit-typology-unified-${index}`}
+                                  >
+                                    <option value="">{language === "es" ? "Selecciona" : "Select"}</option>
+                                    {typologyOptions.map(opt => (
+                                      <option key={opt.value} value={opt.value}>
+                                        {language === "es" ? opt.labelEs : opt.labelEn}
+                                      </option>
+                                    ))}
+                                  </select>
+                                </div>
+                                <div className="space-y-1">
                                   <label className="text-xs font-medium">{language === "es" ? "Piso" : "Floor"}</label>
-                                  <Input
-                                    type="number"
-                                    placeholder="1"
+                                  <select
                                     value={unit.floor || ""}
-                                    onChange={(e) => handleUpdateTempUnit(index, 'floor', e.target.value ? parseInt(e.target.value) : undefined)}
-                                    data-testid={`input-temp-unit-floor-unified-${index}`}
-                                  />
+                                    onChange={(e) => handleUpdateTempUnit(index, 'floor', e.target.value || undefined)}
+                                    className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-base shadow-sm transition-colors file:border-0 file:bg-transparent file:text-sm file:font-medium file:text-foreground placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50 md:text-sm"
+                                    data-testid={`select-temp-unit-floor-unified-${index}`}
+                                  >
+                                    <option value="">{language === "es" ? "Selecciona" : "Select"}</option>
+                                    {floorOptions.map(opt => (
+                                      <option key={opt.value} value={opt.value}>
+                                        {language === "es" ? opt.labelEs : opt.labelEn}
+                                      </option>
+                                    ))}
+                                  </select>
                                 </div>
                                 <div className="space-y-1">
                                   <label className="text-xs font-medium">{language === "es" ? "Recámaras" : "Bedrooms"}</label>
@@ -2024,7 +2104,7 @@ export default function ExternalCondominiums() {
                 <Card key={index}>
                   <CardContent className="pt-4">
                     <div className="flex items-start gap-4">
-                      <div className="flex-1 grid gap-3 md:grid-cols-4">
+                      <div className="flex-1 grid gap-3 md:grid-cols-5">
                         <div className="space-y-1">
                           <label className="text-xs font-medium">{language === "es" ? "Número *" : "Number *"}</label>
                           <Input
@@ -2035,14 +2115,36 @@ export default function ExternalCondominiums() {
                           />
                         </div>
                         <div className="space-y-1">
+                          <label className="text-xs font-medium">{language === "es" ? "Tipología" : "Typology"}</label>
+                          <select
+                            value={unit.typology || ""}
+                            onChange={(e) => handleUpdateAddUnit(index, 'typology', e.target.value || undefined)}
+                            className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-base shadow-sm transition-colors file:border-0 file:bg-transparent file:text-sm file:font-medium file:text-foreground placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50 md:text-sm"
+                            data-testid={`select-add-unit-typology-${index}`}
+                          >
+                            <option value="">{language === "es" ? "Selecciona" : "Select"}</option>
+                            {typologyOptions.map(opt => (
+                              <option key={opt.value} value={opt.value}>
+                                {language === "es" ? opt.labelEs : opt.labelEn}
+                              </option>
+                            ))}
+                          </select>
+                        </div>
+                        <div className="space-y-1">
                           <label className="text-xs font-medium">{language === "es" ? "Piso" : "Floor"}</label>
-                          <Input
-                            type="number"
-                            placeholder="1"
+                          <select
                             value={unit.floor || ""}
-                            onChange={(e) => handleUpdateAddUnit(index, 'floor', e.target.value ? parseInt(e.target.value) : undefined)}
-                            data-testid={`input-add-unit-floor-${index}`}
-                          />
+                            onChange={(e) => handleUpdateAddUnit(index, 'floor', e.target.value || undefined)}
+                            className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-base shadow-sm transition-colors file:border-0 file:bg-transparent file:text-sm file:font-medium file:text-foreground placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50 md:text-sm"
+                            data-testid={`select-add-unit-floor-${index}`}
+                          >
+                            <option value="">{language === "es" ? "Selecciona" : "Select"}</option>
+                            {floorOptions.map(opt => (
+                              <option key={opt.value} value={opt.value}>
+                                {language === "es" ? opt.labelEs : opt.labelEn}
+                              </option>
+                            ))}
+                          </select>
                         </div>
                         <div className="space-y-1">
                           <label className="text-xs font-medium">{language === "es" ? "Recámaras" : "Bedrooms"}</label>
