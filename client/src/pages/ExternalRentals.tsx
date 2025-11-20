@@ -633,7 +633,7 @@ export default function ExternalRentals() {
                         <p className="text-xs text-muted-foreground">
                           {language === "es" ? "Servicios y próximas fechas de pago:" : "Services and next payment dates:"}
                         </p>
-                        <div className="space-y-1.5 max-h-[140px] overflow-y-auto">
+                        <div className="space-y-1.5 h-[140px] overflow-y-auto">
                           {activeServices.map((service, idx) => {
                             const parsedAmount = service.amount ? parseFloat(service.amount) : NaN;
                             const hasValidAmount = Number.isFinite(parsedAmount) && parsedAmount > 0;
