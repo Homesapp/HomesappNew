@@ -325,7 +325,7 @@ export default function ExternalCalendar() {
     return [...dayPayments, ...dayServicePayments, ...dayServices, ...dayTickets, ...dayContracts].sort((a, b) => 
       a.time.localeCompare(b.time)
     );
-  }, [selectedDate, filteredPayments, filteredServices, filteredTickets, filteredContracts, language, units, showPayments, showServices, showTickets, showContracts]);
+  }, [selectedDate, filteredPayments, filteredServices, filteredTickets, filteredContracts, language, units, condominiums, normalizedContracts, showPayments, showServices, showTickets, showContracts]);
 
   // Events for today (for TodayView)
   const eventsForToday = useMemo((): EventData[] => {
