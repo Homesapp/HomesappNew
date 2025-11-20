@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -6,11 +6,12 @@ import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage, FormDescription } from "@/components/ui/form";
+import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Separator } from "@/components/ui/separator";
 import { 
   DollarSign, 
   TrendingUp, 
@@ -22,9 +23,22 @@ import {
   ArrowDownRight,
   Plus,
   Pencil,
-  Trash2,
+  X,
   Filter,
-  X
+  LayoutGrid,
+  Table as TableIcon,
+  Eye,
+  XCircle,
+  Download,
+  Calendar,
+  Home,
+  Receipt,
+  Zap,
+  Droplet,
+  Wifi,
+  Flame,
+  Tool,
+  Building2
 } from "lucide-react";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { useForm } from "react-hook-form";
@@ -34,8 +48,9 @@ import { queryClient, apiRequest } from "@/lib/queryClient";
 import type { ExternalFinancialTransaction, ExternalCondominium, ExternalUnit } from "@shared/schema";
 import { insertExternalFinancialTransactionSchema } from "@shared/schema";
 import { z } from "zod";
-import { format } from "date-fns";
+import { format, startOfMonth, endOfMonth, subMonths, startOfYear, endOfYear } from "date-fns";
 import { es } from "date-fns/locale";
+import * as XLSX from 'xlsx';
 
 type AccountingSummary = {
   totalInflow: number;
@@ -63,8 +78,15 @@ export default function ExternalAccounting() {
   // Dialogs
   const [showCreateDialog, setShowCreateDialog] = useState(false);
   const [showEditDialog, setShowEditDialog] = useState(false);
-  const [showDeleteDialog, setShowDeleteDialog] = useState(false);
+  const [showCancelDialog, setShowCancelDialog] = useState(false);
+  const [showDetailsDialog, setShowDetailsDialog] = useState(false);
   const [selectedTransaction, setSelectedTransaction] = useState<ExternalFinancialTransaction | null>(null);
+  
+  // View Mode & Date Filters
+  const [viewMode, setViewMode] = useState<"cards" | "table">("table");
+  const [dateFilter, setDateFilter] = useState<string>("all");
+  const [customStartDate, setCustomStartDate] = useState<string>("");
+  const [customEndDate, setCustomEndDate] = useState<string>("");
 
   const { data: summary, isLoading: summaryLoading } = useQuery<AccountingSummary>({
     queryKey: ['/api/external/accounting/summary'],
@@ -98,6 +120,50 @@ export default function ExternalAccounting() {
   const { data: units } = useQuery<ExternalUnit[]>({
     queryKey: ['/api/external-units'],
   });
+
+  // Filter transactions by date range
+  const filteredTransactions = useMemo(() => {
+    if (!transactions) return [];
+    
+    if (dateFilter === "all") return transactions;
+    
+    const now = new Date();
+    let start: Date | null = null;
+    let end: Date | null = null;
+
+    switch (dateFilter) {
+      case "this_month":
+        start = startOfMonth(now);
+        end = endOfMonth(now);
+        break;
+      case "last_3_months":
+        start = startOfMonth(subMonths(now, 2));
+        end = endOfMonth(now);
+        break;
+      case "last_6_months":
+        start = startOfMonth(subMonths(now, 5));
+        end = endOfMonth(now);
+        break;
+      case "this_year":
+        start = startOfYear(now);
+        end = endOfYear(now);
+        break;
+      case "custom":
+        if (customStartDate) start = new Date(customStartDate);
+        if (customEndDate) end = new Date(customEndDate);
+        break;
+    }
+
+    return transactions.filter(t => {
+      const transactionDate = t.dueDate ? new Date(t.dueDate) : null;
+      if (!transactionDate) return false;
+      
+      if (start && transactionDate < start) return false;
+      if (end && transactionDate > end) return false;
+      
+      return true;
+    });
+  }, [transactions, dateFilter, customStartDate, customEndDate]);
 
   const createForm = useForm<TransactionFormData>({
     resolver: zodResolver(insertExternalFinancialTransactionSchema),
@@ -171,20 +237,21 @@ export default function ExternalAccounting() {
     },
   });
 
-  const deleteMutation = useMutation({
+  const cancelMutation = useMutation({
     mutationFn: async (id: string) => {
       return await apiRequest(`/api/external/accounting/transactions/${id}`, {
-        method: 'DELETE',
+        method: 'PATCH',
+        body: JSON.stringify({ status: 'cancelled' }),
       });
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['/api/external/accounting/transactions'] });
       queryClient.invalidateQueries({ queryKey: ['/api/external/accounting/summary'] });
-      setShowDeleteDialog(false);
+      setShowCancelDialog(false);
       setSelectedTransaction(null);
       toast({
-        title: t.transactionDeleted,
-        description: t.transactionDeletedDesc,
+        title: t.transactionCancelled,
+        description: t.transactionCancelledDesc,
       });
     },
     onError: (error: Error) => {
@@ -209,6 +276,11 @@ export default function ExternalAccounting() {
   const formatDate = (date: Date | string | null) => {
     if (!date) return 'N/A';
     return format(new Date(date), 'dd MMM yyyy', { locale: language === 'es' ? es : undefined });
+  };
+
+  const formatDateTime = (date: Date | string | null) => {
+    if (!date) return 'N/A';
+    return format(new Date(date), 'dd MMM yyyy HH:mm', { locale: language === 'es' ? es : undefined });
   };
 
   const t = language === 'es' ? {
@@ -242,7 +314,8 @@ export default function ExternalAccounting() {
     clearFilters: 'Limpiar Filtros',
     createTransaction: 'Nueva Transacción',
     editTransaction: 'Editar Transacción',
-    deleteTransaction: 'Eliminar Transacción',
+    cancelTransaction: 'Cancelar Transacción',
+    viewDetails: 'Ver Detalles',
     actions: 'Acciones',
     description: 'Descripción',
     amount: 'Monto',
@@ -258,15 +331,14 @@ export default function ExternalAccounting() {
     paymentReference: 'Referencia de Pago',
     save: 'Guardar',
     cancel: 'Cancelar',
-    delete: 'Eliminar',
-    confirmDelete: '¿Estás seguro de que deseas eliminar esta transacción?',
-    confirmDeleteDesc: 'Esta acción no se puede deshacer.',
+    confirmCancel: '¿Estás seguro de que deseas cancelar esta transacción?',
+    confirmCancelDesc: 'La transacción se marcará como cancelada pero se mantendrá en los registros.',
     transactionCreated: 'Transacción creada',
     transactionCreatedDesc: 'La transacción se creó exitosamente',
     transactionUpdated: 'Transacción actualizada',
     transactionUpdatedDesc: 'La transacción se actualizó exitosamente',
-    transactionDeleted: 'Transacción eliminada',
-    transactionDeletedDesc: 'La transacción se eliminó exitosamente',
+    transactionCancelled: 'Transacción cancelada',
+    transactionCancelledDesc: 'La transacción se canceló exitosamente',
     error: 'Error',
     tenant: 'Inquilino',
     owner: 'Propietario',
@@ -282,6 +354,25 @@ export default function ExternalAccounting() {
     service_other: 'Otro Servicio',
     adjustment: 'Ajuste',
     tenantName: 'Nombre del Inquilino',
+    viewCards: 'Vista de Tarjetas',
+    viewTable: 'Vista de Tabla',
+    dateRange: 'Rango de Fechas',
+    thisMonth: 'Este Mes',
+    last3Months: 'Últimos 3 Meses',
+    last6Months: 'Últimos 6 Meses',
+    thisYear: 'Este Año',
+    customRange: 'Rango Personalizado',
+    startDate: 'Fecha Inicio',
+    endDate: 'Fecha Fin',
+    exportExcel: 'Exportar Excel',
+    transactionDetails: 'Detalles de la Transacción',
+    auditTrail: 'Registro de Auditoría',
+    createdBy: 'Creado por',
+    createdAt: 'Fecha de creación',
+    updatedAt: 'Última actualización',
+    basicInfo: 'Información Básica',
+    financialInfo: 'Información Financiera',
+    additionalInfo: 'Información Adicional',
   } : {
     title: 'Financial Accounting',
     subtitle: 'Financial summary of operations',
@@ -313,7 +404,8 @@ export default function ExternalAccounting() {
     clearFilters: 'Clear Filters',
     createTransaction: 'New Transaction',
     editTransaction: 'Edit Transaction',
-    deleteTransaction: 'Delete Transaction',
+    cancelTransaction: 'Cancel Transaction',
+    viewDetails: 'View Details',
     actions: 'Actions',
     description: 'Description',
     amount: 'Amount',
@@ -329,15 +421,14 @@ export default function ExternalAccounting() {
     paymentReference: 'Payment Reference',
     save: 'Save',
     cancel: 'Cancel',
-    delete: 'Delete',
-    confirmDelete: 'Are you sure you want to delete this transaction?',
-    confirmDeleteDesc: 'This action cannot be undone.',
+    confirmCancel: 'Are you sure you want to cancel this transaction?',
+    confirmCancelDesc: 'The transaction will be marked as cancelled but will remain in the records.',
     transactionCreated: 'Transaction created',
     transactionCreatedDesc: 'The transaction was created successfully',
     transactionUpdated: 'Transaction updated',
     transactionUpdatedDesc: 'The transaction was updated successfully',
-    transactionDeleted: 'Transaction deleted',
-    transactionDeletedDesc: 'The transaction was deleted successfully',
+    transactionCancelled: 'Transaction cancelled',
+    transactionCancelledDesc: 'The transaction was cancelled successfully',
     error: 'Error',
     tenant: 'Tenant',
     owner: 'Owner',
@@ -353,6 +444,25 @@ export default function ExternalAccounting() {
     service_other: 'Other Service',
     adjustment: 'Adjustment',
     tenantName: 'Tenant Name',
+    viewCards: 'Card View',
+    viewTable: 'Table View',
+    dateRange: 'Date Range',
+    thisMonth: 'This Month',
+    last3Months: 'Last 3 Months',
+    last6Months: 'Last 6 Months',
+    thisYear: 'This Year',
+    customRange: 'Custom Range',
+    startDate: 'Start Date',
+    endDate: 'End Date',
+    exportExcel: 'Export Excel',
+    transactionDetails: 'Transaction Details',
+    auditTrail: 'Audit Trail',
+    createdBy: 'Created by',
+    createdAt: 'Created at',
+    updatedAt: 'Last updated',
+    basicInfo: 'Basic Information',
+    financialInfo: 'Financial Information',
+    additionalInfo: 'Additional Information',
   };
 
   const getCategoryLabel = (category: string) => {
@@ -361,6 +471,23 @@ export default function ExternalAccounting() {
 
   const getRoleLabel = (role: string) => {
     return t[role as keyof typeof t] || role;
+  };
+
+  const getCategoryIcon = (category: string) => {
+    const iconMap: Record<string, any> = {
+      rent_income: Home,
+      rent_payout: Home,
+      hoa_fee: Building2,
+      maintenance_charge: Tool,
+      service_electricity: Zap,
+      service_water: Droplet,
+      service_internet: Wifi,
+      service_gas: Flame,
+      service_other: Receipt,
+      adjustment: Receipt,
+    };
+    const IconComponent = iconMap[category] || Receipt;
+    return <IconComponent className="h-4 w-4" />;
   };
 
   const getStatusBadge = (status: string) => {
@@ -397,28 +524,23 @@ export default function ExternalAccounting() {
   const handleEdit = (transaction: ExternalFinancialTransaction) => {
     setSelectedTransaction(transaction);
     editForm.reset({
-      direction: transaction.direction,
-      category: transaction.category,
       status: transaction.status,
-      grossAmount: transaction.grossAmount,
-      fees: transaction.fees || "0",
-      netAmount: transaction.netAmount,
-      description: transaction.description,
       notes: transaction.notes || "",
-      payerRole: transaction.payerRole,
-      payeeRole: transaction.payeeRole,
-      tenantName: transaction.tenantName || "",
-      unitId: transaction.unitId || undefined,
-      ownerId: transaction.ownerId || undefined,
+      performedDate: transaction.performedDate ? format(new Date(transaction.performedDate), 'yyyy-MM-dd') : "",
       paymentMethod: transaction.paymentMethod || "",
       paymentReference: transaction.paymentReference || "",
     });
     setShowEditDialog(true);
   };
 
-  const handleDelete = (transaction: ExternalFinancialTransaction) => {
+  const handleCancel = (transaction: ExternalFinancialTransaction) => {
     setSelectedTransaction(transaction);
-    setShowDeleteDialog(true);
+    setShowCancelDialog(true);
+  };
+
+  const handleViewDetails = (transaction: ExternalFinancialTransaction) => {
+    setSelectedTransaction(transaction);
+    setShowDetailsDialog(true);
   };
 
   const handleClearFilters = () => {
@@ -427,11 +549,72 @@ export default function ExternalAccounting() {
     setStatusFilter("all");
     setCondominiumFilter("all");
     setUnitFilter("all");
+    setDateFilter("all");
+    setCustomStartDate("");
+    setCustomEndDate("");
+  };
+
+  const handleExportExcel = () => {
+    if (!filteredTransactions || filteredTransactions.length === 0) {
+      toast({
+        title: t.error,
+        description: t.noData,
+        variant: "destructive",
+      });
+      return;
+    }
+
+    const exportData = filteredTransactions.map(t => ({
+      [t.dueDate]: formatDate(t.dueDate),
+      [t.direction]: t.direction === 'inflow' ? t.inflow : t.outflow,
+      [t.category]: getCategoryLabel(t.category),
+      [t.description]: t.description,
+      [t.payerRole]: getRoleLabel(t.payerRole),
+      [t.payeeRole]: getRoleLabel(t.payeeRole),
+      [t.grossAmount]: parseFloat(t.grossAmount),
+      [t.fees]: parseFloat(t.fees || '0'),
+      [t.netAmount]: parseFloat(t.netAmount),
+      [t.status]: t[t.status as keyof typeof t] || t.status,
+      [t.paymentMethod]: t.paymentMethod || 'N/A',
+      [t.paymentReference]: t.paymentReference || 'N/A',
+      [t.performedDate]: formatDate(t.performedDate),
+    }));
+
+    const ws = XLSX.utils.json_to_sheet(exportData);
+    
+    // Set column widths
+    const wscols = [
+      { wch: 12 }, // Date
+      { wch: 10 }, // Direction
+      { wch: 20 }, // Category
+      { wch: 30 }, // Description
+      { wch: 12 }, // Payer
+      { wch: 12 }, // Payee
+      { wch: 12 }, // Gross
+      { wch: 10 }, // Fees
+      { wch: 12 }, // Net
+      { wch: 12 }, // Status
+      { wch: 15 }, // Method
+      { wch: 15 }, // Reference
+      { wch: 12 }, // Performed
+    ];
+    ws['!cols'] = wscols;
+
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, language === 'es' ? 'Transacciones' : 'Transactions');
+    
+    const fileName = `transacciones_${format(new Date(), 'yyyy-MM-dd')}.xlsx`;
+    XLSX.writeFile(wb, fileName);
+
+    toast({
+      title: language === 'es' ? 'Exportación exitosa' : 'Export successful',
+      description: language === 'es' ? `Se exportaron ${filteredTransactions.length} transacciones` : `Exported ${filteredTransactions.length} transactions`,
+    });
   };
 
   const isPositiveBalance = summary ? summary.netBalance >= 0 : true;
 
-  const activeFilters = [directionFilter, categoryFilter, statusFilter, condominiumFilter, unitFilter].filter(f => f !== "all").length;
+  const activeFilters = [directionFilter, categoryFilter, statusFilter, condominiumFilter, unitFilter].filter(f => f !== "all").length + (dateFilter !== "all" ? 1 : 0);
 
   return (
     <div className="container mx-auto p-6 space-y-6">
@@ -595,7 +778,7 @@ export default function ExternalAccounting() {
 
         <TabsContent value="transactions" className="space-y-6">
           <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 gap-4">
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 gap-4 flex-wrap">
               <div className="flex-1">
                 <CardTitle className="flex items-center gap-2">
                   <Filter className="h-5 w-5" />
@@ -605,7 +788,25 @@ export default function ExternalAccounting() {
                   )}
                 </CardTitle>
               </div>
-              <div className="flex gap-2">
+              <div className="flex gap-2 flex-wrap">
+                <div className="flex gap-1 border rounded-md p-1">
+                  <Button
+                    variant={viewMode === "cards" ? "default" : "ghost"}
+                    size="sm"
+                    onClick={() => setViewMode("cards")}
+                    data-testid="button-view-cards"
+                  >
+                    <LayoutGrid className="h-4 w-4" />
+                  </Button>
+                  <Button
+                    variant={viewMode === "table" ? "default" : "ghost"}
+                    size="sm"
+                    onClick={() => setViewMode("table")}
+                    data-testid="button-view-table"
+                  >
+                    <TableIcon className="h-4 w-4" />
+                  </Button>
+                </div>
                 {activeFilters > 0 && (
                   <Button
                     variant="outline"
@@ -618,7 +819,18 @@ export default function ExternalAccounting() {
                   </Button>
                 )}
                 <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={handleExportExcel}
+                  disabled={!filteredTransactions || filteredTransactions.length === 0}
+                  data-testid="button-export-excel"
+                >
+                  <Download className="h-4 w-4 mr-1" />
+                  {t.exportExcel}
+                </Button>
+                <Button
                   onClick={() => setShowCreateDialog(true)}
+                  size="sm"
                   data-testid="button-create-transaction"
                 >
                   <Plus className="h-4 w-4 mr-2" />
@@ -627,7 +839,7 @@ export default function ExternalAccounting() {
               </div>
             </CardHeader>
             <CardContent>
-              <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
+              <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-6 gap-4">
                 <Select value={directionFilter} onValueChange={setDirectionFilter}>
                   <SelectTrigger data-testid="select-direction-filter">
                     <SelectValue placeholder={t.direction} />
@@ -698,27 +910,132 @@ export default function ExternalAccounting() {
                     ))}
                   </SelectContent>
                 </Select>
+
+                <Select value={dateFilter} onValueChange={setDateFilter}>
+                  <SelectTrigger data-testid="select-date-filter">
+                    <SelectValue placeholder={t.dateRange} />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">{t.all}</SelectItem>
+                    <SelectItem value="this_month">{t.thisMonth}</SelectItem>
+                    <SelectItem value="last_3_months">{t.last3Months}</SelectItem>
+                    <SelectItem value="last_6_months">{t.last6Months}</SelectItem>
+                    <SelectItem value="this_year">{t.thisYear}</SelectItem>
+                    <SelectItem value="custom">{t.customRange}</SelectItem>
+                  </SelectContent>
+                </Select>
               </div>
+
+              {dateFilter === "custom" && (
+                <div className="grid grid-cols-2 gap-4 mt-4">
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium">{t.startDate}</label>
+                    <Input
+                      type="date"
+                      value={customStartDate}
+                      onChange={(e) => setCustomStartDate(e.target.value)}
+                      data-testid="input-custom-start-date"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium">{t.endDate}</label>
+                    <Input
+                      type="date"
+                      value={customEndDate}
+                      onChange={(e) => setCustomEndDate(e.target.value)}
+                      data-testid="input-custom-end-date"
+                    />
+                  </div>
+                </div>
+              )}
             </CardContent>
           </Card>
 
-          <Card>
-            <CardHeader>
-              <CardTitle>{t.transactionsTab}</CardTitle>
-            </CardHeader>
-            <CardContent>
-              {transactionsLoading ? (
-                <div className="space-y-2">
-                  {[...Array(5)].map((_, i) => (
-                    <Skeleton key={i} className="h-16 w-full" />
-                  ))}
-                </div>
-              ) : !transactions || transactions.length === 0 ? (
-                <div className="text-center py-12">
-                  <AlertCircle className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />
-                  <p className="text-muted-foreground">{t.noData}</p>
-                </div>
-              ) : (
+          {transactionsLoading ? (
+            <div className="space-y-4">
+              {[...Array(5)].map((_, i) => (
+                <Card key={i}>
+                  <CardContent className="p-6">
+                    <Skeleton className="h-20 w-full" />
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+          ) : !filteredTransactions || filteredTransactions.length === 0 ? (
+            <Card>
+              <CardContent className="text-center py-12">
+                <AlertCircle className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />
+                <p className="text-muted-foreground">{t.noData}</p>
+              </CardContent>
+            </Card>
+          ) : viewMode === "cards" ? (
+            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+              {filteredTransactions.map((transaction) => (
+                <Card key={transaction.id} className="hover-elevate" data-testid={`card-transaction-${transaction.id}`}>
+                  <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                    <div className="flex items-center gap-2">
+                      {getCategoryIcon(transaction.category)}
+                      <span className="font-semibold text-sm">{getCategoryLabel(transaction.category)}</span>
+                    </div>
+                    {getDirectionBadge(transaction.direction)}
+                  </CardHeader>
+                  <CardContent className="space-y-4">
+                    <div>
+                      <div className="text-2xl font-bold">
+                        {formatCurrency(transaction.netAmount)}
+                      </div>
+                      <p className="text-sm text-muted-foreground mt-1 truncate">
+                        {transaction.description}
+                      </p>
+                    </div>
+
+                    <div className="flex items-center justify-between text-sm">
+                      <div className="flex items-center gap-1 text-muted-foreground">
+                        <Calendar className="h-3 w-3" />
+                        {formatDate(transaction.dueDate)}
+                      </div>
+                      {getStatusBadge(transaction.status)}
+                    </div>
+
+                    <Separator />
+
+                    <div className="flex gap-2">
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="flex-1"
+                        onClick={() => handleViewDetails(transaction)}
+                        data-testid={`button-view-details-${transaction.id}`}
+                      >
+                        <Eye className="h-4 w-4 mr-1" />
+                        {t.viewDetails}
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => handleEdit(transaction)}
+                        data-testid={`button-edit-${transaction.id}`}
+                      >
+                        <Pencil className="h-4 w-4" />
+                      </Button>
+                      {transaction.status !== 'cancelled' && (
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => handleCancel(transaction)}
+                          data-testid={`button-cancel-${transaction.id}`}
+                        >
+                          <XCircle className="h-4 w-4" />
+                        </Button>
+                      )}
+                    </div>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+          ) : (
+            <Card>
+              <CardContent className="p-0">
                 <div className="rounded-md border">
                   <Table>
                     <TableHeader>
@@ -727,26 +1044,47 @@ export default function ExternalAccounting() {
                         <TableHead>{t.direction}</TableHead>
                         <TableHead>{t.category}</TableHead>
                         <TableHead>{t.description}</TableHead>
+                        <TableHead>{t.payerRole}</TableHead>
+                        <TableHead>{t.payeeRole}</TableHead>
                         <TableHead>{t.amount}</TableHead>
                         <TableHead>{t.status}</TableHead>
+                        <TableHead>{t.paymentMethod}</TableHead>
+                        <TableHead>{t.paymentReference}</TableHead>
+                        <TableHead>{t.performedDate}</TableHead>
                         <TableHead className="text-right">{t.actions}</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
-                      {transactions.map((transaction) => (
+                      {filteredTransactions.map((transaction) => (
                         <TableRow key={transaction.id} data-testid={`row-transaction-${transaction.id}`}>
                           <TableCell>{formatDate(transaction.dueDate)}</TableCell>
                           <TableCell>{getDirectionBadge(transaction.direction)}</TableCell>
                           <TableCell>
-                            <Badge variant="outline">{getCategoryLabel(transaction.category)}</Badge>
+                            <div className="flex items-center gap-2">
+                              {getCategoryIcon(transaction.category)}
+                              <Badge variant="outline">{getCategoryLabel(transaction.category)}</Badge>
+                            </div>
                           </TableCell>
                           <TableCell className="max-w-xs truncate">{transaction.description}</TableCell>
+                          <TableCell><Badge variant="outline">{getRoleLabel(transaction.payerRole)}</Badge></TableCell>
+                          <TableCell><Badge variant="outline">{getRoleLabel(transaction.payeeRole)}</Badge></TableCell>
                           <TableCell className="font-semibold">
                             {formatCurrency(transaction.netAmount)}
                           </TableCell>
                           <TableCell>{getStatusBadge(transaction.status)}</TableCell>
+                          <TableCell>{transaction.paymentMethod || 'N/A'}</TableCell>
+                          <TableCell>{transaction.paymentReference || 'N/A'}</TableCell>
+                          <TableCell>{formatDate(transaction.performedDate)}</TableCell>
                           <TableCell className="text-right">
                             <div className="flex justify-end gap-2">
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                onClick={() => handleViewDetails(transaction)}
+                                data-testid={`button-view-details-${transaction.id}`}
+                              >
+                                <Eye className="h-4 w-4" />
+                              </Button>
                               <Button
                                 variant="ghost"
                                 size="icon"
@@ -755,14 +1093,16 @@ export default function ExternalAccounting() {
                               >
                                 <Pencil className="h-4 w-4" />
                               </Button>
-                              <Button
-                                variant="ghost"
-                                size="icon"
-                                onClick={() => handleDelete(transaction)}
-                                data-testid={`button-delete-${transaction.id}`}
-                              >
-                                <Trash2 className="h-4 w-4" />
-                              </Button>
+                              {transaction.status !== 'cancelled' && (
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  onClick={() => handleCancel(transaction)}
+                                  data-testid={`button-cancel-${transaction.id}`}
+                                >
+                                  <XCircle className="h-4 w-4" />
+                                </Button>
+                              )}
                             </div>
                           </TableCell>
                         </TableRow>
@@ -770,9 +1110,9 @@ export default function ExternalAccounting() {
                     </TableBody>
                   </Table>
                 </div>
-              )}
-            </CardContent>
-          </Card>
+              </CardContent>
+            </Card>
+          )}
         </TabsContent>
       </Tabs>
 
@@ -1018,29 +1358,62 @@ export default function ExternalAccounting() {
         <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>{t.editTransaction}</DialogTitle>
+            <DialogDescription>
+              {language === 'es' 
+                ? 'Actualiza el estado, fechas y notas de la transacción' 
+                : 'Update transaction status, dates and notes'}
+            </DialogDescription>
           </DialogHeader>
           <Form {...editForm}>
             <form onSubmit={editForm.handleSubmit((data) => updateMutation.mutate({ id: selectedTransaction!.id, data }))} className="space-y-4">
+              <FormField
+                control={editForm.control}
+                name="status"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>{t.status}</FormLabel>
+                    <Select onValueChange={field.onChange} value={field.value}>
+                      <FormControl>
+                        <SelectTrigger data-testid="input-edit-status">
+                          <SelectValue />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        <SelectItem value="pending">{t.pending}</SelectItem>
+                        <SelectItem value="posted">{t.posted}</SelectItem>
+                        <SelectItem value="reconciled">{t.reconciled}</SelectItem>
+                        <SelectItem value="cancelled">{t.cancelled}</SelectItem>
+                      </SelectContent>
+                    </Select>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={editForm.control}
+                name="performedDate"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>{t.performedDate}</FormLabel>
+                    <FormControl>
+                      <Input type="date" {...field} value={field.value || ""} data-testid="input-edit-performed-date" />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
               <div className="grid grid-cols-2 gap-4">
                 <FormField
                   control={editForm.control}
-                  name="status"
+                  name="paymentMethod"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>{t.status}</FormLabel>
-                      <Select onValueChange={field.onChange} value={field.value}>
-                        <FormControl>
-                          <SelectTrigger data-testid="input-edit-status">
-                            <SelectValue />
-                          </SelectTrigger>
-                        </FormControl>
-                        <SelectContent>
-                          <SelectItem value="pending">{t.pending}</SelectItem>
-                          <SelectItem value="posted">{t.posted}</SelectItem>
-                          <SelectItem value="reconciled">{t.reconciled}</SelectItem>
-                          <SelectItem value="cancelled">{t.cancelled}</SelectItem>
-                        </SelectContent>
-                      </Select>
+                      <FormLabel>{t.paymentMethod}</FormLabel>
+                      <FormControl>
+                        <Input {...field} value={field.value || ""} data-testid="input-edit-payment-method" />
+                      </FormControl>
                       <FormMessage />
                     </FormItem>
                   )}
@@ -1048,32 +1421,18 @@ export default function ExternalAccounting() {
 
                 <FormField
                   control={editForm.control}
-                  name="netAmount"
+                  name="paymentReference"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>{t.netAmount}</FormLabel>
+                      <FormLabel>{t.paymentReference}</FormLabel>
                       <FormControl>
-                        <Input type="number" step="0.01" {...field} value={field.value || ""} data-testid="input-edit-net-amount" />
+                        <Input {...field} value={field.value || ""} data-testid="input-edit-payment-reference" />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
                   )}
                 />
               </div>
-
-              <FormField
-                control={editForm.control}
-                name="description"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>{t.description}</FormLabel>
-                    <FormControl>
-                      <Textarea {...field} value={field.value || ""} data-testid="input-edit-description" />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
 
               <FormField
                 control={editForm.control}
@@ -1102,25 +1461,153 @@ export default function ExternalAccounting() {
         </DialogContent>
       </Dialog>
 
-      {/* Delete Transaction Dialog */}
-      <Dialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
+      {/* Cancel Transaction Dialog */}
+      <Dialog open={showCancelDialog} onOpenChange={setShowCancelDialog}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>{t.deleteTransaction}</DialogTitle>
-            <DialogDescription>{t.confirmDelete}</DialogDescription>
+            <DialogTitle>{t.cancelTransaction}</DialogTitle>
+            <DialogDescription>{t.confirmCancel}</DialogDescription>
           </DialogHeader>
-          <p className="text-sm text-muted-foreground">{t.confirmDeleteDesc}</p>
+          <p className="text-sm text-muted-foreground">{t.confirmCancelDesc}</p>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setShowDeleteDialog(false)}>
+            <Button variant="outline" onClick={() => setShowCancelDialog(false)}>
               {t.cancel}
             </Button>
             <Button
               variant="destructive"
-              onClick={() => deleteMutation.mutate(selectedTransaction!.id)}
-              disabled={deleteMutation.isPending}
-              data-testid="button-confirm-delete"
+              onClick={() => cancelMutation.mutate(selectedTransaction!.id)}
+              disabled={cancelMutation.isPending}
+              data-testid="button-confirm-cancel"
             >
-              {t.delete}
+              {language === 'es' ? 'Cancelar Transacción' : 'Cancel Transaction'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* View Details Dialog */}
+      <Dialog open={showDetailsDialog} onOpenChange={setShowDetailsDialog}>
+        <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>{t.transactionDetails}</DialogTitle>
+          </DialogHeader>
+          {selectedTransaction && (
+            <div className="space-y-6">
+              <div>
+                <h3 className="font-semibold mb-3">{t.basicInfo}</h3>
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <p className="text-sm text-muted-foreground">{t.direction}</p>
+                    <div className="mt-1">{getDirectionBadge(selectedTransaction.direction)}</div>
+                  </div>
+                  <div>
+                    <p className="text-sm text-muted-foreground">{t.status}</p>
+                    <div className="mt-1">{getStatusBadge(selectedTransaction.status)}</div>
+                  </div>
+                  <div>
+                    <p className="text-sm text-muted-foreground">{t.category}</p>
+                    <div className="mt-1 flex items-center gap-2">
+                      {getCategoryIcon(selectedTransaction.category)}
+                      <span className="font-medium">{getCategoryLabel(selectedTransaction.category)}</span>
+                    </div>
+                  </div>
+                  <div>
+                    <p className="text-sm text-muted-foreground">{t.dueDate}</p>
+                    <p className="font-medium">{formatDate(selectedTransaction.dueDate)}</p>
+                  </div>
+                  {selectedTransaction.performedDate && (
+                    <div>
+                      <p className="text-sm text-muted-foreground">{t.performedDate}</p>
+                      <p className="font-medium">{formatDate(selectedTransaction.performedDate)}</p>
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              <Separator />
+
+              <div>
+                <h3 className="font-semibold mb-3">{t.financialInfo}</h3>
+                <div className="grid grid-cols-3 gap-4">
+                  <div>
+                    <p className="text-sm text-muted-foreground">{t.grossAmount}</p>
+                    <p className="font-medium text-lg">{formatCurrency(selectedTransaction.grossAmount)}</p>
+                  </div>
+                  <div>
+                    <p className="text-sm text-muted-foreground">{t.fees}</p>
+                    <p className="font-medium text-lg">{formatCurrency(selectedTransaction.fees || '0')}</p>
+                  </div>
+                  <div>
+                    <p className="text-sm text-muted-foreground">{t.netAmount}</p>
+                    <p className="font-medium text-lg">{formatCurrency(selectedTransaction.netAmount)}</p>
+                  </div>
+                </div>
+                <div className="grid grid-cols-2 gap-4 mt-4">
+                  <div>
+                    <p className="text-sm text-muted-foreground">{t.payerRole}</p>
+                    <Badge variant="outline">{getRoleLabel(selectedTransaction.payerRole)}</Badge>
+                  </div>
+                  <div>
+                    <p className="text-sm text-muted-foreground">{t.payeeRole}</p>
+                    <Badge variant="outline">{getRoleLabel(selectedTransaction.payeeRole)}</Badge>
+                  </div>
+                </div>
+              </div>
+
+              <Separator />
+
+              <div>
+                <h3 className="font-semibold mb-3">{t.additionalInfo}</h3>
+                <div className="space-y-3">
+                  <div>
+                    <p className="text-sm text-muted-foreground">{t.description}</p>
+                    <p className="font-medium">{selectedTransaction.description}</p>
+                  </div>
+                  {selectedTransaction.notes && (
+                    <div>
+                      <p className="text-sm text-muted-foreground">{t.notes}</p>
+                      <p className="font-medium">{selectedTransaction.notes}</p>
+                    </div>
+                  )}
+                  {selectedTransaction.paymentMethod && (
+                    <div>
+                      <p className="text-sm text-muted-foreground">{t.paymentMethod}</p>
+                      <p className="font-medium">{selectedTransaction.paymentMethod}</p>
+                    </div>
+                  )}
+                  {selectedTransaction.paymentReference && (
+                    <div>
+                      <p className="text-sm text-muted-foreground">{t.paymentReference}</p>
+                      <p className="font-medium">{selectedTransaction.paymentReference}</p>
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              <Separator />
+
+              <div>
+                <h3 className="font-semibold mb-3">{t.auditTrail}</h3>
+                <div className="grid grid-cols-2 gap-4">
+                  {selectedTransaction.createdAt && (
+                    <div>
+                      <p className="text-sm text-muted-foreground">{t.createdAt}</p>
+                      <p className="font-medium">{formatDateTime(selectedTransaction.createdAt)}</p>
+                    </div>
+                  )}
+                  {selectedTransaction.updatedAt && (
+                    <div>
+                      <p className="text-sm text-muted-foreground">{t.updatedAt}</p>
+                      <p className="font-medium">{formatDateTime(selectedTransaction.updatedAt)}</p>
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+          )}
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowDetailsDialog(false)}>
+              {language === 'es' ? 'Cerrar' : 'Close'}
             </Button>
           </DialogFooter>
         </DialogContent>
