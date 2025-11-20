@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
-import { Link } from "wouter";
+import { Link, useLocation } from "wouter";
 import { queryClient, apiRequest } from "@/lib/queryClient";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -84,6 +84,7 @@ interface RentalWithDetails {
 export default function ExternalRentals() {
   const { language } = useLanguage();
   const { toast } = useToast();
+  const [, setLocation] = useLocation();
   const [statusFilter, setStatusFilter] = useState<string | null>(null);
   const [viewMode, setViewMode] = useState<"cards" | "table">("cards");
   const [condominiumFilter, setCondominiumFilter] = useState<string>("");
@@ -92,6 +93,7 @@ export default function ExternalRentals() {
   const [contractToCancel, setContractToCancel] = useState<string | null>(null);
   const [condoComboOpen, setCondoComboOpen] = useState(false);
   const [unitComboOpen, setUnitComboOpen] = useState(false);
+  const [selectUnitDialogOpen, setSelectUnitDialogOpen] = useState(false);
 
   const { data: rentals, isLoading, isError, error, refetch } = useQuery<RentalWithDetails[]>({
     queryKey: statusFilter 
@@ -115,6 +117,17 @@ export default function ExternalRentals() {
       if (!response.ok) throw new Error("Failed to fetch units");
       return response.json();
     },
+  });
+
+  // Get available units (without active contracts) for rental creation
+  const { data: availableUnits } = useQuery<ExternalUnit[]>({
+    queryKey: ["/api/external-units", "available"],
+    queryFn: async () => {
+      const response = await fetch("/api/external-units?status=available", { credentials: "include" });
+      if (!response.ok) throw new Error("Failed to fetch available units");
+      return response.json();
+    },
+    enabled: selectUnitDialogOpen, // Only fetch when dialog is open
   });
 
   // Reset unit filter when units change and selected unit is no longer available
@@ -239,12 +252,10 @@ export default function ExternalRentals() {
               : "Manage all rental contracts and payments"}
           </p>
         </div>
-        <Link href="/external/dashboard" data-testid="link-create-rental">
-          <Button>
-            <Home className="h-4 w-4 mr-2" />
-            {language === "es" ? "Nueva Renta" : "New Rental"}
-          </Button>
-        </Link>
+        <Button onClick={() => setSelectUnitDialogOpen(true)} data-testid="button-create-rental">
+          <Home className="h-4 w-4 mr-2" />
+          {language === "es" ? "Nueva Renta" : "New Rental"}
+        </Button>
       </div>
 
       <Separator />
@@ -842,6 +853,84 @@ export default function ExternalRentals() {
               {cancelMutation.isPending 
                 ? (language === "es" ? "Cancelando..." : "Cancelling...") 
                 : (language === "es" ? "Sí, Cancelar Renta" : "Yes, Cancel Rental")}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Select Unit Dialog for New Rental */}
+      <Dialog open={selectUnitDialogOpen} onOpenChange={setSelectUnitDialogOpen}>
+        <DialogContent className="max-w-2xl" data-testid="dialog-select-unit">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Home className="h-5 w-5" />
+              {language === "es" ? "Seleccionar Unidad" : "Select Unit"}
+            </DialogTitle>
+            <DialogDescription>
+              {language === "es" 
+                ? "Selecciona una unidad disponible para generar una nueva renta activa" 
+                : "Select an available unit to generate a new active rental"}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            {!availableUnits ? (
+              <div className="space-y-2">
+                {[...Array(5)].map((_, i) => (
+                  <Skeleton key={i} className="h-16 w-full" />
+                ))}
+              </div>
+            ) : availableUnits.length === 0 ? (
+              <Card>
+                <CardContent className="py-12 text-center">
+                  <AlertCircle className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />
+                  <p className="text-muted-foreground">
+                    {language === "es" 
+                      ? "No hay unidades disponibles en este momento" 
+                      : "No units available at this time"}
+                  </p>
+                </CardContent>
+              </Card>
+            ) : (
+              <div className="space-y-2 max-h-96 overflow-y-auto">
+                {availableUnits.map(unit => {
+                  const condo = condominiums?.find(c => c.id === unit.condominiumId);
+                  return (
+                    <Card 
+                      key={unit.id} 
+                      className="hover-elevate cursor-pointer transition-all"
+                      onClick={() => {
+                        setSelectUnitDialogOpen(false);
+                        setLocation(`/external/units/${unit.id}`);
+                      }}
+                      data-testid={`unit-option-${unit.id}`}
+                    >
+                      <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                        <div className="flex items-center gap-3">
+                          <Building2 className="h-5 w-5 text-muted-foreground" />
+                          <div>
+                            <CardTitle className="text-base">{unit.unitNumber}</CardTitle>
+                            <CardDescription className="text-sm">
+                              {condo?.name || unit.condominiumId}
+                            </CardDescription>
+                          </div>
+                        </div>
+                        <Badge variant="outline" className="bg-green-50 text-green-700 dark:bg-green-950 dark:text-green-300">
+                          {language === "es" ? "Disponible" : "Available"}
+                        </Badge>
+                      </CardHeader>
+                    </Card>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+          <DialogFooter>
+            <Button 
+              variant="outline" 
+              onClick={() => setSelectUnitDialogOpen(false)}
+              data-testid="button-close-select-unit"
+            >
+              {language === "es" ? "Cancelar" : "Cancel"}
             </Button>
           </DialogFooter>
         </DialogContent>
