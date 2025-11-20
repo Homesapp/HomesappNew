@@ -5293,6 +5293,28 @@ export type InsertExternalUnit = z.infer<typeof insertExternalUnitSchema>;
 export type UpdateExternalUnit = z.infer<typeof updateExternalUnitSchema>;
 export type ExternalUnit = typeof externalUnits.$inferSelect;
 
+// Unit data that frontend sends (without server-populated fields)
+export const externalUnitFormSchema = z.object({
+  unitNumber: z.string().min(1),
+  propertyType: z.string().optional(),
+  bedrooms: z.number().int().optional(),
+  bathrooms: z.union([z.string(), z.number()]).transform(val => val === undefined ? undefined : String(val)).optional(),
+  area: z.union([z.string(), z.number()]).transform(val => val === undefined ? undefined : String(val)).optional(),
+  floor: z.number().int().optional(),
+  airbnbPhotosLink: z.string().optional(),
+  parkingSpots: z.number().int().optional(),
+  squareMeters: z.number().int().optional(),
+});
+
+// Create Condominium with Units Schema - For atomic creation
+export const createCondominiumWithUnitsSchema = z.object({
+  condominium: insertExternalCondominiumSchema,
+  units: z.array(externalUnitFormSchema).default([]),
+});
+
+export type ExternalUnitForm = z.infer<typeof externalUnitFormSchema>;
+export type CreateCondominiumWithUnits = z.infer<typeof createCondominiumWithUnitsSchema>;
+
 // External Unit Owners - Propietarios de unidades
 export const externalUnitOwners = pgTable("external_unit_owners", {
   id: varchar("id").primaryKey().$defaultFn(() => crypto.randomUUID()),

@@ -1186,6 +1186,7 @@ export interface IStorage {
   getExternalCondominium(id: string): Promise<ExternalCondominium | undefined>;
   getExternalCondominiumsByAgency(agencyId: string, filters?: { isActive?: boolean }): Promise<ExternalCondominium[]>;
   createExternalCondominium(condominium: InsertExternalCondominium): Promise<ExternalCondominium>;
+  createCondominiumWithUnits(condominium: InsertExternalCondominium, units: any[], agencyId: string, userId: string): Promise<{ condominium: ExternalCondominium; units: ExternalUnit[] }>;
   updateExternalCondominium(id: string, updates: Partial<InsertExternalCondominium>): Promise<ExternalCondominium>;
   deleteExternalCondominium(id: string): Promise<void>;
 
@@ -7950,6 +7951,42 @@ export class DatabaseStorage implements IStorage {
       .values(condominium)
       .returning();
     return result;
+  }
+
+  async createCondominiumWithUnits(
+    condominium: InsertExternalCondominium, 
+    units: any[], 
+    agencyId: string, 
+    userId: string
+  ): Promise<{ condominium: ExternalCondominium; units: ExternalUnit[] }> {
+    return await db.transaction(async (tx) => {
+      // Create condominium
+      const [createdCondominium] = await tx.insert(externalCondominiums)
+        .values({
+          ...condominium,
+          agencyId,
+          createdBy: userId,
+        })
+        .returning();
+      
+      // Create all units for the condominium
+      const createdUnits: ExternalUnit[] = [];
+      if (units && units.length > 0) {
+        const unitValues = units.map(unit => ({
+          ...unit,
+          condominiumId: createdCondominium.id,
+          agencyId,
+          createdBy: userId,
+        }));
+        
+        const result = await tx.insert(externalUnits)
+          .values(unitValues)
+          .returning();
+        createdUnits.push(...result);
+      }
+      
+      return { condominium: createdCondominium, units: createdUnits };
+    });
   }
 
   async updateExternalCondominium(id: string, updates: Partial<InsertExternalCondominium>): Promise<ExternalCondominium> {

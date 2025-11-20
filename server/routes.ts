@@ -153,6 +153,7 @@ import {
   insertExternalMaintenancePhotoSchema,
   insertExternalCondominiumSchema,
   updateExternalCondominiumSchema,
+  createCondominiumWithUnitsSchema,
   insertExternalUnitSchema,
   updateExternalUnitSchema,
   insertExternalUnitOwnerSchema,
@@ -21818,6 +21819,43 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.status(201).json(condominium);
     } catch (error: any) {
       console.error("Error creating external condominium:", error);
+      if (error.name === "ZodError") {
+        return handleZodError(res, error);
+      }
+      handleGenericError(res, error);
+    }
+  });
+
+  // Atomic creation of condominium with units in a transaction
+  app.post("/api/external-condominiums/with-units", isAuthenticated, requireRole(EXTERNAL_ADMIN_ROLES), async (req: any, res) => {
+    try {
+      // Get agency ID from authenticated user
+      const agencyId = await getUserAgencyId(req);
+      if (!agencyId) {
+        return res.status(400).json({ message: "User is not assigned to any agency" });
+      }
+      
+      const validatedData = createCondominiumWithUnitsSchema.parse(req.body);
+      
+      // Create condominium and units atomically via storage layer
+      const result = await storage.createCondominiumWithUnits(
+        validatedData.condominium,
+        validatedData.units,
+        agencyId,
+        req.user.id
+      );
+      
+      await createAuditLog(
+        req, 
+        "create", 
+        "external_condominium", 
+        result.condominium.id, 
+        `Created external condominium with ${result.units.length} units`
+      );
+      
+      res.status(201).json(result);
+    } catch (error: any) {
+      console.error("Error creating external condominium with units:", error);
       if (error.name === "ZodError") {
         return handleZodError(res, error);
       }

@@ -359,23 +359,16 @@ export default function ExternalCondominiums() {
 
   const handleUnifiedSubmit = async (data: any) => {
     if (creationType === 'condominium') {
-      // Create condominium first
+      // Use atomic creation endpoint that creates condominium and units in a transaction
       try {
-        const createdCondo = await apiRequest('POST', '/api/external-condominiums', data);
+        const validUnits = tempUnits.filter(unit => unit.unitNumber.trim() !== '');
         
-        // Then create all units for that condominium
-        if (tempUnits.length > 0) {
-          const unitPromises = tempUnits
-            .filter(unit => unit.unitNumber.trim() !== '')
-            .map(unit => 
-              apiRequest('POST', '/api/external-units', {
-                condominiumId: createdCondo.id,
-                ...unit
-              })
-            );
-          
-          await Promise.all(unitPromises);
-        }
+        const payload = {
+          condominium: data,
+          units: validUnits
+        };
+        
+        const result = await apiRequest('POST', '/api/external-condominiums/with-units', payload);
         
         queryClient.invalidateQueries({ queryKey: ['/api/external-condominiums'] });
         queryClient.invalidateQueries({ queryKey: ['/api/external-units'] });
@@ -383,17 +376,18 @@ export default function ExternalCondominiums() {
         setShowUnifiedDialog(false);
         setCreationType(null);
         setTempUnits([]);
+        condoForm.reset();
         
         toast({
           title: language === "es" ? "Condominio creado" : "Condominium created",
-          description: tempUnits.length > 0 
-            ? (language === "es" ? `Condominio creado con ${tempUnits.filter(u => u.unitNumber.trim() !== '').length} unidades` : `Condominium created with ${tempUnits.filter(u => u.unitNumber.trim() !== '').length} units`)
+          description: validUnits.length > 0 
+            ? (language === "es" ? `Condominio creado con ${validUnits.length} unidades` : `Condominium created with ${validUnits.length} units`)
             : (language === "es" ? "El condominio se creó exitosamente" : "The condominium was created successfully"),
         });
       } catch (error: any) {
         toast({
           title: language === "es" ? "Error" : "Error",
-          description: error.message,
+          description: error.message || (language === "es" ? "No se pudo crear el condominio" : "Failed to create condominium"),
           variant: "destructive",
         });
       }
