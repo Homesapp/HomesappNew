@@ -633,7 +633,7 @@ export default function ExternalRentals() {
                         <p className="text-xs text-muted-foreground">
                           {language === "es" ? "Servicios y próximas fechas de pago:" : "Services and next payment dates:"}
                         </p>
-                        <div className="space-y-1.5 max-h-[200px] overflow-y-auto">
+                        <div className="space-y-1.5 max-h-[140px] overflow-y-auto">
                           {activeServices.map((service, idx) => {
                             const parsedAmount = service.amount ? parseFloat(service.amount) : NaN;
                             const hasValidAmount = Number.isFinite(parsedAmount) && parsedAmount > 0;
@@ -646,12 +646,12 @@ export default function ExternalRentals() {
                                 <div className="flex items-center gap-2 flex-1 min-w-0">
                                   <Badge 
                                     variant="outline" 
-                                    className="text-xs flex-shrink-0"
+                                    className="text-xs flex-shrink-0 whitespace-nowrap"
                                   >
                                     {getServiceLabel(service.serviceType)}
                                   </Badge>
                                   {hasValidAmount ? (
-                                    <span className="font-semibold text-xs">
+                                    <span className="font-semibold text-xs whitespace-nowrap">
                                       ${parsedAmount.toLocaleString()}
                                     </span>
                                   ) : (
@@ -662,7 +662,7 @@ export default function ExternalRentals() {
                                 </div>
                                 <div className="flex items-center gap-1 flex-shrink-0">
                                   <Clock className="h-3 w-3 text-muted-foreground" />
-                                  <span className="text-xs text-muted-foreground">
+                                  <span className="text-xs text-muted-foreground whitespace-nowrap">
                                     {language === "es" ? "Día" : "Day"} {service.dayOfMonth}
                                   </span>
                                 </div>
