@@ -144,6 +144,7 @@ import ExternalCheckoutReport from "@/pages/ExternalCheckoutReport";
 import ExternalRentals from "@/pages/ExternalRentals";
 import ExternalAccounting from "@/pages/ExternalAccounting";
 import ExternalMaintenance from "@/pages/ExternalMaintenance";
+import ExternalMaintenanceDetail from "@/pages/ExternalMaintenanceDetail";
 import ExternalCalendar from "@/pages/ExternalCalendar";
 import ExternalOwners from "@/pages/ExternalOwners";
 import ExternalMaintenanceWorkers from "@/pages/ExternalMaintenanceWorkers";
@@ -429,6 +430,7 @@ function AuthenticatedApp() {
               <Route path="/external/checkout/:contractId" component={ExternalCheckoutReport} />
               <Route path="/external/rentals" component={ExternalRentals} />
               <Route path="/external/accounting" component={ExternalAccounting} />
+              <Route path="/external/maintenance/:id" component={ExternalMaintenanceDetail} />
               <Route path="/external/maintenance" component={ExternalMaintenance} />
               <Route path="/external/calendar" component={ExternalCalendar} />
               <Route path="/external/owners" component={ExternalOwners} />

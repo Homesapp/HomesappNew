@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
+import { Link } from "wouter";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -591,6 +592,16 @@ export default function ExternalMaintenance() {
                       </Badge>
                     </div>
                     <div className="flex gap-2">
+                      <Link href={`/external/maintenance/${maintenance.id}`}>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          data-testid={`button-view-detail-${maintenance.id}`}
+                        >
+                          <FileText className="h-4 w-4 mr-1" />
+                          {language === "es" ? "Ver Detalle" : "View Detail"}
+                        </Button>
+                      </Link>
                       {maintenance.status === 'open' && (
                         <Button
                           variant="outline"

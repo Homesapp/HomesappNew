@@ -147,6 +147,8 @@ import {
   insertExternalPaymentScheduleSchema,
   insertExternalPaymentSchema,
   insertExternalMaintenanceTicketSchema,
+  insertExternalMaintenanceUpdateSchema,
+  insertExternalMaintenancePhotoSchema,
   insertExternalCondominiumSchema,
   updateExternalCondominiumSchema,
   insertExternalUnitSchema,
@@ -21397,10 +21399,25 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.patch("/api/external-tickets/:id", isAuthenticated, requireRole(EXTERNAL_MAINTENANCE_ROLES), async (req: any, res) => {
     try {
       const { id } = req.params;
-      const ticket = await storage.updateExternalMaintenanceTicket(id, req.body);
+      
+      // Verify ticket exists and belongs to user's agency
+      const ticket = await storage.getExternalMaintenanceTicket(id);
+      if (!ticket) {
+        return res.status(404).json({ message: "Ticket not found" });
+      }
+      
+      const unit = await storage.getExternalUnit(ticket.unitId);
+      if (!unit) {
+        return res.status(404).json({ message: "Unit not found" });
+      }
+      
+      const hasAccess = await verifyExternalAgencyOwnership(req, res, unit.agencyId);
+      if (!hasAccess) return;
+      
+      const updatedTicket = await storage.updateExternalMaintenanceTicket(id, req.body);
       
       await createAuditLog(req, "update", "external_ticket", id, "Updated external maintenance ticket");
-      res.json(ticket);
+      res.json(updatedTicket);
     } catch (error: any) {
       console.error("Error updating external ticket:", error);
       handleGenericError(res, error);
@@ -21410,16 +21427,55 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.patch("/api/external-tickets/:id/status", isAuthenticated, requireRole(EXTERNAL_MAINTENANCE_ROLES), async (req: any, res) => {
     try {
       const { id } = req.params;
-      const { status, resolvedDate } = req.body;
+      const { status, resolvedDate, completionNotes } = req.body;
+      const userId = req.user?.claims?.sub || req.user?.id;
+      const userRole = req.user?.role || req.session?.adminUser?.role;
       
       if (!status) {
         return res.status(400).json({ message: "Status is required" });
       }
       
-      const ticket = await storage.updateExternalTicketStatus(id, status, resolvedDate ? new Date(resolvedDate) : undefined);
+      // Verify ticket exists and belongs to user's agency
+      const ticket = await storage.getExternalMaintenanceTicket(id);
+      if (!ticket) {
+        return res.status(404).json({ message: "Ticket not found" });
+      }
+      
+      const unit = await storage.getExternalUnit(ticket.unitId);
+      if (!unit) {
+        return res.status(404).json({ message: "Unit not found" });
+      }
+      
+      const hasAccess = await verifyExternalAgencyOwnership(req, res, unit.agencyId);
+      if (!hasAccess) return;
+      
+      // Only admin and maintenance managers can close/complete tickets
+      if ((status === 'closed' || status === 'resolved') && 
+          !['master', 'admin', 'external_agency_admin', 'external_agency_maintenance'].includes(userRole)) {
+        return res.status(403).json({ 
+          message: "Only administrators and maintenance managers can close or complete tickets" 
+        });
+      }
+      
+      // Prepare update data
+      const updateData: any = { status };
+      if (resolvedDate) {
+        updateData.resolvedDate = new Date(resolvedDate);
+      }
+      
+      // If closing, add closure metadata
+      if (status === 'closed') {
+        updateData.closedBy = userId;
+        updateData.closedAt = new Date();
+        if (completionNotes) {
+          updateData.completionNotes = completionNotes;
+        }
+      }
+      
+      const updatedTicket = await storage.updateExternalMaintenanceTicket(id, updateData);
       
       await createAuditLog(req, "update", "external_ticket", id, `Changed ticket status to ${status}`);
-      res.json(ticket);
+      res.json(updatedTicket);
     } catch (error: any) {
       console.error("Error updating external ticket status:", error);
       handleGenericError(res, error);
@@ -21454,6 +21510,142 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.status(204).send();
     } catch (error: any) {
       console.error("Error deleting external ticket:", error);
+      handleGenericError(res, error);
+    }
+  });
+
+  // External Maintenance Updates Routes
+  app.get("/api/external-tickets/:id/updates", isAuthenticated, requireRole(EXTERNAL_ALL_ROLES), async (req: any, res) => {
+    try {
+      const { id } = req.params;
+      
+      // Verify ticket exists and belongs to user's agency
+      const ticket = await storage.getExternalMaintenanceTicket(id);
+      if (!ticket) {
+        return res.status(404).json({ message: "Ticket not found" });
+      }
+      
+      // Verify agency ownership
+      const hasAccess = await verifyExternalAgencyOwnership(req, res, ticket.agencyId);
+      if (!hasAccess) return;
+      
+      const updates = await storage.getExternalMaintenanceUpdates(id);
+      res.json(updates);
+    } catch (error: any) {
+      console.error("Error fetching external ticket updates:", error);
+      handleGenericError(res, error);
+    }
+  });
+
+  app.post("/api/external-tickets/:id/updates", isAuthenticated, requireRole(EXTERNAL_MAINTENANCE_ROLES), async (req: any, res) => {
+    try {
+      const { id } = req.params;
+      const userId = req.user?.claims?.sub || req.user?.id;
+      
+      // Verify ticket exists and belongs to user's agency
+      const ticket = await storage.getExternalMaintenanceTicket(id);
+      if (!ticket) {
+        return res.status(404).json({ message: "Ticket not found" });
+      }
+      
+      // Verify agency ownership
+      const hasAccess = await verifyExternalAgencyOwnership(req, res, ticket.agencyId);
+      if (!hasAccess) return;
+      
+      const validated = insertExternalMaintenanceUpdateSchema.parse({
+        ...req.body,
+        ticketId: id,
+        createdBy: userId,
+        statusSnapshot: ticket.status,
+        prioritySnapshot: ticket.priority,
+        assignedToSnapshot: ticket.assignedTo,
+      });
+      
+      const update = await storage.createExternalMaintenanceUpdate(validated);
+      
+      await createAuditLog(req, "create", "external_ticket_update", update.id, `Created update for ticket ${id}`);
+      res.status(201).json(update);
+    } catch (error: any) {
+      console.error("Error creating external ticket update:", error);
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ message: "Invalid data", errors: error.errors });
+      }
+      handleGenericError(res, error);
+    }
+  });
+
+  // External Maintenance Photos Routes
+  app.get("/api/external-tickets/:id/photos", isAuthenticated, requireRole(EXTERNAL_ALL_ROLES), async (req: any, res) => {
+    try {
+      const { id } = req.params;
+      const { phase, updateId } = req.query;
+      
+      // Verify ticket exists and belongs to user's agency
+      const ticket = await storage.getExternalMaintenanceTicket(id);
+      if (!ticket) {
+        return res.status(404).json({ message: "Ticket not found" });
+      }
+      
+      // Verify agency ownership
+      const hasAccess = await verifyExternalAgencyOwnership(req, res, ticket.agencyId);
+      if (!hasAccess) return;
+      
+      const filters: any = {};
+      if (phase) filters.phase = phase as string;
+      if (updateId) filters.updateId = updateId as string;
+      
+      const photos = await storage.getExternalMaintenancePhotos(id, filters);
+      res.json(photos);
+    } catch (error: any) {
+      console.error("Error fetching external ticket photos:", error);
+      handleGenericError(res, error);
+    }
+  });
+
+  app.post("/api/external-tickets/:id/photos", isAuthenticated, requireRole(EXTERNAL_MAINTENANCE_ROLES), async (req: any, res) => {
+    try {
+      const { id } = req.params;
+      const userId = req.user?.claims?.sub || req.user?.id;
+      
+      // Verify ticket exists and belongs to user's agency
+      const ticket = await storage.getExternalMaintenanceTicket(id);
+      if (!ticket) {
+        return res.status(404).json({ message: "Ticket not found" });
+      }
+      
+      // Verify agency ownership
+      const hasAccess = await verifyExternalAgencyOwnership(req, res, ticket.agencyId);
+      if (!hasAccess) return;
+      
+      const validated = insertExternalMaintenancePhotoSchema.parse({
+        ...req.body,
+        ticketId: id,
+        uploadedBy: userId,
+      });
+      
+      const photo = await storage.createExternalMaintenancePhoto(validated);
+      
+      await createAuditLog(req, "create", "external_ticket_photo", photo.id, `Uploaded photo for ticket ${id}`);
+      res.status(201).json(photo);
+    } catch (error: any) {
+      console.error("Error creating external ticket photo:", error);
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ message: "Invalid data", errors: error.errors });
+      }
+      handleGenericError(res, error);
+    }
+  });
+
+  app.delete("/api/external-maintenance-photos/:id", isAuthenticated, requireRole(EXTERNAL_MAINTENANCE_ROLES), async (req: any, res) => {
+    try {
+      const { id } = req.params;
+      
+      await storage.deleteExternalMaintenancePhoto(id);
+      
+      await createAuditLog(req, "delete", "external_ticket_photo", id, "Deleted maintenance photo");
+      res.status(204).send();
+    } catch (error: any) {
+      console.error("Error deleting external maintenance photo:", error);
       handleGenericError(res, error);
     }
   });
