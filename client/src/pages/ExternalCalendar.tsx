@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Calendar as CalendarIcon, DollarSign, Wrench, Calendar as CalIcon, User, Clock, AlertCircle, FileText, Filter, Eye, EyeOff, ChevronDown, ChevronUp, Home, List, Zap, Droplet, Wifi, Flame, Receipt } from "lucide-react";
 import { Calendar } from "@/components/ui/calendar";
@@ -41,7 +41,16 @@ export default function ExternalCalendar() {
   const [showTickets, setShowTickets] = useState(true);
   const [showContracts, setShowContracts] = useState(true);
   const [viewMode, setViewMode] = useState<"calendar" | "today" | "agenda">("calendar");
+  const [eventPage, setEventPage] = useState(0);
   const { language } = useLanguage();
+  
+  const EVENTS_PER_PAGE = 4;
+
+  // Reset event page when date changes
+  useEffect(() => {
+    setEventPage(0);
+    setExpandedEventIndex(null);
+  }, [selectedDate]);
 
   // Fetch payments
   const { data: payments = [] } = useQuery<ExternalPayment[]>({
@@ -894,21 +903,57 @@ export default function ExternalCalendar() {
                     : language === "es" ? "Selecciona una fecha" : "Select a date"}
                 </CardTitle>
               </CardHeader>
-              <CardContent className="p-3 max-h-[320px] overflow-y-auto">
-                <div className="space-y-2">
-                  {eventsForDate.length === 0 ? (
-                    <p className="text-sm text-muted-foreground text-center py-8">
-                      {language === "es" 
-                        ? "No hay eventos para esta fecha" 
-                        : "No events for this date"}
-                    </p>
-                  ) : (
+              <CardContent className="p-3">
+                {eventsForDate.length === 0 ? (
+                  <p className="text-sm text-muted-foreground text-center py-8">
+                    {language === "es" 
+                      ? "No hay eventos para esta fecha" 
+                      : "No events for this date"}
+                  </p>
+                ) : (
+                  <>
+                    {/* Navigation arrows */}
+                    <div className="flex items-center justify-between mb-2">
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => {
+                          setEventPage(Math.max(0, eventPage - 1));
+                          setExpandedEventIndex(null);
+                        }}
+                        disabled={eventPage === 0}
+                        data-testid="button-events-prev"
+                      >
+                        <ChevronUp className="h-4 w-4 mr-1" />
+                        {language === "es" ? "Anterior" : "Previous"}
+                      </Button>
+                      <span className="text-xs text-muted-foreground">
+                        {Math.min(eventPage * EVENTS_PER_PAGE + 1, eventsForDate.length)}-{Math.min((eventPage + 1) * EVENTS_PER_PAGE, eventsForDate.length)} {language === "es" ? "de" : "of"} {eventsForDate.length}
+                      </span>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => {
+                          setEventPage(Math.min(Math.ceil(eventsForDate.length / EVENTS_PER_PAGE) - 1, eventPage + 1));
+                          setExpandedEventIndex(null);
+                        }}
+                        disabled={(eventPage + 1) * EVENTS_PER_PAGE >= eventsForDate.length}
+                        data-testid="button-events-next"
+                      >
+                        {language === "es" ? "Siguiente" : "Next"}
+                        <ChevronDown className="h-4 w-4 ml-1" />
+                      </Button>
+                    </div>
+
+                    {/* Events list */}
                     <div className="space-y-1.5">
-                      {eventsForDate.map((event, idx) => (
+                      {eventsForDate.slice(eventPage * EVENTS_PER_PAGE, (eventPage + 1) * EVENTS_PER_PAGE).map((event, idx) => {
+                        const actualIdx = eventPage * EVENTS_PER_PAGE + idx;
+                        return (
                         <Collapsible
-                          key={idx}
-                          open={expandedEventIndex === idx}
-                          onOpenChange={() => setExpandedEventIndex(expandedEventIndex === idx ? null : idx)}
+                          key={actualIdx}
+                          open={expandedEventIndex === actualIdx}
+                          onOpenChange={() => setExpandedEventIndex(expandedEventIndex === actualIdx ? null : actualIdx)}
                         >
                           <div className={cn(
                             "border rounded-md",
@@ -920,7 +965,7 @@ export default function ExternalCalendar() {
                             <CollapsibleTrigger asChild>
                               <div
                                 className="p-2.5 hover-elevate cursor-pointer w-full"
-                                data-testid={`event-${event.type}-${idx}`}
+                                data-testid={`event-${event.type}-${actualIdx}`}
                               >
                                 <div className="flex items-start gap-2.5">
                                   <div className="mt-1">
@@ -937,7 +982,7 @@ export default function ExternalCalendar() {
                                   <div className="flex-1 min-w-0">
                                     <div className="flex items-center justify-between gap-2">
                                       <p className="font-medium text-sm truncate">{event.title}</p>
-                                      {expandedEventIndex === idx ? (
+                                      {expandedEventIndex === actualIdx ? (
                                         <ChevronUp className="h-4 w-4 text-muted-foreground flex-shrink-0" />
                                       ) : (
                                         <ChevronDown className="h-4 w-4 text-muted-foreground flex-shrink-0" />
@@ -1168,10 +1213,11 @@ export default function ExternalCalendar() {
                             </CollapsibleContent>
                           </div>
                         </Collapsible>
-                      ))}
+                      );
+                      })}
                     </div>
-                  )}
-                </div>
+                  </>
+                )}
               </CardContent>
         </Card>
           </div>
