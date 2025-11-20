@@ -95,8 +95,18 @@ export default function ExternalDashboard() {
   const totalCondominiums = condominiums?.length || 0;
   const totalUnits = units?.length || 0;
   const activeUnits = units ? units.filter(u => u.status === 'active').length : 0;
-  const occupiedUnits = units ? units.filter(u => unitsWithActiveContracts.has(u.id)).length : 0;
+  const occupiedUnits = activeRentals.length; // Count active rentals directly
   const availableUnits = activeUnits - occupiedUnits;
+
+  // Debug logging
+  console.log('Dashboard Stats:', {
+    totalUnits,
+    activeUnits,
+    occupiedUnits,
+    activeRentals: activeRentals.length,
+    unitsWithActiveContracts: unitsWithActiveContracts.size,
+    today: today.toISOString(),
+  });
   
   // Payments
   const pendingPayments = payments ? payments.filter(p => p.status === 'pending').length : 0;
