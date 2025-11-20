@@ -19,7 +19,7 @@ import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
 import { queryClient, apiRequest } from "@/lib/queryClient";
 import type { ExternalCondominium, ExternalUnit, ExternalRentalContract, ExternalPaymentSchedule } from "@shared/schema";
-import { insertExternalCondominiumSchema, insertExternalUnitSchema } from "@shared/schema";
+import { insertExternalCondominiumSchema, insertExternalUnitSchema, externalUnitFormSchema } from "@shared/schema";
 import { z } from "zod";
 
 type CondominiumFormData = z.infer<typeof insertExternalCondominiumSchema>;
@@ -363,9 +363,18 @@ export default function ExternalCondominiums() {
       try {
         const validUnits = tempUnits.filter(unit => unit.unitNumber.trim() !== '');
         
+        // Parse and validate units with externalUnitFormSchema to convert strings to numbers
+        const parsedUnits = validUnits.map(unit => {
+          try {
+            return externalUnitFormSchema.parse(unit);
+          } catch (error: any) {
+            throw new Error(`Invalid unit data: ${error.message}`);
+          }
+        });
+        
         const payload = {
           condominium: data,
-          units: validUnits
+          units: parsedUnits
         };
         
         const result = await apiRequest('POST', '/api/external-condominiums/with-units', payload);
@@ -380,8 +389,8 @@ export default function ExternalCondominiums() {
         
         toast({
           title: language === "es" ? "Condominio creado" : "Condominium created",
-          description: validUnits.length > 0 
-            ? (language === "es" ? `Condominio creado con ${validUnits.length} unidades` : `Condominium created with ${validUnits.length} units`)
+          description: parsedUnits.length > 0 
+            ? (language === "es" ? `Condominio creado con ${parsedUnits.length} unidades` : `Condominium created with ${parsedUnits.length} units`)
             : (language === "es" ? "El condominio se creó exitosamente" : "The condominium was created successfully"),
         });
       } catch (error: any) {

@@ -5293,17 +5293,33 @@ export type InsertExternalUnit = z.infer<typeof insertExternalUnitSchema>;
 export type UpdateExternalUnit = z.infer<typeof updateExternalUnitSchema>;
 export type ExternalUnit = typeof externalUnits.$inferSelect;
 
+// Helper to convert strings to numbers, handling empty strings as undefined
+const optionalNumber = z.preprocess(
+  (val) => {
+    if (val === '' || val === null || val === undefined) return undefined;
+    const num = Number(val);
+    return isNaN(num) ? undefined : num;
+  },
+  z.number().int().optional()
+);
+
+// Helper to convert to string or undefined
+const optionalString = z.preprocess(
+  (val) => (val === '' || val === null || val === undefined ? undefined : String(val)),
+  z.string().optional()
+);
+
 // Unit data that frontend sends (without server-populated fields)
 export const externalUnitFormSchema = z.object({
   unitNumber: z.string().min(1),
   propertyType: z.string().optional(),
-  bedrooms: z.number().int().optional(),
-  bathrooms: z.union([z.string(), z.number()]).transform(val => val === undefined ? undefined : String(val)).optional(),
-  area: z.union([z.string(), z.number()]).transform(val => val === undefined ? undefined : String(val)).optional(),
-  floor: z.number().int().optional(),
+  bedrooms: optionalNumber,
+  bathrooms: optionalString,
+  area: optionalString,
+  floor: optionalNumber,
   airbnbPhotosLink: z.string().optional(),
-  parkingSpots: z.number().int().optional(),
-  squareMeters: z.number().int().optional(),
+  parkingSpots: optionalNumber,
+  squareMeters: optionalNumber,
 });
 
 // Create Condominium with Units Schema - For atomic creation
