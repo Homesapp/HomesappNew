@@ -23,11 +23,16 @@ The maintenance system includes an enhanced tracking architecture with update ti
 
 The platform implements enterprise-grade security measures compliant with 2025 standards for multi-tenant SaaS platforms:
 
-**Data Encryption at Rest**: Sensitive data is encrypted using AES-256-GCM authenticated encryption with per-record random IVs. Encrypted fields include:
+**Data Encryption at Rest**: Sensitive data is encrypted using AES-256-GCM authenticated encryption with per-record random IVs and versioned prefix system (ENC:v1:). Encrypted fields include:
 - External unit access codes (door codes, WiFi passwords, gate codes)
 - Bank account numbers and CLABE interbancaria numbers
 
-**Encryption Module** (`server/encryption.ts`): Provides encrypt/decrypt functions with authenticated encryption, secure key derivation via scrypt, and constant-time comparison utilities. Keys are managed via environment variables (ENCRYPTION_KEY) with development fallback.
+**Encryption Module** (`server/encryption.ts`): Provides encrypt/decrypt functions with authenticated encryption, secure key derivation via scrypt, and constant-time comparison utilities. The implementation features:
+- Prefix-based detection (ENC:v1:) for reliable encryption identification
+- Idempotent encrypt() function (safe to call multiple times)
+- Backward compatible decrypt() (handles legacy plaintext data)
+- Keys managed via environment variables (ENCRYPTION_KEY) with development fallback
+- Data migration scripts with timestamp preservation
 
 **Enhanced Audit Logging**: All sensitive operations are logged with comprehensive metadata including IP addresses, user agents, and contextual details. The createAuditLog helper function supports flexible metadata enrichment while preventing sensitive data leakage.
 
@@ -38,7 +43,15 @@ The platform implements enterprise-grade security measures compliant with 2025 s
 **GDPR/PCI-DSS Compliance**: Encryption of personal and financial data, comprehensive audit trails, and secure session management support regulatory compliance requirements.
 
 ## Recent Changes
-**2025-01-20**: Implemented Priority 1 security improvements including AES-256-GCM encryption for sensitive data (access codes, bank account information), enhanced audit logging with IP/User-Agent tracking, and comprehensive security documentation. All external unit access control routes and bank information routes now encrypt/decrypt data automatically. See SECURITY_IMPROVEMENTS.md for full details.
+**2025-01-20**: Completed Priority 1 security implementation including:
+- AES-256-GCM encryption for sensitive data with ENC:v1: prefix system
+- Idempotent encryption operations (safe for already-encrypted data)
+- Backward compatible decryption (handles legacy plaintext)
+- Automatic encryption/decryption in access control and bank info routes
+- Enhanced audit logging with IP address and User-Agent tracking
+- Migration scripts with proper prefix detection and timestamp preservation
+- Comprehensive documentation (SECURITY_IMPROVEMENTS.md, SECURITY_TESTING_GUIDE.md)
+- Architect-reviewed and approved for production readiness
 
 ## External Dependencies
 *   Google Calendar API
