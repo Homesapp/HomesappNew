@@ -48,19 +48,10 @@ import { queryClient, apiRequest } from "@/lib/queryClient";
 import type { ExternalFinancialTransaction, ExternalCondominium, ExternalUnit } from "@shared/schema";
 import { insertExternalFinancialTransactionSchema } from "@shared/schema";
 import { z } from "zod";
-import { format, startOfMonth, endOfMonth, subMonths, startOfYear, endOfYear } from "date-fns";
+import { format, startOfMonth, endOfMonth, subMonths, startOfYear, endOfYear, differenceInDays } from "date-fns";
 import { es } from "date-fns/locale";
 import * as XLSX from 'xlsx';
-
-type AccountingSummary = {
-  totalInflow: number;
-  totalOutflow: number;
-  netBalance: number;
-  pendingInflow: number;
-  pendingOutflow: number;
-  reconciledInflow: number;
-  reconciledOutflow: number;
-};
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
 
 type TransactionFormData = z.infer<typeof insertExternalFinancialTransactionSchema>;
 
@@ -90,10 +81,6 @@ export default function ExternalAccounting() {
   const [sortColumn, setSortColumn] = useState<string>("");
   const [sortDirection, setSortDirection] = useState<"asc" | "desc">("asc");
   const [filtersExpanded, setFiltersExpanded] = useState(true);
-
-  const { data: summary, isLoading: summaryLoading } = useQuery<AccountingSummary>({
-    queryKey: ['/api/external/accounting/summary'],
-  });
 
   const buildTransactionsQueryKey = () => {
     const params = new URLSearchParams();
@@ -323,9 +310,10 @@ export default function ExternalAccounting() {
 
   const t = language === 'es' ? {
     title: 'Contabilidad Financiera',
-    subtitle: 'Resumen financiero de operaciones',
-    summaryTab: 'Resumen',
+    subtitle: 'Gestión financiera y reportes',
     transactionsTab: 'Transacciones',
+    receivablesTab: 'Cuentas por Cobrar',
+    reportsTab: 'Reportes',
     netBalance: 'Balance Neto',
     totalIncome: 'Ingresos Totales',
     totalExpenses: 'Egresos Totales',
@@ -411,11 +399,26 @@ export default function ExternalAccounting() {
     basicInfo: 'Información Básica',
     financialInfo: 'Información Financiera',
     additionalInfo: 'Información Adicional',
+    // Receivables tab
+    upcomingPayments: 'Próximos Pagos',
+    overduePayments: 'Pagos Vencidos',
+    totalReceivables: 'Total por Cobrar',
+    daysOverdue: 'Días Vencido',
+    paymentDue: 'Vencimiento',
+    noUpcomingPayments: 'No hay pagos próximos',
+    noOverduePayments: 'No hay pagos vencidos',
+    // Reports tab
+    monthlyTrends: 'Tendencias Mensuales',
+    categoryBreakdown: 'Desglose por Categoría',
+    incomeVsExpenses: 'Ingresos vs Egresos',
+    last12Months: 'Últimos 12 Meses',
+    topCategories: 'Principales Categorías',
   } : {
     title: 'Financial Accounting',
-    subtitle: 'Financial summary of operations',
-    summaryTab: 'Summary',
+    subtitle: 'Financial management and reports',
     transactionsTab: 'Transactions',
+    receivablesTab: 'Receivables',
+    reportsTab: 'Reports',
     netBalance: 'Net Balance',
     totalIncome: 'Total Income',
     totalExpenses: 'Total Expenses',
@@ -501,6 +504,20 @@ export default function ExternalAccounting() {
     basicInfo: 'Basic Information',
     financialInfo: 'Financial Information',
     additionalInfo: 'Additional Information',
+    // Receivables tab
+    upcomingPayments: 'Upcoming Payments',
+    overduePayments: 'Overdue Payments',
+    totalReceivables: 'Total Receivables',
+    daysOverdue: 'Days Overdue',
+    paymentDue: 'Due Date',
+    noUpcomingPayments: 'No upcoming payments',
+    noOverduePayments: 'No overdue payments',
+    // Reports tab
+    monthlyTrends: 'Monthly Trends',
+    categoryBreakdown: 'Category Breakdown',
+    incomeVsExpenses: 'Income vs Expenses',
+    last12Months: 'Last 12 Months',
+    topCategories: 'Top Categories',
   };
 
   const getCategoryLabel = (category: string) => {
@@ -650,9 +667,79 @@ export default function ExternalAccounting() {
     });
   };
 
-  const isPositiveBalance = summary ? summary.netBalance >= 0 : true;
-
   const activeFilters = [directionFilter, categoryFilter, statusFilter, condominiumFilter, unitFilter].filter(f => f !== "all").length + (dateFilter !== "all" ? 1 : 0);
+
+  // Calculate receivables data
+  const receivablesData = useMemo(() => {
+    if (!transactions) return { upcoming: [], overdue: [], totalAmount: 0 };
+    
+    const now = new Date();
+    const pending = transactions.filter(t => t.status === 'pending' && t.direction === 'inflow');
+    
+    const upcoming = pending.filter(t => {
+      const dueDate = t.dueDate ? new Date(t.dueDate) : null;
+      return dueDate && dueDate >= now;
+    }).sort((a, b) => new Date(a.dueDate!).getTime() - new Date(b.dueDate!).getTime());
+    
+    const overdue = pending.filter(t => {
+      const dueDate = t.dueDate ? new Date(t.dueDate) : null;
+      return dueDate && dueDate < now;
+    }).sort((a, b) => new Date(a.dueDate!).getTime() - new Date(b.dueDate!).getTime());
+    
+    const totalAmount = pending.reduce((sum, t) => sum + parseFloat(t.netAmount || '0'), 0);
+    
+    return { upcoming, overdue, totalAmount };
+  }, [transactions]);
+
+  // Calculate report data
+  const reportData = useMemo(() => {
+    if (!transactions) return { monthly: [], categories: [] };
+    
+    // Last 12 months data
+    const monthlyMap = new Map<string, { inflow: number, outflow: number, month: string }>();
+    const now = new Date();
+    
+    for (let i = 11; i >= 0; i--) {
+      const date = subMonths(now, i);
+      const key = format(date, 'yyyy-MM');
+      const monthName = format(date, 'MMM yyyy', { locale: language === 'es' ? es : undefined });
+      monthlyMap.set(key, { inflow: 0, outflow: 0, month: monthName });
+    }
+    
+    transactions.forEach(t => {
+      const date = t.dueDate ? new Date(t.dueDate) : null;
+      if (!date) return;
+      
+      const key = format(date, 'yyyy-MM');
+      const entry = monthlyMap.get(key);
+      if (!entry) return;
+      
+      const amount = parseFloat(t.netAmount || '0');
+      if (t.direction === 'inflow') {
+        entry.inflow += amount;
+      } else {
+        entry.outflow += amount;
+      }
+    });
+    
+    const monthly = Array.from(monthlyMap.values());
+    
+    // Category breakdown
+    const categoryMap = new Map<string, number>();
+    transactions.forEach(t => {
+      if (t.status === 'cancelled') return;
+      const amount = parseFloat(t.netAmount || '0');
+      const current = categoryMap.get(t.category) || 0;
+      categoryMap.set(t.category, current + Math.abs(amount));
+    });
+    
+    const categories = Array.from(categoryMap.entries())
+      .map(([name, value]) => ({ name: getCategoryLabel(name), value }))
+      .sort((a, b) => b.value - a.value)
+      .slice(0, 5);
+    
+    return { monthly, categories };
+  }, [transactions, language]);
 
   return (
     <div className="container mx-auto p-6 space-y-6">
@@ -681,11 +768,12 @@ export default function ExternalAccounting() {
         </div>
       </div>
 
-      <Tabs defaultValue="summary" className="w-full">
+      <Tabs defaultValue="transactions" className="w-full">
         <div className="flex items-center justify-between gap-2 mb-6">
           <TabsList>
-            <TabsTrigger value="summary" data-testid="tab-summary">{t.summaryTab}</TabsTrigger>
             <TabsTrigger value="transactions" data-testid="tab-transactions">{t.transactionsTab}</TabsTrigger>
+            <TabsTrigger value="receivables" data-testid="tab-receivables">{t.receivablesTab}</TabsTrigger>
+            <TabsTrigger value="reports" data-testid="tab-reports">{t.reportsTab}</TabsTrigger>
           </TabsList>
           
           <div className="flex gap-2">
@@ -863,153 +951,6 @@ export default function ExternalAccounting() {
             </CardContent>
           </Card>
         )}
-
-        <TabsContent value="summary" className="space-y-6">
-          {summaryLoading ? (
-            <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
-              {[...Array(8)].map((_, i) => (
-                <Card key={i}>
-                  <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                    <Skeleton className="h-4 w-24" />
-                    <Skeleton className="h-4 w-4" />
-                  </CardHeader>
-                  <CardContent>
-                    <Skeleton className="h-8 w-32" />
-                  </CardContent>
-                </Card>
-              ))}
-            </div>
-          ) : !summary ? (
-            <div className="text-center py-12">
-              <AlertCircle className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />
-              <p className="text-muted-foreground">{t.noData}</p>
-            </div>
-          ) : (
-            <>
-              <Card className="hover-elevate border-2">
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2">
-                    <DollarSign className="h-6 w-6" />
-                    {t.netBalance}
-                  </CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="flex items-baseline gap-2">
-                    <p className={`text-5xl font-bold ${isPositiveBalance ? 'text-green-600 dark:text-green-500' : 'text-red-600 dark:text-red-500'}`} data-testid="text-net-balance">
-                      {formatCurrency(summary.netBalance)}
-                    </p>
-                    {isPositiveBalance ? (
-                      <TrendingUp className="h-8 w-8 text-green-600 dark:text-green-500" />
-                    ) : (
-                      <TrendingDown className="h-8 w-8 text-red-600 dark:text-red-500" />
-                    )}
-                  </div>
-                  <p className="text-sm text-muted-foreground mt-2">
-                    {formatCurrency(summary.totalInflow)} {t.income} - {formatCurrency(summary.totalOutflow)} {t.expenses}
-                  </p>
-                </CardContent>
-              </Card>
-
-              <div className="grid gap-6 md:grid-cols-2">
-                <Card className="hover-elevate">
-                  <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                    <CardTitle className="text-sm font-medium">{t.totalIncome}</CardTitle>
-                    <ArrowUpRight className="h-4 w-4 text-green-600 dark:text-green-500" />
-                  </CardHeader>
-                  <CardContent>
-                    <div className="text-2xl font-bold text-green-600 dark:text-green-500" data-testid="text-total-income">
-                      {formatCurrency(summary.totalInflow)}
-                    </div>
-                    <div className="flex items-center gap-2 mt-2 text-xs text-muted-foreground">
-                      <CheckCircle className="h-3 w-3" />
-                      {t.reconciled}: {formatCurrency(summary.reconciledInflow)}
-                    </div>
-                  </CardContent>
-                </Card>
-
-                <Card className="hover-elevate">
-                  <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                    <CardTitle className="text-sm font-medium">{t.totalExpenses}</CardTitle>
-                    <ArrowDownRight className="h-4 w-4 text-red-600 dark:text-red-500" />
-                  </CardHeader>
-                  <CardContent>
-                    <div className="text-2xl font-bold text-red-600 dark:text-red-500" data-testid="text-total-expenses">
-                      {formatCurrency(summary.totalOutflow)}
-                    </div>
-                    <div className="flex items-center gap-2 mt-2 text-xs text-muted-foreground">
-                      <CheckCircle className="h-3 w-3" />
-                      {t.reconciled}: {formatCurrency(summary.reconciledOutflow)}
-                    </div>
-                  </CardContent>
-                </Card>
-              </div>
-
-              <div className="grid gap-6 md:grid-cols-2">
-                <Card className="hover-elevate">
-                  <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                    <CardTitle className="text-sm font-medium">{t.pendingIncome}</CardTitle>
-                    <Clock className="h-4 w-4 text-orange-600 dark:text-orange-500" />
-                  </CardHeader>
-                  <CardContent>
-                    <div className="text-2xl font-bold" data-testid="text-pending-income">
-                      {formatCurrency(summary.pendingInflow)}
-                    </div>
-                    <Badge variant="outline" className="mt-2">
-                      {t.pending}
-                    </Badge>
-                  </CardContent>
-                </Card>
-
-                <Card className="hover-elevate">
-                  <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                    <CardTitle className="text-sm font-medium">{t.pendingExpenses}</CardTitle>
-                    <Clock className="h-4 w-4 text-orange-600 dark:text-orange-500" />
-                  </CardHeader>
-                  <CardContent>
-                    <div className="text-2xl font-bold" data-testid="text-pending-expenses">
-                      {formatCurrency(summary.pendingOutflow)}
-                    </div>
-                    <Badge variant="outline" className="mt-2">
-                      {t.pending}
-                    </Badge>
-                  </CardContent>
-                </Card>
-              </div>
-
-              <div className="grid gap-6 md:grid-cols-2">
-                <Card className="hover-elevate">
-                  <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                    <CardTitle className="text-sm font-medium">{t.reconciledIncome}</CardTitle>
-                    <CheckCircle className="h-4 w-4 text-green-600 dark:text-green-500" />
-                  </CardHeader>
-                  <CardContent>
-                    <div className="text-2xl font-bold text-green-600 dark:text-green-500" data-testid="text-reconciled-income">
-                      {formatCurrency(summary.reconciledInflow)}
-                    </div>
-                    <Badge variant="default" className="mt-2">
-                      {t.reconciled}
-                    </Badge>
-                  </CardContent>
-                </Card>
-
-                <Card className="hover-elevate">
-                  <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                    <CardTitle className="text-sm font-medium">{t.reconciledExpenses}</CardTitle>
-                    <CheckCircle className="h-4 w-4 text-green-600 dark:text-green-500" />
-                  </CardHeader>
-                  <CardContent>
-                    <div className="text-2xl font-bold" data-testid="text-reconciled-expenses">
-                      {formatCurrency(summary.reconciledOutflow)}
-                    </div>
-                    <Badge variant="default" className="mt-2">
-                      {t.reconciled}
-                    </Badge>
-                  </CardContent>
-                </Card>
-              </div>
-            </>
-          )}
-        </TabsContent>
 
         <TabsContent value="transactions" className="space-y-6">
           {transactionsLoading ? (
@@ -1196,6 +1137,317 @@ export default function ExternalAccounting() {
               </CardContent>
             </Card>
           )}
+        </TabsContent>
+
+        {/* Receivables Tab */}
+        <TabsContent value="receivables" className="space-y-6">
+          <div className="grid gap-6 md:grid-cols-3">
+            <Card className="hover-elevate">
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">{t.totalReceivables}</CardTitle>
+                <DollarSign className="h-4 w-4 text-orange-600 dark:text-orange-500" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold text-orange-600 dark:text-orange-500" data-testid="text-total-receivables">
+                  {formatCurrency(receivablesData.totalAmount)}
+                </div>
+                <p className="text-xs text-muted-foreground mt-2">
+                  {receivablesData.upcoming.length + receivablesData.overdue.length} {language === 'es' ? 'pagos pendientes' : 'pending payments'}
+                </p>
+              </CardContent>
+            </Card>
+
+            <Card className="hover-elevate">
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">{t.upcomingPayments}</CardTitle>
+                <Clock className="h-4 w-4 text-blue-600 dark:text-blue-500" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold" data-testid="text-upcoming-count">
+                  {receivablesData.upcoming.length}
+                </div>
+                <p className="text-xs text-muted-foreground mt-2">
+                  {formatCurrency(receivablesData.upcoming.reduce((sum, t) => sum + parseFloat(t.netAmount || '0'), 0))}
+                </p>
+              </CardContent>
+            </Card>
+
+            <Card className="hover-elevate">
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">{t.overduePayments}</CardTitle>
+                <AlertCircle className="h-4 w-4 text-red-600 dark:text-red-500" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold text-red-600 dark:text-red-500" data-testid="text-overdue-count">
+                  {receivablesData.overdue.length}
+                </div>
+                <p className="text-xs text-muted-foreground mt-2">
+                  {formatCurrency(receivablesData.overdue.reduce((sum, t) => sum + parseFloat(t.netAmount || '0'), 0))}
+                </p>
+              </CardContent>
+            </Card>
+          </div>
+
+          {receivablesData.overdue.length > 0 && (
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2 text-red-600 dark:text-red-500">
+                  <AlertCircle className="h-5 w-5" />
+                  {t.overduePayments}
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-3">
+                  {receivablesData.overdue.map((transaction) => {
+                    const daysOverdue = transaction.dueDate ? differenceInDays(new Date(), new Date(transaction.dueDate)) : 0;
+                    return (
+                      <Card key={transaction.id} className="hover-elevate border-red-200 dark:border-red-900" data-testid={`card-overdue-${transaction.id}`}>
+                        <CardContent className="p-4">
+                          <div className="flex items-center justify-between gap-4">
+                            <div className="flex-1">
+                              <div className="flex items-center gap-2 mb-1">
+                                {getCategoryIcon(transaction.category)}
+                                <span className="font-semibold">{getCategoryLabel(transaction.category)}</span>
+                                <Badge variant="destructive" className="text-xs">
+                                  {daysOverdue} {t.daysOverdue}
+                                </Badge>
+                              </div>
+                              <p className="text-sm text-muted-foreground truncate">{transaction.description}</p>
+                              <div className="flex items-center gap-3 mt-2 text-xs text-muted-foreground">
+                                <span className="flex items-center gap-1">
+                                  <Calendar className="h-3 w-3" />
+                                  {formatDate(transaction.dueDate)}
+                                </span>
+                                {transaction.unitId && units && (
+                                  <span>{units.find(u => u.id === transaction.unitId)?.unitNumber}</span>
+                                )}
+                              </div>
+                            </div>
+                            <div className="text-right">
+                              <div className="text-xl font-bold text-red-600 dark:text-red-500">
+                                {formatCurrency(transaction.netAmount)}
+                              </div>
+                              <div className="flex gap-1 mt-2">
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  onClick={() => handleViewDetails(transaction)}
+                                  data-testid={`button-view-overdue-${transaction.id}`}
+                                >
+                                  <Eye className="h-3 w-3 mr-1" />
+                                  {t.viewDetails}
+                                </Button>
+                              </div>
+                            </div>
+                          </div>
+                        </CardContent>
+                      </Card>
+                    );
+                  })}
+                </div>
+              </CardContent>
+            </Card>
+          )}
+
+          {receivablesData.overdue.length === 0 && (
+            <Card>
+              <CardContent className="text-center py-8">
+                <CheckCircle className="h-12 w-12 mx-auto mb-4 text-green-600 dark:text-green-500" />
+                <p className="text-muted-foreground">{t.noOverduePayments}</p>
+              </CardContent>
+            </Card>
+          )}
+
+          {receivablesData.upcoming.length > 0 && (
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Clock className="h-5 w-5" />
+                  {t.upcomingPayments}
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-3">
+                  {receivablesData.upcoming.slice(0, 10).map((transaction) => (
+                    <Card key={transaction.id} className="hover-elevate" data-testid={`card-upcoming-${transaction.id}`}>
+                      <CardContent className="p-4">
+                        <div className="flex items-center justify-between gap-4">
+                          <div className="flex-1">
+                            <div className="flex items-center gap-2 mb-1">
+                              {getCategoryIcon(transaction.category)}
+                              <span className="font-semibold">{getCategoryLabel(transaction.category)}</span>
+                            </div>
+                            <p className="text-sm text-muted-foreground truncate">{transaction.description}</p>
+                            <div className="flex items-center gap-3 mt-2 text-xs text-muted-foreground">
+                              <span className="flex items-center gap-1">
+                                <Calendar className="h-3 w-3" />
+                                {formatDate(transaction.dueDate)}
+                              </span>
+                              {transaction.unitId && units && (
+                                <span>{units.find(u => u.id === transaction.unitId)?.unitNumber}</span>
+                              )}
+                            </div>
+                          </div>
+                          <div className="text-right">
+                            <div className="text-xl font-bold">
+                              {formatCurrency(transaction.netAmount)}
+                            </div>
+                            <div className="flex gap-1 mt-2">
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => handleViewDetails(transaction)}
+                                data-testid={`button-view-upcoming-${transaction.id}`}
+                              >
+                                <Eye className="h-3 w-3 mr-1" />
+                                {t.viewDetails}
+                              </Button>
+                            </div>
+                          </div>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  ))}
+                </div>
+              </CardContent>
+            </Card>
+          )}
+
+          {receivablesData.upcoming.length === 0 && receivablesData.overdue.length === 0 && (
+            <Card>
+              <CardContent className="text-center py-12">
+                <AlertCircle className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />
+                <p className="text-muted-foreground">{t.noUpcomingPayments}</p>
+              </CardContent>
+            </Card>
+          )}
+        </TabsContent>
+
+        {/* Reports Tab */}
+        <TabsContent value="reports" className="space-y-6">
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <TrendingUp className="h-5 w-5" />
+                {t.incomeVsExpenses} - {t.last12Months}
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="h-80">
+                <ResponsiveContainer width="100%" height="100%">
+                  <BarChart data={reportData.monthly}>
+                    <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
+                    <XAxis 
+                      dataKey="month" 
+                      className="text-xs"
+                      tick={{ fill: 'currentColor' }}
+                    />
+                    <YAxis 
+                      className="text-xs"
+                      tick={{ fill: 'currentColor' }}
+                      tickFormatter={(value) => `$${(value / 1000).toFixed(0)}k`}
+                    />
+                    <Tooltip 
+                      formatter={(value: number) => formatCurrency(value)}
+                      contentStyle={{ 
+                        backgroundColor: 'hsl(var(--card))',
+                        border: '1px solid hsl(var(--border))',
+                        borderRadius: '6px'
+                      }}
+                    />
+                    <Legend />
+                    <Bar 
+                      dataKey="inflow" 
+                      fill="hsl(142, 76%, 36%)" 
+                      name={language === 'es' ? 'Ingresos' : 'Income'}
+                      radius={[4, 4, 0, 0]}
+                    />
+                    <Bar 
+                      dataKey="outflow" 
+                      fill="hsl(0, 84%, 60%)" 
+                      name={language === 'es' ? 'Egresos' : 'Expenses'}
+                      radius={[4, 4, 0, 0]}
+                    />
+                  </BarChart>
+                </ResponsiveContainer>
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Receipt className="h-5 w-5" />
+                {t.topCategories}
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="grid md:grid-cols-2 gap-6">
+                <div className="h-80">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <PieChart>
+                      <Pie
+                        data={reportData.categories}
+                        cx="50%"
+                        cy="50%"
+                        labelLine={false}
+                        label={({ name, percent }) => `${name} (${(percent * 100).toFixed(0)}%)`}
+                        outerRadius={100}
+                        fill="#8884d8"
+                        dataKey="value"
+                      >
+                        {reportData.categories.map((_, index) => {
+                          const colors = ['#10b981', '#3b82f6', '#f59e0b', '#ef4444', '#8b5cf6'];
+                          return <Cell key={`cell-${index}`} fill={colors[index % colors.length]} />;
+                        })}
+                      </Pie>
+                      <Tooltip 
+                        formatter={(value: number) => formatCurrency(value)}
+                        contentStyle={{ 
+                          backgroundColor: 'hsl(var(--card))',
+                          border: '1px solid hsl(var(--border))',
+                          borderRadius: '6px'
+                        }}
+                      />
+                    </PieChart>
+                  </ResponsiveContainer>
+                </div>
+                <div className="space-y-3">
+                  {reportData.categories.map((cat, index) => {
+                    const colors = [
+                      'bg-green-100 text-green-800 dark:bg-green-950 dark:text-green-300',
+                      'bg-blue-100 text-blue-800 dark:bg-blue-950 dark:text-blue-300',
+                      'bg-orange-100 text-orange-800 dark:bg-orange-950 dark:text-orange-300',
+                      'bg-red-100 text-red-800 dark:bg-red-950 dark:text-red-300',
+                      'bg-purple-100 text-purple-800 dark:bg-purple-950 dark:text-purple-300',
+                    ];
+                    const total = reportData.categories.reduce((sum, c) => sum + c.value, 0);
+                    const percent = (cat.value / total) * 100;
+                    
+                    return (
+                      <Card key={index} className="hover-elevate">
+                        <CardContent className="p-4">
+                          <div className="flex items-center justify-between gap-3">
+                            <div className="flex-1">
+                              <div className="font-semibold text-sm mb-1">{cat.name}</div>
+                              <Badge className={colors[index % colors.length]}>
+                                {percent.toFixed(1)}%
+                              </Badge>
+                            </div>
+                            <div className="text-right">
+                              <div className="font-bold text-lg">
+                                {formatCurrency(cat.value)}
+                              </div>
+                            </div>
+                          </div>
+                        </CardContent>
+                      </Card>
+                    );
+                  })}
+                </div>
+              </div>
+            </CardContent>
+          </Card>
         </TabsContent>
       </Tabs>
 
