@@ -40,6 +40,11 @@ export default function ExternalCondominiums() {
   // For creating condominium with multiple units
   const [tempUnits, setTempUnits] = useState<Array<{ unitNumber: string; floor?: number; bedrooms?: number; bathrooms?: number; squareMeters?: number }>>([]);
   
+  // For adding multiple units to existing condominium
+  const [showAddUnitsDialog, setShowAddUnitsDialog] = useState(false);
+  const [selectedCondoForAddUnits, setSelectedCondoForAddUnits] = useState<ExternalCondominium | null>(null);
+  const [addUnitsTemp, setAddUnitsTemp] = useState<Array<{ unitNumber: string; floor?: number; bedrooms?: number; bathrooms?: number; squareMeters?: number }>>([{ unitNumber: '' }]);
+  
   // Legacy states for backwards compatibility with edit mode
   const [showCondoDialog, setShowCondoDialog] = useState(false);
   const [showUnitDialog, setShowUnitDialog] = useState(false);
@@ -407,6 +412,78 @@ export default function ExternalCondominiums() {
     }
   };
 
+  // Functions for adding multiple units to existing condominium
+  const handleAddUnitsToCondominium = (condo: ExternalCondominium) => {
+    setSelectedCondoForAddUnits(condo);
+    setAddUnitsTemp([{ unitNumber: '' }]);
+    setShowAddUnitsDialog(true);
+  };
+
+  const handleAddMoreUnit = () => {
+    setAddUnitsTemp([...addUnitsTemp, { unitNumber: "", floor: undefined, bedrooms: undefined, bathrooms: undefined, squareMeters: undefined }]);
+  };
+
+  const handleRemoveAddUnit = (index: number) => {
+    if (addUnitsTemp.length > 1) {
+      setAddUnitsTemp(addUnitsTemp.filter((_, i) => i !== index));
+    }
+  };
+
+  const handleUpdateAddUnit = (index: number, field: string, value: any) => {
+    const updated = [...addUnitsTemp];
+    updated[index] = { ...updated[index], [field]: value };
+    setAddUnitsTemp(updated);
+  };
+
+  const handleSubmitAddUnits = async () => {
+    if (!selectedCondoForAddUnits) return;
+    
+    try {
+      const validUnits = addUnitsTemp.filter(unit => unit.unitNumber.trim() !== '');
+      
+      if (validUnits.length === 0) {
+        toast({
+          title: language === "es" ? "Error" : "Error",
+          description: language === "es" ? "Debes agregar al menos una unidad" : "You must add at least one unit",
+          variant: "destructive",
+        });
+        return;
+      }
+      
+      // Parse and validate units with externalUnitFormSchema to convert strings to numbers
+      const parsedUnits = validUnits.map(unit => {
+        try {
+          return externalUnitFormSchema.parse(unit);
+        } catch (error: any) {
+          throw new Error(`Invalid unit data: ${error.message}`);
+        }
+      });
+      
+      const payload = {
+        units: parsedUnits
+      };
+      
+      await apiRequest('POST', `/api/external-condominiums/${selectedCondoForAddUnits.id}/units/bulk`, payload);
+      
+      queryClient.invalidateQueries({ queryKey: ['/api/external-units'] });
+      
+      setShowAddUnitsDialog(false);
+      setSelectedCondoForAddUnits(null);
+      setAddUnitsTemp([{ unitNumber: '' }]);
+      
+      toast({
+        title: language === "es" ? "Unidades agregadas" : "Units added",
+        description: language === "es" ? `${parsedUnits.length} unidades agregadas exitosamente` : `${parsedUnits.length} units added successfully`,
+      });
+    } catch (error: any) {
+      toast({
+        title: language === "es" ? "Error" : "Error",
+        description: error.message || (language === "es" ? "No se pudieron agregar las unidades" : "Failed to add units"),
+        variant: "destructive",
+      });
+    }
+  };
+
   const handleDeleteCondo = (condo: ExternalCondominium) => {
     setDeletingCondo(condo);
     setShowDeleteCondoDialog(true);
@@ -694,6 +771,18 @@ export default function ExternalCondominiums() {
                             <span>{condo.name}</span>
                           </div>
                           <div className="flex items-center gap-1">
+                            <Button
+                              size="icon"
+                              variant="ghost"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleAddUnitsToCondominium(condo);
+                              }}
+                              data-testid={`button-add-units-condo-${condo.id}`}
+                              title={language === "es" ? "Agregar múltiples unidades" : "Add multiple units"}
+                            >
+                              <Plus className="h-4 w-4" />
+                            </Button>
                             <Button
                               size="icon"
                               variant="ghost"
@@ -1847,6 +1936,122 @@ export default function ExternalCondominiums() {
               {deleteCondoMutation.isPending
                 ? (language === "es" ? "Eliminando..." : "Deleting...")
                 : (language === "es" ? "Eliminar" : "Delete")}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Add Multiple Units to Existing Condominium Dialog */}
+      <Dialog open={showAddUnitsDialog} onOpenChange={(open) => {
+        setShowAddUnitsDialog(open);
+        if (!open) {
+          setSelectedCondoForAddUnits(null);
+          setAddUnitsTemp([{ unitNumber: '' }]);
+        }
+      }}>
+        <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto" data-testid="dialog-add-units-form">
+          <DialogHeader>
+            <DialogTitle>
+              {language === "es" ? "Agregar Múltiples Unidades" : "Add Multiple Units"}
+            </DialogTitle>
+            <DialogDescription>
+              {selectedCondoForAddUnits && (
+                <>
+                  {language === "es" ? "Agrega varias unidades a " : "Add multiple units to "}
+                  <strong>{selectedCondoForAddUnits.name}</strong>
+                </>
+              )}
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-4">
+            <div className="flex items-center justify-between">
+              <h3 className="font-semibold text-lg">{language === "es" ? "Unidades" : "Units"}</h3>
+              <Button type="button" variant="outline" size="sm" onClick={handleAddMoreUnit} data-testid="button-add-more-unit">
+                <Plus className="mr-2 h-4 w-4" />
+                {language === "es" ? "Agregar Unidad" : "Add Unit"}
+              </Button>
+            </div>
+            
+            <div className="space-y-3">
+              {addUnitsTemp.map((unit, index) => (
+                <Card key={index}>
+                  <CardContent className="pt-4">
+                    <div className="flex items-start gap-4">
+                      <div className="flex-1 grid gap-3 md:grid-cols-4">
+                        <div className="space-y-1">
+                          <label className="text-xs font-medium">{language === "es" ? "Número *" : "Number *"}</label>
+                          <Input
+                            placeholder={language === "es" ? "Ej: 101" : "E.g: 101"}
+                            value={unit.unitNumber}
+                            onChange={(e) => handleUpdateAddUnit(index, 'unitNumber', e.target.value)}
+                            data-testid={`input-add-unit-number-${index}`}
+                          />
+                        </div>
+                        <div className="space-y-1">
+                          <label className="text-xs font-medium">{language === "es" ? "Piso" : "Floor"}</label>
+                          <Input
+                            type="number"
+                            placeholder="1"
+                            value={unit.floor || ""}
+                            onChange={(e) => handleUpdateAddUnit(index, 'floor', e.target.value ? parseInt(e.target.value) : undefined)}
+                            data-testid={`input-add-unit-floor-${index}`}
+                          />
+                        </div>
+                        <div className="space-y-1">
+                          <label className="text-xs font-medium">{language === "es" ? "Recámaras" : "Bedrooms"}</label>
+                          <Input
+                            type="number"
+                            placeholder="2"
+                            value={unit.bedrooms || ""}
+                            onChange={(e) => handleUpdateAddUnit(index, 'bedrooms', e.target.value ? parseInt(e.target.value) : undefined)}
+                            data-testid={`input-add-unit-bedrooms-${index}`}
+                          />
+                        </div>
+                        <div className="space-y-1">
+                          <label className="text-xs font-medium">{language === "es" ? "Baños" : "Bathrooms"}</label>
+                          <Input
+                            type="number"
+                            placeholder="1"
+                            value={unit.bathrooms || ""}
+                            onChange={(e) => handleUpdateAddUnit(index, 'bathrooms', e.target.value ? parseInt(e.target.value) : undefined)}
+                            data-testid={`input-add-unit-bathrooms-${index}`}
+                          />
+                        </div>
+                      </div>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="icon"
+                        onClick={() => handleRemoveAddUnit(index)}
+                        data-testid={`button-remove-add-unit-${index}`}
+                        className="mt-5"
+                        disabled={addUnitsTemp.length === 1}
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+          </div>
+
+          <DialogFooter>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => setShowAddUnitsDialog(false)}
+              data-testid="button-cancel-add-units"
+            >
+              {language === "es" ? "Cancelar" : "Cancel"}
+            </Button>
+            <Button
+              type="button"
+              onClick={handleSubmitAddUnits}
+              data-testid="button-submit-add-units"
+            >
+              {language === "es" ? "Agregar Unidades" : "Add Units"}
             </Button>
           </DialogFooter>
         </DialogContent>
