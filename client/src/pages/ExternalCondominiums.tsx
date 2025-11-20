@@ -54,7 +54,12 @@ export default function ExternalCondominiums() {
   const contractsQuery = useQuery<ExternalRentalContract[]>({
     queryKey: ['/api/external-rental-contracts'],
   });
-  const { data: rentalContracts, isLoading: contractsLoading, isError: contractsError, refetch: refetchContracts } = contractsQuery;
+  const { data: rawContracts, isLoading: contractsLoading, isError: contractsError, refetch: refetchContracts } = contractsQuery;
+
+  // Normalize contracts - unwrap nested structure if present
+  const rentalContracts = (rawContracts ?? []).map((c: any) => 
+    'contract' in c ? c.contract : c
+  );
 
   // Get services for all units - we'll create a map of unitId -> services[]
   const { data: allUnitServices } = useQuery<Record<string, ExternalPaymentSchedule[]>>({
@@ -326,8 +331,9 @@ export default function ExternalCondominiums() {
   };
 
   const hasActiveRental = (unitId: string): boolean | undefined => {
-    if (contractsLoading || contractsError || !rentalContracts) return undefined;
-    return rentalContracts.some(contract => 
+    if (contractsLoading || contractsError) return undefined;
+    if (!rentalContracts || rentalContracts.length === 0) return false;
+    return rentalContracts.some((contract: any) => 
       contract.unitId === unitId && contract.status === 'active'
     );
   };
@@ -362,7 +368,7 @@ export default function ExternalCondominiums() {
 
   return (
     <div className="container mx-auto p-6 space-y-6">
-      <div className="flex justify-between items-center">
+      <div className="flex justify-between items-start">
         <div>
           <h1 className="text-3xl font-bold" data-testid="text-page-title">
             {language === "es" ? "Condominios y Unidades" : "Condominiums & Units"}
@@ -373,6 +379,10 @@ export default function ExternalCondominiums() {
               : "Manage your condominiums and units"}
           </p>
         </div>
+        <Button onClick={handleAddCondo} data-testid="button-add-condominium">
+          <Plus className="mr-2 h-4 w-4" />
+          {language === "es" ? "Agregar Condominio" : "Add Condominium"}
+        </Button>
       </div>
 
       <Tabs defaultValue="condominiums" className="w-full">
@@ -388,23 +398,15 @@ export default function ExternalCondominiums() {
         </TabsList>
 
         <TabsContent value="condominiums" className="space-y-4">
-          <div className="flex justify-between items-center">
-            {selectedCondoId && (
-              <Button 
-                variant="outline" 
-                onClick={() => setSelectedCondoId(null)}
-                data-testid="button-back-to-condos"
-              >
-                ← {language === "es" ? "Volver a Condominios" : "Back to Condominiums"}
-              </Button>
-            )}
-            <div className={selectedCondoId ? "" : "ml-auto"}>
-              <Button onClick={handleAddCondo} data-testid="button-add-condominium">
-                <Plus className="mr-2 h-4 w-4" />
-                {language === "es" ? "Agregar Condominio" : "Add Condominium"}
-              </Button>
-            </div>
-          </div>
+          {selectedCondoId && (
+            <Button 
+              variant="outline" 
+              onClick={() => setSelectedCondoId(null)}
+              data-testid="button-back-to-condos"
+            >
+              ← {language === "es" ? "Volver a Condominios" : "Back to Condominiums"}
+            </Button>
+          )}
 
           {condosError ? (
             <Card data-testid="card-error-state">
