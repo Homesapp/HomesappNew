@@ -210,56 +210,44 @@ export default function ExternalRentals() {
     return 0;
   });
 
-  // Helper to get current month payment status for a service
+  // Helper to get the most recent payment status for a service
   const getNextPaymentStatus = (contractId: string, serviceType: string, dayOfMonth: number): 'paid' | 'pending' | 'overdue' | null => {
     if (!payments || payments.length === 0) return null;
     
     const today = new Date();
     today.setHours(0, 0, 0, 0);
     
-    const currentMonth = today.getMonth();
-    const currentYear = today.getFullYear();
-    
     // Find all payments for this contract and service
-    const servicePayments = payments.filter(p => 
-      p.contractId === contractId && p.serviceType === serviceType
-    );
+    const servicePayments = payments
+      .filter(p => p.contractId === contractId && p.serviceType === serviceType)
+      .sort((a, b) => new Date(b.dueDate).getTime() - new Date(a.dueDate).getTime()); // Sort by most recent first
     
     if (servicePayments.length === 0) {
-      // No payments exist - check if we're past this month's due date
-      const thisDueDate = new Date(currentYear, currentMonth, dayOfMonth);
-      thisDueDate.setHours(0, 0, 0, 0);
-      return today > thisDueDate ? 'overdue' : 'pending';
+      return 'pending';
     }
     
-    // Look for current month's payment first
-    const currentMonthPayment = servicePayments.find(p => {
-      const dueDate = new Date(p.dueDate);
-      return dueDate.getMonth() === currentMonth && dueDate.getFullYear() === currentYear;
-    });
+    // Get the most recent payment
+    const mostRecentPayment = servicePayments[0];
+    const mostRecentDueDate = new Date(mostRecentPayment.dueDate);
+    mostRecentDueDate.setHours(0, 0, 0, 0);
     
-    if (currentMonthPayment) {
-      // Found current month's payment - return its status
-      return currentMonthPayment.status === 'cancelled' ? 'overdue' : currentMonthPayment.status;
+    // If the most recent payment is paid, show it as paid
+    if (mostRecentPayment.status === 'paid') {
+      return 'paid';
     }
     
-    // No current month payment - check if we should have one by now
-    const thisDueDate = new Date(currentYear, currentMonth, dayOfMonth);
-    thisDueDate.setHours(0, 0, 0, 0);
-    
-    if (today > thisDueDate) {
-      // We're past the due date and no payment exists
+    // If the most recent payment is pending and past due, it's overdue
+    if (mostRecentPayment.status === 'pending' && today > mostRecentDueDate) {
       return 'overdue';
     }
     
-    // Check if there's a future payment (next month)
-    const futurePayment = servicePayments.find(p => {
-      const dueDate = new Date(p.dueDate);
-      dueDate.setHours(0, 0, 0, 0);
-      return dueDate > today;
-    });
+    // If cancelled, treat as overdue
+    if (mostRecentPayment.status === 'cancelled') {
+      return 'overdue';
+    }
     
-    return futurePayment?.status === 'paid' ? 'paid' : 'pending';
+    // Otherwise return its current status
+    return mostRecentPayment.status;
   };
 
   const getServiceLabel = (serviceType: string) => {
