@@ -624,7 +624,7 @@ export default function ExternalCalendar() {
                       className="h-4 w-4"
                     />
                     <Label htmlFor="filter-payments" className="flex items-center gap-1.5 cursor-pointer text-sm">
-                      <div className="h-2 w-2 rounded-full bg-green-500" />
+                      <div className="h-2 w-2 rounded-full bg-blue-500" />
                       <span className="text-xs">{language === "es" ? "Pagos" : "Payments"}</span>
                     </Label>
                   </div>
@@ -650,7 +650,7 @@ export default function ExternalCalendar() {
                       className="h-4 w-4"
                     />
                     <Label htmlFor="filter-tickets" className="flex items-center gap-1.5 cursor-pointer text-sm">
-                      <div className="h-2 w-2 rounded-full bg-blue-500" />
+                      <div className="h-2 w-2 rounded-full bg-green-500" />
                       <span className="text-xs">{language === "es" ? "Mant." : "Maint."}</span>
                     </Label>
                   </div>
@@ -678,13 +678,13 @@ export default function ExternalCalendar() {
           <CardContent className="pt-4 pb-4">
             <div className="grid grid-cols-3 gap-4">
               <div className="text-center">
-                <div className="text-2xl font-bold text-green-600" data-testid="text-pending-payments">{stats.pendingPayments}</div>
+                <div className="text-2xl font-bold text-blue-600" data-testid="text-pending-payments">{stats.pendingPayments}</div>
                 <p className="text-xs text-muted-foreground mt-0.5">
                   {language === "es" ? "Pagos 30d" : "Payments 30d"}
                 </p>
               </div>
               <div className="text-center">
-                <div className="text-2xl font-bold text-blue-600" data-testid="text-scheduled-tickets">{stats.scheduledTickets}</div>
+                <div className="text-2xl font-bold text-green-600" data-testid="text-scheduled-tickets">{stats.scheduledTickets}</div>
                 <p className="text-xs text-muted-foreground mt-0.5">
                   {language === "es" ? "Mant. prog." : "Maint. sched."}
                 </p>
@@ -835,8 +835,9 @@ export default function ExternalCalendar() {
                         >
                           <div className={cn(
                             "border rounded-md",
-                            event.type === 'payment' && "border-green-200 dark:border-green-900 bg-green-50/30 dark:bg-green-950/10",
-                            event.type === 'ticket' && "border-blue-200 dark:border-blue-900 bg-blue-50/30 dark:bg-blue-950/10",
+                            event.type === 'payment' && "border-blue-200 dark:border-blue-900 bg-blue-50/30 dark:bg-blue-950/10",
+                            event.type === 'service' && "border-yellow-200 dark:border-yellow-900 bg-yellow-50/30 dark:bg-yellow-950/10",
+                            event.type === 'ticket' && "border-green-200 dark:border-green-900 bg-green-50/30 dark:bg-green-950/10",
                             event.type === 'contract' && "border-purple-200 dark:border-purple-900 bg-purple-50/30 dark:bg-purple-950/10"
                           )}>
                             <CollapsibleTrigger asChild>
@@ -847,9 +848,11 @@ export default function ExternalCalendar() {
                                 <div className="flex items-start gap-2.5">
                                   <div className="mt-1">
                                     {event.type === 'payment' ? (
-                                      <div className="h-2 w-2 rounded-full bg-green-500" />
-                                    ) : event.type === 'ticket' ? (
                                       <div className="h-2 w-2 rounded-full bg-blue-500" />
+                                    ) : event.type === 'service' ? (
+                                      <div className="h-2 w-2 rounded-full bg-yellow-500" />
+                                    ) : event.type === 'ticket' ? (
+                                      <div className="h-2 w-2 rounded-full bg-green-500" />
                                     ) : (
                                       <div className="h-2 w-2 rounded-full bg-purple-500" />
                                     )}
@@ -863,15 +866,11 @@ export default function ExternalCalendar() {
                                         <ChevronDown className="h-4 w-4 text-muted-foreground flex-shrink-0" />
                                       )}
                                     </div>
-                                    <div className="flex items-center gap-2 mt-0.5">
-                                      <p className="text-xs text-muted-foreground">{event.time}</p>
-                                      <span className="text-xs text-muted-foreground">•</span>
-                                      <p className="text-xs text-muted-foreground truncate">
-                                        {event.condominium}
-                                        {event.unitNumber && ` - ${event.unitNumber}`}
-                                        {event.tenantName && ` (${event.tenantName})`}
-                                      </p>
-                                    </div>
+                                    {event.time && (
+                                      <div className="flex items-center gap-2 mt-0.5">
+                                        <p className="text-xs text-muted-foreground">{event.time}</p>
+                                      </div>
+                                    )}
                                   </div>
                                 </div>
                               </div>
@@ -891,7 +890,7 @@ export default function ExternalCalendar() {
                                           {payment.status}
                                         </Badge>
                                         {hasValidAmount && (
-                                          <p className="text-lg font-bold text-green-600">
+                                          <p className="text-lg font-bold text-blue-600">
                                             ${parsedAmount.toFixed(2)}
                                           </p>
                                         )}
@@ -914,6 +913,49 @@ export default function ExternalCalendar() {
                                               <p className="font-medium">{language === "es" ? "Vencimiento" : "Due Date"}</p>
                                               <p className="text-muted-foreground">
                                                 {format(new Date(payment.dueDate), "PPP", { locale: language === "es" ? es : enUS })}
+                                              </p>
+                                            </div>
+                                          </div>
+                                        )}
+                                      </div>
+                                    </div>
+                                  );
+                                })()}
+
+                                {event.type === 'service' && (() => {
+                                  const service = event.data as ExternalPaymentSchedule;
+                                  const parsedAmount = service.amount ? parseFloat(service.amount) : NaN;
+                                  const hasValidAmount = Number.isFinite(parsedAmount);
+
+                                  return (
+                                    <div className="space-y-2 text-sm">
+                                      <div className="flex items-center justify-between">
+                                        <Badge variant={service.status === 'paid' ? 'default' : service.status === 'pending' ? 'secondary' : 'destructive'} className="text-xs">
+                                          {service.status}
+                                        </Badge>
+                                        {hasValidAmount && (
+                                          <p className="text-lg font-bold text-yellow-600">
+                                            ${parsedAmount.toFixed(2)}
+                                          </p>
+                                        )}
+                                      </div>
+                                      <div className="space-y-1.5 text-xs">
+                                        <div className="flex items-start gap-2">
+                                          <FileText className="h-3.5 w-3.5 mt-0.5 text-muted-foreground flex-shrink-0" />
+                                          <div className="min-w-0">
+                                            <p className="font-medium">{language === "es" ? "Unidad" : "Unit"}</p>
+                                            <p className="text-muted-foreground break-words">
+                                              {event.condominium} - {event.unitNumber}
+                                            </p>
+                                          </div>
+                                        </div>
+                                        {service.dueDate && (
+                                          <div className="flex items-start gap-2">
+                                            <CalIcon className="h-3.5 w-3.5 mt-0.5 text-muted-foreground flex-shrink-0" />
+                                            <div>
+                                              <p className="font-medium">{language === "es" ? "Vencimiento" : "Due Date"}</p>
+                                              <p className="text-muted-foreground">
+                                                {format(new Date(service.dueDate), "PPP", { locale: language === "es" ? es : enUS })}
                                               </p>
                                             </div>
                                           </div>
