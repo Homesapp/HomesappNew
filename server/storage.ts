@@ -329,6 +329,12 @@ import {
   externalMaintenanceTickets,
   type ExternalMaintenanceTicket,
   type InsertExternalMaintenanceTicket,
+  externalMaintenanceUpdates,
+  type ExternalMaintenanceUpdate,
+  type InsertExternalMaintenanceUpdate,
+  externalMaintenancePhotos,
+  type ExternalMaintenancePhoto,
+  type InsertExternalMaintenancePhoto,
   externalCondominiums,
   type ExternalCondominium,
   type InsertExternalCondominium,
@@ -1166,6 +1172,15 @@ export interface IStorage {
   updateExternalTicketStatus(id: string, status: string, resolvedDate?: Date): Promise<ExternalMaintenanceTicket>;
   assignExternalTicket(id: string, assignedTo: string): Promise<ExternalMaintenanceTicket>;
   deleteExternalMaintenanceTicket(id: string): Promise<void>;
+  
+  // External Maintenance Updates
+  getExternalMaintenanceUpdates(ticketId: string): Promise<ExternalMaintenanceUpdate[]>;
+  createExternalMaintenanceUpdate(update: InsertExternalMaintenanceUpdate): Promise<ExternalMaintenanceUpdate>;
+  
+  // External Maintenance Photos
+  getExternalMaintenancePhotos(ticketId: string, filters?: { phase?: string; updateId?: string }): Promise<ExternalMaintenancePhoto[]>;
+  createExternalMaintenancePhoto(photo: InsertExternalMaintenancePhoto): Promise<ExternalMaintenancePhoto>;
+  deleteExternalMaintenancePhoto(id: string): Promise<void>;
 
   // External Management System - Condominium operations
   getExternalCondominium(id: string): Promise<ExternalCondominium | undefined>;
@@ -7800,6 +7815,54 @@ export class DatabaseStorage implements IStorage {
       .from(externalMaintenanceTickets)
       .where(eq(externalMaintenanceTickets.unitId, unitId))
       .orderBy(desc(externalMaintenanceTickets.createdAt));
+  }
+
+  // External Maintenance Updates implementation
+  async getExternalMaintenanceUpdates(ticketId: string): Promise<ExternalMaintenanceUpdate[]> {
+    return await db.select()
+      .from(externalMaintenanceUpdates)
+      .where(eq(externalMaintenanceUpdates.ticketId, ticketId))
+      .orderBy(desc(externalMaintenanceUpdates.createdAt));
+  }
+
+  async createExternalMaintenanceUpdate(update: InsertExternalMaintenanceUpdate): Promise<ExternalMaintenanceUpdate> {
+    const [newUpdate] = await db.insert(externalMaintenanceUpdates)
+      .values(update)
+      .returning();
+    return newUpdate;
+  }
+
+  // External Maintenance Photos implementation
+  async getExternalMaintenancePhotos(
+    ticketId: string,
+    filters?: { phase?: string; updateId?: string }
+  ): Promise<ExternalMaintenancePhoto[]> {
+    const conditions = [eq(externalMaintenancePhotos.ticketId, ticketId)];
+    
+    if (filters?.phase) {
+      conditions.push(eq(externalMaintenancePhotos.phase, filters.phase));
+    }
+    
+    if (filters?.updateId) {
+      conditions.push(eq(externalMaintenancePhotos.updateId, filters.updateId));
+    }
+
+    return await db.select()
+      .from(externalMaintenancePhotos)
+      .where(and(...conditions))
+      .orderBy(desc(externalMaintenancePhotos.uploadedAt));
+  }
+
+  async createExternalMaintenancePhoto(photo: InsertExternalMaintenancePhoto): Promise<ExternalMaintenancePhoto> {
+    const [newPhoto] = await db.insert(externalMaintenancePhotos)
+      .values(photo)
+      .returning();
+    return newPhoto;
+  }
+
+  async deleteExternalMaintenancePhoto(id: string): Promise<void> {
+    await db.delete(externalMaintenancePhotos)
+      .where(eq(externalMaintenancePhotos.id, id));
   }
 
   // External Condominium operations
