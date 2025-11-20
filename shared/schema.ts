@@ -371,6 +371,37 @@ export const externalTicketPriorityEnum = pgEnum("external_ticket_priority", [
   "urgent",       // Urgente
 ]);
 
+export const financialTransactionDirectionEnum = pgEnum("financial_transaction_direction", [
+  "inflow",       // Dinero que entra (cobros)
+  "outflow",      // Dinero que sale (pagos)
+]);
+
+export const financialTransactionCategoryEnum = pgEnum("financial_transaction_category", [
+  "rent_income",          // Ingreso por renta
+  "rent_payout",          // Pago de renta a propietario
+  "hoa_fee",              // Cuota de HOA (cobro a propietario)
+  "maintenance_charge",   // Cargo por reparación (a propietario o inquilino)
+  "service_electricity",  // Cargo por electricidad
+  "service_water",        // Cargo por agua
+  "service_internet",     // Cargo por internet
+  "service_gas",          // Cargo por gas
+  "service_other",        // Otro servicio
+  "adjustment",           // Ajuste contable
+]);
+
+export const financialTransactionStatusEnum = pgEnum("financial_transaction_status", [
+  "pending",      // Pendiente
+  "posted",       // Contabilizado/Procesado
+  "reconciled",   // Conciliado
+  "cancelled",    // Cancelado
+]);
+
+export const financialTransactionRoleEnum = pgEnum("financial_transaction_role", [
+  "tenant",       // Inquilino
+  "owner",        // Propietario
+  "agency",       // Agencia
+]);
+
 export const leadJourneyActionEnum = pgEnum("lead_journey_action", [
   "search",
   "view_layer1",
@@ -5139,6 +5170,86 @@ export const updateExternalUnitOwnerSchema = insertExternalUnitOwnerSchema.parti
 export type InsertExternalUnitOwner = z.infer<typeof insertExternalUnitOwnerSchema>;
 export type UpdateExternalUnitOwner = z.infer<typeof updateExternalUnitOwnerSchema>;
 export type ExternalUnitOwner = typeof externalUnitOwners.$inferSelect;
+
+// External Financial Transactions - Sistema unificado de contabilidad
+export const externalFinancialTransactions = pgTable("external_financial_transactions", {
+  id: varchar("id").primaryKey().$defaultFn(() => crypto.randomUUID()),
+  agencyId: varchar("agency_id").notNull().references(() => externalAgencies.id, { onDelete: "cascade" }),
+  
+  // Transaction details
+  direction: financialTransactionDirectionEnum("direction").notNull(), // inflow or outflow
+  category: financialTransactionCategoryEnum("category").notNull(), // rent_income, hoa_fee, etc
+  status: financialTransactionStatusEnum("status").notNull().default("pending"),
+  
+  // Monetary fields
+  grossAmount: decimal("gross_amount", { precision: 12, scale: 2 }).notNull(), // Monto bruto
+  fees: decimal("fees", { precision: 12, scale: 2 }).default("0.00"), // Comisiones/cargos
+  netAmount: decimal("net_amount", { precision: 12, scale: 2 }).notNull(), // Monto neto
+  currency: varchar("currency", { length: 10 }).notNull().default("MXN"),
+  
+  // Dates
+  dueDate: timestamp("due_date").notNull(), // Fecha de vencimiento
+  performedDate: timestamp("performed_date"), // Fecha en que se realizó/pagó
+  reconciledDate: timestamp("reconciled_date"), // Fecha de conciliación
+  
+  // Parties involved
+  payerRole: financialTransactionRoleEnum("payer_role").notNull(), // Quien paga: tenant, owner, agency
+  payeeRole: financialTransactionRoleEnum("payee_role").notNull(), // Quien recibe: tenant, owner, agency
+  ownerId: varchar("owner_id").references(() => externalUnitOwners.id, { onDelete: "set null" }), // Si involucra propietario
+  tenantName: varchar("tenant_name", { length: 255 }), // Nombre del inquilino si aplica
+  
+  // Relations to other entities
+  contractId: varchar("contract_id").references(() => externalRentalContracts.id, { onDelete: "set null" }),
+  unitId: varchar("unit_id").references(() => externalUnits.id, { onDelete: "set null" }),
+  paymentId: varchar("payment_id").references(() => externalPayments.id, { onDelete: "set null" }), // Link to external payment if applicable
+  maintenanceTicketId: varchar("maintenance_ticket_id").references(() => externalMaintenanceTickets.id, { onDelete: "set null" }),
+  scheduleId: varchar("schedule_id").references(() => externalPaymentSchedules.id, { onDelete: "set null" }),
+  
+  // Payment details
+  paymentMethod: varchar("payment_method", { length: 100 }), // Transferencia, efectivo, cheque, etc
+  paymentReference: varchar("payment_reference", { length: 255 }), // Número de referencia/folio
+  paymentProofUrl: text("payment_proof_url"), // URL del comprobante
+  
+  // Additional info
+  description: text("description").notNull(), // Descripción de la transacción
+  notes: text("notes"), // Notas adicionales
+  metadata: jsonb("metadata"), // JSON para datos adicionales flexibles
+  
+  // Audit
+  createdBy: varchar("created_by").references(() => users.id),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+}, (table) => [
+  index("idx_external_transactions_agency").on(table.agencyId),
+  index("idx_external_transactions_direction").on(table.direction),
+  index("idx_external_transactions_category").on(table.category),
+  index("idx_external_transactions_status").on(table.status),
+  index("idx_external_transactions_due_date").on(table.dueDate),
+  index("idx_external_transactions_owner").on(table.ownerId),
+  index("idx_external_transactions_contract").on(table.contractId),
+  index("idx_external_transactions_unit").on(table.unitId),
+  index("idx_external_transactions_payer").on(table.payerRole),
+  index("idx_external_transactions_payee").on(table.payeeRole),
+]);
+
+export const insertExternalFinancialTransactionSchema = createInsertSchema(externalFinancialTransactions).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+}).extend({
+  dueDate: z.coerce.date(),
+  performedDate: z.coerce.date().optional().nullable(),
+  reconciledDate: z.coerce.date().optional().nullable(),
+});
+
+export const updateExternalFinancialTransactionSchema = insertExternalFinancialTransactionSchema.partial().omit({
+  agencyId: true,
+  createdBy: true,
+});
+
+export type InsertExternalFinancialTransaction = z.infer<typeof insertExternalFinancialTransactionSchema>;
+export type UpdateExternalFinancialTransaction = z.infer<typeof updateExternalFinancialTransactionSchema>;
+export type ExternalFinancialTransaction = typeof externalFinancialTransactions.$inferSelect;
 
 // External Unit Access Controls - Controles de acceso/claves de unidades
 export const externalUnitAccessControls = pgTable("external_unit_access_controls", {
