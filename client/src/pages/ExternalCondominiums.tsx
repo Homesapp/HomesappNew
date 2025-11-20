@@ -55,7 +55,11 @@ export default function ExternalCondominiums() {
   const [selectedCondoFilter, setSelectedCondoFilter] = useState<string>("all");
   const [rentalStatusFilter, setRentalStatusFilter] = useState<string>("all");
   const [unitStatusFilter, setUnitStatusFilter] = useState<string>("all"); // active, suspended, all
-  const [filtersExpanded, setFiltersExpanded] = useState(true);
+  const [filtersExpanded, setFiltersExpanded] = useState(false);
+  
+  // Condominium filters state
+  const [condoSearchText, setCondoSearchText] = useState("");
+  const [condoFiltersExpanded, setCondoFiltersExpanded] = useState(false);
 
   const { data: condominiums, isLoading: condosLoading, isError: condosError, error: condosErrorMsg } = useQuery<ExternalCondominium[]>({
     queryKey: ['/api/external-condominiums'],
@@ -588,6 +592,17 @@ export default function ExternalCondominiums() {
     return matchesSearch && matchesCondominium && matchesRentalStatus && matchesUnitStatus;
   }) || [];
 
+  const filteredCondominiums = condominiums?.filter(condo => {
+    // Filter by search text (name or address)
+    const searchLower = condoSearchText.toLowerCase();
+    const matchesSearch = !searchLower || 
+      condo.name.toLowerCase().includes(searchLower) ||
+      (condo.address && condo.address.toLowerCase().includes(searchLower)) ||
+      (condo.description && condo.description.toLowerCase().includes(searchLower));
+
+    return matchesSearch;
+  }) || [];
+
   return (
     <div className="container mx-auto p-6 space-y-6">
       <div className="flex justify-between items-start">
@@ -620,14 +635,51 @@ export default function ExternalCondominiums() {
         </TabsList>
 
         <TabsContent value="condominiums" className="space-y-4">
-          {selectedCondoId && (
-            <Button 
-              variant="outline" 
-              onClick={() => setSelectedCondoId(null)}
-              data-testid="button-back-to-condos"
-            >
-              ← {language === "es" ? "Volver a Condominios" : "Back to Condominiums"}
-            </Button>
+          <div className="flex items-center justify-between">
+            {selectedCondoId ? (
+              <Button 
+                variant="outline" 
+                onClick={() => setSelectedCondoId(null)}
+                data-testid="button-back-to-condos"
+              >
+                ← {language === "es" ? "Volver a Condominios" : "Back to Condominiums"}
+              </Button>
+            ) : (
+              <div className="flex-1" />
+            )}
+            {!selectedCondoId && (
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={() => setCondoFiltersExpanded(!condoFiltersExpanded)}
+                data-testid="button-toggle-condo-filters"
+                title={language === "es" ? "Filtros" : "Filters"}
+              >
+                <Filter className="h-4 w-4" />
+              </Button>
+            )}
+          </div>
+          
+          {!selectedCondoId && condoFiltersExpanded && (
+            <Card>
+              <CardContent className="pt-6">
+                <div className="space-y-2">
+                  <label className="text-sm font-medium">
+                    {language === "es" ? "Buscar" : "Search"}
+                  </label>
+                  <div className="relative">
+                    <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
+                    <Input
+                      placeholder={language === "es" ? "Nombre o dirección de condominio..." : "Condominium name or address..."}
+                      value={condoSearchText}
+                      onChange={(e) => setCondoSearchText(e.target.value)}
+                      className="pl-8"
+                      data-testid="input-search-condos"
+                    />
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
           )}
 
           {condosError ? (
@@ -656,11 +708,11 @@ export default function ExternalCondominiums() {
                 </Card>
               ))}
             </div>
-          ) : condominiums && condominiums.length > 0 ? (
+          ) : filteredCondominiums && filteredCondominiums.length > 0 ? (
             selectedCondoId ? (
               // Detail view for selected condominium
               (() => {
-                const selectedCondo = condominiums.find(c => c.id === selectedCondoId);
+                const selectedCondo = filteredCondominiums.find(c => c.id === selectedCondoId);
                 if (!selectedCondo) return null;
                 const condoUnits = getUnitsForCondo(selectedCondoId);
                 
@@ -809,7 +861,7 @@ export default function ExternalCondominiums() {
             ) : (
               // Grid view of all condominiums
               <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-                {condominiums.map((condo) => {
+                {filteredCondominiums.map((condo) => {
                   const condoUnits = getUnitsForCondo(condo.id);
                   const activeUnits = condoUnits.filter(u => u.isActive);
                   const suspendedUnits = condoUnits.filter(u => !u.isActive);
@@ -936,19 +988,6 @@ export default function ExternalCondominiums() {
                         {condo.description && (
                           <p className="text-xs text-muted-foreground mt-2 line-clamp-2 pt-2 border-t">{condo.description}</p>
                         )}
-                        
-                        <Button 
-                          variant="outline" 
-                          className="w-full mt-2"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            handleAddUnit(condo.id);
-                          }}
-                          data-testid={`button-add-unit-${condo.id}`}
-                        >
-                          <Plus className="mr-2 h-4 w-4" />
-                          {language === "es" ? "Agregar Unidad" : "Add Unit"}
-                        </Button>
                       </CardContent>
                     </Card>
                   );
@@ -974,22 +1013,21 @@ export default function ExternalCondominiums() {
 
         <TabsContent value="units" className="space-y-4">
           {/* Filters Section */}
-          <Card>
-            <CardHeader className="cursor-pointer hover-elevate active-elevate-2" onClick={() => setFiltersExpanded(!filtersExpanded)}>
-              <div className="flex items-center gap-2">
-                {filtersExpanded ? (
-                  <ChevronDown className="h-4 w-4" data-testid="icon-collapse-filters" />
-                ) : (
-                  <ChevronUp className="h-4 w-4" data-testid="icon-expand-filters" />
-                )}
-                <Filter className="h-5 w-5" />
-                <CardTitle className="flex items-center gap-2">
-                  {language === "es" ? "Filtros" : "Filters"}
-                </CardTitle>
-              </div>
-            </CardHeader>
-            {filtersExpanded && (
-              <CardContent>
+          <div className="flex items-center justify-end">
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={() => setFiltersExpanded(!filtersExpanded)}
+              data-testid="button-toggle-unit-filters"
+              title={language === "es" ? "Filtros" : "Filters"}
+            >
+              <Filter className="h-4 w-4" />
+            </Button>
+          </div>
+
+          {filtersExpanded && (
+            <Card>
+              <CardContent className="pt-6">
                 <div className="grid gap-4 md:grid-cols-4">
                   <div className="space-y-2">
                     <label className="text-sm font-medium">
@@ -1084,8 +1122,8 @@ export default function ExternalCondominiums() {
                   </div>
                 </div>
               </CardContent>
-            )}
-          </Card>
+            </Card>
+          )}
 
           {/* Error Alert for Rental Contracts */}
           {contractsError && (
