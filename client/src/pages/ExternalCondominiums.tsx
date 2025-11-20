@@ -905,15 +905,9 @@ export default function ExternalCondominiums() {
                       </CardContent>
                     </Card>
 
-                    <div className="flex justify-between items-center">
-                      <h2 className="text-xl font-semibold">
-                        {language === "es" ? "Unidades" : "Units"}
-                      </h2>
-                      <Button onClick={() => handleAddUnit(selectedCondoId)} data-testid="button-add-unit-in-detail">
-                        <Plus className="mr-2 h-4 w-4" />
-                        {language === "es" ? "Agregar Unidad" : "Add Unit"}
-                      </Button>
-                    </div>
+                    <h2 className="text-xl font-semibold">
+                      {language === "es" ? "Unidades" : "Units"}
+                    </h2>
 
                     {condoUnits.length > 0 ? (
                       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
