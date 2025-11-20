@@ -345,6 +345,11 @@ export const externalContractStatusEnum = pgEnum("external_contract_status", [
   "cancelled",    // Cancelado
 ]);
 
+export const rentalPurposeEnum = pgEnum("rental_purpose", [
+  "living",       // Para vivir
+  "sublease",     // Para subarrendar
+]);
+
 export const externalPaymentStatusEnum = pgEnum("external_payment_status", [
   "pending",      // Pendiente
   "paid",         // Pagado
@@ -4811,6 +4816,7 @@ export const externalRentalContracts = pgTable("external_rental_contracts", {
   monthlyRent: decimal("monthly_rent", { precision: 10, scale: 2 }).notNull(), // Renta mensual
   currency: varchar("currency", { length: 10 }).notNull().default("MXN"), // MXN o USD
   securityDeposit: decimal("security_deposit", { precision: 10, scale: 2 }), // Depósito de seguridad
+  rentalPurpose: rentalPurposeEnum("rental_purpose").notNull().default("living"), // Propósito de la renta
   leaseDurationMonths: integer("lease_duration_months").notNull(), // 6, 12, etc
   startDate: timestamp("start_date").notNull(), // Inicio del contrato
   endDate: timestamp("end_date").notNull(), // Fin del contrato
