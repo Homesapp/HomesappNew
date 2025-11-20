@@ -10,12 +10,12 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Checkbox } from "@/components/ui/checkbox";
 import { useToast } from "@/hooks/use-toast";
 import { useLanguage } from "@/contexts/LanguageContext";
-import { Eye, EyeOff, Search, Copy, Check, Mail, Filter, Plus, ChevronDown, ChevronUp, LayoutGrid, LayoutList } from "lucide-react";
+import { Eye, EyeOff, Search, Copy, Check, Mail, Filter, Plus, LayoutGrid, LayoutList } from "lucide-react";
 import { useState, useMemo, useEffect } from "react";
 import { Link } from "wouter";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import type { User, ExternalCondominium, InsertExternalUnitAccessControl } from "@shared/schema";
-import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -60,7 +60,6 @@ export default function ExternalAccesses() {
   const [copiedId, setCopiedId] = useState<string | null>(null);
   const [sendEmailAccessId, setSendEmailAccessId] = useState<string | null>(null);
   const [selectedMaintenanceUser, setSelectedMaintenanceUser] = useState<string>("");
-  const [isFiltersOpen, setIsFiltersOpen] = useState(false);
   const [viewMode, setViewMode] = useState<'table' | 'cards'>('cards');
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
   
@@ -603,145 +602,154 @@ ${access.description ? `${language === "es" ? "Descripción" : "Description"}: $
         </div>
       </div>
 
-      <Collapsible open={isFiltersOpen} onOpenChange={setIsFiltersOpen}>
-        <Card>
-          <CardHeader className="pb-3">
-            <CollapsibleTrigger asChild>
-              <div className="flex items-center justify-between cursor-pointer" data-testid="button-toggle-filters">
-                <div className="flex items-center gap-3">
-                  <Filter className="h-4 w-4 text-muted-foreground flex-shrink-0" />
-                  <div className="space-y-1">
-                    <CardTitle className="text-base font-semibold leading-none">
-                      {language === "es" ? "Filtros" : "Filters"}
-                    </CardTitle>
-                    <CardDescription className="text-sm leading-none">
-                      {language === "es" 
-                        ? "Filtra por condominio, unidad o tipo de acceso"
-                        : "Filter by condominium, unit or access type"}
-                    </CardDescription>
-                  </div>
+      <div className="flex items-center justify-between gap-4 flex-wrap">
+        <div className="flex items-center gap-2">
+          <Popover>
+            <PopoverTrigger asChild>
+              <Button variant="outline" size="icon" data-testid="button-toggle-filters">
+                <Filter className="h-4 w-4" />
+              </Button>
+            </PopoverTrigger>
+            <PopoverContent className="w-[600px]" align="start">
+              <div className="space-y-4">
+                <div>
+                  <h4 className="font-semibold mb-1">
+                    {language === "es" ? "Filtros" : "Filters"}
+                  </h4>
+                  <p className="text-sm text-muted-foreground">
+                    {language === "es" 
+                      ? "Filtra por condominio, unidad o tipo de acceso"
+                      : "Filter by condominium, unit or access type"}
+                  </p>
                 </div>
-                <div className="flex items-center gap-2 flex-shrink-0">
-                  {selectedAccesses.size > 0 && (
-                    <Button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        copySelectedAccesses();
-                      }}
-                      variant="default"
-                      size="sm"
-                      data-testid="button-copy-selected"
+
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium">
+                      {language === "es" ? "Condominio" : "Condominium"}
+                    </label>
+                    <Select value={selectedCondominium} onValueChange={handleCondominiumChange}>
+                      <SelectTrigger data-testid="select-condominium">
+                        <SelectValue placeholder={language === "es" ? "Todos" : "All"} />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="all">
+                          {language === "es" ? "Todos los condominios" : "All condominiums"}
+                        </SelectItem>
+                        {condominiums?.map((condo) => (
+                          <SelectItem key={condo.id} value={condo.id}>
+                            {condo.name}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium">
+                      {language === "es" ? "Unidad" : "Unit"}
+                    </label>
+                    <Select 
+                      value={selectedUnit} 
+                      onValueChange={setSelectedUnit}
+                      disabled={selectedCondominium === "all"}
                     >
-                      {copiedMultiple ? (
-                        <Check className="mr-2 h-4 w-4" />
-                      ) : (
-                        <Copy className="mr-2 h-4 w-4" />
-                      )}
-                      {language === "es" ? `Copiar ${selectedAccesses.size}` : `Copy ${selectedAccesses.size}`}
-                    </Button>
-                  )}
-                  {isFiltersOpen ? (
-                    <ChevronUp className="h-4 w-4 text-muted-foreground flex-shrink-0" />
-                  ) : (
-                    <ChevronDown className="h-4 w-4 text-muted-foreground flex-shrink-0" />
-                  )}
-                </div>
-              </div>
-            </CollapsibleTrigger>
-          </CardHeader>
-          <CollapsibleContent>
-            <CardContent>
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-                <div className="space-y-2">
-                  <label className="text-sm font-medium">
-                    {language === "es" ? "Condominio" : "Condominium"}
-                  </label>
-                  <Select value={selectedCondominium} onValueChange={handleCondominiumChange}>
-                    <SelectTrigger data-testid="select-condominium">
-                      <SelectValue placeholder={language === "es" ? "Todos" : "All"} />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="all">
-                        {language === "es" ? "Todos los condominios" : "All condominiums"}
-                      </SelectItem>
-                      {condominiums?.map((condo) => (
-                        <SelectItem key={condo.id} value={condo.id}>
-                          {condo.name}
+                      <SelectTrigger data-testid="select-unit">
+                        <SelectValue placeholder={language === "es" ? "Todas" : "All"} />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="all">
+                          {language === "es" ? "Todas las unidades" : "All units"}
                         </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
+                        {availableUnits.map((unit) => (
+                          <SelectItem key={unit.id} value={unit.id}>
+                            {unit.unitNumber}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
 
-                <div className="space-y-2">
-                  <label className="text-sm font-medium">
-                    {language === "es" ? "Unidad" : "Unit"}
-                  </label>
-                  <Select 
-                    value={selectedUnit} 
-                    onValueChange={setSelectedUnit}
-                    disabled={selectedCondominium === "all"}
-                  >
-                    <SelectTrigger data-testid="select-unit">
-                      <SelectValue placeholder={language === "es" ? "Todas" : "All"} />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="all">
-                        {language === "es" ? "Todas las unidades" : "All units"}
-                      </SelectItem>
-                      {availableUnits.map((unit) => (
-                        <SelectItem key={unit.id} value={unit.id}>
-                          {unit.unitNumber}
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium">
+                      {language === "es" ? "Tipo de Acceso" : "Access Type"}
+                    </label>
+                    <Select value={selectedAccessType} onValueChange={setSelectedAccessType}>
+                      <SelectTrigger data-testid="select-access-type">
+                        <SelectValue placeholder={language === "es" ? "Todos" : "All"} />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="all">
+                          {language === "es" ? "Todos los tipos" : "All types"}
                         </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
+                        <SelectItem value="door_code">{getAccessTypeLabel("door_code")}</SelectItem>
+                        <SelectItem value="wifi">{getAccessTypeLabel("wifi")}</SelectItem>
+                        <SelectItem value="gate">{getAccessTypeLabel("gate")}</SelectItem>
+                        <SelectItem value="parking">{getAccessTypeLabel("parking")}</SelectItem>
+                        <SelectItem value="elevator">{getAccessTypeLabel("elevator")}</SelectItem>
+                        <SelectItem value="pool">{getAccessTypeLabel("pool")}</SelectItem>
+                        <SelectItem value="gym">{getAccessTypeLabel("gym")}</SelectItem>
+                        <SelectItem value="other">{getAccessTypeLabel("other")}</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
 
-                <div className="space-y-2">
-                  <label className="text-sm font-medium">
-                    {language === "es" ? "Tipo de Acceso" : "Access Type"}
-                  </label>
-                  <Select value={selectedAccessType} onValueChange={setSelectedAccessType}>
-                    <SelectTrigger data-testid="select-access-type">
-                      <SelectValue placeholder={language === "es" ? "Todos" : "All"} />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="all">
-                        {language === "es" ? "Todos los tipos" : "All types"}
-                      </SelectItem>
-                      <SelectItem value="door_code">{getAccessTypeLabel("door_code")}</SelectItem>
-                      <SelectItem value="wifi">{getAccessTypeLabel("wifi")}</SelectItem>
-                      <SelectItem value="gate">{getAccessTypeLabel("gate")}</SelectItem>
-                      <SelectItem value="parking">{getAccessTypeLabel("parking")}</SelectItem>
-                      <SelectItem value="elevator">{getAccessTypeLabel("elevator")}</SelectItem>
-                      <SelectItem value="pool">{getAccessTypeLabel("pool")}</SelectItem>
-                      <SelectItem value="gym">{getAccessTypeLabel("gym")}</SelectItem>
-                      <SelectItem value="other">{getAccessTypeLabel("other")}</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-
-                <div className="space-y-2">
-                  <label className="text-sm font-medium">
-                    {language === "es" ? "Buscar" : "Search"}
-                  </label>
-                  <div className="relative">
-                    <Search className="h-4 w-4 text-muted-foreground absolute left-3 top-1/2 -translate-y-1/2" />
-                    <Input
-                      placeholder={language === "es" ? "Buscar..." : "Search..."}
-                      value={searchTerm}
-                      onChange={(e) => setSearchTerm(e.target.value)}
-                      className="pl-9"
-                      data-testid="input-search"
-                    />
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium">
+                      {language === "es" ? "Buscar" : "Search"}
+                    </label>
+                    <div className="relative">
+                      <Search className="h-4 w-4 text-muted-foreground absolute left-3 top-1/2 -translate-y-1/2" />
+                      <Input
+                        placeholder={language === "es" ? "Buscar..." : "Search..."}
+                        value={searchTerm}
+                        onChange={(e) => setSearchTerm(e.target.value)}
+                        className="pl-9"
+                        data-testid="input-search"
+                      />
+                    </div>
                   </div>
                 </div>
               </div>
-            </CardContent>
-          </CollapsibleContent>
-        </Card>
-      </Collapsible>
+            </PopoverContent>
+          </Popover>
+
+          <div className="flex items-center gap-1 border rounded-md p-1">
+            <Button
+              variant={viewMode === 'table' ? 'default' : 'ghost'}
+              size="sm"
+              onClick={() => setViewMode('table')}
+              data-testid="button-view-table"
+            >
+              <LayoutList className="h-4 w-4" />
+            </Button>
+            <Button
+              variant={viewMode === 'cards' ? 'default' : 'ghost'}
+              size="sm"
+              onClick={() => setViewMode('cards')}
+              data-testid="button-view-cards"
+            >
+              <LayoutGrid className="h-4 w-4" />
+            </Button>
+          </div>
+        </div>
+
+        {selectedAccesses.size > 0 && (
+          <Button
+            onClick={copySelectedAccesses}
+            variant="default"
+            size="sm"
+            data-testid="button-copy-selected"
+          >
+            {copiedMultiple ? (
+              <Check className="mr-2 h-4 w-4" />
+            ) : (
+              <Copy className="mr-2 h-4 w-4" />
+            )}
+            {language === "es" ? `Copiar ${selectedAccesses.size}` : `Copy ${selectedAccesses.size}`}
+          </Button>
+        )}
+      </div>
 
       {isLoading ? (
         <div className="space-y-4">
@@ -780,8 +788,8 @@ ${access.description ? `${language === "es" ? "Descripción" : "Description"}: $
       ) : viewMode === 'table' ? (
         <Card>
           <CardHeader>
-            <div className="flex items-center justify-between">
-              <div>
+            <div className="flex items-start justify-between gap-4">
+              <div className="space-y-1.5">
                 <CardTitle>{language === "es" ? "Códigos de Acceso" : "Access Codes"}</CardTitle>
                 <CardDescription>
                   {language === "es" 
