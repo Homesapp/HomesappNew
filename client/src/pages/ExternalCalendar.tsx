@@ -73,11 +73,20 @@ export default function ExternalCalendar() {
   });
 
   // Normalize rental contracts (handle both nested and flat structures)
+  // Preserve unit and condominium metadata when present
   const normalizedContracts = useMemo(() => {
-    return (contracts ?? []).map((item: any) => 
-      'contract' in item ? item.contract : item
-    );
-  }, [contracts]);
+    return (contracts ?? []).map((item: any) => {
+      if ('contract' in item) {
+        // Already has nested structure with unit/condominium
+        return item;
+      } else {
+        // Flat structure - look up unit and condominium
+        const unit = units?.find((u: any) => u.id === item.unitId);
+        const condominium = condominiums?.find((c: any) => c.id === unit?.condominiumId);
+        return { contract: item, unit: unit || null, condominium: condominium || null };
+      }
+    });
+  }, [contracts, units, condominiums]);
 
   // Helper function to get condominium name from unitId
   const getCondominiumInfo = (unitId: string | undefined) => {
@@ -111,8 +120,9 @@ export default function ExternalCalendar() {
   // Filter contracts by condominium
   const filteredContracts = useMemo(() => {
     if (selectedCondominium === "all") return normalizedContracts;
-    return normalizedContracts.filter((c: any) => {
-      const unit = units.find(u => u.id === c.unitId);
+    return normalizedContracts.filter((item: any) => {
+      // Use unit from normalized data if available, otherwise look up
+      const unit = item.unit || units.find(u => u.id === item.contract.unitId);
       return unit?.condominiumId === selectedCondominium;
     });
   }, [normalizedContracts, units, selectedCondominium]);
@@ -134,18 +144,25 @@ export default function ExternalCalendar() {
       new Date(t.scheduledDate) >= startOfDay(now)
     ).length;
 
-    const thisMonthEvents = [
-      ...(showPayments ? filteredPayments : []),
-      ...(showTickets ? filteredTickets : []),
-      ...(showContracts ? filteredContracts : [])
-    ].filter((item) => {
-      const date = 'dueDate' in item ? new Date(item.dueDate) : 
-                   'scheduledDate' in item && item.scheduledDate ? new Date(item.scheduledDate) :
-                   'startDate' in item && item.startDate ? new Date(item.startDate) : null;
-      if (!date) return false;
-      return date.getMonth() === now.getMonth() && 
-             date.getFullYear() === now.getFullYear();
-    }).length;
+    // Count events separately to avoid mixing different data structures
+    const paymentsThisMonth = showPayments ? filteredPayments.filter((p) => {
+      const date = new Date(p.dueDate);
+      return date.getMonth() === now.getMonth() && date.getFullYear() === now.getFullYear();
+    }).length : 0;
+    
+    const ticketsThisMonth = showTickets ? filteredTickets.filter((t) => {
+      if (!t.scheduledDate) return false;
+      const date = new Date(t.scheduledDate);
+      return date.getMonth() === now.getMonth() && date.getFullYear() === now.getFullYear();
+    }).length : 0;
+    
+    const contractsThisMonth = showContracts ? filteredContracts.filter((item: any) => {
+      if (!item.contract.startDate) return false;
+      const date = new Date(item.contract.startDate);
+      return date.getMonth() === now.getMonth() && date.getFullYear() === now.getFullYear();
+    }).length : 0;
+    
+    const thisMonthEvents = paymentsThisMonth + ticketsThisMonth + contractsThisMonth;
 
     return { pendingPayments, scheduledTickets, thisMonthEvents };
   }, [filteredPayments, filteredTickets, filteredContracts, showPayments, showTickets, showContracts]);
@@ -158,8 +175,10 @@ export default function ExternalCalendar() {
       .filter((p) => isSameDay(new Date(p.dueDate), selectedDate))
       .map((p) => {
         const { condominium, unitNumber } = getCondominiumInfo(p.unitId);
-        const contract = normalizedContracts.find((c: any) => c.unitId === p.unitId && c.status === 'active');
-        const tenantName = contract?.tenantName || '';
+        const contractItem = normalizedContracts.find((item: any) => 
+          item.contract.unitId === p.unitId && item.contract.status === 'active'
+        );
+        const tenantName = contractItem?.contract.tenantName || '';
         
         return {
           type: 'payment' as const,
@@ -193,17 +212,19 @@ export default function ExternalCalendar() {
 
     // Add contract start dates as events
     const dayContracts = showContracts ? filteredContracts
-      .filter((c: any) => c.startDate && isSameDay(new Date(c.startDate), selectedDate))
-      .map((c: any) => {
-        const { condominium, unitNumber } = getCondominiumInfo(c.unitId);
+      .filter((item: any) => item.contract.startDate && isSameDay(new Date(item.contract.startDate), selectedDate))
+      .map((item: any) => {
+        // Use condominium and unit from normalized data if available
+        const condominium = item.condominium?.name || getCondominiumInfo(item.contract.unitId).condominium;
+        const unitNumber = item.unit?.unitNumber || getCondominiumInfo(item.contract.unitId).unitNumber;
         return {
           type: 'contract' as const,
           title: language === "es" 
-            ? `Inicio de Renta: ${c.tenantName}`
-            : `Rental Start: ${c.tenantName}`,
+            ? `Inicio de Renta: ${item.contract.tenantName}`
+            : `Rental Start: ${item.contract.tenantName}`,
           time: '00:00',
-          status: c.status,
-          data: c,
+          status: item.contract.status,
+          data: item.contract,
           condominium,
           unitNumber,
         };
@@ -230,8 +251,8 @@ export default function ExternalCalendar() {
   const datesWithContracts = useMemo(() => {
     if (!showContracts) return [];
     return filteredContracts
-      .filter((c: any) => c.startDate)
-      .map((c: any) => new Date(c.startDate));
+      .filter((item: any) => item.contract.startDate)
+      .map((item: any) => new Date(item.contract.startDate));
   }, [filteredContracts, showContracts]);
 
   // Get events by date for indicators
@@ -257,9 +278,9 @@ export default function ExternalCalendar() {
     }
     
     if (showContracts) {
-      filteredContracts.forEach((c: any) => {
-        if (c.startDate) {
-          const dateKey = format(new Date(c.startDate), 'yyyy-MM-dd');
+      filteredContracts.forEach((item: any) => {
+        if (item.contract.startDate) {
+          const dateKey = format(new Date(item.contract.startDate), 'yyyy-MM-dd');
           const current = dateMap.get(dateKey) || { payments: 0, tickets: 0, contracts: 0 };
           dateMap.set(dateKey, { ...current, contracts: current.contracts + 1 });
         }

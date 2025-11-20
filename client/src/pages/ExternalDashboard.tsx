@@ -56,9 +56,18 @@ export default function ExternalDashboard() {
   const next30Days = addDays(today, 30);
 
   // Normalize rental contracts (handle both nested and flat structures)
-  const normalizedContracts = (rentalContractsData ?? []).map(item => 
-    'contract' in item ? item : { contract: item, unit: null, condominium: null }
-  );
+  // Preserve unit and condominium metadata when present
+  const normalizedContracts = (rentalContractsData ?? []).map(item => {
+    if ('contract' in item) {
+      // Already has nested structure with unit/condominium
+      return item;
+    } else {
+      // Flat structure - look up unit and condominium
+      const unit = units?.find(u => u.id === item.unitId);
+      const condominium = condominiums?.find(c => c.id === unit?.condominiumId);
+      return { contract: item, unit: unit || null, condominium: condominium || null };
+    }
+  });
 
   // Active rentals (status=active AND today between start and end dates)
   const activeRentals = normalizedContracts.filter(item => {
