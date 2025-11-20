@@ -55,8 +55,13 @@ export default function ExternalDashboard() {
   const next7Days = addDays(today, 7);
   const next30Days = addDays(today, 30);
 
+  // Normalize rental contracts (handle both nested and flat structures)
+  const normalizedContracts = (rentalContractsData ?? []).map(item => 
+    'contract' in item ? item : { contract: item, unit: null, condominium: null }
+  );
+
   // Active rentals (status=active AND today between start and end dates)
-  const activeRentals = (rentalContractsData ?? []).filter(item => {
+  const activeRentals = normalizedContracts.filter(item => {
     const contract = item.contract;
     if (contract.status !== 'active') return false;
     const startDate = new Date(contract.startDate);
@@ -71,7 +76,7 @@ export default function ExternalDashboard() {
   });
 
   // Completed rentals (past end date, status could be active or completed)
-  const completedRentals = (rentalContractsData ?? []).filter(item => {
+  const completedRentals = normalizedContracts.filter(item => {
     const endDate = new Date(item.contract.endDate);
     return isBefore(endDate, today);
   });
@@ -190,7 +195,7 @@ export default function ExternalDashboard() {
       title: language === "es" ? "Propietarios" : "Owners",
       description: language === "es" ? "Gestionar propietarios" : "Manage owners",
       icon: User,
-      href: "/external/owners",
+      href: "/external/owners/portfolio",
       color: "text-green-600",
       count: stats.totalOwners,
     },
@@ -218,10 +223,14 @@ export default function ExternalDashboard() {
       .slice(0, 3)
       .forEach(p => {
         const unit = units?.find(u => u.id === p.unitId);
+        const condo = condominiums?.find(c => c.id === unit?.condominiumId);
+        const contract = normalizedContracts.find(c => c.contract.unitId === p.unitId && c.contract.status === 'active');
+        const tenantName = contract?.contract.tenantName || '';
+        
         upcomingEvents.push({
           type: 'payment',
           title: `${language === "es" ? "Pago" : "Payment"}: ${p.serviceType}`,
-          subtitle: unit ? `${unit.condominium?.name || ''} - ${unit.unitNumber}` : '',
+          subtitle: unit && condo ? `${condo.name} - ${unit.unitNumber}${tenantName ? ` (${tenantName})` : ''}` : '',
           date: new Date(p.dueDate),
           icon: DollarSign,
           color: 'text-green-600',
@@ -240,10 +249,12 @@ export default function ExternalDashboard() {
       .slice(0, 3)
       .forEach(t => {
         const unit = units?.find(u => u.id === t.unitId);
+        const condo = condominiums?.find(c => c.id === unit?.condominiumId);
+        
         upcomingEvents.push({
           type: 'ticket',
           title: t.title,
-          subtitle: unit ? `${unit.condominium?.name || ''} - ${unit.unitNumber}` : '',
+          subtitle: unit && condo ? `${condo.name} - ${unit.unitNumber}` : '',
           date: new Date(t.scheduledDate!),
           icon: Wrench,
           color: 'text-blue-600',
@@ -255,11 +266,12 @@ export default function ExternalDashboard() {
   rentalsEndingSoon.slice(0, 2).forEach(item => {
     const contract = item.contract;
     const unit = item.unit || units?.find(u => u.id === contract.unitId);
-    const condoName = item.condominium?.name || unit?.condominium?.name || '';
+    const condo = item.condominium || condominiums?.find(c => c.id === unit?.condominiumId);
+    
     upcomingEvents.push({
       type: 'rental',
       title: `${language === "es" ? "Fin de renta" : "Rental ending"}: ${contract.tenantName}`,
-      subtitle: unit ? `${condoName} - ${unit.unitNumber}` : '',
+      subtitle: unit && condo ? `${condo.name} - ${unit.unitNumber}` : '',
       date: new Date(contract.endDate),
       icon: ClipboardCheck,
       color: 'text-purple-600',
@@ -534,11 +546,11 @@ export default function ExternalDashboard() {
                 {upcomingEvents.slice(0, 5).map((event, idx) => (
                   <div
                     key={idx}
-                    className="flex items-start gap-3 p-2.5 border rounded-md hover-elevate"
+                    className="flex items-center gap-3 p-2.5 border rounded-md hover-elevate"
                     data-testid={`event-${idx}`}
                   >
-                    <div className="mt-0.5">
-                      <event.icon className={`h-4 w-4 ${event.color}`} />
+                    <div className="flex-shrink-0">
+                      <event.icon className={`h-5 w-5 ${event.color}`} />
                     </div>
                     <div className="flex-1 min-w-0">
                       <p className="text-sm font-medium truncate">{event.title}</p>
