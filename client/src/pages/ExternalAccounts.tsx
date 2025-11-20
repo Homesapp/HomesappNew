@@ -116,18 +116,29 @@ export default function ExternalAccounts() {
       setIsCreateDialogOpen(false);
       form.reset();
       toast({
-        title: language === "es" ? "Usuario creado" : "User created",
+        title: language === "es" ? "✅ Usuario creado" : "✅ User created",
         description: language === "es" 
-          ? "El usuario ha sido creado exitosamente. Copia las credenciales."
-          : "User has been created successfully. Copy the credentials.",
+          ? "El usuario ha sido creado exitosamente. Copia las credenciales temporales abajo."
+          : "User has been created successfully. Copy the temporary credentials below.",
       });
     },
-    onError: () => {
+    onError: (error: any) => {
+      const errorMessage = error?.message || "";
+      let description = language === "es" ? "No se pudo crear el usuario" : "Could not create user";
+      
+      if (errorMessage.includes("already exists") || errorMessage.includes("ya existe")) {
+        description = language === "es" 
+          ? "Ya existe un usuario con este email. Usa otro email o busca al usuario en la lista."
+          : "A user with this email already exists. Use a different email or find the user in the list.";
+      } else if (errorMessage.includes("Invalid email") || errorMessage.includes("email")) {
+        description = language === "es"
+          ? "El formato del email no es válido"
+          : "The email format is not valid";
+      }
+      
       toast({
         title: language === "es" ? "Error" : "Error",
-        description: language === "es"
-          ? "No se pudo crear el usuario"
-          : "Could not create user",
+        description,
         variant: "destructive",
       });
     },
