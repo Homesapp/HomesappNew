@@ -44,15 +44,17 @@ The platform implements enterprise-grade security measures compliant with 2025 s
 
 ## Recent Changes
 
-**2025-01-20**: Enhanced payment tracking with comprehensive audit trail:
-- **Payment Audit Fields**: Added `paidBy`, `confirmedBy`, and `confirmedAt` fields to external_payments table for full payment processing traceability
-- **Who Paid**: `paidBy` tracks which user registered the payment in the system
-- **Who Confirmed**: `confirmedBy` tracks which user verified/approved the payment
-- **When Confirmed**: `confirmedAt` timestamp records payment confirmation date
-- **Database Migration**: Executed ALTER TABLE to add new columns with foreign key references to users table
-- **Next Steps**: Backend routes for marking payments as paid, automatic financial transaction creation, UI updates for payment processing
-- Files: shared/schema.ts, database schema
-- Status: Schema updated, pending route implementation and UI
+**2025-01-20**: Implemented comprehensive payment audit trail with mark-as-paid workflow:
+- **Payment Audit Fields**: Added `paidBy`, `confirmedBy`, and `confirmedAt` fields to external_payments table for complete payment processing traceability
+- **Backend Implementation**: Created POST /api/external-payments/:id/mark-paid endpoint with atomic transactions that simultaneously update payment status and create/update financial transactions
+- **Automatic Financial Integration**: Payment marking automatically creates financial transaction records with proper category mapping (rent→rent_income, electricity→service_electricity, etc.)
+- **Storage Layer**: Implemented markExternalPaymentAsPaid method using db.transaction to ensure atomicity between payment updates and financial transaction creation/updates
+- **Security**: Enforces multi-tenant isolation, validates authenticated user IDs, and prevents cross-tenant data access
+- **UI Updates**: Extended ExternalRentalContractDetail payment dialog with paymentProofUrl field and integrated with new mark-paid endpoint
+- **Audit Trail**: Complete tracking of who registered payment (paidBy), who confirmed (confirmedBy), and when (confirmedAt)
+- **Calendar Integration**: ExternalCalendar already displays paid payments with green indicators via existing status-based styling
+- Files: shared/schema.ts, server/storage.ts, server/routes.ts, client/src/pages/ExternalRentalContractDetail.tsx
+- Status: Fully implemented and architect-reviewed with security fixes applied
 
 **2025-01-20**: Implemented unified atomic condominium and unit creation flow:
 - **Unified Creation Button**: Replaced separate "Agregar Condominio" and "Agregar Unidad" buttons with single "Agregar" button that opens a dialog with type selection

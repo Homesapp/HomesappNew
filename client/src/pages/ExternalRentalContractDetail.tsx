@@ -42,6 +42,7 @@ const paymentRegistrationSchema = z.object({
   paidDate: z.date(),
   paymentMethod: z.string().min(1, "Payment method is required"),
   paymentReference: z.string().optional(),
+  paymentProofUrl: z.string().optional(),
   notes: z.string().optional(),
 });
 
@@ -187,6 +188,7 @@ export default function ExternalRentalContractDetail() {
       paidDate: new Date(),
       paymentMethod: "",
       paymentReference: "",
+      paymentProofUrl: "",
       notes: "",
     },
   });
@@ -327,14 +329,17 @@ export default function ExternalRentalContractDetail() {
 
   const registerPaymentMutation = useMutation({
     mutationFn: async ({ paymentId, data }: { paymentId: string, data: PaymentRegistrationData }) => {
-      return await apiRequest('PATCH', `/api/external-payments/${paymentId}`, {
-        ...data,
+      return await apiRequest('PATCH', `/api/external-payments/${paymentId}/mark-paid`, {
         paidDate: data.paidDate.toISOString(),
-        status: 'paid',
+        paymentMethod: data.paymentMethod,
+        paymentReference: data.paymentReference || undefined,
+        paymentProofUrl: data.paymentProofUrl || undefined,
+        notes: data.notes || undefined,
       });
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: [`/api/external-payments?contractId=${id}`] });
+      queryClient.invalidateQueries({ queryKey: ['/api/external-financial-transactions'] });
       setShowPaymentDialog(false);
       setEditingPayment(null);
       paymentForm.reset();
@@ -420,6 +425,7 @@ export default function ExternalRentalContractDetail() {
       paidDate: payment.paidDate ? new Date(payment.paidDate) : new Date(),
       paymentMethod: payment.paymentMethod || "",
       paymentReference: payment.paymentReference || "",
+      paymentProofUrl: (payment as any).paymentProofUrl || "",
       notes: payment.notes || "",
     });
     setShowPaymentDialog(true);
@@ -1179,6 +1185,20 @@ export default function ExternalRentalContractDetail() {
                     <FormLabel>{language === "es" ? "Referencia (opcional)" : "Reference (optional)"}</FormLabel>
                     <FormControl>
                       <Input {...field} data-testid="input-payment-reference" />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={paymentForm.control}
+                name="paymentProofUrl"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>{language === "es" ? "URL del Comprobante (opcional)" : "Proof URL (optional)"}</FormLabel>
+                    <FormControl>
+                      <Input {...field} placeholder="https://..." data-testid="input-payment-proof-url" />
                     </FormControl>
                     <FormMessage />
                   </FormItem>

@@ -5159,7 +5159,16 @@ export const insertExternalPaymentSchema = createInsertSchema(externalPayments).
   updatedAt: true,
 });
 
+export const markPaymentAsPaidSchema = z.object({
+  paidDate: z.coerce.date(),
+  paymentMethod: z.string().min(1, "Payment method is required"),
+  paymentReference: z.string().optional(),
+  paymentProofUrl: z.string().optional(),
+  notes: z.string().optional(),
+});
+
 export type InsertExternalPayment = z.infer<typeof insertExternalPaymentSchema>;
+export type MarkPaymentAsPaid = z.infer<typeof markPaymentAsPaidSchema>;
 export type ExternalPayment = typeof externalPayments.$inferSelect;
 
 // External Notifications - Sistema de notificaciones automáticas

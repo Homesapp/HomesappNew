@@ -1168,6 +1168,16 @@ export interface IStorage {
   createExternalPayment(payment: InsertExternalPayment): Promise<ExternalPayment>;
   updateExternalPayment(id: string, updates: Partial<InsertExternalPayment>): Promise<ExternalPayment>;
   updateExternalPaymentStatus(id: string, status: string, paidDate?: Date): Promise<ExternalPayment>;
+  markExternalPaymentAsPaid(id: string, data: {
+    paidBy: string;
+    confirmedBy?: string;
+    confirmedAt?: Date;
+    paidDate: Date;
+    paymentMethod?: string;
+    paymentReference?: string;
+    paymentProofUrl?: string;
+    notes?: string;
+  }): Promise<{ payment: ExternalPayment; transaction: ExternalFinancialTransaction }>;
   markExternalPaymentReminderSent(id: string): Promise<ExternalPayment>;
   deleteExternalPayment(id: string): Promise<void>;
   generateNextExternalPayment(paymentId: string, createdBy: string): Promise<ExternalPayment | null>;
@@ -7739,6 +7749,153 @@ export class DatabaseStorage implements IStorage {
       .where(eq(externalPayments.id, id))
       .returning();
     return result;
+  }
+
+  async markExternalPaymentAsPaid(id: string, data: {
+    paidBy: string;
+    confirmedBy?: string;
+    confirmedAt?: Date;
+    paidDate: Date;
+    paymentMethod?: string;
+    paymentReference?: string;
+    paymentProofUrl?: string;
+    notes?: string;
+  }): Promise<{ payment: ExternalPayment; transaction: ExternalFinancialTransaction }> {
+    // Start a transaction to ensure atomicity
+    return await db.transaction(async (tx) => {
+      // 1. Get the payment to access contract info
+      const existingPayment = await tx.select()
+        .from(externalPayments)
+        .where(eq(externalPayments.id, id))
+        .limit(1)
+        .then(rows => rows[0]);
+
+      if (!existingPayment) {
+        throw new Error("Payment not found");
+      }
+
+      // 2. Get contract to access unit and owner info
+      const contract = await tx.select()
+        .from(externalRentalContracts)
+        .where(eq(externalRentalContracts.id, existingPayment.contractId))
+        .limit(1)
+        .then(rows => rows[0]);
+
+      if (!contract) {
+        throw new Error("Contract not found");
+      }
+
+      // 3. Get unit info
+      const unit = await tx.select()
+        .from(externalUnits)
+        .where(eq(externalUnits.id, contract.unitId!))
+        .limit(1)
+        .then(rows => rows[0]);
+
+      // 4. Get active owner
+      const owner = unit ? await tx.select()
+        .from(externalUnitOwners)
+        .where(
+          and(
+            eq(externalUnitOwners.unitId, unit.id),
+            eq(externalUnitOwners.isActive, true)
+          )
+        )
+        .limit(1)
+        .then(rows => rows[0]) : undefined;
+
+      // 5. Map serviceType to financial transaction category
+      const categoryMap: Record<string, string> = {
+        'rent': 'rent_income',
+        'electricity': 'service_electricity',
+        'water': 'service_water',
+        'internet': 'service_internet',
+        'gas': 'service_gas',
+        'hoa': 'hoa_fee',
+        'maintenance': 'maintenance_charge',
+        'other': 'service_other',
+        'special': 'service_other',
+      };
+      const category = categoryMap[existingPayment.serviceType] || 'service_other';
+
+      // 6. Update payment with audit trail
+      const [updatedPayment] = await tx.update(externalPayments)
+        .set({
+          status: 'paid',
+          paidDate: data.paidDate,
+          paidBy: data.paidBy,
+          confirmedBy: data.confirmedBy,
+          confirmedAt: data.confirmedAt,
+          paymentMethod: data.paymentMethod || existingPayment.paymentMethod,
+          paymentReference: data.paymentReference || existingPayment.paymentReference,
+          paymentProofUrl: data.paymentProofUrl || existingPayment.paymentProofUrl,
+          notes: data.notes || existingPayment.notes,
+          updatedAt: new Date(),
+        })
+        .where(eq(externalPayments.id, id))
+        .returning();
+
+      // 7. Create or update financial transaction
+      const existingTransaction = await tx.select()
+        .from(externalFinancialTransactions)
+        .where(eq(externalFinancialTransactions.paymentId, id))
+        .limit(1)
+        .then(rows => rows[0]);
+
+      let financialTransaction: ExternalFinancialTransaction;
+
+      if (existingTransaction) {
+        // Update existing transaction
+        [financialTransaction] = await tx.update(externalFinancialTransactions)
+          .set({
+            status: 'posted',
+            performedDate: data.paidDate,
+            paymentMethod: data.paymentMethod || existingTransaction.paymentMethod,
+            paymentReference: data.paymentReference || existingTransaction.paymentReference,
+            paymentProofUrl: data.paymentProofUrl || existingTransaction.paymentProofUrl,
+            notes: data.notes || existingTransaction.notes,
+            updatedAt: new Date(),
+          })
+          .where(eq(externalFinancialTransactions.id, existingTransaction.id))
+          .returning();
+      } else {
+        // Create new transaction
+        const grossAmount = parseFloat(existingPayment.amount);
+        [financialTransaction] = await tx.insert(externalFinancialTransactions)
+          .values({
+            agencyId: existingPayment.agencyId,
+            direction: 'inflow',
+            category: category as any,
+            status: 'posted',
+            grossAmount: existingPayment.amount,
+            fees: '0.00',
+            netAmount: existingPayment.amount,
+            currency: existingPayment.currency,
+            dueDate: existingPayment.dueDate,
+            performedDate: data.paidDate,
+            payerRole: 'tenant',
+            payeeRole: 'agency',
+            ownerId: owner?.id,
+            tenantName: contract.tenantName,
+            contractId: contract.id,
+            unitId: unit?.id,
+            paymentId: id,
+            scheduleId: existingPayment.scheduleId,
+            paymentMethod: data.paymentMethod,
+            paymentReference: data.paymentReference,
+            paymentProofUrl: data.paymentProofUrl,
+            description: `Payment: ${existingPayment.serviceType} - ${contract.tenantName}`,
+            notes: data.notes,
+            createdBy: data.paidBy,
+          })
+          .returning();
+      }
+
+      return {
+        payment: updatedPayment,
+        transaction: financialTransaction,
+      };
+    });
   }
 
   async markExternalPaymentReminderSent(id: string): Promise<ExternalPayment> {

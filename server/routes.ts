@@ -151,6 +151,7 @@ import {
   updateExternalRentalContractSchema,
   insertExternalPaymentScheduleSchema,
   insertExternalPaymentSchema,
+  markPaymentAsPaidSchema,
   insertExternalMaintenanceTicketSchema,
   insertExternalMaintenanceUpdateSchema,
   insertExternalMaintenancePhotoSchema,
@@ -21310,6 +21311,73 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.json(payment);
     } catch (error: any) {
       console.error("Error updating external payment:", error);
+      handleGenericError(res, error);
+    }
+  });
+
+  app.patch("/api/external-payments/:id/mark-paid", isAuthenticated, requireRole(EXTERNAL_ACCOUNTING_ROLES), async (req: any, res) => {
+    try {
+      const { id } = req.params;
+      const validatedData = markPaymentAsPaidSchema.parse(req.body);
+      
+      // Extract authenticated user ID
+      const userId = req.user?.id || req.session?.adminUser?.id;
+      if (!userId) {
+        return res.status(401).json({ message: "User ID not found in session" });
+      }
+      
+      // Verify payment exists
+      const existingPayment = await storage.getExternalPayment(id);
+      if (!existingPayment) {
+        return res.status(404).json({ message: "Payment not found" });
+      }
+      
+      // Verify ownership: master/admin can access all, others must match agency
+      const userRole = req.user?.role || req.session?.adminUser?.role;
+      const isMasterOrAdmin = userRole === "master" || userRole === "admin";
+      
+      if (!isMasterOrAdmin) {
+        const agencyId = await getUserAgencyId(req);
+        if (!agencyId || existingPayment.agencyId !== agencyId) {
+          return res.status(403).json({ message: "Access denied" });
+        }
+      }
+      
+      // Mark payment as paid and create financial transaction
+      const result = await storage.markExternalPaymentAsPaid(id, {
+        paidBy: userId,
+        confirmedBy: userId, // Same user marks and confirms for now
+        confirmedAt: new Date(),
+        paidDate: validatedData.paidDate,
+        paymentMethod: validatedData.paymentMethod,
+        paymentReference: validatedData.paymentReference,
+        paymentProofUrl: validatedData.paymentProofUrl,
+        notes: validatedData.notes,
+      });
+      
+      // Try to generate next payment if this was from a schedule (best effort, don't fail main request)
+      if (existingPayment.scheduleId) {
+        try {
+          const nextPayment = await storage.generateNextExternalPayment(id, userId);
+          if (nextPayment) {
+            await createAuditLog(req, "update", "external_payment", id, `Marked payment as paid and auto-generated next payment`);
+          } else {
+            await createAuditLog(req, "update", "external_payment", id, `Marked payment as paid (no next payment generated)`);
+          }
+        } catch (error: any) {
+          console.error("Error generating next payment:", error);
+          await createAuditLog(req, "update", "external_payment", id, `Marked payment as paid (error generating next payment: ${error.message})`);
+        }
+      } else {
+        await createAuditLog(req, "update", "external_payment", id, "Marked payment as paid");
+      }
+      
+      res.json(result);
+    } catch (error: any) {
+      console.error("Error marking payment as paid:", error);
+      if (error.name === "ZodError") {
+        return handleZodError(res, error);
+      }
       handleGenericError(res, error);
     }
   });
