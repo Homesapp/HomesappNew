@@ -662,168 +662,143 @@ export default function ExternalCalendar() {
 
   return (
     <div className="space-y-4">
-      {/* Header */}
-      <div className="flex items-center justify-between flex-wrap gap-2">
-        <div>
-          <h1 className="text-2xl font-bold flex items-center gap-2" data-testid="text-calendar-title">
-            <CalendarIcon className="h-6 w-6" />
-            {language === "es" ? "Calendario" : "Calendar"}
-          </h1>
-        </div>
+      {/* Header Simple */}
+      <div>
+        <h1 className="text-2xl font-bold" data-testid="text-calendar-title">
+          {language === "es" ? "Calendario" : "Calendar"}
+        </h1>
       </div>
 
-      {/* Compact Filters and Stats Row */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-        {/* Filters Card */}
-        <Card>
-          <CardContent className="pt-4 pb-4">
-            <div className="flex flex-col sm:flex-row gap-4">
-              {/* Condominium filter */}
-              <div className="flex-1 space-y-1.5">
-                <Label className="text-xs">{language === "es" ? "Condominio" : "Condominium"}</Label>
-                <Select value={selectedCondominium} onValueChange={setSelectedCondominium}>
-                  <SelectTrigger data-testid="select-condominium-filter" className="h-9">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">
-                      {language === "es" ? "Todos" : "All"}
-                    </SelectItem>
-                    {condominiums.map((condo) => (
-                      <SelectItem key={condo.id} value={condo.id}>
-                        {condo.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-
-              {/* Event type filters */}
-              <div className="flex-1 space-y-1.5">
-                <Label className="text-xs">{language === "es" ? "Mostrar" : "Show"}</Label>
-                <div className="flex gap-3">
-                  <div className="flex items-center gap-1.5">
-                    <Checkbox
-                      id="filter-payments"
-                      checked={showPayments}
-                      onCheckedChange={setShowPayments}
-                      data-testid="checkbox-filter-payments"
-                      className="h-4 w-4"
-                    />
-                    <Label htmlFor="filter-payments" className="flex items-center gap-1.5 cursor-pointer text-sm">
-                      <div className="h-2 w-2 rounded-full bg-blue-500" />
-                      <span className="text-xs">{language === "es" ? "Renta" : "Rent"}</span>
-                    </Label>
-                  </div>
-                  <div className="flex items-center gap-1.5">
-                    <Checkbox
-                      id="filter-services"
-                      checked={showServices}
-                      onCheckedChange={setShowServices}
-                      data-testid="checkbox-filter-services"
-                      className="h-4 w-4"
-                    />
-                    <Label htmlFor="filter-services" className="flex items-center gap-1.5 cursor-pointer text-sm">
-                      <div className="h-2 w-2 rounded-full bg-yellow-500" />
-                      <span className="text-xs">{language === "es" ? "Servicios" : "Services"}</span>
-                    </Label>
-                  </div>
-                  <div className="flex items-center gap-1.5">
-                    <Checkbox
-                      id="filter-tickets"
-                      checked={showTickets}
-                      onCheckedChange={setShowTickets}
-                      data-testid="checkbox-filter-tickets"
-                      className="h-4 w-4"
-                    />
-                    <Label htmlFor="filter-tickets" className="flex items-center gap-1.5 cursor-pointer text-sm">
-                      <div className="h-2 w-2 rounded-full bg-green-500" />
-                      <span className="text-xs">{language === "es" ? "Mant." : "Maint."}</span>
-                    </Label>
-                  </div>
-                  <div className="flex items-center gap-1.5">
-                    <Checkbox
-                      id="filter-contracts"
-                      checked={showContracts}
-                      onCheckedChange={setShowContracts}
-                      data-testid="checkbox-filter-contracts"
-                      className="h-4 w-4"
-                    />
-                    <Label htmlFor="filter-contracts" className="flex items-center gap-1.5 cursor-pointer text-sm">
-                      <div className="h-2 w-2 rounded-full bg-purple-500" />
-                      <span className="text-xs">{language === "es" ? "Check in" : "Check in"}</span>
-                    </Label>
-                  </div>
-                  <div className="flex items-center gap-1.5">
-                    <Checkbox
-                      id="filter-checkout"
-                      checked={showCheckOut}
-                      onCheckedChange={setShowCheckOut}
-                      data-testid="checkbox-filter-checkout"
-                      className="h-4 w-4"
-                    />
-                    <Label htmlFor="filter-checkout" className="flex items-center gap-1.5 cursor-pointer text-sm">
-                      <div className="h-2 w-2 rounded-full bg-orange-500" />
-                      <span className="text-xs">{language === "es" ? "Check out" : "Check out"}</span>
-                    </Label>
-                  </div>
-                </div>
-              </div>
+      {/* Barra Unificada: Condominio + Filtros + Pestañas */}
+      <Card className="bg-muted/50">
+        <CardContent className="pt-4 pb-4 flex items-center gap-3 flex-wrap">
+          {/* Selector de Condominio */}
+          <Select value={selectedCondominium} onValueChange={setSelectedCondominium}>
+            <SelectTrigger data-testid="select-condominium-filter" className="h-9 w-full sm:w-56">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">
+                {language === "es" ? "Todos los condominios" : "All condominiums"}
+              </SelectItem>
+              {condominiums.map((condo) => (
+                <SelectItem key={condo.id} value={condo.id}>
+                  {condo.name}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          
+          {/* Separador */}
+          <div className="hidden sm:block h-5 w-px bg-border" />
+          
+          {/* Filtros de tipo de evento */}
+          <div className="flex gap-2 flex-wrap flex-1">
+            <div className="flex items-center gap-1.5">
+              <Checkbox
+                id="filter-payments"
+                checked={showPayments}
+                onCheckedChange={setShowPayments}
+                data-testid="checkbox-filter-payments"
+                className="h-4 w-4"
+              />
+              <Label htmlFor="filter-payments" className="flex items-center gap-1.5 cursor-pointer">
+                <div className="h-2 w-2 rounded-full bg-blue-500" />
+                <span className="text-xs">{language === "es" ? "Renta" : "Rent"}</span>
+              </Label>
             </div>
-          </CardContent>
-        </Card>
-
-        {/* Stats Card */}
-        <Card>
-          <CardContent className="pt-4 pb-4">
-            <div className="grid grid-cols-3 gap-4">
-              <div className="text-center">
-                <div className="text-2xl font-bold text-blue-600" data-testid="text-pending-payments">{stats.pendingPayments}</div>
-                <p className="text-xs text-muted-foreground mt-0.5">
-                  {language === "es" ? "Renta 30d" : "Rent 30d"}
-                </p>
-              </div>
-              <div className="text-center">
-                <div className="text-2xl font-bold text-green-600" data-testid="text-scheduled-tickets">{stats.scheduledTickets}</div>
-                <p className="text-xs text-muted-foreground mt-0.5">
-                  {language === "es" ? "Mant. prog." : "Maint. sched."}
-                </p>
-              </div>
-              <div className="text-center">
-                <div className="text-2xl font-bold text-purple-600" data-testid="text-month-events">{stats.thisMonthEvents}</div>
-                <p className="text-xs text-muted-foreground mt-0.5">
-                  {language === "es" ? "Este mes" : "This month"}
-                </p>
-              </div>
+            <div className="flex items-center gap-1.5">
+              <Checkbox
+                id="filter-services"
+                checked={showServices}
+                onCheckedChange={setShowServices}
+                data-testid="checkbox-filter-services"
+                className="h-4 w-4"
+              />
+              <Label htmlFor="filter-services" className="flex items-center gap-1.5 cursor-pointer">
+                <div className="h-2 w-2 rounded-full bg-yellow-500" />
+                <span className="text-xs">{language === "es" ? "Servicios" : "Services"}</span>
+              </Label>
             </div>
-          </CardContent>
-        </Card>
-      </div>
+            <div className="flex items-center gap-1.5">
+              <Checkbox
+                id="filter-tickets"
+                checked={showTickets}
+                onCheckedChange={setShowTickets}
+                data-testid="checkbox-filter-tickets"
+                className="h-4 w-4"
+              />
+              <Label htmlFor="filter-tickets" className="flex items-center gap-1.5 cursor-pointer">
+                <div className="h-2 w-2 rounded-full bg-green-500" />
+                <span className="text-xs">{language === "es" ? "Mant." : "Maint."}</span>
+              </Label>
+            </div>
+            <div className="flex items-center gap-1.5">
+              <Checkbox
+                id="filter-contracts"
+                checked={showContracts}
+                onCheckedChange={setShowContracts}
+                data-testid="checkbox-filter-contracts"
+                className="h-4 w-4"
+              />
+              <Label htmlFor="filter-contracts" className="flex items-center gap-1.5 cursor-pointer">
+                <div className="h-2 w-2 rounded-full bg-purple-500" />
+                <span className="text-xs">{language === "es" ? "Check in" : "Check in"}</span>
+              </Label>
+            </div>
+            <div className="flex items-center gap-1.5">
+              <Checkbox
+                id="filter-checkout"
+                checked={showCheckOut}
+                onCheckedChange={setShowCheckOut}
+                data-testid="checkbox-filter-checkout"
+                className="h-4 w-4"
+              />
+              <Label htmlFor="filter-checkout" className="flex items-center gap-1.5 cursor-pointer">
+                <div className="h-2 w-2 rounded-full bg-orange-500" />
+                <span className="text-xs">{language === "es" ? "Check out" : "Check out"}</span>
+              </Label>
+            </div>
+          </div>
+          
+          {/* Separador */}
+          <div className="hidden sm:block h-5 w-px bg-border" />
+          
+          {/* Pestañas de Vista */}
+          <div className="flex gap-1 w-full sm:w-auto">
+            <Button
+              variant={viewMode === "calendar" ? "default" : "ghost"}
+              size="sm"
+              onClick={() => setViewMode("calendar")}
+              data-testid="tab-calendar"
+              className="flex-1 sm:flex-none"
+            >
+              {language === "es" ? "Calendario" : "Calendar"}
+            </Button>
+            <Button
+              variant={viewMode === "today" ? "default" : "ghost"}
+              size="sm"
+              onClick={() => setViewMode("today")}
+              data-testid="tab-today"
+              className="flex-1 sm:flex-none"
+            >
+              {language === "es" ? "HOY" : "TODAY"}
+            </Button>
+            <Button
+              variant={viewMode === "agenda" ? "default" : "ghost"}
+              size="sm"
+              onClick={() => setViewMode("agenda")}
+              data-testid="tab-agenda"
+              className="flex-1 sm:flex-none"
+            >
+              {language === "es" ? "Agenda" : "Agenda"}
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
 
-      {/* View Tabs */}
-      <Tabs value={viewMode} onValueChange={(v: any) => setViewMode(v)} className="space-y-4">
-        <TabsList className="grid w-full grid-cols-3 lg:grid-cols-6 gap-1" data-testid="tabs-calendar-views">
-          <TabsTrigger value="calendar" data-testid="tab-calendar">
-            {language === "es" ? "Calendario" : "Calendar"}
-          </TabsTrigger>
-          <TabsTrigger value="today" data-testid="tab-today">
-            {language === "es" ? "HOY" : "TODAY"}
-          </TabsTrigger>
-          <TabsTrigger value="agenda" data-testid="tab-agenda">
-            {language === "es" ? "Agenda" : "Agenda"}
-          </TabsTrigger>
-          <TabsTrigger value="option1" data-testid="tab-option1">
-            {language === "es" ? "Opción 1" : "Option 1"}
-          </TabsTrigger>
-          <TabsTrigger value="option2" data-testid="tab-option2">
-            {language === "es" ? "Opción 2" : "Option 2"}
-          </TabsTrigger>
-          <TabsTrigger value="option3" data-testid="tab-option3">
-            {language === "es" ? "Opción 3" : "Option 3"}
-          </TabsTrigger>
-        </TabsList>
-
-        <TabsContent value="calendar" className="mt-0">
+      {/* Vista de Calendario */}
+      {viewMode === "calendar" && (
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
             {/* Calendar Column */}
             <Card>
@@ -916,7 +891,19 @@ export default function ExternalCalendar() {
             </Card>
 
             {/* Events Column with Inline Expansion */}
-            <Card>
+            <Card className="relative">
+              {/* Stats integrados en la esquina */}
+              <div className="absolute top-3 right-3 flex gap-3 text-xs font-semibold z-10">
+                <span className="text-blue-600" data-testid="text-pending-payments">
+                  {stats.pendingPayments} {language === "es" ? "rentas" : "rents"}
+                </span>
+                <span className="text-green-600" data-testid="text-scheduled-tickets">
+                  {stats.scheduledTickets} {language === "es" ? "mant." : "maint."}
+                </span>
+                <span className="text-muted-foreground" data-testid="text-month-events">
+                  {stats.thisMonthEvents} {language === "es" ? "total" : "total"}
+                </span>
+              </div>
               <CardHeader className="pb-3">
                 <CardTitle className="text-base">
                   {selectedDate
@@ -1244,339 +1231,17 @@ export default function ExternalCalendar() {
               </CardContent>
         </Card>
           </div>
-        </TabsContent>
+      )}
 
-        <TabsContent value="today" className="mt-0">
-          <TodayView events={eventsForToday} language={language} />
-        </TabsContent>
+      {/* Vista HOY */}
+      {viewMode === "today" && (
+        <TodayView events={eventsForToday} language={language} />
+      )}
 
-        <TabsContent value="agenda" className="mt-0">
-          <AgendaView allEvents={allEvents} language={language} />
-        </TabsContent>
-
-        {/* OPCIÓN 1: Dashboard Moderno */}
-        <TabsContent value="option1" className="mt-0">
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-lg">
-                {language === "es" ? "Opción 1: Dashboard Moderno" : "Option 1: Modern Dashboard"}
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              {/* Mockup de Estadísticas grandes arriba */}
-              <div className="grid grid-cols-3 gap-4">
-                <Card className="bg-blue-50 dark:bg-blue-950">
-                  <CardContent className="pt-6 text-center">
-                    <div className="text-3xl font-bold text-blue-600">12</div>
-                    <p className="text-xs text-muted-foreground mt-1">
-                      {language === "es" ? "Renta 30d" : "Rent 30d"}
-                    </p>
-                  </CardContent>
-                </Card>
-                <Card className="bg-green-50 dark:bg-green-950">
-                  <CardContent className="pt-6 text-center">
-                    <div className="text-3xl font-bold text-green-600">5</div>
-                    <p className="text-xs text-muted-foreground mt-1">
-                      {language === "es" ? "Mant. prog." : "Maint. sched."}
-                    </p>
-                  </CardContent>
-                </Card>
-                <Card className="bg-purple-50 dark:bg-purple-950">
-                  <CardContent className="pt-6 text-center">
-                    <div className="text-3xl font-bold text-purple-600">28</div>
-                    <p className="text-xs text-muted-foreground mt-1">
-                      {language === "es" ? "Este mes" : "This month"}
-                    </p>
-                  </CardContent>
-                </Card>
-              </div>
-
-              {/* Filtros */}
-              <Card>
-                <CardContent className="pt-4 space-y-3">
-                  <div>
-                    <Label className="text-xs text-muted-foreground mb-2 block">
-                      {language === "es" ? "Filtros" : "Filters"}
-                    </Label>
-                    <Select value={selectedCondominium} onValueChange={setSelectedCondominium}>
-                      <SelectTrigger className="h-9">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="all">{language === "es" ? "Todos" : "All"}</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  <div className="flex gap-3 flex-wrap">
-                    <div className="flex items-center gap-1.5 px-2 py-1 rounded bg-muted">
-                      <div className="h-2 w-2 rounded-full bg-blue-500" />
-                      <span className="text-xs">{language === "es" ? "Renta" : "Rent"}</span>
-                    </div>
-                    <div className="flex items-center gap-1.5 px-2 py-1 rounded bg-muted">
-                      <div className="h-2 w-2 rounded-full bg-yellow-500" />
-                      <span className="text-xs">{language === "es" ? "Servicios" : "Services"}</span>
-                    </div>
-                    <div className="flex items-center gap-1.5 px-2 py-1 rounded bg-muted">
-                      <div className="h-2 w-2 rounded-full bg-green-500" />
-                      <span className="text-xs">{language === "es" ? "Mant." : "Maint."}</span>
-                    </div>
-                    <div className="flex items-center gap-1.5 px-2 py-1 rounded bg-muted">
-                      <div className="h-2 w-2 rounded-full bg-purple-500" />
-                      <span className="text-xs">{language === "es" ? "Check in" : "Check in"}</span>
-                    </div>
-                    <div className="flex items-center gap-1.5 px-2 py-1 rounded bg-muted">
-                      <div className="h-2 w-2 rounded-full bg-orange-500" />
-                      <span className="text-xs">{language === "es" ? "Check out" : "Check out"}</span>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-
-              {/* Pestañas de vista */}
-              <div className="flex gap-1 p-1 bg-muted rounded-md">
-                <div className="flex-1 text-center py-2 bg-primary text-primary-foreground rounded text-sm font-medium">
-                  {language === "es" ? "Calendario" : "Calendar"}
-                </div>
-                <div className="flex-1 text-center py-2 rounded text-sm">
-                  {language === "es" ? "HOY" : "TODAY"}
-                </div>
-                <div className="flex-1 text-center py-2 rounded text-sm">
-                  {language === "es" ? "Agenda" : "Agenda"}
-                </div>
-              </div>
-
-              {/* Área de contenido */}
-              <Card>
-                <CardContent className="p-8 text-center text-muted-foreground">
-                  {language === "es" 
-                    ? "[Vista de Calendario / Lista de Eventos]" 
-                    : "[Calendar View / Event List]"}
-                </CardContent>
-              </Card>
-
-              {/* Descripción */}
-              <Card className="bg-green-50 dark:bg-green-950 border-green-200 dark:border-green-800">
-                <CardContent className="pt-4">
-                  <p className="font-semibold text-green-700 dark:text-green-400 mb-2">
-                    ✓ {language === "es" ? "Ventajas:" : "Advantages:"}
-                  </p>
-                  <ul className="text-sm space-y-1 text-green-600 dark:text-green-300">
-                    <li>• {language === "es" ? "Estadísticas muy visibles arriba" : "Highly visible statistics at top"}</li>
-                    <li>• {language === "es" ? "Flujo lógico: Stats → Filtros → Vistas" : "Logical flow: Stats → Filters → Views"}</li>
-                    <li>• {language === "es" ? "Métricas destacadas" : "Highlighted metrics"}</li>
-                    <li>• {language === "es" ? "Orden jerárquico claro" : "Clear hierarchical order"}</li>
-                  </ul>
-                </CardContent>
-              </Card>
-            </CardContent>
-          </Card>
-        </TabsContent>
-
-        {/* OPCIÓN 2: Profesional Compacto */}
-        <TabsContent value="option2" className="mt-0">
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-lg">
-                {language === "es" ? "Opción 2: Profesional Compacto" : "Option 2: Professional Compact"}
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              {/* Header con selector */}
-              <Card>
-                <CardContent className="pt-4 flex items-center justify-between">
-                  <span className="font-semibold">📅 {language === "es" ? "Calendario" : "Calendar"}</span>
-                  <Select value={selectedCondominium} onValueChange={setSelectedCondominium}>
-                    <SelectTrigger className="h-9 w-40">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="all">{language === "es" ? "Todos" : "All"}</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </CardContent>
-              </Card>
-
-              {/* Stats como badges */}
-              <div className="flex gap-2 flex-wrap px-4">
-                <Badge variant="secondary" className="bg-blue-100 text-blue-700 dark:bg-blue-900 dark:text-blue-300">
-                  12 {language === "es" ? "Rentas" : "Rents"}
-                </Badge>
-                <Badge variant="secondary" className="bg-green-100 text-green-700 dark:bg-green-900 dark:text-green-300">
-                  5 {language === "es" ? "Mant." : "Maint."}
-                </Badge>
-                <Badge variant="secondary" className="bg-purple-100 text-purple-700 dark:bg-purple-900 dark:text-purple-300">
-                  28 {language === "es" ? "Total" : "Total"}
-                </Badge>
-              </div>
-
-              {/* Barra unificada: Filtros + Pestañas */}
-              <Card>
-                <CardContent className="pt-4 flex items-center justify-between gap-4 flex-wrap">
-                  <div className="flex gap-2 flex-wrap flex-1">
-                    <div className="flex items-center gap-1.5 px-2 py-1 rounded bg-muted text-xs">
-                      <div className="h-2 w-2 rounded-full bg-blue-500" />
-                      <span>{language === "es" ? "Renta" : "Rent"}</span>
-                    </div>
-                    <div className="flex items-center gap-1.5 px-2 py-1 rounded bg-muted text-xs">
-                      <div className="h-2 w-2 rounded-full bg-yellow-500" />
-                      <span>{language === "es" ? "Servicios" : "Services"}</span>
-                    </div>
-                    <div className="flex items-center gap-1.5 px-2 py-1 rounded bg-muted text-xs">
-                      <div className="h-2 w-2 rounded-full bg-green-500" />
-                      <span>{language === "es" ? "Mant." : "Maint."}</span>
-                    </div>
-                    <div className="flex items-center gap-1.5 px-2 py-1 rounded bg-muted text-xs">
-                      <div className="h-2 w-2 rounded-full bg-purple-500" />
-                      <span>{language === "es" ? "Check in" : "Check in"}</span>
-                    </div>
-                    <div className="flex items-center gap-1.5 px-2 py-1 rounded bg-muted text-xs">
-                      <div className="h-2 w-2 rounded-full bg-orange-500" />
-                      <span>{language === "es" ? "Check out" : "Check out"}</span>
-                    </div>
-                  </div>
-                  <div className="flex gap-1">
-                    <div className="px-3 py-1 bg-primary text-primary-foreground rounded text-xs font-medium">
-                      {language === "es" ? "Cal" : "Cal"}
-                    </div>
-                    <div className="px-3 py-1 bg-muted rounded text-xs">
-                      {language === "es" ? "HOY" : "TODAY"}
-                    </div>
-                    <div className="px-3 py-1 bg-muted rounded text-xs">
-                      {language === "es" ? "Agenda" : "Agenda"}
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-
-              {/* Área de contenido */}
-              <Card>
-                <CardContent className="p-8 text-center text-muted-foreground">
-                  {language === "es" 
-                    ? "[Vista de Calendario / Lista de Eventos]" 
-                    : "[Calendar View / Event List]"}
-                </CardContent>
-              </Card>
-
-              {/* Descripción */}
-              <Card className="bg-green-50 dark:bg-green-950 border-green-200 dark:border-green-800">
-                <CardContent className="pt-4">
-                  <p className="font-semibold text-green-700 dark:text-green-400 mb-2">
-                    ✓ {language === "es" ? "Ventajas:" : "Advantages:"}
-                  </p>
-                  <ul className="text-sm space-y-1 text-green-600 dark:text-green-300">
-                    <li>• {language === "es" ? "Muy compacto, maximiza contenido" : "Very compact, maximizes content"}</li>
-                    <li>• {language === "es" ? "Filtros y pestañas en una barra" : "Filters and tabs in one bar"}</li>
-                    <li>• {language === "es" ? "Stats como badges discretos" : "Stats as discreet badges"}</li>
-                    <li>• {language === "es" ? "Menos espacio vertical usado" : "Less vertical space used"}</li>
-                  </ul>
-                </CardContent>
-              </Card>
-            </CardContent>
-          </Card>
-        </TabsContent>
-
-        {/* OPCIÓN 3: Minimalista Integrado */}
-        <TabsContent value="option3" className="mt-0">
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-lg">
-                {language === "es" ? "Opción 3: Minimalista Integrado" : "Option 3: Integrated Minimalist"}
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              {/* Header simple */}
-              <Card>
-                <CardContent className="pt-4">
-                  <span className="font-semibold text-lg">📅 {language === "es" ? "Calendario" : "Calendar"}</span>
-                </CardContent>
-              </Card>
-
-              {/* Barra TODO en UNO */}
-              <Card className="bg-muted/50">
-                <CardContent className="pt-4 flex items-center gap-3 flex-wrap">
-                  <Select value={selectedCondominium} onValueChange={setSelectedCondominium}>
-                    <SelectTrigger className="h-9 w-48">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="all">{language === "es" ? "Todos" : "All"}</SelectItem>
-                    </SelectContent>
-                  </Select>
-                  
-                  <div className="h-5 w-px bg-border" />
-                  
-                  <div className="flex gap-2 flex-wrap flex-1">
-                    <div className="flex items-center gap-1.5 px-2 py-1 rounded bg-card text-xs border">
-                      <div className="h-2 w-2 rounded-full bg-blue-500" />
-                      <span>{language === "es" ? "Renta" : "Rent"}</span>
-                    </div>
-                    <div className="flex items-center gap-1.5 px-2 py-1 rounded bg-card text-xs border">
-                      <div className="h-2 w-2 rounded-full bg-yellow-500" />
-                      <span>{language === "es" ? "Servicios" : "Services"}</span>
-                    </div>
-                    <div className="flex items-center gap-1.5 px-2 py-1 rounded bg-card text-xs border">
-                      <div className="h-2 w-2 rounded-full bg-green-500" />
-                      <span>{language === "es" ? "Mant." : "Maint."}</span>
-                    </div>
-                    <div className="flex items-center gap-1.5 px-2 py-1 rounded bg-card text-xs border">
-                      <div className="h-2 w-2 rounded-full bg-purple-500" />
-                      <span>{language === "es" ? "Check in" : "Check in"}</span>
-                    </div>
-                    <div className="flex items-center gap-1.5 px-2 py-1 rounded bg-card text-xs border">
-                      <div className="h-2 w-2 rounded-full bg-orange-500" />
-                      <span>{language === "es" ? "Check out" : "Check out"}</span>
-                    </div>
-                  </div>
-                  
-                  <div className="h-5 w-px bg-border" />
-                  
-                  <div className="flex gap-1">
-                    <div className="px-3 py-1.5 bg-primary text-primary-foreground rounded text-xs font-medium">
-                      {language === "es" ? "Calendario" : "Calendar"}
-                    </div>
-                    <div className="px-3 py-1.5 bg-card rounded text-xs border">
-                      {language === "es" ? "HOY" : "TODAY"}
-                    </div>
-                    <div className="px-3 py-1.5 bg-card rounded text-xs border">
-                      {language === "es" ? "Agenda" : "Agenda"}
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-
-              {/* Área de contenido con stats integrados */}
-              <Card className="relative">
-                <div className="absolute top-3 right-3 flex gap-3 text-xs font-semibold z-10">
-                  <span className="text-blue-600">12 {language === "es" ? "rentas" : "rents"}</span>
-                  <span className="text-green-600">5 {language === "es" ? "mant." : "maint."}</span>
-                  <span className="text-muted-foreground">28 {language === "es" ? "total" : "total"}</span>
-                </div>
-                <CardContent className="p-8 text-center text-muted-foreground pt-12">
-                  {language === "es" 
-                    ? "[Vista de Calendario / Lista de Eventos]" 
-                    : "[Calendar View / Event List]"}
-                </CardContent>
-              </Card>
-
-              {/* Descripción */}
-              <Card className="bg-green-50 dark:bg-green-950 border-green-200 dark:border-green-800">
-                <CardContent className="pt-4">
-                  <p className="font-semibold text-green-700 dark:text-green-400 mb-2">
-                    ✓ {language === "es" ? "Ventajas:" : "Advantages:"}
-                  </p>
-                  <ul className="text-sm space-y-1 text-green-600 dark:text-green-300">
-                    <li>• {language === "es" ? "TODO en una sola barra superior" : "EVERYTHING in one top bar"}</li>
-                    <li>• {language === "es" ? "Máximo espacio para calendario" : "Maximum space for calendar"}</li>
-                    <li>• {language === "es" ? "Stats integradas en esquina" : "Stats integrated in corner"}</li>
-                    <li>• {language === "es" ? "Ultra limpio y minimalista" : "Ultra clean and minimalist"}</li>
-                    <li>• {language === "es" ? "Ideal para pantallas pequeñas" : "Ideal for small screens"}</li>
-                  </ul>
-                </CardContent>
-              </Card>
-            </CardContent>
-          </Card>
-        </TabsContent>
-      </Tabs>
+      {/* Vista Agenda */}
+      {viewMode === "agenda" && (
+        <AgendaView allEvents={allEvents} language={language} />
+      )}
     </div>
   );
 }
