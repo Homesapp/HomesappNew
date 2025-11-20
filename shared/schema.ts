@@ -5043,6 +5043,71 @@ export const insertExternalPaymentSchema = createInsertSchema(externalPayments).
 export type InsertExternalPayment = z.infer<typeof insertExternalPaymentSchema>;
 export type ExternalPayment = typeof externalPayments.$inferSelect;
 
+// External Notifications - Sistema de notificaciones automáticas
+export const externalNotifications = pgTable("external_notifications", {
+  id: varchar("id").primaryKey().$defaultFn(() => crypto.randomUUID()),
+  agencyId: varchar("agency_id").notNull().references(() => externalAgencies.id, { onDelete: "cascade" }),
+  
+  // Notification details
+  type: notificationTypeEnum("type").notNull(), // payment_overdue, ticket_created, contract_expiring, etc
+  priority: notificationPriorityEnum("priority").notNull().default("medium"),
+  title: varchar("title", { length: 255 }).notNull(),
+  message: text("message").notNull(),
+  
+  // Recipients
+  recipientUserId: varchar("recipient_user_id").references(() => users.id, { onDelete: "cascade" }), // Usuario específico (si aplica)
+  recipientEmail: varchar("recipient_email", { length: 255 }), // Email directo (para externos)
+  recipientPhone: varchar("recipient_phone", { length: 50 }), // Teléfono para SMS
+  
+  // Related entities
+  contractId: varchar("contract_id").references(() => externalRentalContracts.id, { onDelete: "set null" }),
+  paymentId: varchar("payment_id").references(() => externalPayments.id, { onDelete: "set null" }),
+  ticketId: varchar("ticket_id").references(() => externalMaintenanceTickets.id, { onDelete: "set null" }),
+  unitId: varchar("unit_id").references(() => externalUnits.id, { onDelete: "set null" }),
+  
+  // Delivery tracking
+  emailSent: boolean("email_sent").notNull().default(false),
+  emailSentAt: timestamp("email_sent_at"),
+  smsSent: boolean("sms_sent").notNull().default(false),
+  smsSentAt: timestamp("sms_sent_at"),
+  
+  // Status
+  isRead: boolean("is_read").notNull().default(false),
+  readAt: timestamp("read_at"),
+  scheduledFor: timestamp("scheduled_for"), // Para notificaciones programadas
+  expiresAt: timestamp("expires_at"), // Cuándo expira la notificación
+  
+  // Metadata
+  metadata: jsonb("metadata"), // Datos adicionales flexibles
+  
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+}, (table) => [
+  index("idx_ext_notif_agency").on(table.agencyId),
+  index("idx_ext_notif_type").on(table.type),
+  index("idx_ext_notif_priority").on(table.priority),
+  index("idx_ext_notif_recipient_user").on(table.recipientUserId),
+  index("idx_ext_notif_is_read").on(table.isRead),
+  index("idx_ext_notif_scheduled").on(table.scheduledFor),
+  index("idx_ext_notif_contract").on(table.contractId),
+  index("idx_ext_notif_payment").on(table.paymentId),
+  index("idx_ext_notif_ticket").on(table.ticketId),
+]);
+
+export const insertExternalNotificationSchema = createInsertSchema(externalNotifications).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export const updateExternalNotificationSchema = insertExternalNotificationSchema.partial().omit({
+  agencyId: true,
+});
+
+export type InsertExternalNotification = z.infer<typeof insertExternalNotificationSchema>;
+export type UpdateExternalNotification = z.infer<typeof updateExternalNotificationSchema>;
+export type ExternalNotification = typeof externalNotifications.$inferSelect;
+
 // External Maintenance Tickets - Sistema de tickets de mantenimiento
 export const externalMaintenanceTickets = pgTable("external_maintenance_tickets", {
   id: varchar("id").primaryKey().$defaultFn(() => crypto.randomUUID()),

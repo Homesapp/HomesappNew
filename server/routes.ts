@@ -21536,6 +21536,42 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       const updatedTicket = await storage.updateExternalMaintenanceTicket(id, updateData);
       
+      // Auto-create financial transaction when closing ticket with actual cost
+      // Use updated ticket data to catch newly provided actualCost
+      if (status === 'closed' && updatedTicket.actualCost && parseFloat(updatedTicket.actualCost) > 0) {
+        try {
+          // Get owner information from the unit
+          const unitOwners = await storage.getExternalUnitOwners(ticket.unitId);
+          const primaryOwner = unitOwners.find(o => o.ownershipPercentage && parseFloat(o.ownershipPercentage) > 0) || unitOwners[0];
+          
+          // Create financial transaction for maintenance expense
+          await storage.createExternalFinancialTransaction({
+            agencyId: unit.agencyId,
+            direction: 'outflow',
+            category: 'maintenance_expense',
+            status: 'pending',
+            grossAmount: updatedTicket.actualCost,
+            fees: '0.00',
+            netAmount: updatedTicket.actualCost,
+            currency: 'MXN',
+            dueDate: new Date(), // Cost incurred immediately
+            payerRole: primaryOwner ? 'owner' : 'agency', // Owner pays or agency if no owner
+            payeeRole: 'agency', // Agency paid the service provider
+            ownerId: primaryOwner?.id || null,
+            contractId: updatedTicket.contractId || null,
+            unitId: updatedTicket.unitId,
+            maintenanceTicketId: updatedTicket.id,
+            description: `Gasto de mantenimiento: ${updatedTicket.title}`,
+            notes: updatedTicket.completionNotes || undefined,
+          });
+          
+          console.log(`✅ Auto-created financial transaction for ticket ${updatedTicket.id} with cost ${updatedTicket.actualCost}`);
+        } catch (finError) {
+          // Log but don't fail the ticket closure
+          console.error('Failed to create financial transaction for ticket:', finError);
+        }
+      }
+      
       await createAuditLog(req, "update", "external_ticket", id, `Changed ticket status to ${status}`);
       res.json(updatedTicket);
     } catch (error: any) {

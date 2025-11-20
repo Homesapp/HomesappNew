@@ -43,6 +43,13 @@ The platform implements enterprise-grade security measures compliant with 2025 s
 **GDPR/PCI-DSS Compliance**: Encryption of personal and financial data, comprehensive audit trails, and secure session management support regulatory compliance requirements.
 
 ## Recent Changes
+
+**2025-01-20**: Implemented critical workflow automations:
+- **Maintenance-Financial Integration**: Tickets with actualCost now auto-generate financial transactions
+- **Notifications System**: New externalNotifications table for automated alerts (payments, tickets, contracts)
+- **Automatic Payment Generation**: Script to generate recurring payments from schedules monthly
+- See WORKFLOW_IMPROVEMENTS.md for detailed documentation
+
 **2025-01-20**: Completed Priority 1 security implementation including:
 - AES-256-GCM encryption for sensitive data with ENC:v1: prefix system
 - Idempotent encryption operations (safe for already-encrypted data)
