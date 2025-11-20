@@ -39,11 +39,16 @@ Key features include:
     *   **Owner Management System**: Comprehensive CRUD for unit owners, including charge creation and notification sending, with multi-tenant security.
     *   **External Calendar System**: Displays payments, maintenance tickets, and rental contract start dates for external agencies. Features include:
         - **Rental contract events:** Contract start dates now appear in calendar with purple icon
-        - **Complete contract details:** Shows tenant info, unit, monthly rent (with validation), duration, start/end dates, and contact info
+        - **Complete contract details:** Shows tenant info, unit, monthly rent (with validation), duration, start/end dates, contact info, and rental purpose
         - **Type-safe event handling:** Discriminated union with ExternalPayment, ExternalMaintenanceTicket, and ExternalRentalContract
         - Event highlighting with color-coded icons (green for payments, blue for tickets, purple for contracts)
         - Worker assignment details and statistics
         - Robust null-checking for optional date and monetary fields
+    *   **Rental Purpose Classification**: Rental contracts now specify their purpose with enum values:
+        - **Living**: Contract for primary residence
+        - **Sublease**: Contract for subleasing/short-term rentals
+        - Purpose field appears in creation form, edit dialog, and contract detail page with visual badges
+        - Default value: "living" for all new contracts
     *   **Google Calendar Sync Infrastructure**: Backend service for automatic synchronization of maintenance tickets to workers' Google Calendars with detailed event descriptions and email notifications.
     *   **Temporary Credentials Management**: Workflow for secure sharing of temporary user credentials with forced password changes on first login.
     *   **Unit Information Quick-Share System**: One-click copy-to-clipboard for unit information and access controls.
@@ -57,8 +62,9 @@ Key features include:
         - **Mobile-optimized buttons:** flex-wrap layout prevents button text truncation on small screens
         - Advanced filtering by status, condominium, and unit number with searchable combobox components
         - Rental cancellation with automatic cleanup of future pending payments
-        - Contract detail view with complete overview of services and payment schedules
-        - **Contract Editing**: Full CRUD for active rental contracts including tenant information, monthly rent, end date, and notes with backend validation and multi-tenant security
+        - **Redesigned contract detail page:** Professional single-view layout without tabs, consolidating all information (contract details, documents, payments, services) in organized 2-column grid
+        - **Rental Purpose Field:** Visual badges (Home icon for living, Building2 for sublease) showing contract purpose with selection in creation/edit forms
+        - **Contract Editing**: Full CRUD for active rental contracts including tenant information, monthly rent, rental purpose, end date, and notes with backend validation and multi-tenant security
         - **Payment Schedule Management**: Complete CRUD operations for payment schedules (rent, electricity, water, internet, gas, maintenance) with automatic cache invalidation using TanStack Query v5 array-based query keys
     *   **Unit Status Management**: Complete system for managing unit availability and operational status. Features include:
         - PATCH endpoint `/api/external-units/:id/toggle-status` for toggling unit active/suspended state with multi-tenant security
