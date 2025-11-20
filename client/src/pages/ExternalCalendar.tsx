@@ -25,6 +25,7 @@ type EventData = {
   data: ExternalPayment | ExternalMaintenanceTicket | ExternalRentalContract;
   condominium: string;
   unitNumber: string;
+  tenantName?: string;
 };
 
 export default function ExternalCalendar() {
@@ -71,13 +72,21 @@ export default function ExternalCalendar() {
     queryKey: ["/api/external-agency-users"],
   });
 
+  // Normalize rental contracts (handle both nested and flat structures)
+  const normalizedContracts = useMemo(() => {
+    return (contracts ?? []).map((item: any) => 
+      'contract' in item ? item.contract : item
+    );
+  }, [contracts]);
+
   // Helper function to get condominium name from unitId
   const getCondominiumInfo = (unitId: string | undefined) => {
     if (!unitId) return { condominium: '', unitNumber: '' };
     const unit = units.find(u => u.id === unitId);
     if (!unit) return { condominium: '', unitNumber: '' };
+    const condo = condominiums.find(c => c.id === unit.condominiumId);
     return {
-      condominium: unit.condominium?.name || (language === "es" ? "Sin condominio" : "No condominium"),
+      condominium: condo?.name || (language === "es" ? "Sin condominio" : "No condominium"),
       unitNumber: unit.unitNumber || ''
     };
   };
@@ -101,12 +110,12 @@ export default function ExternalCalendar() {
 
   // Filter contracts by condominium
   const filteredContracts = useMemo(() => {
-    if (selectedCondominium === "all") return contracts;
-    return contracts.filter((c: any) => {
+    if (selectedCondominium === "all") return normalizedContracts;
+    return normalizedContracts.filter((c: any) => {
       const unit = units.find(u => u.id === c.unitId);
       return unit?.condominiumId === selectedCondominium;
     });
-  }, [contracts, units, selectedCondominium]);
+  }, [normalizedContracts, units, selectedCondominium]);
 
   // Calculate statistics
   const stats = useMemo(() => {
@@ -149,6 +158,9 @@ export default function ExternalCalendar() {
       .filter((p) => isSameDay(new Date(p.dueDate), selectedDate))
       .map((p) => {
         const { condominium, unitNumber } = getCondominiumInfo(p.unitId);
+        const contract = normalizedContracts.find((c: any) => c.unitId === p.unitId && c.status === 'active');
+        const tenantName = contract?.tenantName || '';
+        
         return {
           type: 'payment' as const,
           title: language === "es" 
@@ -159,6 +171,7 @@ export default function ExternalCalendar() {
           data: p,
           condominium,
           unitNumber,
+          tenantName,
         };
       }) : [];
 
@@ -511,13 +524,11 @@ export default function ExternalCalendar() {
                                 <div className="flex items-center gap-2 mt-0.5">
                                   <p className="text-xs text-muted-foreground">{event.time}</p>
                                   <span className="text-xs text-muted-foreground">•</span>
-                                  <p className="text-xs text-muted-foreground truncate">{event.condominium}</p>
-                                  {event.unitNumber && (
-                                    <>
-                                      <span className="text-xs text-muted-foreground">•</span>
-                                      <p className="text-xs text-muted-foreground">{event.unitNumber}</p>
-                                    </>
-                                  )}
+                                  <p className="text-xs text-muted-foreground truncate">
+                                    {event.condominium}
+                                    {event.unitNumber && ` - ${event.unitNumber}`}
+                                    {event.tenantName && ` (${event.tenantName})`}
+                                  </p>
                                 </div>
                               </div>
                             </div>
@@ -549,7 +560,8 @@ export default function ExternalCalendar() {
                                       <div className="min-w-0">
                                         <p className="font-medium">{language === "es" ? "Unidad" : "Unit"}</p>
                                         <p className="text-muted-foreground break-words">
-                                          {event.unitNumber} - {event.condominium}
+                                          {event.condominium} - {event.unitNumber}
+                                          {event.tenantName && ` (${event.tenantName})`}
                                         </p>
                                       </div>
                                     </div>
@@ -591,7 +603,7 @@ export default function ExternalCalendar() {
                                       <div className="min-w-0">
                                         <p className="font-medium">{language === "es" ? "Ubicación" : "Location"}</p>
                                         <p className="text-muted-foreground break-words">
-                                          {event.unitNumber} - {event.condominium}
+                                          {event.condominium} - {event.unitNumber}
                                         </p>
                                       </div>
                                     </div>
@@ -649,7 +661,7 @@ export default function ExternalCalendar() {
                                       <div className="min-w-0">
                                         <p className="font-medium">{language === "es" ? "Unidad" : "Unit"}</p>
                                         <p className="text-muted-foreground break-words">
-                                          {event.unitNumber} - {event.condominium}
+                                          {event.condominium} - {event.unitNumber}
                                         </p>
                                       </div>
                                     </div>
