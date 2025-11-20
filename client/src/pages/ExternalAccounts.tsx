@@ -13,7 +13,7 @@ import { useLanguage } from "@/contexts/LanguageContext";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { Plus, Trash2, RotateCw, Copy, Check } from "lucide-react";
+import { Plus, Trash2, RotateCw, Copy, Check, Pencil, LayoutGrid, LayoutList, Mail, Phone, User as UserIcon } from "lucide-react";
 import { useState } from "react";
 import { z } from "zod";
 import type { User } from "@shared/schema";
@@ -37,7 +37,16 @@ const createUserSchema = z.object({
   maintenanceSpecialty: z.enum(["encargado_mantenimiento", "mantenimiento_general", "electrico", "plomero", "refrigeracion", "carpintero", "pintor", "jardinero", "albanil", "limpieza"]).optional(),
 });
 
+const updateUserSchema = z.object({
+  firstName: z.string().min(1, "Nombre requerido"),
+  lastName: z.string().min(1, "Apellido requerido"),
+  phone: z.string().optional(),
+  role: z.enum(["external_agency_admin", "external_agency_accounting", "external_agency_maintenance", "external_agency_staff"]),
+  maintenanceSpecialty: z.enum(["encargado_mantenimiento", "mantenimiento_general", "electrico", "plomero", "refrigeracion", "carpintero", "pintor", "jardinero", "albanil", "limpieza"]).optional(),
+});
+
 type CreateUserForm = z.infer<typeof createUserSchema>;
+type UpdateUserForm = z.infer<typeof updateUserSchema>;
 
 const ROLE_LABELS = {
   es: {
@@ -85,10 +94,12 @@ export default function ExternalAccounts() {
   const { language } = useLanguage();
   const { toast } = useToast();
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
+  const [editUserId, setEditUserId] = useState<string | null>(null);
   const [deleteUserId, setDeleteUserId] = useState<string | null>(null);
   const [tempPassword, setTempPassword] = useState<string | null>(null);
   const [tempEmail, setTempEmail] = useState<string | null>(null);
   const [copiedId, setCopiedId] = useState<string | null>(null);
+  const [viewMode, setViewMode] = useState<'table' | 'cards'>('table');
 
   const { data: users, isLoading } = useQuery<User[]>({
     queryKey: ['/api/external-agency-users'],
@@ -104,6 +115,27 @@ export default function ExternalAccounts() {
       role: "external_agency_staff",
     },
   });
+
+  const editForm = useForm<UpdateUserForm>({
+    resolver: zodResolver(updateUserSchema),
+    defaultValues: {
+      firstName: "",
+      lastName: "",
+      phone: "",
+      role: "external_agency_staff",
+    },
+  });
+
+  const openEditDialog = (user: User) => {
+    editForm.reset({
+      firstName: user.firstName || "",
+      lastName: user.lastName || "",
+      phone: user.phone || "",
+      role: user.role as any,
+      maintenanceSpecialty: (user.maintenanceSpecialty || undefined) as any,
+    });
+    setEditUserId(user.id);
+  };
 
   const createMutation = useMutation({
     mutationFn: async (data: CreateUserForm) => {
@@ -139,6 +171,32 @@ export default function ExternalAccounts() {
       toast({
         title: language === "es" ? "Error" : "Error",
         description,
+        variant: "destructive",
+      });
+    },
+  });
+
+  const updateMutation = useMutation({
+    mutationFn: async ({ id, data }: { id: string; data: UpdateUserForm }) => {
+      return await apiRequest("PATCH", `/api/external-agency-users/${id}`, data);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/external-agency-users'] });
+      setEditUserId(null);
+      editForm.reset();
+      toast({
+        title: language === "es" ? "✅ Usuario actualizado" : "✅ User updated",
+        description: language === "es"
+          ? "Los datos del usuario han sido actualizados exitosamente"
+          : "User data has been updated successfully",
+      });
+    },
+    onError: () => {
+      toast({
+        title: language === "es" ? "Error" : "Error",
+        description: language === "es"
+          ? "No se pudo actualizar el usuario"
+          : "Could not update user",
         variant: "destructive",
       });
     },
@@ -197,6 +255,11 @@ export default function ExternalAccounts() {
     createMutation.mutate(data);
   };
 
+  const onUpdateSubmit = (data: UpdateUserForm) => {
+    if (!editUserId) return;
+    updateMutation.mutate({ id: editUserId, data });
+  };
+
   const copyToClipboard = async (text: string, id: string) => {
     try {
       await navigator.clipboard.writeText(text);
@@ -207,9 +270,18 @@ export default function ExternalAccounts() {
     }
   };
 
+  const getRoleBadgeVariant = (role: string): "default" | "secondary" | "destructive" | "outline" => {
+    if (role === "external_agency_admin") return "default";
+    if (role === "external_agency_accounting") return "secondary";
+    if (role === "external_agency_maintenance") return "outline";
+    return "outline";
+  };
+
+  const editingUser = users?.find(u => u.id === editUserId);
+
   return (
     <div className="container mx-auto p-6 space-y-6">
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between flex-wrap gap-4">
         <div>
           <h1 className="text-3xl font-bold">
             {language === "es" ? "Cuentas de Usuario" : "User Accounts"}
@@ -220,48 +292,96 @@ export default function ExternalAccounts() {
               : "Manage your agency users with different roles"}
           </p>
         </div>
-        <Dialog open={isCreateDialogOpen} onOpenChange={setIsCreateDialogOpen}>
-          <DialogTrigger asChild>
-            <Button data-testid="button-create-user">
-              <Plus className="mr-2 h-4 w-4" />
-              {language === "es" ? "Crear Usuario" : "Create User"}
+
+        <div className="flex items-center gap-2">
+          <div className="flex items-center gap-1 border rounded-md p-1">
+            <Button
+              variant={viewMode === 'table' ? 'default' : 'ghost'}
+              size="sm"
+              onClick={() => setViewMode('table')}
+              data-testid="button-view-table"
+            >
+              <LayoutList className="h-4 w-4" />
             </Button>
-          </DialogTrigger>
-          <DialogContent data-testid="dialog-create-user">
-            <DialogHeader>
-              <DialogTitle>
-                {language === "es" ? "Crear Nuevo Usuario" : "Create New User"}
-              </DialogTitle>
-              <DialogDescription>
-                {language === "es"
-                  ? "Crea un nuevo usuario para tu agencia. Se generará una contraseña temporal."
-                  : "Create a new user for your agency. A temporary password will be generated."}
-              </DialogDescription>
-            </DialogHeader>
-            <Form {...form}>
-              <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
-                <FormField
-                  control={form.control}
-                  name="email"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>{language === "es" ? "Email" : "Email"}</FormLabel>
-                      <FormControl>
-                        <Input {...field} type="email" data-testid="input-email" />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                <div className="grid grid-cols-2 gap-4">
+            <Button
+              variant={viewMode === 'cards' ? 'default' : 'ghost'}
+              size="sm"
+              onClick={() => setViewMode('cards')}
+              data-testid="button-view-cards"
+            >
+              <LayoutGrid className="h-4 w-4" />
+            </Button>
+          </div>
+
+          <Dialog open={isCreateDialogOpen} onOpenChange={setIsCreateDialogOpen}>
+            <DialogTrigger asChild>
+              <Button data-testid="button-create-user">
+                <Plus className="mr-2 h-4 w-4" />
+                {language === "es" ? "Crear Usuario" : "Create User"}
+              </Button>
+            </DialogTrigger>
+            <DialogContent data-testid="dialog-create-user" className="max-w-2xl max-h-[90vh] overflow-y-auto">
+              <DialogHeader>
+                <DialogTitle>
+                  {language === "es" ? "Crear Nuevo Usuario" : "Create New User"}
+                </DialogTitle>
+                <DialogDescription>
+                  {language === "es"
+                    ? "Crea un nuevo usuario para tu agencia. Se generará una contraseña temporal."
+                    : "Create a new user for your agency. A temporary password will be generated."}
+                </DialogDescription>
+              </DialogHeader>
+              <Form {...form}>
+                <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
                   <FormField
                     control={form.control}
-                    name="firstName"
+                    name="email"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>{language === "es" ? "Nombre" : "First Name"}</FormLabel>
+                        <FormLabel>{language === "es" ? "Email" : "Email"}</FormLabel>
                         <FormControl>
-                          <Input {...field} data-testid="input-firstname" />
+                          <Input {...field} type="email" data-testid="input-email" />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <FormField
+                      control={form.control}
+                      name="firstName"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>{language === "es" ? "Nombre" : "First Name"}</FormLabel>
+                          <FormControl>
+                            <Input {...field} data-testid="input-firstname" />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                    <FormField
+                      control={form.control}
+                      name="lastName"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>{language === "es" ? "Apellido" : "Last Name"}</FormLabel>
+                          <FormControl>
+                            <Input {...field} data-testid="input-lastname" />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                  </div>
+                  <FormField
+                    control={form.control}
+                    name="phone"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>{language === "es" ? "Teléfono (opcional)" : "Phone (optional)"}</FormLabel>
+                        <FormControl>
+                          <Input {...field} data-testid="input-phone" />
                         </FormControl>
                         <FormMessage />
                       </FormItem>
@@ -269,104 +389,78 @@ export default function ExternalAccounts() {
                   />
                   <FormField
                     control={form.control}
-                    name="lastName"
+                    name="role"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>{language === "es" ? "Apellido" : "Last Name"}</FormLabel>
-                        <FormControl>
-                          <Input {...field} data-testid="input-lastname" />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                </div>
-                <FormField
-                  control={form.control}
-                  name="phone"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>{language === "es" ? "Teléfono (opcional)" : "Phone (optional)"}</FormLabel>
-                      <FormControl>
-                        <Input {...field} data-testid="input-phone" />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                <FormField
-                  control={form.control}
-                  name="role"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>{language === "es" ? "Rol" : "Role"}</FormLabel>
-                      <Select onValueChange={field.onChange} defaultValue={field.value}>
-                        <FormControl>
-                          <SelectTrigger data-testid="select-role">
-                            <SelectValue />
-                          </SelectTrigger>
-                        </FormControl>
-                        <SelectContent>
-                          <SelectItem value="external_agency_admin">
-                            {ROLE_LABELS[language].external_agency_admin}
-                          </SelectItem>
-                          <SelectItem value="external_agency_accounting">
-                            {ROLE_LABELS[language].external_agency_accounting}
-                          </SelectItem>
-                          <SelectItem value="external_agency_maintenance">
-                            {ROLE_LABELS[language].external_agency_maintenance}
-                          </SelectItem>
-                          <SelectItem value="external_agency_staff">
-                            {ROLE_LABELS[language].external_agency_staff}
-                          </SelectItem>
-                        </SelectContent>
-                      </Select>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                {form.watch("role") === "external_agency_maintenance" && (
-                  <FormField
-                    control={form.control}
-                    name="maintenanceSpecialty"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>{language === "es" ? "Especialidad" : "Specialty"}</FormLabel>
+                        <FormLabel>{language === "es" ? "Rol" : "Role"}</FormLabel>
                         <Select onValueChange={field.onChange} defaultValue={field.value}>
                           <FormControl>
-                            <SelectTrigger data-testid="select-specialty">
-                              <SelectValue placeholder={language === "es" ? "Selecciona especialidad..." : "Select specialty..."} />
+                            <SelectTrigger data-testid="select-role">
+                              <SelectValue />
                             </SelectTrigger>
                           </FormControl>
                           <SelectContent>
-                            <SelectItem value="encargado_mantenimiento">{SPECIALTY_LABELS[language].encargado_mantenimiento}</SelectItem>
-                            <SelectItem value="mantenimiento_general">{SPECIALTY_LABELS[language].mantenimiento_general}</SelectItem>
-                            <SelectItem value="electrico">{SPECIALTY_LABELS[language].electrico}</SelectItem>
-                            <SelectItem value="plomero">{SPECIALTY_LABELS[language].plomero}</SelectItem>
-                            <SelectItem value="refrigeracion">{SPECIALTY_LABELS[language].refrigeracion}</SelectItem>
-                            <SelectItem value="carpintero">{SPECIALTY_LABELS[language].carpintero}</SelectItem>
-                            <SelectItem value="pintor">{SPECIALTY_LABELS[language].pintor}</SelectItem>
-                            <SelectItem value="jardinero">{SPECIALTY_LABELS[language].jardinero}</SelectItem>
-                            <SelectItem value="albanil">{SPECIALTY_LABELS[language].albanil}</SelectItem>
-                            <SelectItem value="limpieza">{SPECIALTY_LABELS[language].limpieza}</SelectItem>
+                            <SelectItem value="external_agency_admin">
+                              {ROLE_LABELS[language].external_agency_admin}
+                            </SelectItem>
+                            <SelectItem value="external_agency_accounting">
+                              {ROLE_LABELS[language].external_agency_accounting}
+                            </SelectItem>
+                            <SelectItem value="external_agency_maintenance">
+                              {ROLE_LABELS[language].external_agency_maintenance}
+                            </SelectItem>
+                            <SelectItem value="external_agency_staff">
+                              {ROLE_LABELS[language].external_agency_staff}
+                            </SelectItem>
                           </SelectContent>
                         </Select>
                         <FormMessage />
                       </FormItem>
                     )}
                   />
-                )}
-                <DialogFooter>
-                  <Button type="submit" disabled={createMutation.isPending} data-testid="button-submit-user">
-                    {createMutation.isPending 
-                      ? (language === "es" ? "Creando..." : "Creating...")
-                      : (language === "es" ? "Crear Usuario" : "Create User")}
-                  </Button>
-                </DialogFooter>
-              </form>
-            </Form>
-          </DialogContent>
-        </Dialog>
+                  {form.watch("role") === "external_agency_maintenance" && (
+                    <FormField
+                      control={form.control}
+                      name="maintenanceSpecialty"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>{language === "es" ? "Especialidad" : "Specialty"}</FormLabel>
+                          <Select onValueChange={field.onChange} value={field.value}>
+                            <FormControl>
+                              <SelectTrigger data-testid="select-specialty">
+                                <SelectValue placeholder={language === "es" ? "Selecciona..." : "Select..."} />
+                              </SelectTrigger>
+                            </FormControl>
+                            <SelectContent>
+                              <SelectItem value="encargado_mantenimiento">{SPECIALTY_LABELS[language].encargado_mantenimiento}</SelectItem>
+                              <SelectItem value="mantenimiento_general">{SPECIALTY_LABELS[language].mantenimiento_general}</SelectItem>
+                              <SelectItem value="electrico">{SPECIALTY_LABELS[language].electrico}</SelectItem>
+                              <SelectItem value="plomero">{SPECIALTY_LABELS[language].plomero}</SelectItem>
+                              <SelectItem value="refrigeracion">{SPECIALTY_LABELS[language].refrigeracion}</SelectItem>
+                              <SelectItem value="carpintero">{SPECIALTY_LABELS[language].carpintero}</SelectItem>
+                              <SelectItem value="pintor">{SPECIALTY_LABELS[language].pintor}</SelectItem>
+                              <SelectItem value="jardinero">{SPECIALTY_LABELS[language].jardinero}</SelectItem>
+                              <SelectItem value="albanil">{SPECIALTY_LABELS[language].albanil}</SelectItem>
+                              <SelectItem value="limpieza">{SPECIALTY_LABELS[language].limpieza}</SelectItem>
+                            </SelectContent>
+                          </Select>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                  )}
+                  <DialogFooter>
+                    <Button type="submit" disabled={createMutation.isPending} data-testid="button-submit-user">
+                      {createMutation.isPending 
+                        ? (language === "es" ? "Creando..." : "Creating...")
+                        : (language === "es" ? "Crear Usuario" : "Create User")}
+                    </Button>
+                  </DialogFooter>
+                </form>
+              </Form>
+            </DialogContent>
+          </Dialog>
+        </div>
       </div>
 
       {tempPassword && (
@@ -437,31 +531,41 @@ export default function ExternalAccounts() {
         </Card>
       )}
 
-      <Card>
-        <CardHeader>
-          <CardTitle>{language === "es" ? "Usuarios de la Agencia" : "Agency Users"}</CardTitle>
-          <CardDescription>
-            {language === "es" 
-              ? "Lista de todos los usuarios con acceso a tu agencia"
-              : "List of all users with access to your agency"}
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          {isLoading ? (
-            <div className="space-y-2">
-              <Skeleton className="h-10 w-full" />
-              <Skeleton className="h-10 w-full" />
-              <Skeleton className="h-10 w-full" />
-            </div>
-          ) : !users || users.length === 0 ? (
-            <div className="text-center py-8" data-testid="div-no-users">
-              <p className="text-muted-foreground">
-                {language === "es" 
-                  ? "No hay usuarios creados aún"
-                  : "No users created yet"}
-              </p>
-            </div>
-          ) : (
+      {isLoading ? (
+        <div className="space-y-4">
+          <Skeleton className="h-32 w-full" />
+          <Skeleton className="h-32 w-full" />
+          <Skeleton className="h-32 w-full" />
+        </div>
+      ) : !users || users.length === 0 ? (
+        <Card>
+          <CardContent className="text-center py-12" data-testid="div-no-users">
+            <p className="text-muted-foreground">
+              {language === "es" 
+                ? "No hay usuarios creados aún"
+                : "No users created yet"}
+            </p>
+            <Button
+              className="mt-4"
+              onClick={() => setIsCreateDialogOpen(true)}
+              data-testid="button-create-first-user"
+            >
+              <Plus className="mr-2 h-4 w-4" />
+              {language === "es" ? "Crear Primer Usuario" : "Create First User"}
+            </Button>
+          </CardContent>
+        </Card>
+      ) : viewMode === 'table' ? (
+        <Card>
+          <CardHeader>
+            <CardTitle>{language === "es" ? "Usuarios de la Agencia" : "Agency Users"}</CardTitle>
+            <CardDescription>
+              {language === "es" 
+                ? "Lista de todos los usuarios con acceso a tu agencia"
+                : "List of all users with access to your agency"}
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
             <div className="w-full overflow-x-auto">
               <Table>
                 <TableHeader>
@@ -473,16 +577,14 @@ export default function ExternalAccounts() {
                     <TableHead className="min-w-[150px]">
                       {language === "es" ? "Teléfono" : "Phone"}
                     </TableHead>
-                    <TableHead className="min-w-[150px]">
-                      {language === "es" ? "Rol" : "Role"}
-                    </TableHead>
+                    <TableHead className="min-w-[150px]">Rol</TableHead>
                     <TableHead className="min-w-[150px]">
                       {language === "es" ? "Especialidad" : "Specialty"}
                     </TableHead>
-                    <TableHead className="min-w-[120px]">
+                    <TableHead className="min-w-[100px]">
                       {language === "es" ? "Estado" : "Status"}
                     </TableHead>
-                    <TableHead className="text-right min-w-[150px]">
+                    <TableHead className="text-right min-w-[200px]">
                       {language === "es" ? "Acciones" : "Actions"}
                     </TableHead>
                   </TableRow>
@@ -496,14 +598,14 @@ export default function ExternalAccounts() {
                       <TableCell>{user.email}</TableCell>
                       <TableCell>{user.phone || '-'}</TableCell>
                       <TableCell>
-                        <Badge variant="outline">
-                          {ROLE_LABELS[language][user.role as keyof typeof ROLE_LABELS['es']]}
+                        <Badge variant={getRoleBadgeVariant(user.role)}>
+                          {ROLE_LABELS[language][user.role as keyof typeof ROLE_LABELS.es] || user.role}
                         </Badge>
                       </TableCell>
                       <TableCell>
                         {user.maintenanceSpecialty ? (
-                          <Badge variant="secondary">
-                            {SPECIALTY_LABELS[language][user.maintenanceSpecialty as keyof typeof SPECIALTY_LABELS['es']]}
+                          <Badge variant="outline" className="text-xs">
+                            {SPECIALTY_LABELS[language][user.maintenanceSpecialty as keyof typeof SPECIALTY_LABELS.es]}
                           </Badge>
                         ) : '-'}
                       </TableCell>
@@ -517,6 +619,14 @@ export default function ExternalAccounts() {
                           <Button
                             variant="outline"
                             size="icon"
+                            onClick={() => openEditDialog(user)}
+                            data-testid={`button-edit-${user.id}`}
+                          >
+                            <Pencil className="h-4 w-4" />
+                          </Button>
+                          <Button
+                            variant="outline"
+                            size="icon"
                             onClick={() => resetPasswordMutation.mutate(user.id)}
                             disabled={resetPasswordMutation.isPending}
                             data-testid={`button-reset-password-${user.id}`}
@@ -527,7 +637,7 @@ export default function ExternalAccounts() {
                             variant="outline"
                             size="icon"
                             onClick={() => setDeleteUserId(user.id)}
-                            data-testid={`button-delete-user-${user.id}`}
+                            data-testid={`button-delete-${user.id}`}
                           >
                             <Trash2 className="h-4 w-4" />
                           </Button>
@@ -538,9 +648,219 @@ export default function ExternalAccounts() {
                 </TableBody>
               </Table>
             </div>
-          )}
-        </CardContent>
-      </Card>
+          </CardContent>
+        </Card>
+      ) : (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          {users.map((user) => (
+            <Card key={user.id} data-testid={`card-user-${user.id}`} className="overflow-hidden">
+              <CardHeader className="bg-muted/50 pb-3">
+                <div className="flex items-start justify-between">
+                  <div className="flex-1 min-w-0">
+                    <CardTitle className="text-lg truncate">
+                      {user.firstName} {user.lastName}
+                    </CardTitle>
+                    <CardDescription className="mt-1 flex items-center gap-1 text-xs truncate">
+                      <Mail className="h-3 w-3 flex-shrink-0" />
+                      {user.email}
+                    </CardDescription>
+                  </div>
+                  <Badge variant={getRoleBadgeVariant(user.role)} className="ml-2 flex-shrink-0">
+                    {ROLE_LABELS[language][user.role as keyof typeof ROLE_LABELS.es]}
+                  </Badge>
+                </div>
+              </CardHeader>
+              <CardContent className="pt-4 space-y-3">
+                {user.phone && (
+                  <div className="flex items-center gap-2 text-sm">
+                    <Phone className="h-4 w-4 text-muted-foreground flex-shrink-0" />
+                    <span className="truncate">{user.phone}</span>
+                  </div>
+                )}
+                
+                {user.maintenanceSpecialty && (
+                  <div className="flex items-center gap-2 text-sm">
+                    <UserIcon className="h-4 w-4 text-muted-foreground flex-shrink-0" />
+                    <Badge variant="outline" className="text-xs">
+                      {SPECIALTY_LABELS[language][user.maintenanceSpecialty as keyof typeof SPECIALTY_LABELS.es]}
+                    </Badge>
+                  </div>
+                )}
+
+                <div className="pt-2 flex items-center justify-between gap-2 border-t">
+                  <Badge variant={user.status === 'approved' ? 'default' : 'secondary'} className="text-xs">
+                    {user.status}
+                  </Badge>
+                  <div className="flex gap-1">
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      onClick={() => openEditDialog(user)}
+                      data-testid={`button-edit-card-${user.id}`}
+                    >
+                      <Pencil className="h-4 w-4" />
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      onClick={() => resetPasswordMutation.mutate(user.id)}
+                      disabled={resetPasswordMutation.isPending}
+                      data-testid={`button-reset-card-${user.id}`}
+                    >
+                      <RotateCw className="h-4 w-4" />
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      onClick={() => setDeleteUserId(user.id)}
+                      data-testid={`button-delete-card-${user.id}`}
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+      )}
+
+      <Dialog open={!!editUserId} onOpenChange={(open) => !open && setEditUserId(null)}>
+        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>
+              {language === "es" ? "Editar Usuario" : "Edit User"}
+            </DialogTitle>
+            <DialogDescription>
+              {language === "es"
+                ? `Edita los datos de ${editingUser?.firstName} ${editingUser?.lastName}`
+                : `Edit ${editingUser?.firstName} ${editingUser?.lastName}'s information`}
+            </DialogDescription>
+          </DialogHeader>
+          <Form {...editForm}>
+            <form onSubmit={editForm.handleSubmit(onUpdateSubmit)} className="space-y-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <FormField
+                  control={editForm.control}
+                  name="firstName"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>{language === "es" ? "Nombre" : "First Name"}</FormLabel>
+                      <FormControl>
+                        <Input {...field} data-testid="input-edit-firstname" />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={editForm.control}
+                  name="lastName"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>{language === "es" ? "Apellido" : "Last Name"}</FormLabel>
+                      <FormControl>
+                        <Input {...field} data-testid="input-edit-lastname" />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              </div>
+              <FormField
+                control={editForm.control}
+                name="phone"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>{language === "es" ? "Teléfono" : "Phone"}</FormLabel>
+                    <FormControl>
+                      <Input {...field} data-testid="input-edit-phone" />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={editForm.control}
+                name="role"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>{language === "es" ? "Rol" : "Role"}</FormLabel>
+                    <Select onValueChange={field.onChange} value={field.value}>
+                      <FormControl>
+                        <SelectTrigger data-testid="select-edit-role">
+                          <SelectValue />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        <SelectItem value="external_agency_admin">
+                          {ROLE_LABELS[language].external_agency_admin}
+                        </SelectItem>
+                        <SelectItem value="external_agency_accounting">
+                          {ROLE_LABELS[language].external_agency_accounting}
+                        </SelectItem>
+                        <SelectItem value="external_agency_maintenance">
+                          {ROLE_LABELS[language].external_agency_maintenance}
+                        </SelectItem>
+                        <SelectItem value="external_agency_staff">
+                          {ROLE_LABELS[language].external_agency_staff}
+                        </SelectItem>
+                      </SelectContent>
+                    </Select>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              {editForm.watch("role") === "external_agency_maintenance" && (
+                <FormField
+                  control={editForm.control}
+                  name="maintenanceSpecialty"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>{language === "es" ? "Especialidad" : "Specialty"}</FormLabel>
+                      <Select onValueChange={field.onChange} value={field.value}>
+                        <FormControl>
+                          <SelectTrigger data-testid="select-edit-specialty">
+                            <SelectValue placeholder={language === "es" ? "Selecciona..." : "Select..."} />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          <SelectItem value="encargado_mantenimiento">{SPECIALTY_LABELS[language].encargado_mantenimiento}</SelectItem>
+                          <SelectItem value="mantenimiento_general">{SPECIALTY_LABELS[language].mantenimiento_general}</SelectItem>
+                          <SelectItem value="electrico">{SPECIALTY_LABELS[language].electrico}</SelectItem>
+                          <SelectItem value="plomero">{SPECIALTY_LABELS[language].plomero}</SelectItem>
+                          <SelectItem value="refrigeracion">{SPECIALTY_LABELS[language].refrigeracion}</SelectItem>
+                          <SelectItem value="carpintero">{SPECIALTY_LABELS[language].carpintero}</SelectItem>
+                          <SelectItem value="pintor">{SPECIALTY_LABELS[language].pintor}</SelectItem>
+                          <SelectItem value="jardinero">{SPECIALTY_LABELS[language].jardinero}</SelectItem>
+                          <SelectItem value="albanil">{SPECIALTY_LABELS[language].albanil}</SelectItem>
+                          <SelectItem value="limpieza">{SPECIALTY_LABELS[language].limpieza}</SelectItem>
+                        </SelectContent>
+                      </Select>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              )}
+              <DialogFooter>
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => setEditUserId(null)}
+                  data-testid="button-cancel-edit"
+                >
+                  {language === "es" ? "Cancelar" : "Cancel"}
+                </Button>
+                <Button type="submit" disabled={updateMutation.isPending} data-testid="button-submit-edit">
+                  {updateMutation.isPending 
+                    ? (language === "es" ? "Guardando..." : "Saving...")
+                    : (language === "es" ? "Guardar Cambios" : "Save Changes")}
+                </Button>
+              </DialogFooter>
+            </form>
+          </Form>
+        </DialogContent>
+      </Dialog>
 
       <AlertDialog open={!!deleteUserId} onOpenChange={(open) => !open && setDeleteUserId(null)}>
         <AlertDialogContent>
@@ -550,8 +870,8 @@ export default function ExternalAccounts() {
             </AlertDialogTitle>
             <AlertDialogDescription>
               {language === "es"
-                ? "Esta acción no se puede deshacer. Se eliminará permanentemente el usuario y su acceso a la agencia."
-                : "This action cannot be undone. This will permanently delete the user and their access to the agency."}
+                ? "Esta acción no se puede deshacer. El usuario será eliminado permanentemente."
+                : "This action cannot be undone. The user will be permanently deleted."}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
@@ -560,12 +880,10 @@ export default function ExternalAccounts() {
             </AlertDialogCancel>
             <AlertDialogAction
               onClick={() => deleteUserId && deleteMutation.mutate(deleteUserId)}
-              disabled={deleteMutation.isPending}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
               data-testid="button-confirm-delete"
             >
-              {deleteMutation.isPending
-                ? (language === "es" ? "Eliminando..." : "Deleting...")
-                : (language === "es" ? "Eliminar" : "Delete")}
+              {language === "es" ? "Eliminar" : "Delete"}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

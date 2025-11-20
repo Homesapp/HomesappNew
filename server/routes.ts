@@ -20573,6 +20573,70 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  app.patch("/api/external-agency-users/:id", isAuthenticated, requireRole(EXTERNAL_ADMIN_ROLES), async (req: any, res) => {
+    try {
+      const { id } = req.params;
+      const agencyId = await getUserAgencyId(req);
+      if (!agencyId) {
+        return res.status(400).json({ message: "No agency assigned to user" });
+      }
+
+      // Zod validation schema for update user request
+      const updateUserSchema = z.object({
+        firstName: z.string().min(1, "First name required").optional(),
+        lastName: z.string().min(1, "Last name required").optional(),
+        phone: z.string().optional().nullable(),
+        role: z.enum(["external_agency_admin", "external_agency_accounting", "external_agency_maintenance", "external_agency_staff"]).optional(),
+        maintenanceSpecialty: z.enum(["encargado_mantenimiento", "mantenimiento_general", "electrico", "plomero", "refrigeracion", "carpintero", "pintor", "jardinero", "albanil", "limpieza"]).optional().nullable(),
+      });
+
+      const validatedData = updateUserSchema.parse(req.body);
+
+      // Verify user belongs to this agency
+      const user = await storage.getUser(id);
+      if (!user || user.assignedToUser !== agencyId) {
+        return res.status(403).json({ message: "Unauthorized to update this user" });
+      }
+
+      // Update user in database
+      const updateData: any = {
+        updatedAt: new Date()
+      };
+      
+      if (validatedData.firstName !== undefined) updateData.firstName = validatedData.firstName;
+      if (validatedData.lastName !== undefined) updateData.lastName = validatedData.lastName;
+      if (validatedData.phone !== undefined) updateData.phone = validatedData.phone || null;
+      if (validatedData.role !== undefined) updateData.role = validatedData.role;
+      if (validatedData.maintenanceSpecialty !== undefined) {
+        updateData.maintenanceSpecialty = validatedData.maintenanceSpecialty || null;
+      }
+
+      const [updatedUser] = await db.update(users)
+        .set(updateData)
+        .where(eq(users.id, id))
+        .returning();
+
+      await createAuditLog(req, "update", "user", id, `Updated external agency user - changed: ${Object.keys(validatedData).join(', ')}`);
+
+      res.json({
+        id: updatedUser.id,
+        email: updatedUser.email,
+        firstName: updatedUser.firstName,
+        lastName: updatedUser.lastName,
+        phone: updatedUser.phone,
+        role: updatedUser.role,
+        status: updatedUser.status,
+        maintenanceSpecialty: updatedUser.maintenanceSpecialty,
+      });
+    } catch (error: any) {
+      console.error("Error updating external agency user:", error);
+      if (error.name === "ZodError") {
+        return handleZodError(res, error);
+      }
+      handleGenericError(res, error);
+    }
+  });
+
   app.patch("/api/external-agency-users/:id/reset-password", isAuthenticated, requireRole(EXTERNAL_ADMIN_ROLES), async (req: any, res) => {
     try {
       const { id } = req.params;
