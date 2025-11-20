@@ -88,7 +88,16 @@ export default function ExternalOwnerPortfolio() {
 
   // Build owner portfolios
   const portfolios = useMemo(() => {
-    if (!owners || !units || !contracts || !transactions) return [];
+    // Only require owners and units - financial data is optional
+    if (!owners || !units) return [];
+
+    // Normalize contracts (unwrap nested structure if present)
+    const normalizedContracts = (contracts ?? []).map((c: any) => 
+      'contract' in c ? c.contract : c
+    );
+
+    // Default to empty array if transactions unavailable
+    const safeTransactions = transactions ?? [];
 
     // Group owners by unique owner (same name + email = same person)
     const ownerGroups = new Map<string, ExternalUnitOwner[]>();
@@ -112,22 +121,22 @@ export default function ExternalOwnerPortfolio() {
       const ownerUnitIds = ownerInstances.map(o => o.unitId);
       const ownerUnits = units.filter(u => ownerUnitIds.includes(u.id));
 
-      // Calculate financials
-      const ownerTransactions = transactions.filter(t => 
+      // Calculate financials (default to 0 if no transaction data)
+      const ownerTransactions = safeTransactions.filter((t: any) => 
         ownerInstances.some(o => o.id === t.ownerId) ||
         ownerUnitIds.includes(t.unitId || '')
       );
 
       const totalIncome = ownerTransactions
-        .filter(t => t.direction === 'inflow' && t.payeeRole === 'owner')
-        .reduce((sum, t) => sum + parseFloat(t.grossAmount || '0'), 0);
+        .filter((t: any) => t.direction === 'inflow' && t.payeeRole === 'owner')
+        .reduce((sum: number, t: any) => sum + parseFloat(t.grossAmount || '0'), 0);
 
       const totalExpenses = ownerTransactions
-        .filter(t => t.direction === 'outflow' && t.payerRole === 'owner')
-        .reduce((sum, t) => sum + parseFloat(t.grossAmount || '0'), 0);
+        .filter((t: any) => t.direction === 'outflow' && t.payerRole === 'owner')
+        .reduce((sum: number, t: any) => sum + parseFloat(t.grossAmount || '0'), 0);
 
       // Active contracts
-      const activeContracts = contracts.filter(c => 
+      const activeContracts = normalizedContracts.filter((c: any) => 
         ownerUnitIds.includes(c.unitId) && c.status === 'active'
       ).length;
 
