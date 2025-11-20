@@ -89,6 +89,7 @@ export default function ExternalAccounting() {
   const [customEndDate, setCustomEndDate] = useState<string>("");
   const [sortColumn, setSortColumn] = useState<string>("");
   const [sortDirection, setSortDirection] = useState<"asc" | "desc">("asc");
+  const [filtersExpanded, setFiltersExpanded] = useState(false);
 
   const { data: summary, isLoading: summaryLoading } = useQuery<AccountingSummary>({
     queryKey: ['/api/external/accounting/summary'],
@@ -813,26 +814,8 @@ export default function ExternalAccounting() {
           )}
         </TabsContent>
 
-        <TabsContent value="transactions" className="space-y-6">
-          <div className="flex items-center justify-between gap-4 flex-wrap">
-            <div className="flex gap-2 flex-wrap">
-              <Button
-                onClick={() => setShowCreateDialog(true)}
-                data-testid="button-create-transaction"
-              >
-                <Plus className="h-4 w-4 mr-2" />
-                {t.createTransaction}
-              </Button>
-              <Button
-                variant="outline"
-                onClick={handleExportExcel}
-                disabled={!sortedAndFilteredTransactions || sortedAndFilteredTransactions.length === 0}
-                data-testid="button-export-excel"
-              >
-                <Download className="h-4 w-4 mr-1" />
-                {t.exportExcel}
-              </Button>
-            </div>
+        <TabsContent value="transactions" className="space-y-4">
+          <div className="flex items-center justify-between gap-4">
             <div className="flex gap-1 border rounded-md p-1">
               <Button
                 variant={viewMode === "cards" ? "default" : "ghost"}
@@ -851,33 +834,58 @@ export default function ExternalAccounting() {
                 <TableIcon className="h-4 w-4" />
               </Button>
             </div>
+            <div className="flex gap-2">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setFiltersExpanded(!filtersExpanded)}
+                data-testid="button-toggle-filters"
+              >
+                <Filter className="h-4 w-4 mr-1" />
+                {t.filters}
+                {activeFilters > 0 && <Badge variant="secondary" className="ml-1">{activeFilters}</Badge>}
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={handleExportExcel}
+                disabled={!sortedAndFilteredTransactions || sortedAndFilteredTransactions.length === 0}
+                data-testid="button-export-excel"
+              >
+                <Download className="h-4 w-4 mr-1" />
+                {t.exportExcel}
+              </Button>
+              <Button
+                onClick={() => setShowCreateDialog(true)}
+                size="sm"
+                data-testid="button-create-transaction"
+              >
+                <Plus className="h-4 w-4 mr-1" />
+                {t.createTransaction}
+              </Button>
+            </div>
           </div>
 
-          <Card>
-            <CardHeader className="pb-3">
-              <div className="flex items-center justify-between">
-                <CardTitle className="flex items-center gap-2 text-sm">
-                  <Filter className="h-4 w-4" />
-                  {t.filters}
+          {filtersExpanded && (
+            <Card>
+              <CardHeader className="pb-3">
+                <div className="flex items-center justify-between">
+                  <CardTitle className="text-sm">{t.filters}</CardTitle>
                   {activeFilters > 0 && (
-                    <Badge variant="secondary">{activeFilters}</Badge>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={handleClearFilters}
+                      data-testid="button-clear-filters"
+                    >
+                      <X className="h-4 w-4 mr-1" />
+                      {t.clearFilters}
+                    </Button>
                   )}
-                </CardTitle>
-                {activeFilters > 0 && (
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={handleClearFilters}
-                    data-testid="button-clear-filters"
-                  >
-                    <X className="h-4 w-4 mr-1" />
-                    {t.clearFilters}
-                  </Button>
-                )}
-              </div>
-            </CardHeader>
-            <CardContent>
-              <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-6 gap-3">
+                </div>
+              </CardHeader>
+              <CardContent>
+                <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-6 gap-3">
                 <Select value={directionFilter} onValueChange={setDirectionFilter}>
                   <SelectTrigger data-testid="select-direction-filter">
                     <SelectValue placeholder={t.direction} />
@@ -986,8 +994,9 @@ export default function ExternalAccounting() {
                   </div>
                 </div>
               )}
-            </CardContent>
-          </Card>
+              </CardContent>
+            </Card>
+          )}
 
           {transactionsLoading ? (
             <div className="space-y-4">
