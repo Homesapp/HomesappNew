@@ -87,6 +87,8 @@ export default function ExternalAccounting() {
   const [dateFilter, setDateFilter] = useState<string>("all");
   const [customStartDate, setCustomStartDate] = useState<string>("");
   const [customEndDate, setCustomEndDate] = useState<string>("");
+  const [sortColumn, setSortColumn] = useState<string>("");
+  const [sortDirection, setSortDirection] = useState<"asc" | "desc">("asc");
 
   const { data: summary, isLoading: summaryLoading } = useQuery<AccountingSummary>({
     queryKey: ['/api/external/accounting/summary'],
@@ -164,6 +166,41 @@ export default function ExternalAccounting() {
       return true;
     });
   }, [transactions, dateFilter, customStartDate, customEndDate]);
+
+  // Sort transactions
+  const sortedAndFilteredTransactions = useMemo(() => {
+    if (!filteredTransactions) return [];
+    if (!sortColumn) return filteredTransactions;
+
+    const sorted = [...filteredTransactions].sort((a, b) => {
+      let aVal: any = (a as any)[sortColumn];
+      let bVal: any = (b as any)[sortColumn];
+
+      if (typeof aVal === "string") {
+        aVal = aVal.toLowerCase();
+        bVal = (bVal as any)?.toString().toLowerCase();
+      }
+
+      if (aVal < bVal) return sortDirection === "asc" ? -1 : 1;
+      if (aVal > bVal) return sortDirection === "asc" ? 1 : -1;
+      return 0;
+    });
+    return sorted;
+  }, [filteredTransactions, sortColumn, sortDirection]);
+
+  const handleSort = (column: string) => {
+    if (sortColumn === column) {
+      setSortDirection(sortDirection === "asc" ? "desc" : "asc");
+    } else {
+      setSortColumn(column);
+      setSortDirection("asc");
+    }
+  };
+
+  const getSortIcon = (column: string) => {
+    if (sortColumn !== column) return null;
+    return sortDirection === "asc" ? "↑" : "↓";
+  };
 
   const createForm = useForm<TransactionFormData>({
     resolver: zodResolver(insertExternalFinancialTransactionSchema),
@@ -555,7 +592,7 @@ export default function ExternalAccounting() {
   };
 
   const handleExportExcel = () => {
-    if (!filteredTransactions || filteredTransactions.length === 0) {
+    if (!sortedAndFilteredTransactions || sortedAndFilteredTransactions.length === 0) {
       toast({
         title: t.error,
         description: t.noData,
@@ -564,7 +601,7 @@ export default function ExternalAccounting() {
       return;
     }
 
-    const exportData = filteredTransactions.map(t => ({
+    const exportData = sortedAndFilteredTransactions.map(t => ({
       [t.dueDate]: formatDate(t.dueDate),
       [t.direction]: t.direction === 'inflow' ? t.inflow : t.outflow,
       [t.category]: getCategoryLabel(t.category),
@@ -608,7 +645,7 @@ export default function ExternalAccounting() {
 
     toast({
       title: language === 'es' ? 'Exportación exitosa' : 'Export successful',
-      description: language === 'es' ? `Se exportaron ${filteredTransactions.length} transacciones` : `Exported ${filteredTransactions.length} transactions`,
+      description: language === 'es' ? `Se exportaron ${sortedAndFilteredTransactions.length} transacciones` : `Exported ${sortedAndFilteredTransactions.length} transactions`,
     });
   };
 
@@ -777,39 +814,58 @@ export default function ExternalAccounting() {
         </TabsContent>
 
         <TabsContent value="transactions" className="space-y-6">
+          <div className="flex items-center justify-between gap-4 flex-wrap">
+            <div className="flex gap-2 flex-wrap">
+              <Button
+                onClick={() => setShowCreateDialog(true)}
+                data-testid="button-create-transaction"
+              >
+                <Plus className="h-4 w-4 mr-2" />
+                {t.createTransaction}
+              </Button>
+              <Button
+                variant="outline"
+                onClick={handleExportExcel}
+                disabled={!sortedAndFilteredTransactions || sortedAndFilteredTransactions.length === 0}
+                data-testid="button-export-excel"
+              >
+                <Download className="h-4 w-4 mr-1" />
+                {t.exportExcel}
+              </Button>
+            </div>
+            <div className="flex gap-1 border rounded-md p-1">
+              <Button
+                variant={viewMode === "cards" ? "default" : "ghost"}
+                size="sm"
+                onClick={() => setViewMode("cards")}
+                data-testid="button-view-cards"
+              >
+                <LayoutGrid className="h-4 w-4" />
+              </Button>
+              <Button
+                variant={viewMode === "table" ? "default" : "ghost"}
+                size="sm"
+                onClick={() => setViewMode("table")}
+                data-testid="button-view-table"
+              >
+                <TableIcon className="h-4 w-4" />
+              </Button>
+            </div>
+          </div>
+
           <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 gap-4 flex-wrap">
-              <div className="flex-1">
-                <CardTitle className="flex items-center gap-2">
-                  <Filter className="h-5 w-5" />
+            <CardHeader className="pb-3">
+              <div className="flex items-center justify-between">
+                <CardTitle className="flex items-center gap-2 text-sm">
+                  <Filter className="h-4 w-4" />
                   {t.filters}
                   {activeFilters > 0 && (
-                    <Badge variant="secondary" className="ml-2">{activeFilters}</Badge>
+                    <Badge variant="secondary">{activeFilters}</Badge>
                   )}
                 </CardTitle>
-              </div>
-              <div className="flex gap-2 flex-wrap">
-                <div className="flex gap-1 border rounded-md p-1">
-                  <Button
-                    variant={viewMode === "cards" ? "default" : "ghost"}
-                    size="sm"
-                    onClick={() => setViewMode("cards")}
-                    data-testid="button-view-cards"
-                  >
-                    <LayoutGrid className="h-4 w-4" />
-                  </Button>
-                  <Button
-                    variant={viewMode === "table" ? "default" : "ghost"}
-                    size="sm"
-                    onClick={() => setViewMode("table")}
-                    data-testid="button-view-table"
-                  >
-                    <TableIcon className="h-4 w-4" />
-                  </Button>
-                </div>
                 {activeFilters > 0 && (
                   <Button
-                    variant="outline"
+                    variant="ghost"
                     size="sm"
                     onClick={handleClearFilters}
                     data-testid="button-clear-filters"
@@ -818,28 +874,10 @@ export default function ExternalAccounting() {
                     {t.clearFilters}
                   </Button>
                 )}
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={handleExportExcel}
-                  disabled={!filteredTransactions || filteredTransactions.length === 0}
-                  data-testid="button-export-excel"
-                >
-                  <Download className="h-4 w-4 mr-1" />
-                  {t.exportExcel}
-                </Button>
-                <Button
-                  onClick={() => setShowCreateDialog(true)}
-                  size="sm"
-                  data-testid="button-create-transaction"
-                >
-                  <Plus className="h-4 w-4 mr-2" />
-                  {t.createTransaction}
-                </Button>
               </div>
             </CardHeader>
             <CardContent>
-              <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-6 gap-4">
+              <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-6 gap-3">
                 <Select value={directionFilter} onValueChange={setDirectionFilter}>
                   <SelectTrigger data-testid="select-direction-filter">
                     <SelectValue placeholder={t.direction} />
@@ -961,7 +999,7 @@ export default function ExternalAccounting() {
                 </Card>
               ))}
             </div>
-          ) : !filteredTransactions || filteredTransactions.length === 0 ? (
+          ) : !sortedAndFilteredTransactions || sortedAndFilteredTransactions.length === 0 ? (
             <Card>
               <CardContent className="text-center py-12">
                 <AlertCircle className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />
@@ -970,7 +1008,7 @@ export default function ExternalAccounting() {
             </Card>
           ) : viewMode === "cards" ? (
             <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-              {filteredTransactions.map((transaction) => (
+              {sortedAndFilteredTransactions.map((transaction) => (
                 <Card key={transaction.id} className="hover-elevate" data-testid={`card-transaction-${transaction.id}`}>
                   <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                     <div className="flex items-center gap-2">
@@ -1040,22 +1078,44 @@ export default function ExternalAccounting() {
                   <Table>
                     <TableHeader>
                       <TableRow>
-                        <TableHead>{t.dueDate}</TableHead>
-                        <TableHead>{t.direction}</TableHead>
-                        <TableHead>{t.category}</TableHead>
-                        <TableHead>{t.description}</TableHead>
-                        <TableHead>{t.payerRole}</TableHead>
-                        <TableHead>{t.payeeRole}</TableHead>
-                        <TableHead>{t.amount}</TableHead>
-                        <TableHead>{t.status}</TableHead>
-                        <TableHead>{t.paymentMethod}</TableHead>
-                        <TableHead>{t.paymentReference}</TableHead>
-                        <TableHead>{t.performedDate}</TableHead>
+                        <TableHead className="cursor-pointer hover:bg-muted" onClick={() => handleSort('dueDate')}>
+                          {t.dueDate} {getSortIcon('dueDate')}
+                        </TableHead>
+                        <TableHead className="cursor-pointer hover:bg-muted" onClick={() => handleSort('direction')}>
+                          {t.direction} {getSortIcon('direction')}
+                        </TableHead>
+                        <TableHead className="cursor-pointer hover:bg-muted" onClick={() => handleSort('category')}>
+                          {t.category} {getSortIcon('category')}
+                        </TableHead>
+                        <TableHead className="cursor-pointer hover:bg-muted" onClick={() => handleSort('description')}>
+                          {t.description} {getSortIcon('description')}
+                        </TableHead>
+                        <TableHead className="cursor-pointer hover:bg-muted" onClick={() => handleSort('payerRole')}>
+                          {t.payerRole} {getSortIcon('payerRole')}
+                        </TableHead>
+                        <TableHead className="cursor-pointer hover:bg-muted" onClick={() => handleSort('payeeRole')}>
+                          {t.payeeRole} {getSortIcon('payeeRole')}
+                        </TableHead>
+                        <TableHead className="cursor-pointer hover:bg-muted" onClick={() => handleSort('netAmount')}>
+                          {t.amount} {getSortIcon('netAmount')}
+                        </TableHead>
+                        <TableHead className="cursor-pointer hover:bg-muted" onClick={() => handleSort('status')}>
+                          {t.status} {getSortIcon('status')}
+                        </TableHead>
+                        <TableHead className="cursor-pointer hover:bg-muted" onClick={() => handleSort('paymentMethod')}>
+                          {t.paymentMethod} {getSortIcon('paymentMethod')}
+                        </TableHead>
+                        <TableHead className="cursor-pointer hover:bg-muted" onClick={() => handleSort('paymentReference')}>
+                          {t.paymentReference} {getSortIcon('paymentReference')}
+                        </TableHead>
+                        <TableHead className="cursor-pointer hover:bg-muted" onClick={() => handleSort('performedDate')}>
+                          {t.performedDate} {getSortIcon('performedDate')}
+                        </TableHead>
                         <TableHead className="text-right">{t.actions}</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
-                      {filteredTransactions.map((transaction) => (
+                      {sortedAndFilteredTransactions.map((transaction) => (
                         <TableRow key={transaction.id} data-testid={`row-transaction-${transaction.id}`}>
                           <TableCell>{formatDate(transaction.dueDate)}</TableCell>
                           <TableCell>{getDirectionBadge(transaction.direction)}</TableCell>
