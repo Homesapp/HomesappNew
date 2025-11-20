@@ -19,6 +19,27 @@ Key architectural features include unified middleware for authentication and log
 
 The maintenance system includes an enhanced tracking architecture with update timelines, photo documentation categorized by phase (before/during/after), scheduled maintenance windows, role-based closure permissions (admin and maintenance managers only), completion notes, and multi-tenant security with agency ownership verification on all CRUD operations for maintenance updates and photos.
 
+## Security Features
+
+The platform implements enterprise-grade security measures compliant with 2025 standards for multi-tenant SaaS platforms:
+
+**Data Encryption at Rest**: Sensitive data is encrypted using AES-256-GCM authenticated encryption with per-record random IVs. Encrypted fields include:
+- External unit access codes (door codes, WiFi passwords, gate codes)
+- Bank account numbers and CLABE interbancaria numbers
+
+**Encryption Module** (`server/encryption.ts`): Provides encrypt/decrypt functions with authenticated encryption, secure key derivation via scrypt, and constant-time comparison utilities. Keys are managed via environment variables (ENCRYPTION_KEY) with development fallback.
+
+**Enhanced Audit Logging**: All sensitive operations are logged with comprehensive metadata including IP addresses, user agents, and contextual details. The createAuditLog helper function supports flexible metadata enrichment while preventing sensitive data leakage.
+
+**Rate Limiting**: Comprehensive rate limiting protects critical endpoints including authentication, registration, email verification, chatbot interactions, and property submissions using express-rate-limit middleware.
+
+**Multi-tenant Isolation**: All external property management operations enforce strict agency ownership verification to prevent cross-tenant data access. The verifyExternalAgencyOwnership middleware ensures secure data isolation.
+
+**GDPR/PCI-DSS Compliance**: Encryption of personal and financial data, comprehensive audit trails, and secure session management support regulatory compliance requirements.
+
+## Recent Changes
+**2025-01-20**: Implemented Priority 1 security improvements including AES-256-GCM encryption for sensitive data (access codes, bank account information), enhanced audit logging with IP/User-Agent tracking, and comprehensive security documentation. All external unit access control routes and bank information routes now encrypt/decrypt data automatically. See SECURITY_IMPROVEMENTS.md for full details.
+
 ## External Dependencies
 *   Google Calendar API
 *   Gmail API
@@ -33,3 +54,4 @@ The maintenance system includes an enhanced tracking architecture with update ti
 *   WebSocket (ws)
 *   cookie
 *   OpenAI GPT-5
+*   express-rate-limit (Security)

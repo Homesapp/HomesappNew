@@ -17,6 +17,7 @@ import { setupGoogleAuth } from "./googleAuth";
 import { generateOfferPDF } from "./pdfGenerator";
 import { processChatbotMessage, generatePropertyRecommendations } from "./chatbot";
 import { authLimiter, registrationLimiter, emailVerificationLimiter, chatbotLimiter, propertySubmissionLimiter } from "./rateLimiters";
+import { encrypt, decrypt } from "./encryption";
 import { 
   sanitizeText, 
   sanitizeHtml, 
@@ -239,13 +240,42 @@ async function getUserAgencyId(req: any): Promise<string | null> {
   }
 }
 
+// Helper function to decrypt sensitive user data
+function decryptUserSensitiveData(user: any): any {
+  if (!user) return user;
+  
+  const decrypted = { ...user };
+  
+  // Decrypt bank account information
+  if (decrypted.bankAccountNumber) {
+    try {
+      decrypted.bankAccountNumber = decrypt(decrypted.bankAccountNumber);
+    } catch (e) {
+      console.error('Failed to decrypt bankAccountNumber for user:', user.id);
+      decrypted.bankAccountNumber = '';
+    }
+  }
+  
+  if (decrypted.bankClabe) {
+    try {
+      decrypted.bankClabe = decrypt(decrypted.bankClabe);
+    } catch (e) {
+      console.error('Failed to decrypt bankClabe for user:', user.id);
+      decrypted.bankClabe = '';
+    }
+  }
+  
+  return decrypted;
+}
+
 // Helper function to create audit logs
 async function createAuditLog(
   req: Request & { user?: any; session?: any },
   action: "create" | "update" | "delete" | "view" | "approve" | "reject" | "assign",
   entityType: string,
   entityId: string | null,
-  details?: string
+  details?: string,
+  metadata?: { ipAddress?: string; userAgent?: string; [key: string]: any }
 ) {
   try {
     // Get userId from either admin session or regular auth
@@ -261,8 +291,9 @@ async function createAuditLog(
     
     if (!userId) return;
 
-    const ipAddress = req.ip || req.socket.remoteAddress || null;
-    const userAgent = req.get("user-agent") || null;
+    // Use provided metadata or fallback to request data
+    const ipAddress = metadata?.ipAddress || req.ip || req.socket.remoteAddress || null;
+    const userAgent = metadata?.userAgent || req.get("user-agent") || null;
 
     // Only create audit log if userId exists in users table
     // For admin users, we skip audit logging since they're in admin_users table
@@ -271,12 +302,24 @@ async function createAuditLog(
       return;
     }
     
+    // Combine details with additional metadata if provided
+    let enrichedDetails = details;
+    if (metadata && Object.keys(metadata).length > 0) {
+      const extraData = Object.entries(metadata)
+        .filter(([key]) => key !== 'ipAddress' && key !== 'userAgent')
+        .map(([key, value]) => `${key}: ${value}`)
+        .join(', ');
+      if (extraData) {
+        enrichedDetails = `${details || ''} ${extraData ? `[${extraData}]` : ''}`.trim();
+      }
+    }
+    
     await storage.createAuditLog({
       userId,
       action,
       entityType,
       entityId,
-      details,
+      details: enrichedDetails,
       ipAddress,
       userAgent,
     });
@@ -1297,17 +1340,49 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       const validated = updateBankInfoSchema.parse(req.body);
       
-      const user = await storage.updateBankInfo(userId, validated);
+      // Encrypt sensitive bank data before storing
+      const encryptedData: any = { ...validated };
+      if (encryptedData.bankAccountNumber) {
+        encryptedData.bankAccountNumber = encrypt(encryptedData.bankAccountNumber);
+      }
+      if (encryptedData.bankClabe) {
+        encryptedData.bankClabe = encrypt(encryptedData.bankClabe);
+      }
+      
+      const user = await storage.updateBankInfo(userId, encryptedData);
+      
+      // Decrypt for response
+      const userResponse: any = { ...user };
+      if (userResponse.bankAccountNumber) {
+        try {
+          userResponse.bankAccountNumber = decrypt(userResponse.bankAccountNumber);
+        } catch (e) {
+          console.error('Failed to decrypt bankAccountNumber for user:', userId);
+          userResponse.bankAccountNumber = '';
+        }
+      }
+      if (userResponse.bankClabe) {
+        try {
+          userResponse.bankClabe = decrypt(userResponse.bankClabe);
+        } catch (e) {
+          console.error('Failed to decrypt bankClabe for user:', userId);
+          userResponse.bankClabe = '';
+        }
+      }
       
       await createAuditLog(
         req,
         "update",
         "user",
         userId,
-        "Información bancaria actualizada"
+        "Información bancaria actualizada",
+        {
+          ipAddress: req.ip,
+          userAgent: req.headers['user-agent']
+        }
       );
       
-      res.json(user);
+      res.json(userResponse);
     } catch (error) {
       console.error("Error updating bank info:", error);
       if (error instanceof z.ZodError) {
@@ -20946,11 +21021,25 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       const condoMap = Object.fromEntries(condominiums.map(c => [c.id, c.name]));
 
-      // Add condominium names to results
-      const enrichedAccessControls = accessControls.map(ac => ({
-        ...ac,
-        condominiumName: condoMap[ac.condominiumId] || 'Unknown',
-      }));
+      // Add condominium names and decrypt sensitive data
+      const enrichedAccessControls = accessControls.map(ac => {
+        const enriched: any = {
+          ...ac,
+          condominiumName: condoMap[ac.condominiumId] || 'Unknown',
+        };
+        
+        // Decrypt accessCode if present
+        if (enriched.accessCode) {
+          try {
+            enriched.accessCode = decrypt(enriched.accessCode);
+          } catch (e) {
+            console.error('Failed to decrypt accessCode for access control:', ac.id);
+            enriched.accessCode = '';
+          }
+        }
+        
+        return enriched;
+      });
 
       res.json(enrichedAccessControls);
     } catch (error: any) {
@@ -22272,7 +22361,21 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       const controls = await storage.getExternalUnitAccessControlsByUnit(unitId, filters);
       
-      res.json(controls);
+      // Decrypt sensitive data for all controls in response
+      const controlsResponse = controls.map(control => {
+        const decrypted = { ...control };
+        if (decrypted.accessCode) {
+          try {
+            decrypted.accessCode = decrypt(decrypted.accessCode);
+          } catch (e) {
+            console.error('Failed to decrypt accessCode for access control:', control.id);
+            decrypted.accessCode = ''; // Return empty if decryption fails
+          }
+        }
+        return decrypted;
+      });
+      
+      res.json(controlsResponse);
     } catch (error: any) {
       console.error("Error fetching unit access controls:", error);
       handleGenericError(res, error);
@@ -22298,7 +22401,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const hasAccess = await verifyExternalAgencyOwnership(req, res, unit.agencyId);
       if (!hasAccess) return;
       
-      res.json(control);
+      // Decrypt sensitive data for response
+      const controlResponse = { ...control };
+      if (controlResponse.accessCode) {
+        try {
+          controlResponse.accessCode = decrypt(controlResponse.accessCode);
+        } catch (e) {
+          console.error('Failed to decrypt accessCode for control:', control.id);
+          controlResponse.accessCode = '';
+        }
+      }
+      
+      res.json(controlResponse);
     } catch (error: any) {
       console.error("Error fetching external unit access control:", error);
       handleGenericError(res, error);
@@ -22308,13 +22422,35 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post("/api/external-unit-access-controls", isAuthenticated, requireRole(EXTERNAL_ADMIN_ROLES), async (req: any, res) => {
     try {
       const validatedData = insertExternalUnitAccessControlSchema.parse(req.body);
-      const control = await storage.createExternalUnitAccessControl({
+      
+      // Encrypt sensitive data before storing
+      const dataToStore: any = {
         ...validatedData,
         createdBy: req.user.id,
-      });
+      };
       
-      await createAuditLog(req, "create", "external_unit_access_control", control.id, "Created external unit access control");
-      res.status(201).json(control);
+      if (dataToStore.accessCode) {
+        dataToStore.accessCode = encrypt(dataToStore.accessCode);
+      }
+      
+      const control = await storage.createExternalUnitAccessControl(dataToStore);
+      
+      // Decrypt for response
+      const controlResponse = { ...control };
+      if (controlResponse.accessCode) {
+        try {
+          controlResponse.accessCode = decrypt(controlResponse.accessCode);
+        } catch (e) {
+          console.error('Failed to decrypt accessCode for control:', control.id);
+          controlResponse.accessCode = '';
+        }
+      }
+      
+      await createAuditLog(req, "create", "external_unit_access_control", control.id, "Created external unit access control", {
+        ipAddress: req.ip,
+        userAgent: req.headers['user-agent']
+      });
+      res.status(201).json(controlResponse);
     } catch (error: any) {
       console.error("Error creating external unit access control:", error);
       if (error.name === "ZodError") {
@@ -22348,14 +22484,33 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const validatedData = updateExternalUnitAccessControlSchema.parse(req.body);
       
       // Prevent unitId and createdBy modification
-      const updateData = { ...validatedData };
-      delete (updateData as any).unitId;
-      delete (updateData as any).createdBy;
+      const updateData: any = { ...validatedData };
+      delete updateData.unitId;
+      delete updateData.createdBy;
+      
+      // Encrypt sensitive data before storing
+      if (updateData.accessCode) {
+        updateData.accessCode = encrypt(updateData.accessCode);
+      }
       
       const control = await storage.updateExternalUnitAccessControl(id, updateData);
       
-      await createAuditLog(req, "update", "external_unit_access_control", id, "Updated external unit access control");
-      res.json(control);
+      // Decrypt for response
+      const controlResponse = { ...control };
+      if (controlResponse.accessCode) {
+        try {
+          controlResponse.accessCode = decrypt(controlResponse.accessCode);
+        } catch (e) {
+          console.error('Failed to decrypt accessCode for control:', control.id);
+          controlResponse.accessCode = '';
+        }
+      }
+      
+      await createAuditLog(req, "update", "external_unit_access_control", id, "Updated external unit access control", {
+        ipAddress: req.ip,
+        userAgent: req.headers['user-agent']
+      });
+      res.json(controlResponse);
     } catch (error: any) {
       console.error("Error updating external unit access control:", error);
       if (error.name === "ZodError") {
