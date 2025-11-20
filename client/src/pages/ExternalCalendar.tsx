@@ -894,7 +894,7 @@ export default function ExternalCalendar() {
                     : language === "es" ? "Selecciona una fecha" : "Select a date"}
                 </CardTitle>
               </CardHeader>
-              <CardContent className="p-3 max-h-[600px] overflow-y-auto">
+              <CardContent className="p-3 max-h-[500px] overflow-y-auto">
                 <div className="space-y-2">
                   {eventsForDate.length === 0 ? (
                     <p className="text-sm text-muted-foreground text-center py-8">
