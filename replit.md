@@ -44,6 +44,14 @@ The platform implements enterprise-grade security measures compliant with 2025 s
 
 ## Recent Changes
 
+**2025-01-20**: Completed External Management UI/UX improvements:
+- **Enhanced Dashboard**: Added monthly KPI cards (income, expenses, balance) with real-time calculations from financial transactions
+- **Improved Calendar**: Enhanced event cards with color-coded backgrounds (green=payments, blue=tickets, purple=contracts) for better visual distinction
+- **Rental Creation Wizard**: New 4-step wizard (Unit → Tenant → Terms → Confirm) replacing fragmented multi-page flow. Backend supports atomic contract + payment schedules creation in single transaction.
+- **Checkout Report Templates**: Added "Use Template" buttons for inventory and cleaning with non-destructive merge (preserves existing data)
+- **Backend**: Extended POST /api/external-rental-contracts with createRentalContractWithServicesSchema to accept additional services and create all payment schedules atomically
+- Files: client/src/pages/ExternalDashboard.tsx, ExternalCalendar.tsx, ExternalCheckoutReport.tsx, client/src/components/RentalWizard.tsx, server/routes.ts, shared/schema.ts
+
 **2025-01-20**: Implemented critical workflow automations:
 - **Maintenance-Financial Integration**: Tickets with actualCost now auto-generate financial transactions
 - **Notifications System**: New externalNotifications table for automated alerts (payments, tickets, contracts)
