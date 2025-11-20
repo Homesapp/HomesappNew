@@ -29,13 +29,20 @@ export default function ExternalCondominiums() {
   const { language } = useLanguage();
   const { toast } = useToast();
   const [, navigate] = useLocation();
-  const [showCondoDialog, setShowCondoDialog] = useState(false);
-  const [showUnitDialog, setShowUnitDialog] = useState(false);
+  const [showUnifiedDialog, setShowUnifiedDialog] = useState(false);
+  const [creationType, setCreationType] = useState<'condominium' | 'unit' | null>(null);
   const [showDeleteCondoDialog, setShowDeleteCondoDialog] = useState(false);
   const [editingCondo, setEditingCondo] = useState<ExternalCondominium | null>(null);
   const [editingUnit, setEditingUnit] = useState<ExternalUnit | null>(null);
   const [deletingCondo, setDeletingCondo] = useState<ExternalCondominium | null>(null);
   const [selectedCondoId, setSelectedCondoId] = useState<string | null>(null);
+  
+  // For creating condominium with multiple units
+  const [tempUnits, setTempUnits] = useState<Array<{ unitNumber: string; floor?: number; bedrooms?: number; bathrooms?: number; squareMeters?: number }>>([]);
+  
+  // Legacy states for backwards compatibility with edit mode
+  const [showCondoDialog, setShowCondoDialog] = useState(false);
+  const [showUnitDialog, setShowUnitDialog] = useState(false);
   
   // Unit filters state
   const [unitSearchText, setUnitSearchText] = useState("");
@@ -252,6 +259,26 @@ export default function ExternalCondominiums() {
     },
   });
 
+  const handleOpenUnifiedDialog = () => {
+    setCreationType(null);
+    setTempUnits([]);
+    condoForm.reset({
+      name: "",
+      address: "",
+      description: "",
+      totalUnits: undefined,
+    });
+    unitForm.reset({
+      condominiumId: undefined,
+      unitNumber: "",
+      floor: undefined,
+      bedrooms: undefined,
+      bathrooms: undefined,
+      squareMeters: undefined,
+    });
+    setShowUnifiedDialog(true);
+  };
+
   const handleAddCondo = () => {
     setEditingCondo(null);
     condoForm.reset({
@@ -313,6 +340,67 @@ export default function ExternalCondominiums() {
       updateUnitMutation.mutate({ id: editingUnit.id, data });
     } else {
       createUnitMutation.mutate(data);
+    }
+  };
+
+  const handleAddTempUnit = () => {
+    setTempUnits([...tempUnits, { unitNumber: "", floor: undefined, bedrooms: undefined, bathrooms: undefined, squareMeters: undefined }]);
+  };
+
+  const handleRemoveTempUnit = (index: number) => {
+    setTempUnits(tempUnits.filter((_, i) => i !== index));
+  };
+
+  const handleUpdateTempUnit = (index: number, field: string, value: any) => {
+    const updated = [...tempUnits];
+    updated[index] = { ...updated[index], [field]: value };
+    setTempUnits(updated);
+  };
+
+  const handleUnifiedSubmit = async (data: any) => {
+    if (creationType === 'condominium') {
+      // Create condominium first
+      try {
+        const createdCondo = await apiRequest('POST', '/api/external-condominiums', data);
+        
+        // Then create all units for that condominium
+        if (tempUnits.length > 0) {
+          const unitPromises = tempUnits
+            .filter(unit => unit.unitNumber.trim() !== '')
+            .map(unit => 
+              apiRequest('POST', '/api/external-units', {
+                condominiumId: createdCondo.id,
+                ...unit
+              })
+            );
+          
+          await Promise.all(unitPromises);
+        }
+        
+        queryClient.invalidateQueries({ queryKey: ['/api/external-condominiums'] });
+        queryClient.invalidateQueries({ queryKey: ['/api/external-units'] });
+        
+        setShowUnifiedDialog(false);
+        setCreationType(null);
+        setTempUnits([]);
+        
+        toast({
+          title: language === "es" ? "Condominio creado" : "Condominium created",
+          description: tempUnits.length > 0 
+            ? (language === "es" ? `Condominio creado con ${tempUnits.filter(u => u.unitNumber.trim() !== '').length} unidades` : `Condominium created with ${tempUnits.filter(u => u.unitNumber.trim() !== '').length} units`)
+            : (language === "es" ? "El condominio se creó exitosamente" : "The condominium was created successfully"),
+        });
+      } catch (error: any) {
+        toast({
+          title: language === "es" ? "Error" : "Error",
+          description: error.message,
+          variant: "destructive",
+        });
+      }
+    } else if (creationType === 'unit') {
+      handleSubmitUnit(data);
+      setShowUnifiedDialog(false);
+      setCreationType(null);
     }
   };
 
@@ -380,9 +468,9 @@ export default function ExternalCondominiums() {
               : "Manage your condominiums and units"}
           </p>
         </div>
-        <Button onClick={handleAddCondo} data-testid="button-add-condominium">
+        <Button onClick={handleOpenUnifiedDialog} data-testid="button-add-unified">
           <Plus className="mr-2 h-4 w-4" />
-          {language === "es" ? "Agregar Condominio" : "Add Condominium"}
+          {language === "es" ? "Agregar" : "Add"}
         </Button>
       </div>
 
@@ -737,28 +825,16 @@ export default function ExternalCondominiums() {
           {/* Filters Section */}
           <Card>
             <CardHeader className="cursor-pointer hover-elevate active-elevate-2" onClick={() => setFiltersExpanded(!filtersExpanded)}>
-              <div className="flex items-center justify-between w-full">
-                <div className="flex items-center gap-2">
-                  {filtersExpanded ? (
-                    <ChevronDown className="h-4 w-4" data-testid="icon-collapse-filters" />
-                  ) : (
-                    <ChevronUp className="h-4 w-4" data-testid="icon-expand-filters" />
-                  )}
-                  <Filter className="h-5 w-5" />
-                  <CardTitle className="flex items-center gap-2">
-                    {language === "es" ? "Filtros" : "Filters"}
-                  </CardTitle>
-                </div>
-                <Button 
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    handleAddUnit();
-                  }} 
-                  data-testid="button-add-unit"
-                >
-                  <Plus className="mr-2 h-4 w-4" />
-                  {language === "es" ? "Agregar Unidad" : "Add Unit"}
-                </Button>
+              <div className="flex items-center gap-2">
+                {filtersExpanded ? (
+                  <ChevronDown className="h-4 w-4" data-testid="icon-collapse-filters" />
+                ) : (
+                  <ChevronUp className="h-4 w-4" data-testid="icon-expand-filters" />
+                )}
+                <Filter className="h-5 w-5" />
+                <CardTitle className="flex items-center gap-2">
+                  {language === "es" ? "Filtros" : "Filters"}
+                </CardTitle>
               </div>
             </CardHeader>
             {filtersExpanded && (
@@ -1079,6 +1155,357 @@ export default function ExternalCondominiums() {
           )}
         </TabsContent>
       </Tabs>
+
+      {/* Unified Add Dialog */}
+      <Dialog open={showUnifiedDialog} onOpenChange={(open) => {
+        setShowUnifiedDialog(open);
+        if (!open) {
+          setCreationType(null);
+          setTempUnits([]);
+        }
+      }}>
+        <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto" data-testid="dialog-unified-form">
+          <DialogHeader>
+            <DialogTitle>
+              {!creationType 
+                ? (language === "es" ? "¿Qué deseas agregar?" : "What would you like to add?")
+                : creationType === 'condominium' 
+                  ? (language === "es" ? "Agregar Condominio" : "Add Condominium")
+                  : (language === "es" ? "Agregar Unidad" : "Add Unit")}
+            </DialogTitle>
+            <DialogDescription>
+              {!creationType 
+                ? (language === "es" ? "Selecciona qué deseas crear" : "Select what you want to create")
+                : creationType === 'condominium'
+                  ? (language === "es" ? "Completa la información del condominio y agrega las unidades que desees" : "Fill in the condominium information and add the units you want")
+                  : (language === "es" ? "Completa la información de la unidad" : "Fill in the unit information")}
+            </DialogDescription>
+          </DialogHeader>
+
+          {!creationType ? (
+            <div className="grid grid-cols-2 gap-4 py-4">
+              <Card 
+                className="cursor-pointer hover-elevate active-elevate-2" 
+                onClick={() => setCreationType('condominium')}
+                data-testid="card-select-condominium"
+              >
+                <CardContent className="flex flex-col items-center justify-center py-12">
+                  <Building2 className="h-12 w-12 mb-4 text-primary" />
+                  <p className="text-lg font-medium">{language === "es" ? "Condominio" : "Condominium"}</p>
+                  <p className="text-sm text-muted-foreground mt-2 text-center">
+                    {language === "es" ? "Crea un condominio con múltiples unidades" : "Create a condominium with multiple units"}
+                  </p>
+                </CardContent>
+              </Card>
+              <Card 
+                className="cursor-pointer hover-elevate active-elevate-2" 
+                onClick={() => setCreationType('unit')}
+                data-testid="card-select-unit"
+              >
+                <CardContent className="flex flex-col items-center justify-center py-12">
+                  <Home className="h-12 w-12 mb-4 text-primary" />
+                  <p className="text-lg font-medium">{language === "es" ? "Unidad" : "Unit"}</p>
+                  <p className="text-sm text-muted-foreground mt-2 text-center">
+                    {language === "es" ? "Agrega una unidad a un condominio existente" : "Add a unit to an existing condominium"}
+                  </p>
+                </CardContent>
+              </Card>
+            </div>
+          ) : creationType === 'condominium' ? (
+            <Form {...condoForm}>
+              <form onSubmit={condoForm.handleSubmit(handleUnifiedSubmit)} className="space-y-6">
+                <div className="space-y-4">
+                  <h3 className="font-semibold text-lg">{language === "es" ? "Información del Condominio" : "Condominium Information"}</h3>
+                  
+                  <FormField
+                    control={condoForm.control}
+                    name="name"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>{language === "es" ? "Nombre" : "Name"} *</FormLabel>
+                        <FormControl>
+                          <Input {...field} data-testid="input-unified-condo-name" placeholder={language === "es" ? "Ej: Condominio Aldea Zama" : "E.g: Aldea Zama Condominium"} />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  
+                  <FormField
+                    control={condoForm.control}
+                    name="address"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>{language === "es" ? "Dirección" : "Address"}</FormLabel>
+                        <FormControl>
+                          <Input {...field} value={field.value || ""} data-testid="input-unified-condo-address" />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  
+                  <FormField
+                    control={condoForm.control}
+                    name="description"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>{language === "es" ? "Descripción" : "Description"}</FormLabel>
+                        <FormControl>
+                          <Textarea {...field} value={field.value || ""} rows={2} data-testid="input-unified-condo-description" />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                </div>
+
+                <div className="space-y-4 pt-4 border-t">
+                  <div className="flex items-center justify-between">
+                    <h3 className="font-semibold text-lg">{language === "es" ? "Unidades" : "Units"}</h3>
+                    <Button type="button" variant="outline" size="sm" onClick={handleAddTempUnit} data-testid="button-add-temp-unit">
+                      <Plus className="mr-2 h-4 w-4" />
+                      {language === "es" ? "Agregar Unidad" : "Add Unit"}
+                    </Button>
+                  </div>
+                  
+                  {tempUnits.length === 0 ? (
+                    <p className="text-sm text-muted-foreground text-center py-4">
+                      {language === "es" ? "No hay unidades agregadas. Puedes agregar unidades ahora o más tarde." : "No units added. You can add units now or later."}
+                    </p>
+                  ) : (
+                    <div className="space-y-3">
+                      {tempUnits.map((unit, index) => (
+                        <Card key={index}>
+                          <CardContent className="pt-4">
+                            <div className="flex items-start gap-4">
+                              <div className="flex-1 grid gap-3 md:grid-cols-4">
+                                <div className="space-y-1">
+                                  <label className="text-xs font-medium">{language === "es" ? "Número *" : "Number *"}</label>
+                                  <Input
+                                    placeholder={language === "es" ? "Ej: 101" : "E.g: 101"}
+                                    value={unit.unitNumber}
+                                    onChange={(e) => handleUpdateTempUnit(index, 'unitNumber', e.target.value)}
+                                    data-testid={`input-temp-unit-number-${index}`}
+                                  />
+                                </div>
+                                <div className="space-y-1">
+                                  <label className="text-xs font-medium">{language === "es" ? "Piso" : "Floor"}</label>
+                                  <Input
+                                    type="number"
+                                    placeholder="1"
+                                    value={unit.floor || ""}
+                                    onChange={(e) => handleUpdateTempUnit(index, 'floor', e.target.value ? parseInt(e.target.value) : undefined)}
+                                    data-testid={`input-temp-unit-floor-${index}`}
+                                  />
+                                </div>
+                                <div className="space-y-1">
+                                  <label className="text-xs font-medium">{language === "es" ? "Recámaras" : "Bedrooms"}</label>
+                                  <Input
+                                    type="number"
+                                    placeholder="2"
+                                    value={unit.bedrooms || ""}
+                                    onChange={(e) => handleUpdateTempUnit(index, 'bedrooms', e.target.value ? parseInt(e.target.value) : undefined)}
+                                    data-testid={`input-temp-unit-bedrooms-${index}`}
+                                  />
+                                </div>
+                                <div className="space-y-1">
+                                  <label className="text-xs font-medium">{language === "es" ? "Baños" : "Bathrooms"}</label>
+                                  <Input
+                                    type="number"
+                                    placeholder="1"
+                                    value={unit.bathrooms || ""}
+                                    onChange={(e) => handleUpdateTempUnit(index, 'bathrooms', e.target.value ? parseInt(e.target.value) : undefined)}
+                                    data-testid={`input-temp-unit-bathrooms-${index}`}
+                                  />
+                                </div>
+                              </div>
+                              <Button
+                                type="button"
+                                variant="ghost"
+                                size="icon"
+                                onClick={() => handleRemoveTempUnit(index)}
+                                data-testid={`button-remove-temp-unit-${index}`}
+                                className="mt-5"
+                              >
+                                <Trash2 className="h-4 w-4" />
+                              </Button>
+                            </div>
+                          </CardContent>
+                        </Card>
+                      ))}
+                    </div>
+                  )}
+                </div>
+
+                <DialogFooter>
+                  <Button 
+                    type="button" 
+                    variant="outline" 
+                    onClick={() => {
+                      setCreationType(null);
+                      setTempUnits([]);
+                    }}
+                    data-testid="button-back-unified"
+                  >
+                    {language === "es" ? "Atrás" : "Back"}
+                  </Button>
+                  <Button 
+                    type="submit"
+                    disabled={createCondoMutation.isPending}
+                    data-testid="button-submit-unified-condo"
+                  >
+                    {createCondoMutation.isPending
+                      ? (language === "es" ? "Creando..." : "Creating...")
+                      : (language === "es" ? "Crear Condominio" : "Create Condominium")}
+                  </Button>
+                </DialogFooter>
+              </form>
+            </Form>
+          ) : (
+            <Form {...unitForm}>
+              <form onSubmit={unitForm.handleSubmit(handleUnifiedSubmit)} className="space-y-4">
+                <FormField
+                  control={unitForm.control}
+                  name="condominiumId"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>{language === "es" ? "Condominio" : "Condominium"} *</FormLabel>
+                      <FormControl>
+                        <select
+                          {...field}
+                          value={field.value || ""}
+                          onChange={e => field.onChange(e.target.value || undefined)}
+                          className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-base shadow-sm transition-colors file:border-0 file:bg-transparent file:text-sm file:font-medium file:text-foreground placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50 md:text-sm"
+                          data-testid="select-unified-unit-condo"
+                        >
+                          <option value="">{language === "es" ? "Selecciona un condominio" : "Select a condominium"}</option>
+                          {condominiums?.map(condo => (
+                            <option key={condo.id} value={condo.id}>{condo.name}</option>
+                          ))}
+                        </select>
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={unitForm.control}
+                  name="unitNumber"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>{language === "es" ? "Número de Unidad" : "Unit Number"} *</FormLabel>
+                      <FormControl>
+                        <Input {...field} data-testid="input-unified-unit-number" placeholder={language === "es" ? "Ej: 101" : "E.g: 101"} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <div className="grid grid-cols-2 gap-4">
+                  <FormField
+                    control={unitForm.control}
+                    name="floor"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>{language === "es" ? "Piso" : "Floor"}</FormLabel>
+                        <FormControl>
+                          <Input 
+                            type="number" 
+                            {...field} 
+                            value={field.value || ""} 
+                            onChange={e => field.onChange(e.target.value ? parseInt(e.target.value) : undefined)}
+                            data-testid="input-unified-unit-floor" 
+                          />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  <FormField
+                    control={unitForm.control}
+                    name="bedrooms"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>{language === "es" ? "Recámaras" : "Bedrooms"}</FormLabel>
+                        <FormControl>
+                          <Input 
+                            type="number" 
+                            {...field} 
+                            value={field.value || ""} 
+                            onChange={e => field.onChange(e.target.value ? parseInt(e.target.value) : undefined)}
+                            data-testid="input-unified-unit-bedrooms" 
+                          />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                </div>
+                <div className="grid grid-cols-2 gap-4">
+                  <FormField
+                    control={unitForm.control}
+                    name="bathrooms"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>{language === "es" ? "Baños" : "Bathrooms"}</FormLabel>
+                        <FormControl>
+                          <Input 
+                            type="number" 
+                            {...field} 
+                            value={field.value || ""} 
+                            onChange={e => field.onChange(e.target.value ? parseInt(e.target.value) : undefined)}
+                            data-testid="input-unified-unit-bathrooms" 
+                          />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  <FormField
+                    control={unitForm.control}
+                    name="squareMeters"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>{language === "es" ? "m²" : "Square Meters"}</FormLabel>
+                        <FormControl>
+                          <Input 
+                            type="number" 
+                            {...field} 
+                            value={field.value || ""} 
+                            onChange={e => field.onChange(e.target.value ? parseInt(e.target.value) : undefined)}
+                            data-testid="input-unified-unit-sqm" 
+                          />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                </div>
+                <DialogFooter>
+                  <Button 
+                    type="button" 
+                    variant="outline" 
+                    onClick={() => setCreationType(null)}
+                    data-testid="button-back-to-selection"
+                  >
+                    {language === "es" ? "Atrás" : "Back"}
+                  </Button>
+                  <Button 
+                    type="submit"
+                    disabled={createUnitMutation.isPending}
+                    data-testid="button-submit-unified-unit"
+                  >
+                    {createUnitMutation.isPending
+                      ? (language === "es" ? "Creando..." : "Creating...")
+                      : (language === "es" ? "Crear Unidad" : "Create Unit")}
+                  </Button>
+                </DialogFooter>
+              </form>
+            </Form>
+          )}
+        </DialogContent>
+      </Dialog>
 
       {/* Condominium Dialog */}
       <Dialog open={showCondoDialog} onOpenChange={setShowCondoDialog}>
