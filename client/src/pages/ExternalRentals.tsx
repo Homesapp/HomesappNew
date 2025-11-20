@@ -239,7 +239,7 @@ export default function ExternalRentals() {
               : "Manage all rental contracts and payments"}
           </p>
         </div>
-        <Link href="/external/units" data-testid="link-create-rental">
+        <Link href="/external/dashboard" data-testid="link-create-rental">
           <Button>
             <Home className="h-4 w-4 mr-2" />
             {language === "es" ? "Nueva Renta" : "New Rental"}
