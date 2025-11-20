@@ -44,6 +44,13 @@ The platform implements enterprise-grade security measures compliant with 2025 s
 
 ## Recent Changes
 
+**2025-01-20**: UI/UX improvements in ExternalCondominiums page:
+- **Fixed active rental counter**: Normalized nested contract structure `{ contract: ... }` to correctly count active rentals in both condominiums list and units list
+- **Improved header layout**: Moved "Agregar Condominio" and "Agregar Unidad" buttons to headers alongside titles for cleaner, more compact design
+- **Collapsible filters**: Added collapsible filter section in Units tab with ChevronDown/ChevronUp icons and filtersExpanded state to reduce visual clutter
+- **Data normalization pattern**: Implemented `const normalizedContracts = (contracts ?? []).map(c => 'contract' in c ? c.contract : c)` to handle both nested and flat rental contract payloads
+- Files: client/src/pages/ExternalCondominiums.tsx
+
 **2025-01-20**: Professional redesign of External Management maintenance and owner portfolio sections:
 - **Maintenance List (ExternalMaintenance.tsx)**: Complete redesign with professional table view, 6 key metrics (total/open/in-progress/resolved/estimated cost/actual cost), advanced filters (search, status, priority, category, condominium), improved create dialog with cascading unit selection
 - **Maintenance Detail (ExternalMaintenanceDetail.tsx)**: Three-column layout, professional timeline with infinite scroll and color-coded update types, photo organization by phase (before/during/after/other) with visual badges, cost editing dialogs, comprehensive update system with type selection and status changes
