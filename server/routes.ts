@@ -158,6 +158,8 @@ import {
   insertExternalOwnerChargeSchema,
   insertExternalOwnerNotificationSchema,
   insertExternalWorkerAssignmentSchema,
+  insertExternalFinancialTransactionSchema,
+  updateExternalFinancialTransactionSchema,
   externalAgencies,
   externalCondominiums,
   externalUnits,
@@ -23376,6 +23378,151 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.status(204).send();
     } catch (error: any) {
       console.error("Error deleting worker assignment:", error);
+      handleGenericError(res, error);
+    }
+  });
+
+  // ================================================================================
+  // External Accounting / Financial Transactions Routes
+  // ================================================================================
+
+  // GET /api/external/accounting/summary - Get accounting summary for agency
+  app.get("/api/external/accounting/summary", isAuthenticated, requireRole(EXTERNAL_ALL_ROLES), async (req: any, res) => {
+    try {
+      const agencyId = await getUserAgencyId(req);
+      if (!agencyId) {
+        return res.status(403).json({ message: "No agency access" });
+      }
+
+      const summary = await storage.getExternalAccountingSummary(agencyId);
+      res.json(summary);
+    } catch (error: any) {
+      console.error("Error fetching accounting summary:", error);
+      handleGenericError(res, error);
+    }
+  });
+
+  // GET /api/external/accounting/transactions - Get financial transactions with filters
+  app.get("/api/external/accounting/transactions", isAuthenticated, requireRole(EXTERNAL_ALL_ROLES), async (req: any, res) => {
+    try {
+      const agencyId = await getUserAgencyId(req);
+      if (!agencyId) {
+        return res.status(403).json({ message: "No agency access" });
+      }
+
+      const { direction, category, status, ownerId, contractId, unitId, startDate, endDate } = req.query;
+
+      const filters: any = {};
+      if (direction) filters.direction = direction;
+      if (category) filters.category = category;
+      if (status) filters.status = status;
+      if (ownerId) filters.ownerId = ownerId as string;
+      if (contractId) filters.contractId = contractId as string;
+      if (unitId) filters.unitId = unitId as string;
+      if (startDate) filters.startDate = new Date(startDate as string);
+      if (endDate) filters.endDate = new Date(endDate as string);
+
+      const transactions = await storage.getExternalFinancialTransactionsByAgency(agencyId, filters);
+      res.json(transactions);
+    } catch (error: any) {
+      console.error("Error fetching financial transactions:", error);
+      handleGenericError(res, error);
+    }
+  });
+
+  // GET /api/external/accounting/transactions/:id - Get specific transaction
+  app.get("/api/external/accounting/transactions/:id", isAuthenticated, requireRole(EXTERNAL_ALL_ROLES), async (req: any, res) => {
+    try {
+      const { id } = req.params;
+      const transaction = await storage.getExternalFinancialTransaction(id);
+
+      if (!transaction) {
+        return res.status(404).json({ message: "Transaction not found" });
+      }
+
+      const hasAccess = await verifyExternalAgencyOwnership(req, res, transaction.agencyId);
+      if (!hasAccess) return;
+
+      res.json(transaction);
+    } catch (error: any) {
+      console.error("Error fetching transaction:", error);
+      handleGenericError(res, error);
+    }
+  });
+
+  // POST /api/external/accounting/transactions - Create new financial transaction
+  app.post("/api/external/accounting/transactions", isAuthenticated, requireRole(EXTERNAL_ADMIN_ROLES), async (req: any, res) => {
+    try {
+      const agencyId = await getUserAgencyId(req);
+      if (!agencyId) {
+        return res.status(403).json({ message: "No agency access" });
+      }
+
+      const transactionData = insertExternalFinancialTransactionSchema.parse({
+        ...req.body,
+        agencyId,
+        createdBy: req.user?.id || req.session?.userId,
+      });
+
+      const transaction = await storage.createExternalFinancialTransaction(transactionData);
+
+      await createAuditLog(req, "create", "external_financial_transaction", transaction.id, `Created ${transaction.direction} transaction: ${transaction.category}`);
+      res.status(201).json(transaction);
+    } catch (error: any) {
+      console.error("Error creating financial transaction:", error);
+      if (error.name === "ZodError") {
+        return handleZodError(res, error);
+      }
+      handleGenericError(res, error);
+    }
+  });
+
+  // PATCH /api/external/accounting/transactions/:id - Update financial transaction
+  app.patch("/api/external/accounting/transactions/:id", isAuthenticated, requireRole(EXTERNAL_ADMIN_ROLES), async (req: any, res) => {
+    try {
+      const { id } = req.params;
+      const existing = await storage.getExternalFinancialTransaction(id);
+
+      if (!existing) {
+        return res.status(404).json({ message: "Transaction not found" });
+      }
+
+      const hasAccess = await verifyExternalAgencyOwnership(req, res, existing.agencyId);
+      if (!hasAccess) return;
+
+      const updates = updateExternalFinancialTransactionSchema.parse(req.body);
+      const transaction = await storage.updateExternalFinancialTransaction(id, updates);
+
+      await createAuditLog(req, "update", "external_financial_transaction", id, "Updated financial transaction");
+      res.json(transaction);
+    } catch (error: any) {
+      console.error("Error updating financial transaction:", error);
+      if (error.name === "ZodError") {
+        return handleZodError(res, error);
+      }
+      handleGenericError(res, error);
+    }
+  });
+
+  // DELETE /api/external/accounting/transactions/:id - Delete financial transaction
+  app.delete("/api/external/accounting/transactions/:id", isAuthenticated, requireRole(EXTERNAL_ADMIN_ROLES), async (req: any, res) => {
+    try {
+      const { id } = req.params;
+      const existing = await storage.getExternalFinancialTransaction(id);
+
+      if (!existing) {
+        return res.status(404).json({ message: "Transaction not found" });
+      }
+
+      const hasAccess = await verifyExternalAgencyOwnership(req, res, existing.agencyId);
+      if (!hasAccess) return;
+
+      await storage.deleteExternalFinancialTransaction(id);
+
+      await createAuditLog(req, "delete", "external_financial_transaction", id, "Deleted financial transaction");
+      res.status(204).send();
+    } catch (error: any) {
+      console.error("Error deleting financial transaction:", error);
       handleGenericError(res, error);
     }
   });
