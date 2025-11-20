@@ -44,6 +44,17 @@ The platform implements enterprise-grade security measures compliant with 2025 s
 
 ## Recent Changes
 
+**2025-01-20**: Implemented unified atomic condominium and unit creation flow:
+- **Unified Creation Button**: Replaced separate "Agregar Condominio" and "Agregar Unidad" buttons with single "Agregar" button that opens a dialog with type selection
+- **Multi-unit Creation**: Enabled adding multiple units to a condominium in a single workflow using a "+" button to add additional unit forms
+- **Atomic Transactions**: Implemented storage layer method `createCondominiumWithUnits` with db.transaction ensuring condominium and all units are created together or rolled back completely
+- **Type Coercion Helpers**: Created `optionalNumber` and `optionalString` helpers in shared/schema.ts to convert empty strings to undefined and coerce numeric strings before validation
+- **Client-side Validation**: Added externalUnitFormSchema.parse() in handleUnifiedSubmit to convert form strings to proper types before submission
+- **Backend Endpoint**: New POST /api/external-condominiums/with-units endpoint that delegates to storage layer with proper audit logging
+- **Improved UX**: Streamlined workflow eliminates need to create condominium first, then add units one-by-one
+- Files: shared/schema.ts, server/storage.ts, server/routes.ts, client/src/pages/ExternalCondominiums.tsx
+- Architect-reviewed and approved for production readiness
+
 **2025-01-20**: Fixed data normalization and event display in ExternalDashboard and ExternalCalendar:
 - **Consistent contract normalization**: Updated normalization to preserve unit and condominium metadata from API responses, handling both nested `{ contract, unit, condominium }` and flat contract structures with fallback lookups
 - **Fixed event displays**: Corrected all contract property accesses to use `item.contract.property` pattern consistently throughout both pages
