@@ -344,6 +344,9 @@ import {
   externalCheckoutReports,
   type ExternalCheckoutReport,
   type InsertExternalCheckoutReport,
+  externalFinancialTransactions,
+  type ExternalFinancialTransaction,
+  type InsertExternalFinancialTransaction,
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, and, or, gte, lte, ilike, desc, sql, isNull, count, inArray } from "drizzle-orm";
@@ -1203,6 +1206,34 @@ export interface IStorage {
   updateExternalCheckoutReport(id: string, updates: Partial<InsertExternalCheckoutReport>): Promise<ExternalCheckoutReport>;
   completeExternalCheckoutReport(id: string): Promise<ExternalCheckoutReport>;
   deleteExternalCheckoutReport(id: string): Promise<void>;
+
+  // External Management System - Financial Transaction operations
+  getExternalFinancialTransaction(id: string): Promise<ExternalFinancialTransaction | undefined>;
+  getExternalFinancialTransactionsByAgency(
+    agencyId: string,
+    filters?: {
+      direction?: string;
+      category?: string;
+      status?: string;
+      ownerId?: string;
+      contractId?: string;
+      unitId?: string;
+      startDate?: Date;
+      endDate?: Date;
+    }
+  ): Promise<ExternalFinancialTransaction[]>;
+  createExternalFinancialTransaction(transaction: InsertExternalFinancialTransaction): Promise<ExternalFinancialTransaction>;
+  updateExternalFinancialTransaction(id: string, updates: Partial<InsertExternalFinancialTransaction>): Promise<ExternalFinancialTransaction>;
+  deleteExternalFinancialTransaction(id: string): Promise<void>;
+  getExternalAccountingSummary(agencyId: string): Promise<{
+    totalInflow: number;
+    totalOutflow: number;
+    netBalance: number;
+    pendingInflow: number;
+    pendingOutflow: number;
+    reconciledInflow: number;
+    reconciledOutflow: number;
+  }>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -8028,6 +8059,136 @@ export class DatabaseStorage implements IStorage {
   async deleteExternalCheckoutReport(id: string): Promise<void> {
     await db.delete(externalCheckoutReports)
       .where(eq(externalCheckoutReports.id, id));
+  }
+
+  // External Financial Transaction operations
+  async getExternalFinancialTransaction(id: string): Promise<ExternalFinancialTransaction | undefined> {
+    const [transaction] = await db.select()
+      .from(externalFinancialTransactions)
+      .where(eq(externalFinancialTransactions.id, id));
+    return transaction;
+  }
+
+  async getExternalFinancialTransactionsByAgency(
+    agencyId: string,
+    filters?: {
+      direction?: string;
+      category?: string;
+      status?: string;
+      ownerId?: string;
+      contractId?: string;
+      unitId?: string;
+      startDate?: Date;
+      endDate?: Date;
+    }
+  ): Promise<ExternalFinancialTransaction[]> {
+    const conditions = [eq(externalFinancialTransactions.agencyId, agencyId)];
+
+    if (filters?.direction) {
+      conditions.push(eq(externalFinancialTransactions.direction, filters.direction as any));
+    }
+    if (filters?.category) {
+      conditions.push(eq(externalFinancialTransactions.category, filters.category as any));
+    }
+    if (filters?.status) {
+      conditions.push(eq(externalFinancialTransactions.status, filters.status as any));
+    }
+    if (filters?.ownerId) {
+      conditions.push(eq(externalFinancialTransactions.ownerId, filters.ownerId));
+    }
+    if (filters?.contractId) {
+      conditions.push(eq(externalFinancialTransactions.contractId, filters.contractId));
+    }
+    if (filters?.unitId) {
+      conditions.push(eq(externalFinancialTransactions.unitId, filters.unitId));
+    }
+    if (filters?.startDate) {
+      conditions.push(gte(externalFinancialTransactions.dueDate, filters.startDate));
+    }
+    if (filters?.endDate) {
+      conditions.push(lte(externalFinancialTransactions.dueDate, filters.endDate));
+    }
+
+    return await db.select()
+      .from(externalFinancialTransactions)
+      .where(and(...conditions))
+      .orderBy(desc(externalFinancialTransactions.dueDate));
+  }
+
+  async createExternalFinancialTransaction(transaction: InsertExternalFinancialTransaction): Promise<ExternalFinancialTransaction> {
+    const [result] = await db.insert(externalFinancialTransactions)
+      .values({
+        ...transaction,
+        id: crypto.randomUUID(),
+      })
+      .returning();
+    return result;
+  }
+
+  async updateExternalFinancialTransaction(id: string, updates: Partial<InsertExternalFinancialTransaction>): Promise<ExternalFinancialTransaction> {
+    const [result] = await db.update(externalFinancialTransactions)
+      .set({
+        ...updates,
+        updatedAt: new Date(),
+      })
+      .where(eq(externalFinancialTransactions.id, id))
+      .returning();
+    return result;
+  }
+
+  async deleteExternalFinancialTransaction(id: string): Promise<void> {
+    await db.delete(externalFinancialTransactions)
+      .where(eq(externalFinancialTransactions.id, id));
+  }
+
+  async getExternalAccountingSummary(agencyId: string): Promise<{
+    totalInflow: number;
+    totalOutflow: number;
+    netBalance: number;
+    pendingInflow: number;
+    pendingOutflow: number;
+    reconciledInflow: number;
+    reconciledOutflow: number;
+  }> {
+    // Get all transactions for the agency
+    const transactions = await db.select()
+      .from(externalFinancialTransactions)
+      .where(eq(externalFinancialTransactions.agencyId, agencyId));
+
+    // Calculate summary
+    const summary = {
+      totalInflow: 0,
+      totalOutflow: 0,
+      netBalance: 0,
+      pendingInflow: 0,
+      pendingOutflow: 0,
+      reconciledInflow: 0,
+      reconciledOutflow: 0,
+    };
+
+    transactions.forEach((tx) => {
+      const amount = Number(tx.netAmount);
+
+      if (tx.direction === 'inflow') {
+        summary.totalInflow += amount;
+        if (tx.status === 'pending') {
+          summary.pendingInflow += amount;
+        } else if (tx.status === 'reconciled') {
+          summary.reconciledInflow += amount;
+        }
+      } else if (tx.direction === 'outflow') {
+        summary.totalOutflow += amount;
+        if (tx.status === 'pending') {
+          summary.pendingOutflow += amount;
+        } else if (tx.status === 'reconciled') {
+          summary.reconciledOutflow += amount;
+        }
+      }
+    });
+
+    summary.netBalance = summary.totalInflow - summary.totalOutflow;
+
+    return summary;
   }
 }
 
