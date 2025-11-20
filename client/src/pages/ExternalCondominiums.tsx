@@ -4,7 +4,7 @@ import { useLocation } from "wouter";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Building2, Plus, AlertCircle, AlertTriangle, Home, Edit, Trash2, Search, Filter, CheckCircle2, XCircle, DoorOpen, DoorClosed, Key, Power, PowerOff } from "lucide-react";
+import { Building2, Plus, AlertCircle, AlertTriangle, Home, Edit, Trash2, Search, Filter, CheckCircle2, XCircle, DoorOpen, DoorClosed, Key, Power, PowerOff, ChevronDown, ChevronUp } from "lucide-react";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useLanguage } from "@/contexts/LanguageContext";
@@ -42,6 +42,7 @@ export default function ExternalCondominiums() {
   const [selectedCondoFilter, setSelectedCondoFilter] = useState<string>("all");
   const [rentalStatusFilter, setRentalStatusFilter] = useState<string>("all");
   const [unitStatusFilter, setUnitStatusFilter] = useState<string>("all"); // active, suspended, all
+  const [filtersExpanded, setFiltersExpanded] = useState(true);
 
   const { data: condominiums, isLoading: condosLoading, isError: condosError, error: condosErrorMsg } = useQuery<ExternalCondominium[]>({
     queryKey: ['/api/external-condominiums'],
@@ -735,107 +736,128 @@ export default function ExternalCondominiums() {
         <TabsContent value="units" className="space-y-4">
           {/* Filters Section */}
           <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Filter className="h-5 w-5" />
-                {language === "es" ? "Filtros" : "Filters"}
-              </CardTitle>
+            <CardHeader className="cursor-pointer hover-elevate active-elevate-2" onClick={() => setFiltersExpanded(!filtersExpanded)}>
+              <div className="flex items-center justify-between w-full">
+                <div className="flex items-center gap-2">
+                  {filtersExpanded ? (
+                    <ChevronDown className="h-4 w-4" data-testid="icon-collapse-filters" />
+                  ) : (
+                    <ChevronUp className="h-4 w-4" data-testid="icon-expand-filters" />
+                  )}
+                  <Filter className="h-5 w-5" />
+                  <CardTitle className="flex items-center gap-2">
+                    {language === "es" ? "Filtros" : "Filters"}
+                  </CardTitle>
+                </div>
+                <Button 
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    handleAddUnit();
+                  }} 
+                  data-testid="button-add-unit"
+                >
+                  <Plus className="mr-2 h-4 w-4" />
+                  {language === "es" ? "Agregar Unidad" : "Add Unit"}
+                </Button>
+              </div>
             </CardHeader>
-            <CardContent>
-              <div className="grid gap-4 md:grid-cols-4">
-                <div className="space-y-2">
-                  <label className="text-sm font-medium">
-                    {language === "es" ? "Buscar" : "Search"}
-                  </label>
-                  <div className="relative">
-                    <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
-                    <Input
-                      placeholder={language === "es" ? "Número de unidad o condominio..." : "Unit number or condominium..."}
-                      value={unitSearchText}
-                      onChange={(e) => setUnitSearchText(e.target.value)}
-                      className="pl-8"
-                      data-testid="input-search-units"
-                    />
+            {filtersExpanded && (
+              <CardContent>
+                <div className="grid gap-4 md:grid-cols-4">
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium">
+                      {language === "es" ? "Buscar" : "Search"}
+                    </label>
+                    <div className="relative">
+                      <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
+                      <Input
+                        placeholder={language === "es" ? "Número de unidad o condominio..." : "Unit number or condominium..."}
+                        value={unitSearchText}
+                        onChange={(e) => setUnitSearchText(e.target.value)}
+                        className="pl-8"
+                        data-testid="input-search-units"
+                      />
+                    </div>
+                  </div>
+                  
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium">
+                      {language === "es" ? "Condominio" : "Condominium"}
+                    </label>
+                    <Select 
+                      value={selectedCondoFilter} 
+                      onValueChange={setSelectedCondoFilter}
+                      disabled={condosLoading}
+                    >
+                      <SelectTrigger data-testid="select-filter-condominium">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="all">
+                          {language === "es" ? "Todos los condominios" : "All condominiums"}
+                        </SelectItem>
+                        {condominiums?.map(condo => (
+                          <SelectItem key={condo.id} value={condo.id}>
+                            {condo.name}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium">
+                      {language === "es" ? "Estado de Unidad" : "Unit Status"}
+                    </label>
+                    <Select 
+                      value={unitStatusFilter} 
+                      onValueChange={setUnitStatusFilter}
+                    >
+                      <SelectTrigger data-testid="select-filter-unit-status">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="all">
+                          {language === "es" ? "Todas" : "All"}
+                        </SelectItem>
+                        <SelectItem value="active">
+                          {language === "es" ? "Activas" : "Active"}
+                        </SelectItem>
+                        <SelectItem value="suspended">
+                          {language === "es" ? "Suspendidas" : "Suspended"}
+                        </SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium">
+                      {language === "es" ? "Estado de Renta" : "Rental Status"}
+                    </label>
+                    <Select 
+                      value={rentalStatusFilter} 
+                      onValueChange={setRentalStatusFilter}
+                      disabled={contractsLoading || contractsError}
+                    >
+                      <SelectTrigger data-testid="select-filter-rental-status">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="all">
+                          {language === "es" ? "Todas las unidades" : "All units"}
+                        </SelectItem>
+                        <SelectItem value="with-rental">
+                          {language === "es" ? "Con renta activa" : "With active rental"}
+                        </SelectItem>
+                        <SelectItem value="without-rental">
+                          {language === "es" ? "Sin renta activa" : "Without active rental"}
+                        </SelectItem>
+                      </SelectContent>
+                    </Select>
                   </div>
                 </div>
-                
-                <div className="space-y-2">
-                  <label className="text-sm font-medium">
-                    {language === "es" ? "Condominio" : "Condominium"}
-                  </label>
-                  <Select 
-                    value={selectedCondoFilter} 
-                    onValueChange={setSelectedCondoFilter}
-                    disabled={condosLoading}
-                  >
-                    <SelectTrigger data-testid="select-filter-condominium">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="all">
-                        {language === "es" ? "Todos los condominios" : "All condominiums"}
-                      </SelectItem>
-                      {condominiums?.map(condo => (
-                        <SelectItem key={condo.id} value={condo.id}>
-                          {condo.name}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-
-                <div className="space-y-2">
-                  <label className="text-sm font-medium">
-                    {language === "es" ? "Estado de Unidad" : "Unit Status"}
-                  </label>
-                  <Select 
-                    value={unitStatusFilter} 
-                    onValueChange={setUnitStatusFilter}
-                  >
-                    <SelectTrigger data-testid="select-filter-unit-status">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="all">
-                        {language === "es" ? "Todas" : "All"}
-                      </SelectItem>
-                      <SelectItem value="active">
-                        {language === "es" ? "Activas" : "Active"}
-                      </SelectItem>
-                      <SelectItem value="suspended">
-                        {language === "es" ? "Suspendidas" : "Suspended"}
-                      </SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-
-                <div className="space-y-2">
-                  <label className="text-sm font-medium">
-                    {language === "es" ? "Estado de Renta" : "Rental Status"}
-                  </label>
-                  <Select 
-                    value={rentalStatusFilter} 
-                    onValueChange={setRentalStatusFilter}
-                    disabled={contractsLoading || contractsError}
-                  >
-                    <SelectTrigger data-testid="select-filter-rental-status">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="all">
-                        {language === "es" ? "Todas las unidades" : "All units"}
-                      </SelectItem>
-                      <SelectItem value="with-rental">
-                        {language === "es" ? "Con renta activa" : "With active rental"}
-                      </SelectItem>
-                      <SelectItem value="without-rental">
-                        {language === "es" ? "Sin renta activa" : "Without active rental"}
-                      </SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-              </div>
-            </CardContent>
+              </CardContent>
+            )}
           </Card>
 
           {/* Error Alert for Rental Contracts */}
@@ -868,19 +890,6 @@ export default function ExternalCondominiums() {
               </CardContent>
             </Card>
           )}
-
-          {/* Action Bar */}
-          <div className="flex justify-between items-center">
-            <p className="text-sm text-muted-foreground" data-testid="text-units-count">
-              {language === "es" 
-                ? `${filteredUnits.length} de ${units?.length || 0} unidades`
-                : `${filteredUnits.length} of ${units?.length || 0} units`}
-            </p>
-            <Button onClick={() => handleAddUnit()} data-testid="button-add-unit">
-              <Plus className="mr-2 h-4 w-4" />
-              {language === "es" ? "Agregar Unidad" : "Add Unit"}
-            </Button>
-          </div>
 
           {unitsLoading ? (
             <Card>
