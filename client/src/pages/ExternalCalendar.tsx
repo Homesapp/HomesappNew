@@ -13,6 +13,7 @@ import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/component
 import { useLanguage } from "@/contexts/LanguageContext";
 import { format, isSameDay, isWithinInterval, addDays, startOfDay } from "date-fns";
 import { es, enUS } from "date-fns/locale";
+import { cn } from "@/lib/utils";
 import type { ExternalPayment, ExternalMaintenanceTicket, SelectUser, ExternalRentalContract } from "@shared/schema";
 
 type EventData = {
