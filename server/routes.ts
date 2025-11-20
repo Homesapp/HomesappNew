@@ -240,33 +240,6 @@ async function getUserAgencyId(req: any): Promise<string | null> {
   }
 }
 
-// Helper function to decrypt sensitive user data
-function decryptUserSensitiveData(user: any): any {
-  if (!user) return user;
-  
-  const decrypted = { ...user };
-  
-  // Decrypt bank account information
-  if (decrypted.bankAccountNumber) {
-    try {
-      decrypted.bankAccountNumber = decrypt(decrypted.bankAccountNumber);
-    } catch (e) {
-      console.error('Failed to decrypt bankAccountNumber for user:', user.id);
-      decrypted.bankAccountNumber = '';
-    }
-  }
-  
-  if (decrypted.bankClabe) {
-    try {
-      decrypted.bankClabe = decrypt(decrypted.bankClabe);
-    } catch (e) {
-      console.error('Failed to decrypt bankClabe for user:', user.id);
-      decrypted.bankClabe = '';
-    }
-  }
-  
-  return decrypted;
-}
 
 // Helper function to create audit logs
 async function createAuditLog(

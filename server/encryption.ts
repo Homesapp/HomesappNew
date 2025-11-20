@@ -27,10 +27,15 @@ function getEncryptionKey(): Buffer {
 /**
  * Encrypts sensitive data using AES-256-GCM
  * @param plaintext - The data to encrypt
- * @returns Base64 encoded string containing IV + auth tag + ciphertext
+ * @returns Prefixed base64 string (ENC:v1:...) containing IV + auth tag + ciphertext
  */
 export function encrypt(plaintext: string): string {
   if (!plaintext) return '';
+  
+  // If already encrypted, return as-is (idempotent)
+  if (isEncrypted(plaintext)) {
+    return plaintext;
+  }
   
   const key = getEncryptionKey();
   const iv = crypto.randomBytes(IV_LENGTH);
@@ -49,20 +54,44 @@ export function encrypt(plaintext: string): string {
     Buffer.from(ciphertext, 'base64')
   ]);
   
-  return combined.toString('base64');
+  // Add version prefix for identification
+  return ENCRYPTION_PREFIX + combined.toString('base64');
+}
+
+/**
+ * Prefix added to all encrypted values for identification
+ * Format: ENC:v1: followed by base64 encrypted data
+ */
+const ENCRYPTION_PREFIX = 'ENC:v1:';
+
+/**
+ * Checks if a value is encrypted
+ * @param value - The value to check
+ * @returns true if the value appears to be encrypted
+ */
+export function isEncrypted(value: string | null | undefined): boolean {
+  if (!value) return false;
+  return value.startsWith(ENCRYPTION_PREFIX);
 }
 
 /**
  * Decrypts data encrypted with the encrypt function
- * @param encrypted - Base64 encoded string from encrypt()
+ * @param encrypted - Base64 encoded string from encrypt() with ENC:v1: prefix
  * @returns Original plaintext
  */
 export function decrypt(encrypted: string): string {
   if (!encrypted) return '';
   
+  // If not encrypted, return as-is (for backward compatibility with legacy data)
+  if (!isEncrypted(encrypted)) {
+    return encrypted;
+  }
+  
   try {
     const key = getEncryptionKey();
-    const combined = Buffer.from(encrypted, 'base64');
+    // Remove prefix before decoding
+    const base64Data = encrypted.substring(ENCRYPTION_PREFIX.length);
+    const combined = Buffer.from(base64Data, 'base64');
     
     // Extract IV, auth tag, and ciphertext
     const iv = combined.subarray(0, IV_LENGTH);

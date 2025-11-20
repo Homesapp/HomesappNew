@@ -29,21 +29,28 @@ This document details the security improvements implemented to address critical 
 
 #### Implementation Pattern
 ```typescript
-// Encrypt before storing
+// Encrypt before storing (idempotent - safe for already encrypted data)
 if (data.accessCode) {
-  data.accessCode = encrypt(data.accessCode);
+  data.accessCode = encrypt(data.accessCode); // Adds ENC:v1: prefix
 }
 
-// Decrypt when reading
+// Decrypt when reading (backward compatible with plaintext)
 if (response.accessCode) {
   try {
-    response.accessCode = decrypt(response.accessCode);
+    response.accessCode = decrypt(response.accessCode); // Returns plaintext as-is
   } catch (e) {
     console.error('Decryption failed:', e);
     response.accessCode = ''; // Safe fallback
   }
 }
 ```
+
+#### Encryption Format
+Encrypted values use a versioned prefix for identification:
+- **Format**: `ENC:v1:<base64-data>`
+- **Detection**: Check if value starts with `ENC:v1:`
+- **Idempotent**: `encrypt()` skips already encrypted values
+- **Backward Compatible**: `decrypt()` returns plaintext unchanged
 
 #### Updated Routes
 1. **Access Controls**:
@@ -142,16 +149,37 @@ Centralizes decryption logic for user sensitive data. Currently handles:
 ### Existing Data
 ⚠️ **IMPORTANT**: Existing data in the database is **NOT encrypted**. 
 
-**Migration Strategy** (to be implemented):
-1. Create a one-time migration script
-2. Read all existing records with sensitive data
-3. Encrypt the data using the new encryption module
-4. Update the records
-5. Verify encryption/decryption works correctly
+**Migration Strategy**:
+✅ Two migration scripts have been created to handle this:
+
+1. **`server/scripts/migrate-encrypt-data.ts`** - Main migration script
+   - Reads all existing records with sensitive data
+   - Encrypts the data using AES-256-GCM
+   - Updates records in the database
+   - Provides detailed progress and summary
+   - Idempotent (safe to run multiple times)
+
+2. **`server/scripts/verify-encryption.ts`** - Verification script
+   - Samples encrypted records
+   - Attempts to decrypt them
+   - Reports success/failure
+
+**How to Run**:
+```bash
+# Development
+tsx server/scripts/migrate-encrypt-data.ts
+tsx server/scripts/verify-encryption.ts
+
+# Production
+ENCRYPTION_KEY=your-key tsx server/scripts/migrate-encrypt-data.ts
+ENCRYPTION_KEY=your-key tsx server/scripts/verify-encryption.ts
+```
 
 **Affected Tables**:
 - `external_unit_access_controls` - `accessCode` field
 - `users` - `bankAccountNumber`, `bankClabe` fields
+
+**See**: `server/scripts/README.md` for detailed migration instructions
 
 ### Encryption Key Management
 
@@ -193,9 +221,10 @@ ENCRYPTION_KEY=<secure-random-key-32-bytes>
 ## Next Steps - Priority 2
 
 ### Immediate (Priority 1.5)
-1. ✅ Implement data migration script for existing records
-2. ✅ Set `ENCRYPTION_KEY` in production environment
-3. ✅ Document key rotation procedures
+1. ✅ Implement data migration script for existing records (`server/scripts/migrate-encrypt-data.ts`)
+2. ✅ Implement verification script (`server/scripts/verify-encryption.ts`)
+3. ⏳ Set `ENCRYPTION_KEY` in production environment (before deployment)
+4. ✅ Document key rotation procedures
 
 ### Short-term (Priority 2)
 1. Implement MFA for admin users
