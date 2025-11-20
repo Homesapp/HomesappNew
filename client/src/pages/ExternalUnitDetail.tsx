@@ -99,6 +99,7 @@ export default function ExternalUnitDetail() {
       ownerName: "",
       ownerEmail: "",
       ownerPhone: "",
+      ownershipPercentage: "100.00",
       isActive: true,
       notes: "",
     },
@@ -310,6 +311,7 @@ export default function ExternalUnitDetail() {
       ownerName: "",
       ownerEmail: "",
       ownerPhone: "",
+      ownershipPercentage: "100.00",
       isActive: true,
       notes: "",
     });
@@ -323,6 +325,7 @@ export default function ExternalUnitDetail() {
       ownerName: owner.ownerName,
       ownerEmail: owner.ownerEmail || "",
       ownerPhone: owner.ownerPhone || "",
+      ownershipPercentage: owner.ownershipPercentage || "100.00",
       isActive: owner.isActive,
       notes: owner.notes || "",
     });
@@ -745,10 +748,15 @@ ${language === "es" ? "ACCESOS" : "ACCESSES"}:
                   >
                     <div className="flex justify-between items-start gap-3">
                       <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-2 mb-1">
+                        <div className="flex items-center gap-2 mb-1 flex-wrap">
                           <p className="font-medium truncate" data-testid={`text-owner-name-${owner.id}`}>
                             {owner.ownerName}
                           </p>
+                          {owner.ownershipPercentage && (
+                            <Badge variant="outline" className="shrink-0" data-testid={`badge-percentage-${owner.id}`}>
+                              {owner.ownershipPercentage}%
+                            </Badge>
+                          )}
                           {owner.isActive && (
                             <Badge variant="default" className="shrink-0" data-testid={`badge-active-${owner.id}`}>
                               {language === "es" ? "Actual" : "Current"}
@@ -995,6 +1003,27 @@ ${language === "es" ? "ACCESOS" : "ACCESSES"}:
                   )}
                 />
               </div>
+              <FormField
+                control={ownerForm.control}
+                name="ownershipPercentage"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>{language === "es" ? "Porcentaje de Propiedad (%)" : "Ownership Percentage (%)"}</FormLabel>
+                    <FormControl>
+                      <Input 
+                        {...field} 
+                        type="number" 
+                        step="0.01" 
+                        min="0.01" 
+                        max="100" 
+                        placeholder="100.00" 
+                        data-testid="input-owner-percentage" 
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
               <FormField
                 control={ownerForm.control}
                 name="notes"

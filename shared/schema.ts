@@ -5366,6 +5366,7 @@ export const externalUnitOwners = pgTable("external_unit_owners", {
   ownerName: varchar("owner_name", { length: 255 }).notNull(), // Nombre del propietario
   ownerEmail: varchar("owner_email", { length: 255 }),
   ownerPhone: varchar("owner_phone", { length: 50 }),
+  ownershipPercentage: decimal("ownership_percentage", { precision: 5, scale: 2 }).default("100.00"), // Porcentaje de propiedad
   isActive: boolean("is_active").notNull().default(true), // Si es el propietario actual
   notes: text("notes"),
   createdBy: varchar("created_by").references(() => users.id),
