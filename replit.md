@@ -66,6 +66,7 @@ Key features include:
         - **Rental Purpose Field:** Visual badges (Home icon for living, Building2 for sublease) showing contract purpose with selection in creation/edit forms
         - **Contract Editing**: Full CRUD for active rental contracts including tenant information, monthly rent, rental purpose, end date, and notes with backend validation and multi-tenant security
         - **Payment Schedule Management**: Complete CRUD operations for payment schedules (rent, electricity, water, internet, gas, maintenance) with automatic cache invalidation using TanStack Query v5 array-based query keys
+        - **Enhanced Rental Creation Workflow**: Streamlined process with "Nueva Renta" button in rentals list, security deposit field, rental purpose selection, informational section about payment schedules, and automatic numeric coercion for monetary values
     *   **Unit Status Management**: Complete system for managing unit availability and operational status. Features include:
         - PATCH endpoint `/api/external-units/:id/toggle-status` for toggling unit active/suspended state with multi-tenant security
         - Soft state changes preserving all historical records (no physical deletion)
