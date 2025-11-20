@@ -661,8 +661,8 @@ export default function ExternalAccounting() {
         <p className="text-muted-foreground">{t.subtitle}</p>
       </div>
 
-      <Tabs defaultValue="summary" className="space-y-6">
-        <TabsList>
+      <Tabs defaultValue="summary" className="space-y-0">
+        <TabsList className="border-b">
           <TabsTrigger value="summary" data-testid="tab-summary">{t.summaryTab}</TabsTrigger>
           <TabsTrigger value="transactions" data-testid="tab-transactions">{t.transactionsTab}</TabsTrigger>
         </TabsList>
@@ -814,8 +814,8 @@ export default function ExternalAccounting() {
           )}
         </TabsContent>
 
-        <TabsContent value="transactions" className="space-y-4">
-          <div className="flex items-center justify-between gap-4">
+        <TabsContent value="transactions" className="space-y-4 pt-6">
+          <div className="flex items-center justify-between gap-4 mb-4">
             <div className="flex gap-1 border rounded-md p-1">
               <Button
                 variant={viewMode === "cards" ? "default" : "ghost"}
