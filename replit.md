@@ -96,6 +96,19 @@ Key features include:
         - Integration with contract detail page showing check-out button for completed contracts only
         - RESTful API endpoints: GET (by contract/id/agency), POST (create), PATCH (update), DELETE, POST /complete (finalize)
         - Audit logging of all check-out report operations
+    *   **Financial Accounting System**: Comprehensive accounting module for tracking all financial transactions with real operational data. Features include:
+        - Unified ledger (`externalFinancialTransactions`) tracking inflows and outflows
+        - Transaction direction classification (inflow/outflow) with granular category tracking
+        - Categories: rent_income, rent_payout, hoa_fee, maintenance_charge, service charges (electricity, water, internet, gas, other), and adjustments
+        - Status workflow: pending → posted → reconciled (or cancelled)
+        - Party role tracking (tenant, owner, agency) for both payer and payee
+        - Complete audit trail with gross amount, fees, net amount calculation
+        - Flexible linking to contracts, units, payments, maintenance tickets, and payment schedules
+        - Payment documentation with method, reference, and proof URL storage
+        - Financial dashboard displaying real-time metrics: total inflow/outflow, net balance, pending transactions, reconciled transactions
+        - RESTful API endpoints: GET /api/external/accounting/summary, GET /api/external/accounting/transactions (with filters), POST/PATCH/DELETE transactions
+        - Multi-tenant security with agency-level data isolation
+        - Performance-optimized summary calculations aggregating transaction data by direction and status
 
 ## External Dependencies
 *   Google Calendar API
