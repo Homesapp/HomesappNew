@@ -40,6 +40,7 @@ export default function ExternalCalendar() {
   const [showServices, setShowServices] = useState(true);
   const [showTickets, setShowTickets] = useState(true);
   const [showContracts, setShowContracts] = useState(true);
+  const [showCheckOut, setShowCheckOut] = useState(true);
   const [viewMode, setViewMode] = useState<"calendar" | "today" | "agenda">("calendar");
   const [eventPage, setEventPage] = useState(0);
   const { language } = useLanguage();
@@ -711,7 +712,7 @@ export default function ExternalCalendar() {
                     />
                     <Label htmlFor="filter-payments" className="flex items-center gap-1.5 cursor-pointer text-sm">
                       <div className="h-2 w-2 rounded-full bg-blue-500" />
-                      <span className="text-xs">{language === "es" ? "Pagos" : "Payments"}</span>
+                      <span className="text-xs">{language === "es" ? "Renta" : "Rent"}</span>
                     </Label>
                   </div>
                   <div className="flex items-center gap-1.5">
@@ -750,7 +751,20 @@ export default function ExternalCalendar() {
                     />
                     <Label htmlFor="filter-contracts" className="flex items-center gap-1.5 cursor-pointer text-sm">
                       <div className="h-2 w-2 rounded-full bg-purple-500" />
-                      <span className="text-xs">{language === "es" ? "Rentas" : "Rentals"}</span>
+                      <span className="text-xs">{language === "es" ? "Check in" : "Check in"}</span>
+                    </Label>
+                  </div>
+                  <div className="flex items-center gap-1.5">
+                    <Checkbox
+                      id="filter-checkout"
+                      checked={showCheckOut}
+                      onCheckedChange={setShowCheckOut}
+                      data-testid="checkbox-filter-checkout"
+                      className="h-4 w-4"
+                    />
+                    <Label htmlFor="filter-checkout" className="flex items-center gap-1.5 cursor-pointer text-sm">
+                      <div className="h-2 w-2 rounded-full bg-orange-500" />
+                      <span className="text-xs">{language === "es" ? "Check out" : "Check out"}</span>
                     </Label>
                   </div>
                 </div>
@@ -766,7 +780,7 @@ export default function ExternalCalendar() {
               <div className="text-center">
                 <div className="text-2xl font-bold text-blue-600" data-testid="text-pending-payments">{stats.pendingPayments}</div>
                 <p className="text-xs text-muted-foreground mt-0.5">
-                  {language === "es" ? "Pagos 30d" : "Payments 30d"}
+                  {language === "es" ? "Renta 30d" : "Rent 30d"}
                 </p>
               </div>
               <div className="text-center">
