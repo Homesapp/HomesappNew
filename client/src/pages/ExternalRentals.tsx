@@ -210,57 +210,56 @@ export default function ExternalRentals() {
     return 0;
   });
 
-  // Helper to get next payment status for a service
+  // Helper to get current month payment status for a service
   const getNextPaymentStatus = (contractId: string, serviceType: string, dayOfMonth: number): 'paid' | 'pending' | 'overdue' | null => {
     if (!payments || payments.length === 0) return null;
     
     const today = new Date();
     today.setHours(0, 0, 0, 0);
     
-    // Find all payments for this service
-    const servicePayments = payments
-      .filter(p => p.contractId === contractId && p.serviceType === serviceType)
-      .sort((a, b) => new Date(a.dueDate).getTime() - new Date(b.dueDate).getTime());
+    const currentMonth = today.getMonth();
+    const currentYear = today.getFullYear();
+    
+    // Find all payments for this contract and service
+    const servicePayments = payments.filter(p => 
+      p.contractId === contractId && p.serviceType === serviceType
+    );
     
     if (servicePayments.length === 0) {
       // No payments exist - check if we're past this month's due date
-      const currentMonth = today.getMonth();
-      const currentYear = today.getFullYear();
       const thisDueDate = new Date(currentYear, currentMonth, dayOfMonth);
       thisDueDate.setHours(0, 0, 0, 0);
-      
-      // If today is past this month's due date, mark as overdue
       return today > thisDueDate ? 'overdue' : 'pending';
     }
     
-    // Find the next upcoming payment
-    const upcomingPayment = servicePayments.find(p => {
+    // Look for current month's payment first
+    const currentMonthPayment = servicePayments.find(p => {
       const dueDate = new Date(p.dueDate);
-      dueDate.setHours(0, 0, 0, 0);
-      return dueDate >= today;
+      return dueDate.getMonth() === currentMonth && dueDate.getFullYear() === currentYear;
     });
     
-    if (upcomingPayment) {
-      // Map cancelled status to overdue (unpaid obligation)
-      if (upcomingPayment.status === 'cancelled') return 'overdue';
-      return upcomingPayment.status;
+    if (currentMonthPayment) {
+      // Found current month's payment - return its status
+      return currentMonthPayment.status === 'cancelled' ? 'overdue' : currentMonthPayment.status;
     }
     
-    // All payments are in the past - check if we're missing current month's payment
-    const currentMonth = today.getMonth();
-    const currentYear = today.getFullYear();
-    const expectedDueDate = new Date(currentYear, currentMonth, dayOfMonth);
-    expectedDueDate.setHours(0, 0, 0, 0);
+    // No current month payment - check if we should have one by now
+    const thisDueDate = new Date(currentYear, currentMonth, dayOfMonth);
+    thisDueDate.setHours(0, 0, 0, 0);
     
-    // If we're past the expected due date this month, it's overdue
-    if (today > expectedDueDate) {
+    if (today > thisDueDate) {
+      // We're past the due date and no payment exists
       return 'overdue';
     }
     
-    // Otherwise, use the most recent payment status
-    const mostRecent = servicePayments[servicePayments.length - 1];
-    if (mostRecent.status === 'cancelled') return 'overdue';
-    return mostRecent.status;
+    // Check if there's a future payment (next month)
+    const futurePayment = servicePayments.find(p => {
+      const dueDate = new Date(p.dueDate);
+      dueDate.setHours(0, 0, 0, 0);
+      return dueDate > today;
+    });
+    
+    return futurePayment?.status === 'paid' ? 'paid' : 'pending';
   };
 
   const getServiceLabel = (serviceType: string) => {
@@ -642,14 +641,22 @@ export default function ExternalRentals() {
                 return 0;
               }) : [];
               
-              const handleScrollUp = () => {
+              // Pagination for services
+              const serviceStartIndex = serviceIndices[contract.id] || 0;
+              const servicesPerPage = 3;
+              const totalServices = sortedServices.length;
+              const displayedServices = sortedServices.slice(serviceStartIndex, serviceStartIndex + servicesPerPage);
+              const canScrollLeft = serviceStartIndex > 0;
+              const canScrollRight = serviceStartIndex + servicesPerPage < totalServices;
+              
+              const handleScrollLeft = () => {
                 setServiceIndices(prev => ({
                   ...prev,
                   [contract.id]: Math.max(0, serviceStartIndex - 1)
                 }));
               };
               
-              const handleScrollDown = () => {
+              const handleScrollRight = () => {
                 setServiceIndices(prev => ({
                   ...prev,
                   [contract.id]: Math.min(totalServices - servicesPerPage, serviceStartIndex + 1)
@@ -748,11 +755,37 @@ export default function ExternalRentals() {
                     <>
                       <Separator />
                       <div className="space-y-2">
-                        <p className="text-xs text-muted-foreground">
-                          {language === "es" ? "Servicios y próximas fechas de pago:" : "Services and next payment dates:"}
-                        </p>
-                        <div className="flex flex-wrap gap-2">
-                          {sortedServices.map((service, idx) => {
+                        <div className="flex items-center justify-between">
+                          <p className="text-xs text-muted-foreground">
+                            {language === "es" ? "Servicios y próximas fechas de pago:" : "Services and next payment dates:"}
+                          </p>
+                          {totalServices > servicesPerPage && (
+                            <div className="flex gap-1">
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                className="h-6 w-6"
+                                onClick={handleScrollLeft}
+                                disabled={!canScrollLeft}
+                                data-testid={`button-services-left-${contract.id}`}
+                              >
+                                <ChevronUp className="h-3 w-3 rotate-[-90deg]" />
+                              </Button>
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                className="h-6 w-6"
+                                onClick={handleScrollRight}
+                                disabled={!canScrollRight}
+                                data-testid={`button-services-right-${contract.id}`}
+                              >
+                                <ChevronDown className="h-3 w-3 rotate-[-90deg]" />
+                              </Button>
+                            </div>
+                          )}
+                        </div>
+                        <div className="flex gap-2 overflow-hidden">
+                          {displayedServices.map((service, idx) => {
                             const parsedAmount = service.amount ? parseFloat(service.amount) : NaN;
                             const hasValidAmount = Number.isFinite(parsedAmount) && parsedAmount > 0;
                             const paymentStatus = getNextPaymentStatus(contract.id, service.serviceType, service.dayOfMonth);
@@ -767,12 +800,12 @@ export default function ExternalRentals() {
                             
                             return (
                               <div 
-                                key={idx}
+                                key={serviceStartIndex + idx}
                                 className={cn(
-                                  "flex flex-col items-center justify-center gap-1 p-2 border rounded-md min-w-[90px] transition-colors",
+                                  "flex flex-col items-center justify-center gap-1 p-2 border rounded-md flex-1 min-w-[90px] transition-colors",
                                   statusColors
                                 )}
-                                data-testid={`service-item-${contract.id}-${idx}`}
+                                data-testid={`service-item-${contract.id}-${serviceStartIndex + idx}`}
                               >
                                 <div className="flex items-center gap-1">
                                   {getServiceIcon(service.serviceType)}
