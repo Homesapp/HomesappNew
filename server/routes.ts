@@ -21032,15 +21032,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // External Payment Schedules Routes
   app.get("/api/external-payment-schedules", isAuthenticated, requireRole(EXTERNAL_ALL_ROLES), async (req: any, res) => {
     try {
-      const { agencyId, contractId, isActive } = req.query;
+      const { contractId, isActive } = req.query;
       
       if (contractId) {
         const schedules = await storage.getExternalPaymentSchedulesByContract(contractId);
         return res.json(schedules);
       }
       
+      // Get agency ID from authenticated user (admin/master can pass agencyId to view other agencies)
+      let agencyId = req.query.agencyId;
       if (!agencyId) {
-        return res.status(400).json({ message: "Agency ID or Contract ID is required" });
+        agencyId = await getUserAgencyId(req);
+        if (!agencyId) {
+          return res.status(400).json({ message: "User is not assigned to any agency" });
+        }
       }
       
       const filters = isActive !== undefined ? { isActive: isActive === 'true' } : undefined;

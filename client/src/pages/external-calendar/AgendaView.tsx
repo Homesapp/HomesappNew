@@ -3,6 +3,7 @@ import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { Calendar, DollarSign, Wrench, Home, Zap, Droplet, Wifi, Flame, Receipt, Clock } from "lucide-react";
 import { format, addDays, isSameDay, startOfDay } from "date-fns";
+import type { ExternalPayment, ExternalMaintenanceTicket, ExternalRentalContract, ExternalPaymentSchedule } from "@shared/schema";
 
 type EventData = {
   type: 'payment' | 'ticket' | 'contract' | 'service';
@@ -11,7 +12,7 @@ type EventData = {
   status: string;
   priority?: string;
   serviceType?: string;
-  data: any;
+  data: ExternalPayment | ExternalMaintenanceTicket | ExternalRentalContract | ExternalPaymentSchedule;
   condominium: string;
   unitNumber: string;
   tenantName?: string;
@@ -28,16 +29,24 @@ export function AgendaView({ allEvents, language }: AgendaViewProps) {
 
   // Filter and group events by date for the next 7 days
   const upcomingEvents = allEvents.filter(event => {
+    if (!event.data) return false;
     const eventDate = event.data.dueDate || event.data.scheduledDate || event.data.startDate;
     if (!eventDate) return false;
     const date = new Date(eventDate);
     return date >= startOfDay(now) && date <= next7Days;
   });
 
-  // Sort by date and time
+  // Sort by date and time - events are already filtered to have valid dates
   const sortedEvents = upcomingEvents.sort((a, b) => {
-    const dateA = new Date(a.data.dueDate || a.data.scheduledDate || a.data.startDate);
-    const dateB = new Date(b.data.dueDate || b.data.scheduledDate || b.data.startDate);
+    const eventDateA = a.data?.dueDate || a.data?.scheduledDate || a.data?.startDate;
+    const eventDateB = b.data?.dueDate || b.data?.scheduledDate || b.data?.startDate;
+    
+    // Skip comparison if either event lacks a date (should not happen after filter)
+    if (!eventDateA || !eventDateB) return 0;
+    
+    const dateA = new Date(eventDateA);
+    const dateB = new Date(eventDateB);
+    
     if (dateA.getTime() !== dateB.getTime()) {
       return dateA.getTime() - dateB.getTime();
     }
@@ -46,7 +55,9 @@ export function AgendaView({ allEvents, language }: AgendaViewProps) {
 
   // Group by date
   const eventsByDate = sortedEvents.reduce((acc, event) => {
-    const eventDate = new Date(event.data.dueDate || event.data.scheduledDate || event.data.startDate);
+    const eventDateValue = event.data?.dueDate || event.data?.scheduledDate || event.data?.startDate;
+    if (!eventDateValue) return acc;
+    const eventDate = new Date(eventDateValue);
     const dateKey = format(eventDate, 'yyyy-MM-dd');
     if (!acc[dateKey]) {
       acc[dateKey] = {

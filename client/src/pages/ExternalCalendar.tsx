@@ -158,7 +158,8 @@ export default function ExternalCalendar() {
     const next30Days = addDays(now, 30);
 
     const pendingPayments = filteredPayments.filter(
-      (p) => p.status === "pending" && 
+      (p) => p.dueDate && 
+      p.status === "pending" && 
       new Date(p.dueDate) >= startOfDay(now) &&
       new Date(p.dueDate) <= next30Days
     ).length;
@@ -171,6 +172,7 @@ export default function ExternalCalendar() {
 
     // Count events separately to avoid mixing different data structures
     const paymentsThisMonth = showPayments ? filteredPayments.filter((p) => {
+      if (!p.dueDate) return false;
       const date = new Date(p.dueDate);
       return date.getMonth() === now.getMonth() && date.getFullYear() === now.getFullYear();
     }).length : 0;
@@ -187,7 +189,8 @@ export default function ExternalCalendar() {
       return date.getMonth() === now.getMonth() && date.getFullYear() === now.getFullYear();
     }).length : 0;
 
-    const servicesThisMonth = showServices ? filteredServices.filter((s: any) => {
+    const servicesThisMonth = showServices ? filteredServices.filter((s: ExternalPaymentSchedule) => {
+      if (!s.dueDate) return false;
       const date = new Date(s.dueDate);
       return date.getMonth() === now.getMonth() && date.getFullYear() === now.getFullYear();
     }).length : 0;
@@ -202,7 +205,7 @@ export default function ExternalCalendar() {
     if (!selectedDate) return [];
 
     const dayPayments = showPayments ? filteredPayments
-      .filter((p) => isSameDay(new Date(p.dueDate), selectedDate))
+      .filter((p) => p.dueDate && isSameDay(new Date(p.dueDate), selectedDate))
       .map((p) => {
         const { condominium, unitNumber } = getCondominiumInfo(p.unitId);
         const contractItem = normalizedContracts.find((item: any) => 
@@ -215,7 +218,7 @@ export default function ExternalCalendar() {
           title: language === "es" 
             ? `Pago: ${p.serviceType}`
             : `Payment: ${p.serviceType}`,
-          time: format(new Date(p.dueDate), 'HH:mm'),
+          time: format(new Date(p.dueDate!), 'HH:mm'),
           status: p.status,
           data: p,
           condominium,
@@ -224,23 +227,23 @@ export default function ExternalCalendar() {
         };
       }) : [];
 
-    // Add service payments
+    // Add service payments - only include if dueDate exists
     const dayServices = showServices ? filteredServices
-      .filter((s: any) => isSameDay(new Date(s.dueDate), selectedDate))
-      .map((s: any) => {
+      .filter((s: ExternalPaymentSchedule) => s.dueDate && isSameDay(new Date(s.dueDate), selectedDate))
+      .map((s: ExternalPaymentSchedule) => {
         const { condominium, unitNumber } = getCondominiumInfo(s.unitId);
         const serviceTypeLabel = language === "es"
           ? (s.serviceType === 'electricity' ? 'Electricidad' :
              s.serviceType === 'water' ? 'Agua' :
              s.serviceType === 'internet' ? 'Internet' :
-             s.serviceType === 'gas' ? 'Gas' : s.serviceType)
-          : s.serviceType;
+             s.serviceType === 'gas' ? 'Gas' : s.serviceType || 'Servicio')
+          : s.serviceType || 'Service';
         return {
           type: 'service' as const,
           title: language === "es" 
             ? `Servicio: ${serviceTypeLabel}`
             : `Service: ${serviceTypeLabel}`,
-          time: format(new Date(s.dueDate), 'HH:mm'),
+          time: format(new Date(s.dueDate!), 'HH:mm'),
           status: s.status,
           serviceType: s.serviceType,
           data: s,
@@ -256,7 +259,7 @@ export default function ExternalCalendar() {
         return {
           type: 'ticket' as const,
           title: t.title,
-          time: t.scheduledDate ? format(new Date(t.scheduledDate), 'HH:mm') : '--:--',
+          time: format(new Date(t.scheduledDate!), 'HH:mm'),
           status: t.status,
           priority: t.priority,
           data: t,
@@ -265,7 +268,7 @@ export default function ExternalCalendar() {
         };
       }) : [];
 
-    // Add contract start dates as events
+    // Add contract start dates as events - only include if startDate exists
     const dayContracts = showContracts ? filteredContracts
       .filter((item: any) => item.contract.startDate && isSameDay(new Date(item.contract.startDate), selectedDate))
       .map((item: any) => {
@@ -277,7 +280,7 @@ export default function ExternalCalendar() {
           title: language === "es" 
             ? `Inicio de Renta: ${item.contract.tenantName}`
             : `Rental Start: ${item.contract.tenantName}`,
-          time: '00:00',
+          time: format(new Date(item.contract.startDate!), 'HH:mm'),
           status: item.contract.status,
           data: item.contract,
           condominium,
@@ -295,7 +298,7 @@ export default function ExternalCalendar() {
     const today = new Date();
     
     const todayPayments = showPayments ? filteredPayments
-      .filter((p) => isSameDay(new Date(p.dueDate), today))
+      .filter((p) => p.dueDate && isSameDay(new Date(p.dueDate), today))
       .map((p) => {
         const { condominium, unitNumber } = getCondominiumInfo(p.unitId);
         const contractItem = normalizedContracts.find((item: any) => 
@@ -308,7 +311,7 @@ export default function ExternalCalendar() {
           title: language === "es" 
             ? `Pago: ${p.serviceType}`
             : `Payment: ${p.serviceType}`,
-          time: format(new Date(p.dueDate), 'HH:mm'),
+          time: format(new Date(p.dueDate!), 'HH:mm'),
           status: p.status,
           data: p,
           condominium,
@@ -318,21 +321,21 @@ export default function ExternalCalendar() {
       }) : [];
 
     const todayServices = showServices ? filteredServices
-      .filter((s: any) => isSameDay(new Date(s.dueDate), today))
-      .map((s: any) => {
+      .filter((s: ExternalPaymentSchedule) => s.dueDate && isSameDay(new Date(s.dueDate), today))
+      .map((s: ExternalPaymentSchedule) => {
         const { condominium, unitNumber } = getCondominiumInfo(s.unitId);
         const serviceTypeLabel = language === "es"
           ? (s.serviceType === 'electricity' ? 'Electricidad' :
              s.serviceType === 'water' ? 'Agua' :
              s.serviceType === 'internet' ? 'Internet' :
-             s.serviceType === 'gas' ? 'Gas' : s.serviceType)
-          : s.serviceType;
+             s.serviceType === 'gas' ? 'Gas' : s.serviceType || 'Servicio')
+          : s.serviceType || 'Service';
         return {
           type: 'service' as const,
           title: language === "es" 
             ? `Servicio: ${serviceTypeLabel}`
             : `Service: ${serviceTypeLabel}`,
-          time: format(new Date(s.dueDate), 'HH:mm'),
+          time: format(new Date(s.dueDate!), 'HH:mm'),
           status: s.status,
           serviceType: s.serviceType,
           data: s,
@@ -348,7 +351,7 @@ export default function ExternalCalendar() {
         return {
           type: 'ticket' as const,
           title: t.title,
-          time: t.scheduledDate ? format(new Date(t.scheduledDate), 'HH:mm') : '--:--',
+          time: format(new Date(t.scheduledDate!), 'HH:mm'),
           status: t.status,
           priority: t.priority,
           data: t,
@@ -367,7 +370,7 @@ export default function ExternalCalendar() {
           title: language === "es" 
             ? `Inicio de Renta: ${item.contract.tenantName}`
             : `Rental Start: ${item.contract.tenantName}`,
-          time: '00:00',
+          time: format(new Date(item.contract.startDate!), 'HH:mm'),
           status: item.contract.status,
           data: item.contract,
           condominium,
@@ -383,6 +386,7 @@ export default function ExternalCalendar() {
   // All events (for AgendaView)
   const allEvents = useMemo((): EventData[] => {
     const allPayments = showPayments ? filteredPayments
+      .filter((p) => p.dueDate)
       .map((p) => {
         const { condominium, unitNumber } = getCondominiumInfo(p.unitId);
         const contractItem = normalizedContracts.find((item: any) => 
@@ -395,7 +399,7 @@ export default function ExternalCalendar() {
           title: language === "es" 
             ? `Pago: ${p.serviceType}`
             : `Payment: ${p.serviceType}`,
-          time: format(new Date(p.dueDate), 'HH:mm'),
+          time: format(new Date(p.dueDate!), 'HH:mm'),
           status: p.status,
           data: p,
           condominium,
@@ -405,20 +409,21 @@ export default function ExternalCalendar() {
       }) : [];
 
     const allServices = showServices ? filteredServices
-      .map((s: any) => {
+      .filter((s: ExternalPaymentSchedule) => s.dueDate)
+      .map((s: ExternalPaymentSchedule) => {
         const { condominium, unitNumber } = getCondominiumInfo(s.unitId);
         const serviceTypeLabel = language === "es"
           ? (s.serviceType === 'electricity' ? 'Electricidad' :
              s.serviceType === 'water' ? 'Agua' :
              s.serviceType === 'internet' ? 'Internet' :
-             s.serviceType === 'gas' ? 'Gas' : s.serviceType)
-          : s.serviceType;
+             s.serviceType === 'gas' ? 'Gas' : s.serviceType || 'Servicio')
+          : s.serviceType || 'Service';
         return {
           type: 'service' as const,
           title: language === "es" 
             ? `Servicio: ${serviceTypeLabel}`
             : `Service: ${serviceTypeLabel}`,
-          time: format(new Date(s.dueDate), 'HH:mm'),
+          time: format(new Date(s.dueDate!), 'HH:mm'),
           status: s.status,
           serviceType: s.serviceType,
           data: s,
@@ -434,7 +439,7 @@ export default function ExternalCalendar() {
         return {
           type: 'ticket' as const,
           title: t.title,
-          time: t.scheduledDate ? format(new Date(t.scheduledDate), 'HH:mm') : '--:--',
+          time: format(new Date(t.scheduledDate!), 'HH:mm'),
           status: t.status,
           priority: t.priority,
           data: t,
@@ -453,7 +458,7 @@ export default function ExternalCalendar() {
           title: language === "es" 
             ? `Inicio de Renta: ${item.contract.tenantName}`
             : `Rental Start: ${item.contract.tenantName}`,
-          time: '00:00',
+          time: format(new Date(item.contract.startDate!), 'HH:mm'),
           status: item.contract.status,
           data: item.contract,
           condominium,
@@ -467,7 +472,9 @@ export default function ExternalCalendar() {
   // Get event modifiers for calendar highlighting
   const datesWithPayments = useMemo(() => {
     if (!showPayments) return [];
-    return filteredPayments.map((p) => new Date(p.dueDate));
+    return filteredPayments
+      .filter((p) => p.dueDate)
+      .map((p) => new Date(p.dueDate!));
   }, [filteredPayments, showPayments]);
 
   const datesWithTickets = useMemo(() => {
@@ -490,6 +497,7 @@ export default function ExternalCalendar() {
     
     if (showPayments) {
       filteredPayments.forEach((p) => {
+        if (!p.dueDate) return;
         const dateKey = format(new Date(p.dueDate), 'yyyy-MM-dd');
         const current = dateMap.get(dateKey) || { payments: 0, services: 0, tickets: 0, contracts: 0 };
         dateMap.set(dateKey, { ...current, payments: current.payments + 1 });
@@ -497,10 +505,12 @@ export default function ExternalCalendar() {
     }
     
     if (showServices) {
-      filteredServices.forEach((s: any) => {
-        const dateKey = format(new Date(s.dueDate), 'yyyy-MM-dd');
-        const current = dateMap.get(dateKey) || { payments: 0, services: 0, tickets: 0, contracts: 0 };
-        dateMap.set(dateKey, { ...current, services: current.services + 1 });
+      filteredServices.forEach((s: ExternalPaymentSchedule) => {
+        if (s.dueDate) {
+          const dateKey = format(new Date(s.dueDate), 'yyyy-MM-dd');
+          const current = dateMap.get(dateKey) || { payments: 0, services: 0, tickets: 0, contracts: 0 };
+          dateMap.set(dateKey, { ...current, services: current.services + 1 });
+        }
       });
     }
     
@@ -861,15 +871,17 @@ export default function ExternalCalendar() {
                                             </p>
                                           </div>
                                         </div>
-                                        <div className="flex items-start gap-2">
-                                          <CalIcon className="h-3.5 w-3.5 mt-0.5 text-muted-foreground flex-shrink-0" />
-                                          <div>
-                                            <p className="font-medium">{language === "es" ? "Vencimiento" : "Due Date"}</p>
-                                            <p className="text-muted-foreground">
-                                              {format(new Date(payment.dueDate), "PPP", { locale: language === "es" ? es : enUS })}
-                                            </p>
+                                        {payment.dueDate && (
+                                          <div className="flex items-start gap-2">
+                                            <CalIcon className="h-3.5 w-3.5 mt-0.5 text-muted-foreground flex-shrink-0" />
+                                            <div>
+                                              <p className="font-medium">{language === "es" ? "Vencimiento" : "Due Date"}</p>
+                                              <p className="text-muted-foreground">
+                                                {format(new Date(payment.dueDate), "PPP", { locale: language === "es" ? es : enUS })}
+                                              </p>
+                                            </div>
                                           </div>
-                                        </div>
+                                        )}
                                       </div>
                                     </div>
                                   );

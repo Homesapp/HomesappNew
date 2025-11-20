@@ -3,6 +3,7 @@ import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { Clock, DollarSign, Wrench, Home, Zap, Droplet, Wifi, Flame, Receipt } from "lucide-react";
 import { format } from "date-fns";
+import type { ExternalPayment, ExternalMaintenanceTicket, ExternalRentalContract, ExternalPaymentSchedule } from "@shared/schema";
 
 type EventData = {
   type: 'payment' | 'ticket' | 'contract' | 'service';
@@ -11,7 +12,7 @@ type EventData = {
   status: string;
   priority?: string;
   serviceType?: string;
-  data: any;
+  data: ExternalPayment | ExternalMaintenanceTicket | ExternalRentalContract | ExternalPaymentSchedule;
   condominium: string;
   unitNumber: string;
   tenantName?: string;
@@ -43,7 +44,8 @@ export function TodayView({ events, language }: TodayViewProps) {
     return acc;
   }, {} as Record<string, {payments: EventData[], services: EventData[], tickets: EventData[], contracts: EventData[]}>);
 
-  const getServiceIcon = (serviceType: string) => {
+  const getServiceIcon = (serviceType?: string) => {
+    if (!serviceType) return <Receipt className="h-4 w-4" />;
     switch (serviceType) {
       case 'electricity': return <Zap className="h-4 w-4" />;
       case 'water': return <Droplet className="h-4 w-4" />;
@@ -133,7 +135,7 @@ export function TodayView({ events, language }: TodayViewProps) {
                   {condoEvents.services.map((event, idx) => (
                     <div key={idx} className="flex items-center justify-between p-2 rounded-md bg-muted/50" data-testid={`service-${idx}`}>
                       <div className="flex items-center gap-3">
-                        {event.serviceType && getServiceIcon(event.serviceType)}
+                        {getServiceIcon(event.serviceType)}
                         <Badge variant="outline" className="text-xs" data-testid={`service-time-${idx}`}>{event.time}</Badge>
                         <div>
                           <p className="text-sm font-medium" data-testid={`service-unit-${idx}`}>{t.unit}: {event.unitNumber}</p>
