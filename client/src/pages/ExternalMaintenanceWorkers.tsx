@@ -1098,7 +1098,7 @@ export default function ExternalMaintenanceWorkers() {
                 </div>
                 
                 {/* View Toggle */}
-                <div className="flex gap-2 flex-shrink-0">
+                <div className="flex gap-2 w-full sm:w-auto">
                   <Button
                     variant={workersViewMode === "cards" ? "default" : "outline"}
                     size="sm"
@@ -1145,55 +1145,49 @@ export default function ExternalMaintenanceWorkers() {
                       <div className="grid gap-4 grid-cols-1 md:grid-cols-2 lg:grid-cols-3">
                         {paginatedWorkers.map((worker) => (
                           <Card key={worker.id} className="hover-elevate" data-testid={`card-worker-${worker.id}`}>
-                            <CardHeader>
-                              <div className="flex items-start justify-between gap-2">
-                                <div className="flex-1 min-w-0">
-                                  <CardTitle className="text-lg flex items-center gap-2">
-                                    <User className="h-4 w-4 text-muted-foreground flex-shrink-0" />
-                                    <span className="truncate" data-testid={`text-worker-name-${worker.id}`}>
-                                      {worker.firstName} {worker.lastName}
-                                    </span>
-                                  </CardTitle>
-                                  {worker.maintenanceSpecialty && (
-                                    <div className="mt-2">
-                                      <Badge variant="secondary" data-testid={`badge-specialty-${worker.id}`}>
-                                        <Wrench className="h-3 w-3 mr-1" />
-                                        {SPECIALTY_LABELS[language][worker.maintenanceSpecialty as keyof typeof SPECIALTY_LABELS['es']]}
-                                      </Badge>
-                                    </div>
-                                  )}
-                                </div>
-                              </div>
+                            <CardHeader className="space-y-2">
+                              <CardTitle className="text-lg flex items-start gap-2">
+                                <User className="h-4 w-4 text-muted-foreground flex-shrink-0 mt-0.5" />
+                                <span className="flex-1 min-w-0 break-words" data-testid={`text-worker-name-${worker.id}`}>
+                                  {worker.firstName} {worker.lastName}
+                                </span>
+                              </CardTitle>
+                              {worker.maintenanceSpecialty && (
+                                <Badge variant="secondary" className="flex-shrink-0 self-start" data-testid={`badge-specialty-${worker.id}`}>
+                                  <Wrench className="h-3 w-3 mr-1 flex-shrink-0" />
+                                  {SPECIALTY_LABELS[language][worker.maintenanceSpecialty as keyof typeof SPECIALTY_LABELS['es']]}
+                                </Badge>
+                              )}
                             </CardHeader>
                             <CardContent className="space-y-3">
                               {/* Email */}
-                              <div className="flex items-center gap-2 text-sm">
-                                <Mail className="h-4 w-4 text-muted-foreground flex-shrink-0" />
-                                <span className="truncate" data-testid={`text-worker-email-${worker.id}`}>
+                              <div className="flex items-start gap-2 text-sm">
+                                <Mail className="h-4 w-4 text-muted-foreground flex-shrink-0 mt-0.5" />
+                                <span className="flex-1 min-w-0 break-words" data-testid={`text-worker-email-${worker.id}`}>
                                   {worker.email}
                                 </span>
                               </div>
                               
                               {/* Phone */}
                               {worker.phone && (
-                                <div className="flex items-center gap-2 text-sm">
-                                  <Phone className="h-4 w-4 text-muted-foreground flex-shrink-0" />
-                                  <span data-testid={`text-worker-phone-${worker.id}`}>
+                                <div className="flex items-start gap-2 text-sm">
+                                  <Phone className="h-4 w-4 text-muted-foreground flex-shrink-0 mt-0.5" />
+                                  <span className="flex-1 min-w-0 break-words" data-testid={`text-worker-phone-${worker.id}`}>
                                     {worker.phone}
                                   </span>
                                 </div>
                               )}
                               
                               {/* Assignment Stats */}
-                              <div className="flex items-center gap-4 text-sm text-muted-foreground pt-2 border-t">
+                              <div className="flex items-center flex-wrap gap-4 text-sm text-muted-foreground pt-2 border-t">
                                 <div className="flex items-center gap-1">
-                                  <Building2 className="h-3 w-3" />
+                                  <Building2 className="h-3 w-3 flex-shrink-0" />
                                   <span>
                                     {assignments?.filter(a => a.userId === worker.id && a.condominiumId).length || 0}
                                   </span>
                                 </div>
                                 <div className="flex items-center gap-1">
-                                  <Home className="h-3 w-3" />
+                                  <Home className="h-3 w-3 flex-shrink-0" />
                                   <span>
                                     {assignments?.filter(a => a.userId === worker.id && a.unitId).length || 0}
                                   </span>
