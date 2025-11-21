@@ -211,6 +211,7 @@ export default function ExternalClients() {
 
   const createMutation = useMutation({
     mutationFn: async (data: ClientFormData) => {
+      console.log("Creating client with data:", data);
       return await apiRequest("/api/external-clients", {
         method: "POST",
         body: JSON.stringify(data),
@@ -760,7 +761,13 @@ export default function ExternalClients() {
             </DialogDescription>
           </DialogHeader>
           <Form {...form}>
-            <form onSubmit={form.handleSubmit((data) => createMutation.mutate(data))} className="space-y-4">
+            <form onSubmit={form.handleSubmit((data) => {
+              console.log("Form submitted with data:", data);
+              console.log("Form errors:", form.formState.errors);
+              createMutation.mutate(data);
+            }, (errors) => {
+              console.log("Form validation errors:", errors);
+            })} className="space-y-4">
               <div className="grid grid-cols-2 gap-4">
                 <FormField
                   control={form.control}
