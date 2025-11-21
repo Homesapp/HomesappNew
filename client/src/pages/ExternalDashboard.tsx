@@ -246,9 +246,21 @@ export default function ExternalDashboard() {
         const contract = normalizedContracts.find(c => c.contract.unitId === p.unitId && c.contract.status === 'active');
         const tenantName = contract?.contract.tenantName || '';
         
+        // Separate rent payments from service payments
+        const isRentPayment = p.serviceType === 'rent';
+        const serviceTypeLabel = language === "es"
+          ? (p.serviceType === 'electricity' ? 'Electricidad' :
+             p.serviceType === 'water' ? 'Agua' :
+             p.serviceType === 'internet' ? 'Internet' :
+             p.serviceType === 'gas' ? 'Gas' :
+             p.serviceType === 'rent' ? 'Renta' : p.serviceType)
+          : p.serviceType;
+        
         todayEvents.push({
-          type: 'payment',
-          title: `${language === "es" ? "Pago" : "Payment"}: ${p.serviceType}`,
+          type: isRentPayment ? 'payment' : 'service',
+          title: isRentPayment 
+            ? `${condo?.name || ''} - ${unit?.unitNumber || ''} - ${serviceTypeLabel}${tenantName ? ` (${tenantName})` : ''}`
+            : `${condo?.name || ''} - ${unit?.unitNumber || ''} - ${serviceTypeLabel} (${language === "es" ? "Propietario" : "Owner"})`,
           serviceType: p.serviceType,
           condominium: condo?.name || (language === "es" ? "Sin condominio" : "No condominium"),
           unitNumber: unit?.unitNumber || '',
@@ -489,10 +501,29 @@ export default function ExternalDashboard() {
             ) : todayEvents.length > 0 ? (
               <div className="space-y-1.5">
                 {todayEvents.slice(0, 8).map((event: any, idx: number) => {
-                  const eventColor = event.type === 'payment' ? 'blue' : 'green';
+                  // Color based on type
+                  const eventColor = event.type === 'payment' ? 'blue' : event.type === 'service' ? 'yellow' : 'green';
                   const borderColor = event.type === 'payment' 
                     ? 'border-blue-200 dark:border-blue-900 bg-blue-50/30 dark:bg-blue-950/10' 
+                    : event.type === 'service'
+                    ? 'border-yellow-200 dark:border-yellow-900 bg-yellow-50/30 dark:bg-yellow-950/10'
                     : 'border-green-200 dark:border-green-900 bg-green-50/30 dark:bg-green-950/10';
+                  
+                  // Translate status
+                  const getStatusText = (status: string) => {
+                    if (language === "es") {
+                      switch(status) {
+                        case 'pending': return 'Pendiente';
+                        case 'paid': return 'Pagado';
+                        case 'overdue': return 'Vencido';
+                        case 'open': return 'Abierto';
+                        case 'in_progress': return 'En Progreso';
+                        case 'completed': return 'Completado';
+                        default: return status;
+                      }
+                    }
+                    return status;
+                  };
                   
                   return (
                     <div
@@ -503,25 +534,16 @@ export default function ExternalDashboard() {
                       <div className="p-2.5 hover-elevate cursor-pointer w-full">
                         <div className="flex items-start gap-2.5">
                           <div className="mt-1">
-                            <div className={`h-2 w-2 rounded-full bg-${eventColor}-500`} />
+                            {event.type === 'payment' ? (
+                              <div className="h-2 w-2 rounded-full bg-blue-500" />
+                            ) : event.type === 'service' ? (
+                              <div className="h-2 w-2 rounded-full bg-yellow-500" />
+                            ) : (
+                              <div className="h-2 w-2 rounded-full bg-green-500" />
+                            )}
                           </div>
                           <div className="flex-1 min-w-0">
-                            <div className="flex items-center justify-between gap-2">
-                              <p className="font-medium text-sm truncate">{event.title}</p>
-                            </div>
-                            <div className="flex items-center gap-2 mt-0.5">
-                              <p className="text-xs text-muted-foreground">
-                                {event.condominium} - {language === "es" ? "Unidad" : "Unit"} {event.unitNumber}
-                              </p>
-                            </div>
-                            <div className="flex items-center gap-2 mt-1">
-                              <Badge 
-                                variant={event.status === 'paid' || event.status === 'completed' ? 'default' : 'secondary'} 
-                                className="text-xs"
-                              >
-                                {event.status}
-                              </Badge>
-                            </div>
+                            <p className="font-medium text-sm">{event.title}</p>
                           </div>
                         </div>
                       </div>

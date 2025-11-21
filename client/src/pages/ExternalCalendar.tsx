@@ -233,6 +233,25 @@ export default function ExternalCalendar() {
     return { pendingPayments, scheduledTickets, thisMonthEvents };
   }, [filteredPayments, filteredServices, filteredTickets, filteredContracts, showPayments, showServices, showTickets, showContracts]);
 
+  // Translate status helper
+  const translateStatus = (status: string): string => {
+    if (language === "es") {
+      switch(status) {
+        case 'pending': return 'Pendiente';
+        case 'paid': return 'Pagado';
+        case 'overdue': return 'Vencido';
+        case 'open': return 'Abierto';
+        case 'in_progress': return 'En Progreso';
+        case 'completed': return 'Completado';
+        case 'cancelled': return 'Cancelado';
+        case 'active': return 'Activo';
+        case 'closed': return 'Cerrado';
+        default: return status;
+      }
+    }
+    return status;
+  };
+
   // Get events for selected date
   const eventsForDate = useMemo((): EventData[] => {
     if (!selectedDate) return [];
@@ -1019,7 +1038,7 @@ export default function ExternalCalendar() {
                                     <div className="space-y-2 text-sm">
                                       <div className="flex items-center justify-between">
                                         <Badge variant={payment.status === 'paid' ? 'default' : payment.status === 'pending' ? 'secondary' : 'destructive'} className="text-xs">
-                                          {payment.status}
+                                          {translateStatus(payment.status)}
                                         </Badge>
                                         {hasValidAmount && (
                                           <p className="text-lg font-bold text-blue-600">
@@ -1063,7 +1082,7 @@ export default function ExternalCalendar() {
                                     <div className="space-y-2 text-sm">
                                       <div className="flex items-center justify-between">
                                         <Badge variant={service.status === 'paid' ? 'default' : service.status === 'pending' ? 'secondary' : 'destructive'} className="text-xs">
-                                          {service.status}
+                                          {translateStatus(service.status)}
                                         </Badge>
                                         {hasValidAmount && (
                                           <p className="text-lg font-bold text-yellow-600">
@@ -1109,7 +1128,7 @@ export default function ExternalCalendar() {
                                         </Badge>
                                         <Badge variant="outline" className="text-xs">{ticket.category}</Badge>
                                         <Badge variant={ticket.status === 'in_progress' ? 'default' : 'secondary'} className="text-xs">
-                                          {ticket.status}
+                                          {translateStatus(ticket.status)}
                                         </Badge>
                                       </div>
                                       {ticket.description && (
