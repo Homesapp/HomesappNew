@@ -706,6 +706,7 @@ export default function RentalWizard({ open, onOpenChange }: RentalWizardProps) 
                     />
                   </CardContent>
                 </Card>
+                )}
 
                 <Separator className="my-4" />
 

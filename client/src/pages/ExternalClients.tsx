@@ -63,6 +63,9 @@ import {
   Calendar as CalendarIcon,
   Tag,
   FileText,
+  UserCheck,
+  Ban,
+  CheckCheck,
 } from "lucide-react";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { useAuth } from "@/hooks/useAuth";
@@ -638,6 +641,9 @@ export default function ExternalClients() {
                       {language === "es" ? "Teléfono" : "Phone"}
                     </SortableHeader>
                     <TableHead className="text-sm font-normal">
+                      {language === "es" ? "Nacionalidad" : "Nationality"}
+                    </TableHead>
+                    <TableHead className="text-sm font-normal">
                       {language === "es" ? "Ciudad" : "City"}
                     </TableHead>
                     <SortableHeader field="status">
@@ -664,6 +670,9 @@ export default function ExternalClients() {
                         {client.phone || "-"}
                       </TableCell>
                       <TableCell className="text-sm text-muted-foreground">
+                        {client.nationality || "-"}
+                      </TableCell>
+                      <TableCell className="text-sm text-muted-foreground">
                         {client.city || "-"}
                       </TableCell>
                       <TableCell>
@@ -677,27 +686,77 @@ export default function ExternalClients() {
                         )}
                       </TableCell>
                       <TableCell className="text-right">
-                        <DropdownMenu>
-                          <DropdownMenuTrigger asChild>
-                            <Button variant="ghost" size="icon" data-testid={`button-menu-${client.id}`}>
-                              <MoreVertical className="h-4 w-4" />
-                            </Button>
-                          </DropdownMenuTrigger>
-                          <DropdownMenuContent align="end">
-                            <DropdownMenuItem onClick={() => handleEdit(client)} data-testid={`button-edit-${client.id}`}>
-                              <Pencil className="h-4 w-4 mr-2" />
-                              {language === "es" ? "Editar" : "Edit"}
-                            </DropdownMenuItem>
-                            <DropdownMenuItem 
-                              onClick={() => handleDelete(client)}
-                              className="text-destructive"
-                              data-testid={`button-delete-${client.id}`}
+                        <div className="flex items-center justify-end gap-1">
+                          {!client.isVerified && (
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              onClick={() => {
+                                updateMutation.mutate({
+                                  id: client.id,
+                                  data: { isVerified: true }
+                                });
+                              }}
+                              title={language === "es" ? "Verificar" : "Verify"}
+                              data-testid={`button-verify-${client.id}`}
                             >
-                              <Trash2 className="h-4 w-4 mr-2" />
-                              {language === "es" ? "Eliminar" : "Delete"}
-                            </DropdownMenuItem>
-                          </DropdownMenuContent>
-                        </DropdownMenu>
+                              <UserCheck className="h-4 w-4 text-green-600" />
+                            </Button>
+                          )}
+                          {client.status === "active" && (
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              onClick={() => {
+                                updateMutation.mutate({
+                                  id: client.id,
+                                  data: { status: "inactive" }
+                                });
+                              }}
+                              title={language === "es" ? "Suspender" : "Suspend"}
+                              data-testid={`button-suspend-${client.id}`}
+                            >
+                              <Ban className="h-4 w-4 text-orange-600" />
+                            </Button>
+                          )}
+                          {client.status === "inactive" && (
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              onClick={() => {
+                                updateMutation.mutate({
+                                  id: client.id,
+                                  data: { status: "active" }
+                                });
+                              }}
+                              title={language === "es" ? "Activar" : "Activate"}
+                              data-testid={`button-activate-${client.id}`}
+                            >
+                              <CheckCheck className="h-4 w-4 text-green-600" />
+                            </Button>
+                          )}
+                          <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                              <Button variant="ghost" size="icon" data-testid={`button-menu-${client.id}`}>
+                                <MoreVertical className="h-4 w-4" />
+                              </Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end">
+                              <DropdownMenuItem onClick={() => handleEdit(client)} data-testid={`button-edit-${client.id}`}>
+                                <Pencil className="h-4 w-4 mr-2" />
+                                {language === "es" ? "Editar" : "Edit"}
+                              </DropdownMenuItem>
+                              <DropdownMenuItem 
+                                onClick={() => handleDelete(client)}
+                                className="text-destructive"
+                                data-testid={`button-delete-${client.id}`}
+                              >
+                                <Trash2 className="h-4 w-4 mr-2" />
+                                {language === "es" ? "Eliminar" : "Delete"}
+                              </DropdownMenuItem>
+                            </DropdownMenuContent>
+                          </DropdownMenu>
+                        </div>
                       </TableCell>
                     </TableRow>
                   ))}
