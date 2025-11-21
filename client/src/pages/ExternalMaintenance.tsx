@@ -156,6 +156,7 @@ export default function ExternalMaintenance() {
   const [formCondominiumId, setFormCondominiumId] = useState<string>("");
   // Schedule state that guarantees calendar visibility
   const [schedule, setSchedule] = useState<ScheduleState>(getDefaultSchedule());
+  const [filtersExpanded, setFiltersExpanded] = useState(false);
   
   // Pagination and sorting states
   const [currentPage, setCurrentPage] = useState(1);
@@ -586,12 +587,28 @@ export default function ExternalMaintenance() {
       {/* Search and Filters */}
       <Card>
         <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Filter className="h-5 w-5" />
-            {t.filters}
-          </CardTitle>
+          <div className="flex items-center justify-between w-full">
+            <CardTitle className="flex items-center gap-2">
+              <Filter className="h-5 w-5" />
+              {t.filters}
+            </CardTitle>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => setFiltersExpanded(!filtersExpanded)}
+              className="h-8 w-8 p-0"
+              data-testid="button-toggle-filters"
+            >
+              {filtersExpanded ? (
+                <ChevronUp className="h-4 w-4 text-muted-foreground" />
+              ) : (
+                <ChevronDown className="h-4 w-4 text-muted-foreground" />
+              )}
+            </Button>
+          </div>
         </CardHeader>
         <CardContent className="space-y-4">
+          {/* Search - Always visible */}
           <div className="relative">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
             <Input
@@ -606,7 +623,9 @@ export default function ExternalMaintenance() {
             />
           </div>
 
-          <div className="space-y-4">
+          {/* Collapsible Filters */}
+          {filtersExpanded && (
+            <div className="space-y-4">
             <div className="space-y-2">
               <label className="text-sm font-medium">{t.status}</label>
               <div className="flex flex-wrap gap-2">
@@ -865,22 +884,23 @@ export default function ExternalMaintenance() {
               </div>
             </div>
 
-            <Button 
-              variant="outline" 
-              onClick={() => {
-                setSearchTerm("");
-                setStatusFilter("all");
-                setPriorityFilter("all");
-                setCategoryFilter("all");
-                setCondominiumFilter("all");
-                setCurrentPage(1);
-              }}
-              data-testid="button-clear-filters"
-            >
-              <XCircle className="mr-2 h-4 w-4" />
-              {language === 'es' ? 'Limpiar' : 'Clear'}
-            </Button>
-          </div>
+              <Button 
+                variant="outline" 
+                onClick={() => {
+                  setSearchTerm("");
+                  setStatusFilter("all");
+                  setPriorityFilter("all");
+                  setCategoryFilter("all");
+                  setCondominiumFilter("all");
+                  setCurrentPage(1);
+                }}
+                data-testid="button-clear-filters"
+              >
+                <XCircle className="mr-2 h-4 w-4" />
+                {language === 'es' ? 'Limpiar' : 'Clear'}
+              </Button>
+            </div>
+          )}
         </CardContent>
       </Card>
 
