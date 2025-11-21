@@ -1221,7 +1221,7 @@ export default function ExternalAccounting() {
               variant={dateFilter === "today" ? "default" : "outline"}
               size="sm"
               onClick={() => {
-                setDateFilter("today");
+                setDateFilter(dateFilter === "today" ? "all" : "today");
                 setCurrentPage(1);
               }}
               data-testid="button-filter-today"
