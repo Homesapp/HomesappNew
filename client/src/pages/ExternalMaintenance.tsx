@@ -29,6 +29,11 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Textarea } from "@/components/ui/textarea";
 import { Calendar } from "@/components/ui/calendar";
@@ -515,10 +520,301 @@ export default function ExternalMaintenance() {
           <h1 className="text-3xl font-bold" data-testid="text-page-title">{t.title}</h1>
           <p className="text-muted-foreground mt-1">{t.subtitle}</p>
         </div>
-        <Button onClick={() => setShowDialog(true)} data-testid="button-new-ticket">
-          <Plus className="mr-2 h-4 w-4" />
-          {t.newTicket}
-        </Button>
+        <div className="flex items-center gap-2">
+          <Popover open={filtersExpanded} onOpenChange={setFiltersExpanded}>
+            <PopoverTrigger asChild>
+              <Button 
+                variant="outline" 
+                size="icon"
+                data-testid="button-toggle-filters"
+              >
+                <Filter className="h-4 w-4" />
+              </Button>
+            </PopoverTrigger>
+            <PopoverContent className="w-96 max-h-[600px] overflow-y-auto" align="end">
+              <div className="space-y-4">
+                <div className="space-y-2">
+                  <label className="text-sm font-medium">{t.status}</label>
+                  <div className="flex flex-wrap gap-2">
+                    <Button
+                      variant={statusFilter === "all" ? "default" : "outline"}
+                      size="sm"
+                      onClick={() => {
+                        setStatusFilter("all");
+                        setCurrentPage(1);
+                      }}
+                      data-testid="button-filter-status-all"
+                    >
+                      {t.all}
+                    </Button>
+                    <Button
+                      variant={statusFilter === "open" ? "default" : "outline"}
+                      size="sm"
+                      onClick={() => {
+                        setStatusFilter("open");
+                        setCurrentPage(1);
+                      }}
+                      data-testid="button-filter-status-open"
+                    >
+                      {statusColors.open.label[language]}
+                    </Button>
+                    <Button
+                      variant={statusFilter === "in_progress" ? "default" : "outline"}
+                      size="sm"
+                      onClick={() => {
+                        setStatusFilter("in_progress");
+                        setCurrentPage(1);
+                      }}
+                      data-testid="button-filter-status-progress"
+                    >
+                      {statusColors.in_progress.label[language]}
+                    </Button>
+                    <Button
+                      variant={statusFilter === "resolved" ? "default" : "outline"}
+                      size="sm"
+                      onClick={() => {
+                        setStatusFilter("resolved");
+                        setCurrentPage(1);
+                      }}
+                      data-testid="button-filter-status-resolved"
+                    >
+                      {statusColors.resolved.label[language]}
+                    </Button>
+                    <Button
+                      variant={statusFilter === "closed" ? "default" : "outline"}
+                      size="sm"
+                      onClick={() => {
+                        setStatusFilter("closed");
+                        setCurrentPage(1);
+                      }}
+                      data-testid="button-filter-status-closed"
+                    >
+                      {statusColors.closed.label[language]}
+                    </Button>
+                    <Button
+                      variant={statusFilter === "on_hold" ? "default" : "outline"}
+                      size="sm"
+                      onClick={() => {
+                        setStatusFilter("on_hold");
+                        setCurrentPage(1);
+                      }}
+                      data-testid="button-filter-status-hold"
+                    >
+                      {statusColors.on_hold.label[language]}
+                    </Button>
+                  </div>
+                </div>
+
+                <div className="space-y-2">
+                  <label className="text-sm font-medium">{t.priority}</label>
+                  <div className="flex flex-wrap gap-2">
+                    <Button
+                      variant={priorityFilter === "all" ? "default" : "outline"}
+                      size="sm"
+                      onClick={() => {
+                        setPriorityFilter("all");
+                        setCurrentPage(1);
+                      }}
+                      data-testid="button-filter-priority-all"
+                    >
+                      {t.all}
+                    </Button>
+                    <Button
+                      variant={priorityFilter === "low" ? "default" : "outline"}
+                      size="sm"
+                      onClick={() => {
+                        setPriorityFilter("low");
+                        setCurrentPage(1);
+                      }}
+                      data-testid="button-filter-priority-low"
+                    >
+                      {priorityColors.low.label[language]}
+                    </Button>
+                    <Button
+                      variant={priorityFilter === "medium" ? "default" : "outline"}
+                      size="sm"
+                      onClick={() => {
+                        setPriorityFilter("medium");
+                        setCurrentPage(1);
+                      }}
+                      data-testid="button-filter-priority-medium"
+                    >
+                      {priorityColors.medium.label[language]}
+                    </Button>
+                    <Button
+                      variant={priorityFilter === "high" ? "default" : "outline"}
+                      size="sm"
+                      onClick={() => {
+                        setPriorityFilter("high");
+                        setCurrentPage(1);
+                      }}
+                      data-testid="button-filter-priority-high"
+                    >
+                      {priorityColors.high.label[language]}
+                    </Button>
+                    <Button
+                      variant={priorityFilter === "urgent" ? "default" : "outline"}
+                      size="sm"
+                      onClick={() => {
+                        setPriorityFilter("urgent");
+                        setCurrentPage(1);
+                      }}
+                      data-testid="button-filter-priority-urgent"
+                    >
+                      {priorityColors.urgent.label[language]}
+                    </Button>
+                  </div>
+                </div>
+
+                <div className="space-y-2">
+                  <label className="text-sm font-medium">{t.category}</label>
+                  <div className="flex flex-wrap gap-2">
+                    <Button
+                      variant={categoryFilter === "all" ? "default" : "outline"}
+                      size="sm"
+                      onClick={() => {
+                        setCategoryFilter("all");
+                        setCurrentPage(1);
+                      }}
+                      data-testid="button-filter-category-all"
+                    >
+                      {t.all}
+                    </Button>
+                    <Button
+                      variant={categoryFilter === "plumbing" ? "default" : "outline"}
+                      size="sm"
+                      onClick={() => {
+                        setCategoryFilter("plumbing");
+                        setCurrentPage(1);
+                      }}
+                      data-testid="button-filter-category-plumbing"
+                    >
+                      {categoryLabels.plumbing[language]}
+                    </Button>
+                    <Button
+                      variant={categoryFilter === "electrical" ? "default" : "outline"}
+                      size="sm"
+                      onClick={() => {
+                        setCategoryFilter("electrical");
+                        setCurrentPage(1);
+                      }}
+                      data-testid="button-filter-category-electrical"
+                    >
+                      {categoryLabels.electrical[language]}
+                    </Button>
+                    <Button
+                      variant={categoryFilter === "appliances" ? "default" : "outline"}
+                      size="sm"
+                      onClick={() => {
+                        setCategoryFilter("appliances");
+                        setCurrentPage(1);
+                      }}
+                      data-testid="button-filter-category-appliances"
+                    >
+                      {categoryLabels.appliances[language]}
+                    </Button>
+                    <Button
+                      variant={categoryFilter === "hvac" ? "default" : "outline"}
+                      size="sm"
+                      onClick={() => {
+                        setCategoryFilter("hvac");
+                        setCurrentPage(1);
+                      }}
+                      data-testid="button-filter-category-hvac"
+                    >
+                      {categoryLabels.hvac[language]}
+                    </Button>
+                    <Button
+                      variant={categoryFilter === "general" ? "default" : "outline"}
+                      size="sm"
+                      onClick={() => {
+                        setCategoryFilter("general");
+                        setCurrentPage(1);
+                      }}
+                      data-testid="button-filter-category-general"
+                    >
+                      {categoryLabels.general[language]}
+                    </Button>
+                    <Button
+                      variant={categoryFilter === "emergency" ? "default" : "outline"}
+                      size="sm"
+                      onClick={() => {
+                        setCategoryFilter("emergency");
+                        setCurrentPage(1);
+                      }}
+                      data-testid="button-filter-category-emergency"
+                    >
+                      {categoryLabels.emergency[language]}
+                    </Button>
+                    <Button
+                      variant={categoryFilter === "other" ? "default" : "outline"}
+                      size="sm"
+                      onClick={() => {
+                        setCategoryFilter("other");
+                        setCurrentPage(1);
+                      }}
+                      data-testid="button-filter-category-other"
+                    >
+                      {categoryLabels.other[language]}
+                    </Button>
+                  </div>
+                </div>
+
+                <div className="space-y-2">
+                  <label className="text-sm font-medium">{t.condominium}</label>
+                  <div className="flex flex-wrap gap-2">
+                    <Button
+                      variant={condominiumFilter === "all" ? "default" : "outline"}
+                      size="sm"
+                      onClick={() => {
+                        setCondominiumFilter("all");
+                        setCurrentPage(1);
+                      }}
+                      data-testid="button-filter-condo-all"
+                    >
+                      {t.all}
+                    </Button>
+                    {condominiums?.map(condo => (
+                      <Button
+                        key={condo.id}
+                        variant={condominiumFilter === condo.id ? "default" : "outline"}
+                        size="sm"
+                        onClick={() => {
+                          setCondominiumFilter(condo.id);
+                          setCurrentPage(1);
+                        }}
+                        data-testid={`button-filter-condo-${condo.id}`}
+                      >
+                        {condo.name}
+                      </Button>
+                    ))}
+                  </div>
+                </div>
+
+                <Button 
+                  variant="outline" 
+                  className="w-full"
+                  onClick={() => {
+                    setSearchTerm("");
+                    setStatusFilter("all");
+                    setPriorityFilter("all");
+                    setCategoryFilter("all");
+                    setCondominiumFilter("all");
+                    setCurrentPage(1);
+                  }}
+                  data-testid="button-clear-filters"
+                >
+                  <XCircle className="mr-2 h-4 w-4" />
+                  {language === 'es' ? 'Limpiar' : 'Clear'}
+                </Button>
+              </div>
+            </PopoverContent>
+          </Popover>
+          <Button onClick={() => setShowDialog(true)} data-testid="button-new-ticket">
+            <Plus className="mr-2 h-4 w-4" />
+            {t.newTicket}
+          </Button>
+        </div>
       </div>
 
       {/* Metrics */}
@@ -584,7 +880,7 @@ export default function ExternalMaintenance() {
         </Card>
       </div>
 
-      {/* Search - Always visible outside filters */}
+      {/* Search - Always visible */}
       <div className="relative">
         <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
         <Input
@@ -598,310 +894,6 @@ export default function ExternalMaintenance() {
           data-testid="input-search"
         />
       </div>
-
-      {/* Collapsible Filters */}
-      <Card>
-        <CardHeader>
-          <div className="flex items-center justify-between w-full">
-            <CardTitle className="flex items-center gap-2">
-              <Filter className="h-5 w-5" />
-              {t.filters}
-            </CardTitle>
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => setFiltersExpanded(!filtersExpanded)}
-              className="h-8 w-8 p-0"
-              data-testid="button-toggle-filters"
-            >
-              {filtersExpanded ? (
-                <ChevronUp className="h-4 w-4 text-muted-foreground" />
-              ) : (
-                <ChevronDown className="h-4 w-4 text-muted-foreground" />
-              )}
-            </Button>
-          </div>
-        </CardHeader>
-        <CardContent>
-          {filtersExpanded && (
-            <div className="space-y-4">
-            <div className="space-y-2">
-              <label className="text-sm font-medium">{t.status}</label>
-              <div className="flex flex-wrap gap-2">
-                <Button
-                  variant={statusFilter === "all" ? "default" : "outline"}
-                  size="sm"
-                  onClick={() => {
-                    setStatusFilter("all");
-                    setCurrentPage(1);
-                  }}
-                  data-testid="button-filter-status-all"
-                >
-                  {t.all}
-                </Button>
-                <Button
-                  variant={statusFilter === "open" ? "default" : "outline"}
-                  size="sm"
-                  onClick={() => {
-                    setStatusFilter("open");
-                    setCurrentPage(1);
-                  }}
-                  data-testid="button-filter-status-open"
-                >
-                  {statusColors.open.label[language]}
-                </Button>
-                <Button
-                  variant={statusFilter === "in_progress" ? "default" : "outline"}
-                  size="sm"
-                  onClick={() => {
-                    setStatusFilter("in_progress");
-                    setCurrentPage(1);
-                  }}
-                  data-testid="button-filter-status-progress"
-                >
-                  {statusColors.in_progress.label[language]}
-                </Button>
-                <Button
-                  variant={statusFilter === "resolved" ? "default" : "outline"}
-                  size="sm"
-                  onClick={() => {
-                    setStatusFilter("resolved");
-                    setCurrentPage(1);
-                  }}
-                  data-testid="button-filter-status-resolved"
-                >
-                  {statusColors.resolved.label[language]}
-                </Button>
-                <Button
-                  variant={statusFilter === "closed" ? "default" : "outline"}
-                  size="sm"
-                  onClick={() => {
-                    setStatusFilter("closed");
-                    setCurrentPage(1);
-                  }}
-                  data-testid="button-filter-status-closed"
-                >
-                  {statusColors.closed.label[language]}
-                </Button>
-                <Button
-                  variant={statusFilter === "on_hold" ? "default" : "outline"}
-                  size="sm"
-                  onClick={() => {
-                    setStatusFilter("on_hold");
-                    setCurrentPage(1);
-                  }}
-                  data-testid="button-filter-status-hold"
-                >
-                  {statusColors.on_hold.label[language]}
-                </Button>
-              </div>
-            </div>
-
-            <div className="space-y-2">
-              <label className="text-sm font-medium">{t.priority}</label>
-              <div className="flex flex-wrap gap-2">
-                <Button
-                  variant={priorityFilter === "all" ? "default" : "outline"}
-                  size="sm"
-                  onClick={() => {
-                    setPriorityFilter("all");
-                    setCurrentPage(1);
-                  }}
-                  data-testid="button-filter-priority-all"
-                >
-                  {t.all}
-                </Button>
-                <Button
-                  variant={priorityFilter === "low" ? "default" : "outline"}
-                  size="sm"
-                  onClick={() => {
-                    setPriorityFilter("low");
-                    setCurrentPage(1);
-                  }}
-                  data-testid="button-filter-priority-low"
-                >
-                  {priorityColors.low.label[language]}
-                </Button>
-                <Button
-                  variant={priorityFilter === "medium" ? "default" : "outline"}
-                  size="sm"
-                  onClick={() => {
-                    setPriorityFilter("medium");
-                    setCurrentPage(1);
-                  }}
-                  data-testid="button-filter-priority-medium"
-                >
-                  {priorityColors.medium.label[language]}
-                </Button>
-                <Button
-                  variant={priorityFilter === "high" ? "default" : "outline"}
-                  size="sm"
-                  onClick={() => {
-                    setPriorityFilter("high");
-                    setCurrentPage(1);
-                  }}
-                  data-testid="button-filter-priority-high"
-                >
-                  {priorityColors.high.label[language]}
-                </Button>
-                <Button
-                  variant={priorityFilter === "urgent" ? "default" : "outline"}
-                  size="sm"
-                  onClick={() => {
-                    setPriorityFilter("urgent");
-                    setCurrentPage(1);
-                  }}
-                  data-testid="button-filter-priority-urgent"
-                >
-                  {priorityColors.urgent.label[language]}
-                </Button>
-              </div>
-            </div>
-
-            <div className="space-y-2">
-              <label className="text-sm font-medium">{t.category}</label>
-              <div className="flex flex-wrap gap-2">
-                <Button
-                  variant={categoryFilter === "all" ? "default" : "outline"}
-                  size="sm"
-                  onClick={() => {
-                    setCategoryFilter("all");
-                    setCurrentPage(1);
-                  }}
-                  data-testid="button-filter-category-all"
-                >
-                  {t.all}
-                </Button>
-                <Button
-                  variant={categoryFilter === "plumbing" ? "default" : "outline"}
-                  size="sm"
-                  onClick={() => {
-                    setCategoryFilter("plumbing");
-                    setCurrentPage(1);
-                  }}
-                  data-testid="button-filter-category-plumbing"
-                >
-                  {categoryLabels.plumbing[language]}
-                </Button>
-                <Button
-                  variant={categoryFilter === "electrical" ? "default" : "outline"}
-                  size="sm"
-                  onClick={() => {
-                    setCategoryFilter("electrical");
-                    setCurrentPage(1);
-                  }}
-                  data-testid="button-filter-category-electrical"
-                >
-                  {categoryLabels.electrical[language]}
-                </Button>
-                <Button
-                  variant={categoryFilter === "appliances" ? "default" : "outline"}
-                  size="sm"
-                  onClick={() => {
-                    setCategoryFilter("appliances");
-                    setCurrentPage(1);
-                  }}
-                  data-testid="button-filter-category-appliances"
-                >
-                  {categoryLabels.appliances[language]}
-                </Button>
-                <Button
-                  variant={categoryFilter === "hvac" ? "default" : "outline"}
-                  size="sm"
-                  onClick={() => {
-                    setCategoryFilter("hvac");
-                    setCurrentPage(1);
-                  }}
-                  data-testid="button-filter-category-hvac"
-                >
-                  {categoryLabels.hvac[language]}
-                </Button>
-                <Button
-                  variant={categoryFilter === "general" ? "default" : "outline"}
-                  size="sm"
-                  onClick={() => {
-                    setCategoryFilter("general");
-                    setCurrentPage(1);
-                  }}
-                  data-testid="button-filter-category-general"
-                >
-                  {categoryLabels.general[language]}
-                </Button>
-                <Button
-                  variant={categoryFilter === "emergency" ? "default" : "outline"}
-                  size="sm"
-                  onClick={() => {
-                    setCategoryFilter("emergency");
-                    setCurrentPage(1);
-                  }}
-                  data-testid="button-filter-category-emergency"
-                >
-                  {categoryLabels.emergency[language]}
-                </Button>
-                <Button
-                  variant={categoryFilter === "other" ? "default" : "outline"}
-                  size="sm"
-                  onClick={() => {
-                    setCategoryFilter("other");
-                    setCurrentPage(1);
-                  }}
-                  data-testid="button-filter-category-other"
-                >
-                  {categoryLabels.other[language]}
-                </Button>
-              </div>
-            </div>
-
-            <div className="space-y-2">
-              <label className="text-sm font-medium">{t.condominium}</label>
-              <div className="flex flex-wrap gap-2">
-                <Button
-                  variant={condominiumFilter === "all" ? "default" : "outline"}
-                  size="sm"
-                  onClick={() => {
-                    setCondominiumFilter("all");
-                    setCurrentPage(1);
-                  }}
-                  data-testid="button-filter-condo-all"
-                >
-                  {t.all}
-                </Button>
-                {condominiums?.map(condo => (
-                  <Button
-                    key={condo.id}
-                    variant={condominiumFilter === condo.id ? "default" : "outline"}
-                    size="sm"
-                    onClick={() => {
-                      setCondominiumFilter(condo.id);
-                      setCurrentPage(1);
-                    }}
-                    data-testid={`button-filter-condo-${condo.id}`}
-                  >
-                    {condo.name}
-                  </Button>
-                ))}
-              </div>
-            </div>
-
-              <Button 
-                variant="outline" 
-                onClick={() => {
-                  setSearchTerm("");
-                  setStatusFilter("all");
-                  setPriorityFilter("all");
-                  setCategoryFilter("all");
-                  setCondominiumFilter("all");
-                  setCurrentPage(1);
-                }}
-                data-testid="button-clear-filters"
-              >
-                <XCircle className="mr-2 h-4 w-4" />
-                {language === 'es' ? 'Limpiar' : 'Clear'}
-              </Button>
-            </div>
-          )}
-        </CardContent>
-      </Card>
 
       {/* Tickets Table */}
       <Card>
