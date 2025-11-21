@@ -280,10 +280,14 @@ export const requireRole = (allowedRoles: string[]): RequestHandler => {
     // Check for local login session
     if (req.session && req.session.userId) {
       userId = req.session.userId;
+      console.log('requireRole: Found local session userId:', userId);
     }
     // Check for Replit Auth
     else if (req.user && (req.user as any).claims) {
       userId = (req.user as any).claims.sub;
+      console.log('requireRole: Found Replit Auth userId:', userId);
+    } else {
+      console.log('requireRole: No userId found. session:', !!req.session, 'session.userId:', req.session?.userId, 'req.user:', !!req.user);
     }
 
     if (!userId) {
@@ -293,12 +297,15 @@ export const requireRole = (allowedRoles: string[]): RequestHandler => {
     const dbUser = await storage.getUser(userId);
 
     if (!dbUser) {
+      console.log('requireRole: User not found in DB:', userId);
       return res.status(401).json({ message: "Unauthorized: user not found" });
     }
 
     // For local auth users, check their role directly
     // For Replit Auth users, also check their role
     const userRole = dbUser.additionalRole || dbUser.role;
+    console.log('requireRole: User role:', userRole, 'Allowed roles:', allowedRoles, 'Match:', allowedRoles.includes(userRole));
+    
     if (!allowedRoles.includes(userRole)) {
       return res.status(403).json({ message: "Forbidden: insufficient permissions" });
     }
