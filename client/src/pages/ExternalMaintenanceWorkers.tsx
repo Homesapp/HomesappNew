@@ -1141,6 +1141,58 @@ export default function ExternalMaintenanceWorkers() {
                 <>
                   {assignmentsViewMode === "cards" ? (
                     <>
+                      {/* Assignments Cards Pagination Controls */}
+                      <div className="flex flex-col sm:flex-row items-center justify-between gap-4 mb-4">
+                        <div className="flex items-center gap-2">
+                          <span className="text-sm text-muted-foreground">
+                            {language === "es" ? "Mostrar" : "Show"}
+                          </span>
+                          <Select
+                            value={assignmentsCardsItemsPerPage.toString()}
+                            onValueChange={(value) => setAssignmentsCardsItemsPerPage(Number(value))}
+                          >
+                            <SelectTrigger className="w-20" data-testid="select-assignments-cards-per-page">
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="3">3</SelectItem>
+                              <SelectItem value="6">6</SelectItem>
+                              <SelectItem value="9">9</SelectItem>
+                              <SelectItem value="12">12</SelectItem>
+                            </SelectContent>
+                          </Select>
+                          <span className="text-sm text-muted-foreground">
+                            {language === "es" ? "por página" : "per page"}
+                          </span>
+                        </div>
+                        
+                        <div className="flex items-center gap-2">
+                          <span className="text-sm text-muted-foreground">
+                            {language === "es" ? `Página ${assignmentsCardsPage} de ${Math.ceil(sortedGroupedAssignments.length / assignmentsCardsItemsPerPage) || 1}` : `Page ${assignmentsCardsPage} of ${Math.ceil(sortedGroupedAssignments.length / assignmentsCardsItemsPerPage) || 1}`}
+                          </span>
+                          <div className="flex gap-2">
+                            <Button
+                              variant="outline"
+                              size="icon"
+                              onClick={() => setAssignmentsCardsPage(Math.max(1, assignmentsCardsPage - 1))}
+                              disabled={assignmentsCardsPage === 1}
+                              data-testid="button-assignments-cards-prev-page"
+                            >
+                              <ChevronLeft className="h-4 w-4" />
+                            </Button>
+                            <Button
+                              variant="outline"
+                              size="icon"
+                              onClick={() => setAssignmentsCardsPage(Math.min(Math.ceil(sortedGroupedAssignments.length / assignmentsCardsItemsPerPage), assignmentsCardsPage + 1))}
+                              disabled={assignmentsCardsPage === Math.ceil(sortedGroupedAssignments.length / assignmentsCardsItemsPerPage)}
+                              data-testid="button-assignments-cards-next-page"
+                            >
+                              <ChevronRight className="h-4 w-4" />
+                            </Button>
+                          </div>
+                        </div>
+                      </div>
+
                       {/* Cards View */}
                       <div className="grid gap-4 grid-cols-1 md:grid-cols-2 lg:grid-cols-3">
                         {(() => {
@@ -1231,25 +1283,27 @@ export default function ExternalMaintenanceWorkers() {
                           ));
                         })()}
                       </div>
-                      
-                      {/* Assignments Cards Pagination Controls */}
-                      <div className="flex flex-wrap items-center justify-between gap-4 mt-4">
+                    </>
+                  ) : (
+                    <>
+                      {/* Assignments Table Pagination Controls */}
+                      <div className="flex flex-col sm:flex-row items-center justify-between gap-4 mb-4">
                         <div className="flex items-center gap-2">
                           <span className="text-sm text-muted-foreground">
                             {language === "es" ? "Mostrar" : "Show"}
                           </span>
                           <Select
-                            value={assignmentsCardsItemsPerPage.toString()}
-                            onValueChange={(value) => setAssignmentsCardsItemsPerPage(Number(value))}
+                            value={assignmentsPerPage.toString()}
+                            onValueChange={(value) => setAssignmentsPerPage(Number(value))}
                           >
-                            <SelectTrigger className="w-20" data-testid="select-assignments-cards-per-page">
+                            <SelectTrigger className="w-20" data-testid="select-assignments-per-page">
                               <SelectValue />
                             </SelectTrigger>
                             <SelectContent>
-                              <SelectItem value="3">3</SelectItem>
-                              <SelectItem value="6">6</SelectItem>
-                              <SelectItem value="9">9</SelectItem>
-                              <SelectItem value="12">12</SelectItem>
+                              <SelectItem value="5">5</SelectItem>
+                              <SelectItem value="10">10</SelectItem>
+                              <SelectItem value="20">20</SelectItem>
+                              <SelectItem value="30">30</SelectItem>
                             </SelectContent>
                           </Select>
                           <span className="text-sm text-muted-foreground">
@@ -1259,33 +1313,31 @@ export default function ExternalMaintenanceWorkers() {
                         
                         <div className="flex items-center gap-2">
                           <span className="text-sm text-muted-foreground">
-                            {language === "es" ? "Página" : "Page"} {assignmentsCardsPage} {language === "es" ? "de" : "of"} {Math.ceil(sortedGroupedAssignments.length / assignmentsCardsItemsPerPage) || 1}
+                            {language === "es" ? `Página ${assignmentsPage} de ${assignmentsTotalPages}` : `Page ${assignmentsPage} of ${assignmentsTotalPages}`}
                           </span>
                           <div className="flex gap-2">
                             <Button
                               variant="outline"
                               size="icon"
-                              onClick={() => setAssignmentsCardsPage(Math.max(1, assignmentsCardsPage - 1))}
-                              disabled={assignmentsCardsPage === 1}
-                              data-testid="button-assignments-cards-prev-page"
+                              onClick={() => setAssignmentsPage(Math.max(1, assignmentsPage - 1))}
+                              disabled={assignmentsPage === 1}
+                              data-testid="button-assignments-prev-page"
                             >
                               <ChevronLeft className="h-4 w-4" />
                             </Button>
                             <Button
                               variant="outline"
                               size="icon"
-                              onClick={() => setAssignmentsCardsPage(Math.min(Math.ceil(sortedGroupedAssignments.length / assignmentsCardsItemsPerPage), assignmentsCardsPage + 1))}
-                              disabled={assignmentsCardsPage === Math.ceil(sortedGroupedAssignments.length / assignmentsCardsItemsPerPage)}
-                              data-testid="button-assignments-cards-next-page"
+                              onClick={() => setAssignmentsPage(Math.min(assignmentsTotalPages, assignmentsPage + 1))}
+                              disabled={assignmentsPage === assignmentsTotalPages}
+                              data-testid="button-assignments-next-page"
                             >
                               <ChevronRight className="h-4 w-4" />
                             </Button>
                           </div>
                         </div>
                       </div>
-                    </>
-                  ) : (
-                    <>
+
                       {/* Table View */}
                       <div className="w-full overflow-x-auto">
                         <Table>
@@ -1389,58 +1441,6 @@ export default function ExternalMaintenanceWorkers() {
                           </TableBody>
                         </Table>
                       </div>
-                      
-                      {/* Assignments Table Pagination Controls */}
-                      <div className="flex flex-wrap items-center justify-between gap-4 mt-4">
-                        <div className="flex items-center gap-2">
-                          <span className="text-sm text-muted-foreground">
-                            {language === "es" ? "Mostrar" : "Show"}
-                          </span>
-                          <Select
-                            value={assignmentsPerPage.toString()}
-                            onValueChange={(value) => setAssignmentsPerPage(Number(value))}
-                          >
-                            <SelectTrigger className="w-20" data-testid="select-assignments-per-page">
-                              <SelectValue />
-                            </SelectTrigger>
-                            <SelectContent>
-                              <SelectItem value="5">5</SelectItem>
-                              <SelectItem value="10">10</SelectItem>
-                              <SelectItem value="20">20</SelectItem>
-                              <SelectItem value="30">30</SelectItem>
-                            </SelectContent>
-                          </Select>
-                          <span className="text-sm text-muted-foreground">
-                            {language === "es" ? "por página" : "per page"}
-                          </span>
-                        </div>
-                        
-                        <div className="flex items-center gap-2">
-                          <span className="text-sm text-muted-foreground">
-                            {language === "es" ? "Página" : "Page"} {assignmentsPage} {language === "es" ? "de" : "of"} {assignmentsTotalPages}
-                          </span>
-                          <div className="flex gap-2">
-                            <Button
-                              variant="outline"
-                              size="icon"
-                              onClick={() => setAssignmentsPage(Math.max(1, assignmentsPage - 1))}
-                              disabled={assignmentsPage === 1}
-                              data-testid="button-assignments-prev-page"
-                            >
-                              <ChevronLeft className="h-4 w-4" />
-                            </Button>
-                            <Button
-                              variant="outline"
-                              size="icon"
-                              onClick={() => setAssignmentsPage(Math.min(assignmentsTotalPages, assignmentsPage + 1))}
-                              disabled={assignmentsPage === assignmentsTotalPages}
-                              data-testid="button-assignments-next-page"
-                            >
-                              <ChevronRight className="h-4 w-4" />
-                            </Button>
-                          </div>
-                        </div>
-                      </div>
                     </>
                   )}
                 </>
@@ -1478,6 +1478,58 @@ export default function ExternalMaintenanceWorkers() {
                 <>
                   {workersViewMode === "cards" ? (
                     <>
+                      {/* Workers Cards Pagination Controls */}
+                      <div className="flex flex-col sm:flex-row items-center justify-between gap-4 mb-4">
+                        <div className="flex items-center gap-2">
+                          <span className="text-sm text-muted-foreground">
+                            {language === "es" ? "Mostrar" : "Show"}
+                          </span>
+                          <Select
+                            value={workersPerPage.toString()}
+                            onValueChange={(value) => setWorkersPerPage(Number(value))}
+                          >
+                            <SelectTrigger className="w-20" data-testid="select-workers-per-page">
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="3">3</SelectItem>
+                              <SelectItem value="6">6</SelectItem>
+                              <SelectItem value="9">9</SelectItem>
+                              <SelectItem value="12">12</SelectItem>
+                            </SelectContent>
+                          </Select>
+                          <span className="text-sm text-muted-foreground">
+                            {language === "es" ? "por página" : "per page"}
+                          </span>
+                        </div>
+                        
+                        <div className="flex items-center gap-2">
+                          <span className="text-sm text-muted-foreground">
+                            {language === "es" ? `Página ${workersPage} de ${workersTotalPages}` : `Page ${workersPage} of ${workersTotalPages}`}
+                          </span>
+                          <div className="flex gap-2">
+                            <Button
+                              variant="outline"
+                              size="icon"
+                              onClick={() => setWorkersPage(Math.max(1, workersPage - 1))}
+                              disabled={workersPage === 1}
+                              data-testid="button-workers-prev-page"
+                            >
+                              <ChevronLeft className="h-4 w-4" />
+                            </Button>
+                            <Button
+                              variant="outline"
+                              size="icon"
+                              onClick={() => setWorkersPage(Math.min(workersTotalPages, workersPage + 1))}
+                              disabled={workersPage === workersTotalPages}
+                              data-testid="button-workers-next-page"
+                            >
+                              <ChevronRight className="h-4 w-4" />
+                            </Button>
+                          </div>
+                        </div>
+                      </div>
+
                       {/* Cards View */}
                       <div className="grid gap-4 grid-cols-1 md:grid-cols-2 lg:grid-cols-3">
                         {paginatedWorkers.map((worker) => (
@@ -1537,6 +1589,58 @@ export default function ExternalMaintenanceWorkers() {
                     </>
                   ) : (
                     <>
+                      {/* Workers Table Pagination Controls */}
+                      <div className="flex flex-col sm:flex-row items-center justify-between gap-4 mb-4">
+                        <div className="flex items-center gap-2">
+                          <span className="text-sm text-muted-foreground">
+                            {language === "es" ? "Mostrar" : "Show"}
+                          </span>
+                          <Select
+                            value={workersPerPage.toString()}
+                            onValueChange={(value) => setWorkersPerPage(Number(value))}
+                          >
+                            <SelectTrigger className="w-20" data-testid="select-workers-per-page">
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="5">5</SelectItem>
+                              <SelectItem value="10">10</SelectItem>
+                              <SelectItem value="20">20</SelectItem>
+                              <SelectItem value="30">30</SelectItem>
+                            </SelectContent>
+                          </Select>
+                          <span className="text-sm text-muted-foreground">
+                            {language === "es" ? "por página" : "per page"}
+                          </span>
+                        </div>
+                        
+                        <div className="flex items-center gap-2">
+                          <span className="text-sm text-muted-foreground">
+                            {language === "es" ? `Página ${workersPage} de ${workersTotalPages}` : `Page ${workersPage} of ${workersTotalPages}`}
+                          </span>
+                          <div className="flex gap-2">
+                            <Button
+                              variant="outline"
+                              size="icon"
+                              onClick={() => setWorkersPage(Math.max(1, workersPage - 1))}
+                              disabled={workersPage === 1}
+                              data-testid="button-workers-prev-page"
+                            >
+                              <ChevronLeft className="h-4 w-4" />
+                            </Button>
+                            <Button
+                              variant="outline"
+                              size="icon"
+                              onClick={() => setWorkersPage(Math.min(workersTotalPages, workersPage + 1))}
+                              disabled={workersPage === workersTotalPages}
+                              data-testid="button-workers-next-page"
+                            >
+                              <ChevronRight className="h-4 w-4" />
+                            </Button>
+                          </div>
+                        </div>
+                      </div>
+
                       {/* Table View */}
                       <div className="w-full overflow-x-auto">
                         <Table>
@@ -1611,69 +1715,6 @@ export default function ExternalMaintenanceWorkers() {
                         ))}
                         </TableBody>
                       </Table>
-                    </div>
-                    
-                    {/* Workers Pagination Controls */}
-                    <div className="flex flex-wrap items-center justify-between gap-4 mt-4">
-                      <div className="flex items-center gap-2">
-                        <span className="text-sm text-muted-foreground">
-                          {language === "es" ? "Mostrar" : "Show"}
-                        </span>
-                        <Select
-                          value={workersPerPage.toString()}
-                          onValueChange={(value) => setWorkersPerPage(Number(value))}
-                        >
-                          <SelectTrigger className="w-20" data-testid="select-workers-per-page">
-                            <SelectValue />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {workersViewMode === "cards" ? (
-                              <>
-                                <SelectItem value="3">3</SelectItem>
-                                <SelectItem value="6">6</SelectItem>
-                                <SelectItem value="9">9</SelectItem>
-                                <SelectItem value="12">12</SelectItem>
-                              </>
-                            ) : (
-                              <>
-                                <SelectItem value="5">5</SelectItem>
-                                <SelectItem value="10">10</SelectItem>
-                                <SelectItem value="20">20</SelectItem>
-                                <SelectItem value="30">30</SelectItem>
-                              </>
-                            )}
-                          </SelectContent>
-                        </Select>
-                        <span className="text-sm text-muted-foreground">
-                          {language === "es" ? "por página" : "per page"}
-                        </span>
-                      </div>
-                      
-                      <div className="flex items-center gap-2">
-                        <span className="text-sm text-muted-foreground">
-                          {language === "es" ? "Página" : "Page"} {workersPage} {language === "es" ? "de" : "of"} {workersTotalPages}
-                        </span>
-                        <div className="flex gap-2">
-                          <Button
-                            variant="outline"
-                            size="icon"
-                            onClick={() => setWorkersPage(Math.max(1, workersPage - 1))}
-                            disabled={workersPage === 1}
-                            data-testid="button-workers-prev-page"
-                          >
-                            <ChevronLeft className="h-4 w-4" />
-                          </Button>
-                          <Button
-                            variant="outline"
-                            size="icon"
-                            onClick={() => setWorkersPage(Math.min(workersTotalPages, workersPage + 1))}
-                            disabled={workersPage === workersTotalPages}
-                            data-testid="button-workers-next-page"
-                          >
-                            <ChevronRight className="h-4 w-4" />
-                          </Button>
-                        </div>
-                      </div>
                     </div>
                   </>
                 )}
