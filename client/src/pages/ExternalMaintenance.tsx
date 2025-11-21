@@ -354,7 +354,7 @@ export default function ExternalMaintenance() {
         bValue = b.category.toLowerCase();
         break;
       case 'priority':
-        const priorityOrder = { low: 1, medium: 2, high: 3 };
+        const priorityOrder = { low: 1, medium: 2, high: 3, urgent: 4 };
         aValue = priorityOrder[a.priority as keyof typeof priorityOrder] || 0;
         bValue = priorityOrder[b.priority as keyof typeof priorityOrder] || 0;
         break;
