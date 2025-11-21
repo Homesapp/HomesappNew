@@ -57,6 +57,8 @@ import {
   XCircle,
   ChevronUp,
   ChevronDown,
+  ChevronLeft,
+  ChevronRight,
   PawPrint,
   Zap,
   Droplet,
@@ -976,6 +978,57 @@ export default function ExternalRentals() {
             </div>
             </>
           ) : (
+            <>
+            {/* Pagination Controls - Above Table */}
+            {filteredRentals.length > 0 && (
+              <div className="flex flex-col sm:flex-row items-center justify-between gap-4 mb-4">
+                <div className="flex items-center gap-2">
+                  <span className="text-sm text-muted-foreground">{language === 'es' ? 'Mostrar' : 'Show'}</span>
+                  <Select 
+                    value={itemsPerPage.toString()} 
+                    onValueChange={(value) => setItemsPerPage(Number(value))}
+                  >
+                    <SelectTrigger className="w-[70px]" data-testid="select-items-per-page">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="5">5</SelectItem>
+                      <SelectItem value="10">10</SelectItem>
+                      <SelectItem value="20">20</SelectItem>
+                      <SelectItem value="30">30</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  <span className="text-sm text-muted-foreground">{language === 'es' ? 'por página' : 'per page'}</span>
+                </div>
+                
+                <div className="flex items-center gap-2">
+                  <span className="text-sm text-muted-foreground">
+                    {language === 'es' ? 'Página' : 'Page'} {currentPage} {language === 'es' ? 'de' : 'of'} {totalPages}
+                  </span>
+                  <div className="flex gap-2">
+                    <Button 
+                      variant="outline" 
+                      size="icon" 
+                      onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))} 
+                      disabled={currentPage === 1}
+                      data-testid="button-prev-page"
+                    >
+                      <ChevronLeft className="h-4 w-4" />
+                    </Button>
+                    <Button 
+                      variant="outline" 
+                      size="icon" 
+                      onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))} 
+                      disabled={currentPage === totalPages}
+                      data-testid="button-next-page"
+                    >
+                      <ChevronRight className="h-4 w-4" />
+                    </Button>
+                  </div>
+                </div>
+              </div>
+            )}
+
             <Card>
               <CardContent className="p-0">
                 <div className="overflow-x-auto">
@@ -1056,91 +1109,7 @@ export default function ExternalRentals() {
                 </div>
               </CardContent>
             </Card>
-          )}
-
-          {/* Pagination Controls - Always show when there are rentals */}
-          {filteredRentals.length > 0 && (
-            <div className="flex flex-col sm:flex-row items-center justify-between gap-4 p-4 border rounded-lg bg-card">
-              <div className="flex items-center gap-2">
-                <span className="text-sm text-muted-foreground whitespace-nowrap">
-                  {language === 'es' ? 'Mostrar' : 'Show'}
-                </span>
-                <Select 
-                  value={itemsPerPage.toString()} 
-                  onValueChange={(value) => setItemsPerPage(Number(value))}
-                >
-                  <SelectTrigger className="w-[70px]" data-testid="select-items-per-page">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {viewMode === "cards" ? (
-                      <>
-                        <SelectItem value="3">3</SelectItem>
-                        <SelectItem value="6">6</SelectItem>
-                        <SelectItem value="9">9</SelectItem>
-                      </>
-                    ) : (
-                      <>
-                        <SelectItem value="5">5</SelectItem>
-                        <SelectItem value="10">10</SelectItem>
-                        <SelectItem value="20">20</SelectItem>
-                        <SelectItem value="30">30</SelectItem>
-                      </>
-                    )}
-                  </SelectContent>
-                </Select>
-                <span className="text-sm text-muted-foreground whitespace-nowrap">
-                  {language === 'es' ? 'por página' : 'per page'}
-                </span>
-              </div>
-
-              <div className="flex items-center gap-2">
-                <span className="text-sm text-muted-foreground">
-                  {language === 'es' 
-                    ? `Mostrando ${filteredRentals.length === 0 ? 0 : startIndex + 1}-${Math.min(endIndex, filteredRentals.length)} de ${filteredRentals.length}`
-                    : `Showing ${filteredRentals.length === 0 ? 0 : startIndex + 1}-${Math.min(endIndex, filteredRentals.length)} of ${filteredRentals.length}`}
-                </span>
-              </div>
-
-              <div className="flex items-center gap-2">
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => setCurrentPage(1)}
-                  disabled={currentPage === 1}
-                  data-testid="button-rentals-first-page"
-                >
-                  {language === 'es' ? 'Primera' : 'First'}
-                </Button>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
-                  disabled={currentPage === 1}
-                  data-testid="button-rentals-prev-page"
-                >
-                  {language === 'es' ? 'Anterior' : 'Previous'}
-                </Button>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
-                  disabled={currentPage === totalPages}
-                  data-testid="button-rentals-next-page"
-                >
-                  {language === 'es' ? 'Siguiente' : 'Next'}
-                </Button>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => setCurrentPage(totalPages)}
-                  disabled={currentPage === totalPages}
-                  data-testid="button-rentals-last-page"
-                >
-                  {language === 'es' ? 'Última' : 'Last'}
-                </Button>
-              </div>
-            </div>
+            </>
           )}
         </div>
       ) : (

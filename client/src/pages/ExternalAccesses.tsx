@@ -1062,6 +1062,54 @@ ${access.description ? `${language === "es" ? "Descripción" : "Description"}: $
             </div>
           </CardHeader>
           <CardContent>
+            {/* Table Pagination Controls */}
+            <div className="flex flex-col sm:flex-row items-center justify-between gap-4 mb-4">
+              <div className="flex items-center gap-2">
+                <span className="text-sm text-muted-foreground">{language === 'es' ? 'Mostrar' : 'Show'}</span>
+                <Select
+                  value={tableItemsPerPage.toString()}
+                  onValueChange={(value) => setTableItemsPerPage(Number(value))}
+                >
+                  <SelectTrigger className="w-[70px]" data-testid="select-table-items-per-page">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="5">5</SelectItem>
+                    <SelectItem value="10">10</SelectItem>
+                    <SelectItem value="20">20</SelectItem>
+                    <SelectItem value="30">30</SelectItem>
+                  </SelectContent>
+                </Select>
+                <span className="text-sm text-muted-foreground">{language === 'es' ? 'por página' : 'per page'}</span>
+              </div>
+              
+              <div className="flex items-center gap-2">
+                <span className="text-sm text-muted-foreground">
+                  {language === 'es' ? 'Página' : 'Page'} {tablePage} {language === 'es' ? 'de' : 'of'} {tableTotalPages}
+                </span>
+                <div className="flex gap-2">
+                  <Button 
+                    variant="outline" 
+                    size="icon" 
+                    onClick={() => setTablePage(Math.max(1, tablePage - 1))} 
+                    disabled={tablePage === 1}
+                    data-testid="button-table-prev-page"
+                  >
+                    <ChevronLeft className="h-4 w-4" />
+                  </Button>
+                  <Button 
+                    variant="outline" 
+                    size="icon" 
+                    onClick={() => setTablePage(Math.min(tableTotalPages, tablePage + 1))} 
+                    disabled={tablePage === tableTotalPages}
+                    data-testid="button-table-next-page"
+                  >
+                    <ChevronRight className="h-4 w-4" />
+                  </Button>
+                </div>
+              </div>
+            </div>
+
             <div className="w-full overflow-x-auto">
               <Table>
                 <TableHeader>
@@ -1246,77 +1294,6 @@ ${access.description ? `${language === "es" ? "Descripción" : "Description"}: $
                   })}
                 </TableBody>
               </Table>
-            </div>
-
-            {/* Table Pagination Controls */}
-            <div className="flex flex-col sm:flex-row items-center justify-between gap-4 mt-4 pt-4 border-t">
-              <div className="flex items-center gap-2">
-                <span className="text-sm text-muted-foreground whitespace-nowrap">
-                  {language === "es" ? "Mostrar" : "Show"}
-                </span>
-                <Select
-                  value={tableItemsPerPage.toString()}
-                  onValueChange={(value) => setTableItemsPerPage(Number(value))}
-                >
-                  <SelectTrigger className="w-[70px]" data-testid="select-table-items-per-page">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="5">5</SelectItem>
-                    <SelectItem value="10">10</SelectItem>
-                    <SelectItem value="20">20</SelectItem>
-                    <SelectItem value="30">30</SelectItem>
-                  </SelectContent>
-                </Select>
-                <span className="text-sm text-muted-foreground whitespace-nowrap">
-                  {language === "es" ? "por página" : "per page"}
-                </span>
-              </div>
-
-              <div className="flex items-center gap-2">
-                <span className="text-sm text-muted-foreground whitespace-nowrap">
-                  {language === "es" ? "Página" : "Page"} {tablePage} {language === "es" ? "de" : "of"} {tableTotalPages}
-                </span>
-              </div>
-
-              <div className="flex items-center gap-1">
-                <Button
-                  variant="outline"
-                  size="icon"
-                  onClick={() => setTablePage(1)}
-                  disabled={tablePage === 1}
-                  data-testid="button-table-first-page"
-                >
-                  <ChevronsLeft className="h-4 w-4" />
-                </Button>
-                <Button
-                  variant="outline"
-                  size="icon"
-                  onClick={() => setTablePage(Math.max(1, tablePage - 1))}
-                  disabled={tablePage === 1}
-                  data-testid="button-table-prev-page"
-                >
-                  <ChevronLeft className="h-4 w-4" />
-                </Button>
-                <Button
-                  variant="outline"
-                  size="icon"
-                  onClick={() => setTablePage(Math.min(tableTotalPages, tablePage + 1))}
-                  disabled={tablePage === tableTotalPages}
-                  data-testid="button-table-next-page"
-                >
-                  <ChevronRight className="h-4 w-4" />
-                </Button>
-                <Button
-                  variant="outline"
-                  size="icon"
-                  onClick={() => setTablePage(tableTotalPages)}
-                  disabled={tablePage === tableTotalPages}
-                  data-testid="button-table-last-page"
-                >
-                  <ChevronsRight className="h-4 w-4" />
-                </Button>
-              </div>
             </div>
           </CardContent>
         </Card>
