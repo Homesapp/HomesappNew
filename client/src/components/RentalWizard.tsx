@@ -27,7 +27,11 @@ import {
   Plus,
   Trash2,
   PawPrint,
-  Users
+  Users,
+  Upload,
+  FileText,
+  Mail,
+  Phone
 } from "lucide-react";
 import { format } from "date-fns";
 import { es, enUS } from "date-fns/locale";
@@ -39,6 +43,7 @@ const rentalFormSchema = z.object({
   tenantName: z.string().min(1, "Nombre del inquilino requerido"),
   tenantEmail: z.string().email("Email inválido"),
   tenantPhone: z.string().min(1, "Teléfono requerido"),
+  tenantIdPhotoUrl: z.string().optional(),
   startDate: z.coerce.date(),
   endDate: z.coerce.date(),
   monthlyRent: z.string().min(1, "Renta mensual requerida"),
@@ -442,148 +447,215 @@ export default function RentalWizard({ open, onOpenChange }: RentalWizardProps) 
 
             {/* Step 3: Tenant Info */}
             {step === 3 && (
-              <div className="space-y-4">
+              <div className="space-y-6">
                 <div>
                   <h3 className="text-lg font-semibold mb-2">
                     {language === "es" ? "Datos del Inquilino" : "Tenant Information"}
                   </h3>
                   <p className="text-sm text-muted-foreground">
                     {language === "es" 
-                      ? "Ingresa la información del inquilino" 
-                      : "Enter tenant information"}
+                      ? "Ingresa la información del inquilino principal" 
+                      : "Enter primary tenant information"}
                   </p>
                 </div>
 
-                <FormField
-                  control={form.control}
-                  name="tenantName"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>{language === "es" ? "Nombre completo" : "Full name"}</FormLabel>
-                      <FormControl>
-                        <Input {...field} placeholder="Juan Pérez" data-testid="input-tenant-name" />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
+                {/* Main Tenant Card */}
+                <Card>
+                  <CardHeader>
+                    <div className="flex items-center gap-2">
+                      <User className="h-5 w-5 text-primary" />
+                      <CardTitle className="text-base">
+                        {language === "es" ? "Inquilino Principal" : "Primary Tenant"}
+                      </CardTitle>
+                    </div>
+                  </CardHeader>
+                  <CardContent className="space-y-4">
+                    <FormField
+                      control={form.control}
+                      name="tenantName"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel className="flex items-center gap-2">
+                            <User className="h-4 w-4" />
+                            {language === "es" ? "Nombre completo" : "Full name"}
+                          </FormLabel>
+                          <FormControl>
+                            <Input {...field} placeholder="Juan Pérez" data-testid="input-tenant-name" />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
 
-                <FormField
-                  control={form.control}
-                  name="tenantEmail"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>{language === "es" ? "Correo electrónico" : "Email"}</FormLabel>
-                      <FormControl>
-                        <Input {...field} type="email" placeholder="juan@example.com" data-testid="input-tenant-email" />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <FormField
+                        control={form.control}
+                        name="tenantEmail"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel className="flex items-center gap-2">
+                              <Mail className="h-4 w-4" />
+                              {language === "es" ? "Correo electrónico" : "Email"}
+                            </FormLabel>
+                            <FormControl>
+                              <Input {...field} type="email" placeholder="juan@example.com" data-testid="input-tenant-email" />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
 
-                <FormField
-                  control={form.control}
-                  name="tenantPhone"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>{language === "es" ? "Teléfono" : "Phone"}</FormLabel>
-                      <FormControl>
-                        <Input {...field} placeholder="+52 984 123 4567" data-testid="input-tenant-phone" />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
+                      <FormField
+                        control={form.control}
+                        name="tenantPhone"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel className="flex items-center gap-2">
+                              <Phone className="h-4 w-4" />
+                              {language === "es" ? "Teléfono" : "Phone"}
+                            </FormLabel>
+                            <FormControl>
+                              <Input {...field} placeholder="+52 984 123 4567" data-testid="input-tenant-phone" />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                    </div>
+
+                    <FormField
+                      control={form.control}
+                      name="tenantIdPhotoUrl"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel className="flex items-center gap-2">
+                            <FileText className="h-4 w-4" />
+                            {language === "es" ? "Identificación oficial (opcional)" : "Official ID (optional)"}
+                          </FormLabel>
+                          <FormControl>
+                            <div className="flex gap-2">
+                              <Input 
+                                type="file" 
+                                accept="image/*,.pdf"
+                                onChange={(e) => {
+                                  const file = e.target.files?.[0];
+                                  if (file) {
+                                    // For now, just store the file name
+                                    // In production, upload to cloud storage and get URL
+                                    field.onChange(file.name);
+                                  }
+                                }}
+                                data-testid="input-tenant-id-photo"
+                                className="file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-medium hover:file:bg-accent"
+                              />
+                            </div>
+                          </FormControl>
+                          <p className="text-xs text-muted-foreground mt-1">
+                            {language === "es" 
+                              ? "Sube una foto o PDF de la identificación oficial" 
+                              : "Upload a photo or PDF of official ID"}
+                          </p>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                  </CardContent>
+                </Card>
 
                 <Separator className="my-4" />
 
                 {/* Pet Information */}
-                <div className="space-y-3">
-                  <div className="flex items-center gap-2">
-                    <PawPrint className="h-5 w-5 text-amber-600 dark:text-amber-500" />
-                    <h4 className="font-medium">{language === "es" ? "Mascota" : "Pet"}</h4>
-                  </div>
+                <Card>
+                  <CardContent className="pt-6">
+                    <div className="space-y-4">
+                      <FormField
+                        control={form.control}
+                        name="hasPet"
+                        render={({ field }) => (
+                          <FormItem className="flex items-center gap-2 space-y-0">
+                            <FormControl>
+                              <Checkbox
+                                checked={field.value}
+                                onCheckedChange={field.onChange}
+                                data-testid="checkbox-has-pet"
+                              />
+                            </FormControl>
+                            <FormLabel className="!mt-0 cursor-pointer flex items-center gap-2">
+                              <PawPrint className="h-4 w-4 text-amber-600 dark:text-amber-500" />
+                              {language === "es" ? "¿El inquilino tiene mascota?" : "Does the tenant have a pet?"}
+                            </FormLabel>
+                          </FormItem>
+                        )}
+                      />
 
-                  <FormField
-                    control={form.control}
-                    name="hasPet"
-                    render={({ field }) => (
-                      <FormItem className="flex items-center gap-2 space-y-0">
-                        <FormControl>
-                          <Checkbox
-                            checked={field.value}
-                            onCheckedChange={field.onChange}
-                            data-testid="checkbox-has-pet"
+                      {form.watch("hasPet") && (
+                        <div className="space-y-4 mt-4 pl-6 border-l-2 border-amber-600/20">
+                          <FormField
+                            control={form.control}
+                            name="petName"
+                            render={({ field }) => (
+                              <FormItem>
+                                <FormLabel>{language === "es" ? "Nombre de la mascota" : "Pet name"}</FormLabel>
+                                <FormControl>
+                                  <Input {...field} placeholder="Max" data-testid="input-pet-name" />
+                                </FormControl>
+                                <FormMessage />
+                              </FormItem>
+                            )}
                           />
-                        </FormControl>
-                        <FormLabel className="!mt-0 cursor-pointer">
-                          {language === "es" ? "¿El inquilino tiene mascota?" : "Does the tenant have a pet?"}
-                        </FormLabel>
-                      </FormItem>
-                    )}
-                  />
 
-                  {form.watch("hasPet") && (
-                    <div className="space-y-3 pl-6 border-l-2">
-                      <FormField
-                        control={form.control}
-                        name="petName"
-                        render={({ field }) => (
-                          <FormItem>
-                            <FormLabel>{language === "es" ? "Nombre de la mascota" : "Pet name"}</FormLabel>
-                            <FormControl>
-                              <Input {...field} placeholder="Max" data-testid="input-pet-name" />
-                            </FormControl>
-                            <FormMessage />
-                          </FormItem>
-                        )}
-                      />
+                          <FormField
+                            control={form.control}
+                            name="petPhotoUrl"
+                            render={({ field }) => (
+                              <FormItem>
+                                <FormLabel>{language === "es" ? "Foto de mascota" : "Pet photo"}</FormLabel>
+                                <FormControl>
+                                  <Input 
+                                    type="file" 
+                                    accept="image/*"
+                                    onChange={(e) => {
+                                      const file = e.target.files?.[0];
+                                      if (file) field.onChange(file.name);
+                                    }}
+                                    data-testid="input-pet-photo-url"
+                                    className="file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-medium hover:file:bg-accent"
+                                  />
+                                </FormControl>
+                                <FormMessage />
+                              </FormItem>
+                            )}
+                          />
 
-                      <FormField
-                        control={form.control}
-                        name="petPhotoUrl"
-                        render={({ field }) => (
-                          <FormItem>
-                            <FormLabel>{language === "es" ? "URL de foto de mascota" : "Pet photo URL"}</FormLabel>
-                            <FormControl>
-                              <Input {...field} placeholder="https://..." data-testid="input-pet-photo-url" />
-                            </FormControl>
-                            <FormMessage />
-                          </FormItem>
-                        )}
-                      />
-
-                      <FormField
-                        control={form.control}
-                        name="petDescription"
-                        render={({ field }) => (
-                          <FormItem>
-                            <FormLabel>{language === "es" ? "Descripción (raza, tamaño, etc.)" : "Description (breed, size, etc.)"}</FormLabel>
-                            <FormControl>
-                              <Textarea {...field} placeholder={language === "es" ? "Pastor Alemán, tamaño grande" : "German Shepherd, large size"} data-testid="textarea-pet-description" />
-                            </FormControl>
-                            <FormMessage />
-                          </FormItem>
-                        )}
-                      />
+                          <FormField
+                            control={form.control}
+                            name="petDescription"
+                            render={({ field }) => (
+                              <FormItem>
+                                <FormLabel>{language === "es" ? "Descripción (raza, tamaño, etc.)" : "Description (breed, size, etc.)"}</FormLabel>
+                                <FormControl>
+                                  <Textarea {...field} placeholder={language === "es" ? "Pastor Alemán, tamaño grande" : "German Shepherd, large size"} data-testid="textarea-pet-description" rows={3} />
+                                </FormControl>
+                                <FormMessage />
+                              </FormItem>
+                            )}
+                          />
+                        </div>
+                      )}
                     </div>
-                  )}
-                </div>
-
-                <Separator className="my-4" />
+                  </CardContent>
+                </Card>
 
                 {/* Additional Tenants */}
-                <div className="space-y-3">
+                <div className="space-y-4">
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-2">
-                      <Users className="h-5 w-5" />
-                      <h4 className="font-medium">{language === "es" ? "Inquilinos Adicionales" : "Additional Tenants"}</h4>
+                      <Users className="h-5 w-5 text-primary" />
+                      <h4 className="font-semibold">{language === "es" ? "Inquilinos Adicionales" : "Additional Tenants"}</h4>
                     </div>
                     <Button
                       type="button"
                       size="sm"
-                      variant="outline"
                       onClick={() => setAdditionalTenants([...additionalTenants, { fullName: "", email: "", phone: "", idPhotoUrl: "" }])}
                       data-testid="button-add-tenant"
                     >
@@ -593,14 +665,17 @@ export default function RentalWizard({ open, onOpenChange }: RentalWizardProps) 
                   </div>
 
                   {additionalTenants.length > 0 && (
-                    <div className="space-y-3">
+                    <div className="space-y-4">
                       {additionalTenants.map((tenant, index) => (
-                        <Card key={index} className="p-4">
-                          <div className="space-y-3">
+                        <Card key={index}>
+                          <CardHeader className="pb-3">
                             <div className="flex items-center justify-between">
-                              <h5 className="text-sm font-medium">
-                                {language === "es" ? `Inquilino ${index + 2}` : `Tenant ${index + 2}`}
-                              </h5>
+                              <div className="flex items-center gap-2">
+                                <User className="h-4 w-4 text-muted-foreground" />
+                                <CardTitle className="text-sm">
+                                  {language === "es" ? `Inquilino ${index + 2}` : `Tenant ${index + 2}`}
+                                </CardTitle>
+                              </div>
                               <Button
                                 type="button"
                                 size="icon"
@@ -615,25 +690,33 @@ export default function RentalWizard({ open, onOpenChange }: RentalWizardProps) 
                                 <Trash2 className="h-4 w-4" />
                               </Button>
                             </div>
+                          </CardHeader>
+                          <CardContent className="space-y-4">
+                            <div>
+                              <Label htmlFor={`tenant-name-${index}`} className="flex items-center gap-2">
+                                <User className="h-3.5 w-3.5" />
+                                {language === "es" ? "Nombre completo" : "Full name"}
+                              </Label>
+                              <Input
+                                id={`tenant-name-${index}`}
+                                value={tenant.fullName}
+                                onChange={(e) => {
+                                  const newTenants = [...additionalTenants];
+                                  newTenants[index].fullName = e.target.value;
+                                  setAdditionalTenants(newTenants);
+                                }}
+                                placeholder={language === "es" ? "Nombre completo" : "Full name"}
+                                data-testid={`input-additional-tenant-name-${index}`}
+                                className="mt-1.5"
+                              />
+                            </div>
 
-                            <div className="space-y-2">
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                               <div>
-                                <Label htmlFor={`tenant-name-${index}`}>{language === "es" ? "Nombre completo" : "Full name"}</Label>
-                                <Input
-                                  id={`tenant-name-${index}`}
-                                  value={tenant.fullName}
-                                  onChange={(e) => {
-                                    const newTenants = [...additionalTenants];
-                                    newTenants[index].fullName = e.target.value;
-                                    setAdditionalTenants(newTenants);
-                                  }}
-                                  placeholder={language === "es" ? "Nombre completo" : "Full name"}
-                                  data-testid={`input-additional-tenant-name-${index}`}
-                                />
-                              </div>
-
-                              <div>
-                                <Label htmlFor={`tenant-email-${index}`}>{language === "es" ? "Correo electrónico" : "Email"}</Label>
+                                <Label htmlFor={`tenant-email-${index}`} className="flex items-center gap-2">
+                                  <Mail className="h-3.5 w-3.5" />
+                                  {language === "es" ? "Correo electrónico" : "Email"}
+                                </Label>
                                 <Input
                                   id={`tenant-email-${index}`}
                                   type="email"
@@ -645,11 +728,15 @@ export default function RentalWizard({ open, onOpenChange }: RentalWizardProps) 
                                   }}
                                   placeholder="email@example.com"
                                   data-testid={`input-additional-tenant-email-${index}`}
+                                  className="mt-1.5"
                                 />
                               </div>
 
                               <div>
-                                <Label htmlFor={`tenant-phone-${index}`}>{language === "es" ? "Teléfono" : "Phone"}</Label>
+                                <Label htmlFor={`tenant-phone-${index}`} className="flex items-center gap-2">
+                                  <Phone className="h-3.5 w-3.5" />
+                                  {language === "es" ? "Teléfono" : "Phone"}
+                                </Label>
                                 <Input
                                   id={`tenant-phone-${index}`}
                                   value={tenant.phone}
@@ -660,25 +747,38 @@ export default function RentalWizard({ open, onOpenChange }: RentalWizardProps) 
                                   }}
                                   placeholder="+52 984 123 4567"
                                   data-testid={`input-additional-tenant-phone-${index}`}
-                                />
-                              </div>
-
-                              <div>
-                                <Label htmlFor={`tenant-id-url-${index}`}>{language === "es" ? "URL de identificación" : "ID photo URL"}</Label>
-                                <Input
-                                  id={`tenant-id-url-${index}`}
-                                  value={tenant.idPhotoUrl}
-                                  onChange={(e) => {
-                                    const newTenants = [...additionalTenants];
-                                    newTenants[index].idPhotoUrl = e.target.value;
-                                    setAdditionalTenants(newTenants);
-                                  }}
-                                  placeholder="https://..."
-                                  data-testid={`input-additional-tenant-id-url-${index}`}
+                                  className="mt-1.5"
                                 />
                               </div>
                             </div>
-                          </div>
+
+                            <div>
+                              <Label htmlFor={`tenant-id-url-${index}`} className="flex items-center gap-2">
+                                <FileText className="h-3.5 w-3.5" />
+                                {language === "es" ? "Identificación oficial (opcional)" : "Official ID (optional)"}
+                              </Label>
+                              <Input
+                                type="file"
+                                accept="image/*,.pdf"
+                                id={`tenant-id-url-${index}`}
+                                onChange={(e) => {
+                                  const file = e.target.files?.[0];
+                                  if (file) {
+                                    const newTenants = [...additionalTenants];
+                                    newTenants[index].idPhotoUrl = file.name;
+                                    setAdditionalTenants(newTenants);
+                                  }
+                                }}
+                                data-testid={`input-additional-tenant-id-${index}`}
+                                className="mt-1.5 file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-medium hover:file:bg-accent"
+                              />
+                              <p className="text-xs text-muted-foreground mt-1">
+                                {language === "es" 
+                                  ? "Sube una foto o PDF de la identificación oficial" 
+                                  : "Upload a photo or PDF of official ID"}
+                              </p>
+                            </div>
+                          </CardContent>
                         </Card>
                       ))}
                     </div>
