@@ -1233,9 +1233,8 @@ export default function ExternalMaintenanceWorkers() {
                       />
 
                       {/* Table View */}
-                      <Card>
-                        <div className="w-full overflow-x-auto">
-                          <Table className="text-sm">
+                      <div className="w-full overflow-x-auto">
+                        <Table className="text-sm">
                             <TableHeader>
                               <TableRow>
                                 <TableHead className="h-10 px-3 min-w-[200px]">
@@ -1336,7 +1335,6 @@ export default function ExternalMaintenanceWorkers() {
                             </TableBody>
                           </Table>
                         </div>
-                      </Card>
                     </>
                   )}
                 </>
@@ -1462,9 +1460,8 @@ export default function ExternalMaintenanceWorkers() {
                       />
 
                       {/* Table View */}
-                      <Card>
-                        <div className="w-full overflow-x-auto">
-                          <Table className="text-sm">
+                      <div className="w-full overflow-x-auto">
+                        <Table className="text-sm">
                         <TableHeader>
                           <TableRow>
                             <TableHead className="h-10 px-3 min-w-[200px]">
@@ -1537,7 +1534,6 @@ export default function ExternalMaintenanceWorkers() {
                           </TableBody>
                         </Table>
                       </div>
-                    </Card>
                   </>
                 )}
               </>
