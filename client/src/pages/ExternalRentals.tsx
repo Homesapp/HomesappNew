@@ -93,7 +93,6 @@ export default function ExternalRentals() {
   const [, setLocation] = useLocation();
   const isMobile = useMobile();
   const [statusFilter, setStatusFilter] = useState<string | null>(null);
-  const [todayFilter, setTodayFilter] = useState(false);
   const [viewMode, setViewMode] = useState<"cards" | "table">("table");
   const [manualViewModeOverride, setManualViewModeOverride] = useState(false);
   const [prevIsMobile, setPrevIsMobile] = useState(isMobile);
@@ -257,14 +256,6 @@ export default function ExternalRentals() {
       }
     }
     
-    // Filter by today's payments
-    if (todayFilter && rental.nextPaymentDue) {
-      const today = format(new Date(), "yyyy-MM-dd");
-      if (rental.nextPaymentDue !== today) {
-        return false;
-      }
-    }
-    
     // Filter by condominium ID
     if (condominiumFilter && rental.condominium?.id !== condominiumFilter) {
       return false;
@@ -308,12 +299,11 @@ export default function ExternalRentals() {
   // Reset page when filters or search change
   useEffect(() => {
     setCurrentPage(1);
-  }, [statusFilter, condominiumFilter, unitFilter, searchTerm, todayFilter]);
+  }, [statusFilter, condominiumFilter, unitFilter, searchTerm]);
   
   // Clear all filters function
   const clearFilters = () => {
     setStatusFilter(null);
-    setTodayFilter(false);
     setCondominiumFilter("");
     setUnitFilter("");
     setSearchTerm("");
@@ -519,9 +509,9 @@ export default function ExternalRentals() {
                   data-testid="button-toggle-filters"
                 >
                   <Filter className="h-4 w-4" />
-                  {(statusFilter !== null || todayFilter || condominiumFilter || unitFilter) && (
+                  {(statusFilter !== null || condominiumFilter || unitFilter) && (
                     <Badge variant="default" className="absolute -top-1 -right-1 h-4 w-4 p-0 flex items-center justify-center text-[10px]">
-                      {[statusFilter !== null, todayFilter, condominiumFilter, unitFilter].filter(Boolean).length}
+                      {[statusFilter !== null, condominiumFilter, unitFilter].filter(Boolean).length}
                     </Badge>
                   )}
                 </Button>
@@ -639,16 +629,6 @@ export default function ExternalRentals() {
             </div>
           </PopoverContent>
         </Popover>
-
-            {/* HOY Button */}
-            <Button
-              variant={todayFilter ? "default" : "outline"}
-              onClick={() => setTodayFilter(!todayFilter)}
-              className="flex-shrink-0"
-              data-testid="button-filter-today"
-            >
-              {language === "es" ? "HOY" : "TODAY"}
-            </Button>
 
             {/* View Toggle Buttons - Desktop Only */}
             {!isMobile && (
