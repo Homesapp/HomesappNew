@@ -105,6 +105,10 @@ export default function ExternalRentals() {
   const [selectUnitDialogOpen, setSelectUnitDialogOpen] = useState(false);
   const [wizardOpen, setWizardOpen] = useState(false);
   const [serviceIndices, setServiceIndices] = useState<Record<string, number>>({});
+  
+  // Pagination state (3 rows x 3 cols = 9 cards per page)
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 9;
 
   const { data: rentals, isLoading, isError, error, refetch } = useQuery<RentalWithDetails[]>({
     queryKey: statusFilter 
@@ -208,7 +212,25 @@ export default function ExternalRentals() {
       if (!aCompleted && bCompleted) return -1;
     }
     return 0;
-  });
+  }) || [];
+
+  // Paginate rentals (3 rows x 3 cols = 9 cards per page)
+  const totalPages = Math.max(1, Math.ceil(filteredRentals.length / itemsPerPage));
+  const startIndex = (currentPage - 1) * itemsPerPage;
+  const endIndex = startIndex + itemsPerPage;
+  const paginatedRentals = filteredRentals.slice(startIndex, endIndex);
+
+  // Clamp page when data changes
+  useEffect(() => {
+    if (currentPage > totalPages && totalPages > 0) {
+      setCurrentPage(totalPages);
+    }
+  }, [filteredRentals.length]);
+
+  // Reset page when filters change
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [statusFilter, condominiumFilter, unitFilter]);
 
   // Helper to get the most recent payment status for a service
   const getNextPaymentStatus = (contractId: string, serviceType: string, dayOfMonth: number): 'paid' | 'pending' | 'overdue' | null => {
@@ -617,9 +639,10 @@ export default function ExternalRentals() {
           </CardContent>
         </Card>
       ) : filteredRentals && filteredRentals.length > 0 ? (
-        viewMode === "cards" ? (
-          <div className="grid gap-4 grid-cols-1 lg:grid-cols-2 xl:grid-cols-3">
-            {filteredRentals.map(({ contract, unit, condominium, activeServices, nextPaymentDue, nextPaymentAmount, nextPaymentService }) => {
+        <div className="space-y-4">
+          {viewMode === "cards" ? (
+            <div className="grid gap-4 grid-cols-1 lg:grid-cols-2 xl:grid-cols-3">
+              {paginatedRentals.map(({ contract, unit, condominium, activeServices, nextPaymentDue, nextPaymentAmount, nextPaymentService }) => {
               // Sort services so rent always appears first
               const sortedServices = activeServices ? [...activeServices].sort((a, b) => {
                 if (a.serviceType === 'rent') return -1;
@@ -865,27 +888,27 @@ export default function ExternalRentals() {
                 </CardContent>
               </Card>
               );
-            })}
-          </div>
-        ) : (
-          <Card>
-            <CardContent className="p-0">
-              <div className="overflow-x-auto">
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>{language === "es" ? "Condominio" : "Condominium"}</TableHead>
-                      <TableHead>{language === "es" ? "Unidad" : "Unit"}</TableHead>
-                      <TableHead>{language === "es" ? "Inquilino" : "Tenant"}</TableHead>
-                      <TableHead>{language === "es" ? "Renta Mensual" : "Monthly Rent"}</TableHead>
-                      <TableHead>{language === "es" ? "Inicio" : "Start Date"}</TableHead>
-                      <TableHead>{language === "es" ? "Fin" : "End Date"}</TableHead>
-                      <TableHead>{language === "es" ? "Estado" : "Status"}</TableHead>
-                      <TableHead className="text-right">{language === "es" ? "Acciones" : "Actions"}</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {filteredRentals.map(({ contract, unit, condominium, activeServices, nextPaymentDue, nextPaymentAmount, nextPaymentService }) => (
+              })}
+            </div>
+          ) : (
+            <Card>
+              <CardContent className="p-0">
+                <div className="overflow-x-auto">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>{language === "es" ? "Condominio" : "Condominium"}</TableHead>
+                        <TableHead>{language === "es" ? "Unidad" : "Unit"}</TableHead>
+                        <TableHead>{language === "es" ? "Inquilino" : "Tenant"}</TableHead>
+                        <TableHead>{language === "es" ? "Renta Mensual" : "Monthly Rent"}</TableHead>
+                        <TableHead>{language === "es" ? "Inicio" : "Start Date"}</TableHead>
+                        <TableHead>{language === "es" ? "Fin" : "End Date"}</TableHead>
+                        <TableHead>{language === "es" ? "Estado" : "Status"}</TableHead>
+                        <TableHead className="text-right">{language === "es" ? "Acciones" : "Actions"}</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {paginatedRentals.map(({ contract, unit, condominium, activeServices, nextPaymentDue, nextPaymentAmount, nextPaymentService }) => (
                       <TableRow key={contract.id} data-testid={`row-rental-${contract.id}`}>
                         <TableCell data-testid={`cell-condominium-${contract.id}`}>
                           {condominium?.name || "-"}
@@ -942,13 +965,74 @@ export default function ExternalRentals() {
                           </div>
                         </TableCell>
                       </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </div>
+              </CardContent>
+            </Card>
+          )}
+
+          {/* Pagination Controls */}
+          {filteredRentals.length > itemsPerPage && (
+            <div className="flex flex-col sm:flex-row items-center justify-between gap-4 p-4 border rounded-lg bg-card">
+              <div className="flex items-center gap-2">
+                <span className="text-sm text-muted-foreground">
+                  {language === 'es' 
+                    ? `Mostrando ${startIndex + 1}-${Math.min(endIndex, filteredRentals.length)} de ${filteredRentals.length}`
+                    : `Showing ${startIndex + 1}-${Math.min(endIndex, filteredRentals.length)} of ${filteredRentals.length}`}
+                </span>
               </div>
-            </CardContent>
-          </Card>
-        )
+
+              <div className="flex items-center gap-2">
+                <span className="text-sm text-muted-foreground">
+                  {language === 'es' 
+                    ? `Página ${currentPage} de ${totalPages}`
+                    : `Page ${currentPage} of ${totalPages}`}
+                </span>
+              </div>
+
+              <div className="flex items-center gap-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setCurrentPage(1)}
+                  disabled={currentPage === 1}
+                  data-testid="button-rentals-first-page"
+                >
+                  {language === 'es' ? 'Primera' : 'First'}
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
+                  disabled={currentPage === 1}
+                  data-testid="button-rentals-prev-page"
+                >
+                  {language === 'es' ? 'Anterior' : 'Previous'}
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
+                  disabled={currentPage === totalPages}
+                  data-testid="button-rentals-next-page"
+                >
+                  {language === 'es' ? 'Siguiente' : 'Next'}
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setCurrentPage(totalPages)}
+                  disabled={currentPage === totalPages}
+                  data-testid="button-rentals-last-page"
+                >
+                  {language === 'es' ? 'Última' : 'Last'}
+                </Button>
+              </div>
+            </div>
+          )}
+        </div>
       ) : (
         <Card>
           <CardContent className="flex flex-col items-center justify-center py-12">
