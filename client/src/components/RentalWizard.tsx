@@ -67,6 +67,7 @@ export default function RentalWizard({ open, onOpenChange }: RentalWizardProps) 
   const { language } = useLanguage();
   const { toast } = useToast();
   const [step, setStep] = useState(1);
+  const [selectedCondominiumId, setSelectedCondominiumId] = useState<string>("");
   const [selectedUnitId, setSelectedUnitId] = useState<string>("");
   const [additionalServices, setAdditionalServices] = useState<Array<{
     serviceType: string;
@@ -79,6 +80,16 @@ export default function RentalWizard({ open, onOpenChange }: RentalWizardProps) 
     phone: string;
     idPhotoUrl: string;
   }>>([]);
+
+  const { data: condominiums, isLoading: condominiumsLoading } = useQuery<ExternalCondominium[]>({
+    queryKey: ["/api/external-condominiums"],
+    queryFn: async () => {
+      const response = await fetch("/api/external-condominiums");
+      if (!response.ok) throw new Error("Failed to fetch condominiums");
+      return response.json();
+    },
+    enabled: open,
+  });
 
   const { data: availableUnits, isLoading: unitsLoading } = useQuery<UnitWithDetails[]>({
     queryKey: ["/api/external-units"],
@@ -139,6 +150,7 @@ export default function RentalWizard({ open, onOpenChange }: RentalWizardProps) 
 
   const resetWizard = () => {
     setStep(1);
+    setSelectedCondominiumId("");
     setSelectedUnitId("");
     setAdditionalServices([]);
     setAdditionalTenants([]);
@@ -146,7 +158,15 @@ export default function RentalWizard({ open, onOpenChange }: RentalWizardProps) 
   };
 
   const handleNext = () => {
-    if (step === 1 && !selectedUnitId) {
+    if (step === 1 && !selectedCondominiumId) {
+      toast({
+        title: language === "es" ? "Error" : "Error",
+        description: language === "es" ? "Por favor selecciona un condominio" : "Please select a condominium",
+        variant: "destructive",
+      });
+      return;
+    }
+    if (step === 2 && !selectedUnitId) {
       toast({
         title: language === "es" ? "Selecciona una unidad" : "Select a unit",
         description: language === "es" ? "Debes seleccionar una unidad para continuar" : "You must select a unit to continue",
@@ -246,13 +266,18 @@ export default function RentalWizard({ open, onOpenChange }: RentalWizardProps) 
   };
 
   const selectedUnit = availableUnits?.find(u => u.id === selectedUnitId);
-  const filteredUnits = availableUnits?.filter(u => u.status === 'active' && !u.currentContractId) || [];
+  const filteredUnits = availableUnits?.filter(u => 
+    u.status === 'active' && 
+    !u.currentContractId &&
+    (!selectedCondominiumId || u.condominiumId === selectedCondominiumId)
+  ) || [];
 
   const steps = [
-    { number: 1, title: language === "es" ? "Unidad" : "Unit", icon: Home },
-    { number: 2, title: language === "es" ? "Inquilino" : "Tenant", icon: User },
-    { number: 3, title: language === "es" ? "Términos" : "Terms", icon: DollarSign },
-    { number: 4, title: language === "es" ? "Confirmar" : "Confirm", icon: Check },
+    { number: 1, title: language === "es" ? "Condominio" : "Condominium", icon: Building2 },
+    { number: 2, title: language === "es" ? "Unidad" : "Unit", icon: Home },
+    { number: 3, title: language === "es" ? "Inquilino" : "Tenant", icon: User },
+    { number: 4, title: language === "es" ? "Términos" : "Terms", icon: DollarSign },
+    { number: 5, title: language === "es" ? "Confirmar" : "Confirm", icon: Check },
   ];
 
   return (
@@ -267,8 +292,8 @@ export default function RentalWizard({ open, onOpenChange }: RentalWizardProps) 
           </DialogTitle>
           <DialogDescription>
             {language === "es" 
-              ? "Crea un nuevo contrato de renta en 4 pasos simples" 
-              : "Create a new rental contract in 4 simple steps"}
+              ? "Crea un nuevo contrato de renta en 5 pasos simples" 
+              : "Create a new rental contract in 5 simple steps"}
           </DialogDescription>
         </DialogHeader>
 
@@ -300,8 +325,64 @@ export default function RentalWizard({ open, onOpenChange }: RentalWizardProps) 
 
         <Form {...form}>
           <form onSubmit={form.handleSubmit(handleSubmit)} className="space-y-4">
-            {/* Step 1: Select Unit */}
+            {/* Step 1: Select Condominium */}
             {step === 1 && (
+              <div className="space-y-4">
+                <div>
+                  <h3 className="text-lg font-semibold mb-2">
+                    {language === "es" ? "Selecciona el Condominio" : "Select Condominium"}
+                  </h3>
+                  <p className="text-sm text-muted-foreground">
+                    {language === "es" 
+                      ? "Elige el condominio donde se encuentra la unidad" 
+                      : "Choose the condominium where the unit is located"}
+                  </p>
+                </div>
+
+                {condominiumsLoading ? (
+                  <p className="text-sm text-muted-foreground text-center py-8">
+                    {language === "es" ? "Cargando condominios..." : "Loading condominiums..."}
+                  </p>
+                ) : !condominiums || condominiums.length === 0 ? (
+                  <p className="text-sm text-muted-foreground text-center py-8">
+                    {language === "es" ? "No hay condominios disponibles" : "No condominiums available"}
+                  </p>
+                ) : (
+                  <div className="grid gap-3 md:grid-cols-2">
+                    {condominiums.map((condo) => (
+                      <Card
+                        key={condo.id}
+                        className={`cursor-pointer hover-elevate ${
+                          selectedCondominiumId === condo.id ? "border-primary border-2" : ""
+                        }`}
+                        onClick={() => setSelectedCondominiumId(condo.id)}
+                        data-testid={`condo-option-${condo.id}`}
+                      >
+                        <CardContent className="p-4">
+                          <div className="flex items-start justify-between">
+                            <div className="flex-1">
+                              <div className="flex items-center gap-2 mb-1">
+                                <Building2 className="h-4 w-4 text-muted-foreground" />
+                                <p className="font-semibold">{condo.name}</p>
+                              </div>
+                              <p className="text-sm text-muted-foreground">
+                                {condo.address}
+                              </p>
+                            </div>
+                            {selectedCondominiumId === condo.id && (
+                              <Check className="h-5 w-5 text-primary flex-shrink-0" />
+                            )}
+                          </div>
+                        </CardContent>
+                      </Card>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* Step 2: Select Unit */}
+            {step === 2 && (
               <div className="space-y-4">
                 <div>
                   <h3 className="text-lg font-semibold mb-2">
@@ -359,8 +440,8 @@ export default function RentalWizard({ open, onOpenChange }: RentalWizardProps) 
               </div>
             )}
 
-            {/* Step 2: Tenant Info */}
-            {step === 2 && (
+            {/* Step 3: Tenant Info */}
+            {step === 3 && (
               <div className="space-y-4">
                 <div>
                   <h3 className="text-lg font-semibold mb-2">
@@ -606,8 +687,8 @@ export default function RentalWizard({ open, onOpenChange }: RentalWizardProps) 
               </div>
             )}
 
-            {/* Step 3: Terms */}
-            {step === 3 && (
+            {/* Step 4: Terms */}
+            {step === 4 && (
               <div className="space-y-4">
                 <div>
                   <h3 className="text-lg font-semibold mb-2">
@@ -787,8 +868,8 @@ export default function RentalWizard({ open, onOpenChange }: RentalWizardProps) 
               </div>
             )}
 
-            {/* Step 4: Confirm */}
-            {step === 4 && (
+            {/* Step 5: Confirm */}
+            {step === 5 && (
               <div className="space-y-4">
                 <div>
                   <h3 className="text-lg font-semibold mb-2">
@@ -875,7 +956,7 @@ export default function RentalWizard({ open, onOpenChange }: RentalWizardProps) 
                 {language === "es" ? "Atrás" : "Back"}
               </Button>
 
-              {step < 4 ? (
+              {step < 5 ? (
                 <Button
                   type="button"
                   onClick={handleNext}
