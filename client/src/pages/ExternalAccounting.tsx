@@ -86,23 +86,6 @@ export default function ExternalAccounting() {
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState(5);
 
-  // Reset to page 1 when filters or data changes
-  useEffect(() => {
-    setCurrentPage(1);
-  }, [directionFilter, categoryFilter, statusFilter, condominiumFilter, unitFilter, dateFilter, customStartDate, customEndDate, itemsPerPage]);
-  
-  // Clamp currentPage to valid range when data length changes
-  useEffect(() => {
-    if (!filteredTransactions || filteredTransactions.length === 0) {
-      setCurrentPage(1);
-      return;
-    }
-    const maxPage = Math.ceil(filteredTransactions.length / itemsPerPage) || 1;
-    if (currentPage > maxPage) {
-      setCurrentPage(maxPage);
-    }
-  }, [filteredTransactions?.length, itemsPerPage]);
-
   const buildTransactionsQueryKey = () => {
     const params = new URLSearchParams();
     if (directionFilter !== "all") params.append("direction", directionFilter);
@@ -220,6 +203,23 @@ export default function ExternalAccounting() {
   }, [sortedAndFilteredTransactions, currentPage, itemsPerPage]);
 
   const totalPages = Math.ceil(sortedAndFilteredTransactions.length / itemsPerPage);
+
+  // Reset to page 1 when filters or data changes
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [directionFilter, categoryFilter, statusFilter, condominiumFilter, unitFilter, dateFilter, customStartDate, customEndDate, itemsPerPage]);
+  
+  // Clamp currentPage to valid range when data length changes
+  useEffect(() => {
+    if (!sortedAndFilteredTransactions || sortedAndFilteredTransactions.length === 0) {
+      setCurrentPage(1);
+      return;
+    }
+    const maxPage = Math.ceil(sortedAndFilteredTransactions.length / itemsPerPage) || 1;
+    if (currentPage > maxPage) {
+      setCurrentPage(maxPage);
+    }
+  }, [sortedAndFilteredTransactions.length, itemsPerPage, currentPage]);
 
   const handleSort = (column: string) => {
     if (sortColumn === column) {
