@@ -597,14 +597,23 @@ export default function ExternalMaintenance() {
             <Input
               placeholder={t.search}
               value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
+              onChange={(e) => {
+                setSearchTerm(e.target.value);
+                setCurrentPage(1);
+              }}
               className="pl-10"
               data-testid="input-search"
             />
           </div>
 
           <div className="grid gap-4 md:grid-cols-5">
-            <Select value={statusFilter} onValueChange={setStatusFilter}>
+            <Select 
+              value={statusFilter} 
+              onValueChange={(value) => {
+                setStatusFilter(value);
+                setCurrentPage(1);
+              }}
+            >
               <SelectTrigger data-testid="select-status">
                 <SelectValue placeholder={t.status} />
               </SelectTrigger>
@@ -618,7 +627,13 @@ export default function ExternalMaintenance() {
               </SelectContent>
             </Select>
 
-            <Select value={priorityFilter} onValueChange={setPriorityFilter}>
+            <Select 
+              value={priorityFilter} 
+              onValueChange={(value) => {
+                setPriorityFilter(value);
+                setCurrentPage(1);
+              }}
+            >
               <SelectTrigger data-testid="select-priority">
                 <SelectValue placeholder={t.priority} />
               </SelectTrigger>
@@ -631,7 +646,13 @@ export default function ExternalMaintenance() {
               </SelectContent>
             </Select>
 
-            <Select value={categoryFilter} onValueChange={setCategoryFilter}>
+            <Select 
+              value={categoryFilter} 
+              onValueChange={(value) => {
+                setCategoryFilter(value);
+                setCurrentPage(1);
+              }}
+            >
               <SelectTrigger data-testid="select-category">
                 <SelectValue placeholder={t.category} />
               </SelectTrigger>
@@ -647,7 +668,13 @@ export default function ExternalMaintenance() {
               </SelectContent>
             </Select>
 
-            <Select value={condominiumFilter} onValueChange={setCondominiumFilter}>
+            <Select 
+              value={condominiumFilter} 
+              onValueChange={(value) => {
+                setCondominiumFilter(value);
+                setCurrentPage(1);
+              }}
+            >
               <SelectTrigger data-testid="select-condominium">
                 <SelectValue placeholder={t.condominium} />
               </SelectTrigger>
@@ -669,6 +696,7 @@ export default function ExternalMaintenance() {
                 setPriorityFilter("all");
                 setCategoryFilter("all");
                 setCondominiumFilter("all");
+                setCurrentPage(1);
               }}
               data-testid="button-clear-filters"
             >
@@ -688,29 +716,107 @@ export default function ExternalMaintenance() {
               <Skeleton className="h-8 w-full mb-4" />
               <Skeleton className="h-8 w-full" />
             </div>
-          ) : filteredTickets.length === 0 ? (
+          ) : sortedTickets.length === 0 ? (
             <div className="py-12 text-center">
               <Wrench className="mx-auto h-12 w-12 text-muted-foreground mb-4" />
               <h3 className="text-lg font-medium mb-1">{t.noTickets}</h3>
               <p className="text-sm text-muted-foreground">{t.noTicketsDesc}</p>
             </div>
           ) : (
-            <div className="overflow-x-auto">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>{t.ticketTitle}</TableHead>
-                    <TableHead>{t.unit}</TableHead>
-                    <TableHead>{t.category}</TableHead>
-                    <TableHead>{t.priority}</TableHead>
-                    <TableHead>{t.status}</TableHead>
-                    <TableHead>{t.assigned}</TableHead>
-                    <TableHead>{t.created}</TableHead>
-                    <TableHead className="text-right">{t.actions}</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {filteredTickets.map(ticket => {
+            <div>
+              <div className="overflow-x-auto">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => handleSort('title')}
+                          className="hover-elevate -ml-3"
+                          data-testid="sort-title"
+                        >
+                          {t.ticketTitle}
+                          {renderSortIcon('title')}
+                        </Button>
+                      </TableHead>
+                      <TableHead>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => handleSort('unit')}
+                          className="hover-elevate -ml-3"
+                          data-testid="sort-unit"
+                        >
+                          {t.unit}
+                          {renderSortIcon('unit')}
+                        </Button>
+                      </TableHead>
+                      <TableHead>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => handleSort('category')}
+                          className="hover-elevate -ml-3"
+                          data-testid="sort-category"
+                        >
+                          {t.category}
+                          {renderSortIcon('category')}
+                        </Button>
+                      </TableHead>
+                      <TableHead>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => handleSort('priority')}
+                          className="hover-elevate -ml-3"
+                          data-testid="sort-priority"
+                        >
+                          {t.priority}
+                          {renderSortIcon('priority')}
+                        </Button>
+                      </TableHead>
+                      <TableHead>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => handleSort('status')}
+                          className="hover-elevate -ml-3"
+                          data-testid="sort-status"
+                        >
+                          {t.status}
+                          {renderSortIcon('status')}
+                        </Button>
+                      </TableHead>
+                      <TableHead>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => handleSort('assigned')}
+                          className="hover-elevate -ml-3"
+                          data-testid="sort-assigned"
+                        >
+                          {t.assigned}
+                          {renderSortIcon('assigned')}
+                        </Button>
+                      </TableHead>
+                      <TableHead>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => handleSort('created')}
+                          className="hover-elevate -ml-3"
+                          data-testid="sort-created"
+                        >
+                          {t.created}
+                          {renderSortIcon('created')}
+                        </Button>
+                      </TableHead>
+                      <TableHead className="text-right">{t.actions}</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {paginatedTickets.map(ticket => {
                     const unitInfo = getUnitInfo(ticket.unitId);
                     const assignedName = getAssignedUserName(ticket.assignedTo);
                     const statusConfig = statusColors[ticket.status] || statusColors.open;
@@ -767,6 +873,80 @@ export default function ExternalMaintenance() {
                   })}
                 </TableBody>
               </Table>
+            </div>
+
+            {/* Pagination Controls */}
+            <div className="flex flex-col sm:flex-row items-center justify-between gap-4 p-4 border-t">
+              <div className="flex items-center gap-2">
+                <span className="text-sm text-muted-foreground">
+                  {language === 'es' ? 'Filas por página:' : 'Rows per page:'}
+                </span>
+                <Select 
+                  value={itemsPerPage.toString()} 
+                  onValueChange={(value) => {
+                    setItemsPerPage(Number(value));
+                    setCurrentPage(1);
+                  }}
+                >
+                  <SelectTrigger className="w-20" data-testid="select-items-per-page">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="5">5</SelectItem>
+                    <SelectItem value="10">10</SelectItem>
+                    <SelectItem value="20">20</SelectItem>
+                    <SelectItem value="30">30</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="flex items-center gap-2">
+                <span className="text-sm text-muted-foreground">
+                  {language === 'es' 
+                    ? `Página ${currentPage} de ${totalPages} (${sortedTickets.length} tickets)`
+                    : `Page ${currentPage} of ${totalPages} (${sortedTickets.length} tickets)`}
+                </span>
+              </div>
+
+              <div className="flex items-center gap-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setCurrentPage(1)}
+                  disabled={currentPage === 1}
+                  data-testid="button-first-page"
+                >
+                  {language === 'es' ? 'Primera' : 'First'}
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
+                  disabled={currentPage === 1}
+                  data-testid="button-prev-page"
+                >
+                  {language === 'es' ? 'Anterior' : 'Previous'}
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
+                  disabled={currentPage === totalPages}
+                  data-testid="button-next-page"
+                >
+                  {language === 'es' ? 'Siguiente' : 'Next'}
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setCurrentPage(totalPages)}
+                  disabled={currentPage === totalPages}
+                  data-testid="button-last-page"
+                >
+                  {language === 'es' ? 'Última' : 'Last'}
+                </Button>
+              </div>
+            </div>
             </div>
           )}
         </CardContent>
