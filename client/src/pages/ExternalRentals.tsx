@@ -95,6 +95,34 @@ export default function ExternalRentals() {
   // Pagination state (max 3 rows x 3 cols = 9 cards per page)
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState(9); // Default: 3 rows
+  
+  // Filter navigation indices
+  const [condominiumFilterIndex, setCondominiumFilterIndex] = useState(0);
+  const [unitFilterIndex, setUnitFilterIndex] = useState(0);
+  
+  // Clamp condominium filter index when condominiums change
+  useEffect(() => {
+    if (condominiums) {
+      const totalCondos = condominiums.length + 1; // +1 for "All" button
+      const buttonsPerView = 3;
+      const maxIndex = Math.max(0, totalCondos - buttonsPerView);
+      if (condominiumFilterIndex > maxIndex) {
+        setCondominiumFilterIndex(maxIndex);
+      }
+    }
+  }, [condominiums, condominiumFilterIndex]);
+  
+  // Clamp unit filter index when units change
+  useEffect(() => {
+    if (units) {
+      const totalUnits = units.length + 1; // +1 for "All" button
+      const buttonsPerView = 3;
+      const maxIndex = Math.max(0, totalUnits - buttonsPerView);
+      if (unitFilterIndex > maxIndex) {
+        setUnitFilterIndex(maxIndex);
+      }
+    }
+  }, [units, unitFilterIndex]);
 
   const { data: rentals, isLoading, isError, error, refetch } = useQuery<RentalWithDetails[]>({
     queryKey: statusFilter 
@@ -459,35 +487,64 @@ export default function ExternalRentals() {
             <label className="text-sm font-medium">
               {language === "es" ? "Condominio" : "Condominium"}
             </label>
-            <div className="flex flex-nowrap gap-2 overflow-x-auto pb-2">
-              <Button
-                variant={condominiumFilter === "" ? "default" : "outline"}
-                size="sm"
-                onClick={() => {
-                  setCondominiumFilter("");
-                  setUnitFilter("");
-                }}
-                data-testid="button-filter-condo-all"
-                className="flex-shrink-0"
-              >
-                {language === "es" ? "Todos" : "All"}
-              </Button>
-              {condominiums?.map((condo) => (
-                <Button
-                  key={condo.id}
-                  variant={condominiumFilter === condo.id ? "default" : "outline"}
-                  size="sm"
-                  onClick={() => {
-                    setCondominiumFilter(condo.id);
-                    setUnitFilter("");
-                  }}
-                  data-testid={`button-filter-condo-${condo.id}`}
-                  className="flex-shrink-0"
-                >
-                  {condo.name}
-                </Button>
-              ))}
-            </div>
+            {(() => {
+              // Always include "All" button as first item
+              const allCondos = [
+                { id: "", name: language === "es" ? "Todos" : "All" },
+                ...(condominiums || [])
+              ];
+              const buttonsPerView = 3;
+              const totalButtons = allCondos.length;
+              const currentIndex = condominiumFilterIndex;
+              const visibleCondos = allCondos.slice(currentIndex, currentIndex + buttonsPerView);
+              const canGoLeft = currentIndex > 0;
+              const canGoRight = currentIndex + buttonsPerView < totalButtons;
+              
+              return (
+                <div className="flex items-center gap-2">
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="h-8 w-8 flex-shrink-0"
+                    onClick={() => setCondominiumFilterIndex(Math.max(0, currentIndex - 1))}
+                    disabled={!canGoLeft}
+                    data-testid="button-condo-prev"
+                  >
+                    <ChevronLeft className="h-4 w-4" />
+                  </Button>
+                  <div className="flex-1 overflow-hidden">
+                    <div className="flex gap-2">
+                      {visibleCondos.map((condo) => (
+                        <Button
+                          key={condo.id}
+                          variant={condominiumFilter === condo.id ? "default" : "outline"}
+                          size="sm"
+                          onClick={() => {
+                            setCondominiumFilter(condo.id);
+                            setUnitFilter("");
+                            setUnitFilterIndex(0);
+                          }}
+                          data-testid={condo.id === "" ? "button-filter-condo-all" : `button-filter-condo-${condo.id}`}
+                          className="whitespace-nowrap"
+                        >
+                          {condo.name}
+                        </Button>
+                      ))}
+                    </div>
+                  </div>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="h-8 w-8 flex-shrink-0"
+                    onClick={() => setCondominiumFilterIndex(Math.min(totalButtons - buttonsPerView, currentIndex + 1))}
+                    disabled={!canGoRight}
+                    data-testid="button-condo-next"
+                  >
+                    <ChevronRight className="h-4 w-4" />
+                  </Button>
+                </div>
+              );
+            })()}
           </div>
           
           {condominiumFilter && units && units.length > 0 && (
@@ -495,29 +552,60 @@ export default function ExternalRentals() {
               <label className="text-sm font-medium">
                 {language === "es" ? "Unidad" : "Unit"}
               </label>
-              <div className="flex flex-nowrap gap-2 overflow-x-auto pb-2">
-                <Button
-                  variant={unitFilter === "" ? "default" : "outline"}
-                  size="sm"
-                  onClick={() => setUnitFilter("")}
-                  data-testid="button-filter-unit-all"
-                  className="flex-shrink-0"
-                >
-                  {language === "es" ? "Todas" : "All"}
-                </Button>
-                {units?.map((unit) => (
-                  <Button
-                    key={unit.id}
-                    variant={unitFilter === unit.id ? "default" : "outline"}
-                    size="sm"
-                    onClick={() => setUnitFilter(unit.id)}
-                    data-testid={`button-filter-unit-${unit.id}`}
-                    className="flex-shrink-0"
-                  >
-                    {unit.unitNumber}
-                  </Button>
-                ))}
-              </div>
+              {(() => {
+                // Always include "All" button as first item
+                const allUnits = [
+                  { id: "", unitNumber: language === "es" ? "Todas" : "All", condominiumId: "" },
+                  ...(units || [])
+                ];
+                const buttonsPerView = 3;
+                const totalButtons = allUnits.length;
+                const currentIndex = unitFilterIndex;
+                const visibleUnits = allUnits.slice(currentIndex, currentIndex + buttonsPerView);
+                const canGoLeft = currentIndex > 0;
+                const canGoRight = currentIndex + buttonsPerView < totalButtons;
+                
+                return (
+                  <div className="flex items-center gap-2">
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="h-8 w-8 flex-shrink-0"
+                      onClick={() => setUnitFilterIndex(Math.max(0, currentIndex - 1))}
+                      disabled={!canGoLeft}
+                      data-testid="button-unit-prev"
+                    >
+                      <ChevronLeft className="h-4 w-4" />
+                    </Button>
+                    <div className="flex-1 overflow-hidden">
+                      <div className="flex gap-2">
+                        {visibleUnits.map((unit) => (
+                          <Button
+                            key={unit.id}
+                            variant={unitFilter === unit.id ? "default" : "outline"}
+                            size="sm"
+                            onClick={() => setUnitFilter(unit.id)}
+                            data-testid={unit.id === "" ? "button-filter-unit-all" : `button-filter-unit-${unit.id}`}
+                            className="whitespace-nowrap"
+                          >
+                            {unit.unitNumber}
+                          </Button>
+                        ))}
+                      </div>
+                    </div>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="h-8 w-8 flex-shrink-0"
+                      onClick={() => setUnitFilterIndex(Math.min(totalButtons - buttonsPerView, currentIndex + 1))}
+                      disabled={!canGoRight}
+                      data-testid="button-unit-next"
+                    >
+                      <ChevronRight className="h-4 w-4" />
+                    </Button>
+                  </div>
+                );
+              })()}
             </div>
           )}
         </div>
