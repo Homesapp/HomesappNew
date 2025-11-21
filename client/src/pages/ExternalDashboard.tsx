@@ -227,77 +227,63 @@ export default function ExternalDashboard() {
     },
   ];
 
-  // Upcoming events in the next 7 days
-  const upcomingEvents = [];
+  // Today's events (filtered for today only)
+  const todayEvents = [];
+  const todayStart = startOfDay(today);
+  const todayEnd = addDays(todayStart, 1);
 
-  // Add payments due soon
+  // Add payments due today
   if (payments) {
     payments
       .filter(p => {
         if (p.status !== 'pending') return false;
         const dueDate = new Date(p.dueDate);
-        return dueDate >= today && dueDate <= next7Days;
+        return dueDate >= todayStart && dueDate < todayEnd;
       })
-      .slice(0, 3)
       .forEach(p => {
         const unit = units?.find(u => u.id === p.unitId);
         const condo = condominiums?.find(c => c.id === unit?.condominiumId);
         const contract = normalizedContracts.find(c => c.contract.unitId === p.unitId && c.contract.status === 'active');
         const tenantName = contract?.contract.tenantName || '';
         
-        upcomingEvents.push({
+        todayEvents.push({
           type: 'payment',
           title: `${language === "es" ? "Pago" : "Payment"}: ${p.serviceType}`,
           subtitle: unit && condo ? `${condo.name} - ${unit.unitNumber}${tenantName ? ` (${tenantName})` : ''}` : '',
           date: new Date(p.dueDate),
           icon: DollarSign,
           color: 'text-green-600',
+          status: p.status,
         });
       });
   }
 
-  // Add scheduled maintenance
+  // Add scheduled maintenance for today
   if (tickets) {
     tickets
       .filter(t => {
         if (!t.scheduledDate || (t.status !== 'open' && t.status !== 'in_progress')) return false;
         const scheduledDate = new Date(t.scheduledDate);
-        return scheduledDate >= today && scheduledDate <= next7Days;
+        return scheduledDate >= todayStart && scheduledDate < todayEnd;
       })
-      .slice(0, 3)
       .forEach(t => {
         const unit = units?.find(u => u.id === t.unitId);
         const condo = condominiums?.find(c => c.id === unit?.condominiumId);
         
-        upcomingEvents.push({
+        todayEvents.push({
           type: 'ticket',
           title: t.title,
           subtitle: unit && condo ? `${condo.name} - ${unit.unitNumber}` : '',
           date: new Date(t.scheduledDate!),
           icon: Wrench,
-          color: 'text-blue-600',
+          color: 'text-orange-600',
+          status: t.status,
         });
       });
   }
 
-  // Add rentals ending soon
-  rentalsEndingSoon.slice(0, 2).forEach(item => {
-    const contract = item.contract;
-    const unit = item.unit || units?.find(u => u.id === contract.unitId);
-    const condo = item.condominium || condominiums?.find(c => c.id === unit?.condominiumId);
-    
-    upcomingEvents.push({
-      type: 'rental',
-      title: `${language === "es" ? "Fin de renta" : "Rental ending"}: ${contract.tenantName}`,
-      subtitle: unit && condo ? `${condo.name} - ${unit.unitNumber}` : '',
-      date: new Date(contract.endDate),
-      icon: ClipboardCheck,
-      color: 'text-purple-600',
-    });
-  });
-
-  // Sort by date
-  upcomingEvents.sort((a, b) => a.date.getTime() - b.date.getTime());
+  // Sort by date/time
+  todayEvents.sort((a, b) => a.date.getTime() - b.date.getTime());
 
   return (
     <div className="container mx-auto p-6 space-y-6">
@@ -449,16 +435,16 @@ export default function ExternalDashboard() {
 
       {/* Main Content Grid */}
       <div className="grid gap-4 lg:grid-cols-3">
-        {/* Upcoming Events */}
-        <Card data-testid="card-upcoming-events" className="lg:col-span-2">
+        {/* Today's Events */}
+        <Card data-testid="card-today-events" className="lg:col-span-2">
           <CardHeader className="pb-3">
             <div className="flex items-center justify-between">
               <div>
                 <CardTitle className="text-base">
-                  {language === "es" ? "Próximos Eventos" : "Upcoming Events"}
+                  {language === "es" ? "Eventos de Hoy" : "Today's Events"}
                 </CardTitle>
                 <CardDescription className="text-xs">
-                  {language === "es" ? "Próximos 7 días" : "Next 7 days"}
+                  {format(today, language === "es" ? "d 'de' MMMM" : "MMMM d", { locale: language === "es" ? es : enUS })}
                 </CardDescription>
               </div>
               <Link href="/external/calendar">
@@ -471,58 +457,48 @@ export default function ExternalDashboard() {
           </CardHeader>
           <CardContent className="p-3">
             {isLoading ? (
-              <div className="space-y-3">
-                <Skeleton className="h-20 w-full" />
-                <Skeleton className="h-20 w-full" />
-                <Skeleton className="h-20 w-full" />
+              <div className="space-y-2">
+                <Skeleton className="h-14 w-full" />
+                <Skeleton className="h-14 w-full" />
+                <Skeleton className="h-14 w-full" />
               </div>
-            ) : upcomingEvents.length > 0 ? (
-              <div className="space-y-3">
-                {upcomingEvents.slice(0, 5).map((event, idx) => (
+            ) : todayEvents.length > 0 ? (
+              <div className="space-y-2">
+                {todayEvents.slice(0, 6).map((event, idx) => (
                   <div
                     key={idx}
-                    className="group relative flex items-start gap-4 p-3 rounded-lg border bg-card hover-elevate transition-all"
+                    className="flex items-center justify-between p-2 rounded-md bg-muted/50 hover-elevate"
                     data-testid={`event-${idx}`}
                   >
-                    {/* Icon and indicator */}
-                    <div className="flex flex-col items-center gap-1 flex-shrink-0">
-                      <div className={`p-2 rounded-lg ${event.color.replace('text-', 'bg-')}/10`}>
-                        <event.icon className={`h-5 w-5 ${event.color}`} />
+                    <div className="flex items-center gap-3 flex-1 min-w-0">
+                      <event.icon className={`h-4 w-4 ${event.color} flex-shrink-0`} />
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-medium truncate">{event.title}</p>
+                        {event.subtitle && (
+                          <p className="text-xs text-muted-foreground truncate">{event.subtitle}</p>
+                        )}
                       </div>
                     </div>
-
-                    {/* Content */}
-                    <div className="flex-1 min-w-0 space-y-1">
-                      <div className="flex items-start justify-between gap-2">
-                        <p className="text-sm font-semibold leading-tight">{event.title}</p>
-                        <div className="flex flex-col items-end gap-0.5 flex-shrink-0">
-                          <p className="text-xs font-medium whitespace-nowrap">
-                            {format(event.date, 'd MMM', { locale: language === "es" ? es : enUS })}
-                          </p>
-                          <p className="text-xs text-muted-foreground">
-                            {format(event.date, 'HH:mm')}
-                          </p>
-                        </div>
-                      </div>
-                      {event.subtitle && (
-                        <p className="text-xs text-muted-foreground leading-relaxed">{event.subtitle}</p>
+                    <div className="flex items-center gap-2 flex-shrink-0">
+                      <p className="text-xs text-muted-foreground">
+                        {format(event.date, 'HH:mm')}
+                      </p>
+                      {event.status && (
+                        <Badge variant={event.status === 'paid' || event.status === 'completed' ? 'default' : 'secondary'} className="text-xs">
+                          {event.status}
+                        </Badge>
                       )}
                     </div>
                   </div>
                 ))}
               </div>
             ) : (
-              <div className="flex flex-col items-center justify-center py-12 text-center">
-                <Calendar className="h-12 w-12 text-muted-foreground/40 mb-3" />
-                <p className="text-sm font-medium text-muted-foreground" data-testid="text-no-events">
+              <div className="flex flex-col items-center justify-center py-8 text-center">
+                <Calendar className="h-10 w-10 text-muted-foreground/40 mb-2" />
+                <p className="text-sm text-muted-foreground" data-testid="text-no-events">
                   {language === "es" 
-                    ? "No hay eventos programados" 
-                    : "No events scheduled"}
-                </p>
-                <p className="text-xs text-muted-foreground/70 mt-1">
-                  {language === "es" 
-                    ? "En los próximos 7 días" 
-                    : "In the next 7 days"}
+                    ? "No hay eventos pendientes para hoy" 
+                    : "No pending events for today"}
                 </p>
               </div>
             )}
