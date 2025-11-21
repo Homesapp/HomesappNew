@@ -13,8 +13,9 @@ import { useLanguage } from "@/contexts/LanguageContext";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { Plus, Trash2, RotateCw, Copy, Check, Pencil, LayoutGrid, LayoutList, Mail, Phone, User as UserIcon, ArrowUpDown, ChevronUp, ChevronDown, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight } from "lucide-react";
+import { Plus, Trash2, RotateCw, Copy, Check, Pencil, LayoutGrid, LayoutList, Mail, Phone, User as UserIcon, ArrowUpDown, ChevronUp, ChevronDown, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, Search, Filter } from "lucide-react";
 import { useState, useLayoutEffect, useEffect, useMemo } from "react";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { z } from "zod";
 import type { User } from "@shared/schema";
 import {
@@ -99,13 +100,43 @@ export default function ExternalAccounts() {
   const [tempPassword, setTempPassword] = useState<string | null>(null);
   const [tempEmail, setTempEmail] = useState<string | null>(null);
   const [copiedId, setCopiedId] = useState<string | null>(null);
-  const [viewMode, setViewMode] = useState<'table' | 'cards'>('table');
   
-  // Pagination and sorting states
-  const [currentPage, setCurrentPage] = useState(1);
-  const [itemsPerPage, setItemsPerPage] = useState(5);
+  // View mode with SSR-safe auto-detection
+  const [viewMode, setViewMode] = useState<'table' | 'cards'>('table');
+  const [manualViewModeOverride, setManualViewModeOverride] = useState(false);
+  const [isMobile, setIsMobile] = useState(false);
+  
+  // Search and filters
+  const [searchTerm, setSearchTerm] = useState("");
+  const [roleFilter, setRoleFilter] = useState<string>("all");
+  const [isFilterOpen, setIsFilterOpen] = useState(false);
+
+  // Separate pagination for table and cards
+  const [tablePage, setTablePage] = useState(1);
+  const [cardsPage, setCardsPage] = useState(1);
+  const [tableItemsPerPage, setTableItemsPerPage] = useState(10);
+  const [cardsItemsPerPage, setCardsItemsPerPage] = useState(9);
+  const tablePerPageOptions = [5, 10, 20, 30];
+  const cardsPerPageOptions = [3, 6, 9, 12];
+  
+  // Sorting states
   const [sortColumn, setSortColumn] = useState<string>("name");
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc');
+
+  // Auto-detect mobile and set view mode (SSR-safe)
+  useEffect(() => {
+    const checkMobile = () => {
+      const mobile = window.innerWidth < 1024;
+      setIsMobile(mobile);
+      if (!manualViewModeOverride) {
+        setViewMode(mobile ? 'cards' : 'table');
+      }
+    };
+    
+    checkMobile();
+    window.addEventListener('resize', checkMobile);
+    return () => window.removeEventListener('resize', checkMobile);
+  }, [manualViewModeOverride]);
 
   const { data: users, isLoading } = useQuery<User[]>({
     queryKey: ['/api/external-agency-users'],
@@ -283,10 +314,28 @@ export default function ExternalAccounts() {
     return "outline";
   };
 
+  // Filtered users based on search and filters
+  const filteredUsers = useMemo(() => {
+    if (!users) return [];
+    
+    return users.filter(user => {
+      // Search filter (name and email)
+      const fullName = `${user.firstName} ${user.lastName}`.toLowerCase();
+      const email = user.email?.toLowerCase() || '';
+      const matchesSearch = searchTerm === "" || 
+        fullName.includes(searchTerm.toLowerCase()) ||
+        email.includes(searchTerm.toLowerCase());
+      
+      // Role filter
+      const matchesRole = roleFilter === "all" || user.role === roleFilter;
+      
+      return matchesSearch && matchesRole;
+    });
+  }, [users, searchTerm, roleFilter]);
+
   // Sorting logic - memoized to compute before pagination clamping
   const sortedUsers = useMemo(() => {
-    if (!users) return [];
-    return [...users].sort((a, b) => {
+    return [...filteredUsers].sort((a, b) => {
       let aValue: string | number = '';
       let bValue: string | number = '';
 
@@ -315,29 +364,69 @@ export default function ExternalAccounts() {
       if (aValue > bValue) return sortDirection === 'asc' ? 1 : -1;
       return 0;
     });
-  }, [users, sortColumn, sortDirection]);
+  }, [filteredUsers, sortColumn, sortDirection]);
 
-  // Dual-layer pagination clamping - based on sorted data
+  // Table pagination
+  const tableTotalPages = Math.max(1, Math.ceil(sortedUsers.length / tableItemsPerPage));
+  const tableStartIndex = (tablePage - 1) * tableItemsPerPage;
+  const tableEndIndex = tableStartIndex + tableItemsPerPage;
+  const paginatedTableUsers = sortedUsers.slice(tableStartIndex, tableEndIndex);
+
+  // Cards pagination
+  const cardsTotalPages = Math.max(1, Math.ceil(sortedUsers.length / cardsItemsPerPage));
+  const cardsStartIndex = (cardsPage - 1) * cardsItemsPerPage;
+  const cardsEndIndex = cardsStartIndex + cardsItemsPerPage;
+  const paginatedCardsUsers = sortedUsers.slice(cardsStartIndex, cardsEndIndex);
+
+  // Pre-render page clamping for table using useLayoutEffect
   useLayoutEffect(() => {
-    const totalPages = Math.max(1, Math.ceil(sortedUsers.length / itemsPerPage));
-    if (currentPage > totalPages) {
-      setCurrentPage(totalPages);
+    if (tablePage > tableTotalPages) {
+      setTablePage(tableTotalPages);
     }
-  }, [currentPage, sortedUsers.length, itemsPerPage]);
+  }, [tablePage, tableTotalPages]);
+
+  // Pre-render page clamping for cards using useLayoutEffect
+  useLayoutEffect(() => {
+    if (cardsPage > cardsTotalPages) {
+      setCardsPage(cardsTotalPages);
+    }
+  }, [cardsPage, cardsTotalPages]);
+
+  // Clamp table page when data changes
+  useEffect(() => {
+    if (tablePage > tableTotalPages && tableTotalPages > 0) {
+      setTablePage(tableTotalPages);
+    }
+  }, [sortedUsers.length, tableItemsPerPage]);
+
+  // Clamp cards page when data changes
+  useEffect(() => {
+    if (cardsPage > cardsTotalPages && cardsTotalPages > 0) {
+      setCardsPage(cardsTotalPages);
+    }
+  }, [sortedUsers.length, cardsItemsPerPage]);
+
+  // Reset pages when filters change
+  useEffect(() => {
+    setTablePage(1);
+    setCardsPage(1);
+  }, [searchTerm, roleFilter]);
+
+  // Reset pages when items per page changes
+  useEffect(() => {
+    setTablePage(1);
+  }, [tableItemsPerPage]);
 
   useEffect(() => {
-    const totalPages = Math.max(1, Math.ceil(sortedUsers.length / itemsPerPage));
-    if (sortedUsers.length > 0 && currentPage > totalPages) {
-      setCurrentPage(totalPages);
-    }
-  }, [sortedUsers.length, itemsPerPage, currentPage]);
+    setCardsPage(1);
+  }, [cardsItemsPerPage]);
 
-  // Pagination
-  const totalPages = Math.max(1, Math.ceil(sortedUsers.length / itemsPerPage));
-  const paginatedUsers = sortedUsers.slice(
-    (currentPage - 1) * itemsPerPage,
-    currentPage * itemsPerPage
-  );
+  // Active filter count
+  const activeFilterCount = useMemo(() => {
+    let count = 0;
+    if (roleFilter !== "all") count++;
+    return count;
+  }, [roleFilter]);
 
   const handleSort = (column: string) => {
     if (sortColumn === column) {
@@ -346,7 +435,8 @@ export default function ExternalAccounts() {
       setSortColumn(column);
       setSortDirection('asc');
     }
-    setCurrentPage(1); // Reset to page 1 on sort change
+    setTablePage(1);
+    setCardsPage(1);
   };
 
   const getSortIcon = (column: string) => {
@@ -356,14 +446,21 @@ export default function ExternalAccounts() {
       : <ChevronDown className="h-4 w-4" />;
   };
 
-  const handlePageChange = (newPage: number) => {
-    setCurrentPage(Math.max(1, Math.min(newPage, totalPages)));
+  const handleTablePageChange = (newPage: number) => {
+    const clampedPage = Math.max(1, Math.min(newPage, tableTotalPages));
+    setTablePage(clampedPage);
+  };
+
+  const handleCardsPageChange = (newPage: number) => {
+    const clampedPage = Math.max(1, Math.min(newPage, cardsTotalPages));
+    setCardsPage(clampedPage);
   };
 
   const editingUser = users?.find(u => u.id === editUserId);
 
   return (
     <div className="container mx-auto p-6 space-y-6">
+      {/* Header (outside Card) */}
       <div className="flex items-center justify-between flex-wrap gap-4">
         <div>
           <h1 className="text-3xl font-bold">
@@ -376,95 +473,48 @@ export default function ExternalAccounts() {
           </p>
         </div>
 
-        <div className="flex items-center gap-2">
-          <div className="flex items-center gap-1 border rounded-md p-1">
-            <Button
-              variant={viewMode === 'table' ? 'default' : 'ghost'}
-              size="sm"
-              onClick={() => setViewMode('table')}
-              data-testid="button-view-table"
-            >
-              <LayoutList className="h-4 w-4" />
+        <Dialog open={isCreateDialogOpen} onOpenChange={setIsCreateDialogOpen}>
+          <DialogTrigger asChild>
+            <Button data-testid="button-create-user">
+              <Plus className="mr-2 h-4 w-4" />
+              {language === "es" ? "Crear Usuario" : "Create User"}
             </Button>
-            <Button
-              variant={viewMode === 'cards' ? 'default' : 'ghost'}
-              size="sm"
-              onClick={() => setViewMode('cards')}
-              data-testid="button-view-cards"
-            >
-              <LayoutGrid className="h-4 w-4" />
-            </Button>
-          </div>
-
-          <Dialog open={isCreateDialogOpen} onOpenChange={setIsCreateDialogOpen}>
-            <DialogTrigger asChild>
-              <Button data-testid="button-create-user">
-                <Plus className="mr-2 h-4 w-4" />
-                {language === "es" ? "Crear Usuario" : "Create User"}
-              </Button>
-            </DialogTrigger>
-            <DialogContent data-testid="dialog-create-user" className="max-w-2xl max-h-[90vh] overflow-y-auto">
-              <DialogHeader>
-                <DialogTitle>
-                  {language === "es" ? "Crear Nuevo Usuario" : "Create New User"}
-                </DialogTitle>
-                <DialogDescription>
-                  {language === "es"
-                    ? "Crea un nuevo usuario para tu agencia. Se generará una contraseña temporal."
-                    : "Create a new user for your agency. A temporary password will be generated."}
-                </DialogDescription>
-              </DialogHeader>
-              <Form {...form}>
-                <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+          </DialogTrigger>
+          <DialogContent data-testid="dialog-create-user" className="max-w-2xl max-h-[90vh] overflow-y-auto">
+            <DialogHeader>
+              <DialogTitle>
+                {language === "es" ? "Crear Nuevo Usuario" : "Create New User"}
+              </DialogTitle>
+              <DialogDescription>
+                {language === "es"
+                  ? "Crea un nuevo usuario para tu agencia. Se generará una contraseña temporal."
+                  : "Create a new user for your agency. A temporary password will be generated."}
+              </DialogDescription>
+            </DialogHeader>
+            <Form {...form}>
+              <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+                <FormField
+                  control={form.control}
+                  name="email"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>{language === "es" ? "Email" : "Email"}</FormLabel>
+                      <FormControl>
+                        <Input {...field} type="email" data-testid="input-email" />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <FormField
                     control={form.control}
-                    name="email"
+                    name="firstName"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>{language === "es" ? "Email" : "Email"}</FormLabel>
+                        <FormLabel>{language === "es" ? "Nombre" : "First Name"}</FormLabel>
                         <FormControl>
-                          <Input {...field} type="email" data-testid="input-email" />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <FormField
-                      control={form.control}
-                      name="firstName"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>{language === "es" ? "Nombre" : "First Name"}</FormLabel>
-                          <FormControl>
-                            <Input {...field} data-testid="input-firstname" />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                    <FormField
-                      control={form.control}
-                      name="lastName"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>{language === "es" ? "Apellido" : "Last Name"}</FormLabel>
-                          <FormControl>
-                            <Input {...field} data-testid="input-lastname" />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                  </div>
-                  <FormField
-                    control={form.control}
-                    name="phone"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>{language === "es" ? "Teléfono (opcional)" : "Phone (optional)"}</FormLabel>
-                        <FormControl>
-                          <Input {...field} data-testid="input-phone" />
+                          <Input {...field} data-testid="input-firstname" />
                         </FormControl>
                         <FormMessage />
                       </FormItem>
@@ -472,80 +522,107 @@ export default function ExternalAccounts() {
                   />
                   <FormField
                     control={form.control}
-                    name="role"
+                    name="lastName"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>{language === "es" ? "Rol" : "Role"}</FormLabel>
-                        <Select onValueChange={field.onChange} defaultValue={field.value}>
+                        <FormLabel>{language === "es" ? "Apellido" : "Last Name"}</FormLabel>
+                        <FormControl>
+                          <Input {...field} data-testid="input-lastname" />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                </div>
+                <FormField
+                  control={form.control}
+                  name="phone"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>{language === "es" ? "Teléfono (opcional)" : "Phone (optional)"}</FormLabel>
+                      <FormControl>
+                        <Input {...field} data-testid="input-phone" />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={form.control}
+                  name="role"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>{language === "es" ? "Rol" : "Role"}</FormLabel>
+                      <Select onValueChange={field.onChange} defaultValue={field.value}>
+                        <FormControl>
+                          <SelectTrigger data-testid="select-role">
+                            <SelectValue />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          <SelectItem value="external_agency_admin">
+                            {ROLE_LABELS[language].external_agency_admin}
+                          </SelectItem>
+                          <SelectItem value="external_agency_accounting">
+                            {ROLE_LABELS[language].external_agency_accounting}
+                          </SelectItem>
+                          <SelectItem value="external_agency_maintenance">
+                            {ROLE_LABELS[language].external_agency_maintenance}
+                          </SelectItem>
+                          <SelectItem value="external_agency_staff">
+                            {ROLE_LABELS[language].external_agency_staff}
+                          </SelectItem>
+                        </SelectContent>
+                      </Select>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                {form.watch("role") === "external_agency_maintenance" && (
+                  <FormField
+                    control={form.control}
+                    name="maintenanceSpecialty"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>{language === "es" ? "Especialidad" : "Specialty"}</FormLabel>
+                        <Select onValueChange={field.onChange} value={field.value}>
                           <FormControl>
-                            <SelectTrigger data-testid="select-role">
-                              <SelectValue />
+                            <SelectTrigger data-testid="select-specialty">
+                              <SelectValue placeholder={language === "es" ? "Selecciona..." : "Select..."} />
                             </SelectTrigger>
                           </FormControl>
                           <SelectContent>
-                            <SelectItem value="external_agency_admin">
-                              {ROLE_LABELS[language].external_agency_admin}
-                            </SelectItem>
-                            <SelectItem value="external_agency_accounting">
-                              {ROLE_LABELS[language].external_agency_accounting}
-                            </SelectItem>
-                            <SelectItem value="external_agency_maintenance">
-                              {ROLE_LABELS[language].external_agency_maintenance}
-                            </SelectItem>
-                            <SelectItem value="external_agency_staff">
-                              {ROLE_LABELS[language].external_agency_staff}
-                            </SelectItem>
+                            <SelectItem value="encargado_mantenimiento">{SPECIALTY_LABELS[language].encargado_mantenimiento}</SelectItem>
+                            <SelectItem value="mantenimiento_general">{SPECIALTY_LABELS[language].mantenimiento_general}</SelectItem>
+                            <SelectItem value="electrico">{SPECIALTY_LABELS[language].electrico}</SelectItem>
+                            <SelectItem value="plomero">{SPECIALTY_LABELS[language].plomero}</SelectItem>
+                            <SelectItem value="refrigeracion">{SPECIALTY_LABELS[language].refrigeracion}</SelectItem>
+                            <SelectItem value="carpintero">{SPECIALTY_LABELS[language].carpintero}</SelectItem>
+                            <SelectItem value="pintor">{SPECIALTY_LABELS[language].pintor}</SelectItem>
+                            <SelectItem value="jardinero">{SPECIALTY_LABELS[language].jardinero}</SelectItem>
+                            <SelectItem value="albanil">{SPECIALTY_LABELS[language].albanil}</SelectItem>
+                            <SelectItem value="limpieza">{SPECIALTY_LABELS[language].limpieza}</SelectItem>
                           </SelectContent>
                         </Select>
                         <FormMessage />
                       </FormItem>
                     )}
                   />
-                  {form.watch("role") === "external_agency_maintenance" && (
-                    <FormField
-                      control={form.control}
-                      name="maintenanceSpecialty"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>{language === "es" ? "Especialidad" : "Specialty"}</FormLabel>
-                          <Select onValueChange={field.onChange} value={field.value}>
-                            <FormControl>
-                              <SelectTrigger data-testid="select-specialty">
-                                <SelectValue placeholder={language === "es" ? "Selecciona..." : "Select..."} />
-                              </SelectTrigger>
-                            </FormControl>
-                            <SelectContent>
-                              <SelectItem value="encargado_mantenimiento">{SPECIALTY_LABELS[language].encargado_mantenimiento}</SelectItem>
-                              <SelectItem value="mantenimiento_general">{SPECIALTY_LABELS[language].mantenimiento_general}</SelectItem>
-                              <SelectItem value="electrico">{SPECIALTY_LABELS[language].electrico}</SelectItem>
-                              <SelectItem value="plomero">{SPECIALTY_LABELS[language].plomero}</SelectItem>
-                              <SelectItem value="refrigeracion">{SPECIALTY_LABELS[language].refrigeracion}</SelectItem>
-                              <SelectItem value="carpintero">{SPECIALTY_LABELS[language].carpintero}</SelectItem>
-                              <SelectItem value="pintor">{SPECIALTY_LABELS[language].pintor}</SelectItem>
-                              <SelectItem value="jardinero">{SPECIALTY_LABELS[language].jardinero}</SelectItem>
-                              <SelectItem value="albanil">{SPECIALTY_LABELS[language].albanil}</SelectItem>
-                              <SelectItem value="limpieza">{SPECIALTY_LABELS[language].limpieza}</SelectItem>
-                            </SelectContent>
-                          </Select>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                  )}
-                  <DialogFooter>
-                    <Button type="submit" disabled={createMutation.isPending} data-testid="button-submit-user">
-                      {createMutation.isPending 
-                        ? (language === "es" ? "Creando..." : "Creating...")
-                        : (language === "es" ? "Crear Usuario" : "Create User")}
-                    </Button>
-                  </DialogFooter>
-                </form>
-              </Form>
-            </DialogContent>
-          </Dialog>
-        </div>
+                )}
+                <DialogFooter>
+                  <Button type="submit" disabled={createMutation.isPending} data-testid="button-submit-user">
+                    {createMutation.isPending 
+                      ? (language === "es" ? "Creando..." : "Creating...")
+                      : (language === "es" ? "Crear Usuario" : "Create User")}
+                  </Button>
+                </DialogFooter>
+              </form>
+            </Form>
+          </DialogContent>
+        </Dialog>
       </div>
 
+      {/* Temporary password display */}
       {tempPassword && (
         <Card className="border-primary bg-primary/5">
           <CardContent className="py-4 space-y-4">
@@ -614,6 +691,102 @@ export default function ExternalAccounts() {
         </Card>
       )}
 
+      {/* Search, Filters, and View Toggle Card */}
+      <Card>
+        <CardContent className="py-4">
+          <div className="flex flex-col sm:flex-row items-center gap-2">
+            {/* Search Input */}
+            <div className="relative flex-1 w-full sm:w-auto">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+              <Input
+                placeholder={language === "es" ? "Buscar por nombre o email..." : "Search by name or email..."}
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="pl-9"
+                data-testid="input-search"
+              />
+            </div>
+
+            {/* Filter Popover */}
+            <Popover open={isFilterOpen} onOpenChange={setIsFilterOpen}>
+              <PopoverTrigger asChild>
+                <Button variant="outline" size="icon" className="relative" data-testid="button-filter">
+                  <Filter className="h-4 w-4" />
+                  {activeFilterCount > 0 && (
+                    <Badge 
+                      variant="destructive" 
+                      className="absolute -top-2 -right-2 h-5 w-5 flex items-center justify-center p-0 text-xs"
+                    >
+                      {activeFilterCount}
+                    </Badge>
+                  )}
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent align="end" className="w-64">
+                <div className="space-y-4">
+                  <div>
+                    <h4 className="font-medium mb-2">{language === "es" ? "Filtrar por Rol" : "Filter by Role"}</h4>
+                    <Select value={roleFilter} onValueChange={setRoleFilter}>
+                      <SelectTrigger data-testid="select-role-filter">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="all">{language === "es" ? "Todos" : "All"}</SelectItem>
+                        <SelectItem value="external_agency_admin">{ROLE_LABELS[language].external_agency_admin}</SelectItem>
+                        <SelectItem value="external_agency_accounting">{ROLE_LABELS[language].external_agency_accounting}</SelectItem>
+                        <SelectItem value="external_agency_maintenance">{ROLE_LABELS[language].external_agency_maintenance}</SelectItem>
+                        <SelectItem value="external_agency_staff">{ROLE_LABELS[language].external_agency_staff}</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  {activeFilterCount > 0 && (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => {
+                        setRoleFilter("all");
+                        setIsFilterOpen(false);
+                      }}
+                      className="w-full"
+                      data-testid="button-clear-filters"
+                    >
+                      {language === "es" ? "Limpiar Filtros" : "Clear Filters"}
+                    </Button>
+                  )}
+                </div>
+              </PopoverContent>
+            </Popover>
+
+            {/* View Toggle Buttons */}
+            <div className="hidden md:flex gap-1">
+              <Button
+                variant={viewMode === 'table' ? 'default' : 'outline'}
+                size="icon"
+                onClick={() => {
+                  setViewMode('table');
+                  setManualViewModeOverride(true);
+                }}
+                data-testid="button-view-table"
+              >
+                <LayoutList className="h-4 w-4" />
+              </Button>
+              <Button
+                variant={viewMode === 'cards' ? 'default' : 'outline'}
+                size="icon"
+                onClick={() => {
+                  setViewMode('cards');
+                  setManualViewModeOverride(false);
+                }}
+                data-testid="button-view-cards"
+              >
+                <LayoutGrid className="h-4 w-4" />
+              </Button>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Loading/Empty/Content */}
       {isLoading ? (
         <div className="space-y-4">
           <Skeleton className="h-32 w-full" />
@@ -705,7 +878,7 @@ export default function ExternalAccounts() {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {paginatedUsers.map((user) => (
+                  {paginatedTableUsers.map((user) => (
                     <TableRow key={user.id} data-testid={`row-user-${user.id}`}>
                       <TableCell className="font-medium">
                         {user.firstName} {user.lastName}
@@ -771,20 +944,19 @@ export default function ExternalAccounts() {
                   {language === 'es' ? 'Mostrar' : 'Show'}
                 </span>
                 <Select 
-                  value={itemsPerPage.toString()} 
+                  value={tableItemsPerPage.toString()} 
                   onValueChange={(value) => {
-                    setItemsPerPage(Number(value));
-                    setCurrentPage(1);
+                    setTableItemsPerPage(Number(value));
+                    setTablePage(1);
                   }}
                 >
                   <SelectTrigger className="w-[70px]" data-testid="select-items-per-page">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="5">5</SelectItem>
-                    <SelectItem value="10">10</SelectItem>
-                    <SelectItem value="20">20</SelectItem>
-                    <SelectItem value="30">30</SelectItem>
+                    {tablePerPageOptions.map(option => (
+                      <SelectItem key={option} value={option.toString()}>{option}</SelectItem>
+                    ))}
                   </SelectContent>
                 </Select>
                 <span className="text-sm text-muted-foreground whitespace-nowrap">
@@ -796,8 +968,8 @@ export default function ExternalAccounts() {
                 <Button
                   variant="outline"
                   size="sm"
-                  onClick={() => handlePageChange(1)}
-                  disabled={currentPage === 1}
+                  onClick={() => handleTablePageChange(1)}
+                  disabled={tablePage === 1}
                   data-testid="button-first-page"
                 >
                   <ChevronsLeft className="h-4 w-4" />
@@ -808,8 +980,8 @@ export default function ExternalAccounts() {
                 <Button
                   variant="outline"
                   size="sm"
-                  onClick={() => handlePageChange(currentPage - 1)}
-                  disabled={currentPage === 1}
+                  onClick={() => handleTablePageChange(tablePage - 1)}
+                  disabled={tablePage === 1}
                   data-testid="button-prev-page"
                 >
                   <ChevronLeft className="h-4 w-4" />
@@ -818,13 +990,13 @@ export default function ExternalAccounts() {
                   </span>
                 </Button>
                 <span className="text-sm text-muted-foreground whitespace-nowrap px-2">
-                  {language === 'es' ? 'Página' : 'Page'} {currentPage} {language === 'es' ? 'de' : 'of'} {totalPages}
+                  {language === 'es' ? 'Página' : 'Page'} {tablePage} {language === 'es' ? 'de' : 'of'} {tableTotalPages}
                 </span>
                 <Button
                   variant="outline"
                   size="sm"
-                  onClick={() => handlePageChange(currentPage + 1)}
-                  disabled={currentPage === totalPages}
+                  onClick={() => handleTablePageChange(tablePage + 1)}
+                  disabled={tablePage === tableTotalPages}
                   data-testid="button-next-page"
                 >
                   <span className="hidden sm:inline mr-1">
@@ -835,8 +1007,8 @@ export default function ExternalAccounts() {
                 <Button
                   variant="outline"
                   size="sm"
-                  onClick={() => handlePageChange(totalPages)}
-                  disabled={currentPage === totalPages}
+                  onClick={() => handleTablePageChange(tableTotalPages)}
+                  disabled={tablePage === tableTotalPages}
                   data-testid="button-last-page"
                 >
                   <span className="hidden sm:inline mr-1">
@@ -851,7 +1023,7 @@ export default function ExternalAccounts() {
       ) : (
         <>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {paginatedUsers.map((user) => (
+            {paginatedCardsUsers.map((user) => (
             <Card key={user.id} data-testid={`card-user-${user.id}`} className="overflow-hidden">
               <CardHeader className="bg-muted/50 pb-3">
                 <div className="flex items-start justify-between">
@@ -932,20 +1104,19 @@ export default function ExternalAccounts() {
                     {language === 'es' ? 'Mostrar' : 'Show'}
                   </span>
                   <Select 
-                    value={itemsPerPage.toString()} 
+                    value={cardsItemsPerPage.toString()} 
                     onValueChange={(value) => {
-                      setItemsPerPage(Number(value));
-                      setCurrentPage(1);
+                      setCardsItemsPerPage(Number(value));
+                      setCardsPage(1);
                     }}
                   >
                     <SelectTrigger className="w-[70px]" data-testid="select-items-per-page-cards">
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="5">5</SelectItem>
-                      <SelectItem value="10">10</SelectItem>
-                      <SelectItem value="20">20</SelectItem>
-                      <SelectItem value="30">30</SelectItem>
+                      {cardsPerPageOptions.map(option => (
+                        <SelectItem key={option} value={option.toString()}>{option}</SelectItem>
+                      ))}
                     </SelectContent>
                   </Select>
                   <span className="text-sm text-muted-foreground whitespace-nowrap">
@@ -957,8 +1128,8 @@ export default function ExternalAccounts() {
                   <Button
                     variant="outline"
                     size="sm"
-                    onClick={() => handlePageChange(1)}
-                    disabled={currentPage === 1}
+                    onClick={() => handleCardsPageChange(1)}
+                    disabled={cardsPage === 1}
                     data-testid="button-first-page-cards"
                   >
                     <ChevronsLeft className="h-4 w-4" />
@@ -969,8 +1140,8 @@ export default function ExternalAccounts() {
                   <Button
                     variant="outline"
                     size="sm"
-                    onClick={() => handlePageChange(currentPage - 1)}
-                    disabled={currentPage === 1}
+                    onClick={() => handleCardsPageChange(cardsPage - 1)}
+                    disabled={cardsPage === 1}
                     data-testid="button-prev-page-cards"
                   >
                     <ChevronLeft className="h-4 w-4" />
@@ -979,13 +1150,13 @@ export default function ExternalAccounts() {
                     </span>
                   </Button>
                   <span className="text-sm text-muted-foreground whitespace-nowrap px-2">
-                    {language === 'es' ? 'Página' : 'Page'} {currentPage} {language === 'es' ? 'de' : 'of'} {totalPages}
+                    {language === 'es' ? 'Página' : 'Page'} {cardsPage} {language === 'es' ? 'de' : 'of'} {cardsTotalPages}
                   </span>
                   <Button
                     variant="outline"
                     size="sm"
-                    onClick={() => handlePageChange(currentPage + 1)}
-                    disabled={currentPage === totalPages}
+                    onClick={() => handleCardsPageChange(cardsPage + 1)}
+                    disabled={cardsPage === cardsTotalPages}
                     data-testid="button-next-page-cards"
                   >
                     <span className="hidden sm:inline mr-1">
@@ -996,8 +1167,8 @@ export default function ExternalAccounts() {
                   <Button
                     variant="outline"
                     size="sm"
-                    onClick={() => handlePageChange(totalPages)}
-                    disabled={currentPage === totalPages}
+                    onClick={() => handleCardsPageChange(cardsTotalPages)}
+                    disabled={cardsPage === cardsTotalPages}
                     data-testid="button-last-page-cards"
                   >
                     <span className="hidden sm:inline mr-1">
@@ -1012,6 +1183,7 @@ export default function ExternalAccounts() {
         </>
       )}
 
+      {/* Edit User Dialog */}
       <Dialog open={!!editUserId} onOpenChange={(open) => !open && setEditUserId(null)}>
         <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
@@ -1149,6 +1321,7 @@ export default function ExternalAccounts() {
         </DialogContent>
       </Dialog>
 
+      {/* Delete Confirmation Dialog */}
       <AlertDialog open={!!deleteUserId} onOpenChange={(open) => !open && setDeleteUserId(null)}>
         <AlertDialogContent>
           <AlertDialogHeader>
