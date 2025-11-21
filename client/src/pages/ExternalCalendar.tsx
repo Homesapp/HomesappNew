@@ -371,7 +371,7 @@ export default function ExternalCalendar() {
         const { condominium, unitNumber } = getCondominiumInfo(t.unitId);
         return {
           type: 'ticket' as const,
-          title: t.title,
+          title: `${condominium} - ${unitNumber} - ${t.title}`,
           time: format(new Date(t.scheduledDate!), 'HH:mm'),
           status: t.status,
           priority: t.priority,
@@ -391,8 +391,8 @@ export default function ExternalCalendar() {
         return {
           type: 'contract' as const,
           title: language === "es" 
-            ? `Inicio de Renta: ${item.contract.tenantName}`
-            : `Rental Start: ${item.contract.tenantName}`,
+            ? `${condominium} - ${unitNumber} - Inicio de Renta: ${item.contract.tenantName}`
+            : `${condominium} - ${unitNumber} - Rental Start: ${item.contract.tenantName}`,
           time: format(new Date(item.contract.startDate!), 'HH:mm'),
           status: item.contract.status,
           data: item.contract,
@@ -490,7 +490,7 @@ export default function ExternalCalendar() {
         const { condominium, unitNumber } = getCondominiumInfo(t.unitId);
         return {
           type: 'ticket' as const,
-          title: t.title,
+          title: `${condominium} - ${unitNumber} - ${t.title}`,
           time: format(new Date(t.scheduledDate!), 'HH:mm'),
           status: t.status,
           priority: t.priority,
@@ -508,8 +508,8 @@ export default function ExternalCalendar() {
         return {
           type: 'contract' as const,
           title: language === "es" 
-            ? `Inicio de Renta: ${item.contract.tenantName}`
-            : `Rental Start: ${item.contract.tenantName}`,
+            ? `${condominium} - ${unitNumber} - Inicio de Renta: ${item.contract.tenantName}`
+            : `${condominium} - ${unitNumber} - Rental Start: ${item.contract.tenantName}`,
           time: format(new Date(item.contract.startDate!), 'HH:mm'),
           status: item.contract.status,
           data: item.contract,
@@ -605,7 +605,7 @@ export default function ExternalCalendar() {
         const { condominium, unitNumber } = getCondominiumInfo(t.unitId);
         return {
           type: 'ticket' as const,
-          title: t.title,
+          title: `${condominium} - ${unitNumber} - ${t.title}`,
           time: format(new Date(t.scheduledDate!), 'HH:mm'),
           status: t.status,
           priority: t.priority,
@@ -623,8 +623,8 @@ export default function ExternalCalendar() {
         return {
           type: 'contract' as const,
           title: language === "es" 
-            ? `Inicio de Renta: ${item.contract.tenantName}`
-            : `Rental Start: ${item.contract.tenantName}`,
+            ? `${condominium} - ${unitNumber} - Inicio de Renta: ${item.contract.tenantName}`
+            : `${condominium} - ${unitNumber} - Rental Start: ${item.contract.tenantName}`,
           time: format(new Date(item.contract.startDate!), 'HH:mm'),
           status: item.contract.status,
           data: item.contract,
@@ -1214,7 +1214,7 @@ export default function ExternalCalendar() {
                                     <div className="space-y-2 text-sm">
                                       <div className="flex items-center justify-between">
                                         <Badge variant={contract.status === 'active' ? 'default' : 'secondary'} className="text-xs">
-                                          {contract.status}
+                                          {translateStatus(contract.status)}
                                         </Badge>
                                         {contract.rentalPurpose && (
                                           <Badge variant="outline" className="text-xs">
