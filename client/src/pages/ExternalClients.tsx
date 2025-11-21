@@ -433,40 +433,87 @@ export default function ExternalClients() {
                   )}
                 </Button>
               </PopoverTrigger>
-              <PopoverContent className="w-72 p-4" align="end">
-              <div className="space-y-4">
-                <div>
-                  <label className="text-sm font-medium mb-2 block">
-                    {language === "es" ? "Estado" : "Status"}
-                  </label>
-                  <Select value={statusFilter} onValueChange={setStatusFilter}>
-                    <SelectTrigger data-testid="select-status-filter">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="all">{language === "es" ? "Todos" : "All"}</SelectItem>
-                      <SelectItem value="active">{language === "es" ? "Activos" : "Active"}</SelectItem>
-                      <SelectItem value="inactive">{language === "es" ? "Inactivos" : "Inactive"}</SelectItem>
-                      <SelectItem value="archived">{language === "es" ? "Archivados" : "Archived"}</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
+              <PopoverContent className="w-96 max-h-[600px] overflow-y-auto" align="end">
+                <div className="space-y-4">
+                  <div className="space-y-2">
+                    <h4 className="font-medium text-sm">
+                      {language === 'es' ? 'Filtrar por' : 'Filter by'}
+                    </h4>
 
-                <div>
-                  <label className="text-sm font-medium mb-2 block">
-                    {language === "es" ? "Verificación" : "Verification"}
-                  </label>
-                  <Select value={verifiedFilter} onValueChange={setVerifiedFilter}>
-                    <SelectTrigger data-testid="select-verified-filter">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="all">{language === "es" ? "Todos" : "All"}</SelectItem>
-                      <SelectItem value="verified">{language === "es" ? "Verificados" : "Verified"}</SelectItem>
-                      <SelectItem value="unverified">{language === "es" ? "No Verificados" : "Unverified"}</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
+                    {/* Estado Filter */}
+                    <div className="space-y-2">
+                      <label className="text-sm text-muted-foreground">
+                        {language === "es" ? "Estado" : "Status"}
+                      </label>
+                      <div className="flex gap-2 flex-wrap">
+                        <Button
+                          variant={statusFilter === "all" ? "default" : "outline"}
+                          size="sm"
+                          onClick={() => setStatusFilter("all")}
+                          data-testid="button-filter-status-all"
+                        >
+                          {language === "es" ? "Todos" : "All"}
+                        </Button>
+                        <Button
+                          variant={statusFilter === "active" ? "default" : "outline"}
+                          size="sm"
+                          onClick={() => setStatusFilter("active")}
+                          data-testid="button-filter-status-active"
+                        >
+                          {language === "es" ? "Activos" : "Active"}
+                        </Button>
+                        <Button
+                          variant={statusFilter === "inactive" ? "default" : "outline"}
+                          size="sm"
+                          onClick={() => setStatusFilter("inactive")}
+                          data-testid="button-filter-status-inactive"
+                        >
+                          {language === "es" ? "Inactivos" : "Inactive"}
+                        </Button>
+                        <Button
+                          variant={statusFilter === "archived" ? "default" : "outline"}
+                          size="sm"
+                          onClick={() => setStatusFilter("archived")}
+                          data-testid="button-filter-status-archived"
+                        >
+                          {language === "es" ? "Archivados" : "Archived"}
+                        </Button>
+                      </div>
+                    </div>
+
+                    {/* Verificación Filter */}
+                    <div className="space-y-2">
+                      <label className="text-sm text-muted-foreground">
+                        {language === "es" ? "Verificación" : "Verification"}
+                      </label>
+                      <div className="flex gap-2 flex-wrap">
+                        <Button
+                          variant={verifiedFilter === "all" ? "default" : "outline"}
+                          size="sm"
+                          onClick={() => setVerifiedFilter("all")}
+                          data-testid="button-filter-verified-all"
+                        >
+                          {language === "es" ? "Todos" : "All"}
+                        </Button>
+                        <Button
+                          variant={verifiedFilter === "verified" ? "default" : "outline"}
+                          size="sm"
+                          onClick={() => setVerifiedFilter("verified")}
+                          data-testid="button-filter-verified-verified"
+                        >
+                          {language === "es" ? "Verificados" : "Verified"}
+                        </Button>
+                        <Button
+                          variant={verifiedFilter === "unverified" ? "default" : "outline"}
+                          size="sm"
+                          onClick={() => setVerifiedFilter("unverified")}
+                          data-testid="button-filter-verified-unverified"
+                        >
+                          {language === "es" ? "No Verificados" : "Unverified"}
+                        </Button>
+                      </div>
+                    </div>
+                  </div>
 
                 {(statusFilter !== "all" || verifiedFilter !== "all") && (
                   <Button

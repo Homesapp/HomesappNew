@@ -996,84 +996,115 @@ export default function ExternalCondominiums() {
                   <PopoverContent className="w-96 max-h-[600px] overflow-y-auto" align="end">
                     <div className="space-y-4">
                       <div className="space-y-2">
-                      <label className="text-sm font-medium">
-                        {language === "es" ? "Condominio" : "Condominium"}
-                      </label>
-                      <Select 
-                        value={selectedCondoFilter} 
-                        onValueChange={setSelectedCondoFilter}
-                        disabled={condosLoading}
-                      >
-                        <SelectTrigger data-testid="select-filter-condominium">
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="all">
-                            {language === "es" ? "Todos los condominios" : "All condominiums"}
-                          </SelectItem>
-                          {condominiums?.map(condo => (
-                            <SelectItem key={condo.id} value={condo.id}>
-                              {condo.name}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </div>
-                    <div className="space-y-2">
-                      <label className="text-sm font-medium">
-                        {language === "es" ? "Estado de Unidad" : "Unit Status"}
-                      </label>
-                      <Select 
-                        value={unitStatusFilter} 
-                        onValueChange={setUnitStatusFilter}
-                      >
-                        <SelectTrigger data-testid="select-filter-unit-status">
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="all">
-                            {language === "es" ? "Todas" : "All"}
-                          </SelectItem>
-                          <SelectItem value="active">
-                            {language === "es" ? "Activas" : "Active"}
-                          </SelectItem>
-                          <SelectItem value="suspended">
-                            {language === "es" ? "Suspendidas" : "Suspended"}
-                          </SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </div>
-                    <div className="space-y-2">
-                      <label className="text-sm font-medium">
-                        {language === "es" ? "Estado de Renta" : "Rental Status"}
-                      </label>
-                      <Select 
-                        value={rentalStatusFilter} 
-                        onValueChange={setRentalStatusFilter}
-                        disabled={contractsLoading || contractsError}
-                      >
-                        <SelectTrigger data-testid="select-filter-rental-status">
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="all">
-                            {language === "es" ? "Todas las unidades" : "All units"}
-                          </SelectItem>
-                          <SelectItem value="with-rental">
-                            {language === "es" ? "Con renta activa" : "With active rental"}
-                          </SelectItem>
-                          <SelectItem value="without-rental">
-                            {language === "es" ? "Sin renta activa" : "Without active rental"}
-                          </SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </div>
+                        <h4 className="font-medium text-sm">
+                          {language === 'es' ? 'Filtrar por' : 'Filter by'}
+                        </h4>
 
-                    <Button variant="outline" className="w-full" onClick={clearUnitFilters}>
-                      <XCircle className="mr-2 h-4 w-4" />
-                      {language === "es" ? "Limpiar Filtros" : "Clear Filters"}
-                    </Button>
-                  </div>
+                        {/* Condominio Filter */}
+                        <div className="space-y-2">
+                          <label className="text-sm text-muted-foreground">
+                            {language === "es" ? "Condominio" : "Condominium"}
+                          </label>
+                          <div className="flex gap-2 flex-wrap">
+                            <Button
+                              variant={selectedCondoFilter === "all" ? "default" : "outline"}
+                              size="sm"
+                              onClick={() => setSelectedCondoFilter("all")}
+                              disabled={condosLoading}
+                              data-testid="button-filter-condominium-all"
+                            >
+                              {language === "es" ? "Todos" : "All"}
+                            </Button>
+                            {condominiums?.map(condo => (
+                              <Button
+                                key={condo.id}
+                                variant={selectedCondoFilter === condo.id ? "default" : "outline"}
+                                size="sm"
+                                onClick={() => setSelectedCondoFilter(condo.id)}
+                                disabled={condosLoading}
+                                data-testid={`button-filter-condominium-${condo.id}`}
+                              >
+                                {condo.name}
+                              </Button>
+                            ))}
+                          </div>
+                        </div>
+
+                        {/* Estado de Unidad Filter */}
+                        <div className="space-y-2">
+                          <label className="text-sm text-muted-foreground">
+                            {language === "es" ? "Estado de Unidad" : "Unit Status"}
+                          </label>
+                          <div className="flex gap-2 flex-wrap">
+                            <Button
+                              variant={unitStatusFilter === "all" ? "default" : "outline"}
+                              size="sm"
+                              onClick={() => setUnitStatusFilter("all")}
+                              data-testid="button-filter-unit-status-all"
+                            >
+                              {language === "es" ? "Todas" : "All"}
+                            </Button>
+                            <Button
+                              variant={unitStatusFilter === "active" ? "default" : "outline"}
+                              size="sm"
+                              onClick={() => setUnitStatusFilter("active")}
+                              data-testid="button-filter-unit-status-active"
+                            >
+                              {language === "es" ? "Activas" : "Active"}
+                            </Button>
+                            <Button
+                              variant={unitStatusFilter === "suspended" ? "default" : "outline"}
+                              size="sm"
+                              onClick={() => setUnitStatusFilter("suspended")}
+                              data-testid="button-filter-unit-status-suspended"
+                            >
+                              {language === "es" ? "Suspendidas" : "Suspended"}
+                            </Button>
+                          </div>
+                        </div>
+
+                        {/* Estado de Renta Filter */}
+                        <div className="space-y-2">
+                          <label className="text-sm text-muted-foreground">
+                            {language === "es" ? "Estado de Renta" : "Rental Status"}
+                          </label>
+                          <div className="flex gap-2 flex-wrap">
+                            <Button
+                              variant={rentalStatusFilter === "all" ? "default" : "outline"}
+                              size="sm"
+                              onClick={() => setRentalStatusFilter("all")}
+                              disabled={contractsLoading || contractsError}
+                              data-testid="button-filter-rental-status-all"
+                            >
+                              {language === "es" ? "Todas" : "All"}
+                            </Button>
+                            <Button
+                              variant={rentalStatusFilter === "with-rental" ? "default" : "outline"}
+                              size="sm"
+                              onClick={() => setRentalStatusFilter("with-rental")}
+                              disabled={contractsLoading || contractsError}
+                              data-testid="button-filter-rental-status-with"
+                            >
+                              {language === "es" ? "Con renta" : "With rental"}
+                            </Button>
+                            <Button
+                              variant={rentalStatusFilter === "without-rental" ? "default" : "outline"}
+                              size="sm"
+                              onClick={() => setRentalStatusFilter("without-rental")}
+                              disabled={contractsLoading || contractsError}
+                              data-testid="button-filter-rental-status-without"
+                            >
+                              {language === "es" ? "Sin renta" : "Without rental"}
+                            </Button>
+                          </div>
+                        </div>
+                      </div>
+
+                      <Button variant="outline" size="sm" className="w-full" onClick={clearUnitFilters} data-testid="button-clear-filters">
+                        <XCircle className="mr-2 h-4 w-4" />
+                        {language === "es" ? "Limpiar Filtros" : "Clear Filters"}
+                      </Button>
+                    </div>
                 </PopoverContent>
               </Popover>
 
