@@ -1152,7 +1152,7 @@ export default function ExternalCondominiums() {
               </CardContent>
             </Card>
           ) : (
-            <>
+            <div className="space-y-6">
               {selectedCondoId ? (
                     // Detail view for selected condominium
                     (() => {
@@ -1224,7 +1224,7 @@ export default function ExternalCondominiums() {
                     </h2>
 
                     {condoUnits.length > 0 ? (
-                      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+                      <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
                         {condoUnits.map((unit) => {
                           const activeContract = getActiveRentalContract(unit.id);
                           const isRented = activeContract !== null;
@@ -1366,7 +1366,7 @@ export default function ExternalCondominiums() {
                 )}
 
                 {/* Grid view of all condominiums */}
-                <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+                <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
                   {paginatedCondominiums.map((condo) => {
                   const condoUnits = getUnitsForCondo(condo.id);
                   const activeUnits = condoUnits.filter(u => u.isActive);
@@ -1806,7 +1806,7 @@ export default function ExternalCondominiums() {
                 </Card>
               </div>
             )}
-          </>
+            </div>
         )}
         </TabsContent>
 
@@ -1848,10 +1848,11 @@ export default function ExternalCondominiums() {
               </CardContent>
             </Card>
           ) : filteredUnits.length > 0 ? (
-            viewMode === "cards" ? (
-              <div className="space-y-4">
-                {/* Units Pagination Controls */}
-                {sortedUnits.length > 0 && (
+            <div className="space-y-6">
+              {viewMode === "cards" ? (
+                <>
+                  {/* Units Pagination Controls */}
+                  {sortedUnits.length > 0 && (
                   <ExternalPaginationControls
                     currentPage={unitsPage}
                     totalPages={Math.ceil(sortedUnits.length / unitsPerPage)}
@@ -1866,7 +1867,7 @@ export default function ExternalCondominiums() {
                   />
                 )}
 
-                <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+                <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
                 {paginatedUnits.map((unit) => {
                   const condo = condominiums?.find(c => c.id === unit.condominiumId);
                   const hasRental = hasActiveRental(unit.id);
@@ -1955,9 +1956,9 @@ export default function ExternalCondominiums() {
                   );
                 })}
                 </div>
-              </div>
+              </>
             ) : (
-              <div className="space-y-4">
+              <>
                 {/* Units Pagination Controls */}
                 {sortedUnits.length > 0 && (
                   <ExternalPaginationControls
@@ -2141,8 +2142,9 @@ export default function ExternalCondominiums() {
                     </div>
                   </CardContent>
                 </Card>
-              </div>
-            )
+              </>
+            )}
+            </div>
           ) : units && units.length > 0 ? (
             <Card data-testid="card-no-results-state">
               <CardContent className="flex flex-col items-center justify-center py-12">
