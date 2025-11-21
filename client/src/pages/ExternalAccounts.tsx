@@ -811,36 +811,28 @@ export default function ExternalAccounts() {
           </CardContent>
         </Card>
       ) : viewMode === 'table' ? (
-        <Card>
-          <CardHeader>
-            <CardTitle>{language === "es" ? "Usuarios de la Agencia" : "Agency Users"}</CardTitle>
-            <CardDescription>
-              {language === "es" 
-                ? "Lista de todos los usuarios con acceso a tu agencia"
-                : "List of all users with access to your agency"}
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            {/* Pagination Controls */}
-            <ExternalPaginationControls
-              currentPage={tablePage}
-              totalPages={tableTotalPages}
-              itemsPerPage={tableItemsPerPage}
-              onPageChange={setTablePage}
-              onItemsPerPageChange={(items) => {
-                setTableItemsPerPage(items);
-                setTablePage(1);
-              }}
-              language={language}
-              testIdPrefix="table"
-            />
+        <>
+          <ExternalPaginationControls
+            currentPage={tablePage}
+            totalPages={tableTotalPages}
+            itemsPerPage={tableItemsPerPage}
+            onPageChange={setTablePage}
+            onItemsPerPageChange={(items) => {
+              setTableItemsPerPage(items);
+              setTablePage(1);
+            }}
+            language={language}
+            testIdPrefix="table"
+          />
 
-            <div className="w-full overflow-x-auto">
-              <Table>
+          <Card className="border">
+            <CardContent className="p-0">
+              <div className="w-full overflow-x-auto">
+                <Table className="text-sm">
                 <TableHeader>
                   <TableRow>
                     <TableHead 
-                      className="min-w-[200px] cursor-pointer hover-elevate"
+                      className="min-w-[200px] cursor-pointer hover-elevate font-normal"
                       onClick={() => handleSort('name')}
                       data-testid="header-name"
                     >
@@ -850,7 +842,7 @@ export default function ExternalAccounts() {
                       </div>
                     </TableHead>
                     <TableHead 
-                      className="min-w-[200px] cursor-pointer hover-elevate"
+                      className="min-w-[200px] cursor-pointer hover-elevate font-normal"
                       onClick={() => handleSort('email')}
                       data-testid="header-email"
                     >
@@ -863,7 +855,7 @@ export default function ExternalAccounts() {
                       {language === "es" ? "Teléfono" : "Phone"}
                     </TableHead>
                     <TableHead 
-                      className="min-w-[150px] cursor-pointer hover-elevate"
+                      className="min-w-[150px] cursor-pointer hover-elevate font-normal"
                       onClick={() => handleSort('role')}
                       data-testid="header-role"
                     >
@@ -876,7 +868,7 @@ export default function ExternalAccounts() {
                       {language === "es" ? "Especialidad" : "Specialty"}
                     </TableHead>
                     <TableHead 
-                      className="min-w-[100px] cursor-pointer hover-elevate"
+                      className="min-w-[100px] cursor-pointer hover-elevate font-normal"
                       onClick={() => handleSort('status')}
                       data-testid="header-status"
                     >
@@ -893,7 +885,7 @@ export default function ExternalAccounts() {
                 <TableBody>
                   {paginatedTableUsers.map((user) => (
                     <TableRow key={user.id} data-testid={`row-user-${user.id}`}>
-                      <TableCell className="font-medium">
+                      <TableCell>
                         {user.firstName} {user.lastName}
                       </TableCell>
                       <TableCell>{user.email}</TableCell>
@@ -948,9 +940,10 @@ export default function ExternalAccounts() {
                   ))}
                 </TableBody>
               </Table>
-            </div>
-          </CardContent>
-        </Card>
+              </div>
+            </CardContent>
+          </Card>
+        </>
       ) : (
         <>
           {/* Pagination Controls for Cards */}
