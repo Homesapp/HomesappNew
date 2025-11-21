@@ -798,7 +798,7 @@ export default function ActiveRentals() {
               </CardDescription>
             </CardHeader>
             <CardContent>
-              <Tabs defaultValue="rent" className="w-full" onValueChange={handleServiceTypeChange}>
+              <Tabs value={currentServiceType} className="w-full" onValueChange={handleServiceTypeChange}>
                 <TabsList className="grid w-full grid-cols-5">
                   <TabsTrigger value="rent" data-testid="tab-rent-payments">
                     <DollarSign className="h-3 w-3 mr-1" />
