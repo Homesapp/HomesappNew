@@ -515,7 +515,7 @@ ${access.description ? `${language === "es" ? "Descripción" : "Description"}: $
 
   return (
     <div className="container mx-auto p-6 space-y-6">
-      <div className="flex items-center justify-between flex-wrap gap-4">
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
           <h1 className="text-3xl font-bold">
             {language === "es" ? "Accesos y Contraseñas" : "Access Codes & Passwords"}
@@ -527,8 +527,8 @@ ${access.description ? `${language === "es" ? "Descripción" : "Description"}: $
           </p>
         </div>
 
-        <div className="flex items-center gap-2">
-          <div className="relative w-64">
+        <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 w-full sm:w-auto">
+          <div className="relative flex-1 sm:flex-initial sm:w-64">
             <Search className="h-4 w-4 text-muted-foreground absolute left-3 top-1/2 -translate-y-1/2" />
             <Input
               placeholder={language === "es" ? "Buscar..." : "Search..."}
@@ -545,6 +545,7 @@ ${access.description ? `${language === "es" ? "Descripción" : "Description"}: $
                 variant="outline" 
                 size="icon"
                 data-testid="button-toggle-filters"
+                className="flex-shrink-0"
               >
                 <Filter className="h-4 w-4" />
               </Button>
@@ -714,6 +715,7 @@ ${access.description ? `${language === "es" ? "Descripción" : "Description"}: $
               size="sm"
               onClick={() => setViewMode('table')}
               data-testid="button-view-table"
+              className="flex-1 sm:flex-initial"
             >
               <LayoutList className="h-4 w-4" />
             </Button>
@@ -722,6 +724,7 @@ ${access.description ? `${language === "es" ? "Descripción" : "Description"}: $
               size="sm"
               onClick={() => setViewMode('cards')}
               data-testid="button-view-cards"
+              className="flex-1 sm:flex-initial"
             >
               <LayoutGrid className="h-4 w-4" />
             </Button>
@@ -729,7 +732,7 @@ ${access.description ? `${language === "es" ? "Descripción" : "Description"}: $
 
           <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
             <DialogTrigger asChild>
-              <Button data-testid="button-add-access">
+              <Button data-testid="button-add-access" className="w-full sm:w-auto">
                 <Plus className="mr-2 h-4 w-4" />
                 {language === "es" ? "Nuevo Acceso" : "New Access"}
               </Button>

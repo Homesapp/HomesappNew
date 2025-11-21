@@ -367,12 +367,12 @@ export default function ExternalOwnerPortfolio() {
   return (
     <div className="container mx-auto p-6 space-y-6">
       {/* Header */}
-      <div className="flex justify-between items-center flex-wrap gap-4">
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
           <h1 className="text-3xl font-bold" data-testid="text-page-title">{t.title}</h1>
           <p className="text-muted-foreground mt-1">{t.subtitle}</p>
         </div>
-        <Button onClick={exportToCSV} variant="outline" data-testid="button-export">
+        <Button onClick={exportToCSV} variant="outline" data-testid="button-export" className="w-full sm:w-auto">
           <Download className="mr-2 h-4 w-4" />
           {t.export}
         </Button>
@@ -455,8 +455,8 @@ export default function ExternalOwnerPortfolio() {
       {/* Search and Sort */}
       <Card>
         <CardContent className="pt-6">
-          <div className="grid gap-4 md:grid-cols-2">
-            <div className="relative">
+          <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
+            <div className="relative flex-1 sm:max-w-md">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
               <Input
                 placeholder={t.search}
@@ -469,7 +469,7 @@ export default function ExternalOwnerPortfolio() {
 
             <div className="flex gap-2">
               <Select value={sortBy} onValueChange={(value: any) => setSortBy(value)}>
-                <SelectTrigger className="flex-1" data-testid="select-sort-by">
+                <SelectTrigger className="flex-1 sm:w-40" data-testid="select-sort-by">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
@@ -485,6 +485,7 @@ export default function ExternalOwnerPortfolio() {
                 size="icon"
                 onClick={() => setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc')}
                 data-testid="button-sort-order"
+                className="flex-shrink-0"
               >
                 <ArrowUpDown className="h-4 w-4" />
               </Button>

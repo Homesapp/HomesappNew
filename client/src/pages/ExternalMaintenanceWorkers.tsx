@@ -471,7 +471,7 @@ export default function ExternalMaintenanceWorkers() {
 
   return (
     <div className="container mx-auto p-6 space-y-6">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
           <h1 className="text-3xl font-bold">
             {language === "es" ? "Trabajadores de Mantenimiento" : "Maintenance Workers"}
@@ -490,7 +490,7 @@ export default function ExternalMaintenanceWorkers() {
           }
         }}>
           <DialogTrigger asChild>
-            <Button data-testid="button-create-assignment">
+            <Button data-testid="button-create-assignment" className="w-full sm:w-auto">
               <Plus className="mr-2 h-4 w-4" />
               {language === "es" ? "Nueva Asignación" : "New Assignment"}
             </Button>

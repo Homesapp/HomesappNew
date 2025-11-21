@@ -825,15 +825,16 @@ export default function ExternalAccounting() {
 
   return (
     <div className="container mx-auto p-6 space-y-6">
-      <div className="flex justify-between items-start">
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
           <h1 className="text-3xl font-bold" data-testid="text-financial-title">{t.title}</h1>
           <p className="text-muted-foreground mt-2">{t.subtitle}</p>
         </div>
-        <div className="flex gap-2">
+        <div className="flex gap-2 w-full sm:w-auto">
           <Button
             onClick={() => setShowCreateDialog(true)}
             data-testid="button-create-transaction"
+            className="w-full sm:w-auto"
           >
             <Plus className="h-4 w-4 mr-2" />
             {t.createTransaction}
@@ -843,6 +844,7 @@ export default function ExternalAccounting() {
             onClick={handleExportExcel}
             disabled={!sortedAndFilteredTransactions || sortedAndFilteredTransactions.length === 0}
             data-testid="button-export-excel"
+            className="w-full sm:w-auto"
           >
             <Download className="h-4 w-4 mr-1" />
             {t.exportExcel}
@@ -851,7 +853,7 @@ export default function ExternalAccounting() {
       </div>
 
       <Tabs defaultValue="transactions" className="w-full">
-        <div className="flex items-center justify-between gap-2 mb-6">
+        <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 mb-6">
           <TabsList>
             <TabsTrigger value="transactions" data-testid="tab-transactions">{t.transactionsTab}</TabsTrigger>
             <TabsTrigger value="receivables" data-testid="tab-receivables">{t.receivablesTab}</TabsTrigger>
@@ -866,6 +868,7 @@ export default function ExternalAccounting() {
                   size="icon"
                   data-testid="button-toggle-filters"
                   title={t.filters}
+                  className="flex-shrink-0"
                 >
                   <Filter className="h-4 w-4" />
                 </Button>
@@ -1209,6 +1212,7 @@ export default function ExternalAccounting() {
                 size="sm"
                 onClick={() => setViewMode("cards")}
                 data-testid="button-view-cards"
+                className="flex-1 sm:flex-initial"
               >
                 <LayoutGrid className="h-4 w-4" />
               </Button>
@@ -1217,6 +1221,7 @@ export default function ExternalAccounting() {
                 size="sm"
                 onClick={() => setViewMode("table")}
                 data-testid="button-view-table"
+                className="flex-1 sm:flex-initial"
               >
                 <TableIcon className="h-4 w-4" />
               </Button>

@@ -415,7 +415,7 @@ export default function ExternalRentals() {
   return (
     <div className="container mx-auto p-6 space-y-6">
       {/* Header */}
-      <div className="flex items-center justify-between gap-4 flex-wrap">
+      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
         <div>
           <h1 className="text-3xl font-bold tracking-tight" data-testid="text-page-title">
             {language === "es" ? "Rentas Activas" : "Active Rentals"}
@@ -426,7 +426,7 @@ export default function ExternalRentals() {
               : "Manage all rental contracts and payments"}
           </p>
         </div>
-        <Button onClick={() => setWizardOpen(true)} data-testid="button-create-rental">
+        <Button onClick={() => setWizardOpen(true)} data-testid="button-create-rental" className="w-full sm:w-auto">
           <Home className="h-4 w-4 mr-2" />
           {language === "es" ? "Nueva Renta" : "New Rental"}
         </Button>
@@ -478,14 +478,15 @@ export default function ExternalRentals() {
       </div>
 
       {/* Search and Filters */}
-      <div className="flex items-center gap-2 flex-wrap">
+      <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
         {/* View Toggle */}
-        <div className="flex gap-2">
+        <div className="flex gap-2 flex-shrink-0">
           <Button
             variant={viewMode === "cards" ? "default" : "outline"}
             size="sm"
             onClick={() => setViewMode("cards")}
             data-testid="button-view-cards"
+            className="flex-1 sm:flex-initial"
           >
             <LayoutGrid className="h-4 w-4 mr-2" />
             {language === "es" ? "Cards" : "Cards"}
@@ -495,6 +496,7 @@ export default function ExternalRentals() {
             size="sm"
             onClick={() => setViewMode("table")}
             data-testid="button-view-table"
+            className="flex-1 sm:flex-initial"
           >
             <TableIcon className="h-4 w-4 mr-2" />
             {language === "es" ? "Tabla" : "Table"}
@@ -502,7 +504,7 @@ export default function ExternalRentals() {
         </div>
 
         {/* Search */}
-        <div className="relative flex-1 min-w-[200px] max-w-md">
+        <div className="relative flex-1 sm:max-w-md">
           <Search className="h-4 w-4 text-muted-foreground absolute left-3 top-1/2 -translate-y-1/2" />
           <Input
             placeholder={language === "es" ? "Buscar..." : "Search..."}

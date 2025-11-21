@@ -767,7 +767,7 @@ export default function ExternalCondominiums() {
 
   return (
     <div className="container mx-auto p-6 space-y-6">
-      <div className="flex justify-between items-start">
+      <div className="flex flex-col sm:flex-row justify-between items-start gap-4">
         <div>
           <h1 className="text-3xl font-bold" data-testid="text-page-title">
             {language === "es" ? "Condominios y Unidades" : "Condominiums & Units"}
@@ -778,7 +778,7 @@ export default function ExternalCondominiums() {
               : "Manage your condominiums and units"}
           </p>
         </div>
-        <Button onClick={handleOpenUnifiedDialog} data-testid="button-add-unified">
+        <Button onClick={handleOpenUnifiedDialog} data-testid="button-add-unified" className="w-full sm:w-auto">
           <Plus className="mr-2 h-4 w-4" />
           {language === "es" ? "Agregar" : "Add"}
         </Button>
@@ -793,8 +793,8 @@ export default function ExternalCondominiums() {
           setCondoFiltersExpanded(false);
         }
       }} className="w-full">
-        <div className="flex items-center justify-between gap-2 mb-4">
-          <TabsList className="grid w-full max-w-md grid-cols-2">
+        <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-4 mb-4">
+          <TabsList className="grid w-full sm:max-w-md grid-cols-2">
             <TabsTrigger value="condominiums" data-testid="tab-condominiums">
               <Building2 className="mr-2 h-4 w-4" />
               {language === "es" ? "Condominios" : "Condominiums"}
@@ -807,8 +807,8 @@ export default function ExternalCondominiums() {
           
           {!selectedCondoId && (
             activeTab === "condominiums" ? (
-              <div className="flex items-center gap-2">
-                <div className="relative w-64">
+              <div className="flex items-center gap-2 w-full sm:w-auto">
+                <div className="relative flex-1 sm:flex-initial sm:w-64">
                   <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
                   <Input
                     placeholder={language === "es" ? "Nombre o dirección de condominio..." : "Condominium name or address..."}
@@ -824,6 +824,7 @@ export default function ExternalCondominiums() {
                       variant="outline"
                       size="icon"
                       data-testid="button-toggle-condo-filters"
+                      className="flex-shrink-0"
                     >
                       <Filter className="h-4 w-4" />
                     </Button>
@@ -839,8 +840,8 @@ export default function ExternalCondominiums() {
                 </Popover>
               </div>
             ) : (
-              <div className="flex items-center gap-2">
-                <div className="relative w-64">
+              <div className="flex items-center gap-2 w-full sm:w-auto">
+                <div className="relative flex-1 sm:flex-initial sm:w-64">
                   <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
                   <Input
                     placeholder={language === "es" ? "Número de unidad o condominio..." : "Unit number or condominium..."}
@@ -856,6 +857,7 @@ export default function ExternalCondominiums() {
                       variant="outline"
                       size="icon"
                       data-testid="button-toggle-unit-filters"
+                      className="flex-shrink-0"
                     >
                       <Filter className="h-4 w-4" />
                     </Button>
