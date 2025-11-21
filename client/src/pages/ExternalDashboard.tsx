@@ -3,7 +3,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Building2, DollarSign, Wrench, AlertCircle, TrendingUp, Calendar, FileText, ClipboardCheck, ArrowRight, User, TrendingDown, ArrowUpRight, ArrowDownRight } from "lucide-react";
+import { Building2, DollarSign, Wrench, AlertCircle, TrendingUp, Calendar, FileText, ClipboardCheck, ArrowRight, User, TrendingDown, ArrowUpRight, ArrowDownRight, Home, Wifi, Zap, Droplet, Flame, Receipt } from "lucide-react";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { Link } from "wouter";
 import { format, addDays, startOfDay, isBefore, startOfMonth, endOfMonth } from "date-fns";
@@ -228,7 +228,7 @@ export default function ExternalDashboard() {
   ];
 
   // Today's events (filtered for today only)
-  const todayEvents = [];
+  const todayEvents: any[] = [];
   const todayStart = startOfDay(today);
   const todayEnd = addDays(todayStart, 1);
 
@@ -249,10 +249,11 @@ export default function ExternalDashboard() {
         todayEvents.push({
           type: 'payment',
           title: `${language === "es" ? "Pago" : "Payment"}: ${p.serviceType}`,
-          subtitle: unit && condo ? `${condo.name} - ${unit.unitNumber}${tenantName ? ` (${tenantName})` : ''}` : '',
+          serviceType: p.serviceType,
+          condominium: condo?.name || (language === "es" ? "Sin condominio" : "No condominium"),
+          unitNumber: unit?.unitNumber || '',
+          tenantName: tenantName,
           date: new Date(p.dueDate),
-          icon: DollarSign,
-          color: 'text-green-600',
           status: p.status,
         });
       });
@@ -273,17 +274,40 @@ export default function ExternalDashboard() {
         todayEvents.push({
           type: 'ticket',
           title: t.title,
-          subtitle: unit && condo ? `${condo.name} - ${unit.unitNumber}` : '',
+          condominium: condo?.name || (language === "es" ? "Sin condominio" : "No condominium"),
+          unitNumber: unit?.unitNumber || '',
           date: new Date(t.scheduledDate!),
-          icon: Wrench,
-          color: 'text-orange-600',
           status: t.status,
         });
       });
   }
 
-  // Sort by date/time
-  todayEvents.sort((a, b) => a.date.getTime() - b.date.getTime());
+  // Group events by condominium
+  const groupedByCondominium = todayEvents.reduce((acc, event) => {
+    const key = event.condominium;
+    if (!acc[key]) {
+      acc[key] = {
+        payments: [],
+        tickets: [],
+      };
+    }
+    
+    if (event.type === 'payment') acc[key].payments.push(event);
+    else if (event.type === 'ticket') acc[key].tickets.push(event);
+    
+    return acc;
+  }, {} as Record<string, {payments: any[], tickets: any[]}>);
+
+  const getServiceIcon = (serviceType?: string) => {
+    if (!serviceType) return <Receipt className="h-4 w-4" />;
+    switch (serviceType) {
+      case 'electricity': return <Zap className="h-4 w-4" />;
+      case 'water': return <Droplet className="h-4 w-4" />;
+      case 'internet': return <Wifi className="h-4 w-4" />;
+      case 'gas': return <Flame className="h-4 w-4" />;
+      default: return <Receipt className="h-4 w-4" />;
+    }
+  };
 
   return (
     <div className="container mx-auto p-6 space-y-6">
@@ -463,33 +487,64 @@ export default function ExternalDashboard() {
                 <Skeleton className="h-14 w-full" />
               </div>
             ) : todayEvents.length > 0 ? (
-              <div className="space-y-2">
-                {todayEvents.slice(0, 6).map((event, idx) => (
-                  <div
-                    key={idx}
-                    className="flex items-center justify-between p-2 rounded-md bg-muted/50 hover-elevate"
-                    data-testid={`event-${idx}`}
-                  >
-                    <div className="flex items-center gap-3 flex-1 min-w-0">
-                      <event.icon className={`h-4 w-4 ${event.color} flex-shrink-0`} />
-                      <div className="flex-1 min-w-0">
-                        <p className="text-sm font-medium truncate">{event.title}</p>
-                        {event.subtitle && (
-                          <p className="text-xs text-muted-foreground truncate">{event.subtitle}</p>
-                        )}
-                      </div>
-                    </div>
-                    <div className="flex items-center gap-2 flex-shrink-0">
-                      <p className="text-xs text-muted-foreground">
-                        {format(event.date, 'HH:mm')}
-                      </p>
-                      {event.status && (
-                        <Badge variant={event.status === 'paid' || event.status === 'completed' ? 'default' : 'secondary'} className="text-xs">
-                          {event.status}
-                        </Badge>
+              <div className="space-y-3">
+                {Object.entries(groupedByCondominium).map(([condoName, condoEvents]) => (
+                  <Card key={condoName} className="hover-elevate" data-testid={`card-condo-${condoName}`}>
+                    <CardHeader className="pb-2">
+                      <CardTitle className="flex items-center gap-2 text-sm" data-testid={`text-condo-${condoName}`}>
+                        <Home className="h-4 w-4" />
+                        {condoName}
+                      </CardTitle>
+                    </CardHeader>
+                    <CardContent className="space-y-3">
+                      {condoEvents.payments.length > 0 && (
+                        <div className="space-y-2">
+                          <h4 className="font-semibold flex items-center gap-2 text-xs">
+                            <DollarSign className="h-3 w-3" />
+                            {language === "es" ? "Pagos de Renta" : "Rental Payments"} ({condoEvents.payments.length})
+                          </h4>
+                          <div className="space-y-2 ml-5">
+                            {condoEvents.payments.map((event: any, idx: number) => (
+                              <div key={idx} className="flex items-center justify-between p-2 rounded-md bg-muted/50" data-testid={`payment-${idx}`}>
+                                <div className="flex items-center gap-3">
+                                  {getServiceIcon(event.serviceType)}
+                                  <div>
+                                    <p className="text-sm font-medium" data-testid={`payment-title-${idx}`}>{event.title}</p>
+                                    <p className="text-xs text-muted-foreground">{language === "es" ? "Unidad" : "Unit"}: {event.unitNumber}</p>
+                                  </div>
+                                </div>
+                                <Badge variant={event.status === 'paid' ? 'default' : 'secondary'} data-testid={`payment-status-${idx}`}>
+                                  {event.status}
+                                </Badge>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
                       )}
-                    </div>
-                  </div>
+
+                      {condoEvents.tickets.length > 0 && (
+                        <div className="space-y-2">
+                          <h4 className="font-semibold flex items-center gap-2 text-xs">
+                            <Wrench className="h-3 w-3" />
+                            {language === "es" ? "Mantenimientos" : "Maintenance"} ({condoEvents.tickets.length})
+                          </h4>
+                          <div className="space-y-2 ml-5">
+                            {condoEvents.tickets.map((event: any, idx: number) => (
+                              <div key={idx} className="flex items-center justify-between p-2 rounded-md bg-muted/50" data-testid={`ticket-${idx}`}>
+                                <div>
+                                  <p className="text-sm font-medium" data-testid={`ticket-title-${idx}`}>{event.title}</p>
+                                  <p className="text-xs text-muted-foreground">{language === "es" ? "Unidad" : "Unit"}: {event.unitNumber}</p>
+                                </div>
+                                <Badge variant="secondary" data-testid={`ticket-status-${idx}`}>
+                                  {event.status}
+                                </Badge>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+                    </CardContent>
+                  </Card>
                 ))}
               </div>
             ) : (
