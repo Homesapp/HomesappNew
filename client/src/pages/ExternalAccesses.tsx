@@ -81,13 +81,17 @@ export default function ExternalAccesses() {
 
   // Table pagination and sorting states
   const [tablePage, setTablePage] = useState(1);
-  const [tableItemsPerPage, setTableItemsPerPage] = useState(5);
+  const [tableItemsPerPage, setTableItemsPerPage] = useState(10);
   const [sortColumn, setSortColumn] = useState<string>("condominium");
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc');
 
-  // Card pagination state (rows per page: 1, 2, or 3)
-  const [cardsRowsPerPage, setCardsRowsPerPage] = useState(3);
+  // Card pagination state
   const [cardsPage, setCardsPage] = useState(1);
+  const [cardsItemsPerPage, setCardsItemsPerPage] = useState(6);
+  
+  // Pagination options
+  const cardsPerPageOptions = [3, 6, 9, 12];
+  const tablePerPageOptions = [5, 10, 20, 30];
 
   // Auto-switch view mode on genuine breakpoint transitions (only if no manual override)
   useEffect(() => {
@@ -98,14 +102,20 @@ export default function ExternalAccesses() {
       if (!manualViewModeOverride) {
         const preferredMode = isMobile ? "cards" : "table";
         setViewMode(preferredMode);
-        if (preferredMode === "cards") {
-          setCardsRowsPerPage(1);
-        } else {
-          setTableItemsPerPage(5);
-        }
       }
     }
   }, [isMobile, prevIsMobile, manualViewModeOverride]);
+  
+  // Auto-adjust itemsPerPage when switching view modes
+  useEffect(() => {
+    if (viewMode === "cards") {
+      setCardsItemsPerPage(cardsPerPageOptions[1]);
+      setCardsPage(1);
+    } else {
+      setTableItemsPerPage(tablePerPageOptions[1]);
+      setTablePage(1);
+    }
+  }, [viewMode]);
 
   // Real-time data: access control codes (frequently updated)
   const { data: accesses, isLoading } = useQuery<AccessControl[]>({
@@ -556,29 +566,239 @@ ${access.description ? `${language === "es" ? "Descripción" : "Description"}: $
           </p>
         </div>
 
-        <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 w-full sm:w-auto">
-          <div className="relative flex-1 sm:flex-initial sm:w-64">
-            <Search className="h-4 w-4 text-muted-foreground absolute left-3 top-1/2 -translate-y-1/2" />
-            <Input
-              placeholder={language === "es" ? "Buscar..." : "Search..."}
-              value={searchTerm}
-              onChange={(e) => handleSearchChange(e.target.value)}
-              className="pl-9"
-              data-testid="input-search"
-            />
-          </div>
-          
-          <Popover open={isFiltersOpen} onOpenChange={setIsFiltersOpen}>
-            <PopoverTrigger asChild>
-              <Button 
-                variant="outline" 
-                size="icon"
-                data-testid="button-toggle-filters"
-                className="flex-shrink-0"
-              >
-                <Filter className="h-4 w-4" />
-              </Button>
-            </PopoverTrigger>
+        <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
+          <DialogTrigger asChild>
+            <Button data-testid="button-add-access" className="w-full sm:w-auto">
+              <Plus className="mr-2 h-4 w-4" />
+              {language === "es" ? "Nuevo Acceso" : "New Access"}
+            </Button>
+          </DialogTrigger>
+          <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+            <DialogHeader>
+              <DialogTitle>
+                {language === "es" ? "Crear Código de Acceso" : "Create Access Code"}
+              </DialogTitle>
+              <DialogDescription>
+                {language === "es"
+                  ? "Registra un nuevo código de acceso para una unidad"
+                  : "Register a new access code for a unit"}
+              </DialogDescription>
+            </DialogHeader>
+
+            <Form {...form}>
+              <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <FormField
+                    control={form.control}
+                    name="unitId"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>{language === "es" ? "Unidad" : "Unit"} *</FormLabel>
+                        <Select onValueChange={field.onChange} value={field.value}>
+                          <FormControl>
+                            <SelectTrigger data-testid="select-form-unit">
+                              <SelectValue placeholder={language === "es" ? "Selecciona una unidad" : "Select a unit"} />
+                            </SelectTrigger>
+                          </FormControl>
+                          <SelectContent>
+                            {units?.map((unit) => {
+                              const condo = condominiums?.find(c => c.id === unit.condominiumId);
+                              return (
+                                <SelectItem key={unit.id} value={unit.id}>
+                                  {condo?.name} - {unit.unitNumber}
+                                </SelectItem>
+                              );
+                            })}
+                          </SelectContent>
+                        </Select>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+
+                  <FormField
+                    control={form.control}
+                    name="accessType"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>{language === "es" ? "Tipo de Acceso" : "Access Type"} *</FormLabel>
+                        <Select onValueChange={field.onChange} value={field.value}>
+                          <FormControl>
+                            <SelectTrigger data-testid="select-form-access-type">
+                              <SelectValue />
+                            </SelectTrigger>
+                          </FormControl>
+                          <SelectContent>
+                            <SelectItem value="door_code">{getAccessTypeLabel("door_code")}</SelectItem>
+                            <SelectItem value="wifi">{getAccessTypeLabel("wifi")}</SelectItem>
+                            <SelectItem value="gate">{getAccessTypeLabel("gate")}</SelectItem>
+                            <SelectItem value="parking">{getAccessTypeLabel("parking")}</SelectItem>
+                            <SelectItem value="elevator">{getAccessTypeLabel("elevator")}</SelectItem>
+                            <SelectItem value="pool">{getAccessTypeLabel("pool")}</SelectItem>
+                            <SelectItem value="gym">{getAccessTypeLabel("gym")}</SelectItem>
+                            <SelectItem value="other">{getAccessTypeLabel("other")}</SelectItem>
+                          </SelectContent>
+                        </Select>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                </div>
+
+                <FormField
+                  control={form.control}
+                  name="accessCode"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>{language === "es" ? "Código/Contraseña" : "Code/Password"}</FormLabel>
+                      <FormControl>
+                        <Input
+                          placeholder={language === "es" ? "Ingresa el código" : "Enter code"}
+                          {...field}
+                          data-testid="input-form-code"
+                        />
+                      </FormControl>
+                      <FormDescription>
+                        {language === "es" 
+                          ? "El código de acceso o contraseña" 
+                          : "The access code or password"}
+                      </FormDescription>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                <FormField
+                  control={form.control}
+                  name="description"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>{language === "es" ? "Descripción" : "Description"}</FormLabel>
+                      <FormControl>
+                        <Textarea
+                          placeholder={language === "es" ? "Detalles adicionales..." : "Additional details..."}
+                          {...field}
+                          data-testid="input-form-description"
+                          rows={3}
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <FormField
+                    control={form.control}
+                    name="isActive"
+                    render={({ field }) => (
+                      <FormItem className="flex flex-row items-center justify-between rounded-md border p-4">
+                        <div className="space-y-0.5">
+                          <FormLabel className="text-base">
+                            {language === "es" ? "Activo" : "Active"}
+                          </FormLabel>
+                          <FormDescription>
+                            {language === "es" 
+                              ? "¿Este código está activo?" 
+                              : "Is this code active?"}
+                          </FormDescription>
+                        </div>
+                        <FormControl>
+                          <Switch
+                            checked={field.value}
+                            onCheckedChange={field.onChange}
+                            data-testid="switch-form-active"
+                          />
+                        </FormControl>
+                      </FormItem>
+                    )}
+                  />
+
+                  <FormField
+                    control={form.control}
+                    name="canShareWithMaintenance"
+                    render={({ field }) => (
+                      <FormItem className="flex flex-row items-center justify-between rounded-md border p-4">
+                        <div className="space-y-0.5">
+                          <FormLabel className="text-base">
+                            {language === "es" ? "Compartir" : "Share"}
+                          </FormLabel>
+                          <FormDescription>
+                            {language === "es" 
+                              ? "¿Compartir con mantenimiento?" 
+                              : "Share with maintenance?"}
+                          </FormDescription>
+                        </div>
+                        <FormControl>
+                          <Switch
+                            checked={field.value}
+                            onCheckedChange={field.onChange}
+                            data-testid="switch-form-share"
+                          />
+                        </FormControl>
+                      </FormItem>
+                    )}
+                  />
+                </div>
+
+                <DialogFooter>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={() => setIsAddDialogOpen(false)}
+                    data-testid="button-cancel-form"
+                  >
+                    {language === "es" ? "Cancelar" : "Cancel"}
+                  </Button>
+                  <Button
+                    type="submit"
+                    disabled={createMutation.isPending}
+                    data-testid="button-submit-form"
+                  >
+                    {createMutation.isPending
+                      ? (language === "es" ? "Guardando..." : "Saving...")
+                      : (language === "es" ? "Crear Acceso" : "Create Access")}
+                  </Button>
+                </DialogFooter>
+              </form>
+            </Form>
+          </DialogContent>
+        </Dialog>
+      </div>
+
+      {/* Search and Filters */}
+      <Card>
+        <CardContent className="pt-6">
+          <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
+            {/* Search Input */}
+            <div className="relative flex-1">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+              <Input
+                placeholder={language === "es" ? "Buscar accesos..." : "Search accesses..."}
+                value={searchTerm}
+                onChange={(e) => handleSearchChange(e.target.value)}
+                className="pl-10"
+                data-testid="input-search"
+              />
+            </div>
+
+            {/* Filter Button with Popover */}
+            <Popover open={isFiltersOpen} onOpenChange={setIsFiltersOpen}>
+              <PopoverTrigger asChild>
+                <Button 
+                  variant="outline" 
+                  size="icon"
+                  className="relative flex-shrink-0"
+                  data-testid="button-toggle-filters"
+                >
+                  <Filter className="h-4 w-4" />
+                  {(selectedCondominium !== "all" || selectedUnit !== "all" || selectedAccessType !== "all") && (
+                    <Badge variant="default" className="absolute -top-1 -right-1 h-4 w-4 p-0 flex items-center justify-center text-[10px]">
+                      {[selectedCondominium !== "all", selectedUnit !== "all", selectedAccessType !== "all"].filter(Boolean).length}
+                    </Badge>
+                  )}
+                </Button>
+              </PopoverTrigger>
             <PopoverContent className="w-96 max-h-[600px] overflow-y-auto" align="end">
               <div className="space-y-4">
                 <div className="space-y-2">
@@ -738,234 +958,38 @@ ${access.description ? `${language === "es" ? "Descripción" : "Description"}: $
             </PopoverContent>
           </Popover>
 
-          {/* View Toggle - Desktop only */}
-          {!isMobile && (
-            <div className="flex gap-2">
-              <Button
-                variant={viewMode === 'cards' ? 'default' : 'outline'}
-                size="icon"
-                onClick={() => {
-                  setViewMode('cards');
-                  setManualViewModeOverride(false);
-                }}
-                data-testid="button-accesses-view-cards"
-              >
-                <LayoutGrid className="h-4 w-4" />
-              </Button>
-              <Button
-                variant={viewMode === 'table' ? 'default' : 'outline'}
-                size="icon"
-                onClick={() => {
-                  setViewMode('table');
-                  setManualViewModeOverride(true);
-                }}
-                data-testid="button-accesses-view-table"
-              >
-                <LayoutList className="h-4 w-4" />
-              </Button>
-            </div>
-          )}
-
-          <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
-            <DialogTrigger asChild>
-              <Button data-testid="button-add-access" className="w-full sm:w-auto">
-                <Plus className="mr-2 h-4 w-4" />
-                {language === "es" ? "Nuevo Acceso" : "New Access"}
-              </Button>
-            </DialogTrigger>
-            <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
-              <DialogHeader>
-                <DialogTitle>
-                  {language === "es" ? "Crear Código de Acceso" : "Create Access Code"}
-                </DialogTitle>
-                <DialogDescription>
-                  {language === "es"
-                    ? "Registra un nuevo código de acceso para una unidad"
-                    : "Register a new access code for a unit"}
-                </DialogDescription>
-              </DialogHeader>
-
-              <Form {...form}>
-                <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <FormField
-                      control={form.control}
-                      name="unitId"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>{language === "es" ? "Unidad" : "Unit"} *</FormLabel>
-                          <Select onValueChange={field.onChange} value={field.value}>
-                            <FormControl>
-                              <SelectTrigger data-testid="select-form-unit">
-                                <SelectValue placeholder={language === "es" ? "Selecciona una unidad" : "Select a unit"} />
-                              </SelectTrigger>
-                            </FormControl>
-                            <SelectContent>
-                              {units?.map((unit) => {
-                                const condo = condominiums?.find(c => c.id === unit.condominiumId);
-                                return (
-                                  <SelectItem key={unit.id} value={unit.id}>
-                                    {condo?.name} - {unit.unitNumber}
-                                  </SelectItem>
-                                );
-                              })}
-                            </SelectContent>
-                          </Select>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-
-                    <FormField
-                      control={form.control}
-                      name="accessType"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>{language === "es" ? "Tipo de Acceso" : "Access Type"} *</FormLabel>
-                          <Select onValueChange={field.onChange} value={field.value}>
-                            <FormControl>
-                              <SelectTrigger data-testid="select-form-access-type">
-                                <SelectValue />
-                              </SelectTrigger>
-                            </FormControl>
-                            <SelectContent>
-                              <SelectItem value="door_code">{getAccessTypeLabel("door_code")}</SelectItem>
-                              <SelectItem value="wifi">{getAccessTypeLabel("wifi")}</SelectItem>
-                              <SelectItem value="gate">{getAccessTypeLabel("gate")}</SelectItem>
-                              <SelectItem value="parking">{getAccessTypeLabel("parking")}</SelectItem>
-                              <SelectItem value="elevator">{getAccessTypeLabel("elevator")}</SelectItem>
-                              <SelectItem value="pool">{getAccessTypeLabel("pool")}</SelectItem>
-                              <SelectItem value="gym">{getAccessTypeLabel("gym")}</SelectItem>
-                              <SelectItem value="other">{getAccessTypeLabel("other")}</SelectItem>
-                            </SelectContent>
-                          </Select>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                  </div>
-
-                  <FormField
-                    control={form.control}
-                    name="accessCode"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>{language === "es" ? "Código/Contraseña" : "Code/Password"}</FormLabel>
-                        <FormControl>
-                          <Input
-                            placeholder={language === "es" ? "Ingresa el código" : "Enter code"}
-                            {...field}
-                            data-testid="input-form-code"
-                          />
-                        </FormControl>
-                        <FormDescription>
-                          {language === "es" 
-                            ? "El código de acceso o contraseña" 
-                            : "The access code or password"}
-                        </FormDescription>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-
-                  <FormField
-                    control={form.control}
-                    name="description"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>{language === "es" ? "Descripción" : "Description"}</FormLabel>
-                        <FormControl>
-                          <Textarea
-                            placeholder={language === "es" ? "Detalles adicionales..." : "Additional details..."}
-                            {...field}
-                            data-testid="input-form-description"
-                            rows={3}
-                          />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <FormField
-                      control={form.control}
-                      name="isActive"
-                      render={({ field }) => (
-                        <FormItem className="flex flex-row items-center justify-between rounded-md border p-4">
-                          <div className="space-y-0.5">
-                            <FormLabel className="text-base">
-                              {language === "es" ? "Activo" : "Active"}
-                            </FormLabel>
-                            <FormDescription>
-                              {language === "es" 
-                                ? "¿Este código está activo?" 
-                                : "Is this code active?"}
-                            </FormDescription>
-                          </div>
-                          <FormControl>
-                            <Switch
-                              checked={field.value}
-                              onCheckedChange={field.onChange}
-                              data-testid="switch-form-active"
-                            />
-                          </FormControl>
-                        </FormItem>
-                      )}
-                    />
-
-                    <FormField
-                      control={form.control}
-                      name="canShareWithMaintenance"
-                      render={({ field }) => (
-                        <FormItem className="flex flex-row items-center justify-between rounded-md border p-4">
-                          <div className="space-y-0.5">
-                            <FormLabel className="text-base">
-                              {language === "es" ? "Compartir" : "Share"}
-                            </FormLabel>
-                            <FormDescription>
-                              {language === "es" 
-                                ? "¿Compartir con mantenimiento?" 
-                                : "Share with maintenance?"}
-                            </FormDescription>
-                          </div>
-                          <FormControl>
-                            <Switch
-                              checked={field.value}
-                              onCheckedChange={field.onChange}
-                              data-testid="switch-form-share"
-                            />
-                          </FormControl>
-                        </FormItem>
-                      )}
-                    />
-                  </div>
-
-                  <DialogFooter>
-                    <Button
-                      type="button"
-                      variant="outline"
-                      onClick={() => setIsAddDialogOpen(false)}
-                      data-testid="button-cancel-form"
-                    >
-                      {language === "es" ? "Cancelar" : "Cancel"}
-                    </Button>
-                    <Button
-                      type="submit"
-                      disabled={createMutation.isPending}
-                      data-testid="button-submit-form"
-                    >
-                      {createMutation.isPending
-                        ? (language === "es" ? "Guardando..." : "Saving...")
-                        : (language === "es" ? "Crear Acceso" : "Create Access")}
-                    </Button>
-                  </DialogFooter>
-                </form>
-              </Form>
-            </DialogContent>
-          </Dialog>
-        </div>
-      </div>
+            {/* View Toggle Buttons - Desktop Only */}
+            {!isMobile && (
+              <>
+                <Button
+                  variant={viewMode === 'cards' ? 'default' : 'outline'}
+                  size="icon"
+                  onClick={() => {
+                    setViewMode('cards');
+                    setManualViewModeOverride(false);
+                  }}
+                  className="flex-shrink-0"
+                  data-testid="button-view-cards"
+                >
+                  <LayoutGrid className="h-4 w-4" />
+                </Button>
+                <Button
+                  variant={viewMode === 'table' ? 'default' : 'outline'}
+                  size="icon"
+                  onClick={() => {
+                    setViewMode('table');
+                    setManualViewModeOverride(true);
+                  }}
+                  className="flex-shrink-0"
+                  data-testid="button-view-table"
+                >
+                  <LayoutList className="h-4 w-4" />
+                </Button>
+              </>
+            )}
+          </div>
+        </CardContent>
+      </Card>
 
       {selectedAccesses.size > 0 && (
         <div className="flex justify-end">
