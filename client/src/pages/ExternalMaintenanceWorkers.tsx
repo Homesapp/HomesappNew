@@ -80,7 +80,9 @@ export default function ExternalMaintenanceWorkers() {
   const [deleteAssignmentId, setDeleteAssignmentId] = useState<string | null>(null);
   const [assignmentType, setAssignmentType] = useState<"condominium" | "unit">("condominium");
   const [editingWorkerId, setEditingWorkerId] = useState<string | null>(null);
+  const [activeTab, setActiveTab] = useState<"assignments" | "workers">("assignments");
   const [workersViewMode, setWorkersViewMode] = useState<"cards" | "table">("table");
+  const [assignmentsViewMode, setAssignmentsViewMode] = useState<"cards" | "table">("table");
   const [manualViewModeOverride, setManualViewModeOverride] = useState(false);
   const [prevIsMobile, setPrevIsMobile] = useState(isMobile);
   
@@ -94,6 +96,10 @@ export default function ExternalMaintenanceWorkers() {
   const [assignmentsPerPage, setAssignmentsPerPage] = useState(10);
   const [assignmentsSortColumn, setAssignmentsSortColumn] = useState<string>("");
   const [assignmentsSortDirection, setAssignmentsSortDirection] = useState<"asc" | "desc">("asc");
+  
+  // Assignments cards pagination
+  const [assignmentsCardsPage, setAssignmentsCardsPage] = useState(1);
+  const [assignmentsCardsItemsPerPage, setAssignmentsCardsItemsPerPage] = useState(9);
   
   // Workers pagination & sorting (shared between table and cards)
   const [workersPage, setWorkersPage] = useState(1);
@@ -110,17 +116,40 @@ export default function ExternalMaintenanceWorkers() {
       if (!manualViewModeOverride) {
         const preferredMode = isMobile ? "cards" : "table";
         setWorkersViewMode(preferredMode);
+        setAssignmentsViewMode(preferredMode);
         setWorkersPerPage(preferredMode === "cards" ? 9 : 10);
+        setAssignmentsPerPage(preferredMode === "cards" ? 9 : 10);
+        setAssignmentsCardsItemsPerPage(preferredMode === "cards" ? 9 : 10);
       }
     }
   }, [isMobile, prevIsMobile, manualViewModeOverride]);
 
-  // Reset assignments page when items per page changes
+  // Reset assignments table page when items per page changes
   useEffect(() => {
     setAssignmentsPage(1);
   }, [assignmentsPerPage]);
 
-  // Reset page to 1 when view mode changes
+  // Reset assignments cards page when items per page changes
+  useEffect(() => {
+    setAssignmentsCardsPage(1);
+  }, [assignmentsCardsItemsPerPage]);
+
+  // Reset page to 1 when assignments view mode changes
+  useEffect(() => {
+    const defaultPerPage = assignmentsViewMode === "cards" ? 9 : 10;
+    const validOptions = assignmentsViewMode === "cards" ? [3, 6, 9, 12] : [5, 10, 20, 30];
+    
+    // Only auto-adjust if current value is not valid for the new mode
+    if (assignmentsViewMode === "cards" && !validOptions.includes(assignmentsCardsItemsPerPage)) {
+      setAssignmentsCardsItemsPerPage(defaultPerPage);
+    } else if (assignmentsViewMode === "table" && !validOptions.includes(assignmentsPerPage)) {
+      setAssignmentsPerPage(defaultPerPage);
+    }
+    setAssignmentsPage(1);
+    setAssignmentsCardsPage(1);
+  }, [assignmentsViewMode]);
+
+  // Reset page to 1 when workers view mode changes
   useEffect(() => {
     const defaultPerPage = workersViewMode === "cards" ? 9 : 10;
     const validOptions = workersViewMode === "cards" ? [3, 6, 9, 12] : [5, 10, 20, 30];
@@ -398,24 +427,36 @@ export default function ExternalMaintenanceWorkers() {
     });
   }, [groupedAssignments, assignmentsSortColumn, assignmentsSortDirection, language]);
 
-  // Clamp assignments page
+  // Clamp assignments page (context-aware)
   useEffect(() => {
     if (sortedGroupedAssignments.length === 0) {
-      setAssignmentsPage(1);
+      if (assignmentsViewMode === "cards") {
+        setAssignmentsCardsPage(1);
+      } else {
+        setAssignmentsPage(1);
+      }
       return;
     }
-    const maxPage = Math.ceil(sortedGroupedAssignments.length / assignmentsPerPage) || 1;
-    if (assignmentsPage > maxPage) {
-      setAssignmentsPage(maxPage);
+    const currentItemsPerPage = assignmentsViewMode === "cards" ? assignmentsCardsItemsPerPage : assignmentsPerPage;
+    const currentPage = assignmentsViewMode === "cards" ? assignmentsCardsPage : assignmentsPage;
+    const maxPage = Math.ceil(sortedGroupedAssignments.length / currentItemsPerPage) || 1;
+    if (currentPage > maxPage) {
+      if (assignmentsViewMode === "cards") {
+        setAssignmentsCardsPage(maxPage);
+      } else {
+        setAssignmentsPage(maxPage);
+      }
     }
-  }, [sortedGroupedAssignments.length, assignmentsPerPage]);
+  }, [sortedGroupedAssignments.length, assignmentsPerPage, assignmentsCardsItemsPerPage, assignmentsViewMode, assignmentsPage, assignmentsCardsPage]);
 
-  // Paginate grouped assignments
+  // Paginate grouped assignments (context-aware)
   const paginatedGroupedAssignments = useMemo(() => {
-    return sortedGroupedAssignments.slice((assignmentsPage - 1) * assignmentsPerPage, assignmentsPage * assignmentsPerPage);
-  }, [sortedGroupedAssignments, assignmentsPage, assignmentsPerPage]);
+    const currentItemsPerPage = assignmentsViewMode === "cards" ? assignmentsCardsItemsPerPage : assignmentsPerPage;
+    const currentPage = assignmentsViewMode === "cards" ? assignmentsCardsPage : assignmentsPage;
+    return sortedGroupedAssignments.slice((currentPage - 1) * currentItemsPerPage, currentPage * currentItemsPerPage);
+  }, [sortedGroupedAssignments, assignmentsPage, assignmentsPerPage, assignmentsCardsPage, assignmentsCardsItemsPerPage, assignmentsViewMode]);
   
-  const assignmentsTotalPages = Math.ceil(sortedGroupedAssignments.length / assignmentsPerPage);
+  const assignmentsTotalPages = Math.ceil(sortedGroupedAssignments.length / (assignmentsViewMode === "cards" ? assignmentsCardsItemsPerPage : assignmentsPerPage));
 
   // Filter and sort workers
   const sortedWorkers = useMemo(() => {
@@ -940,7 +981,7 @@ export default function ExternalMaintenanceWorkers() {
         </Dialog>
       </div>
 
-      <Tabs defaultValue="assignments" className="w-full">
+      <Tabs defaultValue="assignments" value={activeTab} onValueChange={(value) => setActiveTab(value as "assignments" | "workers")} className="w-full">
         <TabsList>
           <TabsTrigger value="assignments" data-testid="tab-assignments">
             {language === "es" ? "Asignaciones" : "Assignments"}
@@ -950,7 +991,128 @@ export default function ExternalMaintenanceWorkers() {
           </TabsTrigger>
         </TabsList>
 
-        <TabsContent value="assignments">
+        {/* Search and Filters - Visible in all tabs */}
+        <Card className="mt-6">
+          <CardContent className="py-4">
+            <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
+              {/* Search Input */}
+              <div className="relative flex-1">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                <Input
+                  placeholder={language === "es" ? "Buscar trabajadores..." : "Search workers..."}
+                  value={workersSearchTerm}
+                  onChange={(e) => setWorkersSearchTerm(e.target.value)}
+                  className="pl-10"
+                  data-testid="input-workers-search"
+                />
+              </div>
+
+              {/* Filter Button with Popover */}
+              <Popover open={showWorkersFilters} onOpenChange={setShowWorkersFilters}>
+                <PopoverTrigger asChild>
+                  <Button 
+                    variant="outline" 
+                    size="icon"
+                    className="flex-shrink-0 relative"
+                    data-testid="button-workers-filters"
+                  >
+                    <Filter className="h-4 w-4" />
+                    {selectedSpecialty && (
+                      <Badge variant="default" className="absolute -top-1 -right-1 h-4 w-4 p-0 flex items-center justify-center text-[10px]">
+                        1
+                      </Badge>
+                    )}
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-96 max-h-[600px] overflow-y-auto" align="end">
+                  <div className="space-y-4">
+                    <div className="space-y-2">
+                      <h4 className="font-medium text-sm">
+                        {language === 'es' ? 'Filtrar por especialidad' : 'Filter by specialty'}
+                      </h4>
+                      
+                      <div className="flex gap-2 flex-wrap">
+                        <Button
+                          variant={selectedSpecialty === null ? "default" : "outline"}
+                          size="sm"
+                          onClick={() => setSelectedSpecialty(null)}
+                          data-testid="button-filter-specialty-all"
+                        >
+                          {language === 'es' ? 'Todas' : 'All'}
+                        </Button>
+                        {Object.keys(SPECIALTY_LABELS.es).map((specialty) => (
+                          <Button
+                            key={specialty}
+                            variant={selectedSpecialty === specialty ? "default" : "outline"}
+                            size="sm"
+                            onClick={() => setSelectedSpecialty(specialty)}
+                            data-testid={`button-filter-specialty-${specialty}`}
+                          >
+                            {SPECIALTY_LABELS[language][specialty as keyof typeof SPECIALTY_LABELS['es']]}
+                          </Button>
+                        ))}
+                      </div>
+                    </div>
+
+                    {/* Clear Filters Button */}
+                    {selectedSpecialty && (
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => setSelectedSpecialty(null)}
+                        className="w-full"
+                        data-testid="button-clear-workers-filters"
+                      >
+                        <X className="h-4 w-4 mr-2" />
+                        {language === 'es' ? 'Limpiar filtros' : 'Clear filters'}
+                      </Button>
+                    )}
+                  </div>
+                </PopoverContent>
+              </Popover>
+
+              {/* View Mode Toggle - Desktop only, context-aware */}
+              {!isMobile && (
+                <>
+                  <Button
+                    variant={(activeTab === "assignments" ? assignmentsViewMode : workersViewMode) === "cards" ? "default" : "outline"}
+                    size="icon"
+                    className="flex-shrink-0"
+                    onClick={() => {
+                      if (activeTab === "assignments") {
+                        setAssignmentsViewMode("cards");
+                      } else {
+                        setWorkersViewMode("cards");
+                      }
+                      setManualViewModeOverride(false);
+                    }}
+                    data-testid="button-view-cards"
+                  >
+                    <LayoutGrid className="h-4 w-4" />
+                  </Button>
+                  <Button
+                    variant={(activeTab === "assignments" ? assignmentsViewMode : workersViewMode) === "table" ? "default" : "outline"}
+                    size="icon"
+                    className="flex-shrink-0"
+                    onClick={() => {
+                      if (activeTab === "assignments") {
+                        setAssignmentsViewMode("table");
+                      } else {
+                        setWorkersViewMode("table");
+                      }
+                      setManualViewModeOverride(true);
+                    }}
+                    data-testid="button-view-table"
+                  >
+                    <TableIcon className="h-4 w-4" />
+                  </Button>
+                </>
+              )}
+            </div>
+          </CardContent>
+        </Card>
+
+        <TabsContent value="assignments" className="mt-6">
           <Card>
             <CardHeader>
               <CardTitle>{language === "es" ? "Asignaciones Actuales" : "Current Assignments"}</CardTitle>
@@ -977,280 +1139,317 @@ export default function ExternalMaintenanceWorkers() {
                 </div>
               ) : (
                 <>
-                  <div className="w-full overflow-x-auto">
-                    <Table>
-                      <TableHeader>
-                        <TableRow>
-                          <TableHead className="min-w-[200px]">
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              onClick={() => handleAssignmentsSort("workerName")}
-                              className="hover-elevate gap-1"
-                              data-testid="sort-worker-name"
-                            >
-                              {language === "es" ? "Trabajador" : "Worker"}
-                              <ArrowUpDown className="h-4 w-4" />
-                            </Button>
-                          </TableHead>
-                          <TableHead className="min-w-[150px]">
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              onClick={() => handleAssignmentsSort("specialty")}
-                              className="hover-elevate gap-1"
-                              data-testid="sort-specialty"
-                            >
-                              {language === "es" ? "Especialidad" : "Specialty"}
-                              <ArrowUpDown className="h-4 w-4" />
-                            </Button>
-                          </TableHead>
-                          <TableHead className="min-w-[300px]">
-                            {language === "es" ? "Asignaciones" : "Assignments"}
-                          </TableHead>
-                          <TableHead className="text-right min-w-[150px]">
-                            {language === "es" ? "Acciones" : "Actions"}
-                          </TableHead>
-                        </TableRow>
-                      </TableHeader>
-                      <TableBody>
-                        {paginatedGroupedAssignments.map(({ worker, assignments: workerAssignments }) => (
-                        <TableRow key={worker.id} data-testid={`row-worker-${worker.id}`}>
-                          <TableCell className="font-medium">
-                            <div className="flex items-center gap-2">
-                              <Wrench className="h-4 w-4 text-muted-foreground" />
-                              {worker.firstName} {worker.lastName}
-                            </div>
-                          </TableCell>
-                          <TableCell>
-                            {worker.maintenanceSpecialty ? (
-                              <Badge variant="secondary">
-                                {SPECIALTY_LABELS[language][worker.maintenanceSpecialty as keyof typeof SPECIALTY_LABELS['es']]}
-                              </Badge>
-                            ) : '-'}
-                          </TableCell>
-                          <TableCell>
-                            <div className="flex flex-wrap gap-2">
-                              {workerAssignments.map((assignment) => (
-                                <div key={assignment.id} className="flex items-center gap-1">
-                                  {assignment.condominiumId && (
-                                    <Badge variant="outline" className="flex items-center gap-1">
-                                      <Building2 className="h-3 w-3" />
-                                      {getCondominiumName(assignment.condominiumId)}
-                                    </Badge>
-                                  )}
-                                  {assignment.unitId && (
-                                    <Badge variant="outline" className="flex items-center gap-1">
-                                      <Home className="h-3 w-3" />
-                                      {getUnitName(assignment.unitId)}
-                                    </Badge>
-                                  )}
+                  {assignmentsViewMode === "cards" ? (
+                    <>
+                      {/* Cards View */}
+                      <div className="grid gap-4 grid-cols-1 md:grid-cols-2 lg:grid-cols-3">
+                        {(() => {
+                          const start = (assignmentsCardsPage - 1) * assignmentsCardsItemsPerPage;
+                          const end = start + assignmentsCardsItemsPerPage;
+                          const paginatedCards = sortedGroupedAssignments.slice(start, end);
+                          
+                          return paginatedCards.map(({ worker, assignments: workerAssignments }) => (
+                            <Card key={worker.id} className="hover-elevate flex flex-col" data-testid={`card-assignment-${worker.id}`}>
+                              <CardHeader className="space-y-2">
+                                <CardTitle className="text-lg flex items-start gap-2">
+                                  <Wrench className="h-4 w-4 text-muted-foreground flex-shrink-0 mt-0.5" />
+                                  <span className="flex-1 min-w-0 break-words" data-testid={`text-assignment-worker-name-${worker.id}`}>
+                                    {worker.firstName} {worker.lastName}
+                                  </span>
+                                </CardTitle>
+                                {worker.maintenanceSpecialty && (
+                                  <Badge variant="secondary" className="flex-shrink-0 self-start" data-testid={`badge-assignment-specialty-${worker.id}`}>
+                                    <Wrench className="h-3 w-3 mr-1 flex-shrink-0" />
+                                    {SPECIALTY_LABELS[language][worker.maintenanceSpecialty as keyof typeof SPECIALTY_LABELS['es']]}
+                                  </Badge>
+                                )}
+                              </CardHeader>
+                              <CardContent className="space-y-3 flex-1 flex flex-col">
+                                {/* Assignments List */}
+                                <div className="space-y-2 flex-1">
+                                  <h4 className="text-sm font-medium text-muted-foreground">
+                                    {language === "es" ? "Asignaciones:" : "Assignments:"}
+                                  </h4>
+                                  <ScrollArea className="max-h-[200px]">
+                                    <div className="flex flex-wrap gap-2 pr-4">
+                                      {workerAssignments.map((assignment) => (
+                                        <div key={assignment.id} className="flex items-center gap-1">
+                                          {assignment.condominiumId && (
+                                            <Badge variant="outline" className="flex items-center gap-1" data-testid={`badge-condo-${assignment.id}`}>
+                                              <Building2 className="h-3 w-3 flex-shrink-0" />
+                                              <span className="break-words">{getCondominiumName(assignment.condominiumId)}</span>
+                                            </Badge>
+                                          )}
+                                          {assignment.unitId && (
+                                            <Badge variant="outline" className="flex items-center gap-1" data-testid={`badge-unit-${assignment.id}`}>
+                                              <Home className="h-3 w-3 flex-shrink-0" />
+                                              <span className="break-words">{getUnitName(assignment.unitId)}</span>
+                                            </Badge>
+                                          )}
+                                        </div>
+                                      ))}
+                                    </div>
+                                  </ScrollArea>
                                 </div>
-                              ))}
-                            </div>
-                          </TableCell>
-                          <TableCell className="text-right">
-                            <div className="flex justify-end gap-2">
-                              <Button
-                                variant="outline"
-                                size="icon"
-                                onClick={() => handleEditWorker(worker.id)}
-                                data-testid={`button-edit-${worker.id}`}
-                              >
-                                <Pencil className="h-4 w-4" />
-                              </Button>
-                              <Button
-                                variant="outline"
-                                size="icon"
-                                onClick={() => {
-                                  // Delete all assignments for this worker
-                                  if (workerAssignments.length > 0) {
-                                    setDeleteAssignmentId(worker.id);
-                                  }
-                                }}
-                                data-testid={`button-delete-${worker.id}`}
-                              >
-                                <Trash2 className="h-4 w-4" />
-                              </Button>
-                            </div>
-                          </TableCell>
-                        </TableRow>
-                        ))}
-                      </TableBody>
-                    </Table>
-                  </div>
-                  
-                  {/* Assignments Pagination Controls */}
-                  <div className="flex flex-wrap items-center justify-between gap-4 mt-4">
-                    <div className="flex items-center gap-2">
-                      <span className="text-sm text-muted-foreground">
-                        {language === "es" ? "Mostrar" : "Show"}
-                      </span>
-                      <Select
-                        value={assignmentsPerPage.toString()}
-                        onValueChange={(value) => setAssignmentsPerPage(Number(value))}
-                      >
-                        <SelectTrigger className="w-20" data-testid="select-assignments-per-page">
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="5">5</SelectItem>
-                          <SelectItem value="10">10</SelectItem>
-                          <SelectItem value="20">20</SelectItem>
-                          <SelectItem value="30">30</SelectItem>
-                        </SelectContent>
-                      </Select>
-                      <span className="text-sm text-muted-foreground">
-                        {language === "es" ? "por página" : "per page"}
-                      </span>
-                    </div>
-                    
-                    <div className="flex items-center gap-2">
-                      <span className="text-sm text-muted-foreground">
-                        {language === "es" ? "Página" : "Page"} {assignmentsPage} {language === "es" ? "de" : "of"} {assignmentsTotalPages}
-                      </span>
-                      <div className="flex gap-2">
-                        <Button
-                          variant="outline"
-                          size="icon"
-                          onClick={() => setAssignmentsPage(Math.max(1, assignmentsPage - 1))}
-                          disabled={assignmentsPage === 1}
-                          data-testid="button-assignments-prev-page"
-                        >
-                          <ChevronLeft className="h-4 w-4" />
-                        </Button>
-                        <Button
-                          variant="outline"
-                          size="icon"
-                          onClick={() => setAssignmentsPage(Math.min(assignmentsTotalPages, assignmentsPage + 1))}
-                          disabled={assignmentsPage === assignmentsTotalPages}
-                          data-testid="button-assignments-next-page"
-                        >
-                          <ChevronRight className="h-4 w-4" />
-                        </Button>
+                                
+                                {/* Assignment Count */}
+                                <div className="text-sm text-muted-foreground pt-2 border-t">
+                                  <span className="font-medium">
+                                    {workerAssignments.length} {language === "es" ? "asignaciones" : "assignments"}
+                                  </span>
+                                </div>
+                                
+                                {/* Actions */}
+                                <div className="flex gap-2 pt-2 border-t">
+                                  <Button
+                                    variant="outline"
+                                    size="sm"
+                                    className="flex-1"
+                                    onClick={() => handleEditWorker(worker.id)}
+                                    data-testid={`button-card-edit-${worker.id}`}
+                                  >
+                                    <Pencil className="h-4 w-4 mr-2" />
+                                    {language === "es" ? "Editar" : "Edit"}
+                                  </Button>
+                                  <Button
+                                    variant="outline"
+                                    size="sm"
+                                    className="flex-1"
+                                    onClick={() => {
+                                      if (workerAssignments.length > 0) {
+                                        setDeleteAssignmentId(worker.id);
+                                      }
+                                    }}
+                                    data-testid={`button-card-delete-${worker.id}`}
+                                  >
+                                    <Trash2 className="h-4 w-4 mr-2" />
+                                    {language === "es" ? "Eliminar" : "Delete"}
+                                  </Button>
+                                </div>
+                              </CardContent>
+                            </Card>
+                          ));
+                        })()}
                       </div>
-                    </div>
-                  </div>
+                      
+                      {/* Assignments Cards Pagination Controls */}
+                      <div className="flex flex-wrap items-center justify-between gap-4 mt-4">
+                        <div className="flex items-center gap-2">
+                          <span className="text-sm text-muted-foreground">
+                            {language === "es" ? "Mostrar" : "Show"}
+                          </span>
+                          <Select
+                            value={assignmentsCardsItemsPerPage.toString()}
+                            onValueChange={(value) => setAssignmentsCardsItemsPerPage(Number(value))}
+                          >
+                            <SelectTrigger className="w-20" data-testid="select-assignments-cards-per-page">
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="3">3</SelectItem>
+                              <SelectItem value="6">6</SelectItem>
+                              <SelectItem value="9">9</SelectItem>
+                              <SelectItem value="12">12</SelectItem>
+                            </SelectContent>
+                          </Select>
+                          <span className="text-sm text-muted-foreground">
+                            {language === "es" ? "por página" : "per page"}
+                          </span>
+                        </div>
+                        
+                        <div className="flex items-center gap-2">
+                          <span className="text-sm text-muted-foreground">
+                            {language === "es" ? "Página" : "Page"} {assignmentsCardsPage} {language === "es" ? "de" : "of"} {Math.ceil(sortedGroupedAssignments.length / assignmentsCardsItemsPerPage) || 1}
+                          </span>
+                          <div className="flex gap-2">
+                            <Button
+                              variant="outline"
+                              size="icon"
+                              onClick={() => setAssignmentsCardsPage(Math.max(1, assignmentsCardsPage - 1))}
+                              disabled={assignmentsCardsPage === 1}
+                              data-testid="button-assignments-cards-prev-page"
+                            >
+                              <ChevronLeft className="h-4 w-4" />
+                            </Button>
+                            <Button
+                              variant="outline"
+                              size="icon"
+                              onClick={() => setAssignmentsCardsPage(Math.min(Math.ceil(sortedGroupedAssignments.length / assignmentsCardsItemsPerPage), assignmentsCardsPage + 1))}
+                              disabled={assignmentsCardsPage === Math.ceil(sortedGroupedAssignments.length / assignmentsCardsItemsPerPage)}
+                              data-testid="button-assignments-cards-next-page"
+                            >
+                              <ChevronRight className="h-4 w-4" />
+                            </Button>
+                          </div>
+                        </div>
+                      </div>
+                    </>
+                  ) : (
+                    <>
+                      {/* Table View */}
+                      <div className="w-full overflow-x-auto">
+                        <Table>
+                          <TableHeader>
+                            <TableRow>
+                              <TableHead className="min-w-[200px]">
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  onClick={() => handleAssignmentsSort("workerName")}
+                                  className="hover-elevate gap-1"
+                                  data-testid="sort-worker-name"
+                                >
+                                  {language === "es" ? "Trabajador" : "Worker"}
+                                  <ArrowUpDown className="h-4 w-4" />
+                                </Button>
+                              </TableHead>
+                              <TableHead className="min-w-[150px]">
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  onClick={() => handleAssignmentsSort("specialty")}
+                                  className="hover-elevate gap-1"
+                                  data-testid="sort-specialty"
+                                >
+                                  {language === "es" ? "Especialidad" : "Specialty"}
+                                  <ArrowUpDown className="h-4 w-4" />
+                                </Button>
+                              </TableHead>
+                              <TableHead className="min-w-[300px]">
+                                {language === "es" ? "Asignaciones" : "Assignments"}
+                              </TableHead>
+                              <TableHead className="text-right min-w-[150px]">
+                                {language === "es" ? "Acciones" : "Actions"}
+                              </TableHead>
+                            </TableRow>
+                          </TableHeader>
+                          <TableBody>
+                            {paginatedGroupedAssignments.map(({ worker, assignments: workerAssignments }) => (
+                            <TableRow key={worker.id} data-testid={`row-worker-${worker.id}`}>
+                              <TableCell className="font-medium">
+                                <div className="flex items-center gap-2">
+                                  <Wrench className="h-4 w-4 text-muted-foreground" />
+                                  {worker.firstName} {worker.lastName}
+                                </div>
+                              </TableCell>
+                              <TableCell>
+                                {worker.maintenanceSpecialty ? (
+                                  <Badge variant="secondary">
+                                    {SPECIALTY_LABELS[language][worker.maintenanceSpecialty as keyof typeof SPECIALTY_LABELS['es']]}
+                                  </Badge>
+                                ) : '-'}
+                              </TableCell>
+                              <TableCell>
+                                <div className="flex flex-wrap gap-2">
+                                  {workerAssignments.map((assignment) => (
+                                    <div key={assignment.id} className="flex items-center gap-1">
+                                      {assignment.condominiumId && (
+                                        <Badge variant="outline" className="flex items-center gap-1">
+                                          <Building2 className="h-3 w-3" />
+                                          {getCondominiumName(assignment.condominiumId)}
+                                        </Badge>
+                                      )}
+                                      {assignment.unitId && (
+                                        <Badge variant="outline" className="flex items-center gap-1">
+                                          <Home className="h-3 w-3" />
+                                          {getUnitName(assignment.unitId)}
+                                        </Badge>
+                                      )}
+                                    </div>
+                                  ))}
+                                </div>
+                              </TableCell>
+                              <TableCell className="text-right">
+                                <div className="flex justify-end gap-2">
+                                  <Button
+                                    variant="outline"
+                                    size="icon"
+                                    onClick={() => handleEditWorker(worker.id)}
+                                    data-testid={`button-edit-${worker.id}`}
+                                  >
+                                    <Pencil className="h-4 w-4" />
+                                  </Button>
+                                  <Button
+                                    variant="outline"
+                                    size="icon"
+                                    onClick={() => {
+                                      // Delete all assignments for this worker
+                                      if (workerAssignments.length > 0) {
+                                        setDeleteAssignmentId(worker.id);
+                                      }
+                                    }}
+                                    data-testid={`button-delete-${worker.id}`}
+                                  >
+                                    <Trash2 className="h-4 w-4" />
+                                  </Button>
+                                </div>
+                              </TableCell>
+                            </TableRow>
+                            ))}
+                          </TableBody>
+                        </Table>
+                      </div>
+                      
+                      {/* Assignments Table Pagination Controls */}
+                      <div className="flex flex-wrap items-center justify-between gap-4 mt-4">
+                        <div className="flex items-center gap-2">
+                          <span className="text-sm text-muted-foreground">
+                            {language === "es" ? "Mostrar" : "Show"}
+                          </span>
+                          <Select
+                            value={assignmentsPerPage.toString()}
+                            onValueChange={(value) => setAssignmentsPerPage(Number(value))}
+                          >
+                            <SelectTrigger className="w-20" data-testid="select-assignments-per-page">
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="5">5</SelectItem>
+                              <SelectItem value="10">10</SelectItem>
+                              <SelectItem value="20">20</SelectItem>
+                              <SelectItem value="30">30</SelectItem>
+                            </SelectContent>
+                          </Select>
+                          <span className="text-sm text-muted-foreground">
+                            {language === "es" ? "por página" : "per page"}
+                          </span>
+                        </div>
+                        
+                        <div className="flex items-center gap-2">
+                          <span className="text-sm text-muted-foreground">
+                            {language === "es" ? "Página" : "Page"} {assignmentsPage} {language === "es" ? "de" : "of"} {assignmentsTotalPages}
+                          </span>
+                          <div className="flex gap-2">
+                            <Button
+                              variant="outline"
+                              size="icon"
+                              onClick={() => setAssignmentsPage(Math.max(1, assignmentsPage - 1))}
+                              disabled={assignmentsPage === 1}
+                              data-testid="button-assignments-prev-page"
+                            >
+                              <ChevronLeft className="h-4 w-4" />
+                            </Button>
+                            <Button
+                              variant="outline"
+                              size="icon"
+                              onClick={() => setAssignmentsPage(Math.min(assignmentsTotalPages, assignmentsPage + 1))}
+                              disabled={assignmentsPage === assignmentsTotalPages}
+                              data-testid="button-assignments-next-page"
+                            >
+                              <ChevronRight className="h-4 w-4" />
+                            </Button>
+                          </div>
+                        </div>
+                      </div>
+                    </>
+                  )}
                 </>
               )}
             </CardContent>
           </Card>
         </TabsContent>
 
-        <TabsContent value="workers">
-          {/* Search and Filters */}
-          <Card>
-            <CardContent className="pt-6">
-              <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
-                {/* Search Input */}
-                <div className="relative flex-1">
-                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                  <Input
-                    placeholder={language === "es" ? "Buscar trabajadores..." : "Search workers..."}
-                    value={workersSearchTerm}
-                    onChange={(e) => setWorkersSearchTerm(e.target.value)}
-                    className="pl-10"
-                    data-testid="input-workers-search"
-                  />
-                </div>
-
-                {/* Filter Button with Popover */}
-                <Popover open={showWorkersFilters} onOpenChange={setShowWorkersFilters}>
-                  <PopoverTrigger asChild>
-                    <Button 
-                      variant="outline" 
-                      size="icon"
-                      className="flex-shrink-0 relative"
-                      data-testid="button-workers-filters"
-                    >
-                      <Filter className="h-4 w-4" />
-                      {selectedSpecialty && (
-                        <Badge variant="default" className="absolute -top-1 -right-1 h-4 w-4 p-0 flex items-center justify-center text-[10px]">
-                          1
-                        </Badge>
-                      )}
-                    </Button>
-                  </PopoverTrigger>
-                  <PopoverContent className="w-96 max-h-[600px] overflow-y-auto" align="end">
-                    <div className="space-y-4">
-                      <div className="space-y-2">
-                        <h4 className="font-medium text-sm">
-                          {language === 'es' ? 'Filtrar por especialidad' : 'Filter by specialty'}
-                        </h4>
-                        
-                        <div className="flex gap-2 flex-wrap">
-                          <Button
-                            variant={selectedSpecialty === null ? "default" : "outline"}
-                            size="sm"
-                            onClick={() => setSelectedSpecialty(null)}
-                            data-testid="button-filter-specialty-all"
-                          >
-                            {language === 'es' ? 'Todas' : 'All'}
-                          </Button>
-                          {Object.keys(SPECIALTY_LABELS.es).map((specialty) => (
-                            <Button
-                              key={specialty}
-                              variant={selectedSpecialty === specialty ? "default" : "outline"}
-                              size="sm"
-                              onClick={() => setSelectedSpecialty(specialty)}
-                              data-testid={`button-filter-specialty-${specialty}`}
-                            >
-                              {SPECIALTY_LABELS[language][specialty as keyof typeof SPECIALTY_LABELS['es']]}
-                            </Button>
-                          ))}
-                        </div>
-                      </div>
-
-                      {/* Clear Filters Button */}
-                      {selectedSpecialty && (
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => setSelectedSpecialty(null)}
-                          className="w-full"
-                          data-testid="button-clear-workers-filters"
-                        >
-                          <X className="h-4 w-4 mr-2" />
-                          {language === 'es' ? 'Limpiar filtros' : 'Clear filters'}
-                        </Button>
-                      )}
-                    </div>
-                  </PopoverContent>
-                </Popover>
-
-                {/* View Mode Toggle - Desktop only */}
-                {!isMobile && (
-                  <>
-                    <Button
-                      variant={workersViewMode === "cards" ? "default" : "outline"}
-                      size="icon"
-                      className="flex-shrink-0"
-                      onClick={() => {
-                        setWorkersViewMode("cards");
-                        setManualViewModeOverride(false);
-                      }}
-                      data-testid="button-workers-view-cards"
-                    >
-                      <LayoutGrid className="h-4 w-4" />
-                    </Button>
-                    <Button
-                      variant={workersViewMode === "table" ? "default" : "outline"}
-                      size="icon"
-                      className="flex-shrink-0"
-                      onClick={() => {
-                        setWorkersViewMode("table");
-                        setManualViewModeOverride(true);
-                      }}
-                      data-testid="button-workers-view-table"
-                    >
-                      <TableIcon className="h-4 w-4" />
-                    </Button>
-                  </>
-                )}
-              </div>
-            </CardContent>
-          </Card>
-          
+        <TabsContent value="workers" className="mt-6">
           <Card>
             <CardHeader>
               <CardTitle>{language === "es" ? "Trabajadores Disponibles" : "Available Workers"}</CardTitle>
