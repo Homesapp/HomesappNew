@@ -20520,8 +20520,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ message: "No agency assigned to user" });
       }
 
-      // Get all users with external agency roles
-      // TODO: Add externalAgencyId field to users table to properly filter by agency
+      // Get all users with external agency roles that belong to this agency
       const externalRoles = ["external_agency_admin", "external_agency_accounting", "external_agency_maintenance", "external_agency_staff"];
       const externalUsers = await db
         .select({
@@ -20536,7 +20535,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
           createdAt: users.createdAt,
         })
         .from(users)
-        .where(inArray(users.role, externalRoles))
+        .where(and(
+          inArray(users.role, externalRoles),
+          eq(users.assignedToUser, agencyId)
+        ))
         .orderBy(users.createdAt);
 
       res.json(externalUsers);
