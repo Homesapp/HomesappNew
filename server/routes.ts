@@ -20335,7 +20335,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(403).json({ message: "User is not assigned to any agency" });
       }
 
-      const users = await storage.getExternalAgencyUsersByAgency(agencyId);
+      const users = await storage.getUsersByAgency(agencyId);
       res.json(users);
     } catch (error: any) {
       console.error("Error fetching agency users:", error);
@@ -20360,18 +20360,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       const userData = {
         ...req.body,
-        agencyId,
+        externalAgencyId: agencyId,
         passwordHash,
         requirePasswordChange: true,
-        status: "approved",
+        status: "approved" as const,
         emailVerified: true,
       };
 
-      const user = await storage.createExternalAgencyUser(userData);
+      const user = await storage.createUserWithPassword(userData);
       
       // Remove sensitive fields and return user with generated password (only this once)
       const { passwordHash: _, ...safeUser } = user;
-      await createAuditLog(req, "create", "external_agency_user", user.id, `Created agency user: ${user.email}`);
+      await createAuditLog(req, "create", "user", user.id, `Created agency user: ${user.email}`);
       res.status(201).json({ ...safeUser, generatedPassword });
     } catch (error: any) {
       console.error("Error creating agency user:", error);
@@ -20392,23 +20392,23 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       // Verify the user belongs to the same agency
-      const existingUser = await storage.getExternalAgencyUser(id);
+      const existingUser = await storage.getUser(id);
       if (!existingUser) {
         return res.status(404).json({ message: "User not found" });
       }
 
-      if (existingUser.agencyId !== agencyId) {
+      if (existingUser.externalAgencyId !== agencyId) {
         return res.status(403).json({ message: "Cannot modify users from another agency" });
       }
 
-      // Prevent changing agencyId and passwordHash
-      const { agencyId: _, passwordHash: __, ...updates } = req.body;
+      // Prevent changing externalAgencyId
+      const { externalAgencyId: _, ...updates } = req.body;
       
-      const user = await storage.updateExternalAgencyUser(id, updates);
+      const user = await storage.updateUser(id, updates);
       
       // Remove sensitive fields from response
       const { passwordHash, ...safeUser } = user;
-      await createAuditLog(req, "update", "external_agency_user", id, `Updated agency user: ${user.email}`);
+      await createAuditLog(req, "update", "user", id, `Updated agency user: ${user.email}`);
       res.json(safeUser);
     } catch (error: any) {
       console.error("Error updating agency user:", error);
