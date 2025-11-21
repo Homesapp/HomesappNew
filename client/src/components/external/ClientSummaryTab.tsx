@@ -235,7 +235,7 @@ export default function ClientSummaryTab({ client }: ClientSummaryTabProps) {
                     <FormItem>
                       <FormLabel>Nombre *</FormLabel>
                       <FormControl>
-                        <Input {...field} data-testid="input-firstName" />
+                        <Input {...field} value={field.value || ""} data-testid="input-firstName" />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
@@ -248,7 +248,7 @@ export default function ClientSummaryTab({ client }: ClientSummaryTabProps) {
                     <FormItem>
                       <FormLabel>Segundo Nombre</FormLabel>
                       <FormControl>
-                        <Input {...field} data-testid="input-middleName" />
+                        <Input {...field} value={field.value || ""} data-testid="input-middleName" />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
@@ -261,7 +261,7 @@ export default function ClientSummaryTab({ client }: ClientSummaryTabProps) {
                     <FormItem>
                       <FormLabel>Apellido *</FormLabel>
                       <FormControl>
-                        <Input {...field} data-testid="input-lastName" />
+                        <Input {...field} value={field.value || ""} data-testid="input-lastName" />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
@@ -274,7 +274,7 @@ export default function ClientSummaryTab({ client }: ClientSummaryTabProps) {
                     <FormItem>
                       <FormLabel>Nacionalidad</FormLabel>
                       <FormControl>
-                        <Input {...field} data-testid="input-nationality" />
+                        <Input {...field} value={field.value || ""} data-testid="input-nationality" />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
@@ -287,7 +287,7 @@ export default function ClientSummaryTab({ client }: ClientSummaryTabProps) {
                     <FormItem>
                       <FormLabel>Fecha de Nacimiento</FormLabel>
                       <FormControl>
-                        <Input type="date" {...field} data-testid="input-dateOfBirth" />
+                        <Input type="date" {...field} value={field.value || ""} data-testid="input-dateOfBirth" />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
@@ -300,7 +300,7 @@ export default function ClientSummaryTab({ client }: ClientSummaryTabProps) {
                     <FormItem>
                       <FormLabel>Pasaporte</FormLabel>
                       <FormControl>
-                        <Input {...field} data-testid="input-passportNumber" />
+                        <Input {...field} value={field.value || ""} data-testid="input-passportNumber" />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
@@ -313,7 +313,7 @@ export default function ClientSummaryTab({ client }: ClientSummaryTabProps) {
                     <FormItem>
                       <FormLabel>Ocupación</FormLabel>
                       <FormControl>
-                        <Input {...field} data-testid="input-occupation" />
+                        <Input {...field} value={field.value || ""} data-testid="input-occupation" />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
@@ -335,7 +335,7 @@ export default function ClientSummaryTab({ client }: ClientSummaryTabProps) {
                     <FormItem>
                       <FormLabel>Email</FormLabel>
                       <FormControl>
-                        <Input type="email" {...field} data-testid="input-email" />
+                        <Input type="email" {...field} value={field.value || ""} data-testid="input-email" />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
@@ -348,7 +348,7 @@ export default function ClientSummaryTab({ client }: ClientSummaryTabProps) {
                     render={({ field }) => (
                       <FormItem>
                         <FormLabel>Código</FormLabel>
-                        <Select value={field.value} onValueChange={field.onChange}>
+                        <Select value={field.value || "+52"} onValueChange={field.onChange}>
                           <SelectTrigger data-testid="select-phoneCountryCode">
                             <SelectValue />
                           </SelectTrigger>
@@ -370,7 +370,7 @@ export default function ClientSummaryTab({ client }: ClientSummaryTabProps) {
                       <FormItem className="col-span-2">
                         <FormLabel>Teléfono</FormLabel>
                         <FormControl>
-                          <Input {...field} data-testid="input-phone" />
+                          <Input {...field} value={field.value || ""} data-testid="input-phone" />
                         </FormControl>
                         <FormMessage />
                       </FormItem>
@@ -393,7 +393,7 @@ export default function ClientSummaryTab({ client }: ClientSummaryTabProps) {
                     <FormItem className="col-span-2">
                       <FormLabel>Dirección</FormLabel>
                       <FormControl>
-                        <Input {...field} data-testid="input-address" />
+                        <Input {...field} value={field.value || ""} data-testid="input-address" />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
@@ -406,7 +406,7 @@ export default function ClientSummaryTab({ client }: ClientSummaryTabProps) {
                     <FormItem>
                       <FormLabel>Ciudad</FormLabel>
                       <FormControl>
-                        <Input {...field} data-testid="input-city" />
+                        <Input {...field} value={field.value || ""} data-testid="input-city" />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
@@ -419,7 +419,7 @@ export default function ClientSummaryTab({ client }: ClientSummaryTabProps) {
                     <FormItem>
                       <FormLabel>Estado</FormLabel>
                       <FormControl>
-                        <Input {...field} data-testid="input-state" />
+                        <Input {...field} value={field.value || ""} data-testid="input-state" />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
@@ -432,7 +432,7 @@ export default function ClientSummaryTab({ client }: ClientSummaryTabProps) {
                     <FormItem>
                       <FormLabel>País</FormLabel>
                       <FormControl>
-                        <Input {...field} data-testid="input-country" />
+                        <Input {...field} value={field.value || ""} data-testid="input-country" />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
@@ -451,7 +451,7 @@ export default function ClientSummaryTab({ client }: ClientSummaryTabProps) {
                 <FormItem>
                   <FormLabel>Notas</FormLabel>
                   <FormControl>
-                    <Input {...field} data-testid="input-notes" />
+                    <Input {...field} value={field.value || ""} data-testid="input-notes" />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
