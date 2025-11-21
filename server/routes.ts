@@ -20170,7 +20170,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const assignedUserId = validatedData.createdBy || req.user.id;
       
       // Verify that the assigned user exists
-      const assignedUser = await storage.getUserById(assignedUserId);
+      const assignedUser = await storage.getUser(assignedUserId);
       if (!assignedUser) {
         return res.status(404).json({ message: "Assigned user not found" });
       }
