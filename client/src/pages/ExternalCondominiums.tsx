@@ -1365,6 +1365,9 @@ export default function ExternalCondominiums() {
                   />
                 )}
 
+                {/* Space between pagination and content */}
+                <div className="h-4" />
+
                 {/* Grid view of all condominiums */}
                 <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
                   {paginatedCondominiums.map((condo) => {
