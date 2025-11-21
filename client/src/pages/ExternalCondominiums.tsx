@@ -1887,21 +1887,6 @@ export default function ExternalCondominiums() {
               )}
             </CardContent>
           </Card>
-          ) : (
-            <Card data-testid="card-empty-state">
-              <CardContent className="flex flex-col items-center justify-center py-12">
-                <AlertCircle className="h-12 w-12 text-muted-foreground mb-4" />
-                <p className="text-lg font-medium" data-testid="text-empty-title">
-                  {language === "es" ? "No hay condominios registrados" : "No condominiums registered"}
-                </p>
-                <p className="text-sm text-muted-foreground mt-2" data-testid="text-empty-description">
-                  {language === "es" 
-                    ? "Agrega tu primer condominio para comenzar"
-                    : "Add your first condominium to get started"}
-                </p>
-              </CardContent>
-            </Card>
-          )}
         </TabsContent>
 
         <TabsContent value="units" className="space-y-4">
@@ -1912,10 +1897,10 @@ export default function ExternalCondominiums() {
                   <AlertTriangle className="h-4 w-4 text-destructive flex-shrink-0" />
                   <div>
                     <p className="font-semibold text-sm">
-                      {language === "es" ? "Error al cargar contratos de renta" : "Error loading rental contracts"}
+                      {language === "es" ? "Error al cargar contratos" : "Error loading contracts"}
                     </p>
                     <p className="text-sm text-muted-foreground mt-1">
-                      {language === "es" ? "No se puede determinar el estado de disponibilidad de las unidades" : "Cannot determine unit availability status"}
+                      {language === "es" ? "No se puede determinar disponibilidad" : "Cannot determine availability"}
                     </p>
                   </div>
                 </div>
