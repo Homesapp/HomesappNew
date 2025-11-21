@@ -54,9 +54,19 @@ import {
   ChevronUp,
   ChevronDown,
   ChevronsUpDown,
+  ChevronLeft,
+  ChevronRight,
+  LayoutGrid,
+  Table as TableIcon,
+  X,
+  Building2,
+  Tag,
+  User,
+  Calendar as CalendarIcon,
 } from "lucide-react";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { useAuth } from "@/hooks/useAuth";
+import { useMobile } from "@/hooks/use-mobile";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useToast } from "@/hooks/use-toast";
@@ -152,6 +162,7 @@ export default function ExternalMaintenance() {
   const { language } = useLanguage();
   const { toast } = useToast();
   const { user } = useAuth();
+  const isMobile = useMobile();
   const [showDialog, setShowDialog] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("all");
@@ -163,11 +174,28 @@ export default function ExternalMaintenance() {
   const [schedule, setSchedule] = useState<ScheduleState>(getDefaultSchedule());
   const [filtersExpanded, setFiltersExpanded] = useState(false);
   
+  // View mode states
+  const [viewMode, setViewMode] = useState<"cards" | "table">("table");
+  const [manualViewModeOverride, setManualViewModeOverride] = useState(false);
+  const [prevIsMobile, setPrevIsMobile] = useState(isMobile);
+  
   // Pagination and sorting states
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState(5);
   const [sortColumn, setSortColumn] = useState<string>('created');
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('desc');
+  
+  // Auto-switch view mode on genuine breakpoint transitions
+  useEffect(() => {
+    if (isMobile !== prevIsMobile) {
+      setPrevIsMobile(isMobile);
+      
+      if (!manualViewModeOverride) {
+        const preferredMode = isMobile ? "cards" : "table";
+        setViewMode(preferredMode);
+      }
+    }
+  }, [isMobile, prevIsMobile, manualViewModeOverride]);
 
   const { data: tickets, isLoading: ticketsLoading } = useQuery<ExternalMaintenanceTicket[]>({
     queryKey: ['/api/external-tickets'],
@@ -520,17 +548,111 @@ export default function ExternalMaintenance() {
           <h1 className="text-3xl font-bold" data-testid="text-page-title">{t.title}</h1>
           <p className="text-muted-foreground mt-1">{t.subtitle}</p>
         </div>
-        <div className="flex items-center gap-2">
-          <Popover open={filtersExpanded} onOpenChange={setFiltersExpanded}>
-            <PopoverTrigger asChild>
-              <Button 
-                variant="outline" 
-                size="icon"
-                data-testid="button-toggle-filters"
-              >
-                <Filter className="h-4 w-4" />
-              </Button>
-            </PopoverTrigger>
+        <Button onClick={() => setShowDialog(true)} data-testid="button-new-ticket">
+          <Plus className="mr-2 h-4 w-4" />
+          {t.newTicket}
+        </Button>
+      </div>
+
+      {/* Metrics */}
+      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-6">
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between gap-2 space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">{t.totalJobs}</CardTitle>
+            <Wrench className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold" data-testid="text-total">{stats.total}</div>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between gap-2 space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">{t.open}</CardTitle>
+            <AlertTriangle className="h-4 w-4 text-amber-600" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold text-amber-600" data-testid="text-open">{stats.open}</div>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between gap-2 space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">{t.inProgress}</CardTitle>
+            <Clock className="h-4 w-4 text-blue-600" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold text-blue-600" data-testid="text-in-progress">{stats.inProgress}</div>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between gap-2 space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">{t.resolved}</CardTitle>
+            <CheckCircle2 className="h-4 w-4 text-green-600" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold text-green-600" data-testid="text-resolved">{stats.resolved}</div>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between gap-2 space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">{t.estimatedCost}</CardTitle>
+            <DollarSign className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-lg font-bold" data-testid="text-estimated-cost">{formatCurrency(stats.estimatedCost)}</div>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between gap-2 space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">{t.actualCost}</CardTitle>
+            <TrendingUp className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-lg font-bold" data-testid="text-actual-cost">{formatCurrency(stats.totalCost)}</div>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Search and Filters */}
+      <Card>
+        <CardContent className="pt-6">
+          <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
+            {/* Search Input */}
+            <div className="relative flex-1">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+              <Input
+                placeholder={t.search}
+                value={searchTerm}
+                onChange={(e) => {
+                  setSearchTerm(e.target.value);
+                  setCurrentPage(1);
+                }}
+                className="pl-10"
+                data-testid="input-search"
+              />
+            </div>
+
+            {/* Filter Button with Popover */}
+            <Popover open={filtersExpanded} onOpenChange={setFiltersExpanded}>
+              <PopoverTrigger asChild>
+                <Button 
+                  variant="outline" 
+                  size="icon"
+                  className="flex-shrink-0 relative"
+                  data-testid="button-toggle-filters"
+                >
+                  <Filter className="h-4 w-4" />
+                  {(statusFilter !== "all" || priorityFilter !== "all" || categoryFilter !== "all" || condominiumFilter !== "all") && (
+                    <Badge variant="default" className="absolute -top-1 -right-1 h-4 w-4 p-0 flex items-center justify-center text-[10px]">
+                      {[statusFilter !== "all", priorityFilter !== "all", categoryFilter !== "all", condominiumFilter !== "all"].filter(Boolean).length}
+                    </Badge>
+                  )}
+                </Button>
+              </PopoverTrigger>
             <PopoverContent className="w-96 max-h-[600px] overflow-y-auto" align="end">
               <div className="space-y-4">
                 <div className="space-y-2">
@@ -810,92 +932,41 @@ export default function ExternalMaintenance() {
               </div>
             </PopoverContent>
           </Popover>
-          <Button onClick={() => setShowDialog(true)} data-testid="button-new-ticket">
-            <Plus className="mr-2 h-4 w-4" />
-            {t.newTicket}
-          </Button>
-        </div>
-      </div>
+          
+          {/* View Mode Toggles - Desktop Only */}
+          {!isMobile && (
+            <>
+              <Button
+                variant={viewMode === "cards" ? "default" : "outline"}
+                size="icon"
+                className="flex-shrink-0"
+                onClick={() => {
+                  setViewMode("cards");
+                  setManualViewModeOverride(false);
+                }}
+                data-testid="button-view-cards"
+              >
+                <LayoutGrid className="h-4 w-4" />
+              </Button>
+              <Button
+                variant={viewMode === "table" ? "default" : "outline"}
+                size="icon"
+                className="flex-shrink-0"
+                onClick={() => {
+                  setViewMode("table");
+                  setManualViewModeOverride(true);
+                }}
+                data-testid="button-view-table"
+              >
+                <TableIcon className="h-4 w-4" />
+              </Button>
+            </>
+          )}
+          </div>
+        </CardContent>
+      </Card>
 
-      {/* Metrics */}
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-6">
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between gap-2 space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">{t.totalJobs}</CardTitle>
-            <Wrench className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold" data-testid="text-total">{stats.total}</div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between gap-2 space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">{t.open}</CardTitle>
-            <AlertTriangle className="h-4 w-4 text-amber-600" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold text-amber-600" data-testid="text-open">{stats.open}</div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between gap-2 space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">{t.inProgress}</CardTitle>
-            <Clock className="h-4 w-4 text-blue-600" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold text-blue-600" data-testid="text-in-progress">{stats.inProgress}</div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between gap-2 space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">{t.resolved}</CardTitle>
-            <CheckCircle2 className="h-4 w-4 text-green-600" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold text-green-600" data-testid="text-resolved">{stats.resolved}</div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between gap-2 space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">{t.estimatedCost}</CardTitle>
-            <DollarSign className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-lg font-bold" data-testid="text-estimated-cost">{formatCurrency(stats.estimatedCost)}</div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between gap-2 space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">{t.actualCost}</CardTitle>
-            <TrendingUp className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-lg font-bold" data-testid="text-actual-cost">{formatCurrency(stats.totalCost)}</div>
-          </CardContent>
-        </Card>
-      </div>
-
-      {/* Search - Always visible */}
-      <div className="relative">
-        <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-        <Input
-          placeholder={t.search}
-          value={searchTerm}
-          onChange={(e) => {
-            setSearchTerm(e.target.value);
-            setCurrentPage(1);
-          }}
-          className="pl-10"
-          data-testid="input-search"
-        />
-      </div>
-
-      {/* Tickets Table */}
+      {/* Tickets - Cards or Table */}
       <Card>
         <CardContent className="p-0">
           {ticketsLoading ? (
@@ -910,7 +981,136 @@ export default function ExternalMaintenance() {
               <h3 className="text-lg font-medium mb-1">{t.noTickets}</h3>
               <p className="text-sm text-muted-foreground">{t.noTicketsDesc}</p>
             </div>
+          ) : viewMode === "cards" ? (
+            // Cards View
+            <div className="p-6">
+              <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+                {paginatedTickets.map(ticket => {
+                  const unitInfo = getUnitInfo(ticket.unitId);
+                  const assignedName = getAssignedUserName(ticket.assignedTo);
+                  const statusConfig = statusColors[ticket.status] || statusColors.open;
+                  const priorityConfig = priorityColors[ticket.priority] || priorityColors.medium;
+
+                  return (
+                    <Link key={ticket.id} href={`/external/maintenance/${ticket.id}`}>
+                      <Card 
+                        className="hover-elevate cursor-pointer h-full"
+                        data-testid={`card-ticket-${ticket.id}`}
+                      >
+                        <CardHeader>
+                          <div className="flex items-start justify-between gap-2">
+                            <div className="flex-1 min-w-0">
+                              <CardTitle className="text-base font-medium truncate">
+                                {ticket.title}
+                              </CardTitle>
+                              <div className="flex items-center gap-2 mt-2">
+                                <Badge className={statusConfig.bg} data-testid={`badge-status-${ticket.id}`}>
+                                  {statusConfig.label[language]}
+                                </Badge>
+                                <Badge className={priorityConfig.bg} data-testid={`badge-priority-${ticket.id}`}>
+                                  {priorityConfig.label[language]}
+                                </Badge>
+                              </div>
+                            </div>
+                          </div>
+                        </CardHeader>
+                        <CardContent className="space-y-3">
+                          <div className="flex items-center gap-2 text-sm">
+                            <Building2 className="h-4 w-4 text-muted-foreground flex-shrink-0" />
+                            <div className="flex flex-col min-w-0">
+                              <span className="font-medium truncate">{unitInfo?.unit?.unitNumber || '-'}</span>
+                              <span className="text-xs text-muted-foreground truncate">{unitInfo?.condo?.name}</span>
+                            </div>
+                          </div>
+                          
+                          <div className="flex items-center gap-2 text-sm">
+                            <Tag className="h-4 w-4 text-muted-foreground flex-shrink-0" />
+                            <span className="truncate">{categoryLabels[ticket.category]?.[language] || ticket.category}</span>
+                          </div>
+                          
+                          {assignedName && (
+                            <div className="flex items-center gap-2 text-sm">
+                              <User className="h-4 w-4 text-muted-foreground flex-shrink-0" />
+                              <span className="truncate">{assignedName}</span>
+                            </div>
+                          )}
+                          
+                          <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                            <CalendarIcon className="h-4 w-4 flex-shrink-0" />
+                            <span>{format(new Date(ticket.createdAt), 'dd MMM yyyy', { locale: language === 'es' ? es : undefined })}</span>
+                          </div>
+                          
+                          {ticket.estimatedCost && (
+                            <div className="flex items-center gap-2 text-sm">
+                              <DollarSign className="h-4 w-4 text-muted-foreground flex-shrink-0" />
+                              <span className="font-medium">{formatCurrency(parseFloat(ticket.estimatedCost))}</span>
+                            </div>
+                          )}
+                        </CardContent>
+                      </Card>
+                    </Link>
+                  );
+                })}
+              </div>
+              
+              {/* Pagination Controls for Cards */}
+              <div className="flex flex-col sm:flex-row items-center justify-between gap-4 mt-6">
+                <div className="flex items-center gap-2">
+                  <span className="text-sm text-muted-foreground">
+                    {language === 'es' ? 'Elementos por página:' : 'Items per page:'}
+                  </span>
+                  <Select 
+                    value={itemsPerPage.toString()} 
+                    onValueChange={(value) => {
+                      setItemsPerPage(Number(value));
+                      setCurrentPage(1);
+                    }}
+                  >
+                    <SelectTrigger className="w-20">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {cardsPerPageOptions.map(option => (
+                        <SelectItem key={option} value={option.toString()}>
+                          {option}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                
+                <div className="flex items-center gap-2">
+                  <span className="text-sm text-muted-foreground">
+                    {language === 'es' 
+                      ? `${startIndex + 1}-${Math.min(endIndex, sortedTickets.length)} de ${sortedTickets.length}`
+                      : `${startIndex + 1}-${Math.min(endIndex, sortedTickets.length)} of ${sortedTickets.length}`
+                    }
+                  </span>
+                  <div className="flex gap-1">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                      disabled={currentPage === 1}
+                      data-testid="button-prev-page"
+                    >
+                      <ChevronLeft className="h-4 w-4" />
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+                      disabled={currentPage >= totalPages}
+                      data-testid="button-next-page"
+                    >
+                      <ChevronRight className="h-4 w-4" />
+                    </Button>
+                  </div>
+                </div>
+              </div>
+            </div>
           ) : (
+            // Table View
             <div>
               <div className="overflow-x-auto">
                 <Table>
