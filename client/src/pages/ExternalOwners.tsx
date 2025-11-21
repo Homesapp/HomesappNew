@@ -1,5 +1,5 @@
 import { useQuery, useMutation } from "@tanstack/react-query";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -33,6 +33,10 @@ export default function ExternalOwners() {
   const [chargeDialogOpen, setChargeDialogOpen] = useState(false);
   const [notificationDialogOpen, setNotificationDialogOpen] = useState(false);
   const [bulkNotificationDialogOpen, setBulkNotificationDialogOpen] = useState(false);
+  
+  // Pagination state (3 rows x 3 cols = 9 cards per page)
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 9;
 
   // Fetch owners
   const { data: owners = [], isLoading } = useQuery<OwnerWithUnit[]>({
@@ -102,6 +106,24 @@ export default function ExternalOwners() {
       (owner.phone ?? "").includes(searchTerm)
   ) || [];
 
+  // Paginate owners (3 rows x 3 cols = 9 cards per page)
+  const totalPages = Math.max(1, Math.ceil(filteredOwners.length / itemsPerPage));
+  const startIndex = (currentPage - 1) * itemsPerPage;
+  const endIndex = startIndex + itemsPerPage;
+  const paginatedOwners = filteredOwners.slice(startIndex, endIndex);
+
+  // Clamp page when data changes
+  useEffect(() => {
+    if (currentPage > totalPages && totalPages > 0) {
+      setCurrentPage(totalPages);
+    }
+  }, [filteredOwners.length]);
+
+  // Reset page when search changes
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchTerm]);
+
   return (
     <div className="flex flex-col gap-6 p-6">
       {/* Header */}
@@ -165,8 +187,9 @@ export default function ExternalOwners() {
               </CardContent>
             </Card>
           ) : (
-            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-              {filteredOwners.map((owner) => (
+            <div className="space-y-4">
+              <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+                {paginatedOwners.map((owner) => (
                 <Card key={owner.id} className="hover-elevate" data-testid={`card-owner-${owner.id}`}>
                   <CardHeader>
                     <CardTitle className="text-lg">{owner.name}</CardTitle>
@@ -220,7 +243,64 @@ export default function ExternalOwners() {
                     </div>
                   </CardContent>
                 </Card>
-              ))}
+                ))}
+              </div>
+
+              {/* Pagination Controls */}
+              {filteredOwners.length > itemsPerPage && (
+                <div className="flex flex-col sm:flex-row items-center justify-between gap-4 p-4 border rounded-lg bg-card">
+                  <div className="flex items-center gap-2">
+                    <span className="text-sm text-muted-foreground">
+                      Mostrando {startIndex + 1}-{Math.min(endIndex, filteredOwners.length)} de {filteredOwners.length}
+                    </span>
+                  </div>
+
+                  <div className="flex items-center gap-2">
+                    <span className="text-sm text-muted-foreground">
+                      Página {currentPage} de {totalPages}
+                    </span>
+                  </div>
+
+                  <div className="flex items-center gap-2">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setCurrentPage(1)}
+                      disabled={currentPage === 1}
+                      data-testid="button-owners-first-page"
+                    >
+                      Primera
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
+                      disabled={currentPage === 1}
+                      data-testid="button-owners-prev-page"
+                    >
+                      Anterior
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
+                      disabled={currentPage === totalPages}
+                      data-testid="button-owners-next-page"
+                    >
+                      Siguiente
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setCurrentPage(totalPages)}
+                      disabled={currentPage === totalPages}
+                      data-testid="button-owners-last-page"
+                    >
+                      Última
+                    </Button>
+                  </div>
+                </div>
+              )}
             </div>
           )}
         </TabsContent>
