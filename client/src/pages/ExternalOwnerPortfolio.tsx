@@ -137,8 +137,6 @@ export default function ExternalOwnerPortfolio() {
   const isMobile = useMobile();
   const { toast } = useToast();
   const [searchTerm, setSearchTerm] = useState("");
-  const [sortBy, setSortBy] = useState<'name' | 'units' | 'income' | 'balance'>('name');
-  const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('asc');
   const [selectedOwnerId, setSelectedOwnerId] = useState<string | null>(null);
   const [viewMode, setViewMode] = useState<"cards" | "table">("table");
   const [manualViewModeOverride, setManualViewModeOverride] = useState(false);
@@ -148,8 +146,9 @@ export default function ExternalOwnerPortfolio() {
   const [originalGroupingKey, setOriginalGroupingKey] = useState<string | null>(null);
   const [minUnits, setMinUnits] = useState<number>(0);
   const [minOccupancy, setMinOccupancy] = useState<number>(0);
-  const [balanceFilter, setBalanceFilter] = useState<'all' | 'positive' | 'negative'>('all');
   const [showFilters, setShowFilters] = useState(false);
+  const [selectedCondominium, setSelectedCondominium] = useState<string | null>(null);
+  const [selectedUnit, setSelectedUnit] = useState<string | null>(null);
   
   // Pagination for main owners table
   const [page, setPage] = useState(1);
@@ -355,11 +354,12 @@ export default function ExternalOwnerPortfolio() {
   const clearFilters = () => {
     setMinUnits(0);
     setMinOccupancy(0);
-    setBalanceFilter('all');
+    setSelectedCondominium(null);
+    setSelectedUnit(null);
   };
 
   // Check if any filters are active
-  const hasActiveFilters = minUnits > 0 || minOccupancy > 0 || balanceFilter !== 'all';
+  const hasActiveFilters = minUnits > 0 || minOccupancy > 0 || selectedCondominium !== null || selectedUnit !== null;
 
   // Build owner portfolios
   const portfolios = useMemo(() => {
@@ -491,44 +491,32 @@ export default function ExternalOwnerPortfolio() {
       // Occupancy filter
       if (minOccupancy > 0 && p.occupancyRate < minOccupancy) return false;
 
-      // Balance filter
-      if (balanceFilter === 'positive' && p.balance < 0) return false;
-      if (balanceFilter === 'negative' && p.balance >= 0) return false;
+      // Condominium filter
+      if (selectedCondominium) {
+        const hasCondoUnit = p.units.some(u => u.condominiumId === selectedCondominium);
+        if (!hasCondoUnit) return false;
+      }
+
+      // Unit filter
+      if (selectedUnit) {
+        const hasUnit = p.units.some(u => u.id === selectedUnit);
+        if (!hasUnit) return false;
+      }
 
       return true;
     });
 
-    // Sort
-    filtered.sort((a, b) => {
-      let comparison = 0;
-      switch (sortBy) {
-        case 'name':
-          comparison = a.owner.ownerName.localeCompare(b.owner.ownerName);
-          break;
-        case 'units':
-          comparison = a.units.length - b.units.length;
-          break;
-        case 'income':
-          comparison = a.totalIncome - b.totalIncome;
-          break;
-        case 'balance':
-          comparison = a.balance - b.balance;
-          break;
-      }
-      return sortOrder === 'asc' ? comparison : -comparison;
-    });
+    // Sort by name (alphabetical, ascending)
+    filtered.sort((a, b) => a.owner.ownerName.localeCompare(b.owner.ownerName));
 
     return filtered;
-  }, [portfolios, searchTerm, sortBy, sortOrder, minUnits, minOccupancy, balanceFilter]);
+  }, [portfolios, searchTerm, minUnits, minOccupancy, selectedCondominium, selectedUnit]);
 
   // Calculate totals
   const totals = useMemo(() => {
     return {
       totalOwners: filteredPortfolios.length,
       totalUnits: filteredPortfolios.reduce((sum, p) => sum + p.units.length, 0),
-      totalIncome: filteredPortfolios.reduce((sum, p) => sum + p.totalIncome, 0),
-      totalExpenses: filteredPortfolios.reduce((sum, p) => sum + p.totalExpenses, 0),
-      totalBalance: filteredPortfolios.reduce((sum, p) => sum + p.balance, 0),
       avgOccupancy: filteredPortfolios.length > 0 
         ? filteredPortfolios.reduce((sum, p) => sum + p.occupancyRate, 0) / filteredPortfolios.length 
         : 0,
@@ -579,9 +567,6 @@ export default function ExternalOwnerPortfolio() {
       'Email',
       'Teléfono',
       'Unidades',
-      'Ingresos',
-      'Gastos',
-      'Balance',
       'Ocupación %',
     ].join(',');
 
@@ -590,9 +575,6 @@ export default function ExternalOwnerPortfolio() {
       p.owner.ownerEmail || '',
       p.owner.ownerPhone || '',
       p.units.length,
-      p.totalIncome.toFixed(2),
-      p.totalExpenses.toFixed(2),
-      p.balance.toFixed(2),
       p.occupancyRate.toFixed(1),
     ].join(','));
 
@@ -711,7 +693,7 @@ export default function ExternalOwnerPortfolio() {
       </div>
 
       {/* Metrics */}
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-6">
+      <div className="grid gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3">
         <Card>
           <CardHeader className="flex flex-row items-center justify-between gap-2 space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">{t.totalOwners}</CardTitle>
@@ -729,45 +711,6 @@ export default function ExternalOwnerPortfolio() {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold" data-testid="text-total-units">{totals.totalUnits}</div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between gap-2 space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">{t.totalIncome}</CardTitle>
-            <TrendingUp className="h-4 w-4 text-green-600" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-lg font-bold text-green-600" data-testid="text-total-income">
-              {formatCurrency(totals.totalIncome)}
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between gap-2 space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">{t.totalExpenses}</CardTitle>
-            <TrendingDown className="h-4 w-4 text-red-600" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-lg font-bold text-red-600" data-testid="text-total-expenses">
-              {formatCurrency(totals.totalExpenses)}
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between gap-2 space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">{t.totalBalance}</CardTitle>
-            <DollarSign className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className={cn(
-              "text-lg font-bold",
-              totals.totalBalance >= 0 ? "text-green-600" : "text-red-600"
-            )} data-testid="text-total-balance">
-              {formatCurrency(totals.totalBalance)}
-            </div>
           </CardContent>
         </Card>
 
@@ -812,7 +755,7 @@ export default function ExternalOwnerPortfolio() {
                   {language === 'es' ? 'Filtros' : 'Filters'}
                   {hasActiveFilters && (
                     <Badge variant="default" className="ml-2 h-5 px-1 text-xs">
-                      {[minUnits > 0, minOccupancy > 0, balanceFilter !== 'all'].filter(Boolean).length}
+                      {[minUnits > 0, minOccupancy > 0, selectedCondominium !== null, selectedUnit !== null].filter(Boolean).length}
                     </Badge>
                   )}
                 </Button>
@@ -864,36 +807,61 @@ export default function ExternalOwnerPortfolio() {
                       </div>
                     </div>
 
-                    {/* Balance Filter */}
+                    {/* Condominium Filter */}
                     <div className="space-y-2">
                       <label className="text-sm text-muted-foreground">
-                        {language === 'es' ? 'Balance' : 'Balance'}
+                        {language === 'es' ? 'Condominio' : 'Condominium'}
                       </label>
                       <div className="flex gap-2 flex-wrap">
                         <Button
-                          variant={balanceFilter === 'all' ? "default" : "outline"}
+                          variant={selectedCondominium === null ? "default" : "outline"}
                           size="sm"
-                          onClick={() => setBalanceFilter('all')}
-                          data-testid="button-filter-balance-all"
+                          onClick={() => setSelectedCondominium(null)}
+                          data-testid="button-filter-condominium-all"
                         >
                           {language === 'es' ? 'Todos' : 'All'}
                         </Button>
+                        {condominiums?.map((condo) => (
+                          <Button
+                            key={condo.id}
+                            variant={selectedCondominium === condo.id ? "default" : "outline"}
+                            size="sm"
+                            onClick={() => setSelectedCondominium(condo.id)}
+                            data-testid={`button-filter-condominium-${condo.id}`}
+                          >
+                            {condo.name}
+                          </Button>
+                        ))}
+                      </div>
+                    </div>
+
+                    {/* Unit Filter */}
+                    <div className="space-y-2">
+                      <label className="text-sm text-muted-foreground">
+                        {language === 'es' ? 'Unidad' : 'Unit'}
+                      </label>
+                      <div className="flex gap-2 flex-wrap">
                         <Button
-                          variant={balanceFilter === 'positive' ? "default" : "outline"}
+                          variant={selectedUnit === null ? "default" : "outline"}
                           size="sm"
-                          onClick={() => setBalanceFilter('positive')}
-                          data-testid="button-filter-balance-positive"
+                          onClick={() => setSelectedUnit(null)}
+                          data-testid="button-filter-unit-all"
                         >
-                          {language === 'es' ? 'Positivo' : 'Positive'}
+                          {language === 'es' ? 'Todas' : 'All'}
                         </Button>
-                        <Button
-                          variant={balanceFilter === 'negative' ? "default" : "outline"}
-                          size="sm"
-                          onClick={() => setBalanceFilter('negative')}
-                          data-testid="button-filter-balance-negative"
-                        >
-                          {language === 'es' ? 'Negativo' : 'Negative'}
-                        </Button>
+                        {units
+                          ?.filter(u => !selectedCondominium || u.condominiumId === selectedCondominium)
+                          ?.map((unit) => (
+                          <Button
+                            key={unit.id}
+                            variant={selectedUnit === unit.id ? "default" : "outline"}
+                            size="sm"
+                            onClick={() => setSelectedUnit(unit.id)}
+                            data-testid={`button-filter-unit-${unit.id}`}
+                          >
+                            {unit.unitNumber}
+                          </Button>
+                        ))}
                       </div>
                     </div>
                   </div>
@@ -914,31 +882,6 @@ export default function ExternalOwnerPortfolio() {
                 </div>
               </PopoverContent>
             </Popover>
-
-            {/* Sort By Dropdown */}
-            <div className="flex gap-2">
-              <Select value={sortBy} onValueChange={(value: any) => setSortBy(value)}>
-                <SelectTrigger className="flex-1 sm:w-40" data-testid="select-sort-by">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="name">{t.name}</SelectItem>
-                  <SelectItem value="units">{t.units}</SelectItem>
-                  <SelectItem value="income">{t.income}</SelectItem>
-                  <SelectItem value="balance">{t.balance}</SelectItem>
-                </SelectContent>
-              </Select>
-
-              <Button
-                variant="outline"
-                size="icon"
-                onClick={() => setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc')}
-                data-testid="button-sort-order"
-                className="flex-shrink-0"
-              >
-                <ArrowUpDown className="h-4 w-4" />
-              </Button>
-            </div>
           </div>
         </CardContent>
       </Card>
@@ -994,15 +937,6 @@ export default function ExternalOwnerPortfolio() {
             const endIndex = Math.min(startIndex + itemsPerPage, totalItems);
             const paginatedPortfolios = filteredPortfolios.slice(startIndex, endIndex);
 
-            const handleSort = (column: 'name' | 'units' | 'income' | 'balance') => {
-              if (sortBy === column) {
-                setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc');
-              } else {
-                setSortBy(column);
-                setSortOrder('asc');
-              }
-            };
-
             return (
               <>
                 {viewMode === "cards" ? (
@@ -1018,11 +952,25 @@ export default function ExternalOwnerPortfolio() {
                             data-testid={`card-owner-${portfolio.owner.id}`}
                           >
                             <CardHeader className="space-y-2">
-                              <CardTitle className="text-lg flex items-start gap-2">
-                                <User className="h-4 w-4 text-muted-foreground flex-shrink-0 mt-0.5" />
-                                <span className="flex-1 min-w-0 break-words">
-                                  {portfolio.owner.ownerName}
-                                </span>
+                              <CardTitle className="text-lg flex items-start justify-between gap-2">
+                                <div className="flex items-start gap-2 flex-1 min-w-0">
+                                  <User className="h-4 w-4 text-muted-foreground flex-shrink-0 mt-0.5" />
+                                  <span className="flex-1 min-w-0 break-words">
+                                    {portfolio.owner.ownerName}
+                                  </span>
+                                </div>
+                                <Button
+                                  size="icon"
+                                  variant="ghost"
+                                  className="flex-shrink-0"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    handleOpenDialog(portfolio.owner);
+                                  }}
+                                  data-testid={`button-edit-card-${portfolio.owner.id}`}
+                                >
+                                  <Edit className="h-4 w-4" />
+                                </Button>
                               </CardTitle>
                             </CardHeader>
                             <CardContent className="space-y-3">
@@ -1044,6 +992,51 @@ export default function ExternalOwnerPortfolio() {
                                 </div>
                               )}
 
+                              {/* Property Details */}
+                              <div className="space-y-2 pt-3 border-t">
+                                {/* Typologies */}
+                                <div className="space-y-1">
+                                  <span className="text-xs text-muted-foreground">
+                                    {language === 'es' ? 'Tipologías' : 'Typologies'}
+                                  </span>
+                                  <div className="flex flex-wrap gap-1">
+                                    {portfolio.typologies.map((typ, idx) => (
+                                      <Badge key={idx} variant="outline" className="text-xs">
+                                        {formatTypology(typ, language)}
+                                      </Badge>
+                                    ))}
+                                  </div>
+                                </div>
+
+                                {/* Condominiums */}
+                                <div className="space-y-1">
+                                  <span className="text-xs text-muted-foreground">
+                                    {language === 'es' ? 'Condominios' : 'Condominiums'}
+                                  </span>
+                                  <div className="flex flex-wrap gap-1">
+                                    {portfolio.condominiums.map((condo, idx) => (
+                                      <Badge key={idx} variant="secondary" className="text-xs">
+                                        {condo}
+                                      </Badge>
+                                    ))}
+                                  </div>
+                                </div>
+
+                                {/* Units */}
+                                <div className="space-y-1">
+                                  <span className="text-xs text-muted-foreground">
+                                    {language === 'es' ? 'Unidades' : 'Units'}
+                                  </span>
+                                  <div className="flex flex-wrap gap-1">
+                                    {portfolio.unitNumbers.map((unit, idx) => (
+                                      <Badge key={idx} variant="outline" className="text-xs">
+                                        {unit}
+                                      </Badge>
+                                    ))}
+                                  </div>
+                                </div>
+                              </div>
+
                               {/* Metrics */}
                               <div className="space-y-2 pt-3 border-t">
                                 <div className="flex items-center justify-between text-sm">
@@ -1052,39 +1045,6 @@ export default function ExternalOwnerPortfolio() {
                                     {t.units}
                                   </span>
                                   <Badge variant="outline">{portfolio.units.length}</Badge>
-                                </div>
-                                
-                                <div className="flex items-center justify-between text-sm">
-                                  <span className="text-muted-foreground flex items-center gap-1">
-                                    <TrendingUp className="h-3 w-3" />
-                                    {t.income}
-                                  </span>
-                                  <span className="font-medium text-green-600">
-                                    {formatCurrency(portfolio.totalIncome)}
-                                  </span>
-                                </div>
-
-                                <div className="flex items-center justify-between text-sm">
-                                  <span className="text-muted-foreground flex items-center gap-1">
-                                    <TrendingDown className="h-3 w-3" />
-                                    {t.expenses}
-                                  </span>
-                                  <span className="font-medium text-red-600">
-                                    {formatCurrency(portfolio.totalExpenses)}
-                                  </span>
-                                </div>
-
-                                <div className="flex items-center justify-between text-sm">
-                                  <span className="text-muted-foreground flex items-center gap-1">
-                                    <DollarSign className="h-3 w-3" />
-                                    {t.balance}
-                                  </span>
-                                  <span className={cn(
-                                    "font-bold",
-                                    portfolio.balance >= 0 ? "text-green-600" : "text-red-600"
-                                  )}>
-                                    {formatCurrency(portfolio.balance)}
-                                  </span>
                                 </div>
 
                                 <div className="flex items-center justify-between text-sm">
@@ -1103,6 +1063,7 @@ export default function ExternalOwnerPortfolio() {
                                 size="sm"
                                 variant="outline"
                                 className="w-full"
+                                onClick={() => setSelectedOwnerId(portfolio.owner.id)}
                                 data-testid={`button-view-${portfolio.owner.id}`}
                               >
                                 <Eye className="h-4 w-4 mr-2" />
@@ -1159,51 +1120,12 @@ export default function ExternalOwnerPortfolio() {
                       <Table>
                     <TableHeader>
                       <TableRow>
-                        <TableHead 
-                          className="cursor-pointer hover-elevate"
-                          onClick={() => handleSort('name')}
-                          data-testid="header-sort-owner"
-                        >
-                          <div className="flex items-center gap-2">
-                            {t.owner}
-                            <ArrowUpDown className="h-4 w-4" />
-                          </div>
-                        </TableHead>
+                        <TableHead>{t.owner}</TableHead>
                         <TableHead>{t.contact}</TableHead>
                         <TableHead>{language === 'es' ? 'Tipología' : 'Typology'}</TableHead>
                         <TableHead>{language === 'es' ? 'Condominio' : 'Condominium'}</TableHead>
                         <TableHead>{language === 'es' ? 'Unidad' : 'Unit'}</TableHead>
-                        <TableHead 
-                          className="text-right cursor-pointer hover-elevate"
-                          onClick={() => handleSort('units')}
-                          data-testid="header-sort-units"
-                        >
-                          <div className="flex items-center justify-end gap-2">
-                            {t.units}
-                            <ArrowUpDown className="h-4 w-4" />
-                          </div>
-                        </TableHead>
-                        <TableHead 
-                          className="text-right cursor-pointer hover-elevate"
-                          onClick={() => handleSort('income')}
-                          data-testid="header-sort-income"
-                        >
-                          <div className="flex items-center justify-end gap-2">
-                            {t.income}
-                            <ArrowUpDown className="h-4 w-4" />
-                          </div>
-                        </TableHead>
-                        <TableHead className="text-right">{t.expenses}</TableHead>
-                        <TableHead 
-                          className="text-right cursor-pointer hover-elevate"
-                          onClick={() => handleSort('balance')}
-                          data-testid="header-sort-balance"
-                        >
-                          <div className="flex items-center justify-end gap-2">
-                            {t.balance}
-                            <ArrowUpDown className="h-4 w-4" />
-                          </div>
-                        </TableHead>
+                        <TableHead className="text-right">{t.units}</TableHead>
                         <TableHead className="text-right">{t.occupancy}</TableHead>
                         <TableHead className="text-right">{t.actions}</TableHead>
                       </TableRow>
@@ -1266,19 +1188,6 @@ export default function ExternalOwnerPortfolio() {
                       </TableCell>
                       <TableCell className="text-right">
                         <Badge variant="outline">{portfolio.units.length}</Badge>
-                      </TableCell>
-                      <TableCell className="text-right font-medium text-green-600">
-                        {formatCurrency(portfolio.totalIncome)}
-                      </TableCell>
-                      <TableCell className="text-right font-medium text-red-600">
-                        {formatCurrency(portfolio.totalExpenses)}
-                      </TableCell>
-                      <TableCell className="text-right font-bold">
-                        <span className={cn(
-                          portfolio.balance >= 0 ? "text-green-600" : "text-red-600"
-                        )}>
-                          {formatCurrency(portfolio.balance)}
-                        </span>
                       </TableCell>
                       <TableCell className="text-right">
                         <Badge variant={portfolio.occupancyRate >= 70 ? "default" : "secondary"}>
