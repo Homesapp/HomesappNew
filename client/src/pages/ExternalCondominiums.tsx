@@ -966,7 +966,7 @@ export default function ExternalCondominiums() {
               </CardContent>
             </Card>
           ) : (
-            <Card>
+            <Card className="mb-0.5">
               <CardContent className="pt-6">
                 <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
                   {/* Search Input */}
