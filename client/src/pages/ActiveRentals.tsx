@@ -109,6 +109,12 @@ export default function ActiveRentals() {
   const [paymentsSortDirection, setPaymentsSortDirection] = useState<"asc" | "desc">("asc");
   const [currentServiceType, setCurrentServiceType] = useState<string>("rent");
 
+  // Maintenance requests pagination & sorting
+  const [maintenancePage, setMaintenancePage] = useState(1);
+  const [maintenancePerPage, setMaintenancePerPage] = useState(10);
+  const [maintenanceSortColumn, setMaintenanceSortColumn] = useState<string>("createdAt");
+  const [maintenanceSortDirection, setMaintenanceSortDirection] = useState<"asc" | "desc">("desc");
+
   // Reset payments page when items per page changes
   useEffect(() => {
     setPaymentsPage(1);
@@ -118,6 +124,12 @@ export default function ActiveRentals() {
   const handleServiceTypeChange = (serviceType: string) => {
     setCurrentServiceType(serviceType);
     setPaymentsPage(1);
+  };
+
+  // Handler for maintenance per page change - resets page synchronously
+  const handleMaintenancePerPageChange = (value: string) => {
+    setMaintenancePerPage(Number(value));
+    setMaintenancePage(1);
   };
 
   const isOwner = user?.role === "owner";
@@ -498,6 +510,57 @@ export default function ActiveRentals() {
     } else {
       setPaymentsSortColumn(column);
       setPaymentsSortDirection("asc");
+    }
+  };
+
+  // Sorted and paginated maintenance requests
+  const sortedMaintenanceRequests = useMemo(() => {
+    if (!maintenanceSortColumn) return maintenanceRequests;
+
+    return [...maintenanceRequests].sort((a, b) => {
+      let aVal: any = (a as any)[maintenanceSortColumn];
+      let bVal: any = (b as any)[maintenanceSortColumn];
+
+      // Handle date fields
+      if (maintenanceSortColumn === 'createdAt' || maintenanceSortColumn === 'requestedDate' || maintenanceSortColumn === 'completedDate') {
+        if (!aVal) return maintenanceSortDirection === "asc" ? 1 : -1;
+        if (!bVal) return maintenanceSortDirection === "asc" ? -1 : 1;
+        const aTime = new Date(aVal).getTime();
+        const bTime = new Date(bVal).getTime();
+        return maintenanceSortDirection === "asc" ? aTime - bTime : bTime - aTime;
+      }
+
+      // Handle string fields
+      if (typeof aVal === "string" || typeof bVal === "string") {
+        aVal = (aVal || '').toString().toLowerCase();
+        bVal = (bVal || '').toString().toLowerCase();
+      }
+
+      if (aVal < bVal) return maintenanceSortDirection === "asc" ? -1 : 1;
+      if (aVal > bVal) return maintenanceSortDirection === "asc" ? 1 : -1;
+      return 0;
+    });
+  }, [maintenanceRequests, maintenanceSortColumn, maintenanceSortDirection]);
+
+  const maintenanceTotalPages = Math.ceil(sortedMaintenanceRequests.length / maintenancePerPage) || 1;
+  const paginatedMaintenanceRequests = sortedMaintenanceRequests.slice(
+    (maintenancePage - 1) * maintenancePerPage,
+    maintenancePage * maintenancePerPage
+  );
+
+  // Clamp maintenance page if it exceeds total pages
+  useEffect(() => {
+    if (maintenancePage > maintenanceTotalPages && maintenanceTotalPages > 0) {
+      setMaintenancePage(maintenanceTotalPages);
+    }
+  }, [maintenancePage, maintenanceTotalPages, sortedMaintenanceRequests.length, maintenancePerPage]);
+
+  const handleMaintenanceSort = (column: string) => {
+    if (maintenanceSortColumn === column) {
+      setMaintenanceSortDirection(maintenanceSortDirection === "asc" ? "desc" : "asc");
+    } else {
+      setMaintenanceSortColumn(column);
+      setMaintenanceSortDirection("asc");
     }
   };
 
@@ -1033,20 +1096,71 @@ export default function ActiveRentals() {
                   {t("activeRentals.noMaintenanceRequests", "No hay solicitudes de mantenimiento")}
                 </p>
               ) : (
-                <div className="space-y-4">
-                  {maintenanceRequests.map((request) => (
-                    <Card key={request.id} data-testid={`card-maintenance-${request.id}`}>
-                      <CardHeader>
-                        <div className="flex justify-between items-start gap-4">
-                          <div className="flex-1">
-                            <CardTitle className="text-lg">
-                              {request.title || t("activeRentals.maintenanceRequest", "Solicitud de Mantenimiento")}
-                            </CardTitle>
-                            <CardDescription className="mt-2">
-                              {request.description || t("activeRentals.noDescription", "Sin descripción")}
-                            </CardDescription>
-                          </div>
-                          <div className="flex flex-col gap-2 items-end">
+                <>
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => handleMaintenanceSort("title")}
+                            className="hover-elevate gap-1"
+                            data-testid="sort-title"
+                          >
+                            {t("activeRentals.title", "Título")}
+                            <ArrowUpDown className="h-4 w-4" />
+                          </Button>
+                        </TableHead>
+                        <TableHead>{t("activeRentals.description", "Descripción")}</TableHead>
+                        <TableHead>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => handleMaintenanceSort("urgency")}
+                            className="hover-elevate gap-1"
+                            data-testid="sort-urgency"
+                          >
+                            {t("activeRentals.urgency", "Urgencia")}
+                            <ArrowUpDown className="h-4 w-4" />
+                          </Button>
+                        </TableHead>
+                        <TableHead>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => handleMaintenanceSort("status")}
+                            className="hover-elevate gap-1"
+                            data-testid="sort-status"
+                          >
+                            {t("activeRentals.status", "Estado")}
+                            <ArrowUpDown className="h-4 w-4" />
+                          </Button>
+                        </TableHead>
+                        <TableHead>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => handleMaintenanceSort("createdAt")}
+                            className="hover-elevate gap-1"
+                            data-testid="sort-created-at"
+                          >
+                            {t("activeRentals.createdAt", "Fecha")}
+                            <ArrowUpDown className="h-4 w-4" />
+                          </Button>
+                        </TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {paginatedMaintenanceRequests.map((request) => (
+                        <TableRow key={request.id} data-testid={`row-maintenance-${request.id}`}>
+                          <TableCell className="font-medium">
+                            {request.title || t("activeRentals.maintenanceRequest", "Solicitud de Mantenimiento")}
+                          </TableCell>
+                          <TableCell className="max-w-xs truncate">
+                            {request.description || t("activeRentals.noDescription", "Sin descripción")}
+                          </TableCell>
+                          <TableCell>
                             <Badge
                               variant={
                                 request.urgency === "emergency" ? "destructive" :
@@ -1064,6 +1178,8 @@ export default function ActiveRentals() {
                                request.urgency === "medium" ? t("activeRentals.medium", "Media") :
                                t("activeRentals.low", "Baja")}
                             </Badge>
+                          </TableCell>
+                          <TableCell>
                             <Badge
                               variant={
                                 request.status === "completed" ? "default" :
@@ -1075,27 +1191,67 @@ export default function ActiveRentals() {
                                request.status === "in_progress" ? t("activeRentals.inProgress", "En Proceso") :
                                t("activeRentals.pending", "Pendiente")}
                             </Badge>
-                          </div>
-                        </div>
-                      </CardHeader>
-                      {request.photoData && (
-                        <CardContent>
-                          <img 
-                            src={request.photoData} 
-                            alt={t("activeRentals.problemPhoto", "Foto del Problema")} 
-                            className="w-full max-w-md rounded-lg"
-                            data-testid={`img-problem-${request.id}`}
-                          />
-                        </CardContent>
-                      )}
-                      <CardContent className="pt-0">
-                        <p className="text-sm text-tertiary-foreground">
-                          {format(new Date(request.createdAt), "dd MMM yyyy", { locale: language === "es" ? es : undefined })}
-                        </p>
-                      </CardContent>
-                    </Card>
-                  ))}
-                </div>
+                          </TableCell>
+                          <TableCell className="text-secondary-foreground">
+                            {format(new Date(request.createdAt), "dd MMM yyyy", { locale: language === "es" ? es : undefined })}
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+
+                  {/* Pagination Controls */}
+                  <div className="flex items-center justify-between mt-4">
+                    <div className="flex items-center gap-2">
+                      <span className="text-sm text-muted-foreground">
+                        {language === "es" ? "Mostrar" : "Show"}
+                      </span>
+                      <Select
+                        value={String(maintenancePerPage)}
+                        onValueChange={handleMaintenancePerPageChange}
+                      >
+                        <SelectTrigger className="w-20" data-testid="select-maintenance-per-page">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="5">5</SelectItem>
+                          <SelectItem value="10">10</SelectItem>
+                          <SelectItem value="20">20</SelectItem>
+                          <SelectItem value="30">30</SelectItem>
+                        </SelectContent>
+                      </Select>
+                      <span className="text-sm text-muted-foreground">
+                        {language === "es" ? "por página" : "per page"}
+                      </span>
+                    </div>
+
+                    <div className="flex items-center gap-2">
+                      <span className="text-sm text-muted-foreground">
+                        {language === "es" ? "Página" : "Page"} {maintenancePage} {language === "es" ? "de" : "of"} {maintenanceTotalPages}
+                      </span>
+                      <div className="flex gap-2">
+                        <Button
+                          variant="outline"
+                          size="icon"
+                          onClick={() => setMaintenancePage(Math.max(1, maintenancePage - 1))}
+                          disabled={maintenancePage === 1}
+                          data-testid="button-maintenance-prev-page"
+                        >
+                          <ChevronLeft className="h-4 w-4" />
+                        </Button>
+                        <Button
+                          variant="outline"
+                          size="icon"
+                          onClick={() => setMaintenancePage(Math.min(maintenanceTotalPages, maintenancePage + 1))}
+                          disabled={maintenancePage === maintenanceTotalPages}
+                          data-testid="button-maintenance-next-page"
+                        >
+                          <ChevronRight className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    </div>
+                  </div>
+                </>
               )}
             </CardContent>
           </Card>
