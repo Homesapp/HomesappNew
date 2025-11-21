@@ -22,32 +22,40 @@ type RentalContractWithDetails = {
 export default function ExternalDashboard() {
   const { language } = useLanguage();
 
+  // Extended cache for static/rarely-changing data
   const { data: condominiums, isLoading: condosLoading } = useQuery<ExternalCondominium[]>({
     queryKey: ['/api/external-condominiums'],
+    staleTime: 15 * 60 * 1000, // 15 minutes
   });
 
   const { data: units, isLoading: unitsLoading } = useQuery<ExternalUnit[]>({
     queryKey: ['/api/external-units'],
+    staleTime: 15 * 60 * 1000, // 15 minutes
   });
 
   const { data: rentalContractsData, isLoading: contractsLoading } = useQuery<RentalContractWithDetails[]>({
     queryKey: ['/api/external-rental-contracts'],
+    staleTime: 5 * 60 * 1000, // 5 minutes (default)
   });
 
   const { data: payments, isLoading: paymentsLoading } = useQuery<ExternalPayment[]>({
     queryKey: ['/api/external-payments'],
+    staleTime: 5 * 60 * 1000, // 5 minutes (default)
   });
 
   const { data: tickets, isLoading: ticketsLoading } = useQuery<ExternalMaintenanceTicket[]>({
     queryKey: ['/api/external-tickets'],
+    staleTime: 5 * 60 * 1000, // 5 minutes (default)
   });
 
   const { data: owners, isLoading: ownersLoading } = useQuery<ExternalOwner[]>({
     queryKey: ['/api/external-owners'],
+    staleTime: 15 * 60 * 1000, // 15 minutes
   });
 
   const { data: financialTransactions, isLoading: financialLoading } = useQuery<ExternalFinancialTransaction[]>({
     queryKey: ['/api/external-financial-transactions'],
+    staleTime: 5 * 60 * 1000, // 5 minutes (default)
   });
 
   // Calculate statistics
@@ -463,45 +471,60 @@ export default function ExternalDashboard() {
           </CardHeader>
           <CardContent className="p-3">
             {isLoading ? (
-              <div className="space-y-2">
-                <Skeleton className="h-16 w-full" />
-                <Skeleton className="h-16 w-full" />
-                <Skeleton className="h-16 w-full" />
+              <div className="space-y-3">
+                <Skeleton className="h-20 w-full" />
+                <Skeleton className="h-20 w-full" />
+                <Skeleton className="h-20 w-full" />
               </div>
             ) : upcomingEvents.length > 0 ? (
-              <div className="space-y-2">
+              <div className="space-y-3">
                 {upcomingEvents.slice(0, 5).map((event, idx) => (
                   <div
                     key={idx}
-                    className="flex items-center gap-3 p-2.5 border rounded-md hover-elevate"
+                    className="group relative flex items-start gap-4 p-3 rounded-lg border bg-card hover-elevate transition-all"
                     data-testid={`event-${idx}`}
                   >
-                    <div className="flex-shrink-0">
-                      <event.icon className={`h-5 w-5 ${event.color}`} />
+                    {/* Icon and indicator */}
+                    <div className="flex flex-col items-center gap-1 flex-shrink-0">
+                      <div className={`p-2 rounded-lg ${event.color.replace('text-', 'bg-')}/10`}>
+                        <event.icon className={`h-5 w-5 ${event.color}`} />
+                      </div>
                     </div>
-                    <div className="flex-1 min-w-0">
-                      <p className="text-sm font-medium truncate">{event.title}</p>
+
+                    {/* Content */}
+                    <div className="flex-1 min-w-0 space-y-1">
+                      <div className="flex items-start justify-between gap-2">
+                        <p className="text-sm font-semibold leading-tight">{event.title}</p>
+                        <div className="flex flex-col items-end gap-0.5 flex-shrink-0">
+                          <p className="text-xs font-medium whitespace-nowrap">
+                            {format(event.date, 'd MMM', { locale: language === "es" ? es : enUS })}
+                          </p>
+                          <p className="text-xs text-muted-foreground">
+                            {format(event.date, 'HH:mm')}
+                          </p>
+                        </div>
+                      </div>
                       {event.subtitle && (
-                        <p className="text-xs text-muted-foreground truncate">{event.subtitle}</p>
+                        <p className="text-xs text-muted-foreground leading-relaxed">{event.subtitle}</p>
                       )}
-                    </div>
-                    <div className="text-right flex-shrink-0">
-                      <p className="text-xs font-medium">
-                        {format(event.date, 'd MMM', { locale: language === "es" ? es : enUS })}
-                      </p>
-                      <p className="text-xs text-muted-foreground">
-                        {format(event.date, 'HH:mm')}
-                      </p>
                     </div>
                   </div>
                 ))}
               </div>
             ) : (
-              <p className="text-sm text-muted-foreground text-center py-8" data-testid="text-no-events">
-                {language === "es" 
-                  ? "No hay eventos programados en los próximos 7 días" 
-                  : "No events scheduled in the next 7 days"}
-              </p>
+              <div className="flex flex-col items-center justify-center py-12 text-center">
+                <Calendar className="h-12 w-12 text-muted-foreground/40 mb-3" />
+                <p className="text-sm font-medium text-muted-foreground" data-testid="text-no-events">
+                  {language === "es" 
+                    ? "No hay eventos programados" 
+                    : "No events scheduled"}
+                </p>
+                <p className="text-xs text-muted-foreground/70 mt-1">
+                  {language === "es" 
+                    ? "En los próximos 7 días" 
+                    : "In the next 7 days"}
+                </p>
+              </div>
             )}
           </CardContent>
         </Card>
