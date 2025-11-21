@@ -528,6 +528,17 @@ ${access.description ? `${language === "es" ? "Descripción" : "Description"}: $
         </div>
 
         <div className="flex items-center gap-2">
+          <div className="relative w-64">
+            <Search className="h-4 w-4 text-muted-foreground absolute left-3 top-1/2 -translate-y-1/2" />
+            <Input
+              placeholder={language === "es" ? "Buscar..." : "Search..."}
+              value={searchTerm}
+              onChange={(e) => handleSearchChange(e.target.value)}
+              className="pl-9"
+              data-testid="input-search"
+            />
+          </div>
+          
           <Popover open={isFiltersOpen} onOpenChange={setIsFiltersOpen}>
             <PopoverTrigger asChild>
               <Button 
@@ -673,22 +684,6 @@ ${access.description ? `${language === "es" ? "Descripción" : "Description"}: $
                     >
                       {getAccessTypeLabel("other")}
                     </Button>
-                  </div>
-                </div>
-
-                <div className="space-y-2">
-                  <label className="text-sm font-medium">
-                    {language === "es" ? "Buscar" : "Search"}
-                  </label>
-                  <div className="relative">
-                    <Search className="h-4 w-4 text-muted-foreground absolute left-3 top-1/2 -translate-y-1/2" />
-                    <Input
-                      placeholder={language === "es" ? "Buscar..." : "Search..."}
-                      value={searchTerm}
-                      onChange={(e) => handleSearchChange(e.target.value)}
-                      className="pl-9"
-                      data-testid="input-search"
-                    />
                   </div>
                 </div>
 

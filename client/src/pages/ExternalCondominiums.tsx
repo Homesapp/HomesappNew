@@ -807,70 +807,62 @@ export default function ExternalCondominiums() {
           
           {!selectedCondoId && (
             activeTab === "condominiums" ? (
-              <Popover open={condoFiltersExpanded} onOpenChange={setCondoFiltersExpanded}>
-                <PopoverTrigger asChild>
-                  <Button
-                    variant="outline"
-                    size="icon"
-                    data-testid="button-toggle-condo-filters"
-                  >
-                    <Filter className="h-4 w-4" />
-                  </Button>
-                </PopoverTrigger>
-                <PopoverContent className="w-96 max-h-[600px] overflow-y-auto" align="end">
-                  <div className="space-y-4">
-                    <div className="space-y-2">
-                      <label className="text-sm font-medium">
-                        {language === "es" ? "Buscar" : "Search"}
-                      </label>
-                      <div className="relative">
-                        <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
-                        <Input
-                          placeholder={language === "es" ? "Nombre o dirección de condominio..." : "Condominium name or address..."}
-                          value={condoSearchText}
-                          onChange={(e) => setCondoSearchText(e.target.value)}
-                          className="pl-8"
-                          data-testid="input-search-condos"
-                        />
-                      </div>
-                    </div>
-
-                    <Button variant="outline" className="w-full" onClick={clearCondoFilters}>
-                      <XCircle className="mr-2 h-4 w-4" />
-                      {language === "es" ? "Limpiar Filtros" : "Clear Filters"}
+              <div className="flex items-center gap-2">
+                <div className="relative w-64">
+                  <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
+                  <Input
+                    placeholder={language === "es" ? "Nombre o dirección de condominio..." : "Condominium name or address..."}
+                    value={condoSearchText}
+                    onChange={(e) => setCondoSearchText(e.target.value)}
+                    className="pl-8"
+                    data-testid="input-search-condos"
+                  />
+                </div>
+                <Popover open={condoFiltersExpanded} onOpenChange={setCondoFiltersExpanded}>
+                  <PopoverTrigger asChild>
+                    <Button
+                      variant="outline"
+                      size="icon"
+                      data-testid="button-toggle-condo-filters"
+                    >
+                      <Filter className="h-4 w-4" />
                     </Button>
-                  </div>
-                </PopoverContent>
-              </Popover>
-            ) : (
-              <Popover open={filtersExpanded} onOpenChange={setFiltersExpanded}>
-                <PopoverTrigger asChild>
-                  <Button
-                    variant="outline"
-                    size="icon"
-                    data-testid="button-toggle-unit-filters"
-                  >
-                    <Filter className="h-4 w-4" />
-                  </Button>
-                </PopoverTrigger>
-                <PopoverContent className="w-96 max-h-[600px] overflow-y-auto" align="end">
-                  <div className="space-y-4">
-                    <div className="space-y-2">
-                      <label className="text-sm font-medium">
-                        {language === "es" ? "Buscar" : "Search"}
-                      </label>
-                      <div className="relative">
-                        <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
-                        <Input
-                          placeholder={language === "es" ? "Número de unidad o condominio..." : "Unit number or condominium..."}
-                          value={unitSearchText}
-                          onChange={(e) => setUnitSearchText(e.target.value)}
-                          className="pl-8"
-                          data-testid="input-search-units"
-                        />
-                      </div>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-96 max-h-[600px] overflow-y-auto" align="end">
+                    <div className="space-y-4">
+                      <Button variant="outline" className="w-full" onClick={clearCondoFilters}>
+                        <XCircle className="mr-2 h-4 w-4" />
+                        {language === "es" ? "Limpiar Filtros" : "Clear Filters"}
+                      </Button>
                     </div>
-                    <div className="space-y-2">
+                  </PopoverContent>
+                </Popover>
+              </div>
+            ) : (
+              <div className="flex items-center gap-2">
+                <div className="relative w-64">
+                  <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
+                  <Input
+                    placeholder={language === "es" ? "Número de unidad o condominio..." : "Unit number or condominium..."}
+                    value={unitSearchText}
+                    onChange={(e) => setUnitSearchText(e.target.value)}
+                    className="pl-8"
+                    data-testid="input-search-units"
+                  />
+                </div>
+                <Popover open={filtersExpanded} onOpenChange={setFiltersExpanded}>
+                  <PopoverTrigger asChild>
+                    <Button
+                      variant="outline"
+                      size="icon"
+                      data-testid="button-toggle-unit-filters"
+                    >
+                      <Filter className="h-4 w-4" />
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-96 max-h-[600px] overflow-y-auto" align="end">
+                    <div className="space-y-4">
+                      <div className="space-y-2">
                       <label className="text-sm font-medium">
                         {language === "es" ? "Condominio" : "Condominium"}
                       </label>
@@ -951,6 +943,7 @@ export default function ExternalCondominiums() {
                   </div>
                 </PopoverContent>
               </Popover>
+              </div>
             )
           )}
         </div>
