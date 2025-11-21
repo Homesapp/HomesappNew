@@ -1,11 +1,37 @@
 import { useState, useMemo, useEffect, lazy, Suspense } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useMutation } from "@tanstack/react-query";
 import { Link } from "wouter";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Badge } from "@/components/ui/badge";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
+import {
+  Form,
+  FormControl,
+  FormField,
+  FormItem,
+  FormLabel,
+  FormMessage,
+} from "@/components/ui/form";
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { z } from "zod";
+import { queryClient, apiRequest } from "@/lib/queryClient";
+import { useToast } from "@/hooks/use-toast";
 import {
   Table,
   TableBody,
@@ -37,6 +63,10 @@ import {
   ArrowUpDown,
   LayoutGrid,
   Table as TableIcon,
+  Plus,
+  Edit,
+  Filter,
+  X,
 } from "lucide-react";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { useMobile } from "@/hooks/use-mobile";
@@ -60,11 +90,25 @@ interface OwnerPortfolio {
   balance: number;
   activeContracts: number;
   occupancyRate: number;
+  typologies: string[];
+  condominiums: string[];
+  unitNumbers: string[];
 }
+
+// Form validation schema
+const ownerFormSchema = z.object({
+  ownerName: z.string().min(1, "El nombre es requerido"),
+  ownerEmail: z.string().email("Email inválido").optional().or(z.literal("")),
+  ownerPhone: z.string().optional(),
+  unitId: z.string().min(1, "Debe seleccionar una unidad"),
+});
+
+type OwnerFormValues = z.infer<typeof ownerFormSchema>;
 
 export default function ExternalOwnerPortfolio() {
   const { language } = useLanguage();
   const isMobile = useMobile();
+  const { toast } = useToast();
   const [searchTerm, setSearchTerm] = useState("");
   const [sortBy, setSortBy] = useState<'name' | 'units' | 'income' | 'balance'>('name');
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('asc');
@@ -72,6 +116,13 @@ export default function ExternalOwnerPortfolio() {
   const [viewMode, setViewMode] = useState<"cards" | "table">("table");
   const [manualViewModeOverride, setManualViewModeOverride] = useState(false);
   const [prevIsMobile, setPrevIsMobile] = useState(isMobile);
+  const [openDialog, setOpenDialog] = useState(false);
+  const [editingOwner, setEditingOwner] = useState<ExternalUnitOwner | null>(null);
+  const [originalGroupingKey, setOriginalGroupingKey] = useState<string | null>(null);
+  const [minUnits, setMinUnits] = useState<number>(0);
+  const [minOccupancy, setMinOccupancy] = useState<number>(0);
+  const [balanceFilter, setBalanceFilter] = useState<'all' | 'positive' | 'negative'>('all');
+  const [showFilters, setShowFilters] = useState(false);
   
   // Pagination for main owners table
   const [page, setPage] = useState(1);
@@ -138,6 +189,151 @@ export default function ExternalOwnerPortfolio() {
     queryKey: ['/api/external-financial-transactions'],
   });
 
+  // Owner form
+  const form = useForm<OwnerFormValues>({
+    resolver: zodResolver(ownerFormSchema),
+    defaultValues: {
+      ownerName: "",
+      ownerEmail: "",
+      ownerPhone: "",
+      unitId: "",
+    },
+  });
+
+  // Create owner mutation
+  const createOwnerMutation = useMutation({
+    mutationFn: async (data: OwnerFormValues) => {
+      return await apiRequest("/api/external-owners", {
+        method: "POST",
+        body: JSON.stringify(data),
+      });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/external-owners'] });
+      toast({
+        title: language === 'es' ? "Propietario creado" : "Owner created",
+        description: language === 'es' 
+          ? "El propietario se ha creado exitosamente" 
+          : "The owner has been created successfully",
+      });
+      setOpenDialog(false);
+      form.reset();
+    },
+    onError: () => {
+      toast({
+        variant: "destructive",
+        title: language === 'es' ? "Error" : "Error",
+        description: language === 'es' 
+          ? "No se pudo crear el propietario" 
+          : "Could not create owner",
+      });
+    },
+  });
+
+  // Update owner mutation - updates ALL records with same grouping key
+  const updateOwnerMutation = useMutation({
+    mutationFn: async (data: OwnerFormValues & { originalKey: string }) => {
+      const { originalKey, ...updateData } = data;
+      
+      // Find all owner records with the same grouping key
+      const ownersToUpdate = owners?.filter(o => {
+        const key = `${o.ownerName.toLowerCase()}_${o.ownerEmail?.toLowerCase() || ''}`;
+        return key === originalKey;
+      }) || [];
+
+      // Update all matching records
+      const updatePromises = ownersToUpdate.map(owner =>
+        apiRequest(`/api/external-owners/${owner.id}`, {
+          method: "PATCH",
+          body: JSON.stringify({
+            ownerName: updateData.ownerName,
+            ownerEmail: updateData.ownerEmail,
+            ownerPhone: updateData.ownerPhone,
+            // Keep the original unitId for each record
+            unitId: owner.unitId,
+          }),
+        })
+      );
+
+      return await Promise.all(updatePromises);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/external-owners'] });
+      toast({
+        title: language === 'es' ? "Propietario actualizado" : "Owner updated",
+        description: language === 'es' 
+          ? "El propietario se ha actualizado exitosamente en todas sus unidades" 
+          : "The owner has been updated successfully across all units",
+      });
+      setOpenDialog(false);
+      setEditingOwner(null);
+      setOriginalGroupingKey(null);
+      form.reset();
+    },
+    onError: () => {
+      toast({
+        variant: "destructive",
+        title: language === 'es' ? "Error" : "Error",
+        description: language === 'es' 
+          ? "No se pudo actualizar el propietario" 
+          : "Could not update owner",
+      });
+    },
+  });
+
+  // Handle form submission
+  const onSubmit = (data: OwnerFormValues) => {
+    // Normalize empty strings to undefined for optional fields
+    const normalizedData = {
+      ...data,
+      ownerEmail: data.ownerEmail?.trim() || undefined,
+      ownerPhone: data.ownerPhone?.trim() || undefined,
+    };
+
+    if (editingOwner && originalGroupingKey) {
+      updateOwnerMutation.mutate({ ...normalizedData, originalKey: originalGroupingKey });
+    } else {
+      createOwnerMutation.mutate(normalizedData);
+    }
+  };
+
+  // Handle opening dialog for create or edit
+  const handleOpenDialog = (owner?: ExternalUnitOwner) => {
+    if (owner) {
+      setEditingOwner(owner);
+      // Save the original grouping key to update all related records
+      const groupingKey = `${owner.ownerName.toLowerCase()}_${owner.ownerEmail?.toLowerCase() || ''}`;
+      setOriginalGroupingKey(groupingKey);
+      
+      form.reset({
+        ownerName: owner.ownerName,
+        ownerEmail: owner.ownerEmail || "",
+        ownerPhone: owner.ownerPhone || "",
+        unitId: owner.unitId,
+      });
+    } else {
+      setEditingOwner(null);
+      setOriginalGroupingKey(null);
+      form.reset({
+        ownerName: "",
+        ownerEmail: "",
+        ownerPhone: "",
+        unitId: "",
+      });
+    }
+    setOpenDialog(true);
+  };
+
+  // Clear all filters
+  const clearFilters = () => {
+    setMinUnits(0);
+    setMinOccupancy(0);
+    setBalanceFilter('all');
+  };
+
+  // Check if any filters are active
+  const hasActiveFilters = minUnits > 0 || minOccupancy > 0 || balanceFilter !== 'all';
+
   // Build owner portfolios
   const portfolios = useMemo(() => {
     // Only require owners and units - financial data is optional
@@ -192,8 +388,46 @@ export default function ExternalOwnerPortfolio() {
         ownerUnitIds.includes(c.unitId) && c.status === 'active'
       ).length;
 
-      // Occupancy rate
-      const occupancyRate = ownerUnits.length > 0 ? (activeContracts / ownerUnits.length) * 100 : 0;
+      // Occupancy rate: Calculate time-based occupancy from Jan 1 to Jan 1
+      const currentYear = new Date().getFullYear();
+      const yearStart = new Date(currentYear, 0, 1); // January 1
+      const yearEnd = new Date(currentYear + 1, 0, 1); // January 1 next year
+      const totalYearDays = Math.ceil((yearEnd.getTime() - yearStart.getTime()) / (1000 * 60 * 60 * 24));
+      
+      let totalOccupancyDays = 0;
+      ownerUnits.forEach(unit => {
+        const unitContracts = normalizedContracts.filter((c: any) => c.unitId === unit.id);
+        let unitOccupiedDays = 0;
+        
+        unitContracts.forEach((contract: any) => {
+          const contractStart = new Date(contract.startDate);
+          const contractEnd = contract.endDate ? new Date(contract.endDate) : yearEnd;
+          
+          // Only count days within the current year period
+          const periodStart = contractStart > yearStart ? contractStart : yearStart;
+          const periodEnd = contractEnd < yearEnd ? contractEnd : yearEnd;
+          
+          if (periodStart < periodEnd) {
+            const days = Math.floor((periodEnd.getTime() - periodStart.getTime()) / (1000 * 60 * 60 * 24));
+            unitOccupiedDays += Math.max(0, days);
+          }
+        });
+        
+        // Cap at total days (in case of overlapping contracts)
+        totalOccupancyDays += Math.min(unitOccupiedDays, totalYearDays);
+      });
+      
+      const occupancyRate = ownerUnits.length > 0 
+        ? (totalOccupancyDays / (ownerUnits.length * totalYearDays)) * 100 
+        : 0;
+
+      // Extract unique typologies, condominiums, and unit numbers
+      const typologies = [...new Set(ownerUnits.map(u => u.typology || '-'))];
+      const condominiumNames = [...new Set(ownerUnits.map(u => {
+        const condo = condominiums?.find(c => c.id === u.condominiumId);
+        return condo?.name || '-';
+      }))];
+      const unitNumbers = ownerUnits.map(u => u.unitNumber);
 
       result.push({
         owner: primaryOwner,
@@ -203,6 +437,9 @@ export default function ExternalOwnerPortfolio() {
         balance: totalIncome - totalExpenses,
         activeContracts,
         occupancyRate,
+        typologies,
+        condominiums: condominiumNames,
+        unitNumbers,
       });
     });
 
@@ -212,11 +449,26 @@ export default function ExternalOwnerPortfolio() {
   // Filter and sort portfolios
   const filteredPortfolios = useMemo(() => {
     let filtered = portfolios.filter(p => {
+      // Search filter
       const searchLower = searchTerm.toLowerCase();
-      return !searchTerm ||
+      const matchesSearch = !searchTerm ||
         p.owner.ownerName.toLowerCase().includes(searchLower) ||
         p.owner.ownerEmail?.toLowerCase().includes(searchLower) ||
         p.owner.ownerPhone?.includes(searchTerm);
+      
+      if (!matchesSearch) return false;
+
+      // Units filter
+      if (minUnits > 0 && p.units.length < minUnits) return false;
+
+      // Occupancy filter
+      if (minOccupancy > 0 && p.occupancyRate < minOccupancy) return false;
+
+      // Balance filter
+      if (balanceFilter === 'positive' && p.balance < 0) return false;
+      if (balanceFilter === 'negative' && p.balance >= 0) return false;
+
+      return true;
     });
 
     // Sort
@@ -240,7 +492,7 @@ export default function ExternalOwnerPortfolio() {
     });
 
     return filtered;
-  }, [portfolios, searchTerm, sortBy, sortOrder]);
+  }, [portfolios, searchTerm, sortBy, sortOrder, minUnits, minOccupancy, balanceFilter]);
 
   // Calculate totals
   const totals = useMemo(() => {
@@ -414,10 +666,21 @@ export default function ExternalOwnerPortfolio() {
           <h1 className="text-3xl font-bold" data-testid="text-page-title">{t.title}</h1>
           <p className="text-muted-foreground mt-1">{t.subtitle}</p>
         </div>
-        <Button onClick={exportToCSV} variant="outline" data-testid="button-export" className="w-full sm:w-auto">
-          <Download className="mr-2 h-4 w-4" />
-          {t.export}
-        </Button>
+        <div className="flex gap-2 w-full sm:w-auto">
+          <Button 
+            onClick={() => handleOpenDialog()} 
+            variant="default" 
+            data-testid="button-add-owner" 
+            className="w-full sm:w-auto"
+          >
+            <Plus className="mr-2 h-4 w-4" />
+            {language === 'es' ? 'Agregar Propietario' : 'Add Owner'}
+          </Button>
+          <Button onClick={exportToCSV} variant="outline" data-testid="button-export" className="w-full sm:w-auto">
+            <Download className="mr-2 h-4 w-4" />
+            {t.export}
+          </Button>
+        </div>
       </div>
 
       {/* Metrics */}
@@ -498,6 +761,7 @@ export default function ExternalOwnerPortfolio() {
       <Card>
         <CardContent className="pt-6">
           <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
+            {/* Search Input - Always visible */}
             <div className="relative flex-1 sm:max-w-md">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
               <Input
@@ -509,6 +773,122 @@ export default function ExternalOwnerPortfolio() {
               />
             </div>
 
+            {/* Filter Button with Popover */}
+            <Popover open={showFilters} onOpenChange={setShowFilters}>
+              <PopoverTrigger asChild>
+                <Button 
+                  variant="outline" 
+                  className="flex-shrink-0"
+                  data-testid="button-filters"
+                >
+                  <Filter className="h-4 w-4 mr-2" />
+                  {language === 'es' ? 'Filtros' : 'Filters'}
+                  {hasActiveFilters && (
+                    <Badge variant="default" className="ml-2 h-5 px-1 text-xs">
+                      {[minUnits > 0, minOccupancy > 0, balanceFilter !== 'all'].filter(Boolean).length}
+                    </Badge>
+                  )}
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-96 max-h-[600px] overflow-y-auto" align="end">
+                <div className="space-y-4">
+                  <div className="space-y-2">
+                    <h4 className="font-medium text-sm">
+                      {language === 'es' ? 'Filtrar por' : 'Filter by'}
+                    </h4>
+                    
+                    {/* Min Units Filter */}
+                    <div className="space-y-2">
+                      <label className="text-sm text-muted-foreground">
+                        {language === 'es' ? 'Unidades mínimas' : 'Minimum units'}
+                      </label>
+                      <div className="flex gap-2 flex-wrap">
+                        {[0, 1, 2, 3, 5].map((value) => (
+                          <Button
+                            key={value}
+                            variant={minUnits === value ? "default" : "outline"}
+                            size="sm"
+                            onClick={() => setMinUnits(value)}
+                            data-testid={`button-filter-min-units-${value}`}
+                          >
+                            {value === 0 ? (language === 'es' ? 'Todas' : 'All') : `${value}+`}
+                          </Button>
+                        ))}
+                      </div>
+                    </div>
+
+                    {/* Min Occupancy Filter */}
+                    <div className="space-y-2">
+                      <label className="text-sm text-muted-foreground">
+                        {language === 'es' ? 'Ocupación mínima' : 'Minimum occupancy'}
+                      </label>
+                      <div className="flex gap-2 flex-wrap">
+                        {[0, 25, 50, 70, 90].map((value) => (
+                          <Button
+                            key={value}
+                            variant={minOccupancy === value ? "default" : "outline"}
+                            size="sm"
+                            onClick={() => setMinOccupancy(value)}
+                            data-testid={`button-filter-min-occupancy-${value}`}
+                          >
+                            {value === 0 ? (language === 'es' ? 'Todas' : 'All') : `${value}%+`}
+                          </Button>
+                        ))}
+                      </div>
+                    </div>
+
+                    {/* Balance Filter */}
+                    <div className="space-y-2">
+                      <label className="text-sm text-muted-foreground">
+                        {language === 'es' ? 'Balance' : 'Balance'}
+                      </label>
+                      <div className="flex gap-2 flex-wrap">
+                        <Button
+                          variant={balanceFilter === 'all' ? "default" : "outline"}
+                          size="sm"
+                          onClick={() => setBalanceFilter('all')}
+                          data-testid="button-filter-balance-all"
+                        >
+                          {language === 'es' ? 'Todos' : 'All'}
+                        </Button>
+                        <Button
+                          variant={balanceFilter === 'positive' ? "default" : "outline"}
+                          size="sm"
+                          onClick={() => setBalanceFilter('positive')}
+                          data-testid="button-filter-balance-positive"
+                        >
+                          {language === 'es' ? 'Positivo' : 'Positive'}
+                        </Button>
+                        <Button
+                          variant={balanceFilter === 'negative' ? "default" : "outline"}
+                          size="sm"
+                          onClick={() => setBalanceFilter('negative')}
+                          data-testid="button-filter-balance-negative"
+                        >
+                          {language === 'es' ? 'Negativo' : 'Negative'}
+                        </Button>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Clear Filters Button */}
+                  {hasActiveFilters && (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={clearFilters}
+                      className="w-full"
+                      data-testid="button-clear-filters"
+                    >
+                      <X className="h-4 w-4 mr-2" />
+                      {language === 'es' ? 'Limpiar filtros' : 'Clear filters'}
+                    </Button>
+                  )}
+                </div>
+              </PopoverContent>
+            </Popover>
+
+            {/* Sort By Dropdown */}
             <div className="flex gap-2">
               <Select value={sortBy} onValueChange={(value: any) => setSortBy(value)}>
                 <SelectTrigger className="flex-1 sm:w-40" data-testid="select-sort-by">
@@ -763,6 +1143,9 @@ export default function ExternalOwnerPortfolio() {
                           </div>
                         </TableHead>
                         <TableHead>{t.contact}</TableHead>
+                        <TableHead>{language === 'es' ? 'Tipología' : 'Typology'}</TableHead>
+                        <TableHead>{language === 'es' ? 'Condominio' : 'Condominium'}</TableHead>
+                        <TableHead>{language === 'es' ? 'Unidad' : 'Unit'}</TableHead>
                         <TableHead 
                           className="text-right cursor-pointer hover-elevate"
                           onClick={() => handleSort('units')}
@@ -827,6 +1210,33 @@ export default function ExternalOwnerPortfolio() {
                           )}
                         </div>
                       </TableCell>
+                      <TableCell>
+                        <div className="flex flex-wrap gap-1">
+                          {portfolio.typologies.map((typ, idx) => (
+                            <Badge key={idx} variant="outline" className="text-xs">
+                              {typ}
+                            </Badge>
+                          ))}
+                        </div>
+                      </TableCell>
+                      <TableCell>
+                        <div className="flex flex-wrap gap-1">
+                          {portfolio.condominiums.map((condo, idx) => (
+                            <Badge key={idx} variant="secondary" className="text-xs">
+                              {condo}
+                            </Badge>
+                          ))}
+                        </div>
+                      </TableCell>
+                      <TableCell>
+                        <div className="flex flex-wrap gap-1">
+                          {portfolio.unitNumbers.map((unit, idx) => (
+                            <Badge key={idx} variant="outline" className="text-xs">
+                              {unit}
+                            </Badge>
+                          ))}
+                        </div>
+                      </TableCell>
                       <TableCell className="text-right">
                         <Badge variant="outline">{portfolio.units.length}</Badge>
                       </TableCell>
@@ -849,14 +1259,24 @@ export default function ExternalOwnerPortfolio() {
                         </Badge>
                       </TableCell>
                       <TableCell className="text-right">
-                        <Button
-                          size="sm"
-                          variant="ghost"
-                          onClick={() => setSelectedOwnerId(portfolio.owner.id)}
-                          data-testid={`button-view-${portfolio.owner.id}`}
-                        >
-                          <Eye className="h-4 w-4" />
-                        </Button>
+                        <div className="flex items-center justify-end gap-2">
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            onClick={() => handleOpenDialog(portfolio.owner)}
+                            data-testid={`button-edit-${portfolio.owner.id}`}
+                          >
+                            <Edit className="h-4 w-4" />
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            onClick={() => setSelectedOwnerId(portfolio.owner.id)}
+                            data-testid={`button-view-${portfolio.owner.id}`}
+                          >
+                            <Eye className="h-4 w-4" />
+                          </Button>
+                        </div>
                       </TableCell>
                     </TableRow>
                   ))}
@@ -1148,6 +1568,159 @@ export default function ExternalOwnerPortfolio() {
           </Card>
         </div>
       )}
+
+      {/* Owner Form Dialog */}
+      <Dialog open={openDialog} onOpenChange={(open) => {
+        setOpenDialog(open);
+        if (!open) {
+          setEditingOwner(null);
+          setOriginalGroupingKey(null);
+          form.reset();
+        }
+      }}>
+        <DialogContent className="sm:max-w-[500px]">
+          <DialogHeader>
+            <DialogTitle>
+              {editingOwner
+                ? (language === 'es' ? 'Editar Propietario' : 'Edit Owner')
+                : (language === 'es' ? 'Agregar Propietario' : 'Add Owner')
+              }
+            </DialogTitle>
+            <DialogDescription>
+              {language === 'es'
+                ? 'Complete la información del propietario y seleccione la unidad correspondiente'
+                : 'Fill in the owner information and select the corresponding unit'
+              }
+            </DialogDescription>
+          </DialogHeader>
+
+          <Form {...form}>
+            <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+              <FormField
+                control={form.control}
+                name="ownerName"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>{language === 'es' ? 'Nombre' : 'Name'} *</FormLabel>
+                    <FormControl>
+                      <Input 
+                        {...field} 
+                        placeholder={language === 'es' ? 'Nombre del propietario' : 'Owner name'}
+                        data-testid="input-owner-name"
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={form.control}
+                name="ownerEmail"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>{language === 'es' ? 'Email' : 'Email'}</FormLabel>
+                    <FormControl>
+                      <Input 
+                        {...field} 
+                        type="email"
+                        placeholder={language === 'es' ? 'email@ejemplo.com' : 'email@example.com'}
+                        data-testid="input-owner-email"
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={form.control}
+                name="ownerPhone"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>{language === 'es' ? 'Teléfono' : 'Phone'}</FormLabel>
+                    <FormControl>
+                      <Input 
+                        {...field} 
+                        placeholder={language === 'es' ? '+52 123 456 7890' : '+52 123 456 7890'}
+                        data-testid="input-owner-phone"
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={form.control}
+                name="unitId"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>{language === 'es' ? 'Unidad' : 'Unit'} *</FormLabel>
+                    <Select 
+                      onValueChange={field.onChange} 
+                      value={field.value}
+                      disabled={!!editingOwner}
+                    >
+                      <FormControl>
+                        <SelectTrigger data-testid="select-unit">
+                          <SelectValue placeholder={language === 'es' ? 'Seleccionar unidad' : 'Select unit'} />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        {units?.map(unit => {
+                          const condo = condominiums?.find(c => c.id === unit.condominiumId);
+                          return (
+                            <SelectItem key={unit.id} value={unit.id}>
+                              {condo?.name} - {unit.unitNumber} ({unit.typology || '-'})
+                            </SelectItem>
+                          );
+                        })}
+                      </SelectContent>
+                    </Select>
+                    {editingOwner && (
+                      <p className="text-xs text-muted-foreground">
+                        {language === 'es' 
+                          ? 'La unidad no se puede cambiar al editar. Para asignar otra unidad, cree un nuevo registro.' 
+                          : 'Unit cannot be changed when editing. To assign another unit, create a new record.'}
+                      </p>
+                    )}
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <div className="flex gap-2 justify-end pt-4">
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => {
+                    setOpenDialog(false);
+                    setEditingOwner(null);
+                    setOriginalGroupingKey(null);
+                    form.reset();
+                  }}
+                  data-testid="button-cancel"
+                >
+                  {language === 'es' ? 'Cancelar' : 'Cancel'}
+                </Button>
+                <Button 
+                  type="submit" 
+                  disabled={createOwnerMutation.isPending || updateOwnerMutation.isPending}
+                  data-testid="button-save-owner"
+                >
+                  {createOwnerMutation.isPending || updateOwnerMutation.isPending
+                    ? (language === 'es' ? 'Guardando...' : 'Saving...')
+                    : editingOwner
+                      ? (language === 'es' ? 'Actualizar' : 'Update')
+                      : (language === 'es' ? 'Crear' : 'Create')
+                  }
+                </Button>
+              </div>
+            </form>
+          </Form>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
