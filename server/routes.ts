@@ -20188,9 +20188,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
       });
       
       try {
-        // Update assigned user's role to external_agency_admin and set their agency ID
+        // Update assigned user's role to external_agency_admin, set their agency ID, and verify their email
         await storage.updateUserRole(assignedUserId, "external_agency_admin");
-        await storage.updateUser(assignedUserId, { externalAgencyId: agency.id });
+        await storage.updateUser(assignedUserId, { 
+          externalAgencyId: agency.id,
+          isVerified: true 
+        });
       } catch (roleError) {
         // Rollback: Delete the agency if role update fails
         console.error("Role update failed, attempting rollback:", roleError);
@@ -20230,9 +20233,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
         createdBy: req.user.id,
       });
       
-      // Update user role to external_agency_admin and set their agency ID
+      // Update user role to external_agency_admin, set their agency ID, and verify their email
       await storage.updateUserRole(req.user.id, "external_agency_admin");
-      await storage.updateUser(req.user.id, { externalAgencyId: agency.id });
+      await storage.updateUser(req.user.id, { 
+        externalAgencyId: agency.id,
+        isVerified: true 
+      });
       
       await createAuditLog(req, "create", "external_agency", agency.id, "Self-registered external agency");
       res.status(201).json(agency);
