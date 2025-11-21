@@ -357,6 +357,13 @@ import {
   externalClients,
   type ExternalClient,
   type InsertExternalClient,
+  externalClientDocuments,
+  type ExternalClientDocument,
+  type InsertExternalClientDocument,
+  externalClientIncidents,
+  type ExternalClientIncident,
+  type InsertExternalClientIncident,
+  type UpdateExternalClientIncident,
   externalFinancialTransactions,
   type ExternalFinancialTransaction,
   type InsertExternalFinancialTransaction,
@@ -1256,6 +1263,19 @@ export interface IStorage {
   createExternalClient(client: InsertExternalClient): Promise<ExternalClient>;
   updateExternalClient(id: string, updates: Partial<InsertExternalClient>): Promise<ExternalClient>;
   deleteExternalClient(id: string): Promise<void>;
+
+  // External Client Documents
+  getExternalClientDocuments(clientId: string): Promise<ExternalClientDocument[]>;
+  getExternalClientDocument(id: string): Promise<ExternalClientDocument | undefined>;
+  createExternalClientDocument(document: InsertExternalClientDocument): Promise<ExternalClientDocument>;
+  deleteExternalClientDocument(id: string): Promise<void>;
+
+  // External Client Incidents
+  getExternalClientIncidents(clientId: string, filters?: { severity?: string; status?: string }): Promise<ExternalClientIncident[]>;
+  getExternalClientIncident(id: string): Promise<ExternalClientIncident | undefined>;
+  createExternalClientIncident(incident: InsertExternalClientIncident): Promise<ExternalClientIncident>;
+  updateExternalClientIncident(id: string, updates: UpdateExternalClientIncident): Promise<ExternalClientIncident>;
+  deleteExternalClientIncident(id: string): Promise<void>;
 
   // External Management System - Financial Transaction operations
   getExternalFinancialTransaction(id: string): Promise<ExternalFinancialTransaction | undefined>;
@@ -8602,6 +8622,78 @@ export class DatabaseStorage implements IStorage {
   async deleteExternalClient(id: string): Promise<void> {
     await db.delete(externalClients)
       .where(eq(externalClients.id, id));
+  }
+
+  // External Client Documents operations
+  async getExternalClientDocuments(clientId: string): Promise<ExternalClientDocument[]> {
+    return await db.select()
+      .from(externalClientDocuments)
+      .where(eq(externalClientDocuments.clientId, clientId))
+      .orderBy(desc(externalClientDocuments.uploadedAt));
+  }
+
+  async getExternalClientDocument(id: string): Promise<ExternalClientDocument | undefined> {
+    const [document] = await db.select()
+      .from(externalClientDocuments)
+      .where(eq(externalClientDocuments.id, id))
+      .limit(1);
+    return document;
+  }
+
+  async createExternalClientDocument(document: InsertExternalClientDocument): Promise<ExternalClientDocument> {
+    const [created] = await db.insert(externalClientDocuments)
+      .values(document)
+      .returning();
+    return created;
+  }
+
+  async deleteExternalClientDocument(id: string): Promise<void> {
+    await db.delete(externalClientDocuments)
+      .where(eq(externalClientDocuments.id, id));
+  }
+
+  // External Client Incidents operations
+  async getExternalClientIncidents(clientId: string, filters?: { severity?: string; status?: string }): Promise<ExternalClientIncident[]> {
+    let query = db.select()
+      .from(externalClientIncidents)
+      .where(eq(externalClientIncidents.clientId, clientId));
+
+    if (filters?.severity) {
+      query = query.where(eq(externalClientIncidents.severity, filters.severity as any));
+    }
+    if (filters?.status) {
+      query = query.where(eq(externalClientIncidents.status, filters.status as any));
+    }
+
+    return await query.orderBy(desc(externalClientIncidents.occurredAt));
+  }
+
+  async getExternalClientIncident(id: string): Promise<ExternalClientIncident | undefined> {
+    const [incident] = await db.select()
+      .from(externalClientIncidents)
+      .where(eq(externalClientIncidents.id, id))
+      .limit(1);
+    return incident;
+  }
+
+  async createExternalClientIncident(incident: InsertExternalClientIncident): Promise<ExternalClientIncident> {
+    const [created] = await db.insert(externalClientIncidents)
+      .values(incident)
+      .returning();
+    return created;
+  }
+
+  async updateExternalClientIncident(id: string, updates: UpdateExternalClientIncident): Promise<ExternalClientIncident> {
+    const [updated] = await db.update(externalClientIncidents)
+      .set({ ...updates, updatedAt: new Date() })
+      .where(eq(externalClientIncidents.id, id))
+      .returning();
+    return updated;
+  }
+
+  async deleteExternalClientIncident(id: string): Promise<void> {
+    await db.delete(externalClientIncidents)
+      .where(eq(externalClientIncidents.id, id));
   }
 
   // External Financial Transaction operations

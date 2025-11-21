@@ -1,5 +1,6 @@
 import { useState, useEffect, useLayoutEffect } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
+import { useLocation } from "wouter";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -89,6 +90,7 @@ export default function ExternalClients() {
   const { user } = useAuth();
   const { toast } = useToast();
   const isMobile = useMobile();
+  const [, navigate] = useLocation();
 
   const [viewMode, setViewMode] = useState<"cards" | "table">(isMobile ? "cards" : "table");
   const [searchTerm, setSearchTerm] = useState("");
@@ -302,42 +304,7 @@ export default function ExternalClients() {
   };
 
   const handleEdit = (client: ExternalClient) => {
-    setSelectedClient(client);
-    editForm.reset({
-      firstName: client.firstName,
-      lastName: client.lastName,
-      email: client.email || "",
-      phone: client.phone || "",
-      alternatePhone: client.alternatePhone || "",
-      dateOfBirth: client.dateOfBirth || undefined,
-      nationality: client.nationality || "",
-      idType: client.idType || "",
-      idNumber: client.idNumber || "",
-      idCountry: client.idCountry || "",
-      idExpirationDate: client.idExpirationDate || undefined,
-      address: client.address || "",
-      city: client.city || "",
-      state: client.state || "",
-      postalCode: client.postalCode || "",
-      country: client.country || "",
-      emergencyContactName: client.emergencyContactName || "",
-      emergencyContactPhone: client.emergencyContactPhone || "",
-      emergencyContactRelation: client.emergencyContactRelation || "",
-      preferredLanguage: client.preferredLanguage || "es",
-      propertyTypePreference: client.propertyTypePreference || "",
-      budgetMin: client.budgetMin || "",
-      budgetMax: client.budgetMax || "",
-      bedroomsPreference: client.bedroomsPreference || undefined,
-      bathroomsPreference: client.bathroomsPreference || undefined,
-      status: client.status,
-      isVerified: client.isVerified,
-      source: client.source || "",
-      notes: client.notes || "",
-      tags: client.tags || [],
-      firstContactDate: client.firstContactDate || undefined,
-      lastContactDate: client.lastContactDate || undefined,
-    });
-    setIsEditDialogOpen(true);
+    navigate(`/external/clients/${client.id}`);
   };
 
   const handleDelete = (client: ExternalClient) => {
