@@ -403,6 +403,10 @@ export default function ExternalMaintenance() {
         aValue = new Date(a.createdAt);
         bValue = new Date(b.createdAt);
         break;
+      case 'updated':
+        aValue = new Date(a.updatedAt);
+        bValue = new Date(b.updatedAt);
+        break;
       default:
         return 0;
     }
@@ -966,21 +970,21 @@ export default function ExternalMaintenance() {
       </Card>
 
       {/* Tickets - Cards or Table */}
-      <Card>
-        <CardContent className="p-0">
-          {ticketsLoading ? (
-            <div className="p-8 text-center">
-              <Skeleton className="h-8 w-full mb-4" />
-              <Skeleton className="h-8 w-full mb-4" />
-              <Skeleton className="h-8 w-full" />
-            </div>
-          ) : sortedTickets.length === 0 ? (
-            <div className="py-12 text-center">
-              <Wrench className="mx-auto h-12 w-12 text-muted-foreground mb-4" />
-              <h3 className="text-lg font-medium mb-1">{t.noTickets}</h3>
-              <p className="text-sm text-muted-foreground">{t.noTicketsDesc}</p>
-            </div>
-          ) : viewMode === "cards" ? (
+      {ticketsLoading ? (
+        <div className="space-y-4">
+          <Skeleton className="h-8 w-full" />
+          <Skeleton className="h-8 w-full" />
+          <Skeleton className="h-8 w-full" />
+        </div>
+      ) : sortedTickets.length === 0 ? (
+        <Card>
+          <CardContent className="py-12 text-center">
+            <Wrench className="mx-auto h-12 w-12 text-muted-foreground mb-4" />
+            <h3 className="text-lg font-medium mb-1">{t.noTickets}</h3>
+            <p className="text-sm text-muted-foreground">{t.noTicketsDesc}</p>
+          </CardContent>
+        </Card>
+      ) : viewMode === "cards" ? (
             // Cards View
             <div className="p-6">
               <ExternalPaginationControls
@@ -1051,13 +1055,6 @@ export default function ExternalMaintenance() {
                             <CalendarIcon className="h-4 w-4 flex-shrink-0" />
                             <span>{format(new Date(ticket.createdAt), 'dd MMM yyyy', { locale: language === 'es' ? es : undefined })}</span>
                           </div>
-                          
-                          {ticket.estimatedCost && (
-                            <div className="flex items-center gap-2 text-sm">
-                              <DollarSign className="h-4 w-4 text-muted-foreground flex-shrink-0" />
-                              <span className="font-medium">{formatCurrency(parseFloat(ticket.estimatedCost))}</span>
-                            </div>
-                          )}
                         </CardContent>
                       </Card>
                     </Link>
@@ -1067,111 +1064,110 @@ export default function ExternalMaintenance() {
             </div>
           ) : (
             // Table View
-            <div>
-              <div className="px-4 pt-4">
-                <ExternalPaginationControls
-                  currentPage={currentPage}
-                  totalPages={totalPages}
-                  itemsPerPage={itemsPerPage}
-                  onPageChange={setCurrentPage}
-                  onItemsPerPageChange={(items) => {
-                    setItemsPerPage(items);
-                    setCurrentPage(1);
-                  }}
-                  language={language}
-                  testIdPrefix="table"
-                />
-              </div>
+            <>
+              <ExternalPaginationControls
+                currentPage={currentPage}
+                totalPages={totalPages}
+                itemsPerPage={itemsPerPage}
+                onPageChange={setCurrentPage}
+                onItemsPerPageChange={(items) => {
+                  setItemsPerPage(items);
+                  setCurrentPage(1);
+                }}
+                language={language}
+                testIdPrefix="table"
+              />
 
-              <div className="overflow-x-auto">
-                <Table>
+              <Card>
+                <div className="overflow-x-auto">
+                  <Table className="text-sm">
                   <TableHeader>
                     <TableRow>
-                      <TableHead>
+                      <TableHead className="h-10 px-3">
                         <Button
                           variant="ghost"
                           size="sm"
                           onClick={() => handleSort('title')}
-                          className="hover-elevate -ml-3"
+                          className="hover-elevate -ml-3 h-8"
                           data-testid="sort-title"
                         >
                           {t.ticketTitle}
                           {renderSortIcon('title')}
                         </Button>
                       </TableHead>
-                      <TableHead>
+                      <TableHead className="h-10 px-3">
                         <Button
                           variant="ghost"
                           size="sm"
                           onClick={() => handleSort('unit')}
-                          className="hover-elevate -ml-3"
+                          className="hover-elevate -ml-3 h-8"
                           data-testid="sort-unit"
                         >
                           {t.unit}
                           {renderSortIcon('unit')}
                         </Button>
                       </TableHead>
-                      <TableHead>
+                      <TableHead className="h-10 px-3">
                         <Button
                           variant="ghost"
                           size="sm"
                           onClick={() => handleSort('category')}
-                          className="hover-elevate -ml-3"
+                          className="hover-elevate -ml-3 h-8"
                           data-testid="sort-category"
                         >
                           {t.category}
                           {renderSortIcon('category')}
                         </Button>
                       </TableHead>
-                      <TableHead>
+                      <TableHead className="h-10 px-3">
                         <Button
                           variant="ghost"
                           size="sm"
                           onClick={() => handleSort('priority')}
-                          className="hover-elevate -ml-3"
+                          className="hover-elevate -ml-3 h-8"
                           data-testid="sort-priority"
                         >
                           {t.priority}
                           {renderSortIcon('priority')}
                         </Button>
                       </TableHead>
-                      <TableHead>
+                      <TableHead className="h-10 px-3">
                         <Button
                           variant="ghost"
                           size="sm"
                           onClick={() => handleSort('status')}
-                          className="hover-elevate -ml-3"
+                          className="hover-elevate -ml-3 h-8"
                           data-testid="sort-status"
                         >
                           {t.status}
                           {renderSortIcon('status')}
                         </Button>
                       </TableHead>
-                      <TableHead>
+                      <TableHead className="h-10 px-3">
                         <Button
                           variant="ghost"
                           size="sm"
                           onClick={() => handleSort('assigned')}
-                          className="hover-elevate -ml-3"
+                          className="hover-elevate -ml-3 h-8"
                           data-testid="sort-assigned"
                         >
                           {t.assigned}
                           {renderSortIcon('assigned')}
                         </Button>
                       </TableHead>
-                      <TableHead>
+                      <TableHead className="h-10 px-3">
                         <Button
                           variant="ghost"
                           size="sm"
-                          onClick={() => handleSort('created')}
-                          className="hover-elevate -ml-3"
-                          data-testid="sort-created"
+                          onClick={() => handleSort('updated')}
+                          className="hover-elevate -ml-3 h-8"
+                          data-testid="sort-updated"
                         >
-                          {t.created}
-                          {renderSortIcon('created')}
+                          {language === 'es' ? 'Última Act.' : 'Last Update'}
+                          {renderSortIcon('updated')}
                         </Button>
                       </TableHead>
-                      <TableHead className="text-right">{t.actions}</TableHead>
+                      <TableHead className="h-10 px-3 text-right">{t.actions}</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
@@ -1183,60 +1179,54 @@ export default function ExternalMaintenance() {
 
                     return (
                       <TableRow key={ticket.id} data-testid={`row-ticket-${ticket.id}`} className="hover-elevate">
-                        <TableCell className="font-medium">
-                          <div className="flex flex-col">
-                            <span className="truncate max-w-xs">{ticket.title}</span>
-                            {ticket.estimatedCost && (
-                              <span className="text-xs text-muted-foreground">
-                                Est: {formatCurrency(parseFloat(ticket.estimatedCost))}
-                              </span>
-                            )}
-                          </div>
+                        <TableCell className="px-3 py-3">
+                          <span className="truncate max-w-xs">{ticket.title}</span>
                         </TableCell>
-                        <TableCell>
+                        <TableCell className="px-3 py-3">
                           <div className="flex flex-col">
-                            <span className="font-medium">{unitInfo?.unit?.unitNumber || '-'}</span>
+                            <span>{unitInfo?.unit?.unitNumber || '-'}</span>
                             <span className="text-xs text-muted-foreground">{unitInfo?.condo?.name}</span>
                           </div>
                         </TableCell>
-                        <TableCell>
-                          <span className="text-sm">{categoryLabels[ticket.category]?.[language] || ticket.category}</span>
+                        <TableCell className="px-3 py-3">
+                          <span>{categoryLabels[ticket.category]?.[language] || ticket.category}</span>
                         </TableCell>
-                        <TableCell>
+                        <TableCell className="px-3 py-3">
                           <Badge className={priorityConfig.bg} data-testid={`badge-priority-${ticket.id}`}>
                             {priorityConfig.label[language]}
                           </Badge>
                         </TableCell>
-                        <TableCell>
+                        <TableCell className="px-3 py-3">
                           <Badge className={statusConfig.bg} data-testid={`badge-status-${ticket.id}`}>
                             {statusConfig.label[language]}
                           </Badge>
                         </TableCell>
-                        <TableCell>
-                          <span className="text-sm">{assignedName || '-'}</span>
+                        <TableCell className="px-3 py-3">
+                          <span>{assignedName || '-'}</span>
                         </TableCell>
-                        <TableCell>
-                          <span className="text-sm">
-                            {format(new Date(ticket.createdAt), 'dd MMM yyyy', { locale: language === 'es' ? es : undefined })}
+                        <TableCell className="px-3 py-3">
+                          <span>
+                            {format(new Date(ticket.updatedAt), 'dd MMM yyyy HH:mm', { locale: language === 'es' ? es : undefined })}
                           </span>
                         </TableCell>
-                        <TableCell className="text-right">
-                          <Link href={`/external/maintenance/${ticket.id}`}>
-                            <Button size="sm" variant="ghost" data-testid={`button-view-${ticket.id}`}>
-                              <Eye className="h-4 w-4" />
-                            </Button>
-                          </Link>
+                        <TableCell className="px-3 py-3 text-right">
+                          <div className="flex gap-1 justify-end">
+                            <Link href={`/external/maintenance/${ticket.id}`}>
+                              <Button size="icon" variant="ghost" data-testid={`button-view-${ticket.id}`}>
+                                <Eye className="h-4 w-4" />
+                              </Button>
+                            </Link>
+                          </div>
                         </TableCell>
                       </TableRow>
                     );
                   })}
                 </TableBody>
               </Table>
-            </div>
-            </div>
+                </div>
+              </Card>
+            </>
           )}
-        </CardContent>
-      </Card>
 
       {/* Create Dialog */}
       <Dialog open={showDialog} onOpenChange={setShowDialog}>
