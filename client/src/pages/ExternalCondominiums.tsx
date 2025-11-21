@@ -1112,7 +1112,7 @@ export default function ExternalCondominiums() {
           )
         )}
         
-        <TabsContent value="condominiums" className="space-y-4">
+        <TabsContent value="condominiums" className="space-y-6">
           {condosError ? (
             <Card className="border-destructive bg-destructive/10">
               <CardContent className="flex items-center justify-between gap-4 py-4">
@@ -1810,7 +1810,7 @@ export default function ExternalCondominiums() {
         )}
         </TabsContent>
 
-        <TabsContent value="units" className="space-y-4">
+        <TabsContent value="units" className="space-y-6">
           {contractsError && (
             <Card className="border-destructive bg-destructive/10">
               <CardContent className="flex items-center justify-between gap-4 py-4">
