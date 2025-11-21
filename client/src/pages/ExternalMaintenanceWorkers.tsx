@@ -14,8 +14,8 @@ import { useLanguage } from "@/contexts/LanguageContext";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { Plus, Trash2, Building2, Home, Wrench, Pencil } from "lucide-react";
-import { useState } from "react";
+import { Plus, Trash2, Building2, Home, Wrench, Pencil, ArrowUpDown, ChevronLeft, ChevronRight } from "lucide-react";
+import { useState, useEffect, useMemo } from "react";
 import React from "react";
 import { z } from "zod";
 import {
@@ -84,6 +84,16 @@ export default function ExternalMaintenanceWorkers() {
   const [workersPerPage, setWorkersPerPage] = useState(10);
   const [workersSortColumn, setWorkersSortColumn] = useState<string>("");
   const [workersSortDirection, setWorkersSortDirection] = useState<"asc" | "desc">("asc");
+
+  // Reset assignments page when items per page changes
+  useEffect(() => {
+    setAssignmentsPage(1);
+  }, [assignmentsPerPage]);
+
+  // Reset workers page when items per page changes
+  useEffect(() => {
+    setWorkersPage(1);
+  }, [workersPerPage]);
 
   const { data: allUsers, isLoading: loadingWorkers } = useQuery<any[]>({
     queryKey: ['/api/external-agency-users'],
@@ -293,6 +303,120 @@ export default function ExternalMaintenanceWorkers() {
 
     return Array.from(grouped.values());
   }, [assignments, workers]);
+
+  // Sort grouped assignments
+  const sortedGroupedAssignments = useMemo(() => {
+    return [...groupedAssignments].sort((a, b) => {
+      if (!assignmentsSortColumn) return 0;
+      
+      let aVal: any;
+      let bVal: any;
+      
+      if (assignmentsSortColumn === 'workerName') {
+        aVal = `${a.worker.firstName} ${a.worker.lastName}`.toLowerCase();
+        bVal = `${b.worker.firstName} ${b.worker.lastName}`.toLowerCase();
+      } else if (assignmentsSortColumn === 'specialty') {
+        aVal = a.worker.maintenanceSpecialty ? SPECIALTY_LABELS[language][a.worker.maintenanceSpecialty as keyof typeof SPECIALTY_LABELS['es']].toLowerCase() : '';
+        bVal = b.worker.maintenanceSpecialty ? SPECIALTY_LABELS[language][b.worker.maintenanceSpecialty as keyof typeof SPECIALTY_LABELS['es']].toLowerCase() : '';
+      } else if (assignmentsSortColumn === 'assignmentCount') {
+        const aCount = a.assignments.length;
+        const bCount = b.assignments.length;
+        return assignmentsSortDirection === "asc" ? aCount - bCount : bCount - aCount;
+      }
+      
+      if (typeof aVal === "string" || typeof bVal === "string") {
+        aVal = (aVal || '').toString().toLowerCase();
+        bVal = (bVal || '').toString().toLowerCase();
+      }
+      
+      if (aVal < bVal) return assignmentsSortDirection === "asc" ? -1 : 1;
+      if (aVal > bVal) return assignmentsSortDirection === "asc" ? 1 : -1;
+      return 0;
+    });
+  }, [groupedAssignments, assignmentsSortColumn, assignmentsSortDirection, language]);
+
+  // Clamp assignments page
+  useEffect(() => {
+    if (sortedGroupedAssignments.length === 0) {
+      setAssignmentsPage(1);
+      return;
+    }
+    const maxPage = Math.ceil(sortedGroupedAssignments.length / assignmentsPerPage) || 1;
+    if (assignmentsPage > maxPage) {
+      setAssignmentsPage(maxPage);
+    }
+  }, [sortedGroupedAssignments.length, assignmentsPerPage]);
+
+  // Paginate grouped assignments
+  const paginatedGroupedAssignments = useMemo(() => {
+    return sortedGroupedAssignments.slice((assignmentsPage - 1) * assignmentsPerPage, assignmentsPage * assignmentsPerPage);
+  }, [sortedGroupedAssignments, assignmentsPage, assignmentsPerPage]);
+  
+  const assignmentsTotalPages = Math.ceil(sortedGroupedAssignments.length / assignmentsPerPage);
+
+  // Sort workers
+  const sortedWorkers = useMemo(() => {
+    return [...workers].sort((a, b) => {
+      if (!workersSortColumn) return 0;
+      
+      let aVal: any = (a as any)[workersSortColumn];
+      let bVal: any = (b as any)[workersSortColumn];
+      
+      if (workersSortColumn === 'workerName') {
+        aVal = `${a.firstName} ${a.lastName}`.toLowerCase();
+        bVal = `${b.firstName} ${b.lastName}`.toLowerCase();
+      } else if (workersSortColumn === 'specialty') {
+        aVal = a.maintenanceSpecialty ? SPECIALTY_LABELS[language][a.maintenanceSpecialty as keyof typeof SPECIALTY_LABELS['es']].toLowerCase() : '';
+        bVal = b.maintenanceSpecialty ? SPECIALTY_LABELS[language][b.maintenanceSpecialty as keyof typeof SPECIALTY_LABELS['es']].toLowerCase() : '';
+      }
+      
+      if (typeof aVal === "string" || typeof bVal === "string") {
+        aVal = (aVal || '').toString().toLowerCase();
+        bVal = (bVal || '').toString().toLowerCase();
+      }
+      
+      if (aVal < bVal) return workersSortDirection === "asc" ? -1 : 1;
+      if (aVal > bVal) return workersSortDirection === "asc" ? 1 : -1;
+      return 0;
+    });
+  }, [workers, workersSortColumn, workersSortDirection, language]);
+
+  // Clamp workers page
+  useEffect(() => {
+    if (sortedWorkers.length === 0) {
+      setWorkersPage(1);
+      return;
+    }
+    const maxPage = Math.ceil(sortedWorkers.length / workersPerPage) || 1;
+    if (workersPage > maxPage) {
+      setWorkersPage(maxPage);
+    }
+  }, [sortedWorkers.length, workersPerPage]);
+
+  // Paginate workers
+  const paginatedWorkers = useMemo(() => {
+    return sortedWorkers.slice((workersPage - 1) * workersPerPage, workersPage * workersPerPage);
+  }, [sortedWorkers, workersPage, workersPerPage]);
+  
+  const workersTotalPages = Math.ceil(sortedWorkers.length / workersPerPage);
+
+  const handleAssignmentsSort = (column: string) => {
+    if (assignmentsSortColumn === column) {
+      setAssignmentsSortDirection(assignmentsSortDirection === "asc" ? "desc" : "asc");
+    } else {
+      setAssignmentsSortColumn(column);
+      setAssignmentsSortDirection("asc");
+    }
+  };
+
+  const handleWorkersSort = (column: string) => {
+    if (workersSortColumn === column) {
+      setWorkersSortDirection(workersSortDirection === "asc" ? "desc" : "asc");
+    } else {
+      setWorkersSortColumn(column);
+      setWorkersSortDirection("asc");
+    }
+  };
 
   const handleEditWorker = (workerId: string) => {
     setEditingWorkerId(workerId);
@@ -557,26 +681,45 @@ export default function ExternalMaintenanceWorkers() {
                   </p>
                 </div>
               ) : (
-                <div className="w-full overflow-x-auto">
-                  <Table>
-                    <TableHeader>
-                      <TableRow>
-                        <TableHead className="min-w-[200px]">
-                          {language === "es" ? "Trabajador" : "Worker"}
-                        </TableHead>
-                        <TableHead className="min-w-[150px]">
-                          {language === "es" ? "Especialidad" : "Specialty"}
-                        </TableHead>
-                        <TableHead className="min-w-[300px]">
-                          {language === "es" ? "Asignaciones" : "Assignments"}
-                        </TableHead>
-                        <TableHead className="text-right min-w-[150px]">
-                          {language === "es" ? "Acciones" : "Actions"}
-                        </TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {groupedAssignments.map(({ worker, assignments: workerAssignments }) => (
+                <>
+                  <div className="w-full overflow-x-auto">
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead className="min-w-[200px]">
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => handleAssignmentsSort("workerName")}
+                              className="hover-elevate gap-1"
+                              data-testid="sort-worker-name"
+                            >
+                              {language === "es" ? "Trabajador" : "Worker"}
+                              <ArrowUpDown className="h-4 w-4" />
+                            </Button>
+                          </TableHead>
+                          <TableHead className="min-w-[150px]">
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => handleAssignmentsSort("specialty")}
+                              className="hover-elevate gap-1"
+                              data-testid="sort-specialty"
+                            >
+                              {language === "es" ? "Especialidad" : "Specialty"}
+                              <ArrowUpDown className="h-4 w-4" />
+                            </Button>
+                          </TableHead>
+                          <TableHead className="min-w-[300px]">
+                            {language === "es" ? "Asignaciones" : "Assignments"}
+                          </TableHead>
+                          <TableHead className="text-right min-w-[150px]">
+                            {language === "es" ? "Acciones" : "Actions"}
+                          </TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {paginatedGroupedAssignments.map(({ worker, assignments: workerAssignments }) => (
                         <TableRow key={worker.id} data-testid={`row-worker-${worker.id}`}>
                           <TableCell className="font-medium">
                             <div className="flex items-center gap-2">
@@ -637,10 +780,63 @@ export default function ExternalMaintenanceWorkers() {
                             </div>
                           </TableCell>
                         </TableRow>
-                      ))}
-                    </TableBody>
-                  </Table>
-                </div>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  </div>
+                  
+                  {/* Assignments Pagination Controls */}
+                  <div className="flex flex-wrap items-center justify-between gap-4 mt-4">
+                    <div className="flex items-center gap-2">
+                      <span className="text-sm text-muted-foreground">
+                        {language === "es" ? "Mostrar" : "Show"}
+                      </span>
+                      <Select
+                        value={assignmentsPerPage.toString()}
+                        onValueChange={(value) => setAssignmentsPerPage(Number(value))}
+                      >
+                        <SelectTrigger className="w-20" data-testid="select-assignments-per-page">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="5">5</SelectItem>
+                          <SelectItem value="10">10</SelectItem>
+                          <SelectItem value="20">20</SelectItem>
+                          <SelectItem value="30">30</SelectItem>
+                        </SelectContent>
+                      </Select>
+                      <span className="text-sm text-muted-foreground">
+                        {language === "es" ? "por página" : "per page"}
+                      </span>
+                    </div>
+                    
+                    <div className="flex items-center gap-2">
+                      <span className="text-sm text-muted-foreground">
+                        {language === "es" ? "Página" : "Page"} {assignmentsPage} {language === "es" ? "de" : "of"} {assignmentsTotalPages}
+                      </span>
+                      <div className="flex gap-2">
+                        <Button
+                          variant="outline"
+                          size="icon"
+                          onClick={() => setAssignmentsPage(Math.max(1, assignmentsPage - 1))}
+                          disabled={assignmentsPage === 1}
+                          data-testid="button-assignments-prev-page"
+                        >
+                          <ChevronLeft className="h-4 w-4" />
+                        </Button>
+                        <Button
+                          variant="outline"
+                          size="icon"
+                          onClick={() => setAssignmentsPage(Math.min(assignmentsTotalPages, assignmentsPage + 1))}
+                          disabled={assignmentsPage === assignmentsTotalPages}
+                          data-testid="button-assignments-next-page"
+                        >
+                          <ChevronRight className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    </div>
+                  </div>
+                </>
               )}
             </CardContent>
           </Card>
@@ -672,42 +868,134 @@ export default function ExternalMaintenanceWorkers() {
                   </p>
                 </div>
               ) : (
-                <div className="w-full overflow-x-auto">
-                  <Table>
-                    <TableHeader>
-                      <TableRow>
-                        <TableHead className="min-w-[200px]">
-                          {language === "es" ? "Nombre" : "Name"}
-                        </TableHead>
-                        <TableHead className="min-w-[200px]">Email</TableHead>
-                        <TableHead className="min-w-[150px]">
-                          {language === "es" ? "Teléfono" : "Phone"}
-                        </TableHead>
-                        <TableHead className="min-w-[150px]">
-                          {language === "es" ? "Especialidad" : "Specialty"}
-                        </TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {workers.map((worker) => (
-                        <TableRow key={worker.id} data-testid={`row-worker-${worker.id}`}>
-                          <TableCell className="font-medium">
-                            {worker.firstName} {worker.lastName}
-                          </TableCell>
-                          <TableCell>{worker.email}</TableCell>
-                          <TableCell>{worker.phone || '-'}</TableCell>
-                          <TableCell>
-                            {worker.maintenanceSpecialty ? (
-                              <Badge variant="secondary">
-                                {SPECIALTY_LABELS[language][worker.maintenanceSpecialty as keyof typeof SPECIALTY_LABELS['es']]}
-                              </Badge>
-                            ) : '-'}
-                          </TableCell>
+                <>
+                  <div className="w-full overflow-x-auto">
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead className="min-w-[200px]">
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => handleWorkersSort("workerName")}
+                              className="hover-elevate gap-1"
+                              data-testid="sort-worker-name-workers"
+                            >
+                              {language === "es" ? "Nombre" : "Name"}
+                              <ArrowUpDown className="h-4 w-4" />
+                            </Button>
+                          </TableHead>
+                          <TableHead className="min-w-[200px]">
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => handleWorkersSort("email")}
+                              className="hover-elevate gap-1"
+                              data-testid="sort-email"
+                            >
+                              Email
+                              <ArrowUpDown className="h-4 w-4" />
+                            </Button>
+                          </TableHead>
+                          <TableHead className="min-w-[150px]">
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => handleWorkersSort("phone")}
+                              className="hover-elevate gap-1"
+                              data-testid="sort-phone"
+                            >
+                              {language === "es" ? "Teléfono" : "Phone"}
+                              <ArrowUpDown className="h-4 w-4" />
+                            </Button>
+                          </TableHead>
+                          <TableHead className="min-w-[150px]">
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => handleWorkersSort("specialty")}
+                              className="hover-elevate gap-1"
+                              data-testid="sort-specialty-workers"
+                            >
+                              {language === "es" ? "Especialidad" : "Specialty"}
+                              <ArrowUpDown className="h-4 w-4" />
+                            </Button>
+                          </TableHead>
                         </TableRow>
-                      ))}
-                    </TableBody>
-                  </Table>
-                </div>
+                      </TableHeader>
+                      <TableBody>
+                        {paginatedWorkers.map((worker) => (
+                          <TableRow key={worker.id} data-testid={`row-worker-${worker.id}`}>
+                            <TableCell className="font-medium">
+                              {worker.firstName} {worker.lastName}
+                            </TableCell>
+                            <TableCell>{worker.email}</TableCell>
+                            <TableCell>{worker.phone || '-'}</TableCell>
+                            <TableCell>
+                              {worker.maintenanceSpecialty ? (
+                                <Badge variant="secondary">
+                                  {SPECIALTY_LABELS[language][worker.maintenanceSpecialty as keyof typeof SPECIALTY_LABELS['es']]}
+                                </Badge>
+                              ) : '-'}
+                            </TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  </div>
+                  
+                  {/* Workers Pagination Controls */}
+                  <div className="flex flex-wrap items-center justify-between gap-4 mt-4">
+                    <div className="flex items-center gap-2">
+                      <span className="text-sm text-muted-foreground">
+                        {language === "es" ? "Mostrar" : "Show"}
+                      </span>
+                      <Select
+                        value={workersPerPage.toString()}
+                        onValueChange={(value) => setWorkersPerPage(Number(value))}
+                      >
+                        <SelectTrigger className="w-20" data-testid="select-workers-per-page">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="5">5</SelectItem>
+                          <SelectItem value="10">10</SelectItem>
+                          <SelectItem value="20">20</SelectItem>
+                          <SelectItem value="30">30</SelectItem>
+                        </SelectContent>
+                      </Select>
+                      <span className="text-sm text-muted-foreground">
+                        {language === "es" ? "por página" : "per page"}
+                      </span>
+                    </div>
+                    
+                    <div className="flex items-center gap-2">
+                      <span className="text-sm text-muted-foreground">
+                        {language === "es" ? "Página" : "Page"} {workersPage} {language === "es" ? "de" : "of"} {workersTotalPages}
+                      </span>
+                      <div className="flex gap-2">
+                        <Button
+                          variant="outline"
+                          size="icon"
+                          onClick={() => setWorkersPage(Math.max(1, workersPage - 1))}
+                          disabled={workersPage === 1}
+                          data-testid="button-workers-prev-page"
+                        >
+                          <ChevronLeft className="h-4 w-4" />
+                        </Button>
+                        <Button
+                          variant="outline"
+                          size="icon"
+                          onClick={() => setWorkersPage(Math.min(workersTotalPages, workersPage + 1))}
+                          disabled={workersPage === workersTotalPages}
+                          data-testid="button-workers-next-page"
+                        >
+                          <ChevronRight className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    </div>
+                  </div>
+                </>
               )}
             </CardContent>
           </Card>

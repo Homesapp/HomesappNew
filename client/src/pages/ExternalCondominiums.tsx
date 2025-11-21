@@ -73,18 +73,6 @@ export default function ExternalCondominiums() {
   useEffect(() => {
     setUnitsPage(1);
   }, [unitSearchText, selectedCondoFilter, rentalStatusFilter, unitStatusFilter, unitsPerPage]);
-  
-  // Clamp unitsPage to valid range when data length changes
-  useEffect(() => {
-    if (!filteredUnits || filteredUnits.length === 0) {
-      setUnitsPage(1);
-      return;
-    }
-    const maxPage = Math.ceil(filteredUnits.length / unitsPerPage) || 1;
-    if (unitsPage > maxPage) {
-      setUnitsPage(maxPage);
-    }
-  }, [filteredUnits.length, unitsPerPage]);
 
   const { data: condominiums, isLoading: condosLoading, isError: condosError, error: condosErrorMsg } = useQuery<ExternalCondominium[]>({
     queryKey: ['/api/external-condominiums'],
@@ -684,6 +672,18 @@ export default function ExternalCondominiums() {
   }, [sortedUnits, unitsPage, unitsPerPage]);
   
   const unitsTotalPages = Math.ceil(sortedUnits.length / unitsPerPage);
+
+  // Clamp unitsPage to valid range when data length changes
+  useEffect(() => {
+    if (!sortedUnits || sortedUnits.length === 0) {
+      setUnitsPage(1);
+      return;
+    }
+    const maxPage = Math.ceil(sortedUnits.length / unitsPerPage) || 1;
+    if (unitsPage > maxPage) {
+      setUnitsPage(maxPage);
+    }
+  }, [sortedUnits.length, unitsPerPage]);
 
   const handleUnitsSort = (column: string) => {
     if (unitsSortColumn === column) {

@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useMemo } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { useAuth } from "@/hooks/useAuth";
@@ -15,7 +15,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Home, DollarSign, Wrench, Calendar, CheckCircle2, Clock, AlertCircle, Plus, Upload, X, MessageSquare, Send, ExternalLink, Zap, Droplet, Wifi, Flame, Eye, FileText } from "lucide-react";
+import { Home, DollarSign, Wrench, Calendar, CheckCircle2, Clock, AlertCircle, Plus, Upload, X, MessageSquare, Send, ExternalLink, Zap, Droplet, Wifi, Flame, Eye, FileText, ArrowUpDown, ChevronLeft, ChevronRight } from "lucide-react";
 import { format } from "date-fns";
 import { es } from "date-fns/locale";
 import { useForm } from "react-hook-form";
@@ -101,6 +101,24 @@ export default function ActiveRentals() {
   const [problemPhotoFile, setProblemPhotoFile] = useState<{ name: string; data: string } | null>(null);
   const [chatMessage, setChatMessage] = useState("");
   const messagesEndRef = useRef<HTMLDivElement>(null);
+
+  // Payment history pagination & sorting
+  const [paymentsPage, setPaymentsPage] = useState(1);
+  const [paymentsPerPage, setPaymentsPerPage] = useState(10);
+  const [paymentsSortColumn, setPaymentsSortColumn] = useState<string>("");
+  const [paymentsSortDirection, setPaymentsSortDirection] = useState<"asc" | "desc">("asc");
+  const [currentServiceType, setCurrentServiceType] = useState<string>("rent");
+
+  // Reset payments page when items per page changes
+  useEffect(() => {
+    setPaymentsPage(1);
+  }, [paymentsPerPage]);
+  
+  // Handler for service type change - resets page synchronously
+  const handleServiceTypeChange = (serviceType: string) => {
+    setCurrentServiceType(serviceType);
+    setPaymentsPage(1);
+  };
 
   const isOwner = user?.role === "owner";
   const rentalsEndpoint = isOwner ? "/api/owner/active-rentals" : "/api/rentals/active";
@@ -375,6 +393,112 @@ export default function ActiveRentals() {
       activo: { step: 5, total: 5, message: "Contrato activo" },
     };
     return steps[contract.status as keyof typeof steps] || steps.draft;
+  };
+
+  // Get sorted payments for current service type
+  const currentServicePayments = useMemo(() => {
+    const servicePayments = payments.filter(p => p.serviceType === currentServiceType);
+    
+    return [...servicePayments].sort((a, b) => {
+      if (!paymentsSortColumn) return 0;
+      
+      let aVal: any = (a as any)[paymentsSortColumn];
+      let bVal: any = (b as any)[paymentsSortColumn];
+      
+      // Handle date columns
+      if (paymentsSortColumn === 'dueDate' || paymentsSortColumn === 'paymentDate') {
+        if (!aVal) return paymentsSortDirection === "asc" ? 1 : -1;
+        if (!bVal) return paymentsSortDirection === "asc" ? -1 : 1;
+        const aTime = new Date(aVal).getTime();
+        const bTime = new Date(bVal).getTime();
+        return paymentsSortDirection === "asc" ? aTime - bTime : bTime - aTime;
+      }
+      
+      // Handle numeric columns
+      if (paymentsSortColumn === 'amount') {
+        const aNum = parseFloat(aVal || '0');
+        const bNum = parseFloat(bVal || '0');
+        return paymentsSortDirection === "asc" ? aNum - bNum : bNum - aNum;
+      }
+      
+      // Handle string columns
+      if (typeof aVal === "string" || typeof bVal === "string") {
+        aVal = (aVal || '').toString().toLowerCase();
+        bVal = (bVal || '').toString().toLowerCase();
+      }
+      
+      if (aVal < bVal) return paymentsSortDirection === "asc" ? -1 : 1;
+      if (aVal > bVal) return paymentsSortDirection === "asc" ? 1 : -1;
+      return 0;
+    });
+  }, [payments, currentServiceType, paymentsSortColumn, paymentsSortDirection]);
+
+  // Clamp payments page when data length changes
+  useEffect(() => {
+    if (currentServicePayments.length === 0) {
+      setPaymentsPage(1);
+      return;
+    }
+    const maxPage = Math.ceil(currentServicePayments.length / paymentsPerPage) || 1;
+    if (paymentsPage > maxPage) {
+      setPaymentsPage(maxPage);
+    }
+  }, [currentServicePayments.length, paymentsPerPage]);
+
+  // Helper function to get paginated payments for a service type
+  const getPaginatedPayments = (serviceType: string) => {
+    // For the current service type, use memoized sorted data
+    // For other service types, compute on the fly (they're only used for tabs, not rendering)
+    let sortedPayments: RentalPayment[];
+    
+    if (serviceType === currentServiceType) {
+      sortedPayments = currentServicePayments;
+    } else {
+      const servicePayments = payments.filter(p => p.serviceType === serviceType);
+      sortedPayments = [...servicePayments].sort((a, b) => {
+        if (!paymentsSortColumn) return 0;
+        
+        let aVal: any = (a as any)[paymentsSortColumn];
+        let bVal: any = (b as any)[paymentsSortColumn];
+        
+        if (paymentsSortColumn === 'dueDate' || paymentsSortColumn === 'paymentDate') {
+          if (!aVal) return paymentsSortDirection === "asc" ? 1 : -1;
+          if (!bVal) return paymentsSortDirection === "asc" ? -1 : 1;
+          const aTime = new Date(aVal).getTime();
+          const bTime = new Date(bVal).getTime();
+          return paymentsSortDirection === "asc" ? aTime - bTime : bTime - aTime;
+        }
+        
+        if (paymentsSortColumn === 'amount') {
+          const aNum = parseFloat(aVal || '0');
+          const bNum = parseFloat(bVal || '0');
+          return paymentsSortDirection === "asc" ? aNum - bNum : bNum - aNum;
+        }
+        
+        if (typeof aVal === "string" || typeof bVal === "string") {
+          aVal = (aVal || '').toString().toLowerCase();
+          bVal = (bVal || '').toString().toLowerCase();
+        }
+        
+        if (aVal < bVal) return paymentsSortDirection === "asc" ? -1 : 1;
+        if (aVal > bVal) return paymentsSortDirection === "asc" ? 1 : -1;
+        return 0;
+      });
+    }
+    
+    const totalPages = Math.ceil(sortedPayments.length / paymentsPerPage) || 1;
+    const paginatedPayments = sortedPayments.slice((paymentsPage - 1) * paymentsPerPage, paymentsPage * paymentsPerPage);
+    
+    return { paginatedPayments, totalPages, totalCount: sortedPayments.length };
+  };
+
+  const handlePaymentsSort = (column: string) => {
+    if (paymentsSortColumn === column) {
+      setPaymentsSortDirection(paymentsSortDirection === "asc" ? "desc" : "asc");
+    } else {
+      setPaymentsSortColumn(column);
+      setPaymentsSortDirection("asc");
+    }
   };
 
   return (
@@ -674,7 +798,7 @@ export default function ActiveRentals() {
               </CardDescription>
             </CardHeader>
             <CardContent>
-              <Tabs defaultValue="rent" className="w-full">
+              <Tabs defaultValue="rent" className="w-full" onValueChange={handleServiceTypeChange}>
                 <TabsList className="grid w-full grid-cols-5">
                   <TabsTrigger value="rent" data-testid="tab-rent-payments">
                     <DollarSign className="h-3 w-3 mr-1" />
@@ -699,7 +823,11 @@ export default function ActiveRentals() {
                 </TabsList>
                 
                 {['rent', 'electricity', 'water', 'internet', 'gas'].map((serviceType) => {
-                  const servicePayments = payments.filter(p => p.serviceType === serviceType);
+                  // Only compute pagination for active service to avoid stale page renders
+                  const isActiveService = serviceType === currentServiceType;
+                  const { paginatedPayments, totalPages, totalCount } = isActiveService 
+                    ? getPaginatedPayments(serviceType)
+                    : { paginatedPayments: [], totalPages: 1, totalCount: payments.filter(p => p.serviceType === serviceType).length };
                   
                   return (
                     <TabsContent key={serviceType} value={serviceType} className="mt-4">
@@ -708,23 +836,68 @@ export default function ActiveRentals() {
                           <Skeleton className="h-12 w-full" />
                           <Skeleton className="h-12 w-full" />
                         </div>
-                      ) : servicePayments.length === 0 ? (
+                      ) : totalCount === 0 ? (
                         <p className="text-center text-secondary-foreground py-8">
                           {t("activeRentals.noPayments", "No hay pagos registrados")}
                         </p>
-                      ) : (
-                        <Table>
-                          <TableHeader>
-                            <TableRow>
-                              <TableHead>{t("activeRentals.dueDate", "Fecha de Vencimiento")}</TableHead>
-                              <TableHead>{t("activeRentals.amount", "Monto")}</TableHead>
-                              <TableHead>{t("activeRentals.status", "Estado")}</TableHead>
-                              <TableHead>{t("activeRentals.paidDate", "Fecha de Pago")}</TableHead>
-                              {!isOwner && <TableHead>{t("activeRentals.actions", "Acciones")}</TableHead>}
-                            </TableRow>
-                          </TableHeader>
-                          <TableBody>
-                            {servicePayments.map((payment) => (
+                      ) : isActiveService ? (
+                        <>
+                          <Table>
+                            <TableHeader>
+                              <TableRow>
+                                <TableHead>
+                                  <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    onClick={() => handlePaymentsSort("dueDate")}
+                                    className="hover-elevate gap-1"
+                                    data-testid="sort-due-date"
+                                  >
+                                    {t("activeRentals.dueDate", "Fecha de Vencimiento")}
+                                    <ArrowUpDown className="h-4 w-4" />
+                                  </Button>
+                                </TableHead>
+                                <TableHead>
+                                  <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    onClick={() => handlePaymentsSort("amount")}
+                                    className="hover-elevate gap-1"
+                                    data-testid="sort-amount"
+                                  >
+                                    {t("activeRentals.amount", "Monto")}
+                                    <ArrowUpDown className="h-4 w-4" />
+                                  </Button>
+                                </TableHead>
+                                <TableHead>
+                                  <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    onClick={() => handlePaymentsSort("status")}
+                                    className="hover-elevate gap-1"
+                                    data-testid="sort-status"
+                                  >
+                                    {t("activeRentals.status", "Estado")}
+                                    <ArrowUpDown className="h-4 w-4" />
+                                  </Button>
+                                </TableHead>
+                                <TableHead>
+                                  <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    onClick={() => handlePaymentsSort("paymentDate")}
+                                    className="hover-elevate gap-1"
+                                    data-testid="sort-payment-date"
+                                  >
+                                    {t("activeRentals.paidDate", "Fecha de Pago")}
+                                    <ArrowUpDown className="h-4 w-4" />
+                                  </Button>
+                                </TableHead>
+                                {!isOwner && <TableHead>{t("activeRentals.actions", "Acciones")}</TableHead>}
+                              </TableRow>
+                            </TableHeader>
+                            <TableBody>
+                              {paginatedPayments.map((payment) => (
                               <TableRow key={payment.id} data-testid={`row-payment-${payment.id}`}>
                                 <TableCell>
                                   {format(new Date(payment.dueDate), "dd MMM yyyy", { locale: language === "es" ? es : undefined })}
@@ -771,7 +944,60 @@ export default function ActiveRentals() {
                             ))}
                           </TableBody>
                         </Table>
-                      )}
+                        
+                        {/* Pagination Controls */}
+                        <div className="flex flex-wrap items-center justify-between gap-4 mt-4">
+                          <div className="flex items-center gap-2">
+                            <span className="text-sm text-muted-foreground">
+                              {language === "es" ? "Mostrar" : "Show"}
+                            </span>
+                            <Select
+                              value={paymentsPerPage.toString()}
+                              onValueChange={(value) => setPaymentsPerPage(Number(value))}
+                            >
+                              <SelectTrigger className="w-20" data-testid="select-payments-per-page">
+                                <SelectValue />
+                              </SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="5">5</SelectItem>
+                                <SelectItem value="10">10</SelectItem>
+                                <SelectItem value="20">20</SelectItem>
+                                <SelectItem value="30">30</SelectItem>
+                              </SelectContent>
+                            </Select>
+                            <span className="text-sm text-muted-foreground">
+                              {language === "es" ? "por página" : "per page"}
+                            </span>
+                          </div>
+                          
+                          <div className="flex items-center gap-2">
+                            <span className="text-sm text-muted-foreground">
+                              {language === "es" ? "Página" : "Page"} {paymentsPage} {language === "es" ? "de" : "of"} {totalPages}
+                            </span>
+                            <div className="flex gap-2">
+                              <Button
+                                variant="outline"
+                                size="icon"
+                                onClick={() => setPaymentsPage(Math.max(1, paymentsPage - 1))}
+                                disabled={paymentsPage === 1}
+                                data-testid="button-payments-prev-page"
+                              >
+                                <ChevronLeft className="h-4 w-4" />
+                              </Button>
+                              <Button
+                                variant="outline"
+                                size="icon"
+                                onClick={() => setPaymentsPage(Math.min(totalPages, paymentsPage + 1))}
+                                disabled={paymentsPage === totalPages}
+                                data-testid="button-payments-next-page"
+                              >
+                                <ChevronRight className="h-4 w-4" />
+                              </Button>
+                            </div>
+                          </div>
+                        </div>
+                        </>
+                      ) : null}
                     </TabsContent>
                   );
                 })}
