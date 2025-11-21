@@ -149,6 +149,7 @@ import ExternalCalendar from "@/pages/ExternalCalendar";
 import ExternalOwners from "@/pages/ExternalOwners";
 import ExternalOwnerPortfolio from "@/pages/ExternalOwnerPortfolio";
 import ExternalMaintenanceWorkers from "@/pages/ExternalMaintenanceWorkers";
+import ExternalClients from "@/pages/ExternalClients";
 import AdminExternalAgencies from "@/pages/AdminExternalAgencies";
 import NotFound from "@/pages/not-found";
 
@@ -437,6 +438,7 @@ function AuthenticatedApp() {
               <Route path="/external/owners/portfolio" component={ExternalOwnerPortfolio} />
               <Route path="/external/owners" component={ExternalOwners} />
               <Route path="/external/maintenance-workers" component={ExternalMaintenanceWorkers} />
+              <Route path="/external/clients" component={ExternalClients} />
               <Route path="/ayuda" component={Help} />
               <Route path="/terminos" component={Terms} />
               <Route path="/privacidad" component={Privacy} />
