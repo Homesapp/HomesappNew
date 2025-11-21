@@ -1089,17 +1089,17 @@ export default function ExternalMaintenanceWorkers() {
         </Card>
 
         <TabsContent value="assignments" className="mt-6">
-          <Card>
-            <CardHeader>
-              <CardTitle>{language === "es" ? "Asignaciones Actuales" : "Current Assignments"}</CardTitle>
-              <CardDescription>
+          <div className="space-y-4">
+            <div>
+              <h2 className="text-lg font-semibold">{language === "es" ? "Asignaciones Actuales" : "Current Assignments"}</h2>
+              <p className="text-sm text-muted-foreground">
                 {language === "es" 
                   ? "Lista de trabajadores asignados a condominios y unidades"
                   : "List of workers assigned to condominiums and units"}
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              {loadingAssignments ? (
+              </p>
+            </div>
+            
+            {loadingAssignments ? (
                 <div className="space-y-2">
                   <Skeleton className="h-10 w-full" />
                   <Skeleton className="h-10 w-full" />
@@ -1341,22 +1341,21 @@ export default function ExternalMaintenanceWorkers() {
                   )}
                 </>
               )}
-            </CardContent>
-          </Card>
+          </div>
         </TabsContent>
 
         <TabsContent value="workers" className="mt-6">
-          <Card>
-            <CardHeader>
-              <CardTitle>{language === "es" ? "Trabajadores Disponibles" : "Available Workers"}</CardTitle>
-              <CardDescription>
+          <div className="space-y-4">
+            <div>
+              <h2 className="text-lg font-semibold">{language === "es" ? "Trabajadores Disponibles" : "Available Workers"}</h2>
+              <p className="text-sm text-muted-foreground">
                 {language === "es" 
                   ? "Lista de trabajadores de mantenimiento de tu agencia"
                   : "List of your agency's maintenance workers"}
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              {loadingWorkers ? (
+              </p>
+            </div>
+            
+            {loadingWorkers ? (
                 <div className="space-y-2">
                   <Skeleton className="h-10 w-full" />
                   <Skeleton className="h-10 w-full" />
@@ -1542,8 +1541,7 @@ export default function ExternalMaintenanceWorkers() {
                 )}
               </>
             )}
-            </CardContent>
-          </Card>
+          </div>
         </TabsContent>
       </Tabs>
 
