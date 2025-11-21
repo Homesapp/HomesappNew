@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Link } from "wouter";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
@@ -65,6 +65,12 @@ export default function ExternalOwnerPortfolio() {
   const [sortBy, setSortBy] = useState<'name' | 'units' | 'income' | 'balance'>('name');
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('asc');
   const [selectedOwnerId, setSelectedOwnerId] = useState<string | null>(null);
+  
+  // Pagination and sorting for units detail table
+  const [unitsPage, setUnitsPage] = useState(1);
+  const [unitsPerPage, setUnitsPerPage] = useState(5);
+  const [unitsSortBy, setUnitsSortBy] = useState<'condominium' | 'unitNumber'>('condominium');
+  const [unitsSortOrder, setUnitsSortOrder] = useState<'asc' | 'desc'>('asc');
 
   const { data: owners, isLoading: ownersLoading } = useQuery<ExternalUnitOwner[]>({
     queryKey: ['/api/external-owners'],
@@ -208,6 +214,11 @@ export default function ExternalOwnerPortfolio() {
     ? filteredPortfolios.find(p => p.owner.id === selectedOwnerId)
     : null;
 
+  // Reset pagination when owner changes
+  useEffect(() => {
+    setUnitsPage(1);
+  }, [selectedOwnerId]);
+
   const formatCurrency = (amount: number) => {
     return new Intl.NumberFormat(language === 'es' ? 'es-MX' : 'en-US', {
       style: 'currency',
@@ -282,6 +293,7 @@ export default function ExternalOwnerPortfolio() {
     noOwnersDesc: 'Los propietarios aparecerán aquí cuando se agreguen unidades',
     unitDetails: 'Detalles de Unidades',
     unit: 'Unidad',
+    unitNumber: '# de Unidad',
     condominium: 'Condominio',
     status: 'Estado',
     active: 'Activo',
@@ -289,6 +301,11 @@ export default function ExternalOwnerPortfolio() {
     rented: 'Rentado',
     available: 'Disponible',
     close: 'Cerrar',
+    itemsPerPage: 'Elementos por página',
+    first: 'Primera',
+    previous: 'Anterior',
+    next: 'Siguiente',
+    last: 'Última',
   } : {
     title: 'Owner Portfolio',
     subtitle: 'Consolidated view of owners and their units performance',
@@ -315,6 +332,7 @@ export default function ExternalOwnerPortfolio() {
     noOwnersDesc: 'Owners will appear here when units are added',
     unitDetails: 'Unit Details',
     unit: 'Unit',
+    unitNumber: 'Unit #',
     condominium: 'Condominium',
     status: 'Status',
     active: 'Active',
@@ -322,6 +340,11 @@ export default function ExternalOwnerPortfolio() {
     rented: 'Rented',
     available: 'Available',
     close: 'Close',
+    itemsPerPage: 'Items per page',
+    first: 'First',
+    previous: 'Previous',
+    next: 'Next',
+    last: 'Last',
   };
 
   return (
@@ -602,38 +625,178 @@ export default function ExternalOwnerPortfolio() {
                 </div>
               </div>
 
-              {/* Units List */}
+              {/* Units Table with Pagination */}
               <div>
-                <h3 className="text-lg font-semibold mb-4">{t.unitDetails}</h3>
-                <div className="space-y-2">
-                  {selectedPortfolio.units.map(unit => {
-                    const isRented = contracts?.some(c => c.unitId === unit.id && c.status === 'active');
-                    return (
-                      <div
-                        key={unit.id}
-                        className="p-4 rounded-lg border flex items-center justify-between hover-elevate"
-                      >
-                        <div className="flex items-center gap-4">
-                          <Home className="h-5 w-5 text-muted-foreground" />
-                          <div>
-                            <p className="font-medium">{unit.unitNumber}</p>
-                            <p className="text-sm text-muted-foreground">{getCondoName(unit.id)}</p>
+                <div className="flex items-center justify-between mb-4">
+                  <h3 className="text-lg font-semibold">{t.unitDetails}</h3>
+                  <div className="flex items-center gap-2">
+                    <span className="text-sm text-muted-foreground">{t.itemsPerPage}:</span>
+                    <Select
+                      value={unitsPerPage.toString()}
+                      onValueChange={(value) => {
+                        setUnitsPerPage(parseInt(value));
+                        setUnitsPage(1);
+                      }}
+                    >
+                      <SelectTrigger className="w-20" data-testid="select-units-per-page">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="5">5</SelectItem>
+                        <SelectItem value="10">10</SelectItem>
+                        <SelectItem value="20">20</SelectItem>
+                        <SelectItem value="30">30</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+
+                {(() => {
+                  // Sort units
+                  const sortedUnits = [...selectedPortfolio.units].sort((a, b) => {
+                    let comparison = 0;
+                    if (unitsSortBy === 'condominium') {
+                      const condoA = getCondoName(a.id);
+                      const condoB = getCondoName(b.id);
+                      comparison = condoA.localeCompare(condoB);
+                    } else if (unitsSortBy === 'unitNumber') {
+                      comparison = a.unitNumber.localeCompare(b.unitNumber, undefined, { numeric: true });
+                    }
+                    return unitsSortOrder === 'asc' ? comparison : -comparison;
+                  });
+
+                  // Paginate
+                  const totalUnits = sortedUnits.length;
+                  const totalPages = Math.ceil(totalUnits / unitsPerPage);
+                  const startIndex = (unitsPage - 1) * unitsPerPage;
+                  const endIndex = Math.min(startIndex + unitsPerPage, totalUnits);
+                  const paginatedUnits = sortedUnits.slice(startIndex, endIndex);
+
+                  const handleSort = (column: 'condominium' | 'unitNumber') => {
+                    if (unitsSortBy === column) {
+                      setUnitsSortOrder(unitsSortOrder === 'asc' ? 'desc' : 'asc');
+                    } else {
+                      setUnitsSortBy(column);
+                      setUnitsSortOrder('asc');
+                    }
+                  };
+
+                  return (
+                    <>
+                      <div className="border rounded-lg overflow-hidden">
+                        <Table>
+                          <TableHeader>
+                            <TableRow>
+                              <TableHead 
+                                className="cursor-pointer hover-elevate"
+                                onClick={() => handleSort('condominium')}
+                                data-testid="header-sort-condominium"
+                              >
+                                <div className="flex items-center gap-2">
+                                  {t.condominium}
+                                  <ArrowUpDown className="h-4 w-4" />
+                                </div>
+                              </TableHead>
+                              <TableHead 
+                                className="cursor-pointer hover-elevate"
+                                onClick={() => handleSort('unitNumber')}
+                                data-testid="header-sort-unit-number"
+                              >
+                                <div className="flex items-center gap-2">
+                                  {t.unitNumber}
+                                  <ArrowUpDown className="h-4 w-4" />
+                                </div>
+                              </TableHead>
+                              <TableHead>{t.status}</TableHead>
+                              <TableHead className="text-right">{t.actions}</TableHead>
+                            </TableRow>
+                          </TableHeader>
+                          <TableBody>
+                            {paginatedUnits.map(unit => {
+                              const isRented = contracts?.some(c => c.unitId === unit.id && c.status === 'active');
+                              return (
+                                <TableRow key={unit.id} data-testid={`row-unit-${unit.id}`}>
+                                  <TableCell className="font-medium">
+                                    {getCondoName(unit.id)}
+                                  </TableCell>
+                                  <TableCell>{unit.unitNumber}</TableCell>
+                                  <TableCell>
+                                    <Badge variant={isRented ? "default" : "outline"}>
+                                      {isRented ? t.rented : t.available}
+                                    </Badge>
+                                  </TableCell>
+                                  <TableCell className="text-right">
+                                    <Link href={`/external/units/${unit.id}`}>
+                                      <Button size="sm" variant="ghost" data-testid={`button-view-unit-${unit.id}`}>
+                                        <Eye className="h-4 w-4" />
+                                      </Button>
+                                    </Link>
+                                  </TableCell>
+                                </TableRow>
+                              );
+                            })}
+                          </TableBody>
+                        </Table>
+                      </div>
+
+                      {/* Pagination Controls */}
+                      {totalPages > 1 && (
+                        <div className="flex items-center justify-between mt-4">
+                          <div className="text-sm text-muted-foreground">
+                            {language === 'es' 
+                              ? `Mostrando ${startIndex + 1}-${endIndex} de ${totalUnits} unidades`
+                              : `Showing ${startIndex + 1}-${endIndex} of ${totalUnits} units`
+                            }
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => setUnitsPage(1)}
+                              disabled={unitsPage === 1}
+                              data-testid="button-units-first-page"
+                            >
+                              {t.first}
+                            </Button>
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => setUnitsPage(prev => Math.max(1, prev - 1))}
+                              disabled={unitsPage === 1}
+                              data-testid="button-units-prev-page"
+                            >
+                              {t.previous}
+                            </Button>
+                            <span className="text-sm text-muted-foreground px-2">
+                              {language === 'es' 
+                                ? `Página ${unitsPage} de ${totalPages}`
+                                : `Page ${unitsPage} of ${totalPages}`
+                              }
+                            </span>
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => setUnitsPage(prev => Math.min(totalPages, prev + 1))}
+                              disabled={unitsPage === totalPages}
+                              data-testid="button-units-next-page"
+                            >
+                              {t.next}
+                            </Button>
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => setUnitsPage(totalPages)}
+                              disabled={unitsPage === totalPages}
+                              data-testid="button-units-last-page"
+                            >
+                              {t.last}
+                            </Button>
                           </div>
                         </div>
-                        <div className="flex items-center gap-4">
-                          <Badge variant={isRented ? "default" : "outline"}>
-                            {isRented ? t.rented : t.available}
-                          </Badge>
-                          <Link href={`/external/units/${unit.id}`}>
-                            <Button size="sm" variant="ghost">
-                              <Eye className="h-4 w-4" />
-                            </Button>
-                          </Link>
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
+                      )}
+                    </>
+                  );
+                })()}
               </div>
             </CardContent>
           </Card>
