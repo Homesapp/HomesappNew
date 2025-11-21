@@ -479,7 +479,7 @@ export default function ExternalDashboard() {
               </Link>
             </div>
           </CardHeader>
-          <CardContent className="space-y-4">
+          <CardContent className="p-3">
             {isLoading ? (
               <div className="space-y-2">
                 <Skeleton className="h-14 w-full" />
@@ -487,75 +487,55 @@ export default function ExternalDashboard() {
                 <Skeleton className="h-14 w-full" />
               </div>
             ) : todayEvents.length > 0 ? (
-              <>
-                {Object.entries(groupedByCondominium).map(([condoName, condoEvents]) => (
-                  <div key={condoName} className="space-y-3" data-testid={`condo-section-${condoName}`}>
-                    {/* Condominium Header */}
-                    <div className="flex items-center gap-2 pb-2 border-b">
-                      <Home className="h-4 w-4" />
-                      <h3 className="font-semibold text-sm" data-testid={`text-condo-${condoName}`}>
-                        {condoName}
-                      </h3>
+              <div className="space-y-1.5">
+                {todayEvents.slice(0, 8).map((event: any, idx: number) => {
+                  const eventColor = event.type === 'payment' ? 'blue' : 'green';
+                  const borderColor = event.type === 'payment' 
+                    ? 'border-blue-200 dark:border-blue-900 bg-blue-50/30 dark:bg-blue-950/10' 
+                    : 'border-green-200 dark:border-green-900 bg-green-50/30 dark:bg-green-950/10';
+                  
+                  return (
+                    <div
+                      key={idx}
+                      className={`border rounded-md ${borderColor}`}
+                      data-testid={`event-${idx}`}
+                    >
+                      <div className="p-2.5 hover-elevate cursor-pointer w-full">
+                        <div className="flex items-start gap-2.5">
+                          <div className="mt-1">
+                            <div className={`h-2 w-2 rounded-full bg-${eventColor}-500`} />
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center justify-between gap-2">
+                              <p className="font-medium text-sm truncate">{event.title}</p>
+                            </div>
+                            <div className="flex items-center gap-2 mt-0.5">
+                              <p className="text-xs text-muted-foreground">
+                                {event.condominium} - {language === "es" ? "Unidad" : "Unit"} {event.unitNumber}
+                              </p>
+                            </div>
+                            <div className="flex items-center gap-2 mt-1">
+                              <Badge 
+                                variant={event.status === 'paid' || event.status === 'completed' ? 'default' : 'secondary'} 
+                                className="text-xs"
+                              >
+                                {event.status}
+                              </Badge>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
                     </div>
-
-                    {/* Payments Section */}
-                    {condoEvents.payments.length > 0 && (
-                      <div className="space-y-2">
-                        <h4 className="font-semibold flex items-center gap-2 text-sm">
-                          <DollarSign className="h-4 w-4" />
-                          {language === "es" ? "Pagos de Renta" : "Rental Payments"} ({condoEvents.payments.length})
-                        </h4>
-                        <div className="space-y-2 ml-6">
-                          {condoEvents.payments.map((event: any, idx: number) => (
-                            <div key={idx} className="flex items-center justify-between p-2 rounded-md bg-muted/50" data-testid={`payment-${idx}`}>
-                              <div className="flex items-center gap-3">
-                                {getServiceIcon(event.serviceType)}
-                                <div>
-                                  <p className="text-sm font-medium" data-testid={`payment-title-${idx}`}>{event.title}</p>
-                                  <p className="text-xs text-muted-foreground">{language === "es" ? "Unidad" : "Unit"}: {event.unitNumber}</p>
-                                </div>
-                              </div>
-                              <Badge variant={event.status === 'paid' ? 'default' : 'secondary'} data-testid={`payment-status-${idx}`}>
-                                {event.status}
-                              </Badge>
-                            </div>
-                          ))}
-                        </div>
-                      </div>
-                    )}
-
-                    {/* Tickets Section */}
-                    {condoEvents.tickets.length > 0 && (
-                      <div className="space-y-2">
-                        <h4 className="font-semibold flex items-center gap-2 text-sm">
-                          <Wrench className="h-4 w-4" />
-                          {language === "es" ? "Mantenimientos" : "Maintenance"} ({condoEvents.tickets.length})
-                        </h4>
-                        <div className="space-y-2 ml-6">
-                          {condoEvents.tickets.map((event: any, idx: number) => (
-                            <div key={idx} className="flex items-center justify-between p-2 rounded-md bg-muted/50" data-testid={`ticket-${idx}`}>
-                              <div>
-                                <p className="text-sm font-medium" data-testid={`ticket-title-${idx}`}>{event.title}</p>
-                                <p className="text-xs text-muted-foreground">{language === "es" ? "Unidad" : "Unit"}: {event.unitNumber}</p>
-                              </div>
-                              <Badge variant="secondary" data-testid={`ticket-status-${idx}`}>
-                                {event.status}
-                              </Badge>
-                            </div>
-                          ))}
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                ))}
-              </>
+                  );
+                })}
+              </div>
             ) : (
               <div className="flex flex-col items-center justify-center py-8 text-center">
                 <Calendar className="h-10 w-10 text-muted-foreground/40 mb-2" />
                 <p className="text-sm text-muted-foreground" data-testid="text-no-events">
                   {language === "es" 
-                    ? "No hay eventos pendientes para hoy" 
-                    : "No pending events for today"}
+                    ? "No hay eventos para hoy" 
+                    : "No events for today"}
                 </p>
               </div>
             )}
