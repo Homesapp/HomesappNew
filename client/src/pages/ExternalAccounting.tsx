@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -81,6 +81,27 @@ export default function ExternalAccounting() {
   const [sortColumn, setSortColumn] = useState<string>("");
   const [sortDirection, setSortDirection] = useState<"asc" | "desc">("asc");
   const [filtersExpanded, setFiltersExpanded] = useState(true);
+  
+  // Pagination
+  const [currentPage, setCurrentPage] = useState(1);
+  const [itemsPerPage, setItemsPerPage] = useState(10);
+
+  // Reset to page 1 when filters or data changes
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [directionFilter, categoryFilter, statusFilter, condominiumFilter, unitFilter, dateFilter, customStartDate, customEndDate, itemsPerPage]);
+  
+  // Clamp currentPage to valid range when data length changes
+  useEffect(() => {
+    if (!filteredTransactions || filteredTransactions.length === 0) {
+      setCurrentPage(1);
+      return;
+    }
+    const maxPage = Math.ceil(filteredTransactions.length / itemsPerPage) || 1;
+    if (currentPage > maxPage) {
+      setCurrentPage(maxPage);
+    }
+  }, [filteredTransactions?.length, itemsPerPage]);
 
   const buildTransactionsQueryKey = () => {
     const params = new URLSearchParams();
@@ -164,9 +185,24 @@ export default function ExternalAccounting() {
       let aVal: any = (a as any)[sortColumn];
       let bVal: any = (b as any)[sortColumn];
 
-      if (typeof aVal === "string") {
-        aVal = aVal.toLowerCase();
-        bVal = (bVal as any)?.toString().toLowerCase();
+      // Handle date columns
+      if (sortColumn === 'dueDate' || sortColumn === 'performedDate') {
+        const aDate = aVal ? new Date(aVal).getTime() : 0;
+        const bDate = bVal ? new Date(bVal).getTime() : 0;
+        return sortDirection === "asc" ? aDate - bDate : bDate - aDate;
+      }
+
+      // Handle numeric columns
+      if (sortColumn === 'netAmount' || sortColumn === 'grossAmount' || sortColumn === 'fees') {
+        const aNum = parseFloat(aVal || '0');
+        const bNum = parseFloat(bVal || '0');
+        return sortDirection === "asc" ? aNum - bNum : bNum - aNum;
+      }
+
+      // Handle string columns
+      if (typeof aVal === "string" || typeof bVal === "string") {
+        aVal = (aVal || '').toString().toLowerCase();
+        bVal = (bVal || '').toString().toLowerCase();
       }
 
       if (aVal < bVal) return sortDirection === "asc" ? -1 : 1;
@@ -175,6 +211,15 @@ export default function ExternalAccounting() {
     });
     return sorted;
   }, [filteredTransactions, sortColumn, sortDirection]);
+
+  // Paginate transactions
+  const paginatedTransactions = useMemo(() => {
+    const startIndex = (currentPage - 1) * itemsPerPage;
+    const endIndex = startIndex + itemsPerPage;
+    return sortedAndFilteredTransactions.slice(startIndex, endIndex);
+  }, [sortedAndFilteredTransactions, currentPage, itemsPerPage]);
+
+  const totalPages = Math.ceil(sortedAndFilteredTransactions.length / itemsPerPage);
 
   const handleSort = (column: string) => {
     if (sortColumn === column) {
@@ -1105,7 +1150,7 @@ export default function ExternalAccounting() {
                       </TableRow>
                     </TableHeader>
                     <TableBody>
-                      {sortedAndFilteredTransactions.map((transaction) => (
+                      {paginatedTransactions.map((transaction) => (
                         <TableRow key={transaction.id} data-testid={`row-transaction-${transaction.id}`}>
                           <TableCell>{formatDate(transaction.dueDate)}</TableCell>
                           <TableCell>{getDirectionBadge(transaction.direction)}</TableCell>
@@ -1159,6 +1204,89 @@ export default function ExternalAccounting() {
                       ))}
                     </TableBody>
                   </Table>
+                </div>
+                
+                {/* Pagination Controls */}
+                <div className="flex flex-col sm:flex-row items-center justify-between gap-4 p-4 border-t">
+                  <div className="flex items-center gap-2">
+                    <span className="text-sm text-muted-foreground whitespace-nowrap">
+                      {language === 'es' ? 'Mostrar' : 'Show'}
+                    </span>
+                    <Select value={itemsPerPage.toString()} onValueChange={(value) => {
+                      setItemsPerPage(Number(value));
+                      setCurrentPage(1);
+                    }}>
+                      <SelectTrigger className="w-[70px]" data-testid="select-items-per-page">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="5">5</SelectItem>
+                        <SelectItem value="10">10</SelectItem>
+                        <SelectItem value="20">20</SelectItem>
+                        <SelectItem value="30">30</SelectItem>
+                      </SelectContent>
+                    </Select>
+                    <span className="text-sm text-muted-foreground whitespace-nowrap">
+                      {language === 'es' ? 'registros' : 'records'}
+                    </span>
+                  </div>
+                  
+                  <div className="flex items-center gap-2">
+                    <span className="text-sm text-muted-foreground whitespace-nowrap">
+                      {language === 'es' 
+                        ? `Mostrando ${sortedAndFilteredTransactions.length === 0 ? 0 : (currentPage - 1) * itemsPerPage + 1}-${Math.min(currentPage * itemsPerPage, sortedAndFilteredTransactions.length)} de ${sortedAndFilteredTransactions.length}`
+                        : `Showing ${sortedAndFilteredTransactions.length === 0 ? 0 : (currentPage - 1) * itemsPerPage + 1}-${Math.min(currentPage * itemsPerPage, sortedAndFilteredTransactions.length)} of ${sortedAndFilteredTransactions.length}`
+                      }
+                    </span>
+                  </div>
+                  
+                  <div className="flex items-center gap-1">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                      disabled={currentPage === 1}
+                      data-testid="button-prev-page"
+                    >
+                      {language === 'es' ? 'Anterior' : 'Previous'}
+                    </Button>
+                    
+                    {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
+                      let pageNum;
+                      if (totalPages <= 5) {
+                        pageNum = i + 1;
+                      } else if (currentPage <= 3) {
+                        pageNum = i + 1;
+                      } else if (currentPage >= totalPages - 2) {
+                        pageNum = totalPages - 4 + i;
+                      } else {
+                        pageNum = currentPage - 2 + i;
+                      }
+                      
+                      return (
+                        <Button
+                          key={pageNum}
+                          variant={currentPage === pageNum ? "default" : "outline"}
+                          size="sm"
+                          onClick={() => setCurrentPage(pageNum)}
+                          data-testid={`button-page-${pageNum}`}
+                          className="min-w-[40px]"
+                        >
+                          {pageNum}
+                        </Button>
+                      );
+                    })}
+                    
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+                      disabled={currentPage === totalPages || totalPages === 0}
+                      data-testid="button-next-page"
+                    >
+                      {language === 'es' ? 'Siguiente' : 'Next'}
+                    </Button>
+                  </div>
                 </div>
               </CardContent>
             </Card>

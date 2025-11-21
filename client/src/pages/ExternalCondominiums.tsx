@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { useLocation } from "wouter";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -62,6 +62,29 @@ export default function ExternalCondominiums() {
   // Condominium filters state
   const [condoSearchText, setCondoSearchText] = useState("");
   const [condoFiltersExpanded, setCondoFiltersExpanded] = useState(false);
+  
+  // Units table pagination & sorting
+  const [unitsPage, setUnitsPage] = useState(1);
+  const [unitsPerPage, setUnitsPerPage] = useState(10);
+  const [unitsSortColumn, setUnitsSortColumn] = useState<string>("");
+  const [unitsSortDirection, setUnitsSortDirection] = useState<"asc" | "desc">("asc");
+
+  // Reset to page 1 when filters change
+  useEffect(() => {
+    setUnitsPage(1);
+  }, [unitSearchText, selectedCondoFilter, rentalStatusFilter, unitStatusFilter, unitsPerPage]);
+  
+  // Clamp unitsPage to valid range when data length changes
+  useEffect(() => {
+    if (!filteredUnits || filteredUnits.length === 0) {
+      setUnitsPage(1);
+      return;
+    }
+    const maxPage = Math.ceil(filteredUnits.length / unitsPerPage) || 1;
+    if (unitsPage > maxPage) {
+      setUnitsPage(maxPage);
+    }
+  }, [filteredUnits.length, unitsPerPage]);
 
   const { data: condominiums, isLoading: condosLoading, isError: condosError, error: condosErrorMsg } = useQuery<ExternalCondominium[]>({
     queryKey: ['/api/external-condominiums'],
@@ -614,6 +637,67 @@ export default function ExternalCondominiums() {
 
     return matchesSearch && matchesCondominium && matchesRentalStatus && matchesUnitStatus;
   }) || [];
+
+  // Sort units with useMemo
+  const sortedUnits = useMemo(() => {
+    return [...filteredUnits].sort((a, b) => {
+      if (!unitsSortColumn) return 0;
+      
+      let aVal: any = (a as any)[unitsSortColumn];
+      let bVal: any = (b as any)[unitsSortColumn];
+      
+      // Special case for condominium name
+      if (unitsSortColumn === 'condominiumName') {
+        aVal = getCondominiumName(a.condominiumId);
+        bVal = getCondominiumName(b.condominiumId);
+      }
+      
+      // Handle numeric columns
+      if (unitsSortColumn === 'bedrooms' || unitsSortColumn === 'bathrooms' || unitsSortColumn === 'squareMeters') {
+        const aNum = parseFloat(aVal || '0');
+        const bNum = parseFloat(bVal || '0');
+        return unitsSortDirection === "asc" ? aNum - bNum : bNum - aNum;
+      }
+      
+      // Handle boolean columns
+      if (unitsSortColumn === 'isActive') {
+        const aActive = aVal ? 1 : 0;
+        const bActive = bVal ? 1 : 0;
+        return unitsSortDirection === "asc" ? aActive - bActive : bActive - aActive;
+      }
+      
+      // Handle string columns
+      if (typeof aVal === "string" || typeof bVal === "string") {
+        aVal = (aVal || '').toString().toLowerCase();
+        bVal = (bVal || '').toString().toLowerCase();
+      }
+      
+      if (aVal < bVal) return unitsSortDirection === "asc" ? -1 : 1;
+      if (aVal > bVal) return unitsSortDirection === "asc" ? 1 : -1;
+      return 0;
+    });
+  }, [filteredUnits, unitsSortColumn, unitsSortDirection, getCondominiumName]);
+
+  // Paginate units
+  const paginatedUnits = useMemo(() => {
+    return sortedUnits.slice((unitsPage - 1) * unitsPerPage, unitsPage * unitsPerPage);
+  }, [sortedUnits, unitsPage, unitsPerPage]);
+  
+  const unitsTotalPages = Math.ceil(sortedUnits.length / unitsPerPage);
+
+  const handleUnitsSort = (column: string) => {
+    if (unitsSortColumn === column) {
+      setUnitsSortDirection(unitsSortDirection === "asc" ? "desc" : "asc");
+    } else {
+      setUnitsSortColumn(column);
+      setUnitsSortDirection("asc");
+    }
+  };
+
+  const getUnitsSortIcon = (column: string) => {
+    if (unitsSortColumn !== column) return null;
+    return unitsSortDirection === "asc" ? "↑" : "↓";
+  };
 
   const filteredCondominiums = condominiums?.filter(condo => {
     // Filter by search text (name or address)
@@ -1306,21 +1390,37 @@ export default function ExternalCondominiums() {
                 <Table>
                   <TableHeader>
                     <TableRow>
-                      <TableHead className="min-w-[120px]">{language === "es" ? "Número" : "Number"}</TableHead>
-                      <TableHead className="min-w-[180px]">{language === "es" ? "Condominio" : "Condominium"}</TableHead>
-                      <TableHead className="min-w-[120px]">{language === "es" ? "Tipología" : "Typology"}</TableHead>
-                      <TableHead className="min-w-[120px]">{language === "es" ? "Piso" : "Floor"}</TableHead>
-                      <TableHead className="min-w-[100px]">{language === "es" ? "Recámaras" : "Bedrooms"}</TableHead>
-                      <TableHead className="min-w-[80px]">{language === "es" ? "Baños" : "Bathrooms"}</TableHead>
-                      <TableHead className="min-w-[80px]">{language === "es" ? "m²" : "sqm"}</TableHead>
-                      <TableHead className="min-w-[120px]">{language === "es" ? "Estado Unidad" : "Unit Status"}</TableHead>
+                      <TableHead className="min-w-[120px] cursor-pointer hover:bg-muted" onClick={() => handleUnitsSort('unitNumber')}>
+                        {language === "es" ? "Número" : "Number"} {getUnitsSortIcon('unitNumber')}
+                      </TableHead>
+                      <TableHead className="min-w-[180px] cursor-pointer hover:bg-muted" onClick={() => handleUnitsSort('condominiumName')}>
+                        {language === "es" ? "Condominio" : "Condominium"} {getUnitsSortIcon('condominiumName')}
+                      </TableHead>
+                      <TableHead className="min-w-[120px] cursor-pointer hover:bg-muted" onClick={() => handleUnitsSort('typology')}>
+                        {language === "es" ? "Tipología" : "Typology"} {getUnitsSortIcon('typology')}
+                      </TableHead>
+                      <TableHead className="min-w-[120px] cursor-pointer hover:bg-muted" onClick={() => handleUnitsSort('floor')}>
+                        {language === "es" ? "Piso" : "Floor"} {getUnitsSortIcon('floor')}
+                      </TableHead>
+                      <TableHead className="min-w-[100px] cursor-pointer hover:bg-muted" onClick={() => handleUnitsSort('bedrooms')}>
+                        {language === "es" ? "Recámaras" : "Bedrooms"} {getUnitsSortIcon('bedrooms')}
+                      </TableHead>
+                      <TableHead className="min-w-[80px] cursor-pointer hover:bg-muted" onClick={() => handleUnitsSort('bathrooms')}>
+                        {language === "es" ? "Baños" : "Bathrooms"} {getUnitsSortIcon('bathrooms')}
+                      </TableHead>
+                      <TableHead className="min-w-[80px] cursor-pointer hover:bg-muted" onClick={() => handleUnitsSort('squareMeters')}>
+                        {language === "es" ? "m²" : "sqm"} {getUnitsSortIcon('squareMeters')}
+                      </TableHead>
+                      <TableHead className="min-w-[120px] cursor-pointer hover:bg-muted" onClick={() => handleUnitsSort('isActive')}>
+                        {language === "es" ? "Estado Unidad" : "Unit Status"} {getUnitsSortIcon('isActive')}
+                      </TableHead>
                       <TableHead className="min-w-[120px]">{language === "es" ? "Renta" : "Rental"}</TableHead>
                       <TableHead className="min-w-[100px]">{language === "es" ? "Servicios" : "Services"}</TableHead>
                       <TableHead className="text-right min-w-[150px]">{language === "es" ? "Acciones" : "Actions"}</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {filteredUnits.map((unit) => {
+                    {paginatedUnits.map((unit) => {
                       const condo = condominiums?.find(c => c.id === unit.condominiumId);
                       const hasRental = hasActiveRental(unit.id);
                       const unitServices = allUnitServices?.[unit.id] || [];
@@ -1447,6 +1547,89 @@ export default function ExternalCondominiums() {
                     })}
                   </TableBody>
                 </Table>
+              </div>
+              
+              {/* Units Pagination Controls */}
+              <div className="flex flex-col sm:flex-row items-center justify-between gap-4 p-4 border-t">
+                <div className="flex items-center gap-2">
+                  <span className="text-sm text-muted-foreground whitespace-nowrap">
+                    {language === 'es' ? 'Mostrar' : 'Show'}
+                  </span>
+                  <Select value={unitsPerPage.toString()} onValueChange={(value) => {
+                    setUnitsPerPage(Number(value));
+                    setUnitsPage(1);
+                  }}>
+                    <SelectTrigger className="w-[70px]" data-testid="select-units-per-page">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="5">5</SelectItem>
+                      <SelectItem value="10">10</SelectItem>
+                      <SelectItem value="20">20</SelectItem>
+                      <SelectItem value="30">30</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  <span className="text-sm text-muted-foreground whitespace-nowrap">
+                    {language === 'es' ? 'registros' : 'records'}
+                  </span>
+                </div>
+                
+                <div className="flex items-center gap-2">
+                  <span className="text-sm text-muted-foreground whitespace-nowrap">
+                    {language === 'es' 
+                      ? `Mostrando ${sortedUnits.length === 0 ? 0 : (unitsPage - 1) * unitsPerPage + 1}-${Math.min(unitsPage * unitsPerPage, sortedUnits.length)} de ${sortedUnits.length}`
+                      : `Showing ${sortedUnits.length === 0 ? 0 : (unitsPage - 1) * unitsPerPage + 1}-${Math.min(unitsPage * unitsPerPage, sortedUnits.length)} of ${sortedUnits.length}`
+                    }
+                  </span>
+                </div>
+                
+                <div className="flex items-center gap-1">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setUnitsPage(p => Math.max(1, p - 1))}
+                    disabled={unitsPage === 1}
+                    data-testid="button-units-prev-page"
+                  >
+                    {language === 'es' ? 'Anterior' : 'Previous'}
+                  </Button>
+                  
+                  {Array.from({ length: Math.min(5, unitsTotalPages) }, (_, i) => {
+                    let pageNum;
+                    if (unitsTotalPages <= 5) {
+                      pageNum = i + 1;
+                    } else if (unitsPage <= 3) {
+                      pageNum = i + 1;
+                    } else if (unitsPage >= unitsTotalPages - 2) {
+                      pageNum = unitsTotalPages - 4 + i;
+                    } else {
+                      pageNum = unitsPage - 2 + i;
+                    }
+                    
+                    return (
+                      <Button
+                        key={pageNum}
+                        variant={unitsPage === pageNum ? "default" : "outline"}
+                        size="sm"
+                        onClick={() => setUnitsPage(pageNum)}
+                        data-testid={`button-units-page-${pageNum}`}
+                        className="min-w-[40px]"
+                      >
+                        {pageNum}
+                      </Button>
+                    );
+                  })}
+                  
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setUnitsPage(p => Math.min(unitsTotalPages, p + 1))}
+                    disabled={unitsPage === unitsTotalPages || unitsTotalPages === 0}
+                    data-testid="button-units-next-page"
+                  >
+                    {language === 'es' ? 'Siguiente' : 'Next'}
+                  </Button>
+                </div>
               </div>
             </Card>
           ) : units && units.length > 0 ? (

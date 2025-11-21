@@ -72,6 +72,18 @@ export default function ExternalMaintenanceWorkers() {
   const [deleteAssignmentId, setDeleteAssignmentId] = useState<string | null>(null);
   const [assignmentType, setAssignmentType] = useState<"condominium" | "unit">("condominium");
   const [editingWorkerId, setEditingWorkerId] = useState<string | null>(null);
+  
+  // Assignments table pagination & sorting
+  const [assignmentsPage, setAssignmentsPage] = useState(1);
+  const [assignmentsPerPage, setAssignmentsPerPage] = useState(10);
+  const [assignmentsSortColumn, setAssignmentsSortColumn] = useState<string>("");
+  const [assignmentsSortDirection, setAssignmentsSortDirection] = useState<"asc" | "desc">("asc");
+  
+  // Workers table pagination & sorting
+  const [workersPage, setWorkersPage] = useState(1);
+  const [workersPerPage, setWorkersPerPage] = useState(10);
+  const [workersSortColumn, setWorkersSortColumn] = useState<string>("");
+  const [workersSortDirection, setWorkersSortDirection] = useState<"asc" | "desc">("asc");
 
   const { data: allUsers, isLoading: loadingWorkers } = useQuery<any[]>({
     queryKey: ['/api/external-agency-users'],
