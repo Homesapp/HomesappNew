@@ -479,7 +479,7 @@ export default function ExternalDashboard() {
               </Link>
             </div>
           </CardHeader>
-          <CardContent className="p-3">
+          <CardContent className="space-y-4">
             {isLoading ? (
               <div className="space-y-2">
                 <Skeleton className="h-14 w-full" />
@@ -487,66 +487,68 @@ export default function ExternalDashboard() {
                 <Skeleton className="h-14 w-full" />
               </div>
             ) : todayEvents.length > 0 ? (
-              <div className="space-y-3">
+              <>
                 {Object.entries(groupedByCondominium).map(([condoName, condoEvents]) => (
-                  <Card key={condoName} className="hover-elevate" data-testid={`card-condo-${condoName}`}>
-                    <CardHeader className="pb-2">
-                      <CardTitle className="flex items-center gap-2 text-sm" data-testid={`text-condo-${condoName}`}>
-                        <Home className="h-4 w-4" />
+                  <div key={condoName} className="space-y-3" data-testid={`condo-section-${condoName}`}>
+                    {/* Condominium Header */}
+                    <div className="flex items-center gap-2 pb-2 border-b">
+                      <Home className="h-4 w-4" />
+                      <h3 className="font-semibold text-sm" data-testid={`text-condo-${condoName}`}>
                         {condoName}
-                      </CardTitle>
-                    </CardHeader>
-                    <CardContent className="space-y-3">
-                      {condoEvents.payments.length > 0 && (
-                        <div className="space-y-2">
-                          <h4 className="font-semibold flex items-center gap-2 text-xs">
-                            <DollarSign className="h-3 w-3" />
-                            {language === "es" ? "Pagos de Renta" : "Rental Payments"} ({condoEvents.payments.length})
-                          </h4>
-                          <div className="space-y-2 ml-5">
-                            {condoEvents.payments.map((event: any, idx: number) => (
-                              <div key={idx} className="flex items-center justify-between p-2 rounded-md bg-muted/50" data-testid={`payment-${idx}`}>
-                                <div className="flex items-center gap-3">
-                                  {getServiceIcon(event.serviceType)}
-                                  <div>
-                                    <p className="text-sm font-medium" data-testid={`payment-title-${idx}`}>{event.title}</p>
-                                    <p className="text-xs text-muted-foreground">{language === "es" ? "Unidad" : "Unit"}: {event.unitNumber}</p>
-                                  </div>
-                                </div>
-                                <Badge variant={event.status === 'paid' ? 'default' : 'secondary'} data-testid={`payment-status-${idx}`}>
-                                  {event.status}
-                                </Badge>
-                              </div>
-                            ))}
-                          </div>
-                        </div>
-                      )}
+                      </h3>
+                    </div>
 
-                      {condoEvents.tickets.length > 0 && (
-                        <div className="space-y-2">
-                          <h4 className="font-semibold flex items-center gap-2 text-xs">
-                            <Wrench className="h-3 w-3" />
-                            {language === "es" ? "Mantenimientos" : "Maintenance"} ({condoEvents.tickets.length})
-                          </h4>
-                          <div className="space-y-2 ml-5">
-                            {condoEvents.tickets.map((event: any, idx: number) => (
-                              <div key={idx} className="flex items-center justify-between p-2 rounded-md bg-muted/50" data-testid={`ticket-${idx}`}>
+                    {/* Payments Section */}
+                    {condoEvents.payments.length > 0 && (
+                      <div className="space-y-2">
+                        <h4 className="font-semibold flex items-center gap-2 text-sm">
+                          <DollarSign className="h-4 w-4" />
+                          {language === "es" ? "Pagos de Renta" : "Rental Payments"} ({condoEvents.payments.length})
+                        </h4>
+                        <div className="space-y-2 ml-6">
+                          {condoEvents.payments.map((event: any, idx: number) => (
+                            <div key={idx} className="flex items-center justify-between p-2 rounded-md bg-muted/50" data-testid={`payment-${idx}`}>
+                              <div className="flex items-center gap-3">
+                                {getServiceIcon(event.serviceType)}
                                 <div>
-                                  <p className="text-sm font-medium" data-testid={`ticket-title-${idx}`}>{event.title}</p>
+                                  <p className="text-sm font-medium" data-testid={`payment-title-${idx}`}>{event.title}</p>
                                   <p className="text-xs text-muted-foreground">{language === "es" ? "Unidad" : "Unit"}: {event.unitNumber}</p>
                                 </div>
-                                <Badge variant="secondary" data-testid={`ticket-status-${idx}`}>
-                                  {event.status}
-                                </Badge>
                               </div>
-                            ))}
-                          </div>
+                              <Badge variant={event.status === 'paid' ? 'default' : 'secondary'} data-testid={`payment-status-${idx}`}>
+                                {event.status}
+                              </Badge>
+                            </div>
+                          ))}
                         </div>
-                      )}
-                    </CardContent>
-                  </Card>
+                      </div>
+                    )}
+
+                    {/* Tickets Section */}
+                    {condoEvents.tickets.length > 0 && (
+                      <div className="space-y-2">
+                        <h4 className="font-semibold flex items-center gap-2 text-sm">
+                          <Wrench className="h-4 w-4" />
+                          {language === "es" ? "Mantenimientos" : "Maintenance"} ({condoEvents.tickets.length})
+                        </h4>
+                        <div className="space-y-2 ml-6">
+                          {condoEvents.tickets.map((event: any, idx: number) => (
+                            <div key={idx} className="flex items-center justify-between p-2 rounded-md bg-muted/50" data-testid={`ticket-${idx}`}>
+                              <div>
+                                <p className="text-sm font-medium" data-testid={`ticket-title-${idx}`}>{event.title}</p>
+                                <p className="text-xs text-muted-foreground">{language === "es" ? "Unidad" : "Unit"}: {event.unitNumber}</p>
+                              </div>
+                              <Badge variant="secondary" data-testid={`ticket-status-${idx}`}>
+                                {event.status}
+                              </Badge>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                  </div>
                 ))}
-              </div>
+              </>
             ) : (
               <div className="flex flex-col items-center justify-center py-8 text-center">
                 <Calendar className="h-10 w-10 text-muted-foreground/40 mb-2" />
