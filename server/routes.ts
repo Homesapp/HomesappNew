@@ -23351,9 +23351,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       const { ObjectStorageService } = await import("./objectStorage");
       const objectStorageService = new ObjectStorageService();
-      const uploadURL = await objectStorageService.getObjectEntityUploadURL("client-documents");
+      const { uploadURL, objectPath } = await objectStorageService.getObjectEntityUploadURL("client-documents");
       
-      res.json({ uploadURL });
+      res.json({ uploadURL, objectPath });
     } catch (error: any) {
       console.error("Error generating upload URL:", error);
       handleGenericError(res, error);
@@ -23375,7 +23375,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       const { ObjectStorageService } = await import("./objectStorage");
       const objectStorageService = new ObjectStorageService();
-      const storageKey = objectStorageService.normalizeObjectEntityPath(req.body.uploadURL);
+      const storageKey = req.body.objectPath;
       
       const validatedData = insertExternalClientDocumentSchema.parse({
         ...req.body,

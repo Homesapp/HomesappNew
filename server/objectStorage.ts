@@ -42,18 +42,22 @@ export class ObjectStorageService {
     return dir;
   }
 
-  async getObjectEntityUploadURL(subpath: string = "uploads"): Promise<string> {
+  async getObjectEntityUploadURL(subpath: string = "uploads"): Promise<{ uploadURL: string; objectPath: string }> {
     const privateObjectDir = this.getPrivateObjectDir();
     const objectId = randomUUID();
     const fullPath = `${privateObjectDir}/${subpath}/${objectId}`;
     const { bucketName, objectName } = parseObjectPath(fullPath);
 
-    return signObjectURL({
+    const uploadURL = await signObjectURL({
       bucketName,
       objectName,
       method: "PUT",
       ttlSec: 900,
     });
+
+    // Return both the uploadURL and the normalized object path
+    const objectPath = `/objects/${subpath}/${objectId}`;
+    return { uploadURL, objectPath };
   }
 
   async getObjectEntityFile(objectPath: string): Promise<File> {

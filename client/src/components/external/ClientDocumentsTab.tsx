@@ -63,7 +63,7 @@ export default function ClientDocumentsTab({ clientId, documents, isLoading, isE
       if (!selectedFile) throw new Error("No file selected");
 
       // Step 1: Get upload URL
-      const { uploadURL } = await apiRequest("POST", `/api/external-clients/${clientId}/documents/upload-url`, {});
+      const { uploadURL, objectPath } = await apiRequest("POST", `/api/external-clients/${clientId}/documents/upload-url`, {});
 
       // Step 2: Upload file directly to Object Storage
       const uploadResponse = await fetch(uploadURL, {
@@ -80,7 +80,7 @@ export default function ClientDocumentsTab({ clientId, documents, isLoading, isE
 
       // Step 3: Create document record
       return apiRequest("POST", `/api/external-clients/${clientId}/documents`, {
-        uploadURL,
+        objectPath,
         documentType,
         fileName: selectedFile.name,
         mimeType: selectedFile.type,
