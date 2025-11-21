@@ -41,9 +41,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Textarea } from "@/components/ui/textarea";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
-  Users,
   Plus,
   Filter,
   Search,
@@ -402,40 +400,40 @@ export default function ExternalClients() {
         </Button>
       </div>
 
-      <Tabs defaultValue="clients" className="w-full">
-        <TabsList>
-          <TabsTrigger value="clients" data-testid="tab-clients">
-            <Users className="mr-2 h-4 w-4" />
-            {language === "es" ? "Clientes" : "Clients"}
-          </TabsTrigger>
-        </TabsList>
+      {/* Search and Filters */}
+      <Card>
+        <CardContent className="pt-6">
+          <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
+            {/* Search Input - Always visible */}
+            <div className="relative flex-1">
+              <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+              <Input
+                placeholder={language === "es" ? "Buscar por nombre, email o teléfono..." : "Search by name, email or phone..."}
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="pl-10"
+                data-testid="input-search"
+              />
+            </div>
 
-        <TabsContent value="clients" className="space-y-4">
-        <div className="relative">
-          <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-          <Input
-            placeholder={language === "es" ? "Buscar por nombre, email o teléfono..." : "Search by name, email or phone..."}
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            className="pl-10"
-            data-testid="input-search"
-          />
-        </div>
-
-        <div className="flex items-center gap-2 flex-wrap">
-          <Popover>
-            <PopoverTrigger asChild>
-              <Button variant="outline" size="sm" className="gap-1" data-testid="button-filters">
-                <Filter className="h-3 w-3" />
-                {language === "es" ? "Filtros" : "Filters"}
-                {(statusFilter !== "all" || verifiedFilter !== "all") && (
-                  <Badge variant="secondary" className="ml-1 rounded-full px-1 text-[10px] h-4 min-w-4">
-                    {(statusFilter !== "all" ? 1 : 0) + (verifiedFilter !== "all" ? 1 : 0)}
-                  </Badge>
-                )}
-              </Button>
-            </PopoverTrigger>
-            <PopoverContent className="w-72 p-4" align="start">
+            {/* Filter Button with Popover - Icon only */}
+            <Popover>
+              <PopoverTrigger asChild>
+                <Button 
+                  variant="outline" 
+                  size="icon"
+                  className="flex-shrink-0 relative"
+                  data-testid="button-filters"
+                >
+                  <Filter className="h-4 w-4" />
+                  {(statusFilter !== "all" || verifiedFilter !== "all") && (
+                    <Badge variant="default" className="absolute -top-1 -right-1 h-4 w-4 p-0 flex items-center justify-center text-[10px]">
+                      {(statusFilter !== "all" ? 1 : 0) + (verifiedFilter !== "all" ? 1 : 0)}
+                    </Badge>
+                  )}
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-72 p-4" align="end">
               <div className="space-y-4">
                 <div>
                   <label className="text-sm font-medium mb-2 block">
@@ -481,7 +479,7 @@ export default function ExternalClients() {
                     className="w-full"
                     data-testid="button-clear-filters"
                   >
-                    <X className="h-3 w-3 mr-1" />
+                    <X className="h-4 w-4 mr-2" />
                     {language === "es" ? "Limpiar Filtros" : "Clear Filters"}
                   </Button>
                 )}
@@ -489,27 +487,32 @@ export default function ExternalClients() {
             </PopoverContent>
           </Popover>
 
+          {/* View Mode Toggle - Desktop only */}
           {!isMobile && (
-            <div className="flex items-center gap-1 ml-auto">
+            <>
               <Button
                 variant={viewMode === "cards" ? "default" : "outline"}
-                size="sm"
+                size="icon"
+                className="flex-shrink-0"
                 onClick={() => setViewMode("cards")}
                 data-testid="button-view-cards"
               >
-                <LayoutGrid className="h-3 w-3" />
+                <LayoutGrid className="h-4 w-4" />
               </Button>
               <Button
                 variant={viewMode === "table" ? "default" : "outline"}
-                size="sm"
+                size="icon"
+                className="flex-shrink-0"
                 onClick={() => setViewMode("table")}
                 data-testid="button-view-table"
               >
-                <TableIcon className="h-3 w-3" />
+                <TableIcon className="h-4 w-4" />
               </Button>
-            </div>
+            </>
           )}
-        </div>
+          </div>
+        </CardContent>
+      </Card>
 
         {/* Results */}
         {isLoading ? (
@@ -693,10 +696,8 @@ export default function ExternalClients() {
             </CardContent>
           </Card>
         )}
-        </div>
-      )}
-        </TabsContent>
-      </Tabs>
+          </div>
+        )}
 
       {/* Create Dialog */}
       <Dialog open={isCreateDialogOpen} onOpenChange={setIsCreateDialogOpen}>
