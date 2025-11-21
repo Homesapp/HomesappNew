@@ -9,8 +9,9 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { useToast } from "@/hooks/use-toast";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { apiRequest, queryClient } from "@/lib/queryClient";
-import { Wrench, Plus, AlertCircle } from "lucide-react";
+import { Wrench, Plus, AlertCircle, Search, Filter, X } from "lucide-react";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -30,8 +31,10 @@ export default function ExternalMaintenanceTickets() {
   const { toast } = useToast();
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editingTicket, setEditingTicket] = useState<ExternalMaintenanceTicket | null>(null);
+  const [searchTerm, setSearchTerm] = useState("");
   const [filterStatus, setFilterStatus] = useState<string>("all");
   const [filterPriority, setFilterPriority] = useState<string>("all");
+  const [showFilters, setShowFilters] = useState(false);
 
   const { data: properties } = useQuery<ExternalProperty[]>({
     queryKey: ['/api/external-properties'],
@@ -169,8 +172,24 @@ export default function ExternalMaintenanceTickets() {
   };
 
   const filteredTickets = tickets?.filter((ticket) => {
+    // Search filter
+    if (searchTerm) {
+      const searchLower = searchTerm.toLowerCase();
+      const title = ticket.title.toLowerCase();
+      const description = ticket.description?.toLowerCase() || '';
+      const propertyAddress = getPropertyAddress(ticket.propertyId).toLowerCase();
+      
+      if (!title.includes(searchLower) && !description.includes(searchLower) && !propertyAddress.includes(searchLower)) {
+        return false;
+      }
+    }
+    
+    // Status filter
     if (filterStatus !== "all" && ticket.status !== filterStatus) return false;
+    
+    // Priority filter
     if (filterPriority !== "all" && ticket.priority !== filterPriority) return false;
+    
     return true;
   });
 
@@ -348,34 +367,175 @@ export default function ExternalMaintenanceTickets() {
         </Dialog>
       </div>
 
-      <div className="flex gap-4">
-        <Select value={filterStatus} onValueChange={setFilterStatus}>
-          <SelectTrigger className="w-[200px]" data-testid="select-filter-status">
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">{language === "es" ? "Todos los estados" : "All statuses"}</SelectItem>
-            <SelectItem value="open">{language === "es" ? "Abierto" : "Open"}</SelectItem>
-            <SelectItem value="in_progress">{language === "es" ? "En Progreso" : "In Progress"}</SelectItem>
-            <SelectItem value="resolved">{language === "es" ? "Resuelto" : "Resolved"}</SelectItem>
-            <SelectItem value="cancelled">{language === "es" ? "Cancelado" : "Cancelled"}</SelectItem>
-          </SelectContent>
-        </Select>
+      {/* Search and Filters */}
+      <Card>
+        <CardContent className="pt-6">
+          <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
+            {/* Search Input */}
+            <div className="relative flex-1">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+              <Input
+                placeholder={language === "es" ? "Buscar tickets..." : "Search tickets..."}
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="pl-10"
+                data-testid="input-search-tickets"
+              />
+            </div>
 
-        <Select value={filterPriority} onValueChange={setFilterPriority}>
-          <SelectTrigger className="w-[200px]" data-testid="select-filter-priority">
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">{language === "es" ? "Todas las prioridades" : "All priorities"}</SelectItem>
-            <SelectItem value="emergency">{language === "es" ? "Emergencia" : "Emergency"}</SelectItem>
-            <SelectItem value="urgent">{language === "es" ? "Urgente" : "Urgent"}</SelectItem>
-            <SelectItem value="high">{language === "es" ? "Alta" : "High"}</SelectItem>
-            <SelectItem value="normal">{language === "es" ? "Normal" : "Normal"}</SelectItem>
-            <SelectItem value="low">{language === "es" ? "Baja" : "Low"}</SelectItem>
-          </SelectContent>
-        </Select>
-      </div>
+            {/* Filter Button with Popover */}
+            <Popover open={showFilters} onOpenChange={setShowFilters}>
+              <PopoverTrigger asChild>
+                <Button 
+                  variant="outline" 
+                  size="icon"
+                  className="flex-shrink-0 relative"
+                  data-testid="button-filters"
+                >
+                  <Filter className="h-4 w-4" />
+                  {(filterStatus !== "all" || filterPriority !== "all") && (
+                    <Badge variant="default" className="absolute -top-1 -right-1 h-4 w-4 p-0 flex items-center justify-center text-[10px]">
+                      {[filterStatus !== "all", filterPriority !== "all"].filter(Boolean).length}
+                    </Badge>
+                  )}
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-96 max-h-[600px] overflow-y-auto" align="end">
+                <div className="space-y-4">
+                  <div className="space-y-2">
+                    <h4 className="font-medium text-sm">
+                      {language === 'es' ? 'Filtrar por' : 'Filter by'}
+                    </h4>
+                    
+                    {/* Status Filter */}
+                    <div className="space-y-2">
+                      <label className="text-sm text-muted-foreground">
+                        {language === 'es' ? 'Estado' : 'Status'}
+                      </label>
+                      <div className="flex gap-2 flex-wrap">
+                        <Button
+                          variant={filterStatus === "all" ? "default" : "outline"}
+                          size="sm"
+                          onClick={() => setFilterStatus("all")}
+                          data-testid="button-filter-status-all"
+                        >
+                          {language === 'es' ? 'Todos' : 'All'}
+                        </Button>
+                        <Button
+                          variant={filterStatus === "open" ? "default" : "outline"}
+                          size="sm"
+                          onClick={() => setFilterStatus("open")}
+                          data-testid="button-filter-status-open"
+                        >
+                          {language === 'es' ? 'Abierto' : 'Open'}
+                        </Button>
+                        <Button
+                          variant={filterStatus === "in_progress" ? "default" : "outline"}
+                          size="sm"
+                          onClick={() => setFilterStatus("in_progress")}
+                          data-testid="button-filter-status-in-progress"
+                        >
+                          {language === 'es' ? 'En Progreso' : 'In Progress'}
+                        </Button>
+                        <Button
+                          variant={filterStatus === "resolved" ? "default" : "outline"}
+                          size="sm"
+                          onClick={() => setFilterStatus("resolved")}
+                          data-testid="button-filter-status-resolved"
+                        >
+                          {language === 'es' ? 'Resuelto' : 'Resolved'}
+                        </Button>
+                        <Button
+                          variant={filterStatus === "cancelled" ? "default" : "outline"}
+                          size="sm"
+                          onClick={() => setFilterStatus("cancelled")}
+                          data-testid="button-filter-status-cancelled"
+                        >
+                          {language === 'es' ? 'Cancelado' : 'Cancelled'}
+                        </Button>
+                      </div>
+                    </div>
+
+                    {/* Priority Filter */}
+                    <div className="space-y-2">
+                      <label className="text-sm text-muted-foreground">
+                        {language === 'es' ? 'Prioridad' : 'Priority'}
+                      </label>
+                      <div className="flex gap-2 flex-wrap">
+                        <Button
+                          variant={filterPriority === "all" ? "default" : "outline"}
+                          size="sm"
+                          onClick={() => setFilterPriority("all")}
+                          data-testid="button-filter-priority-all"
+                        >
+                          {language === 'es' ? 'Todas' : 'All'}
+                        </Button>
+                        <Button
+                          variant={filterPriority === "emergency" ? "default" : "outline"}
+                          size="sm"
+                          onClick={() => setFilterPriority("emergency")}
+                          data-testid="button-filter-priority-emergency"
+                        >
+                          {language === 'es' ? 'Emergencia' : 'Emergency'}
+                        </Button>
+                        <Button
+                          variant={filterPriority === "urgent" ? "default" : "outline"}
+                          size="sm"
+                          onClick={() => setFilterPriority("urgent")}
+                          data-testid="button-filter-priority-urgent"
+                        >
+                          {language === 'es' ? 'Urgente' : 'Urgent'}
+                        </Button>
+                        <Button
+                          variant={filterPriority === "high" ? "default" : "outline"}
+                          size="sm"
+                          onClick={() => setFilterPriority("high")}
+                          data-testid="button-filter-priority-high"
+                        >
+                          {language === 'es' ? 'Alta' : 'High'}
+                        </Button>
+                        <Button
+                          variant={filterPriority === "normal" ? "default" : "outline"}
+                          size="sm"
+                          onClick={() => setFilterPriority("normal")}
+                          data-testid="button-filter-priority-normal"
+                        >
+                          {language === 'es' ? 'Normal' : 'Normal'}
+                        </Button>
+                        <Button
+                          variant={filterPriority === "low" ? "default" : "outline"}
+                          size="sm"
+                          onClick={() => setFilterPriority("low")}
+                          data-testid="button-filter-priority-low"
+                        >
+                          {language === 'es' ? 'Baja' : 'Low'}
+                        </Button>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Clear Filters Button */}
+                  {(filterStatus !== "all" || filterPriority !== "all") && (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => {
+                        setFilterStatus("all");
+                        setFilterPriority("all");
+                      }}
+                      className="w-full"
+                      data-testid="button-clear-filters"
+                    >
+                      <X className="h-4 w-4 mr-2" />
+                      {language === 'es' ? 'Limpiar filtros' : 'Clear filters'}
+                    </Button>
+                  )}
+                </div>
+              </PopoverContent>
+            </Popover>
+          </div>
+        </CardContent>
+      </Card>
 
       <Card>
         <CardHeader>
