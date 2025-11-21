@@ -185,6 +185,10 @@ export default function ExternalMaintenance() {
   const [sortColumn, setSortColumn] = useState<string>('created');
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('desc');
   
+  // Pagination options
+  const cardsPerPageOptions = [3, 6, 9, 12];
+  const tablePerPageOptions = [5, 10, 20, 30];
+  
   // Auto-switch view mode on genuine breakpoint transitions
   useEffect(() => {
     if (isMobile !== prevIsMobile) {
@@ -196,6 +200,13 @@ export default function ExternalMaintenance() {
       }
     }
   }, [isMobile, prevIsMobile, manualViewModeOverride]);
+  
+  // Auto-adjust itemsPerPage when switching view modes
+  useEffect(() => {
+    const defaultForMode = viewMode === "cards" ? cardsPerPageOptions[0] : tablePerPageOptions[0];
+    setItemsPerPage(defaultForMode);
+    setCurrentPage(1);
+  }, [viewMode]);
 
   const { data: tickets, isLoading: ticketsLoading } = useQuery<ExternalMaintenanceTicket[]>({
     queryKey: ['/api/external-tickets'],
@@ -1280,10 +1291,11 @@ export default function ExternalMaintenance() {
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="5">5</SelectItem>
-                    <SelectItem value="10">10</SelectItem>
-                    <SelectItem value="20">20</SelectItem>
-                    <SelectItem value="30">30</SelectItem>
+                    {tablePerPageOptions.map(option => (
+                      <SelectItem key={option} value={option.toString()}>
+                        {option}
+                      </SelectItem>
+                    ))}
                   </SelectContent>
                 </Select>
               </div>
