@@ -1247,6 +1247,13 @@ export interface IStorage {
   completeExternalCheckoutReport(id: string): Promise<ExternalCheckoutReport>;
   deleteExternalCheckoutReport(id: string): Promise<void>;
 
+  // External Management System - Client operations
+  getExternalClient(id: string): Promise<ExternalClient | undefined>;
+  getExternalClientsByAgency(agencyId: string, filters?: { status?: string; isVerified?: boolean }): Promise<ExternalClient[]>;
+  createExternalClient(client: InsertExternalClient): Promise<ExternalClient>;
+  updateExternalClient(id: string, updates: Partial<InsertExternalClient>): Promise<ExternalClient>;
+  deleteExternalClient(id: string): Promise<void>;
+
   // External Management System - Financial Transaction operations
   getExternalFinancialTransaction(id: string): Promise<ExternalFinancialTransaction | undefined>;
   getExternalFinancialTransactionsByAgency(
@@ -8541,6 +8548,57 @@ export class DatabaseStorage implements IStorage {
   async deleteExternalCheckoutReport(id: string): Promise<void> {
     await db.delete(externalCheckoutReports)
       .where(eq(externalCheckoutReports.id, id));
+  }
+
+  // External Client operations
+  async getExternalClient(id: string): Promise<ExternalClient | undefined> {
+    const [client] = await db.select()
+      .from(externalClients)
+      .where(eq(externalClients.id, id))
+      .limit(1);
+    return client;
+  }
+
+  async getExternalClientsByAgency(agencyId: string, filters?: { status?: string; isVerified?: boolean }): Promise<ExternalClient[]> {
+    const conditions = [eq(externalClients.agencyId, agencyId)];
+    
+    if (filters?.status) {
+      conditions.push(eq(externalClients.status, filters.status));
+    }
+    if (filters?.isVerified !== undefined) {
+      conditions.push(eq(externalClients.isVerified, filters.isVerified));
+    }
+    
+    return await db.select()
+      .from(externalClients)
+      .where(and(...conditions))
+      .orderBy(desc(externalClients.createdAt));
+  }
+
+  async createExternalClient(client: InsertExternalClient): Promise<ExternalClient> {
+    const [result] = await db.insert(externalClients)
+      .values({
+        ...client,
+        id: crypto.randomUUID(),
+      })
+      .returning();
+    return result;
+  }
+
+  async updateExternalClient(id: string, updates: Partial<InsertExternalClient>): Promise<ExternalClient> {
+    const [result] = await db.update(externalClients)
+      .set({
+        ...updates,
+        updatedAt: new Date(),
+      })
+      .where(eq(externalClients.id, id))
+      .returning();
+    return result;
+  }
+
+  async deleteExternalClient(id: string): Promise<void> {
+    await db.delete(externalClients)
+      .where(eq(externalClients.id, id));
   }
 
   // External Financial Transaction operations

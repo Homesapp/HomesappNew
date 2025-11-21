@@ -23058,6 +23058,122 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // ==============================
+  // External Clients Routes
+  // ==============================
+
+  // GET /api/external-clients - Get all clients for agency
+  app.get("/api/external-clients", isAuthenticated, requireRole(EXTERNAL_ALL_ROLES), async (req: any, res) => {
+    try {
+      const agencyId = await getUserAgencyId(req);
+      if (!agencyId) {
+        return res.status(403).json({ message: "No agency access" });
+      }
+      
+      const { status, isVerified } = req.query;
+      const clients = await storage.getExternalClientsByAgency(agencyId, {
+        status: status as string | undefined,
+        isVerified: isVerified === 'true' ? true : isVerified === 'false' ? false : undefined,
+      });
+      
+      res.json(clients);
+    } catch (error: any) {
+      console.error("Error fetching external clients:", error);
+      handleGenericError(res, error);
+    }
+  });
+
+  // GET /api/external-clients/:id - Get specific client
+  app.get("/api/external-clients/:id", isAuthenticated, requireRole(EXTERNAL_ALL_ROLES), async (req: any, res) => {
+    try {
+      const { id } = req.params;
+      const client = await storage.getExternalClient(id);
+      
+      if (!client) {
+        return res.status(404).json({ message: "Client not found" });
+      }
+      
+      const hasAccess = await verifyExternalAgencyOwnership(req, res, client.agencyId);
+      if (!hasAccess) return;
+      
+      res.json(client);
+    } catch (error: any) {
+      console.error("Error fetching external client:", error);
+      handleGenericError(res, error);
+    }
+  });
+
+  // POST /api/external-clients - Create new client
+  app.post("/api/external-clients", isAuthenticated, requireRole(EXTERNAL_ADMIN_ROLES), async (req: any, res) => {
+    try {
+      const agencyId = await getUserAgencyId(req);
+      if (!agencyId) {
+        return res.status(403).json({ message: "No agency access" });
+      }
+      
+      const validatedData = insertExternalClientSchema.parse(req.body);
+      
+      const client = await storage.createExternalClient({
+        ...validatedData,
+        agencyId,
+        createdBy: req.user.id,
+      });
+      
+      await createAuditLog(req, "create", "external_client", client.id, "Created new client");
+      res.status(201).json(client);
+    } catch (error: any) {
+      console.error("Error creating external client:", error);
+      handleGenericError(res, error);
+    }
+  });
+
+  // PATCH /api/external-clients/:id - Update client
+  app.patch("/api/external-clients/:id", isAuthenticated, requireRole(EXTERNAL_ADMIN_ROLES), async (req: any, res) => {
+    try {
+      const { id } = req.params;
+      const existing = await storage.getExternalClient(id);
+      
+      if (!existing) {
+        return res.status(404).json({ message: "Client not found" });
+      }
+      
+      const hasAccess = await verifyExternalAgencyOwnership(req, res, existing.agencyId);
+      if (!hasAccess) return;
+      
+      const validatedData = updateExternalClientSchema.parse(req.body);
+      const client = await storage.updateExternalClient(id, validatedData);
+      
+      await createAuditLog(req, "update", "external_client", id, "Updated client");
+      res.json(client);
+    } catch (error: any) {
+      console.error("Error updating external client:", error);
+      handleGenericError(res, error);
+    }
+  });
+
+  // DELETE /api/external-clients/:id - Delete client
+  app.delete("/api/external-clients/:id", isAuthenticated, requireRole(EXTERNAL_ADMIN_ROLES), async (req: any, res) => {
+    try {
+      const { id } = req.params;
+      const existing = await storage.getExternalClient(id);
+      
+      if (!existing) {
+        return res.status(404).json({ message: "Client not found" });
+      }
+      
+      const hasAccess = await verifyExternalAgencyOwnership(req, res, existing.agencyId);
+      if (!hasAccess) return;
+      
+      await storage.deleteExternalClient(id);
+      
+      await createAuditLog(req, "delete", "external_client", id, "Deleted client");
+      res.status(204).send();
+    } catch (error: any) {
+      console.error("Error deleting external client:", error);
+      handleGenericError(res, error);
+    }
+  });
+
   // Optimized endpoints for rental filters
   // Get distinct condominiums for filter dropdowns
   app.get("/api/external-condominiums-for-filters", isAuthenticated, requireRole(EXTERNAL_ALL_ROLES), async (req: any, res) => {
