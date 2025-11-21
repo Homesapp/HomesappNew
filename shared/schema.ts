@@ -4878,6 +4878,36 @@ export const insertExternalAgencySchema = createInsertSchema(externalAgencies).o
 export type InsertExternalAgency = z.infer<typeof insertExternalAgencySchema>;
 export type ExternalAgency = typeof externalAgencies.$inferSelect;
 
+// External Agency Users - Usuarios independientes por agencia (completamente separados de la tabla users principal)
+// Permite que el mismo email exista en múltiples agencias sin conflicto
+export const externalAgencyUsers = pgTable("external_agency_users", {
+  id: varchar("id").primaryKey().$defaultFn(() => crypto.randomUUID()),
+  agencyId: varchar("agency_id").notNull().references(() => externalAgencies.id, { onDelete: "cascade" }),
+  name: varchar("name", { length: 255 }).notNull(),
+  email: varchar("email", { length: 255 }).notNull(), // Puede repetirse entre agencias
+  passwordHash: varchar("password_hash", { length: 255 }).notNull(),
+  role: varchar("role", { length: 50 }).notNull().default("external_worker"), // external_agency_admin o external_worker
+  status: varchar("status", { length: 50 }).notNull().default("approved"),
+  emailVerified: boolean("email_verified").notNull().default(false),
+  requirePasswordChange: boolean("require_password_change").notNull().default(false),
+  lastLoginAt: timestamp("last_login_at"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+}, (table) => [
+  index("idx_external_agency_users_agency").on(table.agencyId),
+  index("idx_external_agency_users_email_agency").on(table.email, table.agencyId), // Email único por agencia
+  unique("unique_email_per_agency").on(table.email, table.agencyId), // Constraint: email único dentro de cada agencia
+]);
+
+export const insertExternalAgencyUserSchema = createInsertSchema(externalAgencyUsers).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export type InsertExternalAgencyUser = z.infer<typeof insertExternalAgencyUserSchema>;
+export type ExternalAgencyUser = typeof externalAgencyUsers.$inferSelect;
+
 // External Properties - Propiedades gestionadas externamente
 export const externalProperties = pgTable("external_properties", {
   id: varchar("id").primaryKey().$defaultFn(() => crypto.randomUUID()),

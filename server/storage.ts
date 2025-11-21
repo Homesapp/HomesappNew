@@ -314,6 +314,9 @@ import {
   externalAgencies,
   type ExternalAgency,
   type InsertExternalAgency,
+  externalAgencyUsers,
+  type ExternalAgencyUser,
+  type InsertExternalAgencyUser,
   externalProperties,
   type ExternalProperty,
   type InsertExternalProperty,
@@ -7480,6 +7483,65 @@ export class DatabaseStorage implements IStorage {
   async deleteExternalAgency(id: string): Promise<void> {
     await db.delete(externalAgencies)
       .where(eq(externalAgencies.id, id));
+  }
+
+  // External Agency Users - Gestión de usuarios independientes por agencia
+  async getExternalAgencyUsersByAgency(agencyId: string): Promise<ExternalAgencyUser[]> {
+    const result = await db.select()
+      .from(externalAgencyUsers)
+      .where(eq(externalAgencyUsers.agencyId, agencyId))
+      .orderBy(desc(externalAgencyUsers.createdAt));
+    
+    // Remove sensitive fields from response
+    return result.map(user => {
+      const { passwordHash, ...safeUser } = user;
+      return safeUser as ExternalAgencyUser;
+    });
+  }
+
+  async getExternalAgencyUser(id: string): Promise<ExternalAgencyUser | undefined> {
+    const [user] = await db.select()
+      .from(externalAgencyUsers)
+      .where(eq(externalAgencyUsers.id, id))
+      .limit(1);
+    return user;
+  }
+
+  async getExternalAgencyUserByEmail(agencyId: string, email: string): Promise<ExternalAgencyUser | undefined> {
+    const [user] = await db.select()
+      .from(externalAgencyUsers)
+      .where(and(
+        eq(externalAgencyUsers.agencyId, agencyId),
+        eq(externalAgencyUsers.email, email)
+      ))
+      .limit(1);
+    return user;
+  }
+
+  async createExternalAgencyUser(userData: InsertExternalAgencyUser): Promise<ExternalAgencyUser> {
+    const [user] = await db.insert(externalAgencyUsers)
+      .values(userData)
+      .returning();
+    return user;
+  }
+
+  async updateExternalAgencyUser(id: string, updates: Partial<InsertExternalAgencyUser>): Promise<ExternalAgencyUser> {
+    const [user] = await db.update(externalAgencyUsers)
+      .set({ ...updates, updatedAt: new Date() })
+      .where(eq(externalAgencyUsers.id, id))
+      .returning();
+    return user;
+  }
+
+  async deleteExternalAgencyUser(id: string): Promise<void> {
+    await db.delete(externalAgencyUsers)
+      .where(eq(externalAgencyUsers.id, id));
+  }
+
+  async updateExternalAgencyUserLastLogin(id: string): Promise<void> {
+    await db.update(externalAgencyUsers)
+      .set({ lastLoginAt: new Date() })
+      .where(eq(externalAgencyUsers.id, id));
   }
 
   // External Management System - Property operations
