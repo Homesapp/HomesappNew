@@ -40,9 +40,9 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
 const rentalFormSchema = z.object({
-  tenantName: z.string().min(1, "Nombre del inquilino requerido"),
-  tenantEmail: z.string().email("Email inválido"),
-  tenantPhone: z.string().min(1, "Teléfono requerido"),
+  tenantName: z.string().optional(),
+  tenantEmail: z.string().optional(),
+  tenantPhone: z.string().optional(),
   tenantIdPhotoUrl: z.string().optional(),
   startDate: z.coerce.date(),
   endDate: z.coerce.date(),
@@ -74,6 +74,8 @@ export default function RentalWizard({ open, onOpenChange }: RentalWizardProps) 
   const [step, setStep] = useState(1);
   const [selectedCondominiumId, setSelectedCondominiumId] = useState<string>("");
   const [selectedUnitId, setSelectedUnitId] = useState<string>("");
+  const [useExistingClient, setUseExistingClient] = useState(false);
+  const [selectedClientId, setSelectedClientId] = useState<string>("");
   const [additionalServices, setAdditionalServices] = useState<Array<{
     serviceType: string;
     amount: string;
@@ -104,6 +106,11 @@ export default function RentalWizard({ open, onOpenChange }: RentalWizardProps) 
       return response.json();
     },
     enabled: open,
+  });
+
+  const { data: clients, isLoading: clientsLoading } = useQuery<any[]>({
+    queryKey: ["/api/external-clients"],
+    enabled: open && step === 3,
   });
 
   const form = useForm<RentalFormData>({
@@ -157,6 +164,8 @@ export default function RentalWizard({ open, onOpenChange }: RentalWizardProps) 
     setStep(1);
     setSelectedCondominiumId("");
     setSelectedUnitId("");
+    setUseExistingClient(false);
+    setSelectedClientId("");
     setAdditionalServices([]);
     setAdditionalTenants([]);
     form.reset();
@@ -179,6 +188,32 @@ export default function RentalWizard({ open, onOpenChange }: RentalWizardProps) 
       });
       return;
     }
+    if (step === 3) {
+      // Validate tenant selection
+      if (useExistingClient && !selectedClientId) {
+        toast({
+          title: language === "es" ? "Error" : "Error",
+          description: language === "es" ? "Por favor selecciona un cliente" : "Please select a client",
+          variant: "destructive",
+        });
+        return;
+      }
+      // If creating new client, validate the required fields
+      if (!useExistingClient) {
+        const tenantName = form.getValues("tenantName");
+        const tenantEmail = form.getValues("tenantEmail");
+        const tenantPhone = form.getValues("tenantPhone");
+        
+        if (!tenantName || !tenantEmail || !tenantPhone) {
+          toast({
+            title: language === "es" ? "Error" : "Error",
+            description: language === "es" ? "Por favor completa todos los campos del inquilino" : "Please complete all tenant fields",
+            variant: "destructive",
+          });
+          return;
+        }
+      }
+    }
     setStep(step + 1);
   };
 
@@ -187,12 +222,33 @@ export default function RentalWizard({ open, onOpenChange }: RentalWizardProps) 
   };
 
   const handleSubmit = async (data: RentalFormData) => {
-    // Build contract data
-    const contract = {
-      unitId: selectedUnitId,
+    // If using existing client, get their info
+    let tenantInfo = {
       tenantName: data.tenantName,
       tenantEmail: data.tenantEmail,
       tenantPhone: data.tenantPhone,
+      clientId: undefined as string | undefined,
+    };
+
+    if (useExistingClient && selectedClientId && clients) {
+      const selectedClient = clients.find((c: any) => c.id === selectedClientId);
+      if (selectedClient) {
+        tenantInfo = {
+          tenantName: `${selectedClient.firstName} ${selectedClient.lastName}`,
+          tenantEmail: selectedClient.email || "",
+          tenantPhone: selectedClient.phone || "",
+          clientId: selectedClient.id,
+        };
+      }
+    }
+
+    // Build contract data
+    const contract = {
+      unitId: selectedUnitId,
+      tenantName: tenantInfo.tenantName,
+      tenantEmail: tenantInfo.tenantEmail,
+      tenantPhone: tenantInfo.tenantPhone,
+      clientId: tenantInfo.clientId,
       startDate: data.startDate,
       endDate: data.endDate,
       monthlyRent: data.monthlyRent,
@@ -454,22 +510,113 @@ export default function RentalWizard({ open, onOpenChange }: RentalWizardProps) 
                   </h3>
                   <p className="text-sm text-muted-foreground">
                     {language === "es" 
-                      ? "Ingresa la información del inquilino principal" 
-                      : "Enter primary tenant information"}
+                      ? "Selecciona un cliente existente o agrega uno nuevo" 
+                      : "Select an existing client or add a new one"}
                   </p>
                 </div>
 
-                {/* Main Tenant Card */}
+                {/* Toggle: Existing Client vs New Client */}
                 <Card>
-                  <CardHeader>
-                    <div className="flex items-center gap-2">
-                      <User className="h-5 w-5 text-primary" />
-                      <CardTitle className="text-base">
-                        {language === "es" ? "Inquilino Principal" : "Primary Tenant"}
-                      </CardTitle>
+                  <CardContent className="pt-6">
+                    <div className="flex items-center gap-4">
+                      <Button
+                        type="button"
+                        variant={!useExistingClient ? "default" : "outline"}
+                        size="sm"
+                        onClick={() => {
+                          setUseExistingClient(false);
+                          setSelectedClientId("");
+                        }}
+                        data-testid="button-new-client"
+                      >
+                        <Plus className="h-4 w-4 mr-2" />
+                        {language === "es" ? "Nuevo Cliente" : "New Client"}
+                      </Button>
+                      <Button
+                        type="button"
+                        variant={useExistingClient ? "default" : "outline"}
+                        size="sm"
+                        onClick={() => setUseExistingClient(true)}
+                        data-testid="button-existing-client"
+                      >
+                        <Users className="h-4 w-4 mr-2" />
+                        {language === "es" ? "Cliente Existente" : "Existing Client"}
+                      </Button>
                     </div>
-                  </CardHeader>
-                  <CardContent className="space-y-4">
+                  </CardContent>
+                </Card>
+
+                {/* Existing Client Selection */}
+                {useExistingClient && (
+                  <Card>
+                    <CardHeader>
+                      <div className="flex items-center gap-2">
+                        <Users className="h-5 w-5 text-primary" />
+                        <CardTitle className="text-base">
+                          {language === "es" ? "Seleccionar Cliente" : "Select Client"}
+                        </CardTitle>
+                      </div>
+                    </CardHeader>
+                    <CardContent>
+                      <div className="space-y-4">
+                        <div>
+                          <Label>{language === "es" ? "Cliente" : "Client"}</Label>
+                          <Select value={selectedClientId} onValueChange={setSelectedClientId}>
+                            <SelectTrigger data-testid="select-existing-client">
+                              <SelectValue placeholder={language === "es" ? "Selecciona un cliente..." : "Select a client..."} />
+                            </SelectTrigger>
+                            <SelectContent className="max-h-[300px]">
+                              {clientsLoading ? (
+                                <SelectItem value="loading" disabled>
+                                  {language === "es" ? "Cargando..." : "Loading..."}
+                                </SelectItem>
+                              ) : !clients || clients.length === 0 ? (
+                                <SelectItem value="no-clients" disabled>
+                                  {language === "es" ? "No hay clientes disponibles" : "No clients available"}
+                                </SelectItem>
+                              ) : (
+                                clients.map((client: any) => (
+                                  <SelectItem key={client.id} value={client.id}>
+                                    {client.firstName} {client.lastName} - {client.email || client.phone}
+                                  </SelectItem>
+                                ))
+                              )}
+                            </SelectContent>
+                          </Select>
+                        </div>
+                        {selectedClientId && clients && (
+                          <div className="p-4 bg-muted rounded-md text-sm space-y-2">
+                            {(() => {
+                              const selectedClient = clients.find((c: any) => c.id === selectedClientId);
+                              if (!selectedClient) return null;
+                              return (
+                                <>
+                                  <div><strong>{language === "es" ? "Nombre:" : "Name:"}</strong> {selectedClient.firstName} {selectedClient.lastName}</div>
+                                  {selectedClient.email && <div><strong>{language === "es" ? "Email:" : "Email:"}</strong> {selectedClient.email}</div>}
+                                  {selectedClient.phone && <div><strong>{language === "es" ? "Teléfono:" : "Phone:"}</strong> {selectedClient.phone}</div>}
+                                  {selectedClient.city && <div><strong>{language === "es" ? "Ciudad:" : "City:"}</strong> {selectedClient.city}</div>}
+                                </>
+                              );
+                            })()}
+                          </div>
+                        )}
+                      </div>
+                    </CardContent>
+                  </Card>
+                )}
+
+                {/* New Client Form */}
+                {!useExistingClient && (
+                  <Card>
+                    <CardHeader>
+                      <div className="flex items-center gap-2">
+                        <User className="h-5 w-5 text-primary" />
+                        <CardTitle className="text-base">
+                          {language === "es" ? "Inquilino Principal" : "Primary Tenant"}
+                        </CardTitle>
+                      </div>
+                    </CardHeader>
+                    <CardContent className="space-y-4">
                     <FormField
                       control={form.control}
                       name="tenantName"
@@ -533,22 +680,20 @@ export default function RentalWizard({ open, onOpenChange }: RentalWizardProps) 
                             {language === "es" ? "Identificación oficial (opcional)" : "Official ID (optional)"}
                           </FormLabel>
                           <FormControl>
-                            <div className="flex gap-2">
-                              <Input 
-                                type="file" 
-                                accept="image/*,.pdf"
-                                onChange={(e) => {
-                                  const file = e.target.files?.[0];
-                                  if (file) {
-                                    // For now, just store the file name
-                                    // In production, upload to cloud storage and get URL
-                                    field.onChange(file.name);
-                                  }
-                                }}
-                                data-testid="input-tenant-id-photo"
-                                className="file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-medium hover:file:bg-accent"
-                              />
-                            </div>
+                            <Input 
+                              type="file" 
+                              accept="image/*,.pdf"
+                              onChange={(e) => {
+                                const file = e.target.files?.[0];
+                                if (file) {
+                                  // For now, just store the file name
+                                  // In production, upload to cloud storage and get URL
+                                  field.onChange(file.name);
+                                }
+                              }}
+                              data-testid="input-tenant-id-photo"
+                              className="file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-medium hover:file:bg-accent"
+                            />
                           </FormControl>
                           <p className="text-xs text-muted-foreground mt-1">
                             {language === "es" 
