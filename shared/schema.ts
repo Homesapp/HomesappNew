@@ -426,6 +426,28 @@ export const maintenancePhotoPhaseEnum = pgEnum("maintenance_photo_phase", [
   "other",    // Otra
 ]);
 
+export const clientDocumentTypeEnum = pgEnum("client_document_type", [
+  "passport",
+  "id_card",
+  "drivers_license",
+  "visa",
+  "other"
+]);
+
+export const clientIncidentSeverityEnum = pgEnum("client_incident_severity", [
+  "low",
+  "medium",
+  "high",
+  "critical"
+]);
+
+export const clientIncidentStatusEnum = pgEnum("client_incident_status", [
+  "open",
+  "in_progress",
+  "resolved",
+  "closed"
+]);
+
 export const financialTransactionDirectionEnum = pgEnum("financial_transaction_direction", [
   "inflow",       // Dinero que entra (cobros)
   "outflow",      // Dinero que sale (pagos)
@@ -5413,6 +5435,65 @@ export const updateExternalClientSchema = insertExternalClientSchema.partial();
 export type InsertExternalClient = z.infer<typeof insertExternalClientSchema>;
 export type UpdateExternalClient = z.infer<typeof updateExternalClientSchema>;
 export type ExternalClient = typeof externalClients.$inferSelect;
+
+// External Client Documents - Documentos de identidad de clientes
+export const externalClientDocuments = pgTable("external_client_documents", {
+  id: varchar("id").primaryKey().$defaultFn(() => crypto.randomUUID()),
+  clientId: varchar("client_id").notNull().references(() => externalClients.id, { onDelete: "cascade" }),
+  documentType: clientDocumentTypeEnum("document_type").notNull(),
+  fileName: varchar("file_name", { length: 255 }).notNull(),
+  mimeType: varchar("mime_type", { length: 100 }).notNull(),
+  fileSize: integer("file_size").notNull(), // bytes
+  storageKey: text("storage_key").notNull(), // Ruta en object storage
+  notes: text("notes"),
+  uploadedBy: varchar("uploaded_by").notNull().references(() => users.id),
+  uploadedAt: timestamp("uploaded_at").defaultNow().notNull(),
+}, (table) => [
+  index("idx_client_documents_client").on(table.clientId),
+  index("idx_client_documents_type").on(table.documentType),
+]);
+
+export const insertExternalClientDocumentSchema = createInsertSchema(externalClientDocuments).omit({
+  id: true,
+  uploadedAt: true,
+});
+
+export type InsertExternalClientDocument = z.infer<typeof insertExternalClientDocumentSchema>;
+export type ExternalClientDocument = typeof externalClientDocuments.$inferSelect;
+
+// External Client Incidents - Incidencias/reportes de clientes
+export const externalClientIncidents = pgTable("external_client_incidents", {
+  id: varchar("id").primaryKey().$defaultFn(() => crypto.randomUUID()),
+  clientId: varchar("client_id").notNull().references(() => externalClients.id, { onDelete: "cascade" }),
+  title: varchar("title", { length: 255 }).notNull(),
+  description: text("description").notNull(),
+  severity: clientIncidentSeverityEnum("severity").notNull().default("low"),
+  status: clientIncidentStatusEnum("status").notNull().default("open"),
+  occurredAt: timestamp("occurred_at").notNull(),
+  resolvedAt: timestamp("resolved_at"),
+  resolution: text("resolution"),
+  reportedBy: varchar("reported_by").notNull().references(() => users.id),
+  assignedTo: varchar("assigned_to").references(() => users.id),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+}, (table) => [
+  index("idx_client_incidents_client").on(table.clientId),
+  index("idx_client_incidents_severity").on(table.severity),
+  index("idx_client_incidents_status").on(table.status),
+  index("idx_client_incidents_occurred").on(table.occurredAt),
+]);
+
+export const insertExternalClientIncidentSchema = createInsertSchema(externalClientIncidents).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export const updateExternalClientIncidentSchema = insertExternalClientIncidentSchema.partial();
+
+export type InsertExternalClientIncident = z.infer<typeof insertExternalClientIncidentSchema>;
+export type UpdateExternalClientIncident = z.infer<typeof updateExternalClientIncidentSchema>;
+export type ExternalClientIncident = typeof externalClientIncidents.$inferSelect;
 
 // External Condominiums - Condominios gestionados por agencias externas
 export const externalCondominiums = pgTable("external_condominiums", {
