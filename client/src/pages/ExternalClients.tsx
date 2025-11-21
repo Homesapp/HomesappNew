@@ -171,6 +171,7 @@ export default function ExternalClients() {
     resolver: zodResolver(insertExternalClientSchema),
     defaultValues: {
       firstName: "",
+      middleName: "",
       lastName: "",
       email: "",
       phone: "",
@@ -191,8 +192,8 @@ export default function ExternalClients() {
       emergencyContactRelation: "",
       preferredLanguage: "es",
       propertyTypePreference: "",
-      budgetMin: "",
-      budgetMax: "",
+      budgetMin: undefined,
+      budgetMax: undefined,
       bedroomsPreference: undefined,
       bathroomsPreference: undefined,
       status: "active",
@@ -754,29 +755,62 @@ export default function ExternalClients() {
             </DialogDescription>
           </DialogHeader>
           <Form {...form}>
-            <form onSubmit={form.handleSubmit((data) => createMutation.mutate(data))} className="space-y-4">
-              <div className="grid grid-cols-2 gap-4">
+            <form onSubmit={form.handleSubmit((data) => createMutation.mutate(data))} className="space-y-6">
+              {/* Datos Personales */}
+              <div className="space-y-4">
+                <h3 className="text-sm font-semibold text-foreground">
+                  {language === "es" ? "Datos Personales" : "Personal Information"}
+                </h3>
+                <div className="grid grid-cols-3 gap-4">
+                  <FormField
+                    control={form.control}
+                    name="firstName"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>{language === "es" ? "Nombre *" : "First Name *"}</FormLabel>
+                        <FormControl>
+                          <Input {...field} data-testid="input-first-name" />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  <FormField
+                    control={form.control}
+                    name="middleName"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>{language === "es" ? "Segundo Nombre" : "Middle Name"}</FormLabel>
+                        <FormControl>
+                          <Input {...field} data-testid="input-middle-name" />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  <FormField
+                    control={form.control}
+                    name="lastName"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>{language === "es" ? "Apellido *" : "Last Name *"}</FormLabel>
+                        <FormControl>
+                          <Input {...field} data-testid="input-last-name" />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                </div>
+
                 <FormField
                   control={form.control}
-                  name="firstName"
+                  name="nationality"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>{language === "es" ? "Nombre" : "First Name"}</FormLabel>
+                      <FormLabel>{language === "es" ? "Nacionalidad" : "Nationality"}</FormLabel>
                       <FormControl>
-                        <Input {...field} data-testid="input-first-name" />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                <FormField
-                  control={form.control}
-                  name="lastName"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>{language === "es" ? "Apellido" : "Last Name"}</FormLabel>
-                      <FormControl>
-                        <Input {...field} data-testid="input-last-name" />
+                        <Input {...field} placeholder={language === "es" ? "Ej: Mexicana, Estadounidense..." : "E.g: Mexican, American..."} data-testid="input-nationality" />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
@@ -784,64 +818,77 @@ export default function ExternalClients() {
                 />
               </div>
 
-              <div className="grid grid-cols-2 gap-4">
-                <FormField
-                  control={form.control}
-                  name="email"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>{language === "es" ? "Email" : "Email"}</FormLabel>
-                      <FormControl>
-                        <Input type="email" {...field} data-testid="input-email" />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                <FormField
-                  control={form.control}
-                  name="phone"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>{language === "es" ? "Teléfono" : "Phone"}</FormLabel>
-                      <FormControl>
-                        <Input {...field} data-testid="input-phone" />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
+              {/* Información de Contacto */}
+              <div className="space-y-4">
+                <h3 className="text-sm font-semibold text-foreground">
+                  {language === "es" ? "Información de Contacto" : "Contact Information"}
+                </h3>
+                <div className="grid grid-cols-2 gap-4">
+                  <FormField
+                    control={form.control}
+                    name="email"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>{language === "es" ? "Email" : "Email"}</FormLabel>
+                        <FormControl>
+                          <Input type="email" {...field} data-testid="input-email" />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  <FormField
+                    control={form.control}
+                    name="phone"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>{language === "es" ? "Teléfono" : "Phone"}</FormLabel>
+                        <FormControl>
+                          <Input {...field} placeholder="+52 998..." data-testid="input-phone" />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                </div>
               </div>
 
-              <div className="grid grid-cols-2 gap-4">
-                <FormField
-                  control={form.control}
-                  name="city"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>{language === "es" ? "Ciudad" : "City"}</FormLabel>
-                      <FormControl>
-                        <Input {...field} data-testid="input-city" />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                <FormField
-                  control={form.control}
-                  name="country"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>{language === "es" ? "País" : "Country"}</FormLabel>
-                      <FormControl>
-                        <Input {...field} data-testid="input-country" />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
+              {/* Ubicación */}
+              <div className="space-y-4">
+                <h3 className="text-sm font-semibold text-foreground">
+                  {language === "es" ? "Ubicación" : "Location"}
+                </h3>
+                <div className="grid grid-cols-2 gap-4">
+                  <FormField
+                    control={form.control}
+                    name="city"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>{language === "es" ? "Ciudad" : "City"}</FormLabel>
+                        <FormControl>
+                          <Input {...field} data-testid="input-city" />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  <FormField
+                    control={form.control}
+                    name="country"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>{language === "es" ? "País" : "Country"}</FormLabel>
+                        <FormControl>
+                          <Input {...field} data-testid="input-country" />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                </div>
               </div>
 
+              {/* Notas */}
               <FormField
                 control={form.control}
                 name="notes"
@@ -849,7 +896,7 @@ export default function ExternalClients() {
                   <FormItem>
                     <FormLabel>{language === "es" ? "Notas" : "Notes"}</FormLabel>
                     <FormControl>
-                      <Textarea {...field} data-testid="input-notes" />
+                      <Textarea {...field} rows={3} placeholder={language === "es" ? "Información adicional sobre el cliente..." : "Additional client information..."} data-testid="input-notes" />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
