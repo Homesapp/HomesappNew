@@ -10,6 +10,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Checkbox } from "@/components/ui/checkbox";
 import { useToast } from "@/hooks/use-toast";
+import { useMobile } from "@/hooks/use-mobile";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useForm } from "react-hook-form";
@@ -72,11 +73,14 @@ const SPECIALTY_LABELS = {
 export default function ExternalMaintenanceWorkers() {
   const { language } = useLanguage();
   const { toast } = useToast();
+  const isMobile = useMobile();
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
   const [deleteAssignmentId, setDeleteAssignmentId] = useState<string | null>(null);
   const [assignmentType, setAssignmentType] = useState<"condominium" | "unit">("condominium");
   const [editingWorkerId, setEditingWorkerId] = useState<string | null>(null);
   const [workersViewMode, setWorkersViewMode] = useState<"cards" | "table">("table");
+  const [manualViewModeOverride, setManualViewModeOverride] = useState(false);
+  const [prevIsMobile, setPrevIsMobile] = useState(isMobile);
   
   // Assignments table pagination & sorting
   const [assignmentsPage, setAssignmentsPage] = useState(1);
@@ -86,9 +90,23 @@ export default function ExternalMaintenanceWorkers() {
   
   // Workers pagination & sorting (shared between table and cards)
   const [workersPage, setWorkersPage] = useState(1);
-  const [workersPerPage, setWorkersPerPage] = useState(9); // Default for cards: 3x3 grid
+  const [workersPerPage, setWorkersPerPage] = useState(10);
   const [workersSortColumn, setWorkersSortColumn] = useState<string>("");
   const [workersSortDirection, setWorkersSortDirection] = useState<"asc" | "desc">("asc");
+
+  // Auto-switch view mode on genuine breakpoint transitions (only if no manual override)
+  useEffect(() => {
+    // Only act on actual breakpoint transitions (not every isMobile change)
+    if (isMobile !== prevIsMobile) {
+      setPrevIsMobile(isMobile);
+      
+      if (!manualViewModeOverride) {
+        const preferredMode = isMobile ? "cards" : "table";
+        setWorkersViewMode(preferredMode);
+        setWorkersPerPage(preferredMode === "cards" ? 9 : 10);
+      }
+    }
+  }, [isMobile, prevIsMobile, manualViewModeOverride]);
 
   // Reset assignments page when items per page changes
   useEffect(() => {
@@ -1102,7 +1120,11 @@ export default function ExternalMaintenanceWorkers() {
                   <Button
                     variant={workersViewMode === "cards" ? "default" : "outline"}
                     size="sm"
-                    onClick={() => setWorkersViewMode("cards")}
+                    onClick={() => {
+                      setWorkersViewMode("cards");
+                      // Clear override if selecting default mode for current viewport
+                      setManualViewModeOverride(isMobile ? false : true);
+                    }}
                     data-testid="button-workers-view-cards"
                     className="flex-1 sm:flex-initial"
                   >
@@ -1112,7 +1134,11 @@ export default function ExternalMaintenanceWorkers() {
                   <Button
                     variant={workersViewMode === "table" ? "default" : "outline"}
                     size="sm"
-                    onClick={() => setWorkersViewMode("table")}
+                    onClick={() => {
+                      setWorkersViewMode("table");
+                      // Clear override if selecting default mode for current viewport
+                      setManualViewModeOverride(isMobile ? true : false);
+                    }}
                     data-testid="button-workers-view-table"
                     className="flex-1 sm:flex-initial"
                   >

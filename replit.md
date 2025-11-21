@@ -82,6 +82,12 @@ The platform maintains visual harmony through context-based icon sizing rules:
 ### Mobile Responsive Patterns
 All External sections (Condominiums, Rentals, Accounting, OwnerPortfolio, Accesses, MaintenanceWorkers) implement consistent mobile-responsive patterns:
 
+**Default View Modes:**
+- Mobile (< 768px): Card view by default for optimal touch interaction
+- Desktop (≥ 768px): Table view by default for data-dense display
+- View mode detection: `window.innerWidth < 768 ? "cards" : "table"`
+- Items per page auto-adjust: 9 for cards, 10 for table
+
 **Headers:**
 - Desktop: `flex flex-row justify-between items-center`
 - Mobile: `flex flex-col items-start` (stacked vertically)
