@@ -63,9 +63,12 @@ export default function ExternalCondominiums() {
   const [condoSearchText, setCondoSearchText] = useState("");
   const [condoFiltersExpanded, setCondoFiltersExpanded] = useState(false);
   
-  // Condominium pagination state (3 rows x 3 cols = 9 cards per page in lg)
+  // Condominium pagination state (max 3 rows x 3 cols = 9 cards per page in lg)
   const [condoCurrentPage, setCondoCurrentPage] = useState(1);
-  const condoItemsPerPage = 9;
+  const [condoItemsPerPage, setCondoItemsPerPage] = useState(9); // Default: 3 rows
+  
+  // Unit carousel indices (for showing 2 units at a time per condo)
+  const [unitCarouselIndices, setUnitCarouselIndices] = useState<Record<string, number>>({});
   
   // Units table pagination & sorting
   const [unitsPage, setUnitsPage] = useState(1);
@@ -739,6 +742,11 @@ export default function ExternalCondominiums() {
     setCondoCurrentPage(1);
   }, [condoSearchText]);
 
+  // Reset page when items per page changes
+  useEffect(() => {
+    setCondoCurrentPage(1);
+  }, [condoItemsPerPage]);
+
   return (
     <div className="container mx-auto p-6 space-y-6">
       <div className="flex justify-between items-start">
@@ -1274,77 +1282,149 @@ export default function ExternalCondominiums() {
                           </Badge>
                         </div>
 
-                        {/* Units Table */}
-                        {condoUnits.length > 0 && (
-                          <div className="pt-3 border-t">
-                            <h4 className="text-sm font-medium mb-2">{language === "es" ? "Unidades" : "Units"}</h4>
-                            <div className="space-y-2 max-h-36 overflow-y-auto">
-                              {condoUnits.map((unit) => {
-                                const activeContract = getActiveRentalContract(unit.id);
-                                const isRented = activeContract !== null;
-                                
-                                return (
-                                  <div 
-                                    key={unit.id} 
-                                    className="flex items-center justify-between p-2 text-xs rounded-md bg-muted/50 hover:bg-muted cursor-pointer"
-                                    data-testid={`unit-row-${unit.id}`}
-                                    onClick={(e) => {
-                                      e.stopPropagation();
-                                      navigate(`/external/units/${unit.id}`);
-                                    }}
-                                  >
-                                    <div className="flex-1 grid grid-cols-3 gap-2">
-                                      <div>
-                                        <span className="font-medium">{unit.unitNumber}</span>
-                                        {unit.typology && (
-                                          <span className="text-muted-foreground ml-1">
-                                            ({formatTypology(unit.typology, language)})
-                                          </span>
-                                        )}
-                                      </div>
-                                      <div className="text-muted-foreground">
-                                        {unit.floor ? formatFloor(unit.floor, language) : "-"}
-                                      </div>
-                                      <div>
-                                        {isRented ? (
-                                          <div className="flex flex-col">
-                                            <Badge variant="secondary" className="text-xs w-fit">
-                                              {language === "es" ? "Rentada" : "Rented"}
-                                            </Badge>
-                                            {(() => {
-                                              // activeContract is already normalized
-                                              const endDate = activeContract?.endDate;
-                                              if (endDate) {
-                                                try {
-                                                  const date = new Date(endDate);
-                                                  if (!isNaN(date.getTime())) {
-                                                    return (
-                                                      <span className="text-muted-foreground text-[10px] mt-0.5">
-                                                        {language === "es" ? "Hasta: " : "Until: "}
-                                                        {format(date, "dd/MM/yy")}
-                                                      </span>
-                                                    );
+                        {/* Units Carousel */}
+                        {(() => {
+                          if (condoUnits.length === 0) return null;
+                          
+                          // Sort units: available first, then rented; tie-break by unit number
+                          const sortedUnits = [...condoUnits].sort((a, b) => {
+                            const aRented = getActiveRentalContract(a.id) !== null;
+                            const bRented = getActiveRentalContract(b.id) !== null;
+                            
+                            if (aRented !== bRented) {
+                              return aRented ? 1 : -1; // Available first
+                            }
+                            
+                            // Tie-break by unit number
+                            return a.unitNumber.localeCompare(b.unitNumber, undefined, { numeric: true });
+                          });
+                          
+                          const unitsPerView = 2;
+                          const currentIndex = unitCarouselIndices[condo.id] || 0;
+                          const totalUnits = sortedUnits.length;
+                          const visibleUnits = sortedUnits.slice(currentIndex, currentIndex + unitsPerView);
+                          const canScrollUp = currentIndex > 0;
+                          const canScrollDown = currentIndex + unitsPerView < totalUnits;
+                          
+                          const handleScrollUp = () => {
+                            setUnitCarouselIndices(prev => ({
+                              ...prev,
+                              [condo.id]: Math.max(0, currentIndex - 1)
+                            }));
+                          };
+                          
+                          const handleScrollDown = () => {
+                            setUnitCarouselIndices(prev => ({
+                              ...prev,
+                              [condo.id]: Math.min(totalUnits - unitsPerView, currentIndex + 1)
+                            }));
+                          };
+                          
+                          return (
+                            <div className="pt-3 border-t">
+                              <div className="flex items-center justify-between mb-2">
+                                <h4 className="text-sm font-medium">{language === "es" ? "Unidades" : "Units"}</h4>
+                                {totalUnits > unitsPerView && (
+                                  <div className="flex items-center gap-1">
+                                    <Button
+                                      variant="ghost"
+                                      size="icon"
+                                      className="h-6 w-6"
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        handleScrollUp();
+                                      }}
+                                      disabled={!canScrollUp}
+                                      data-testid={`button-unit-prev-${condo.id}`}
+                                    >
+                                      <ChevronUp className="h-4 w-4" />
+                                    </Button>
+                                    <span className="text-xs text-muted-foreground">
+                                      {currentIndex + 1}-{Math.min(currentIndex + unitsPerView, totalUnits)} / {totalUnits}
+                                    </span>
+                                    <Button
+                                      variant="ghost"
+                                      size="icon"
+                                      className="h-6 w-6"
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        handleScrollDown();
+                                      }}
+                                      disabled={!canScrollDown}
+                                      data-testid={`button-unit-next-${condo.id}`}
+                                    >
+                                      <ChevronDown className="h-4 w-4" />
+                                    </Button>
+                                  </div>
+                                )}
+                              </div>
+                              <div className="space-y-2 min-h-[120px]">
+                                {visibleUnits.map((unit) => {
+                                  const activeContract = getActiveRentalContract(unit.id);
+                                  const isRented = activeContract !== null;
+                                  
+                                  return (
+                                    <div 
+                                      key={unit.id} 
+                                      className="flex items-center justify-between p-2 text-xs rounded-md bg-muted/50 hover:bg-muted cursor-pointer min-h-[56px]"
+                                      data-testid={`unit-row-${unit.id}`}
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        navigate(`/external/units/${unit.id}`);
+                                      }}
+                                    >
+                                      <div className="flex-1 grid grid-cols-3 gap-2">
+                                        <div>
+                                          <span className="font-medium">{unit.unitNumber}</span>
+                                          {unit.typology && (
+                                            <span className="text-muted-foreground ml-1">
+                                              ({formatTypology(unit.typology, language)})
+                                            </span>
+                                          )}
+                                        </div>
+                                        <div className="text-muted-foreground">
+                                          {unit.floor ? formatFloor(unit.floor, language) : "-"}
+                                        </div>
+                                        <div>
+                                          {isRented ? (
+                                            <div className="flex flex-col">
+                                              <Badge variant="secondary" className="text-xs w-fit">
+                                                {language === "es" ? "Rentada" : "Rented"}
+                                              </Badge>
+                                              {(() => {
+                                                const endDate = activeContract?.endDate;
+                                                if (endDate) {
+                                                  try {
+                                                    const date = new Date(endDate);
+                                                    if (!isNaN(date.getTime())) {
+                                                      return (
+                                                        <span className="text-muted-foreground text-[10px] mt-0.5">
+                                                          {language === "es" ? "Hasta: " : "Until: "}
+                                                          {format(date, "dd/MM/yy")}
+                                                        </span>
+                                                      );
+                                                    }
+                                                  } catch (e) {
+                                                    // Invalid date, don't show anything
                                                   }
-                                                } catch (e) {
-                                                  // Invalid date, don't show anything
                                                 }
-                                              }
-                                              return null;
-                                            })()}
-                                          </div>
-                                        ) : (
-                                          <Badge variant="outline" className="text-xs text-green-600 dark:text-green-400 border-green-200 dark:border-green-800">
-                                            {language === "es" ? "Disponible" : "Available"}
-                                          </Badge>
-                                        )}
+                                                return null;
+                                              })()}
+                                            </div>
+                                          ) : (
+                                            <Badge variant="outline" className="text-xs text-green-600 dark:text-green-400 border-green-200 dark:border-green-800">
+                                              {language === "es" ? "Disponible" : "Available"}
+                                            </Badge>
+                                          )}
+                                        </div>
                                       </div>
                                     </div>
-                                  </div>
-                                );
-                              })}
+                                  );
+                                })}
+                              </div>
                             </div>
-                          </div>
-                        )}
+                          );
+                        })()}
 
                         {condo.description && (
                           <p className="text-xs text-muted-foreground mt-2 line-clamp-2 pt-2 border-t">{condo.description}</p>
@@ -1356,25 +1436,39 @@ export default function ExternalCondominiums() {
                 </div>
 
                 {/* Condominium Pagination Controls */}
-                {filteredCondominiums.length > condoItemsPerPage && (
-                  <div className="flex flex-col sm:flex-row items-center justify-between gap-4 mt-6 p-4 border rounded-lg bg-card">
+                {filteredCondominiums.length > 0 && (
+                  <div className="flex flex-col sm:flex-row items-center justify-between gap-4 mt-6 pt-4 border-t">
                     <div className="flex items-center gap-2">
-                      <span className="text-sm text-muted-foreground">
-                        {language === 'es' 
-                          ? `Mostrando ${condoStartIndex + 1}-${Math.min(condoEndIndex, filteredCondominiums.length)} de ${filteredCondominiums.length}`
-                          : `Showing ${condoStartIndex + 1}-${Math.min(condoEndIndex, filteredCondominiums.length)} of ${filteredCondominiums.length}`}
+                      <span className="text-sm text-muted-foreground whitespace-nowrap">
+                        {language === 'es' ? 'Mostrar' : 'Show'}
+                      </span>
+                      <Select 
+                        value={condoItemsPerPage.toString()} 
+                        onValueChange={(value) => setCondoItemsPerPage(Number(value))}
+                      >
+                        <SelectTrigger className="w-[70px]" data-testid="select-condo-cards-per-page">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="3">3</SelectItem>
+                          <SelectItem value="6">6</SelectItem>
+                          <SelectItem value="9">9</SelectItem>
+                        </SelectContent>
+                      </Select>
+                      <span className="text-sm text-muted-foreground whitespace-nowrap">
+                        {language === 'es' ? 'por página' : 'per page'}
                       </span>
                     </div>
 
                     <div className="flex items-center gap-2">
-                      <span className="text-sm text-muted-foreground">
+                      <span className="text-sm text-muted-foreground whitespace-nowrap">
                         {language === 'es' 
-                          ? `Página ${condoCurrentPage} de ${condoTotalPages}`
-                          : `Page ${condoCurrentPage} of ${condoTotalPages}`}
+                          ? `Mostrando ${filteredCondominiums.length === 0 ? 0 : condoStartIndex + 1}-${Math.min(condoEndIndex, filteredCondominiums.length)} de ${filteredCondominiums.length}`
+                          : `Showing ${filteredCondominiums.length === 0 ? 0 : condoStartIndex + 1}-${Math.min(condoEndIndex, filteredCondominiums.length)} of ${filteredCondominiums.length}`}
                       </span>
                     </div>
 
-                    <div className="flex items-center gap-2">
+                    <div className="flex items-center gap-1">
                       <Button
                         variant="outline"
                         size="sm"

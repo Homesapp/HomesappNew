@@ -62,6 +62,8 @@ import {
   ChevronsUpDown,
   ChevronUp,
   ChevronDown,
+  ChevronLeft,
+  ChevronRight,
   PawPrint,
   Zap,
   Droplet,
