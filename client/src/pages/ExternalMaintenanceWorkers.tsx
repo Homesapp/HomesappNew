@@ -1234,37 +1234,37 @@ export default function ExternalMaintenanceWorkers() {
 
                       {/* Table View */}
                       <div className="w-full overflow-x-auto">
-                        <Table>
+                        <Table className="text-xs">
                           <TableHeader>
                             <TableRow>
-                              <TableHead className="min-w-[200px]">
+                              <TableHead className="h-9 px-2 min-w-[180px]">
                                 <Button
                                   variant="ghost"
                                   size="sm"
                                   onClick={() => handleAssignmentsSort("workerName")}
-                                  className="hover-elevate gap-1"
+                                  className="hover-elevate gap-1 h-7 text-xs"
                                   data-testid="sort-worker-name"
                                 >
                                   {language === "es" ? "Trabajador" : "Worker"}
-                                  <ArrowUpDown className="h-4 w-4" />
+                                  <ArrowUpDown className="h-3 w-3" />
                                 </Button>
                               </TableHead>
-                              <TableHead className="min-w-[150px]">
+                              <TableHead className="h-9 px-2 min-w-[130px]">
                                 <Button
                                   variant="ghost"
                                   size="sm"
                                   onClick={() => handleAssignmentsSort("specialty")}
-                                  className="hover-elevate gap-1"
+                                  className="hover-elevate gap-1 h-7 text-xs"
                                   data-testid="sort-specialty"
                                 >
                                   {language === "es" ? "Especialidad" : "Specialty"}
-                                  <ArrowUpDown className="h-4 w-4" />
+                                  <ArrowUpDown className="h-3 w-3" />
                                 </Button>
                               </TableHead>
-                              <TableHead className="min-w-[300px]">
+                              <TableHead className="h-9 px-2 min-w-[280px]">
                                 {language === "es" ? "Asignaciones" : "Assignments"}
                               </TableHead>
-                              <TableHead className="text-right min-w-[150px]">
+                              <TableHead className="h-9 px-2 text-right min-w-[120px]">
                                 {language === "es" ? "Acciones" : "Actions"}
                               </TableHead>
                             </TableRow>
@@ -1272,31 +1272,31 @@ export default function ExternalMaintenanceWorkers() {
                           <TableBody>
                             {paginatedGroupedAssignments.map(({ worker, assignments: workerAssignments }) => (
                             <TableRow key={worker.id} data-testid={`row-worker-${worker.id}`}>
-                              <TableCell className="font-medium">
+                              <TableCell className="px-2 py-2 font-medium">
                                 <div className="flex items-center gap-2">
-                                  <Wrench className="h-4 w-4 text-muted-foreground" />
+                                  <Wrench className="h-3 w-3 text-muted-foreground" />
                                   {worker.firstName} {worker.lastName}
                                 </div>
                               </TableCell>
-                              <TableCell>
+                              <TableCell className="px-2 py-2">
                                 {worker.maintenanceSpecialty ? (
-                                  <Badge variant="secondary">
+                                  <Badge variant="secondary" className="text-xs">
                                     {SPECIALTY_LABELS[language][worker.maintenanceSpecialty as keyof typeof SPECIALTY_LABELS['es']]}
                                   </Badge>
                                 ) : '-'}
                               </TableCell>
-                              <TableCell>
-                                <div className="flex flex-wrap gap-2">
+                              <TableCell className="px-2 py-2">
+                                <div className="flex flex-wrap gap-1">
                                   {workerAssignments.map((assignment) => (
                                     <div key={assignment.id} className="flex items-center gap-1">
                                       {assignment.condominiumId && (
-                                        <Badge variant="outline" className="flex items-center gap-1">
+                                        <Badge variant="outline" className="flex items-center gap-1 text-xs">
                                           <Building2 className="h-3 w-3" />
                                           {getCondominiumName(assignment.condominiumId)}
                                         </Badge>
                                       )}
                                       {assignment.unitId && (
-                                        <Badge variant="outline" className="flex items-center gap-1">
+                                        <Badge variant="outline" className="flex items-center gap-1 text-xs">
                                           <Home className="h-3 w-3" />
                                           {getUnitName(assignment.unitId)}
                                         </Badge>
@@ -1305,7 +1305,7 @@ export default function ExternalMaintenanceWorkers() {
                                   ))}
                                 </div>
                               </TableCell>
-                              <TableCell className="text-right">
+                              <TableCell className="px-2 py-2 text-right">
                                 <div className="flex justify-end gap-2">
                                   <Button
                                     variant="outline"
@@ -1461,55 +1461,55 @@ export default function ExternalMaintenanceWorkers() {
 
                       {/* Table View */}
                       <div className="w-full overflow-x-auto">
-                        <Table>
+                        <Table className="text-xs">
                       <TableHeader>
                         <TableRow>
-                          <TableHead className="min-w-[200px]">
+                          <TableHead className="h-9 px-2 min-w-[180px]">
                             <Button
                               variant="ghost"
                               size="sm"
                               onClick={() => handleWorkersSort("workerName")}
-                              className="hover-elevate gap-1"
+                              className="hover-elevate gap-1 h-7 text-xs"
                               data-testid="sort-worker-name-workers"
                             >
                               {language === "es" ? "Nombre" : "Name"}
-                              <ArrowUpDown className="h-4 w-4" />
+                              <ArrowUpDown className="h-3 w-3" />
                             </Button>
                           </TableHead>
-                          <TableHead className="min-w-[200px]">
+                          <TableHead className="h-9 px-2 min-w-[180px]">
                             <Button
                               variant="ghost"
                               size="sm"
                               onClick={() => handleWorkersSort("email")}
-                              className="hover-elevate gap-1"
+                              className="hover-elevate gap-1 h-7 text-xs"
                               data-testid="sort-email"
                             >
                               Email
-                              <ArrowUpDown className="h-4 w-4" />
+                              <ArrowUpDown className="h-3 w-3" />
                             </Button>
                           </TableHead>
-                          <TableHead className="min-w-[150px]">
+                          <TableHead className="h-9 px-2 min-w-[130px]">
                             <Button
                               variant="ghost"
                               size="sm"
                               onClick={() => handleWorkersSort("phone")}
-                              className="hover-elevate gap-1"
+                              className="hover-elevate gap-1 h-7 text-xs"
                               data-testid="sort-phone"
                             >
                               {language === "es" ? "Teléfono" : "Phone"}
-                              <ArrowUpDown className="h-4 w-4" />
+                              <ArrowUpDown className="h-3 w-3" />
                             </Button>
                           </TableHead>
-                          <TableHead className="min-w-[150px]">
+                          <TableHead className="h-9 px-2 min-w-[130px]">
                             <Button
                               variant="ghost"
                               size="sm"
                               onClick={() => handleWorkersSort("specialty")}
-                              className="hover-elevate gap-1"
+                              className="hover-elevate gap-1 h-7 text-xs"
                               data-testid="sort-specialty-workers"
                             >
                               {language === "es" ? "Especialidad" : "Specialty"}
-                              <ArrowUpDown className="h-4 w-4" />
+                              <ArrowUpDown className="h-3 w-3" />
                             </Button>
                           </TableHead>
                         </TableRow>
@@ -1517,14 +1517,14 @@ export default function ExternalMaintenanceWorkers() {
                       <TableBody>
                         {paginatedWorkers.map((worker) => (
                           <TableRow key={worker.id} data-testid={`row-worker-${worker.id}`}>
-                            <TableCell className="font-medium">
+                            <TableCell className="px-2 py-2 font-medium">
                               {worker.firstName} {worker.lastName}
                             </TableCell>
-                            <TableCell>{worker.email}</TableCell>
-                            <TableCell>{worker.phone || '-'}</TableCell>
-                            <TableCell>
+                            <TableCell className="px-2 py-2">{worker.email}</TableCell>
+                            <TableCell className="px-2 py-2">{worker.phone || '-'}</TableCell>
+                            <TableCell className="px-2 py-2">
                               {worker.maintenanceSpecialty ? (
-                                <Badge variant="secondary">
+                                <Badge variant="secondary" className="text-xs">
                                   {SPECIALTY_LABELS[language][worker.maintenanceSpecialty as keyof typeof SPECIALTY_LABELS['es']]}
                                 </Badge>
                               ) : '-'}
