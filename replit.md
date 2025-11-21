@@ -57,6 +57,42 @@ The platform maintains visual harmony through context-based icon sizing rules:
 - Each filter button: `flex-shrink-0` to prevent wrapping
 - Maintains clean single-row layout across all sections
 
+### Mobile Responsive Patterns
+All External sections (Condominiums, Rentals, Accounting, OwnerPortfolio, Accesses, MaintenanceWorkers) implement consistent mobile-responsive patterns:
+
+**Headers:**
+- Desktop: `flex flex-row justify-between items-center`
+- Mobile: `flex flex-col items-start` (stacked vertically)
+- Pattern: `flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4`
+
+**Action Buttons in Headers:**
+- Full-width on mobile, auto-width on desktop
+- Pattern: `w-full sm:w-auto`
+
+**Search/Filter Toolbars:**
+- Desktop: Horizontal layout with search and filters side-by-side
+- Mobile: Vertical stacking with full-width elements
+- Pattern: `flex flex-col sm:flex-row items-stretch sm:items-center gap-3`
+
+**Search Inputs:**
+- Context-adaptive widths for optimal mobile experience
+- Fixed context: `flex-1 sm:flex-initial sm:w-64`
+- Flexible context: `flex-1 sm:max-w-md`
+- Always includes proper icon spacing and full accessibility
+
+**View Toggle Buttons:**
+- Split width evenly on mobile for balanced layout
+- Pattern: `flex-1 sm:flex-initial`
+
+**Filter Buttons:**
+- Prevent shrinking to maintain icon visibility
+- Pattern: `flex-shrink-0`
+
+**Grid Layouts:**
+- Card grids use responsive columns: `grid gap-4 md:grid-cols-2 lg:grid-cols-3`
+- Statistics grids: `grid gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3`
+- Ensures proper wrapping and spacing on all screen sizes
+
 ## External Dependencies
 *   Google Calendar API
 *   Gmail API
