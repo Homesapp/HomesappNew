@@ -34,9 +34,9 @@ export function ExternalPaginationControls({
   const testId = (suffix: string) => testIdPrefix ? `${testIdPrefix}-${suffix}` : suffix;
 
   return (
-    <div className="flex flex-col sm:flex-row items-center justify-between gap-4 mb-4">
+    <div className="flex flex-col sm:flex-row items-center justify-between gap-3">
       <div className="flex items-center gap-2">
-        <span className="text-sm text-muted-foreground">
+        <span className="text-sm text-muted-foreground whitespace-nowrap">
           {language === 'es' ? 'Mostrar' : 'Show'}
         </span>
         <Select 
@@ -54,20 +54,19 @@ export function ExternalPaginationControls({
             ))}
           </SelectContent>
         </Select>
-        <span className="text-sm text-muted-foreground">
+        <span className="text-sm text-muted-foreground whitespace-nowrap">
           {language === 'es' ? 'por página' : 'per page'}
         </span>
       </div>
       
       <div className="flex items-center gap-2">
-        <span className="text-sm text-muted-foreground">
+        <span className="text-sm text-muted-foreground whitespace-nowrap">
           {language === 'es' ? 'Página' : 'Page'} {currentPage} {language === 'es' ? 'de' : 'of'} {totalPages}
         </span>
         <div className="flex gap-1">
           <Button 
             variant="outline" 
-            size="sm"
-            className="h-9 w-9 p-0"
+            size="icon"
             onClick={handlePrevPage}
             disabled={currentPage === 1}
             data-testid={testId('button-prev-page')}
@@ -76,8 +75,7 @@ export function ExternalPaginationControls({
           </Button>
           <Button 
             variant="outline" 
-            size="sm"
-            className="h-9 w-9 p-0"
+            size="icon"
             onClick={handleNextPage}
             disabled={currentPage === totalPages}
             data-testid={testId('button-next-page')}

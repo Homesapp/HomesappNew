@@ -1855,7 +1855,27 @@ export default function ExternalCondominiums() {
             </Card>
           ) : filteredUnits.length > 0 ? (
             viewMode === "cards" ? (
-              <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+              <div>
+                {/* Units Pagination Controls */}
+                {sortedUnits.length > 0 && (
+                  <ExternalPaginationControls
+                    currentPage={unitsPage}
+                    totalPages={Math.ceil(sortedUnits.length / unitsPerPage)}
+                    itemsPerPage={unitsPerPage}
+                    onPageChange={setUnitsPage}
+                    onItemsPerPageChange={(items) => {
+                      setUnitsPerPage(items);
+                      setUnitsPage(1);
+                    }}
+                    language={language}
+                    testIdPrefix="units-cards"
+                  />
+                )}
+
+                {/* Space between pagination and content */}
+                <div className="h-4" />
+
+                <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
                 {paginatedUnits.map((unit) => {
                   const condo = condominiums?.find(c => c.id === unit.condominiumId);
                   const hasRental = hasActiveRental(unit.id);
@@ -1943,6 +1963,7 @@ export default function ExternalCondominiums() {
                     </Card>
                   );
                 })}
+                </div>
               </div>
             ) : (
               <>
