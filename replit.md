@@ -91,18 +91,24 @@ All External sections (Condominiums, Rentals, Accounting, OwnerPortfolio, Access
 **Auto-Switching View Mode System:**
 - Uses genuine breakpoint transition detection (prevIsMobile state)
 - Only switches views when crossing the 768px breakpoint
-- Mobile (< 768px): Auto-switches to card view for optimal touch interaction
-- Desktop (≥ 768px): Auto-switches to table view for data-dense display
+- Mobile (< 768px): Auto-switches to card view for optimal touch interaction (CARDS ONLY - table view hidden)
+- Desktop (≥ 768px): Auto-switches to table view for data-dense display (both views available)
 - Prevents thrashing during same-breakpoint resizes
 - Items per page auto-adjust based on view mode
 
-**Manual Override System:**
+**View Toggle Button Visibility:**
+- Desktop: Both Cards and Table view toggle buttons visible
+- Mobile: View toggle buttons completely hidden (`!isMobile` conditional wrapper)
+- Rationale: Table view is difficult to use on mobile devices; cards provide better touch interaction
+- Simplifies mobile UI by removing unnecessary choice (only cards available)
+
+**Manual Override System (Desktop Only):**
 - Tracks user manual view mode selections via `manualViewModeOverride` flag
-- Cards button: Clears override if mobile (default), sets override if desktop (non-default)
-- Table button: Clears override if desktop (default), sets override if mobile (non-default)
+- Cards button: Sets override to false (returning to default)
+- Table button: Sets override to true (non-default selection)
 - Override preserves user choice across viewport changes
-- Override automatically resets when user returns to default mode for their viewport
-- Allows responsiveness to resume after reverting to defaults
+- Override automatically resets when user returns to default mode
+- Mobile users cannot override - always locked to cards view
 
 **View Mode State Pattern (each section):**
 ```typescript

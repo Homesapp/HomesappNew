@@ -506,37 +506,35 @@ export default function ExternalRentals() {
 
       {/* Search and Filters */}
       <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
-        {/* View Toggle */}
-        <div className="flex gap-2 w-full sm:w-auto">
-          <Button
-            variant={viewMode === "cards" ? "default" : "outline"}
-            size="sm"
-            onClick={() => {
-              setViewMode("cards");
-              // Clear override if selecting default mode for current viewport
-              setManualViewModeOverride(isMobile ? false : true);
-            }}
-            data-testid="button-rentals-view-cards"
-            className="flex-1 sm:flex-initial"
-          >
-            <LayoutGrid className="h-4 w-4 mr-2" />
-            {language === "es" ? "Tarjetas" : "Cards"}
-          </Button>
-          <Button
-            variant={viewMode === "table" ? "default" : "outline"}
-            size="sm"
-            onClick={() => {
-              setViewMode("table");
-              // Clear override if selecting default mode for current viewport
-              setManualViewModeOverride(isMobile ? true : false);
-            }}
-            data-testid="button-rentals-view-table"
-            className="flex-1 sm:flex-initial"
-          >
-            <TableIcon className="h-4 w-4 mr-2" />
-            {language === "es" ? "Tabla" : "Table"}
-          </Button>
-        </div>
+        {/* View Toggle - Desktop only */}
+        {!isMobile && (
+          <div className="flex gap-2">
+            <Button
+              variant={viewMode === "cards" ? "default" : "outline"}
+              size="sm"
+              onClick={() => {
+                setViewMode("cards");
+                setManualViewModeOverride(false);
+              }}
+              data-testid="button-rentals-view-cards"
+            >
+              <LayoutGrid className="h-4 w-4 mr-2" />
+              {language === "es" ? "Tarjetas" : "Cards"}
+            </Button>
+            <Button
+              variant={viewMode === "table" ? "default" : "outline"}
+              size="sm"
+              onClick={() => {
+                setViewMode("table");
+                setManualViewModeOverride(true);
+              }}
+              data-testid="button-rentals-view-table"
+            >
+              <TableIcon className="h-4 w-4 mr-2" />
+              {language === "es" ? "Tabla" : "Table"}
+            </Button>
+          </div>
+        )}
 
         {/* Search */}
         <div className="relative flex-1 sm:max-w-md">

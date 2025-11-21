@@ -1229,36 +1229,35 @@ export default function ExternalAccounting() {
               <Calendar className="h-4 w-4 mr-1" />
               {t.today}
             </Button>
-            <div className="flex gap-2 w-full sm:w-auto">
-              <Button
-                variant={viewMode === "cards" ? "default" : "outline"}
-                size="sm"
-                onClick={() => {
-                  setViewMode("cards");
-                  // Clear override if selecting default mode for current viewport
-                  setManualViewModeOverride(isMobile ? false : true);
-                }}
-                data-testid="button-accounting-view-cards"
-                className="flex-1 sm:flex-initial"
-              >
-                <LayoutGrid className="h-4 w-4 mr-2" />
-                {language === "es" ? "Tarjetas" : "Cards"}
-              </Button>
-              <Button
-                variant={viewMode === "table" ? "default" : "outline"}
-                size="sm"
-                onClick={() => {
-                  setViewMode("table");
-                  // Clear override if selecting default mode for current viewport
-                  setManualViewModeOverride(isMobile ? true : false);
-                }}
-                data-testid="button-accounting-view-table"
-                className="flex-1 sm:flex-initial"
-              >
-                <TableIcon className="h-4 w-4 mr-2" />
-                {language === "es" ? "Tabla" : "Table"}
-              </Button>
-            </div>
+            {/* View Toggle - Desktop only */}
+            {!isMobile && (
+              <div className="flex gap-2">
+                <Button
+                  variant={viewMode === "cards" ? "default" : "outline"}
+                  size="sm"
+                  onClick={() => {
+                    setViewMode("cards");
+                    setManualViewModeOverride(false);
+                  }}
+                  data-testid="button-accounting-view-cards"
+                >
+                  <LayoutGrid className="h-4 w-4 mr-2" />
+                  {language === "es" ? "Tarjetas" : "Cards"}
+                </Button>
+                <Button
+                  variant={viewMode === "table" ? "default" : "outline"}
+                  size="sm"
+                  onClick={() => {
+                    setViewMode("table");
+                    setManualViewModeOverride(true);
+                  }}
+                  data-testid="button-accounting-view-table"
+                >
+                  <TableIcon className="h-4 w-4 mr-2" />
+                  {language === "es" ? "Tabla" : "Table"}
+                </Button>
+              </div>
+            )}
           </div>
         </div>
 

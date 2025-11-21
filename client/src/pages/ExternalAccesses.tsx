@@ -738,36 +738,35 @@ ${access.description ? `${language === "es" ? "Descripción" : "Description"}: $
             </PopoverContent>
           </Popover>
 
-          <div className="flex gap-2 w-full sm:w-auto">
-            <Button
-              variant={viewMode === 'table' ? 'default' : 'outline'}
-              size="sm"
-              onClick={() => {
-                setViewMode('table');
-                // Clear override if selecting default mode for current viewport
-                setManualViewModeOverride(isMobile ? true : false);
-              }}
-              data-testid="button-accesses-view-table"
-              className="flex-1 sm:flex-initial"
-            >
-              <LayoutList className="h-4 w-4 mr-2" />
-              {language === 'es' ? 'Tabla' : 'Table'}
-            </Button>
-            <Button
-              variant={viewMode === 'cards' ? 'default' : 'outline'}
-              size="sm"
-              onClick={() => {
-                setViewMode('cards');
-                // Clear override if selecting default mode for current viewport
-                setManualViewModeOverride(isMobile ? false : true);
-              }}
-              data-testid="button-accesses-view-cards"
-              className="flex-1 sm:flex-initial"
-            >
-              <LayoutGrid className="h-4 w-4 mr-2" />
-              {language === 'es' ? 'Tarjetas' : 'Cards'}
-            </Button>
-          </div>
+          {/* View Toggle - Desktop only */}
+          {!isMobile && (
+            <div className="flex gap-2">
+              <Button
+                variant={viewMode === 'table' ? 'default' : 'outline'}
+                size="sm"
+                onClick={() => {
+                  setViewMode('table');
+                  setManualViewModeOverride(true);
+                }}
+                data-testid="button-accesses-view-table"
+              >
+                <LayoutList className="h-4 w-4 mr-2" />
+                {language === 'es' ? 'Tabla' : 'Table'}
+              </Button>
+              <Button
+                variant={viewMode === 'cards' ? 'default' : 'outline'}
+                size="sm"
+                onClick={() => {
+                  setViewMode('cards');
+                  setManualViewModeOverride(false);
+                }}
+                data-testid="button-accesses-view-cards"
+              >
+                <LayoutGrid className="h-4 w-4 mr-2" />
+                {language === 'es' ? 'Tarjetas' : 'Cards'}
+              </Button>
+            </div>
+          )}
 
           <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
             <DialogTrigger asChild>
