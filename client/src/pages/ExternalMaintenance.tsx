@@ -34,6 +34,12 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Textarea } from "@/components/ui/textarea";
 import { Calendar } from "@/components/ui/calendar";
@@ -61,6 +67,8 @@ import {
   Tag,
   User,
   Calendar as CalendarIcon,
+  MoreVertical,
+  Pencil,
 } from "lucide-react";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { useAuth } from "@/hooks/useAuth";
@@ -78,6 +86,17 @@ import { cn } from "@/lib/utils";
 import { ExternalPaginationControls } from "@/components/external/ExternalPaginationControls";
 
 type MaintenanceFormData = z.infer<typeof insertExternalMaintenanceTicketSchema>;
+
+// Edit-specific schema - only editable fields
+const editMaintenanceTicketSchema = z.object({
+  title: z.string().min(1, "Title is required"),
+  description: z.string().min(1, "Description is required"),
+  category: z.enum(["plumbing", "electrical", "appliances", "hvac", "general", "emergency", "other"]),
+  priority: z.enum(["low", "medium", "high", "urgent"]),
+  notes: z.string().optional(),
+});
+
+type EditMaintenanceFormData = z.infer<typeof editMaintenanceTicketSchema>;
 
 const CANCUN_TIMEZONE = "America/Cancun";
 
@@ -163,6 +182,8 @@ export default function ExternalMaintenance() {
   const { user } = useAuth();
   const isMobile = useMobile();
   const [showDialog, setShowDialog] = useState(false);
+  const [showEditDialog, setShowEditDialog] = useState(false);
+  const [editingTicket, setEditingTicket] = useState<ExternalMaintenanceTicket | null>(null);
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [priorityFilter, setPriorityFilter] = useState<string>("all");
@@ -235,12 +256,36 @@ export default function ExternalMaintenance() {
     },
   });
 
+  const editForm = useForm<EditMaintenanceFormData>({
+    resolver: zodResolver(editMaintenanceTicketSchema),
+    defaultValues: {
+      title: "",
+      description: "",
+      category: "other",
+      priority: "medium",
+      notes: "",
+    },
+  });
+
   // Initialize form with default schedule on mount
   useEffect(() => {
     const defaultSchedule = getDefaultSchedule();
     setSchedule(defaultSchedule);
     form.setValue('scheduledDate', scheduleToISOString(defaultSchedule));
   }, []);
+
+  // Populate edit form when editingTicket changes
+  useEffect(() => {
+    if (editingTicket) {
+      editForm.reset({
+        title: editingTicket.title,
+        description: editingTicket.description,
+        category: editingTicket.category,
+        priority: editingTicket.priority,
+        notes: editingTicket.notes || "",
+      });
+    }
+  }, [editingTicket]);
 
   const handleSubmit = form.handleSubmit((data) => {
     // scheduledDate is already set via form.setValue in calendar/time onChange
@@ -299,6 +344,85 @@ export default function ExternalMaintenance() {
       toast({
         title: language === "es" ? "Error" : "Error",
         description: error.message,
+        variant: "destructive",
+      });
+    },
+  });
+
+  const updateStatusMutation = useMutation({
+    mutationFn: async ({ ticketId, status }: { ticketId: string; status: string }) => {
+      return await apiRequest('PATCH', `/api/external-tickets/${ticketId}/status`, { status });
+    },
+    onSuccess: (_, variables) => {
+      const ticket = tickets?.find(t => t.id === variables.ticketId);
+      queryClient.invalidateQueries({ queryKey: ['/api/external-tickets'] });
+      if (ticket) {
+        const unit = units?.find(u => u.id === ticket.unitId);
+        if (unit) {
+          queryClient.invalidateQueries({ queryKey: ['/api/external-tickets', unit.condominiumId] });
+          queryClient.invalidateQueries({ queryKey: ['/api/external-tickets', unit.id] });
+        }
+      }
+      toast({
+        title: language === "es" ? "Estado actualizado" : "Status updated",
+        description: language === "es" ? "El estado del ticket se actualizó exitosamente" : "Ticket status updated successfully",
+      });
+    },
+    onError: (error: any) => {
+      let errorMessage = language === "es" ? "No se pudo actualizar el estado" : "Failed to update status";
+      
+      if (error?.message && typeof error.message === 'string') {
+        errorMessage = error.message;
+      } else if (typeof error === 'string') {
+        errorMessage = error;
+      } else if (error?.statusText) {
+        errorMessage = error.statusText;
+      }
+      
+      toast({
+        title: language === "es" ? "Error" : "Error",
+        description: errorMessage,
+        variant: "destructive",
+      });
+    },
+  });
+
+  const updateTicketMutation = useMutation({
+    mutationFn: async ({ ticketId, data }: { ticketId: string; data: EditMaintenanceFormData }) => {
+      return await apiRequest('PATCH', `/api/external-tickets/${ticketId}`, data);
+    },
+    onSuccess: (_, variables) => {
+      const ticket = tickets?.find(t => t.id === variables.ticketId);
+      queryClient.invalidateQueries({ queryKey: ['/api/external-tickets'] });
+      if (ticket) {
+        const unit = units?.find(u => u.id === ticket.unitId);
+        if (unit) {
+          queryClient.invalidateQueries({ queryKey: ['/api/external-tickets', unit.condominiumId] });
+          queryClient.invalidateQueries({ queryKey: ['/api/external-tickets', unit.id] });
+        }
+      }
+      setShowEditDialog(false);
+      setEditingTicket(null);
+      editForm.reset();
+      toast({
+        title: language === "es" ? "Ticket actualizado" : "Ticket updated",
+        description: language === "es" ? "El ticket se actualizó exitosamente" : "Ticket updated successfully",
+      });
+    },
+    onError: (error: any) => {
+      let errorMessage = language === "es" ? "No se pudo actualizar el ticket" : "Failed to update ticket";
+      
+      if (error?.message && typeof error.message === 'string') {
+        errorMessage = error.message;
+      } else if (typeof error === 'string') {
+        errorMessage = error;
+      } else if (error?.statusText) {
+        errorMessage = error.statusText;
+      }
+      
+      toast({
+        title: language === "es" ? "Error" : "Error",
+        description: errorMessage,
         variant: "destructive",
       });
     },
@@ -404,8 +528,8 @@ export default function ExternalMaintenance() {
         bValue = new Date(b.createdAt);
         break;
       case 'updated':
-        aValue = new Date(a.updatedAt);
-        bValue = new Date(b.updatedAt);
+        aValue = a.updatedAt ? new Date(a.updatedAt) : new Date(0);
+        bValue = b.updatedAt ? new Date(b.updatedAt) : new Date(0);
         break;
       default:
         return 0;
@@ -1053,7 +1177,14 @@ export default function ExternalMaintenance() {
                           
                           <div className="flex items-center gap-2 text-sm text-muted-foreground">
                             <CalendarIcon className="h-4 w-4 flex-shrink-0" />
-                            <span>{format(new Date(ticket.createdAt), 'dd MMM yyyy', { locale: language === 'es' ? es : undefined })}</span>
+                            <div className="flex flex-col">
+                              <span className="text-xs">{language === 'es' ? 'Creado:' : 'Created:'} {format(new Date(ticket.createdAt), 'dd MMM yyyy', { locale: language === 'es' ? es : undefined })}</span>
+                              <span className="text-xs">
+                                {language === 'es' ? 'Actualizado:' : 'Updated:'} {ticket.updatedAt 
+                                  ? format(new Date(ticket.updatedAt), 'dd MMM yyyy HH:mm', { locale: language === 'es' ? es : undefined })
+                                  : (language === 'es' ? 'Sin actualizar' : 'Not updated')}
+                              </span>
+                            </div>
                           </div>
                         </CardContent>
                       </Card>
@@ -1205,12 +1336,59 @@ export default function ExternalMaintenance() {
                           <span>{assignedName || '-'}</span>
                         </TableCell>
                         <TableCell className="px-3 py-3">
-                          <span>
-                            {format(new Date(ticket.updatedAt), 'dd MMM yyyy HH:mm', { locale: language === 'es' ? es : undefined })}
+                          <span className="text-muted-foreground">
+                            {ticket.updatedAt 
+                              ? format(new Date(ticket.updatedAt), 'dd MMM yyyy HH:mm', { locale: language === 'es' ? es : undefined })
+                              : (language === 'es' ? 'Sin actualizar' : 'Not updated')}
                           </span>
                         </TableCell>
                         <TableCell className="px-3 py-3 text-right">
                           <div className="flex gap-1 justify-end">
+                            <Button 
+                              size="icon" 
+                              variant="ghost"
+                              onClick={() => {
+                                setEditingTicket(ticket);
+                                setShowEditDialog(true);
+                              }}
+                              disabled={updateStatusMutation.isPending || updateTicketMutation.isPending}
+                              data-testid={`button-edit-${ticket.id}`}
+                            >
+                              <Pencil className="h-4 w-4" />
+                            </Button>
+                            <DropdownMenu>
+                              <DropdownMenuTrigger asChild>
+                                <Button 
+                                  size="icon" 
+                                  variant="ghost" 
+                                  data-testid={`button-status-menu-${ticket.id}`}
+                                  disabled={updateStatusMutation.isPending || updateTicketMutation.isPending}
+                                >
+                                  <MoreVertical className="h-4 w-4" />
+                                </Button>
+                              </DropdownMenuTrigger>
+                              <DropdownMenuContent align="end">
+                                {Object.entries(statusColors)
+                                  .filter(([status]) => status !== ticket.status)
+                                  .map(([status, config]) => (
+                                    <DropdownMenuItem
+                                      key={status}
+                                      onClick={() => {
+                                        if (!updateStatusMutation.isPending) {
+                                          updateStatusMutation.mutate({ 
+                                            ticketId: ticket.id, 
+                                            status 
+                                          });
+                                        }
+                                      }}
+                                      disabled={updateStatusMutation.isPending}
+                                      data-testid={`menu-status-${status}-${ticket.id}`}
+                                    >
+                                      {config.label[language]}
+                                    </DropdownMenuItem>
+                                  ))}
+                              </DropdownMenuContent>
+                            </DropdownMenu>
                             <Link href={`/external/maintenance/${ticket.id}`}>
                               <Button size="icon" variant="ghost" data-testid={`button-view-${ticket.id}`}>
                                 <Eye className="h-4 w-4" />
@@ -1484,6 +1662,147 @@ export default function ExternalMaintenance() {
                   data-testid="button-submit"
                 >
                   {createMutation.isPending ? t.creating : t.create}
+                </Button>
+              </DialogFooter>
+            </form>
+          </Form>
+        </DialogContent>
+      </Dialog>
+
+      {/* Edit Dialog */}
+      <Dialog open={showEditDialog} onOpenChange={setShowEditDialog}>
+        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>
+              {language === 'es' ? 'Editar Ticket' : 'Edit Ticket'}
+            </DialogTitle>
+            <DialogDescription>
+              {language === 'es' 
+                ? 'Actualiza la información del ticket de mantenimiento'
+                : 'Update the maintenance ticket information'}
+            </DialogDescription>
+          </DialogHeader>
+
+          <Form {...editForm}>
+            <form onSubmit={editForm.handleSubmit((data) => {
+              if (editingTicket) {
+                updateTicketMutation.mutate({ ticketId: editingTicket.id, data });
+              }
+            })} className="space-y-4">
+              <FormField
+                control={editForm.control}
+                name="title"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>{t.ticketTitle}</FormLabel>
+                    <FormControl>
+                      <Input {...field} data-testid="input-edit-title" />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={editForm.control}
+                name="description"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>{t.description}</FormLabel>
+                    <FormControl>
+                      <Textarea {...field} rows={3} data-testid="input-edit-description" />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <div className="grid gap-4 md:grid-cols-2">
+                <FormField
+                  control={editForm.control}
+                  name="category"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>{t.category}</FormLabel>
+                      <Select onValueChange={field.onChange} value={field.value}>
+                        <FormControl>
+                          <SelectTrigger data-testid="select-edit-category">
+                            <SelectValue />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          {Object.entries(categoryLabels).map(([key, labels]) => (
+                            <SelectItem key={key} value={key}>
+                              {labels[language]}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                <FormField
+                  control={editForm.control}
+                  name="priority"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>{t.priority}</FormLabel>
+                      <Select onValueChange={field.onChange} value={field.value}>
+                        <FormControl>
+                          <SelectTrigger data-testid="select-edit-priority">
+                            <SelectValue />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          {Object.entries(priorityColors).map(([key, config]) => (
+                            <SelectItem key={key} value={key}>
+                              {config.label[language]}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              </div>
+
+              <FormField
+                control={editForm.control}
+                name="notes"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>{t.notes}</FormLabel>
+                    <FormControl>
+                      <Textarea {...field} value={field.value || ""} rows={2} data-testid="input-edit-notes" />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <DialogFooter>
+                <Button 
+                  type="button" 
+                  variant="outline" 
+                  onClick={() => {
+                    setShowEditDialog(false);
+                    setEditingTicket(null);
+                  }}
+                  data-testid="button-edit-cancel"
+                >
+                  {t.cancel}
+                </Button>
+                <Button 
+                  type="submit" 
+                  disabled={updateTicketMutation.isPending}
+                  data-testid="button-edit-submit"
+                >
+                  {updateTicketMutation.isPending 
+                    ? (language === 'es' ? 'Guardando...' : 'Saving...') 
+                    : (language === 'es' ? 'Guardar' : 'Save')}
                 </Button>
               </DialogFooter>
             </form>
