@@ -30,6 +30,7 @@ import {
   Pencil,
   X,
   Filter,
+  Search,
   LayoutGrid,
   Table as TableIcon,
   Eye,
@@ -66,6 +67,7 @@ export default function ExternalAccounting() {
   const { toast } = useToast();
 
   // Filters
+  const [searchTerm, setSearchTerm] = useState("");
   const [directionFilter, setDirectionFilter] = useState<string>("all");
   const [categoryFilter, setCategoryFilter] = useState<string>("all");
   const [statusFilter, setStatusFilter] = useState<string>("all");
@@ -94,6 +96,13 @@ export default function ExternalAccounting() {
   // Pagination
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState(5);
+  
+  // Pagination options
+  const cardsPerPageOptions = [3, 6, 9, 12];
+  const tablePerPageOptions = [5, 10, 20, 30];
+  
+  // Tab control
+  const [activeTab, setActiveTab] = useState("transactions");
 
   const buildTransactionsQueryKey = () => {
     const params = new URLSearchParams();
@@ -129,11 +138,24 @@ export default function ExternalAccounting() {
     staleTime: 15 * 60 * 1000, // 15 minutes (rarely changes)
   });
 
-  // Filter transactions by date range
+  // Filter transactions by date range and search term
   const filteredTransactions = useMemo(() => {
     if (!transactions) return [];
     
-    if (dateFilter === "all") return transactions;
+    // First apply search filter
+    let filtered = transactions;
+    if (searchTerm.trim()) {
+      const search = searchTerm.toLowerCase();
+      filtered = transactions.filter(t => 
+        t.description?.toLowerCase().includes(search) ||
+        t.paymentReference?.toLowerCase().includes(search) ||
+        getCategoryLabel(t.category).toLowerCase().includes(search) ||
+        getRoleLabel(t.payerRole).toLowerCase().includes(search) ||
+        getRoleLabel(t.payeeRole).toLowerCase().includes(search)
+      );
+    }
+    
+    if (dateFilter === "all") return filtered;
     
     const now = new Date();
     let start: Date | null = null;
@@ -166,7 +188,7 @@ export default function ExternalAccounting() {
         break;
     }
 
-    return transactions.filter(t => {
+    return filtered.filter(t => {
       const transactionDate = t.dueDate ? new Date(t.dueDate) : null;
       if (!transactionDate) return false;
       
@@ -175,7 +197,7 @@ export default function ExternalAccounting() {
       
       return true;
     });
-  }, [transactions, dateFilter, customStartDate, customEndDate]);
+  }, [transactions, searchTerm, dateFilter, customStartDate, customEndDate]);
 
   // Sort transactions
   const sortedAndFilteredTransactions = useMemo(() => {
@@ -231,15 +253,21 @@ export default function ExternalAccounting() {
       if (!manualViewModeOverride) {
         const preferredMode = isMobile ? "cards" : "table";
         setViewMode(preferredMode);
-        setItemsPerPage(preferredMode === "cards" ? 9 : 5);
       }
     }
   }, [isMobile, prevIsMobile, manualViewModeOverride]);
+  
+  // Auto-adjust itemsPerPage when switching view modes
+  useEffect(() => {
+    const defaultForMode = viewMode === "cards" ? cardsPerPageOptions[1] : tablePerPageOptions[0];
+    setItemsPerPage(defaultForMode);
+    setCurrentPage(1);
+  }, [viewMode]);
 
   // Reset to page 1 when filters or data changes
   useEffect(() => {
     setCurrentPage(1);
-  }, [directionFilter, categoryFilter, statusFilter, condominiumFilter, unitFilter, dateFilter, customStartDate, customEndDate, itemsPerPage]);
+  }, [searchTerm, directionFilter, categoryFilter, statusFilter, condominiumFilter, unitFilter, dateFilter, customStartDate, customEndDate, itemsPerPage]);
   
   // Clamp currentPage to valid range when data length changes
   useEffect(() => {
@@ -875,27 +903,50 @@ export default function ExternalAccounting() {
         </div>
       </div>
 
-      <Tabs defaultValue="transactions" className="w-full">
+      <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
         <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 mb-6">
           <TabsList>
             <TabsTrigger value="transactions" data-testid="tab-transactions">{t.transactionsTab}</TabsTrigger>
             <TabsTrigger value="receivables" data-testid="tab-receivables">{t.receivablesTab}</TabsTrigger>
             <TabsTrigger value="reports" data-testid="tab-reports">{t.reportsTab}</TabsTrigger>
           </TabsList>
-          
-          <div className="flex gap-2">
-            <Popover open={filtersExpanded} onOpenChange={setFiltersExpanded}>
-              <PopoverTrigger asChild>
-                <Button 
-                  variant="outline" 
-                  size="icon"
-                  data-testid="button-toggle-filters"
-                  title={t.filters}
-                  className="flex-shrink-0"
-                >
-                  <Filter className="h-4 w-4" />
-                </Button>
-              </PopoverTrigger>
+        </div>
+
+        {/* Transactions Tab */}
+        <TabsContent value="transactions" className="space-y-6">
+          {/* Search and Filters Bar */}
+          <Card>
+            <CardContent className="pt-6">
+              <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
+                {/* Search Input */}
+                <div className="relative flex-1">
+                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                  <Input
+                    placeholder={language === 'es' ? 'Buscar transacciones...' : 'Search transactions...'}
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                    className="pl-10"
+                    data-testid="input-search"
+                  />
+                </div>
+
+                {/* Filter Button with Popover */}
+                <Popover open={filtersExpanded} onOpenChange={setFiltersExpanded}>
+                  <PopoverTrigger asChild>
+                    <Button 
+                      variant="outline" 
+                      size="icon"
+                      className="relative flex-shrink-0"
+                      data-testid="button-toggle-filters"
+                    >
+                      <Filter className="h-4 w-4" />
+                      {activeFilters > 0 && (
+                        <Badge variant="default" className="absolute -top-1 -right-1 h-4 w-4 p-0 flex items-center justify-center text-[10px]">
+                          {activeFilters}
+                        </Badge>
+                      )}
+                    </Button>
+                  </PopoverTrigger>
               <PopoverContent className="w-96 max-h-[600px] overflow-y-auto" align="end">
                 <div className="space-y-4">
                   <div className="space-y-2">
@@ -1215,51 +1266,54 @@ export default function ExternalAccounting() {
                 {language === 'es' ? 'Limpiar Filtros' : 'Clear Filters'}
               </Button>
             </div>
-          </PopoverContent>
-        </Popover>
-            <Button
-              variant={dateFilter === "today" ? "default" : "outline"}
-              size="sm"
-              onClick={() => {
-                setDateFilter(dateFilter === "today" ? "all" : "today");
-                setCurrentPage(1);
-              }}
-              data-testid="button-filter-today"
-            >
-              <Calendar className="h-4 w-4 mr-1" />
-              {t.today}
-            </Button>
-            {/* View Toggle - Desktop only */}
-            {!isMobile && (
-              <div className="flex gap-2">
-                <Button
-                  variant={viewMode === "cards" ? "default" : "outline"}
-                  size="icon"
-                  onClick={() => {
-                    setViewMode("cards");
-                    setManualViewModeOverride(false);
-                  }}
-                  data-testid="button-accounting-view-cards"
-                >
-                  <LayoutGrid className="h-4 w-4" />
-                </Button>
-                <Button
-                  variant={viewMode === "table" ? "default" : "outline"}
-                  size="icon"
-                  onClick={() => {
-                    setViewMode("table");
-                    setManualViewModeOverride(true);
-                  }}
-                  data-testid="button-accounting-view-table"
-                >
-                  <TableIcon className="h-4 w-4" />
-                </Button>
+                </PopoverContent>
+              </Popover>
+              
+              {/* HOY Button - Navigate to Receivables Tab */}
+              <Button
+                variant="outline"
+                className="flex-shrink-0"
+                onClick={() => setActiveTab("receivables")}
+                data-testid="button-today"
+              >
+                <Calendar className="h-4 w-4 mr-2" />
+                {t.today}
+              </Button>
+              
+              {/* View Mode Toggles - Desktop Only */}
+              {!isMobile && (
+                <>
+                  <Button
+                    variant={viewMode === "cards" ? "default" : "outline"}
+                    size="icon"
+                    className="flex-shrink-0"
+                    onClick={() => {
+                      setViewMode("cards");
+                      setManualViewModeOverride(false);
+                    }}
+                    data-testid="button-view-cards"
+                  >
+                    <LayoutGrid className="h-4 w-4" />
+                  </Button>
+                  <Button
+                    variant={viewMode === "table" ? "default" : "outline"}
+                    size="icon"
+                    className="flex-shrink-0"
+                    onClick={() => {
+                      setViewMode("table");
+                      setManualViewModeOverride(true);
+                    }}
+                    data-testid="button-view-table"
+                  >
+                    <TableIcon className="h-4 w-4" />
+                  </Button>
+                </>
+              )}
               </div>
-            )}
-          </div>
-        </div>
+            </CardContent>
+          </Card>
 
-        <TabsContent value="transactions" className="space-y-6">
+          {/* Transactions List */}
           {transactionsLoading ? (
             <div className="space-y-4">
               {[...Array(5)].map((_, i) => (
