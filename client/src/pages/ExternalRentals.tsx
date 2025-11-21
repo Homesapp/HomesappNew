@@ -470,127 +470,68 @@ export default function ExternalRentals() {
         </div>
 
         {/* Additional Filters */}
-        <div className="flex gap-4 flex-wrap">
-          <div className="flex-1 min-w-[200px]">
-            <Popover open={condoComboOpen} onOpenChange={setCondoComboOpen}>
-              <PopoverTrigger asChild>
+        <div className="space-y-3">
+          <div className="space-y-2">
+            <label className="text-sm font-medium">
+              {language === "es" ? "Condominio" : "Condominium"}
+            </label>
+            <div className="flex flex-wrap gap-2">
+              <Button
+                variant={condominiumFilter === "" ? "default" : "outline"}
+                size="sm"
+                onClick={() => {
+                  setCondominiumFilter("");
+                  setUnitFilter("");
+                }}
+                data-testid="button-filter-condo-all"
+              >
+                {language === "es" ? "Todos" : "All"}
+              </Button>
+              {condominiums?.map((condo) => (
                 <Button
-                  variant="outline"
-                  role="combobox"
-                  aria-expanded={condoComboOpen}
-                  className="w-full justify-between"
-                  data-testid="button-filter-condominium"
+                  key={condo.id}
+                  variant={condominiumFilter === condo.id ? "default" : "outline"}
+                  size="sm"
+                  onClick={() => {
+                    setCondominiumFilter(condo.id);
+                    setUnitFilter("");
+                  }}
+                  data-testid={`button-filter-condo-${condo.id}`}
                 >
-                  {condominiumFilter
-                    ? condominiums?.find((c) => c.id === condominiumFilter)?.name
-                    : (language === "es" ? "Todos los condominios" : "All condominiums")}
-                  <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                  {condo.name}
                 </Button>
-              </PopoverTrigger>
-              <PopoverContent className="w-[300px] p-0">
-                <Command>
-                  <CommandInput placeholder={language === "es" ? "Buscar condominio..." : "Search condominium..."} />
-                  <CommandEmpty>{language === "es" ? "No se encontró" : "Not found"}</CommandEmpty>
-                  <CommandGroup>
-                    <CommandItem
-                      value="all"
-                      onSelect={() => {
-                        setCondominiumFilter("");
-                        setUnitFilter("");
-                        setCondoComboOpen(false);
-                      }}
-                    >
-                      <Check
-                        className={cn(
-                          "mr-2 h-4 w-4",
-                          condominiumFilter === "" ? "opacity-100" : "opacity-0"
-                        )}
-                      />
-                      {language === "es" ? "Todos los condominios" : "All condominiums"}
-                    </CommandItem>
-                    {condominiums?.map((condo) => (
-                      <CommandItem
-                        key={condo.id}
-                        value={condo.name}
-                        onSelect={() => {
-                          setCondominiumFilter(condo.id);
-                          setUnitFilter("");
-                          setCondoComboOpen(false);
-                        }}
-                      >
-                        <Check
-                          className={cn(
-                            "mr-2 h-4 w-4",
-                            condominiumFilter === condo.id ? "opacity-100" : "opacity-0"
-                          )}
-                        />
-                        {condo.name}
-                      </CommandItem>
-                    ))}
-                  </CommandGroup>
-                </Command>
-              </PopoverContent>
-            </Popover>
+              ))}
+            </div>
           </div>
-          <div className="flex-1 min-w-[200px]">
-            <Popover open={unitComboOpen} onOpenChange={setUnitComboOpen}>
-              <PopoverTrigger asChild>
+          
+          {condominiumFilter && units && units.length > 0 && (
+            <div className="space-y-2">
+              <label className="text-sm font-medium">
+                {language === "es" ? "Unidad" : "Unit"}
+              </label>
+              <div className="flex flex-wrap gap-2">
                 <Button
-                  variant="outline"
-                  role="combobox"
-                  aria-expanded={unitComboOpen}
-                  className="w-full justify-between"
-                  data-testid="button-filter-unit"
+                  variant={unitFilter === "" ? "default" : "outline"}
+                  size="sm"
+                  onClick={() => setUnitFilter("")}
+                  data-testid="button-filter-unit-all"
                 >
-                  {unitFilter
-                    ? units?.find((u) => u.id === unitFilter)?.unitNumber
-                    : (language === "es" ? "Todas las unidades" : "All units")}
-                  <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                  {language === "es" ? "Todas" : "All"}
                 </Button>
-              </PopoverTrigger>
-              <PopoverContent className="w-[300px] p-0">
-                <Command>
-                  <CommandInput placeholder={language === "es" ? "Buscar unidad..." : "Search unit..."} />
-                  <CommandEmpty>{language === "es" ? "No se encontró" : "Not found"}</CommandEmpty>
-                  <CommandGroup>
-                    <CommandItem
-                      value="all"
-                      onSelect={() => {
-                        setUnitFilter("");
-                        setUnitComboOpen(false);
-                      }}
-                    >
-                      <Check
-                        className={cn(
-                          "mr-2 h-4 w-4",
-                          unitFilter === "" ? "opacity-100" : "opacity-0"
-                        )}
-                      />
-                      {language === "es" ? "Todas las unidades" : "All units"}
-                    </CommandItem>
-                    {units?.map((unit) => (
-                      <CommandItem
-                        key={unit.id}
-                        value={unit.unitNumber}
-                        onSelect={() => {
-                          setUnitFilter(unit.id);
-                          setUnitComboOpen(false);
-                        }}
-                      >
-                        <Check
-                          className={cn(
-                            "mr-2 h-4 w-4",
-                            unitFilter === unit.id ? "opacity-100" : "opacity-0"
-                          )}
-                        />
-                        {unit.unitNumber}
-                      </CommandItem>
-                    ))}
-                  </CommandGroup>
-                </Command>
-              </PopoverContent>
-            </Popover>
-          </div>
+                {units?.map((unit) => (
+                  <Button
+                    key={unit.id}
+                    variant={unitFilter === unit.id ? "default" : "outline"}
+                    size="sm"
+                    onClick={() => setUnitFilter(unit.id)}
+                    data-testid={`button-filter-unit-${unit.id}`}
+                  >
+                    {unit.unitNumber}
+                  </Button>
+                ))}
+              </div>
+            </div>
+          )}
         </div>
       </div>
 

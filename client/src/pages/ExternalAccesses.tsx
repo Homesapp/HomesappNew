@@ -747,92 +747,156 @@ ${access.description ? `${language === "es" ? "Descripción" : "Description"}: $
       <Collapsible open={isFiltersOpen} onOpenChange={setIsFiltersOpen}>
         <CollapsibleContent>
           <Card>
-            <CardContent className="pt-6">
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-                <div className="space-y-2">
-                  <label className="text-sm font-medium">
-                    {language === "es" ? "Condominio" : "Condominium"}
-                  </label>
-                  <Select value={selectedCondominium} onValueChange={handleCondominiumChange}>
-                    <SelectTrigger data-testid="select-condominium">
-                      <SelectValue placeholder={language === "es" ? "Todos los condominios" : "All condominiums"} />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="all">
-                        {language === "es" ? "Todos los condominios" : "All condominiums"}
-                      </SelectItem>
-                      {condominiums?.map((condo) => (
-                        <SelectItem key={condo.id} value={condo.id}>
-                          {condo.name}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+            <CardContent className="pt-6 space-y-4">
+              <div className="space-y-2">
+                <label className="text-sm font-medium">
+                  {language === "es" ? "Condominio" : "Condominium"}
+                </label>
+                <div className="flex flex-wrap gap-2">
+                  <Button
+                    variant={selectedCondominium === "all" ? "default" : "outline"}
+                    size="sm"
+                    onClick={() => handleCondominiumChange("all")}
+                    data-testid="button-filter-condo-all"
+                  >
+                    {language === "es" ? "Todos" : "All"}
+                  </Button>
+                  {condominiums?.map((condo) => (
+                    <Button
+                      key={condo.id}
+                      variant={selectedCondominium === condo.id ? "default" : "outline"}
+                      size="sm"
+                      onClick={() => handleCondominiumChange(condo.id)}
+                      data-testid={`button-filter-condo-${condo.id}`}
+                    >
+                      {condo.name}
+                    </Button>
+                  ))}
                 </div>
+              </div>
 
+              {selectedCondominium !== "all" && availableUnits.length > 0 && (
                 <div className="space-y-2">
                   <label className="text-sm font-medium">
                     {language === "es" ? "Unidad" : "Unit"}
                   </label>
-                  <Select 
-                    value={selectedUnit} 
-                    onValueChange={handleUnitChange}
-                    disabled={selectedCondominium === "all"}
-                  >
-                    <SelectTrigger data-testid="select-unit">
-                      <SelectValue placeholder={language === "es" ? "Todas las unidades" : "All units"} />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="all">
-                        {language === "es" ? "Todas las unidades" : "All units"}
-                      </SelectItem>
-                      {availableUnits.map((unit) => (
-                        <SelectItem key={unit.id} value={unit.id}>
-                          {unit.unitNumber}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-
-                <div className="space-y-2">
-                  <label className="text-sm font-medium">
-                    {language === "es" ? "Tipo de Acceso" : "Access Type"}
-                  </label>
-                  <Select value={selectedAccessType} onValueChange={handleAccessTypeChange}>
-                    <SelectTrigger data-testid="select-access-type">
-                      <SelectValue placeholder={language === "es" ? "Todos los tipos" : "All types"} />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="all">
-                        {language === "es" ? "Todos los tipos" : "All types"}
-                      </SelectItem>
-                      <SelectItem value="door_code">{getAccessTypeLabel("door_code")}</SelectItem>
-                      <SelectItem value="wifi">{getAccessTypeLabel("wifi")}</SelectItem>
-                      <SelectItem value="gate">{getAccessTypeLabel("gate")}</SelectItem>
-                      <SelectItem value="parking">{getAccessTypeLabel("parking")}</SelectItem>
-                      <SelectItem value="elevator">{getAccessTypeLabel("elevator")}</SelectItem>
-                      <SelectItem value="pool">{getAccessTypeLabel("pool")}</SelectItem>
-                      <SelectItem value="gym">{getAccessTypeLabel("gym")}</SelectItem>
-                      <SelectItem value="other">{getAccessTypeLabel("other")}</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-
-                <div className="space-y-2">
-                  <label className="text-sm font-medium">
-                    {language === "es" ? "Buscar" : "Search"}
-                  </label>
-                  <div className="relative">
-                    <Search className="h-4 w-4 text-muted-foreground absolute left-3 top-1/2 -translate-y-1/2" />
-                    <Input
-                      placeholder={language === "es" ? "Buscar..." : "Search..."}
-                      value={searchTerm}
-                      onChange={(e) => handleSearchChange(e.target.value)}
-                      className="pl-9"
-                      data-testid="input-search"
-                    />
+                  <div className="flex flex-wrap gap-2">
+                    <Button
+                      variant={selectedUnit === "all" ? "default" : "outline"}
+                      size="sm"
+                      onClick={() => handleUnitChange("all")}
+                      data-testid="button-filter-unit-all"
+                    >
+                      {language === "es" ? "Todas" : "All"}
+                    </Button>
+                    {availableUnits.map((unit) => (
+                      <Button
+                        key={unit.id}
+                        variant={selectedUnit === unit.id ? "default" : "outline"}
+                        size="sm"
+                        onClick={() => handleUnitChange(unit.id)}
+                        data-testid={`button-filter-unit-${unit.id}`}
+                      >
+                        {unit.unitNumber}
+                      </Button>
+                    ))}
                   </div>
+                </div>
+              )}
+
+              <div className="space-y-2">
+                <label className="text-sm font-medium">
+                  {language === "es" ? "Tipo de Acceso" : "Access Type"}
+                </label>
+                <div className="flex flex-wrap gap-2">
+                  <Button
+                    variant={selectedAccessType === "all" ? "default" : "outline"}
+                    size="sm"
+                    onClick={() => handleAccessTypeChange("all")}
+                    data-testid="button-filter-type-all"
+                  >
+                    {language === "es" ? "Todos" : "All"}
+                  </Button>
+                  <Button
+                    variant={selectedAccessType === "door_code" ? "default" : "outline"}
+                    size="sm"
+                    onClick={() => handleAccessTypeChange("door_code")}
+                    data-testid="button-filter-type-door"
+                  >
+                    {getAccessTypeLabel("door_code")}
+                  </Button>
+                  <Button
+                    variant={selectedAccessType === "wifi" ? "default" : "outline"}
+                    size="sm"
+                    onClick={() => handleAccessTypeChange("wifi")}
+                    data-testid="button-filter-type-wifi"
+                  >
+                    {getAccessTypeLabel("wifi")}
+                  </Button>
+                  <Button
+                    variant={selectedAccessType === "gate" ? "default" : "outline"}
+                    size="sm"
+                    onClick={() => handleAccessTypeChange("gate")}
+                    data-testid="button-filter-type-gate"
+                  >
+                    {getAccessTypeLabel("gate")}
+                  </Button>
+                  <Button
+                    variant={selectedAccessType === "parking" ? "default" : "outline"}
+                    size="sm"
+                    onClick={() => handleAccessTypeChange("parking")}
+                    data-testid="button-filter-type-parking"
+                  >
+                    {getAccessTypeLabel("parking")}
+                  </Button>
+                  <Button
+                    variant={selectedAccessType === "elevator" ? "default" : "outline"}
+                    size="sm"
+                    onClick={() => handleAccessTypeChange("elevator")}
+                    data-testid="button-filter-type-elevator"
+                  >
+                    {getAccessTypeLabel("elevator")}
+                  </Button>
+                  <Button
+                    variant={selectedAccessType === "pool" ? "default" : "outline"}
+                    size="sm"
+                    onClick={() => handleAccessTypeChange("pool")}
+                    data-testid="button-filter-type-pool"
+                  >
+                    {getAccessTypeLabel("pool")}
+                  </Button>
+                  <Button
+                    variant={selectedAccessType === "gym" ? "default" : "outline"}
+                    size="sm"
+                    onClick={() => handleAccessTypeChange("gym")}
+                    data-testid="button-filter-type-gym"
+                  >
+                    {getAccessTypeLabel("gym")}
+                  </Button>
+                  <Button
+                    variant={selectedAccessType === "other" ? "default" : "outline"}
+                    size="sm"
+                    onClick={() => handleAccessTypeChange("other")}
+                    data-testid="button-filter-type-other"
+                  >
+                    {getAccessTypeLabel("other")}
+                  </Button>
+                </div>
+              </div>
+
+              <div className="space-y-2">
+                <label className="text-sm font-medium">
+                  {language === "es" ? "Buscar" : "Search"}
+                </label>
+                <div className="relative">
+                  <Search className="h-4 w-4 text-muted-foreground absolute left-3 top-1/2 -translate-y-1/2" />
+                  <Input
+                    placeholder={language === "es" ? "Buscar..." : "Search..."}
+                    value={searchTerm}
+                    onChange={(e) => handleSearchChange(e.target.value)}
+                    className="pl-9"
+                    data-testid="input-search"
+                  />
                 </div>
               </div>
             </CardContent>
