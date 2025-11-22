@@ -1,9 +1,9 @@
-import { useState } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Plus, ExternalLink, RefreshCw, FileDown } from "lucide-react";
+import { Plus, ExternalLink, RefreshCw, FileDown, ArrowUpDown, ArrowUp, ArrowDown } from "lucide-react";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { format } from "date-fns";
@@ -11,6 +11,7 @@ import { es, enUS } from "date-fns/locale";
 import ExternalGenerateRentalFormLinkDialog from "./ExternalGenerateRentalFormLinkDialog";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
+import { ExternalPaginationControls } from "@/components/external/ExternalPaginationControls";
 
 interface ExternalRentalFormLinksProps {
   searchTerm: string;
@@ -22,6 +23,14 @@ export default function ExternalRentalFormLinks({ searchTerm, statusFilter, view
   const { language } = useLanguage();
   const { toast } = useToast();
   const [dialogOpen, setDialogOpen] = useState(false);
+  
+  // Pagination state
+  const [currentPage, setCurrentPage] = useState(1);
+  const [itemsPerPage, setItemsPerPage] = useState(10);
+  
+  // Sorting state
+  const [sortColumn, setSortColumn] = useState<string>("");
+  const [sortDirection, setSortDirection] = useState<"asc" | "desc">("asc");
 
   const { data: formTokens, isLoading } = useQuery({
     queryKey: ["/api/external/rental-form-tokens"],
@@ -48,24 +57,91 @@ export default function ExternalRentalFormLinks({ searchTerm, statusFilter, view
     },
   });
 
-  const filteredTokens = formTokens?.filter((token: any) => {
-    // Apply search filter
-    const matchesSearch = !searchTerm || 
-      token.clientName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      token.propertyTitle?.toLowerCase().includes(searchTerm.toLowerCase());
+  const filteredTokens = useMemo(() => {
+    if (!formTokens) return [];
     
-    // Apply status filter
-    let matchesStatus = true;
-    if (statusFilter === "active") {
-      matchesStatus = !token.isUsed && new Date(token.expiresAt) >= new Date();
-    } else if (statusFilter === "completed") {
-      matchesStatus = token.isUsed;
-    } else if (statusFilter === "expired") {
-      matchesStatus = !token.isUsed && new Date(token.expiresAt) < new Date();
+    return formTokens.filter((token: any) => {
+      // Apply search filter
+      const matchesSearch = !searchTerm || 
+        token.clientName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        token.propertyTitle?.toLowerCase().includes(searchTerm.toLowerCase());
+      
+      // Apply status filter
+      let matchesStatus = true;
+      if (statusFilter === "active") {
+        matchesStatus = !token.isUsed && new Date(token.expiresAt) >= new Date();
+      } else if (statusFilter === "completed") {
+        matchesStatus = token.isUsed;
+      } else if (statusFilter === "expired") {
+        matchesStatus = !token.isUsed && new Date(token.expiresAt) < new Date();
+      }
+      
+      return matchesSearch && matchesStatus;
+    });
+  }, [formTokens, searchTerm, statusFilter]);
+
+  // Sorted tokens
+  const sortedTokens = useMemo(() => {
+    if (!filteredTokens || !sortColumn) return filteredTokens;
+    
+    return [...filteredTokens].sort((a: any, b: any) => {
+      let aVal = a[sortColumn];
+      let bVal = b[sortColumn];
+      
+      // Handle date columns
+      if (sortColumn === 'createdAt' || sortColumn === 'expiresAt') {
+        const aDate = aVal ? new Date(aVal).getTime() : 0;
+        const bDate = bVal ? new Date(bVal).getTime() : 0;
+        return sortDirection === "asc" ? aDate - bDate : bDate - aDate;
+      }
+      
+      // Handle string columns
+      if (typeof aVal === "string" || typeof bVal === "string") {
+        aVal = (aVal || '').toString().toLowerCase();
+        bVal = (bVal || '').toString().toLowerCase();
+      }
+      
+      if (aVal < bVal) return sortDirection === "asc" ? -1 : 1;
+      if (aVal > bVal) return sortDirection === "asc" ? 1 : -1;
+      return 0;
+    });
+  }, [filteredTokens, sortColumn, sortDirection]);
+
+  // Paginated tokens
+  const paginatedTokens = useMemo(() => {
+    if (!sortedTokens) return [];
+    const startIndex = (currentPage - 1) * itemsPerPage;
+    const endIndex = startIndex + itemsPerPage;
+    return sortedTokens.slice(startIndex, endIndex);
+  }, [sortedTokens, currentPage, itemsPerPage]);
+
+  const totalPages = Math.ceil((sortedTokens?.length || 0) / itemsPerPage);
+
+  // Reset to page 1 when filters change
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchTerm, statusFilter]);
+
+  // Clamp currentPage to valid range when totalPages changes
+  useEffect(() => {
+    if (totalPages > 0 && currentPage > totalPages) {
+      setCurrentPage(totalPages);
     }
-    
-    return matchesSearch && matchesStatus;
-  });
+  }, [totalPages, currentPage]);
+
+  const handleSort = (column: string) => {
+    if (sortColumn === column) {
+      setSortDirection(sortDirection === "asc" ? "desc" : "asc");
+    } else {
+      setSortColumn(column);
+      setSortDirection("asc");
+    }
+  };
+
+  const getSortIcon = (column: string) => {
+    if (sortColumn !== column) return <ArrowUpDown className="h-4 w-4" />;
+    return sortDirection === "asc" ? <ArrowUp className="h-4 w-4" /> : <ArrowDown className="h-4 w-4" />;
+  };
 
   return (
     <>
@@ -95,8 +171,9 @@ export default function ExternalRentalFormLinks({ searchTerm, statusFilter, view
           {language === "es" ? "No hay formatos enviados" : "No forms sent"}
         </div>
       ) : viewMode === "cards" ? (
+        <>
         <div className="grid gap-4 grid-cols-1 lg:grid-cols-2 xl:grid-cols-3">
-          {filteredTokens?.map((token: any) => {
+          {paginatedTokens?.map((token: any) => {
             const isExpired = new Date(token.expiresAt) < new Date();
             const canRegenerate = !token.isUsed;
             
@@ -185,21 +262,63 @@ export default function ExternalRentalFormLinks({ searchTerm, statusFilter, view
             );
           })}
         </div>
+        <ExternalPaginationControls
+          currentPage={currentPage}
+          totalPages={totalPages}
+          itemsPerPage={itemsPerPage}
+          totalItems={sortedTokens?.length || 0}
+          onPageChange={setCurrentPage}
+          onItemsPerPageChange={setItemsPerPage}
+        />
+        </>
       ) : (
+        <>
         <div className="rounded-md border">
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead>{language === "es" ? "Cliente" : "Client"}</TableHead>
-                <TableHead>{language === "es" ? "Propiedad" : "Property"}</TableHead>
-                <TableHead>{language === "es" ? "Enviado" : "Sent"}</TableHead>
-                <TableHead>{language === "es" ? "Expira" : "Expires"}</TableHead>
+                <TableHead 
+                  className="cursor-pointer hover-elevate"
+                  onClick={() => handleSort("clientName")}
+                >
+                  <div className="flex items-center gap-2">
+                    {language === "es" ? "Cliente" : "Client"}
+                    {getSortIcon("clientName")}
+                  </div>
+                </TableHead>
+                <TableHead 
+                  className="cursor-pointer hover-elevate"
+                  onClick={() => handleSort("propertyTitle")}
+                >
+                  <div className="flex items-center gap-2">
+                    {language === "es" ? "Propiedad" : "Property"}
+                    {getSortIcon("propertyTitle")}
+                  </div>
+                </TableHead>
+                <TableHead 
+                  className="cursor-pointer hover-elevate"
+                  onClick={() => handleSort("createdAt")}
+                >
+                  <div className="flex items-center gap-2">
+                    {language === "es" ? "Enviado" : "Sent"}
+                    {getSortIcon("createdAt")}
+                  </div>
+                </TableHead>
+                <TableHead 
+                  className="cursor-pointer hover-elevate"
+                  onClick={() => handleSort("expiresAt")}
+                >
+                  <div className="flex items-center gap-2">
+                    {language === "es" ? "Expira" : "Expires"}
+                    {getSortIcon("expiresAt")}
+                  </div>
+                </TableHead>
                 <TableHead>{language === "es" ? "Estado" : "Status"}</TableHead>
                 <TableHead className="text-right">{language === "es" ? "Acciones" : "Actions"}</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
-              {filteredTokens?.map((token: any) => {
+              {paginatedTokens?.map((token: any) => {
                 const isExpired = new Date(token.expiresAt) < new Date();
                 const canRegenerate = !token.isUsed;
                 
@@ -272,6 +391,15 @@ export default function ExternalRentalFormLinks({ searchTerm, statusFilter, view
             </TableBody>
           </Table>
         </div>
+        <ExternalPaginationControls
+          currentPage={currentPage}
+          totalPages={totalPages}
+          itemsPerPage={itemsPerPage}
+          totalItems={sortedTokens?.length || 0}
+          onPageChange={setCurrentPage}
+          onItemsPerPageChange={setItemsPerPage}
+        />
+        </>
       )}
 
       <ExternalGenerateRentalFormLinkDialog open={dialogOpen} onOpenChange={setDialogOpen} />
