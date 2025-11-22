@@ -318,7 +318,7 @@ export default function ExternalAccounting() {
       fees: "0",
       netAmount: "0",
       description: "",
-      dueDate: new Date(),
+      dueDate: format(new Date(), 'yyyy-MM-dd') as any,
     },
   });
 
@@ -711,7 +711,8 @@ export default function ExternalAccounting() {
     editForm.reset({
       status: transaction.status,
       notes: transaction.notes || "",
-      performedDate: transaction.performedDate ? format(new Date(transaction.performedDate), 'yyyy-MM-dd') : "",
+      // Extract date part directly from ISO string to avoid timezone shift
+      performedDate: transaction.performedDate ? transaction.performedDate.split('T')[0] : "",
       paymentMethod: transaction.paymentMethod || "",
       paymentReference: transaction.paymentReference || "",
     });
@@ -2084,7 +2085,16 @@ export default function ExternalAccounting() {
                     <FormItem>
                       <FormLabel>{t.dueDate}</FormLabel>
                       <FormControl>
-                        <Input type="date" {...field} data-testid="input-create-due-date" />
+                        <Input 
+                          type="date" 
+                          value={field.value || ""}
+                          onChange={(e) => {
+                            const value = e.target.value;
+                            // Store as YYYY-MM-DD string, default to today if cleared
+                            field.onChange(value || format(new Date(), 'yyyy-MM-dd'));
+                          }}
+                          data-testid="input-create-due-date" 
+                        />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
@@ -2319,7 +2329,16 @@ export default function ExternalAccounting() {
                   <FormItem>
                     <FormLabel>{t.performedDate}</FormLabel>
                     <FormControl>
-                      <Input type="date" {...field} value={field.value || ""} data-testid="input-edit-performed-date" />
+                      <Input 
+                        type="date" 
+                        value={field.value || ""} 
+                        onChange={(e) => {
+                          const value = e.target.value;
+                          // Store as YYYY-MM-DD string or empty, let Zod coerce to Date
+                          field.onChange(value || null);
+                        }}
+                        data-testid="input-edit-performed-date" 
+                      />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
