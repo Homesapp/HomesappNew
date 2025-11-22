@@ -65,12 +65,13 @@ export default function ExternalGenerateRentalFormLinkDialog({
 
   const { data: units, isLoading: isLoadingUnits } = useQuery<ExternalUnitWithCondominium[]>({
     queryKey: ["/api/external-units"],
-    enabled: open,
+    staleTime: 5 * 60 * 1000, // Consider data fresh for 5 minutes
   });
 
   const { data: clients, isLoading: isLoadingClients } = useQuery({
     queryKey: ["/api/external-clients"],
-    enabled: open && !clientId,
+    enabled: !clientId, // Only load if no client is pre-selected
+    staleTime: 5 * 60 * 1000, // Consider data fresh for 5 minutes
   });
 
   const form = useForm<EmailFormValues>({

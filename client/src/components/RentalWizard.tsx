@@ -130,7 +130,7 @@ export default function RentalWizard({ open, onOpenChange }: RentalWizardProps) 
       if (!response.ok) throw new Error("Failed to fetch condominiums");
       return response.json();
     },
-    enabled: open,
+    staleTime: 5 * 60 * 1000, // Consider data fresh for 5 minutes
   });
 
   const { data: availableUnits, isLoading: unitsLoading } = useQuery<UnitWithDetails[]>({
@@ -140,12 +140,13 @@ export default function RentalWizard({ open, onOpenChange }: RentalWizardProps) 
       if (!response.ok) throw new Error("Failed to fetch units");
       return response.json();
     },
-    enabled: open,
+    staleTime: 5 * 60 * 1000, // Consider data fresh for 5 minutes
   });
 
   const { data: clients, isLoading: clientsLoading } = useQuery<any[]>({
     queryKey: ["/api/external-clients"],
-    enabled: open && step === 3,
+    enabled: step === 3, // Only load when on step 3
+    staleTime: 5 * 60 * 1000, // Consider data fresh for 5 minutes
   });
 
   const form = useForm<RentalFormData>({
