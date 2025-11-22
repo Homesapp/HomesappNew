@@ -1279,6 +1279,12 @@ export interface IStorage {
   updateExternalClientIncident(id: string, updates: UpdateExternalClientIncident): Promise<ExternalClientIncident>;
   deleteExternalClientIncident(id: string): Promise<void>;
 
+  // External Management System - Offer Token operations
+  getExternalOfferTokensByAgency(agencyId: string): Promise<any[]>;
+
+  // External Management System - Rental Form Token operations
+  getExternalRentalFormTokensByAgency(agencyId: string): Promise<any[]>;
+
   // External Management System - Financial Transaction operations
   getExternalFinancialTransaction(id: string): Promise<ExternalFinancialTransaction | undefined>;
   getExternalFinancialTransactionsByAgency(
@@ -8718,6 +8724,56 @@ export class DatabaseStorage implements IStorage {
   async deleteExternalClientIncident(id: string): Promise<void> {
     await db.delete(externalClientIncidents)
       .where(eq(externalClientIncidents.id, id));
+  }
+
+  // External Offer Token operations
+  async getExternalOfferTokensByAgency(agencyId: string): Promise<any[]> {
+    const tokens = await db.select({
+      id: offerTokens.id,
+      token: offerTokens.token,
+      propertyId: offerTokens.propertyId,
+      externalUnitId: offerTokens.externalUnitId,
+      leadId: offerTokens.leadId,
+      externalClientId: offerTokens.externalClientId,
+      createdBy: offerTokens.createdBy,
+      createdAt: offerTokens.createdAt,
+      expiresAt: offerTokens.expiresAt,
+      isUsed: offerTokens.isUsed,
+      offerData: offerTokens.offerData,
+      submittedAt: offerTokens.submittedAt,
+      updatedAt: offerTokens.updatedAt,
+    })
+      .from(offerTokens)
+      .innerJoin(externalUnits, eq(offerTokens.externalUnitId, externalUnits.id))
+      .where(eq(externalUnits.agencyId, agencyId))
+      .orderBy(desc(offerTokens.createdAt));
+    
+    return tokens;
+  }
+
+  // External Rental Form Token operations
+  async getExternalRentalFormTokensByAgency(agencyId: string): Promise<any[]> {
+    const tokens = await db.select({
+      id: tenantRentalFormTokens.id,
+      token: tenantRentalFormTokens.token,
+      propertyId: tenantRentalFormTokens.propertyId,
+      externalUnitId: tenantRentalFormTokens.externalUnitId,
+      leadId: tenantRentalFormTokens.leadId,
+      externalClientId: tenantRentalFormTokens.externalClientId,
+      createdBy: tenantRentalFormTokens.createdBy,
+      createdAt: tenantRentalFormTokens.createdAt,
+      expiresAt: tenantRentalFormTokens.expiresAt,
+      isUsed: tenantRentalFormTokens.isUsed,
+      rentalFormData: tenantRentalFormTokens.rentalFormData,
+      submittedAt: tenantRentalFormTokens.submittedAt,
+      updatedAt: tenantRentalFormTokens.updatedAt,
+    })
+      .from(tenantRentalFormTokens)
+      .innerJoin(externalUnits, eq(tenantRentalFormTokens.externalUnitId, externalUnits.id))
+      .where(eq(externalUnits.agencyId, agencyId))
+      .orderBy(desc(tenantRentalFormTokens.createdAt));
+    
+    return tokens;
   }
 
   // External Financial Transaction operations

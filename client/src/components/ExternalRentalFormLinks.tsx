@@ -17,7 +17,7 @@ export default function ExternalRentalFormLinks() {
   const [dialogOpen, setDialogOpen] = useState(false);
 
   const { data: formTokens, isLoading } = useQuery({
-    queryKey: ["/api/rental-form-tokens"],
+    queryKey: ["/api/external/rental-form-tokens"],
   });
 
   const filteredTokens = formTokens?.filter((token: any) =>

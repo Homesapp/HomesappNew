@@ -89,7 +89,7 @@ export default function ExternalGenerateRentalFormLinkDialog({
     },
     onSuccess: (data) => {
       setGeneratedToken(data);
-      queryClient.invalidateQueries({ queryKey: ["/api/rental-form-tokens"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/external/rental-form-tokens"] });
       toast({
         title: language === "es" ? "Link generado exitosamente" : "Link generated successfully",
         description: language === "es" 

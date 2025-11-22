@@ -23677,6 +23677,96 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // ==============================
+  // External Token Routes (Contracts Section)
+  // ==============================
+
+  // GET /api/external/offer-tokens - Get offer tokens for agency
+  app.get("/api/external/offer-tokens", isAuthenticated, requireRole(EXTERNAL_ALL_ROLES), async (req: any, res) => {
+    try {
+      const agencyId = await getUserAgencyId(req);
+      if (!agencyId) {
+        return res.status(403).json({ message: "No agency access" });
+      }
+      
+      const tokens = await storage.getExternalOfferTokensByAgency(agencyId);
+      
+      // Enrich with unit, creator, and client info
+      const enrichedTokens = await Promise.all(
+        tokens.map(async (token) => {
+          let unit = null;
+          let creator = null;
+          let client = null;
+          
+          if (token.externalUnitId) {
+            unit = await storage.getExternalUnit(token.externalUnitId);
+          }
+          if (token.createdBy) {
+            creator = await storage.getUser(token.createdBy);
+          }
+          if (token.externalClientId) {
+            client = await storage.getExternalClient(token.externalClientId);
+          }
+          
+          return {
+            ...token,
+            unit,
+            creator,
+            client,
+          };
+        })
+      );
+      
+      res.json(enrichedTokens);
+    } catch (error: any) {
+      console.error("Error fetching external offer tokens:", error);
+      handleGenericError(res, error);
+    }
+  });
+
+  // GET /api/external/rental-form-tokens - Get rental form tokens for agency
+  app.get("/api/external/rental-form-tokens", isAuthenticated, requireRole(EXTERNAL_ALL_ROLES), async (req: any, res) => {
+    try {
+      const agencyId = await getUserAgencyId(req);
+      if (!agencyId) {
+        return res.status(403).json({ message: "No agency access" });
+      }
+      
+      const tokens = await storage.getExternalRentalFormTokensByAgency(agencyId);
+      
+      // Enrich with unit, creator, and client info
+      const enrichedTokens = await Promise.all(
+        tokens.map(async (token) => {
+          let unit = null;
+          let creator = null;
+          let client = null;
+          
+          if (token.externalUnitId) {
+            unit = await storage.getExternalUnit(token.externalUnitId);
+          }
+          if (token.createdBy) {
+            creator = await storage.getUser(token.createdBy);
+          }
+          if (token.externalClientId) {
+            client = await storage.getExternalClient(token.externalClientId);
+          }
+          
+          return {
+            ...token,
+            unit,
+            creator,
+            client,
+          };
+        })
+      );
+      
+      res.json(enrichedTokens);
+    } catch (error: any) {
+      console.error("Error fetching external rental form tokens:", error);
+      handleGenericError(res, error);
+    }
+  });
+
   // Optimized endpoints for rental filters
   // Get distinct condominiums for filter dropdowns
   app.get("/api/external-condominiums-for-filters", isAuthenticated, requireRole(EXTERNAL_ALL_ROLES), async (req: any, res) => {

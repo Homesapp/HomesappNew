@@ -17,7 +17,7 @@ export default function ExternalOfferLinks() {
   const [dialogOpen, setDialogOpen] = useState(false);
 
   const { data: offerTokens, isLoading } = useQuery({
-    queryKey: ["/api/offer-tokens"],
+    queryKey: ["/api/external/offer-tokens"],
   });
 
   const filteredTokens = offerTokens?.filter((token: any) =>

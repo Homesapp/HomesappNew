@@ -89,7 +89,7 @@ export default function ExternalGenerateOfferLinkDialog({
     },
     onSuccess: (data) => {
       setGeneratedToken(data);
-      queryClient.invalidateQueries({ queryKey: ["/api/offer-tokens"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/external/offer-tokens"] });
       toast({
         title: language === "es" ? "Link generado exitosamente" : "Link generated successfully",
         description: language === "es" 
