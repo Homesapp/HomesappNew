@@ -62,13 +62,13 @@ export default function ExternalGenerateOfferLinkDialog({
   const [copiedWhatsApp, setCopiedWhatsApp] = useState(false);
 
   const { data: units, isLoading: isLoadingUnits } = useQuery({
-    queryKey: ["/api/external/units", agencyId],
-    enabled: open,
+    queryKey: [`/api/external/units/${agencyId}`],
+    enabled: open && !!agencyId,
   });
 
   const { data: clients, isLoading: isLoadingClients } = useQuery({
-    queryKey: ["/api/external/clients", agencyId],
-    enabled: open && !clientId,
+    queryKey: [`/api/external/clients/${agencyId}`],
+    enabled: open && !!agencyId && !clientId,
   });
 
   const form = useForm<EmailFormValues>({

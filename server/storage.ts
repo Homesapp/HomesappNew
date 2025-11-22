@@ -8730,52 +8730,18 @@ export class DatabaseStorage implements IStorage {
 
   // External Offer Token operations
   async getExternalOfferTokensByAgency(agencyId: string): Promise<any[]> {
-    const tokens = await db.select({
-      id: offerTokens.id,
-      token: offerTokens.token,
-      propertyId: offerTokens.propertyId,
-      externalUnitId: offerTokens.externalUnitId,
-      leadId: offerTokens.leadId,
-      externalClientId: offerTokens.externalClientId,
-      createdBy: offerTokens.createdBy,
-      createdAt: offerTokens.createdAt,
-      expiresAt: offerTokens.expiresAt,
-      isUsed: offerTokens.isUsed,
-      offerData: offerTokens.offerData,
-      submittedAt: offerTokens.submittedAt,
-      updatedAt: offerTokens.updatedAt,
-    })
-      .from(offerTokens)
-      .innerJoin(externalUnits, eq(offerTokens.externalUnitId, externalUnits.id))
-      .where(eq(externalUnits.agencyId, agencyId))
-      .orderBy(desc(offerTokens.createdAt));
-    
-    return tokens;
+    // Since offerTokens doesn't have externalUnitId/externalClientId,
+    // we return an empty array for now
+    // TODO: Create external_offer_tokens table with proper fields
+    return [];
   }
 
   // External Rental Form Token operations
   async getExternalRentalFormTokensByAgency(agencyId: string): Promise<any[]> {
-    const tokens = await db.select({
-      id: tenantRentalFormTokens.id,
-      token: tenantRentalFormTokens.token,
-      propertyId: tenantRentalFormTokens.propertyId,
-      externalUnitId: tenantRentalFormTokens.externalUnitId,
-      leadId: tenantRentalFormTokens.leadId,
-      externalClientId: tenantRentalFormTokens.externalClientId,
-      createdBy: tenantRentalFormTokens.createdBy,
-      createdAt: tenantRentalFormTokens.createdAt,
-      expiresAt: tenantRentalFormTokens.expiresAt,
-      isUsed: tenantRentalFormTokens.isUsed,
-      rentalFormData: tenantRentalFormTokens.rentalFormData,
-      submittedAt: tenantRentalFormTokens.submittedAt,
-      updatedAt: tenantRentalFormTokens.updatedAt,
-    })
-      .from(tenantRentalFormTokens)
-      .innerJoin(externalUnits, eq(tenantRentalFormTokens.externalUnitId, externalUnits.id))
-      .where(eq(externalUnits.agencyId, agencyId))
-      .orderBy(desc(tenantRentalFormTokens.createdAt));
-    
-    return tokens;
+    // Since tenantRentalFormTokens doesn't have externalUnitId/externalClientId,
+    // we return an empty array for now
+    // TODO: Create external_rental_form_tokens table with proper fields
+    return [];
   }
 
   // External Financial Transaction operations
