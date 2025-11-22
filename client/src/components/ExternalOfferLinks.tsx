@@ -276,9 +276,9 @@ export default function ExternalOfferLinks({ searchTerm, statusFilter, viewMode 
           currentPage={currentPage}
           totalPages={totalPages}
           itemsPerPage={itemsPerPage}
-          totalItems={sortedTokens?.length || 0}
           onPageChange={setCurrentPage}
           onItemsPerPageChange={setItemsPerPage}
+          language={language}
         />
         </>
       ) : (
@@ -401,9 +401,9 @@ export default function ExternalOfferLinks({ searchTerm, statusFilter, viewMode 
           currentPage={currentPage}
           totalPages={totalPages}
           itemsPerPage={itemsPerPage}
-          totalItems={sortedTokens?.length || 0}
           onPageChange={setCurrentPage}
           onItemsPerPageChange={setItemsPerPage}
+          language={language}
         />
         </>
       )}

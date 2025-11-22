@@ -266,9 +266,9 @@ export default function ExternalRentalFormLinks({ searchTerm, statusFilter, view
           currentPage={currentPage}
           totalPages={totalPages}
           itemsPerPage={itemsPerPage}
-          totalItems={sortedTokens?.length || 0}
           onPageChange={setCurrentPage}
           onItemsPerPageChange={setItemsPerPage}
+          language={language}
         />
         </>
       ) : (
@@ -395,9 +395,9 @@ export default function ExternalRentalFormLinks({ searchTerm, statusFilter, view
           currentPage={currentPage}
           totalPages={totalPages}
           itemsPerPage={itemsPerPage}
-          totalItems={sortedTokens?.length || 0}
           onPageChange={setCurrentPage}
           onItemsPerPageChange={setItemsPerPage}
+          language={language}
         />
         </>
       )}
