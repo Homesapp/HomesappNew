@@ -13537,16 +13537,40 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Offer Token routes - Enlaces privados para ofertas sin login
+  // Offer Token routes - Enlaces privados para ofertas sin login (soporta sistema interno y externo)
   app.post("/api/offer-tokens", isAuthenticated, requireRole(["admin", "master", "admin_jr", "seller", "external_agency_admin", "external_agency_accounting", "external_agency_staff"]), async (req: any, res) => {
     try {
-      const { propertyId, leadId } = req.body;
+      const { propertyId, externalUnitId, externalClientId, leadId } = req.body;
       const userId = req.user.claims.sub;
 
-      // Validate property exists
-      const property = await storage.getProperty(propertyId);
-      if (!property) {
-        return res.status(404).json({ message: "Propiedad no encontrada" });
+      let property = null;
+      let externalUnit = null;
+      let auditMessage = "";
+
+      // Determine if this is for internal or external system
+      if (externalUnitId) {
+        // External system flow
+        externalUnit = await storage.getExternalUnit(externalUnitId);
+        if (!externalUnit) {
+          return res.status(404).json({ message: "Unidad no encontrada" });
+        }
+        
+        // Verify user has access to this agency
+        const agencyId = await getUserAgencyId(req);
+        if (!agencyId || externalUnit.agencyId !== agencyId) {
+          return res.status(403).json({ message: "No tienes acceso a esta unidad" });
+        }
+        
+        auditMessage = `Token de oferta creado para unidad externa ${externalUnit.unitNumber}`;
+      } else if (propertyId) {
+        // Internal system flow
+        property = await storage.getProperty(propertyId);
+        if (!property) {
+          return res.status(404).json({ message: "Propiedad no encontrada" });
+        }
+        auditMessage = `Token de oferta creado para propiedad ${property.title || propertyId}`;
+      } else {
+        return res.status(400).json({ message: "Se requiere propertyId o externalUnitId" });
       }
 
       // If leadId provided, validate lead exists
@@ -13567,7 +13591,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Create offer token
       const offerToken = await db.insert(offerTokens).values({
         token,
-        propertyId,
+        propertyId: propertyId || null,
+        externalUnitId: externalUnitId || null,
+        externalClientId: externalClientId || null,
         leadId: leadId || null,
         createdBy: userId,
         expiresAt,
@@ -13577,6 +13603,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Update lead status to "oferta_enviada" if leadId provided
       if (leadId) {
         await storage.updateLeadStatus(leadId, "oferta_enviada");
+        auditMessage += ' y lead actualizado a oferta_enviada';
       }
 
       await createAuditLog(
@@ -13584,13 +13611,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
         "create",
         "offer_token",
         offerToken[0].id,
-        `Token de oferta creado para propiedad ${property.title || propertyId}${leadId ? ' y lead actualizado a oferta_enviada' : ''}`
+        auditMessage
       );
 
-      // Return token with property info
+      // Return token with property or unit info
       res.status(201).json({
         ...offerToken[0],
         property,
+        externalUnit,
       });
     } catch (error: any) {
       console.error("Error creating offer token:", error);
@@ -13920,13 +13948,37 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Rental Form Token routes - Enlaces privados para formato de renta de inquilino
   app.post("/api/rental-form-tokens", isAuthenticated, requireRole(["admin", "master", "admin_jr", "seller", "external_agency_admin", "external_agency_accounting", "external_agency_staff"]), async (req: any, res) => {
     try {
-      const { propertyId, leadId } = req.body;
+      const { propertyId, externalUnitId, externalClientId, leadId } = req.body;
       const userId = req.user.claims.sub;
 
-      // Validate property exists
-      const property = await storage.getProperty(propertyId);
-      if (!property) {
-        return res.status(404).json({ message: "Propiedad no encontrada" });
+      let property = null;
+      let externalUnit = null;
+      let auditMessage = "";
+
+      // Determine if this is for internal or external system
+      if (externalUnitId) {
+        // External system flow
+        externalUnit = await storage.getExternalUnit(externalUnitId);
+        if (!externalUnit) {
+          return res.status(404).json({ message: "Unidad no encontrada" });
+        }
+        
+        // Verify user has access to this agency
+        const agencyId = await getUserAgencyId(req);
+        if (!agencyId || externalUnit.agencyId !== agencyId) {
+          return res.status(403).json({ message: "No tienes acceso a esta unidad" });
+        }
+        
+        auditMessage = `Token de formato de renta creado para unidad externa ${externalUnit.unitNumber}`;
+      } else if (propertyId) {
+        // Internal system flow
+        property = await storage.getProperty(propertyId);
+        if (!property) {
+          return res.status(404).json({ message: "Propiedad no encontrada" });
+        }
+        auditMessage = `Token de formato de renta creado para propiedad ${property.title || property.id}`;
+      } else {
+        return res.status(400).json({ message: "Se requiere propertyId o externalUnitId" });
       }
 
       // Generate unique token (16 characters - suficiente para enlaces temporales)
@@ -13938,7 +13990,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
         .insert(tenantRentalFormTokens)
         .values({
           token,
-          propertyId,
+          propertyId: propertyId || null,
+          externalUnitId: externalUnitId || null,
+          externalClientId: externalClientId || null,
           leadId: leadId || null,
           createdBy: userId,
           expiresAt,
@@ -13951,12 +14005,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
         "create",
         "rental_form_token",
         rentalFormToken.id,
-        `Token de formato de renta creado para propiedad ${property.title || property.id}`
+        auditMessage
       );
 
       res.json({
         ...rentalFormToken,
         property,
+        externalUnit,
       });
     } catch (error: any) {
       console.error("Error creating rental form token:", error);
