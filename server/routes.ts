@@ -24001,6 +24001,74 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // GET /api/external/offers/:id/pdf - Generate PDF for external offer
+  app.get("/api/external/offers/:id/pdf", isAuthenticated, requireRole(EXTERNAL_ALL_ROLES), async (req: any, res) => {
+    try {
+      const agencyId = await getUserAgencyId(req);
+      if (!agencyId) {
+        return res.status(403).json({ message: "No agency access" });
+      }
+
+      const { id } = req.params;
+
+      // Get offer token
+      const [offerToken] = await db
+        .select()
+        .from(offerTokens)
+        .where(eq(offerTokens.id, id))
+        .limit(1);
+
+      if (!offerToken) {
+        return res.status(404).json({ message: "Token de oferta no encontrado" });
+      }
+
+      // Verify token belongs to user's agency
+      if (offerToken.externalUnitId) {
+        const unit = await storage.getExternalUnit(offerToken.externalUnitId);
+        if (!unit || unit.agencyId !== agencyId) {
+          return res.status(403).json({ message: "Unauthorized" });
+        }
+      } else {
+        return res.status(400).json({ message: "Este token no es del sistema externo" });
+      }
+
+      if (!offerToken.isUsed || !offerToken.offerData) {
+        return res.status(400).json({ message: "La oferta aún no ha sido completada" });
+      }
+
+      // Get unit info
+      const unit = await storage.getExternalUnit(offerToken.externalUnitId);
+      if (!unit) {
+        return res.status(404).json({ message: "Unidad no encontrada" });
+      }
+
+      // Get condominium info
+      const condo = await storage.getExternalCondominium(unit.condominiumId);
+      const propertyTitle = `${condo?.name || ''} - Unidad ${unit.unitNumber}`;
+
+      // Create a property-like object for PDF generation
+      const propertyForPDF = {
+        id: unit.id,
+        title: propertyTitle,
+        address: condo?.address || '',
+        city: condo?.city || 'Tulum',
+        state: condo?.state || 'Quintana Roo',
+        country: condo?.country || 'México',
+      };
+
+      // Generate PDF
+      const pdfBuffer = await generateOfferPDF(offerToken.offerData, propertyForPDF);
+
+      // Set headers for PDF download
+      res.setHeader('Content-Type', 'application/pdf');
+      res.setHeader('Content-Disposition', `attachment; filename="oferta-${offerToken.id}.pdf"`);
+      res.send(pdfBuffer);
+    } catch (error) {
+      console.error("Error generating PDF:", error);
+      res.status(500).json({ message: "Error al generar PDF" });
+    }
+  });
+
   // POST /api/rental-form-tokens/:tokenId/regenerate - Regenerate rental form token (delete old active ones, preserve completed)
   app.post("/api/rental-form-tokens/:tokenId/regenerate", isAuthenticated, requireRole(EXTERNAL_ALL_ROLES), async (req: any, res) => {
     try {

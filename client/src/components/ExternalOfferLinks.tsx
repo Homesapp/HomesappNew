@@ -235,7 +235,7 @@ export default function ExternalOfferLinks({ searchTerm, statusFilter, viewMode 
                       <Button
                         variant="default"
                         size="sm"
-                        onClick={() => window.open(`/api/external/offers/${token.offerId}/pdf`, "_blank")}
+                        onClick={() => window.open(`/api/external/offers/${token.id}/pdf`, "_blank")}
                         className="flex-1"
                         data-testid="button-download-offer-pdf"
                       >
@@ -361,7 +361,7 @@ export default function ExternalOfferLinks({ searchTerm, statusFilter, viewMode 
                           <Button
                             variant="ghost"
                             size="sm"
-                            onClick={() => window.open(`/api/external/offers/${token.offerId}/pdf`, "_blank")}
+                            onClick={() => window.open(`/api/external/offers/${token.id}/pdf`, "_blank")}
                             title={language === "es" ? "Descargar PDF" : "Download PDF"}
                             data-testid="button-download-offer-pdf"
                           >
