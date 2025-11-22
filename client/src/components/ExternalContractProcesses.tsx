@@ -1,5 +1,4 @@
 import { useState } from "react";
-import { useQuery } from "@/hooks/use-toast";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
