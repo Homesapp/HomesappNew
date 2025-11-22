@@ -101,7 +101,7 @@ export default function ExternalOfferLinks() {
                           : "-"}
                       </TableCell>
                       <TableCell>
-                        {token.status === "completed" ? (
+                        {token.isUsed ? (
                           <Badge variant="default">{language === "es" ? "Completado" : "Completed"}</Badge>
                         ) : new Date(token.expiresAt) < new Date() ? (
                           <Badge variant="destructive">{language === "es" ? "Expirado" : "Expired"}</Badge>

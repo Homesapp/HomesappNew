@@ -92,7 +92,7 @@ export default function PublicOfferForm() {
       pets: "no",
       petDetails: "",
       petPhotos: [],
-      offeredServices: [],
+      offeredServices: ["luz"], // Electricidad marcada por defecto
       propertyRequiredServices: [],
       additionalComments: "",
       signature: "",

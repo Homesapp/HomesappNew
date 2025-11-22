@@ -23826,9 +23826,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
           let unit = null;
           let creator = null;
           let client = null;
+          let condo = null;
           
           if (token.externalUnitId) {
             unit = await storage.getExternalUnit(token.externalUnitId);
+            if (unit?.condominiumId) {
+              condo = await storage.getExternalCondominium(unit.condominiumId);
+            }
           }
           if (token.createdBy) {
             creator = await storage.getUser(token.createdBy);
@@ -23837,11 +23841,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
             client = await storage.getExternalClient(token.externalClientId);
           }
           
+          // Map to frontend expected format
+          const propertyTitle = unit ? `${condo?.name || ''} - Unidad ${unit.unitNumber}` : '';
+          const clientName = client ? `${client.firstName} ${client.lastName}` : '';
+          
           return {
             ...token,
             unit,
             creator,
             client,
+            propertyTitle,
+            clientName,
           };
         })
       );
