@@ -51,6 +51,26 @@ const safeFormatDate = (date: any, formatStr: string, options?: any): string => 
   }
 };
 
+// Helper function to add months to a date
+const addMonths = (dateString: string, months: number): string => {
+  if (!dateString) return '';
+  const date = new Date(dateString);
+  if (!isValid(date)) return '';
+  date.setMonth(date.getMonth() + months);
+  return format(date, 'yyyy-MM-dd');
+};
+
+// Helper function to calculate days between dates
+const calculateDaysBetween = (startDate: string, endDate: string): number => {
+  if (!startDate || !endDate) return 0;
+  const start = new Date(startDate);
+  const end = new Date(endDate);
+  if (!isValid(start) || !isValid(end)) return 0;
+  const diffTime = Math.abs(end.getTime() - start.getTime());
+  const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+  return diffDays;
+};
+
 const rentalFormSchema = z.object({
   tenantName: z.string().optional(),
   tenantEmail: z.string().optional(),
@@ -88,6 +108,8 @@ export default function RentalWizard({ open, onOpenChange }: RentalWizardProps) 
   const [selectedUnitId, setSelectedUnitId] = useState<string>("");
   const [useExistingClient, setUseExistingClient] = useState(false);
   const [selectedClientId, setSelectedClientId] = useState<string>("");
+  const [dateMode, setDateMode] = useState<"duration" | "specific">("duration");
+  const [contractDuration, setContractDuration] = useState<number>(12);
   const [additionalServices, setAdditionalServices] = useState<Array<{
     serviceType: string;
     amount: string;
@@ -962,44 +984,148 @@ export default function RentalWizard({ open, onOpenChange }: RentalWizardProps) 
                   </p>
                 </div>
 
-                <div className="grid gap-4 md:grid-cols-2">
-                  <FormField
-                    control={form.control}
-                    name="startDate"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>{language === "es" ? "Fecha de inicio" : "Start date"}</FormLabel>
-                        <FormControl>
-                          <Input 
-                            type="date" 
-                            value={field.value || ''}
-                            onChange={(e) => field.onChange(e.target.value)}
-                            data-testid="input-start-date" 
-                          />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
+                <div className="space-y-4">
+                  <div className="flex items-center gap-4 p-3 bg-muted/30 rounded-lg">
+                    <Label className="text-sm font-medium">
+                      {language === "es" ? "Configurar fechas:" : "Configure dates:"}
+                    </Label>
+                    <div className="flex gap-2">
+                      <Button
+                        type="button"
+                        variant={dateMode === "duration" ? "default" : "outline"}
+                        size="sm"
+                        onClick={() => setDateMode("duration")}
+                        data-testid="button-date-mode-duration"
+                      >
+                        {language === "es" ? "Por duración" : "By duration"}
+                      </Button>
+                      <Button
+                        type="button"
+                        variant={dateMode === "specific" ? "default" : "outline"}
+                        size="sm"
+                        onClick={() => setDateMode("specific")}
+                        data-testid="button-date-mode-specific"
+                      >
+                        {language === "es" ? "Fechas específicas" : "Specific dates"}
+                      </Button>
+                    </div>
+                  </div>
 
-                  <FormField
-                    control={form.control}
-                    name="endDate"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>{language === "es" ? "Fecha de fin" : "End date"}</FormLabel>
-                        <FormControl>
-                          <Input 
-                            type="date"
-                            value={field.value || ''}
-                            onChange={(e) => field.onChange(e.target.value)}
-                            data-testid="input-end-date" 
-                          />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
+                  {dateMode === "duration" ? (
+                    <div className="grid gap-4 md:grid-cols-2">
+                      <FormField
+                        control={form.control}
+                        name="startDate"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>{language === "es" ? "Fecha de inicio" : "Start date"}</FormLabel>
+                            <FormControl>
+                              <Input 
+                                type="date" 
+                                value={field.value || ''}
+                                onChange={(e) => {
+                                  field.onChange(e.target.value);
+                                  // Auto-calculate end date
+                                  const endDate = addMonths(e.target.value, contractDuration);
+                                  form.setValue("endDate", endDate);
+                                }}
+                                data-testid="input-start-date" 
+                              />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+
+                      <div>
+                        <Label>{language === "es" ? "Duración del contrato" : "Contract duration"}</Label>
+                        <Select 
+                          value={contractDuration.toString()} 
+                          onValueChange={(val) => {
+                            const months = parseInt(val);
+                            setContractDuration(months);
+                            // Auto-calculate end date
+                            const startDate = form.getValues("startDate");
+                            if (startDate) {
+                              const endDate = addMonths(startDate, months);
+                              form.setValue("endDate", endDate);
+                            }
+                          }}
+                        >
+                          <SelectTrigger className="mt-2" data-testid="select-contract-duration">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="6">{language === "es" ? "6 meses" : "6 months"}</SelectItem>
+                            <SelectItem value="12">{language === "es" ? "12 meses" : "12 months"}</SelectItem>
+                            <SelectItem value="24">{language === "es" ? "24 meses" : "24 months"}</SelectItem>
+                            <SelectItem value="36">{language === "es" ? "36 meses" : "36 months"}</SelectItem>
+                            <SelectItem value="48">{language === "es" ? "48 meses" : "48 months"}</SelectItem>
+                          </SelectContent>
+                        </Select>
+                        {form.watch("endDate") && (
+                          <p className="text-xs text-muted-foreground mt-2">
+                            {language === "es" ? "Fecha de fin:" : "End date:"} {safeFormatDate(new Date(form.watch("endDate")), 'dd/MM/yyyy', { locale: language === "es" ? es : enUS })}
+                          </p>
+                        )}
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="grid gap-4 md:grid-cols-2">
+                      <FormField
+                        control={form.control}
+                        name="startDate"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>{language === "es" ? "Fecha de inicio" : "Start date"}</FormLabel>
+                            <FormControl>
+                              <Input 
+                                type="date" 
+                                value={field.value || ''}
+                                onChange={(e) => field.onChange(e.target.value)}
+                                data-testid="input-start-date" 
+                              />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+
+                      <FormField
+                        control={form.control}
+                        name="endDate"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>{language === "es" ? "Fecha de fin" : "End date"}</FormLabel>
+                            <FormControl>
+                              <Input 
+                                type="date"
+                                value={field.value || ''}
+                                onChange={(e) => field.onChange(e.target.value)}
+                                data-testid="input-end-date" 
+                              />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                    </div>
+                  )}
+
+                  {form.watch("startDate") && form.watch("endDate") && (
+                    <Card className="bg-primary/5 border-primary/20">
+                      <CardContent className="pt-4">
+                        <div className="flex items-center justify-between">
+                          <span className="text-sm font-medium">
+                            {language === "es" ? "Duración total:" : "Total duration:"}
+                          </span>
+                          <Badge variant="secondary">
+                            {calculateDaysBetween(form.watch("startDate"), form.watch("endDate"))} {language === "es" ? "días" : "days"}
+                          </Badge>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  )}
                 </div>
 
                 <div className="grid gap-4 md:grid-cols-2">
