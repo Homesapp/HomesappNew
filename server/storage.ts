@@ -367,6 +367,8 @@ import {
   externalFinancialTransactions,
   type ExternalFinancialTransaction,
   type InsertExternalFinancialTransaction,
+  offerTokens,
+  tenantRentalFormTokens,
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, and, or, gte, lte, ilike, desc, sql, isNull, count, inArray } from "drizzle-orm";
