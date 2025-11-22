@@ -298,8 +298,8 @@ export default function RentalWizard({ open, onOpenChange }: RentalWizardProps) 
     };
 
     // Build services array with rent + additional services
-    // Calculate rent day of month from start date
-    const rentDayOfMonth = new Date(data.startDate).getDate();
+    // Calculate rent day of month from start date (using string split to avoid timezone issues)
+    const rentDayOfMonth = parseInt(data.startDate.split('-')[2]);
     
     const services = [
       {
@@ -1136,7 +1136,7 @@ export default function RentalWizard({ open, onOpenChange }: RentalWizardProps) 
                         <Calendar className="h-4 w-4 text-muted-foreground" />
                         <span className="text-sm font-medium">
                           {form.watch("startDate") 
-                            ? `${language === "es" ? "Día" : "Day"} ${new Date(form.watch("startDate")).getDate()}`
+                            ? `${language === "es" ? "Día" : "Day"} ${parseInt(form.watch("startDate").split('-')[2])}`
                             : language === "es" ? "Según fecha de inicio" : "Based on start date"}
                         </span>
                       </div>
