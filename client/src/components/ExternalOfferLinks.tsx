@@ -1,29 +1,67 @@
 import { useState } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useMutation } from "@tanstack/react-query";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Plus, Search, ExternalLink } from "lucide-react";
+import { Plus, Search, ExternalLink, RefreshCw } from "lucide-react";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
-import { format } from "date-fns";
+import { format, formatDistanceToNow } from "date-fns";
 import { es, enUS } from "date-fns/locale";
 import ExternalGenerateOfferLinkDialog from "./ExternalGenerateOfferLinkDialog";
+import { apiRequest, queryClient } from "@/lib/queryClient";
+import { useToast } from "@/hooks/use-toast";
 
 export default function ExternalOfferLinks() {
   const { language } = useLanguage();
   const [searchTerm, setSearchTerm] = useState("");
   const [dialogOpen, setDialogOpen] = useState(false);
+  const { toast } = useToast();
 
   const { data: offerTokens, isLoading } = useQuery({
     queryKey: ["/api/external/offer-tokens"],
+  });
+
+  const regenerateTokenMutation = useMutation({
+    mutationFn: async (tokenId: string) => {
+      const response = await apiRequest("POST", `/api/offer-tokens/${tokenId}/regenerate`, {});
+      return response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/external/offer-tokens"] });
+      toast({
+        title: language === "es" ? "Link regenerado" : "Link regenerated",
+        description: language === "es" ? "Se ha generado un nuevo link" : "A new link has been generated",
+      });
+    },
+    onError: (error: any) => {
+      toast({
+        title: language === "es" ? "Error" : "Error",
+        description: error.message || (language === "es" ? "No se pudo regenerar el link" : "Could not regenerate link"),
+        variant: "destructive",
+      });
+    },
   });
 
   const filteredTokens = offerTokens?.filter((token: any) =>
     token.clientName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
     token.propertyTitle?.toLowerCase().includes(searchTerm.toLowerCase())
   );
+
+  const getTimeRemaining = (expiresAt: string) => {
+    const now = new Date();
+    const expiry = new Date(expiresAt);
+    
+    if (now > expiry) {
+      return language === "es" ? "Expirado" : "Expired";
+    }
+    
+    return formatDistanceToNow(expiry, {
+      addSuffix: true,
+      locale: language === "es" ? es : enUS,
+    });
+  };
 
   return (
     <>
@@ -76,50 +114,65 @@ export default function ExternalOfferLinks() {
                     <TableHead>{language === "es" ? "Cliente" : "Client"}</TableHead>
                     <TableHead>{language === "es" ? "Propiedad" : "Property"}</TableHead>
                     <TableHead>{language === "es" ? "Enviado" : "Sent"}</TableHead>
-                    <TableHead>{language === "es" ? "Expira" : "Expires"}</TableHead>
+                    <TableHead>{language === "es" ? "Tiempo Restante" : "Time Remaining"}</TableHead>
                     <TableHead>{language === "es" ? "Estado" : "Status"}</TableHead>
                     <TableHead className="text-right">{language === "es" ? "Acciones" : "Actions"}</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {filteredTokens?.map((token: any) => (
-                    <TableRow key={token.id}>
-                      <TableCell className="font-medium">{token.clientName || "-"}</TableCell>
-                      <TableCell>{token.propertyTitle || "-"}</TableCell>
-                      <TableCell className="text-sm text-muted-foreground">
-                        {token.createdAt
-                          ? format(new Date(token.createdAt), "dd/MM/yyyy", {
-                              locale: language === "es" ? es : enUS,
-                            })
-                          : "-"}
-                      </TableCell>
-                      <TableCell className="text-sm text-muted-foreground">
-                        {token.expiresAt
-                          ? format(new Date(token.expiresAt), "dd/MM/yyyy", {
-                              locale: language === "es" ? es : enUS,
-                            })
-                          : "-"}
-                      </TableCell>
-                      <TableCell>
-                        {token.isUsed ? (
-                          <Badge variant="default">{language === "es" ? "Completado" : "Completed"}</Badge>
-                        ) : new Date(token.expiresAt) < new Date() ? (
-                          <Badge variant="destructive">{language === "es" ? "Expirado" : "Expired"}</Badge>
-                        ) : (
-                          <Badge variant="outline">{language === "es" ? "Activo" : "Active"}</Badge>
-                        )}
-                      </TableCell>
-                      <TableCell className="text-right">
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => window.open(`/offer/${token.token}`, "_blank")}
-                        >
-                          <ExternalLink className="h-4 w-4" />
-                        </Button>
-                      </TableCell>
-                    </TableRow>
-                  ))}
+                  {filteredTokens?.map((token: any) => {
+                    const isExpired = new Date(token.expiresAt) < new Date();
+                    const canRegenerate = !token.isUsed; // Se puede regenerar si no está completado
+                    
+                    return (
+                      <TableRow key={token.id}>
+                        <TableCell className="font-medium">{token.clientName || "-"}</TableCell>
+                        <TableCell>{token.propertyTitle || "-"}</TableCell>
+                        <TableCell className="text-sm text-muted-foreground">
+                          {token.createdAt
+                            ? format(new Date(token.createdAt), "dd/MM/yyyy", {
+                                locale: language === "es" ? es : enUS,
+                              })
+                            : "-"}
+                        </TableCell>
+                        <TableCell className="text-sm text-muted-foreground">
+                          {token.expiresAt ? getTimeRemaining(token.expiresAt) : "-"}
+                        </TableCell>
+                        <TableCell>
+                          {token.isUsed ? (
+                            <Badge variant="default">{language === "es" ? "Completado" : "Completed"}</Badge>
+                          ) : isExpired ? (
+                            <Badge variant="destructive">{language === "es" ? "Expirado" : "Expired"}</Badge>
+                          ) : (
+                            <Badge variant="outline">{language === "es" ? "Activo" : "Active"}</Badge>
+                          )}
+                        </TableCell>
+                        <TableCell className="text-right">
+                          <div className="flex items-center justify-end gap-2">
+                            {canRegenerate && (
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => regenerateTokenMutation.mutate(token.id)}
+                                disabled={regenerateTokenMutation.isPending}
+                                title={language === "es" ? "Regenerar link" : "Regenerate link"}
+                              >
+                                <RefreshCw className="h-4 w-4" />
+                              </Button>
+                            )}
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => window.open(`/offer/${token.token}`, "_blank")}
+                              title={language === "es" ? "Abrir link" : "Open link"}
+                            >
+                              <ExternalLink className="h-4 w-4" />
+                            </Button>
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    );
+                  })}
                 </TableBody>
               </Table>
             </div>

@@ -192,7 +192,7 @@ import {
   externalMaintenanceTickets,
 } from "@shared/schema";
 import { db } from "./db";
-import { eq, and, inArray, desc, asc, sql } from "drizzle-orm";
+import { eq, and, inArray, desc, asc, sql, ne } from "drizzle-orm";
 
 // Helper function to verify external agency ownership
 async function verifyExternalAgencyOwnership(req: any, res: any, agencyId: string): Promise<boolean> {
@@ -13607,6 +13607,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const expiresAt = new Date();
       expiresAt.setHours(expiresAt.getHours() + 24);
 
+      // Rule: Only one active link per client
+      // Delete all active (non-completed) tokens for this client before creating a new one
+      // This preserves completed tokens (isUsed = true)
+      if (externalClientId) {
+        await db.delete(offerTokens)
+          .where(
+            and(
+              eq(offerTokens.externalClientId, externalClientId),
+              eq(offerTokens.isUsed, false)
+            )
+          );
+      }
+
       // Create offer token
       const offerToken = await db.insert(offerTokens).values({
         token,
@@ -23859,6 +23872,74 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.json(enrichedTokens);
     } catch (error: any) {
       console.error("Error fetching external offer tokens:", error);
+      handleGenericError(res, error);
+    }
+  });
+
+  // POST /api/offer-tokens/:tokenId/regenerate - Regenerate offer token (delete old active ones, preserve completed)
+  app.post("/api/offer-tokens/:tokenId/regenerate", isAuthenticated, requireRole(EXTERNAL_ALL_ROLES), async (req: any, res) => {
+    try {
+      const agencyId = await getUserAgencyId(req);
+      if (!agencyId) {
+        return res.status(403).json({ message: "No agency access" });
+      }
+
+      const { tokenId } = req.params;
+      
+      // Get the current token
+      const currentToken = await storage.getOfferToken(tokenId);
+      if (!currentToken) {
+        return res.status(404).json({ message: "Token not found" });
+      }
+
+      // Validate it belongs to the agency
+      if (currentToken.externalUnitId) {
+        const unit = await storage.getExternalUnit(currentToken.externalUnitId);
+        if (!unit || unit.agencyId !== agencyId) {
+          return res.status(403).json({ message: "Unauthorized" });
+        }
+      }
+
+      // Cannot regenerate completed tokens
+      if (currentToken.isUsed) {
+        return res.status(400).json({ message: "Cannot regenerate completed token" });
+      }
+
+      const clientId = currentToken.externalClientId;
+      if (!clientId) {
+        return res.status(400).json({ message: "Invalid token: missing client" });
+      }
+
+      // Create new token with same details but new expiration
+      const newTokenValue = crypto.randomBytes(32).toString('hex');
+      const expiresAt = new Date();
+      expiresAt.setDate(expiresAt.getDate() + 7); // 7 days from now
+
+      const [newToken] = await db.insert(offerTokens).values({
+        token: newTokenValue,
+        propertyId: currentToken.propertyId,
+        externalUnitId: currentToken.externalUnitId,
+        externalClientId: currentToken.externalClientId,
+        leadId: null,
+        createdBy: req.user.id,
+        expiresAt,
+        isUsed: false,
+      }).returning();
+
+      // Now delete all OTHER active (non-completed) tokens for this client
+      // This preserves completed tokens (isUsed = true) and the new token we just created
+      await db.delete(offerTokens)
+        .where(
+          and(
+            eq(offerTokens.externalClientId, clientId),
+            eq(offerTokens.isUsed, false),
+            ne(offerTokens.id, newToken.id)
+          )
+        );
+
+      res.json(newToken);
+    } catch (error: any) {
+      console.error("Error regenerating offer token:", error);
       handleGenericError(res, error);
     }
   });
