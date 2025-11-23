@@ -24486,12 +24486,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       const tokens = await storage.getExternalRentalFormTokensByAgency(agencyId);
       
-      // Enrich with unit, creator, and client info
+      // Enrich with unit, creator, client, and owner info
       const enrichedTokens = await Promise.all(
         tokens.map(async (token) => {
           let unit = null;
           let creator = null;
           let client = null;
+          let owner = null;
           let condominium = null;
           
           if (token.externalUnitId) {
@@ -24503,14 +24504,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
           if (token.createdBy) {
             creator = await storage.getUser(token.createdBy);
           }
-          if (token.externalClientId) {
+          if (token.externalClientId && token.recipientType === 'tenant') {
             client = await storage.getExternalClient(token.externalClientId);
+          }
+          if (token.externalUnitOwnerId && token.recipientType === 'owner') {
+            owner = await storage.getExternalUnitOwner(token.externalUnitOwnerId);
           }
           
           // Build display strings for UI
           const clientName = client 
             ? `${client.firstName} ${client.lastName}`.trim()
-            : null;
+            : owner?.ownerName || null;
           
           const propertyTitle = unit && condominium
             ? `${condominium.name} - ${unit.unitNumber}`
@@ -24541,6 +24545,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
             unit,
             creator,
             client,
+            owner,
             clientName,
             propertyTitle,
             recipientType: token.recipientType,
