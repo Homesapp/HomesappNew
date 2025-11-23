@@ -24060,7 +24060,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // External Clients Routes
   // ==============================
 
-  // GET /api/external-clients - Get all clients for agency (with pagination)
+  // GET /api/external-clients - Get all clients for agency (with pagination, search, and sorting)
   app.get("/api/external-clients", isAuthenticated, requireRole(EXTERNAL_ALL_ROLES), async (req: any, res) => {
     try {
       const agencyId = await getUserAgencyId(req);
@@ -24068,13 +24068,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(403).json({ message: "No agency access" });
       }
       
-      const { status, isVerified, limit = '50', offset = '0' } = req.query;
-      const limitNum = parseInt(limit as string, 10);
-      const offsetNum = parseInt(offset as string, 10);
+      const { status, isVerified, search, sortField, sortOrder, limit = '50', offset = '0' } = req.query;
+      
+      // Validate and parse limit/offset
+      const limitNum = Math.max(1, Math.min(parseInt(limit as string, 10) || 50, 100));
+      const offsetNum = Math.max(0, parseInt(offset as string, 10) || 0);
       
       const filters = {
         status: status as string | undefined,
         isVerified: isVerified === 'true' ? true : isVerified === 'false' ? false : undefined,
+        search: search as string | undefined,
+        sortField: sortField as string | undefined,
+        sortOrder: (sortOrder === 'asc' || sortOrder === 'desc') ? sortOrder : 'desc' as 'asc' | 'desc',
         limit: limitNum,
         offset: offsetNum,
       };
@@ -24084,6 +24089,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         storage.getExternalClientsCountByAgency(agencyId, {
           status: filters.status,
           isVerified: filters.isVerified,
+          search: filters.search,
         }),
       ]);
       

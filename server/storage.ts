@@ -372,7 +372,7 @@ import {
   tenantRentalFormTokens,
 } from "@shared/schema";
 import { db } from "./db";
-import { eq, and, or, gte, lte, ilike, desc, sql, isNull, count, inArray } from "drizzle-orm";
+import { eq, and, or, gte, lte, ilike, asc, desc, sql, isNull, count, inArray } from "drizzle-orm";
 
 export interface IStorage {
   // User operations
@@ -1264,8 +1264,8 @@ export interface IStorage {
 
   // External Management System - Client operations
   getExternalClient(id: string): Promise<ExternalClient | undefined>;
-  getExternalClientsByAgency(agencyId: string, filters?: { status?: string; isVerified?: boolean; limit?: number; offset?: number }): Promise<ExternalClient[]>;
-  getExternalClientsCountByAgency(agencyId: string, filters?: { status?: string; isVerified?: boolean }): Promise<number>;
+  getExternalClientsByAgency(agencyId: string, filters?: { status?: string; isVerified?: boolean; search?: string; sortField?: string; sortOrder?: 'asc' | 'desc'; limit?: number; offset?: number }): Promise<ExternalClient[]>;
+  getExternalClientsCountByAgency(agencyId: string, filters?: { status?: string; isVerified?: boolean; search?: string }): Promise<number>;
   createExternalClient(client: InsertExternalClient): Promise<ExternalClient>;
   updateExternalClient(id: string, updates: Partial<InsertExternalClient>): Promise<ExternalClient>;
   deleteExternalClient(id: string): Promise<void>;
@@ -8643,7 +8643,7 @@ export class DatabaseStorage implements IStorage {
 
   async getExternalClientsByAgency(
     agencyId: string, 
-    filters?: { status?: string; isVerified?: boolean; limit?: number; offset?: number }
+    filters?: { status?: string; isVerified?: boolean; search?: string; sortField?: string; sortOrder?: 'asc' | 'desc'; limit?: number; offset?: number }
   ): Promise<ExternalClient[]> {
     const conditions = [eq(externalClients.agencyId, agencyId)];
     
@@ -8653,11 +8653,52 @@ export class DatabaseStorage implements IStorage {
     if (filters?.isVerified !== undefined) {
       conditions.push(eq(externalClients.isVerified, filters.isVerified));
     }
+    if (filters?.search && filters.search.trim().length > 0) {
+      // Sanitize search string: escape SQL LIKE wildcards and backslashes, limit length
+      // Order matters: escape backslash first, then % and _
+      const sanitized = filters.search
+        .trim()
+        .slice(0, 100) // Max 100 chars
+        .replace(/\\/g, '\\\\') // Escape backslashes first
+        .replace(/%/g, '\\%')   // Then escape %
+        .replace(/_/g, '\\_');   // Then escape _
+      const searchPattern = `%${sanitized}%`;
+      conditions.push(
+        or(
+          ilike(externalClients.firstName, searchPattern),
+          ilike(externalClients.lastName, searchPattern),
+          ilike(externalClients.email, searchPattern),
+          ilike(externalClients.phone, searchPattern)
+        )!
+      );
+    }
     
     let query = db.select()
       .from(externalClients)
-      .where(and(...conditions))
-      .orderBy(desc(externalClients.createdAt));
+      .where(and(...conditions));
+    
+    // Apply sorting
+    const sortOrder = filters?.sortOrder || 'desc';
+    const sortFn = sortOrder === 'asc' ? asc : desc;
+    
+    switch (filters?.sortField) {
+      case 'name':
+        query = query.orderBy(sortFn(externalClients.firstName), sortFn(externalClients.lastName));
+        break;
+      case 'email':
+        query = query.orderBy(sortFn(externalClients.email));
+        break;
+      case 'phone':
+        query = query.orderBy(sortFn(externalClients.phone));
+        break;
+      case 'status':
+        query = query.orderBy(sortFn(externalClients.status));
+        break;
+      case 'createdAt':
+      default:
+        query = query.orderBy(sortFn(externalClients.createdAt));
+        break;
+    }
     
     if (filters?.limit !== undefined) {
       query = query.limit(filters.limit);
@@ -8671,7 +8712,7 @@ export class DatabaseStorage implements IStorage {
   
   async getExternalClientsCountByAgency(
     agencyId: string,
-    filters?: { status?: string; isVerified?: boolean }
+    filters?: { status?: string; isVerified?: boolean; search?: string }
   ): Promise<number> {
     const conditions = [eq(externalClients.agencyId, agencyId)];
     
@@ -8680,6 +8721,25 @@ export class DatabaseStorage implements IStorage {
     }
     if (filters?.isVerified !== undefined) {
       conditions.push(eq(externalClients.isVerified, filters.isVerified));
+    }
+    if (filters?.search && filters.search.trim().length > 0) {
+      // Sanitize search string: escape SQL LIKE wildcards and backslashes, limit length
+      // Order matters: escape backslash first, then % and _
+      const sanitized = filters.search
+        .trim()
+        .slice(0, 100) // Max 100 chars
+        .replace(/\\/g, '\\\\') // Escape backslashes first
+        .replace(/%/g, '\\%')   // Then escape %
+        .replace(/_/g, '\\_');   // Then escape _
+      const searchPattern = `%${sanitized}%`;
+      conditions.push(
+        or(
+          ilike(externalClients.firstName, searchPattern),
+          ilike(externalClients.lastName, searchPattern),
+          ilike(externalClients.email, searchPattern),
+          ilike(externalClients.phone, searchPattern)
+        )!
+      );
     }
     
     const result = await db.select({ count: sql<number>`count(*)::int` })
