@@ -3,12 +3,13 @@ import { useQuery, useMutation } from "@tanstack/react-query";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Plus, ExternalLink, RefreshCw, FileDown, ArrowUpDown, ArrowUp, ArrowDown, Users, User } from "lucide-react";
+import { Plus, ExternalLink, RefreshCw, FileDown, ArrowUpDown, ArrowUp, ArrowDown, Users, User, Pencil, Eye } from "lucide-react";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { format } from "date-fns";
 import { es, enUS } from "date-fns/locale";
 import ExternalGenerateRentalFormLinkDialog from "./ExternalGenerateRentalFormLinkDialog";
+import ExternalEditRentalFormDialog from "./ExternalEditRentalFormDialog";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { ExternalPaginationControls } from "@/components/external/ExternalPaginationControls";
@@ -23,6 +24,8 @@ export default function ExternalRentalFormLinks({ searchTerm, statusFilter, view
   const { language } = useLanguage();
   const { toast } = useToast();
   const [dialogOpen, setDialogOpen] = useState(false);
+  const [editDialogOpen, setEditDialogOpen] = useState(false);
+  const [editingRentalForm, setEditingRentalForm] = useState<any>(null);
   
   // Pagination state
   const [currentPage, setCurrentPage] = useState(1);
@@ -31,6 +34,60 @@ export default function ExternalRentalFormLinks({ searchTerm, statusFilter, view
   // Sorting state
   const [sortColumn, setSortColumn] = useState<string>("");
   const [sortDirection, setSortDirection] = useState<"asc" | "desc">("asc");
+
+  // Helper function to download PDF with authentication
+  const downloadRentalFormPDF = async (rentalFormId: string) => {
+    try {
+      const response = await fetch(`/api/external/rental-forms/${rentalFormId}/pdf`, {
+        method: 'GET',
+        credentials: 'include',
+      });
+
+      if (!response.ok) {
+        throw new Error('Error al descargar PDF');
+      }
+
+      const blob = await response.blob();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `formulario-renta-${rentalFormId}.pdf`;
+      document.body.appendChild(a);
+      a.click();
+      window.URL.revokeObjectURL(url);
+      document.body.removeChild(a);
+    } catch (error) {
+      toast({
+        variant: "destructive",
+        title: language === "es" ? "Error" : "Error",
+        description: language === "es" ? "No se pudo descargar el PDF" : "Could not download PDF",
+      });
+    }
+  };
+
+  // Helper function to view PDF
+  const viewRentalFormPDF = async (rentalFormId: string) => {
+    try {
+      const response = await fetch(`/api/external/rental-forms/${rentalFormId}/pdf`, {
+        method: 'GET',
+        credentials: 'include',
+      });
+
+      if (!response.ok) {
+        throw new Error('Error al cargar PDF');
+      }
+
+      const blob = await response.blob();
+      const url = window.URL.createObjectURL(blob);
+      window.open(url, '_blank');
+    } catch (error) {
+      toast({
+        variant: "destructive",
+        title: language === "es" ? "Error" : "Error",
+        description: language === "es" ? "No se pudo ver el PDF" : "Could not view PDF",
+      });
+    }
+  };
 
   const { data: formTokens, isLoading } = useQuery({
     queryKey: ["/api/external/rental-form-tokens"],
@@ -292,16 +349,41 @@ export default function ExternalRentalFormLinks({ searchTerm, statusFilter, view
                   )}
                   <div className="flex items-center gap-2 pt-2">
                     {token.isUsed && (
-                      <Button
-                        variant="default"
-                        size="sm"
-                        onClick={() => window.open(`/api/external/rental-contracts/${token.contractId}/pdf`, "_blank")}
-                        className="flex-1"
-                        data-testid="button-download-form-pdf"
-                      >
-                        <FileDown className="h-4 w-4 mr-2" />
-                        {language === "es" ? "PDF" : "PDF"}
-                      </Button>
+                      <>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => {
+                            setEditingRentalForm(token);
+                            setEditDialogOpen(true);
+                          }}
+                          className="flex-1"
+                          data-testid="button-edit-rental-form"
+                        >
+                          <Pencil className="h-4 w-4 mr-2" />
+                          {language === "es" ? "Editar" : "Edit"}
+                        </Button>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => viewRentalFormPDF(token.id)}
+                          className="flex-1"
+                          data-testid="button-view-rental-form-pdf"
+                        >
+                          <Eye className="h-4 w-4 mr-2" />
+                          {language === "es" ? "Ver" : "View"}
+                        </Button>
+                        <Button
+                          variant="default"
+                          size="sm"
+                          onClick={() => downloadRentalFormPDF(token.id)}
+                          className="flex-1"
+                          data-testid="button-download-rental-form-pdf"
+                        >
+                          <FileDown className="h-4 w-4 mr-2" />
+                          {language === "es" ? "Descargar" : "Download"}
+                        </Button>
+                      </>
                     )}
                     {canRegenerate && (
                       <Button
@@ -316,16 +398,18 @@ export default function ExternalRentalFormLinks({ searchTerm, statusFilter, view
                         {language === "es" ? "Regenerar" : "Regenerate"}
                       </Button>
                     )}
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => window.open(`${window.location.origin}/public-rental-form/${token.token}`, "_blank")}
-                      className="flex-1"
-                      data-testid="button-open-form-link"
-                    >
-                      <ExternalLink className="h-4 w-4 mr-2" />
-                      {language === "es" ? "Abrir Link" : "Open Link"}
-                    </Button>
+                    {!token.isUsed && (
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => window.open(`${window.location.origin}/public-rental-form/${token.token}`, "_blank")}
+                        className="flex-1"
+                        data-testid="button-open-form-link"
+                      >
+                        <ExternalLink className="h-4 w-4 mr-2" />
+                        {language === "es" ? "Abrir Link" : "Open Link"}
+                      </Button>
+                    )}
                   </div>
                 </CardContent>
               </Card>
@@ -436,15 +520,38 @@ export default function ExternalRentalFormLinks({ searchTerm, statusFilter, view
                     <TableCell className="text-right">
                       <div className="flex items-center justify-end gap-2">
                         {token.isUsed && (
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => window.open(`/api/external/rental-contracts/${token.contractId}/pdf`, "_blank")}
-                            title={language === "es" ? "Descargar PDF" : "Download PDF"}
-                            data-testid="button-download-form-pdf"
-                          >
-                            <FileDown className="h-4 w-4" />
-                          </Button>
+                          <>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => {
+                                setEditingRentalForm(token);
+                                setEditDialogOpen(true);
+                              }}
+                              title={language === "es" ? "Editar formulario" : "Edit form"}
+                              data-testid="button-edit-rental-form"
+                            >
+                              <Pencil className="h-4 w-4" />
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => viewRentalFormPDF(token.id)}
+                              title={language === "es" ? "Ver PDF" : "View PDF"}
+                              data-testid="button-view-rental-form-pdf"
+                            >
+                              <Eye className="h-4 w-4" />
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => downloadRentalFormPDF(token.id)}
+                              title={language === "es" ? "Descargar PDF" : "Download PDF"}
+                              data-testid="button-download-rental-form-pdf"
+                            >
+                              <FileDown className="h-4 w-4" />
+                            </Button>
+                          </>
                         )}
                         {canRegenerate && (
                           <Button
@@ -458,15 +565,17 @@ export default function ExternalRentalFormLinks({ searchTerm, statusFilter, view
                             <RefreshCw className="h-4 w-4" />
                           </Button>
                         )}
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => window.open(`${window.location.origin}/public-rental-form/${token.token}`, "_blank")}
-                          title={language === "es" ? "Abrir link" : "Open link"}
-                          data-testid="button-open-form-link"
-                        >
-                          <ExternalLink className="h-4 w-4" />
-                        </Button>
+                        {!token.isUsed && (
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => window.open(`${window.location.origin}/public-rental-form/${token.token}`, "_blank")}
+                            title={language === "es" ? "Abrir link" : "Open link"}
+                            data-testid="button-open-form-link"
+                          >
+                            <ExternalLink className="h-4 w-4" />
+                          </Button>
+                        )}
                       </div>
                     </TableCell>
                   </TableRow>
@@ -479,6 +588,11 @@ export default function ExternalRentalFormLinks({ searchTerm, statusFilter, view
       )}
 
       <ExternalGenerateRentalFormLinkDialog open={dialogOpen} onOpenChange={setDialogOpen} />
+      <ExternalEditRentalFormDialog 
+        open={editDialogOpen} 
+        onOpenChange={setEditDialogOpen}
+        rentalFormToken={editingRentalForm}
+      />
     </>
   );
 }

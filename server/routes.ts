@@ -24711,6 +24711,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
         if (!unit || unit.agencyId !== agencyId) {
           return res.status(403).json({ message: "Unauthorized" });
         }
+      } else if (rentalFormToken.externalUnitOwnerId) {
+        // For owner forms, verify via owner's agency
+        const owner = await storage.getExternalUnitOwner(rentalFormToken.externalUnitOwnerId);
+        if (!owner || owner.agencyId !== agencyId) {
+          return res.status(403).json({ message: "Unauthorized" });
+        }
       } else {
         return res.status(400).json({ message: "Este token no es del sistema externo" });
       }
@@ -24720,11 +24726,32 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ message: "Solo se pueden editar formularios completados" });
       }
 
+      // Basic validation schema for common fields (works for both tenant and owner)
+      const commonFieldsSchema = z.object({
+        fullName: z.string().optional(),
+        email: z.string().email().optional().or(z.literal("")),
+        whatsapp: z.string().optional(),
+        nationality: z.string().optional(),
+        age: z.number().optional(),
+        address: z.string().optional(),
+        // Allow any other fields to pass through for compatibility
+      }).passthrough();
+
+      // Validate incoming data
+      const validatedData = commonFieldsSchema.parse(req.body.formData || {});
+
+      // Merge validated data with existing data to preserve all fields
+      const currentData = rentalFormToken.tenantData || {};
+      const updatedData = {
+        ...currentData,
+        ...validatedData,
+      };
+
       // Update tenant data
       const [updated] = await db
         .update(tenantRentalFormTokens)
         .set({ 
-          tenantData: req.body.tenantData,
+          tenantData: updatedData,
           updatedAt: new Date(),
         })
         .where(eq(tenantRentalFormTokens.id, id))
@@ -24741,6 +24768,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.json(updated);
     } catch (error) {
       console.error("Error updating rental form:", error);
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ message: "Datos inválidos", errors: error.errors });
+      }
       res.status(500).json({ message: "Error al actualizar formulario" });
     }
   });
