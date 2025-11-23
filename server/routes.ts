@@ -27087,6 +27087,124 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // GET /api/external/accounting/analytics - Get aggregated analytics data
+  app.get("/api/external/accounting/analytics", isAuthenticated, requireRole(EXTERNAL_ALL_ROLES), async (req: any, res) => {
+    try {
+      const agencyId = await getUserAgencyId(req);
+      if (!agencyId) {
+        return res.status(403).json({ message: "No agency access" });
+      }
+
+      const { direction, category, status, condominiumId, unitId, startDate, endDate, search } = req.query;
+
+      // Build filter conditions
+      const conditions: any[] = [eq(externalFinancialTransactions.agencyId, agencyId)];
+      
+      if (direction) conditions.push(eq(externalFinancialTransactions.direction, direction as string));
+      if (category) conditions.push(eq(externalFinancialTransactions.category, category as string));
+      if (status) conditions.push(eq(externalFinancialTransactions.status, status as string));
+      if (condominiumId) conditions.push(eq(externalFinancialTransactions.condominiumId, condominiumId as string));
+      if (unitId) conditions.push(eq(externalFinancialTransactions.unitId, unitId as string));
+      if (startDate) conditions.push(sql`${externalFinancialTransactions.dueDate} >= ${new Date(startDate as string)}`);
+      if (endDate) conditions.push(sql`${externalFinancialTransactions.dueDate} <= ${new Date(endDate as string)}`);
+      
+      // Add search filter with sanitization (same as /transactions endpoint)
+      if (search && typeof search === 'string' && search.trim().length > 0) {
+        const sanitized = search.trim().slice(0, 100);
+        if (sanitized.length > 0) {
+          const escaped = sanitized
+            .replace(/\\/g, '\\\\')
+            .replace(/%/g, '\\%')
+            .replace(/_/g, '\\_');
+          const searchPattern = `%${escaped}%`;
+          
+          const searchCondition = sql`(${externalFinancialTransactions.tenantName} ILIKE ${searchPattern} ESCAPE '\\' OR ${externalFinancialTransactions.paymentReference} ILIKE ${searchPattern} ESCAPE '\\')`;
+          conditions.push(searchCondition);
+        }
+      }
+
+      // Calculate total income and expenses (all non-cancelled transactions)
+      const [financialTotals] = await db
+        .select({
+          totalIncome: sql<string>`COALESCE(SUM(CASE WHEN ${externalFinancialTransactions.direction} = 'inflow' AND ${externalFinancialTransactions.status} != 'cancelled' THEN CAST(${externalFinancialTransactions.grossAmount} AS DECIMAL) ELSE 0 END), 0)`,
+          totalExpenses: sql<string>`COALESCE(SUM(CASE WHEN ${externalFinancialTransactions.direction} = 'outflow' AND ${externalFinancialTransactions.status} != 'cancelled' THEN CAST(${externalFinancialTransactions.grossAmount} AS DECIMAL) ELSE 0 END), 0)`,
+        })
+        .from(externalFinancialTransactions)
+        .where(and(...conditions));
+
+      const totalIncome = parseFloat(financialTotals.totalIncome || '0');
+      const totalExpenses = parseFloat(financialTotals.totalExpenses || '0');
+      const netBalance = totalIncome - totalExpenses;
+
+      // Calculate receivables (pending inflow only)
+      const now = new Date();
+      const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+      const todayEnd = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59);
+
+      const [receivablesToday] = await db
+        .select({
+          count: sql<number>`COUNT(*)::int`,
+          total: sql<string>`COALESCE(SUM(CAST(${externalFinancialTransactions.grossAmount} AS DECIMAL)), 0)`,
+        })
+        .from(externalFinancialTransactions)
+        .where(and(
+          ...conditions,
+          eq(externalFinancialTransactions.status, 'pending'),
+          sql`${externalFinancialTransactions.dueDate} >= ${todayStart}`,
+          sql`${externalFinancialTransactions.dueDate} <= ${todayEnd}`
+        ));
+
+      const [receivablesOverdue] = await db
+        .select({
+          count: sql<number>`COUNT(*)::int`,
+          total: sql<string>`COALESCE(SUM(CAST(${externalFinancialTransactions.grossAmount} AS DECIMAL)), 0)`,
+        })
+        .from(externalFinancialTransactions)
+        .where(and(
+          ...conditions,
+          eq(externalFinancialTransactions.status, 'pending'),
+          eq(externalFinancialTransactions.direction, 'inflow'),
+          sql`${externalFinancialTransactions.dueDate} < ${todayStart}`
+        ));
+
+      const [receivablesUpcoming] = await db
+        .select({
+          count: sql<number>`COUNT(*)::int`,
+          total: sql<string>`COALESCE(SUM(CAST(${externalFinancialTransactions.grossAmount} AS DECIMAL)), 0)`,
+        })
+        .from(externalFinancialTransactions)
+        .where(and(
+          ...conditions,
+          eq(externalFinancialTransactions.status, 'pending'),
+          eq(externalFinancialTransactions.direction, 'inflow'),
+          sql`${externalFinancialTransactions.dueDate} > ${todayEnd}`
+        ));
+
+      res.json({
+        totalIncome,
+        totalExpenses,
+        netBalance,
+        receivables: {
+          today: {
+            count: receivablesToday.count || 0,
+            total: parseFloat(receivablesToday.total || '0'),
+          },
+          overdue: {
+            count: receivablesOverdue.count || 0,
+            total: parseFloat(receivablesOverdue.total || '0'),
+          },
+          upcoming: {
+            count: receivablesUpcoming.count || 0,
+            total: parseFloat(receivablesUpcoming.total || '0'),
+          },
+        },
+      });
+    } catch (error: any) {
+      console.error("Error fetching analytics:", error);
+      handleGenericError(res, error);
+    }
+  });
+
   // GET /api/external/accounting/transactions/:id - Get specific transaction
   app.get("/api/external/accounting/transactions/:id", isAuthenticated, requireRole(EXTERNAL_ALL_ROLES), async (req: any, res) => {
     try {

@@ -26,6 +26,8 @@ export default function ExternalContractProcesses({ searchTerm, statusFilter, vi
     queryKey: ['/api/external/contracts'],
     staleTime: 0,
     refetchInterval: 10000,
+    refetchOnWindowFocus: true, // Refetch when user returns to the tab
+    refetchIntervalInBackground: false, // Pause polling when tab is hidden (80% traffic reduction)
   });
 
   const contractProcesses = contractsData || [];

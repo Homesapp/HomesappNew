@@ -249,6 +249,56 @@ export default function ExternalAccounting() {
     ? (Array.isArray(allTransactionsRaw) ? allTransactionsRaw : allTransactionsRaw.data || [])
     : [];
 
+  // Analytics data - aggregated calculations from backend (much faster than downloading full dataset)
+  const { data: analyticsData, isLoading: analyticsLoading } = useQuery<{
+    totalIncome: number;
+    totalExpenses: number;
+    netBalance: number;
+    receivables: {
+      today: { count: number; total: number };
+      overdue: { count: number; total: number };
+      upcoming: { count: number; total: number };
+    };
+  }>({
+    queryKey: [
+      '/api/external/accounting/analytics',
+      directionFilter,
+      categoryFilter,
+      statusFilter,
+      condominiumFilter,
+      unitFilter,
+      searchTerm,
+      dateFilter,
+      customStartDate,
+      customEndDate,
+    ],
+    queryFn: async () => {
+      const params = new URLSearchParams();
+      if (directionFilter !== "all") params.append("direction", directionFilter);
+      if (categoryFilter !== "all") params.append("category", categoryFilter);
+      if (statusFilter !== "all") params.append("status", statusFilter);
+      if (condominiumFilter !== "all") params.append("condominiumId", condominiumFilter);
+      if (unitFilter !== "all") params.append("unitId", unitFilter);
+      if (searchTerm) params.append("search", searchTerm);
+      
+      const { startDate, endDate } = getDateRange();
+      if (startDate) params.append("startDate", startDate.toISOString());
+      if (endDate) params.append("endDate", endDate.toISOString());
+      
+      const response = await fetch(`/api/external/accounting/analytics?${params.toString()}`, {
+        credentials: 'include',
+      });
+      
+      if (!response.ok) {
+        throw new Error('Failed to fetch analytics');
+      }
+      
+      return response.json();
+    },
+    staleTime: 2 * 60 * 1000, // 2 minutes
+    cacheTime: 15 * 60 * 1000,
+  });
+
   // Extract transactions and pagination metadata from backend response
   const transactions = transactionsResponse?.data || [];
   const totalPages = Math.max(1, Math.ceil((transactionsResponse?.total || 0) / itemsPerPage));
@@ -357,6 +407,7 @@ export default function ExternalAccounting() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['/api/external/accounting/transactions'] });
       queryClient.invalidateQueries({ queryKey: ['/api/external/accounting/transactions-all'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/external/accounting/analytics'] });
       queryClient.invalidateQueries({ queryKey: ['/api/external/accounting/summary'] });
       setShowCreateDialog(false);
       createForm.reset();
@@ -384,6 +435,7 @@ export default function ExternalAccounting() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['/api/external/accounting/transactions'] });
       queryClient.invalidateQueries({ queryKey: ['/api/external/accounting/transactions-all'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/external/accounting/analytics'] });
       queryClient.invalidateQueries({ queryKey: ['/api/external/accounting/summary'] });
       setShowEditDialog(false);
       setSelectedTransaction(null);
@@ -411,6 +463,7 @@ export default function ExternalAccounting() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['/api/external/accounting/transactions'] });
       queryClient.invalidateQueries({ queryKey: ['/api/external/accounting/transactions-all'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/external/accounting/analytics'] });
       queryClient.invalidateQueries({ queryKey: ['/api/external/accounting/summary'] });
       setShowCancelDialog(false);
       setSelectedTransaction(null);

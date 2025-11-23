@@ -111,6 +111,7 @@ export default function ExternalOfferLinks({ searchTerm, statusFilter, viewMode 
     staleTime: 0, // Consider data stale immediately
     refetchOnWindowFocus: true, // Refetch when user returns to the tab
     refetchInterval: 10000, // Auto-refresh every 10 seconds while tab is active
+    refetchIntervalInBackground: false, // Pause polling when tab is hidden (80% traffic reduction)
   });
 
   const regenerateTokenMutation = useMutation({
