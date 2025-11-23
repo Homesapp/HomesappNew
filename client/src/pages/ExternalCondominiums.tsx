@@ -121,12 +121,40 @@ export default function ExternalCondominiums() {
     setUnitsPage(1);
   }, [unitSearchText, selectedCondoFilter, rentalStatusFilter, unitStatusFilter, unitsPerPage]);
 
-  // Static/semi-static data: condominiums list
-  const { data: condominiums, isLoading: condosLoading, isError: condosError, error: condosErrorMsg } = useQuery<ExternalCondominium[]>({
-    queryKey: ['/api/external-condominiums'],
-    staleTime: 30 * 60 * 1000, // 30 minutes (rarely changes)
-    cacheTime: 60 * 60 * 1000, // Keep in cache for 1 hour
+  // Backend-paginated condominiums data
+  const { data: condominiumsResponse, isLoading: condosLoading, isError: condosError, error: condosErrorMsg } = useQuery<{
+    data: ExternalCondominium[];
+    total: number;
+    limit: number;
+    offset: number;
+    hasMore: boolean;
+  }>({
+    queryKey: ['/api/external-condominiums', condoSearchText, condosSortColumn, condosSortDirection, condoItemsPerPage, condoCurrentPage],
+    queryFn: async () => {
+      const params = new URLSearchParams();
+      if (condoSearchText) params.append('search', condoSearchText);
+      if (condosSortColumn) params.append('sortField', condosSortColumn);
+      if (condosSortDirection) params.append('sortOrder', condosSortDirection);
+      params.append('limit', condoItemsPerPage.toString());
+      params.append('offset', ((condoCurrentPage - 1) * condoItemsPerPage).toString());
+      
+      const response = await fetch(`/api/external-condominiums?${params.toString()}`, {
+        credentials: 'include',
+      });
+      
+      if (!response.ok) {
+        throw new Error('Failed to fetch condominiums');
+      }
+      
+      return response.json();
+    },
+    staleTime: 5 * 60 * 1000, // 5 minutes
+    cacheTime: 30 * 60 * 1000, // 30 minutes in cache
+    keepPreviousData: true, // Keep previous data while fetching new data for smooth UX
   });
+  
+  const condominiums = condominiumsResponse?.data || [];
+  const condoTotalPages = Math.max(1, Math.ceil((condominiumsResponse?.total || 0) / condoItemsPerPage));
 
   // Static/semi-static data: units list for dropdowns
   const { data: units, isLoading: unitsLoading } = useQuery<ExternalUnit[]>({
@@ -782,58 +810,8 @@ export default function ExternalCondominiums() {
     return condosSortDirection === "asc" ? "↑" : "↓";
   };
 
-  const filteredCondominiums = condominiums?.filter(condo => {
-    // Filter by search text (name or address)
-    const searchLower = condoSearchText.toLowerCase();
-    const matchesSearch = !searchLower || 
-      condo.name.toLowerCase().includes(searchLower) ||
-      (condo.address && condo.address.toLowerCase().includes(searchLower)) ||
-      (condo.description && condo.description.toLowerCase().includes(searchLower));
-
-    return matchesSearch;
-  }) || [];
-
-  // Sort condominiums
-  const sortedCondominiums = useMemo(() => {
-    return [...filteredCondominiums].sort((a, b) => {
-      if (!condosSortColumn) return 0;
-      
-      let aVal: any;
-      let bVal: any;
-      
-      if (condosSortColumn === 'name') {
-        aVal = a.name.toLowerCase();
-        bVal = b.name.toLowerCase();
-      } else if (condosSortColumn === 'address') {
-        aVal = (a.address || '').toLowerCase();
-        bVal = (b.address || '').toLowerCase();
-      } else if (condosSortColumn === 'totalUnits') {
-        aVal = getUnitsForCondo(a.id).length;
-        bVal = getUnitsForCondo(b.id).length;
-      } else if (condosSortColumn === 'activeUnits') {
-        aVal = getUnitsForCondo(a.id).filter(u => u.isActive).length;
-        bVal = getUnitsForCondo(b.id).filter(u => u.isActive).length;
-      } else if (condosSortColumn === 'rentedUnits') {
-        aVal = getUnitsForCondo(a.id).filter(u => hasActiveRental(u.id)).length;
-        bVal = getUnitsForCondo(b.id).filter(u => hasActiveRental(u.id)).length;
-      }
-      
-      if (typeof aVal === "string" || typeof bVal === "string") {
-        aVal = (aVal || '').toString().toLowerCase();
-        bVal = (bVal || '').toString().toLowerCase();
-      }
-      
-      if (aVal < bVal) return condosSortDirection === "asc" ? -1 : 1;
-      if (aVal > bVal) return condosSortDirection === "asc" ? 1 : -1;
-      return 0;
-    });
-  }, [filteredCondominiums, condosSortColumn, condosSortDirection]);
-
-  // Paginate condominiums
-  const condoTotalPages = Math.max(1, Math.ceil(sortedCondominiums.length / condoItemsPerPage));
-  const condoStartIndex = (condoCurrentPage - 1) * condoItemsPerPage;
-  const condoEndIndex = condoStartIndex + condoItemsPerPage;
-  const paginatedCondominiums = sortedCondominiums.slice(condoStartIndex, condoEndIndex);
+  // Backend handles filtering, sorting, and pagination - use data directly
+  const paginatedCondominiums = condominiums;
 
   // Pre-render page clamping using useLayoutEffect
   useLayoutEffect(() => {
@@ -1174,7 +1152,7 @@ export default function ExternalCondominiums() {
                 </div>
               </CardContent>
             </Card>
-          ) : !sortedCondominiums || sortedCondominiums.length === 0 ? (
+          ) : !condominiums || condominiums.length === 0 ? (
             <Card>
               <CardContent className="pt-6">
                 <div className="text-center py-8" data-testid="div-empty-state">
@@ -1191,7 +1169,7 @@ export default function ExternalCondominiums() {
               {selectedCondoId ? (
                     // Detail view for selected condominium
                     (() => {
-                      const selectedCondo = sortedCondominiums.find(c => c.id === selectedCondoId);
+                      const selectedCondo = condominiums.find(c => c.id === selectedCondoId);
                       if (!selectedCondo) return null;
                       const condoUnits = getUnitsForCondo(selectedCondoId);
                       
@@ -1678,7 +1656,7 @@ export default function ExternalCondominiums() {
             ) : (
               <>
                 {/* Pagination Controls */}
-                {sortedCondominiums.length > 0 && (
+                {condominiums.length > 0 && (
                   <ExternalPaginationControls
                     currentPage={condoCurrentPage}
                     totalPages={condoTotalPages}

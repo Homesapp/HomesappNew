@@ -22987,7 +22987,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // External Condominiums Routes
   app.get("/api/external-condominiums", isAuthenticated, requireRole(EXTERNAL_ALL_ROLES), async (req: any, res) => {
     try {
-      const { isActive } = req.query;
+      const { isActive, search, sortField, sortOrder, limit, offset } = req.query;
       
       // Get agency ID from authenticated user (admin/master can pass agencyId to view other agencies)
       let agencyId = req.query.agencyId;
@@ -23002,12 +23002,54 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const hasAccess = await verifyExternalAgencyOwnership(req, res, agencyId);
       if (!hasAccess) return; // Response already sent by helper
       
-      const filters: any = {};
-      if (isActive !== undefined) filters.isActive = isActive === 'true';
+      // Detect if pagination is requested (for backward compatibility)
+      // Only check limit/offset to avoid breaking legacy consumers that use search/sortField
+      const usePagination = (limit !== undefined && limit !== '') || (offset !== undefined && offset !== '');
       
-      const condominiums = await storage.getExternalCondominiumsByAgency(agencyId, filters);
-      
-      res.json(condominiums);
+      if (usePagination) {
+        // Parse and validate pagination parameters
+        const limitNum = limit ? parseInt(limit as string, 10) : 50;
+        const offsetNum = offset ? parseInt(offset as string, 10) : 0;
+        const parsedLimit = Number.isFinite(limitNum) ? Math.min(Math.max(1, limitNum), 100) : 50;
+        const parsedOffset = Number.isFinite(offsetNum) ? Math.max(0, offsetNum) : 0;
+        
+        // Build filters
+        const filters: any = {};
+        if (isActive !== undefined) filters.isActive = isActive === 'true';
+        if (search) filters.search = search as string;
+        if (sortField) filters.sortField = sortField as string;
+        if (sortOrder && (sortOrder === 'asc' || sortOrder === 'desc')) filters.sortOrder = sortOrder;
+        filters.limit = parsedLimit;
+        filters.offset = parsedOffset;
+        
+        // Execute data fetch and count in parallel
+        const [condominiums, total] = await Promise.all([
+          storage.getExternalCondominiumsByAgency(agencyId, filters),
+          storage.getExternalCondominiumsCountByAgency(agencyId, {
+            isActive: filters.isActive,
+            search: filters.search,
+          }),
+        ]);
+        
+        res.json({
+          data: condominiums,
+          total,
+          limit: parsedLimit,
+          offset: parsedOffset,
+          hasMore: parsedOffset + condominiums.length < total,
+        });
+      } else {
+        // Legacy mode: return simple array (NO pagination - full dataset)
+        // Preserve historical behavior: only isActive and search, NO sortField/sortOrder
+        // Storage will use default alphabetical ordering
+        const filters: any = {};
+        if (isActive !== undefined) filters.isActive = isActive === 'true';
+        if (search) filters.search = search as string;
+        // DO NOT pass sortField/sortOrder/limit/offset - legacy callers expect default behavior
+        
+        const condominiums = await storage.getExternalCondominiumsByAgency(agencyId, filters);
+        res.json(condominiums);
+      }
     } catch (error: any) {
       console.error("Error fetching external condominiums:", error);
       handleGenericError(res, error);
@@ -26977,7 +27019,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(403).json({ message: "No agency access" });
       }
 
-      const { direction, category, status, ownerId, contractId, unitId, condominiumId, startDate, endDate } = req.query;
+      const { direction, category, status, ownerId, contractId, unitId, condominiumId, startDate, endDate, search, sortField, sortOrder, limit, offset } = req.query;
+
+      // Detect pagination mode: only check limit/offset to avoid breaking legacy consumers that use search/sortField
+      const usePagination = (limit !== undefined && limit !== '') || (offset !== undefined && offset !== '');
 
       const filters: any = {};
       if (direction) filters.direction = direction;
@@ -26990,8 +27035,52 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (startDate) filters.startDate = new Date(startDate as string);
       if (endDate) filters.endDate = new Date(endDate as string);
 
-      const transactions = await storage.getExternalFinancialTransactionsByAgency(agencyId, filters);
-      res.json(transactions);
+      if (usePagination) {
+        // Paginated mode: return envelope with pagination metadata
+        const limitNum = limit ? parseInt(limit as string, 10) : 50;
+        const offsetNum = offset ? parseInt(offset as string, 10) : 0;
+        const parsedLimit = Number.isFinite(limitNum) ? Math.min(Math.max(1, limitNum), 100) : 50;
+        const parsedOffset = Number.isFinite(offsetNum) ? Math.max(0, offsetNum) : 0;
+
+        if (search) filters.search = search as string;
+        if (sortField) filters.sortField = sortField as string;
+        if (sortOrder && (sortOrder === 'asc' || sortOrder === 'desc')) filters.sortOrder = sortOrder;
+        filters.limit = parsedLimit;
+        filters.offset = parsedOffset;
+
+        // Execute data fetch and count in parallel
+        const [transactions, total] = await Promise.all([
+          storage.getExternalFinancialTransactionsByAgency(agencyId, filters),
+          storage.getExternalFinancialTransactionsCountByAgency(agencyId, {
+            direction: filters.direction,
+            category: filters.category,
+            status: filters.status,
+            ownerId: filters.ownerId,
+            contractId: filters.contractId,
+            unitId: filters.unitId,
+            condominiumId: filters.condominiumId,
+            startDate: filters.startDate,
+            endDate: filters.endDate,
+            search: filters.search,
+          }),
+        ]);
+
+        res.json({
+          data: transactions,
+          total,
+          limit: parsedLimit,
+          offset: parsedOffset,
+          hasMore: parsedOffset + transactions.length < total,
+        });
+      } else {
+        // Legacy mode: return simple array (NO pagination - full dataset)
+        // Preserve historical behavior: existing filters only, NO sortField/sortOrder
+        // Storage will use default ordering (desc by dueDate)
+        if (search) filters.search = search as string;
+        // DO NOT pass sortField/sortOrder/limit/offset - legacy callers expect default behavior
+        const transactions = await storage.getExternalFinancialTransactionsByAgency(agencyId, filters);
+        res.json(transactions);
+      }
     } catch (error: any) {
       console.error("Error fetching financial transactions:", error);
       handleGenericError(res, error);

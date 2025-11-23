@@ -1222,7 +1222,8 @@ export interface IStorage {
 
   // External Management System - Condominium operations
   getExternalCondominium(id: string): Promise<ExternalCondominium | undefined>;
-  getExternalCondominiumsByAgency(agencyId: string, filters?: { isActive?: boolean }): Promise<ExternalCondominium[]>;
+  getExternalCondominiumsByAgency(agencyId: string, filters?: { isActive?: boolean; search?: string; sortField?: string; sortOrder?: 'asc' | 'desc'; limit?: number; offset?: number }): Promise<ExternalCondominium[]>;
+  getExternalCondominiumsCountByAgency(agencyId: string, filters?: { isActive?: boolean; search?: string }): Promise<number>;
   createExternalCondominium(condominium: InsertExternalCondominium): Promise<ExternalCondominium>;
   createCondominiumWithUnits(condominium: InsertExternalCondominium, units: any[], agencyId: string, userId: string): Promise<{ condominium: ExternalCondominium; units: ExternalUnit[] }>;
   addUnitsToCondominium(condominiumId: string, units: any[], agencyId: string, userId: string): Promise<ExternalUnit[]>;
@@ -1303,8 +1304,28 @@ export interface IStorage {
       condominiumId?: string;
       startDate?: Date;
       endDate?: Date;
+      search?: string;
+      sortField?: string;
+      sortOrder?: 'asc' | 'desc';
+      limit?: number;
+      offset?: number;
     }
   ): Promise<ExternalFinancialTransaction[]>;
+  getExternalFinancialTransactionsCountByAgency(
+    agencyId: string,
+    filters?: {
+      direction?: string;
+      category?: string;
+      status?: string;
+      ownerId?: string;
+      contractId?: string;
+      unitId?: string;
+      condominiumId?: string;
+      startDate?: Date;
+      endDate?: Date;
+      search?: string;
+    }
+  ): Promise<number>;
   createExternalFinancialTransaction(transaction: InsertExternalFinancialTransaction): Promise<ExternalFinancialTransaction>;
   updateExternalFinancialTransaction(id: string, updates: Partial<InsertExternalFinancialTransaction>): Promise<ExternalFinancialTransaction>;
   deleteExternalFinancialTransaction(id: string): Promise<void>;
@@ -8278,17 +8299,122 @@ export class DatabaseStorage implements IStorage {
     return result;
   }
 
-  async getExternalCondominiumsByAgency(agencyId: string, filters?: { isActive?: boolean }): Promise<ExternalCondominium[]> {
-    const conditions: any[] = [eq(externalCondominiums.agencyId, agencyId)];
+  async getExternalCondominiumsByAgency(
+    agencyId: string, 
+    filters?: { isActive?: boolean; search?: string; sortField?: string; sortOrder?: 'asc' | 'desc'; limit?: number; offset?: number }
+  ): Promise<ExternalCondominium[]> {
+    const conditions = [eq(externalCondominiums.agencyId, agencyId)];
     
     if (filters?.isActive !== undefined) {
       conditions.push(eq(externalCondominiums.isActive, filters.isActive));
     }
-
-    return await db.select()
+    if (filters?.search && filters.search.trim().length > 0) {
+      // Sanitize search string: escape SQL LIKE wildcards and backslashes, limit length
+      // Order matters: escape backslash first, then % and _
+      const sanitized = filters.search
+        .trim()
+        .slice(0, 100); // Max 100 chars
+      
+      // Only add search condition if sanitized string is not empty after trimming
+      if (sanitized.length > 0) {
+        const escaped = sanitized
+          .replace(/\\/g, '\\\\') // Escape backslashes first
+          .replace(/%/g, '\\%')   // Then escape %
+          .replace(/_/g, '\\_');   // Then escape _
+        const searchPattern = `%${escaped}%`;
+        
+        // Use sql template to include ESCAPE clause for proper wildcard escaping
+        const searchCondition = or(
+          sql`${externalCondominiums.name} ILIKE ${searchPattern} ESCAPE '\\'`,
+          sql`${externalCondominiums.address} ILIKE ${searchPattern} ESCAPE '\\'`
+        );
+        
+        if (searchCondition) {
+          conditions.push(searchCondition);
+        }
+      }
+    }
+    
+    let query = db.select()
       .from(externalCondominiums)
-      .where(and(...conditions))
-      .orderBy(externalCondominiums.name);
+      .where(and(...conditions));
+    
+    // Apply sorting
+    const sortOrder = filters?.sortOrder || 'asc';
+    const sortFn = sortOrder === 'asc' ? asc : desc;
+    
+    switch (filters?.sortField) {
+      case 'name':
+        query = query.orderBy(sortFn(externalCondominiums.name));
+        break;
+      case 'address':
+        query = query.orderBy(sortFn(externalCondominiums.address));
+        break;
+      case 'totalUnits':
+        query = query.orderBy(sortFn(externalCondominiums.totalUnits));
+        break;
+      case 'isActive':
+        query = query.orderBy(sortFn(externalCondominiums.isActive));
+        break;
+      case 'createdAt':
+        query = query.orderBy(sortFn(externalCondominiums.createdAt));
+        break;
+      default:
+        query = query.orderBy(asc(externalCondominiums.name)); // Default sorting
+    }
+    
+    // Apply pagination
+    if (filters?.limit !== undefined) {
+      query = query.limit(filters.limit);
+    }
+    if (filters?.offset !== undefined) {
+      query = query.offset(filters.offset);
+    }
+    
+    return await query;
+  }
+  
+  async getExternalCondominiumsCountByAgency(
+    agencyId: string,
+    filters?: { isActive?: boolean; search?: string }
+  ): Promise<number> {
+    const conditions = [eq(externalCondominiums.agencyId, agencyId)];
+    
+    if (filters?.isActive !== undefined) {
+      conditions.push(eq(externalCondominiums.isActive, filters.isActive));
+    }
+    if (filters?.search && filters.search.trim().length > 0) {
+      // Sanitize search string: escape SQL LIKE wildcards and backslashes, limit length
+      // Order matters: escape backslash first, then % and _
+      const sanitized = filters.search
+        .trim()
+        .slice(0, 100); // Max 100 chars
+      
+      // Only add search condition if sanitized string is not empty after trimming
+      if (sanitized.length > 0) {
+        const escaped = sanitized
+          .replace(/\\/g, '\\\\') // Escape backslashes first
+          .replace(/%/g, '\\%')   // Then escape %
+          .replace(/_/g, '\\_');   // Then escape _
+        const searchPattern = `%${escaped}%`;
+        
+        // Use sql template to include ESCAPE clause for proper wildcard escaping
+        const searchCondition = or(
+          sql`${externalCondominiums.name} ILIKE ${searchPattern} ESCAPE '\\'`,
+          sql`${externalCondominiums.address} ILIKE ${searchPattern} ESCAPE '\\'`
+        );
+        
+        if (searchCondition) {
+          conditions.push(searchCondition);
+        }
+      }
+    }
+    
+    const result = await db.select({ count: sql<number>`count(*)::int` })
+      .from(externalCondominiums)
+      .where(and(...conditions));
+    
+    return result[0]?.count || 0;
   }
 
   async createExternalCondominium(condominium: InsertExternalCondominium): Promise<ExternalCondominium> {
@@ -8913,6 +9039,11 @@ export class DatabaseStorage implements IStorage {
       condominiumId?: string;
       startDate?: Date;
       endDate?: Date;
+      search?: string;
+      sortField?: string;
+      sortOrder?: 'asc' | 'desc';
+      limit?: number;
+      offset?: number;
     }
   ): Promise<ExternalFinancialTransaction[]> {
     const conditions = [eq(externalFinancialTransactions.agencyId, agencyId)];
@@ -8944,11 +9075,140 @@ export class DatabaseStorage implements IStorage {
     if (filters?.endDate) {
       conditions.push(lte(externalFinancialTransactions.dueDate, filters.endDate));
     }
+    if (filters?.search && filters.search.trim().length > 0) {
+      const sanitized = filters.search
+        .trim()
+        .slice(0, 100);
+      
+      if (sanitized.length > 0) {
+        const escaped = sanitized
+          .replace(/\\/g, '\\\\')
+          .replace(/%/g, '\\%')
+          .replace(/_/g, '\\_');
+        const searchPattern = `%${escaped}%`;
+        
+        // Use sql template to include ESCAPE clause for proper wildcard escaping
+        const searchCondition = or(
+          sql`${externalFinancialTransactions.tenantName} ILIKE ${searchPattern} ESCAPE '\\'`,
+          sql`${externalFinancialTransactions.paymentReference} ILIKE ${searchPattern} ESCAPE '\\'`
+        );
+        
+        if (searchCondition) {
+          conditions.push(searchCondition);
+        }
+      }
+    }
 
-    return await db.select()
+    let query = db.select()
       .from(externalFinancialTransactions)
-      .where(and(...conditions))
-      .orderBy(desc(externalFinancialTransactions.dueDate));
+      .where(and(...conditions));
+
+    const sortOrder = filters?.sortOrder || 'desc';
+    const sortFn = sortOrder === 'asc' ? asc : desc;
+
+    switch (filters?.sortField) {
+      case 'dueDate':
+        query = query.orderBy(sortFn(externalFinancialTransactions.dueDate));
+        break;
+      case 'performedDate':
+        query = query.orderBy(sortFn(externalFinancialTransactions.performedDate));
+        break;
+      case 'grossAmount':
+        query = query.orderBy(sortFn(externalFinancialTransactions.grossAmount));
+        break;
+      case 'category':
+        query = query.orderBy(sortFn(externalFinancialTransactions.category));
+        break;
+      case 'status':
+        query = query.orderBy(sortFn(externalFinancialTransactions.status));
+        break;
+      default:
+        query = query.orderBy(desc(externalFinancialTransactions.dueDate));
+    }
+
+    if (filters?.limit !== undefined) {
+      query = query.limit(filters.limit);
+    }
+    if (filters?.offset !== undefined) {
+      query = query.offset(filters.offset);
+    }
+
+    return await query;
+  }
+
+  async getExternalFinancialTransactionsCountByAgency(
+    agencyId: string,
+    filters?: {
+      direction?: string;
+      category?: string;
+      status?: string;
+      ownerId?: string;
+      contractId?: string;
+      unitId?: string;
+      condominiumId?: string;
+      startDate?: Date;
+      endDate?: Date;
+      search?: string;
+    }
+  ): Promise<number> {
+    const conditions = [eq(externalFinancialTransactions.agencyId, agencyId)];
+
+    if (filters?.direction) {
+      conditions.push(eq(externalFinancialTransactions.direction, filters.direction as any));
+    }
+    if (filters?.category) {
+      conditions.push(eq(externalFinancialTransactions.category, filters.category as any));
+    }
+    if (filters?.status) {
+      conditions.push(eq(externalFinancialTransactions.status, filters.status as any));
+    }
+    if (filters?.ownerId) {
+      conditions.push(eq(externalFinancialTransactions.ownerId, filters.ownerId));
+    }
+    if (filters?.contractId) {
+      conditions.push(eq(externalFinancialTransactions.contractId, filters.contractId));
+    }
+    if (filters?.unitId) {
+      conditions.push(eq(externalFinancialTransactions.unitId, filters.unitId));
+    }
+    if (filters?.condominiumId) {
+      conditions.push(eq(externalFinancialTransactions.condominiumId, filters.condominiumId));
+    }
+    if (filters?.startDate) {
+      conditions.push(gte(externalFinancialTransactions.dueDate, filters.startDate));
+    }
+    if (filters?.endDate) {
+      conditions.push(lte(externalFinancialTransactions.dueDate, filters.endDate));
+    }
+    if (filters?.search && filters.search.trim().length > 0) {
+      const sanitized = filters.search
+        .trim()
+        .slice(0, 100);
+      
+      if (sanitized.length > 0) {
+        const escaped = sanitized
+          .replace(/\\/g, '\\\\')
+          .replace(/%/g, '\\%')
+          .replace(/_/g, '\\_');
+        const searchPattern = `%${escaped}%`;
+        
+        // Use sql template to include ESCAPE clause for proper wildcard escaping
+        const searchCondition = or(
+          sql`${externalFinancialTransactions.tenantName} ILIKE ${searchPattern} ESCAPE '\\'`,
+          sql`${externalFinancialTransactions.paymentReference} ILIKE ${searchPattern} ESCAPE '\\'`
+        );
+        
+        if (searchCondition) {
+          conditions.push(searchCondition);
+        }
+      }
+    }
+
+    const result = await db.select({ count: sql<number>`count(*)::int` })
+      .from(externalFinancialTransactions)
+      .where(and(...conditions));
+
+    return result[0]?.count || 0;
   }
 
   async createExternalFinancialTransaction(transaction: InsertExternalFinancialTransaction): Promise<ExternalFinancialTransaction> {
