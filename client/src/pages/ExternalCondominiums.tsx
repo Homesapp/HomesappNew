@@ -11,6 +11,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { useMobile } from "@/hooks/use-mobile";
+import { useDebounce } from "@/hooks/useDebounce";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
@@ -72,6 +73,7 @@ export default function ExternalCondominiums() {
   
   // Condominium filters state
   const [condoSearchText, setCondoSearchText] = useState("");
+  const debouncedCondoSearchText = useDebounce(condoSearchText, 400);
   const [condoFiltersExpanded, setCondoFiltersExpanded] = useState(false);
   
   // Condominium pagination state (default to 10 for table view)
@@ -129,10 +131,10 @@ export default function ExternalCondominiums() {
     offset: number;
     hasMore: boolean;
   }>({
-    queryKey: ['/api/external-condominiums', condoSearchText, condosSortColumn, condosSortDirection, condoItemsPerPage, condoCurrentPage],
+    queryKey: ['/api/external-condominiums', debouncedCondoSearchText, condosSortColumn, condosSortDirection, condoItemsPerPage, condoCurrentPage],
     queryFn: async () => {
       const params = new URLSearchParams();
-      if (condoSearchText) params.append('search', condoSearchText);
+      if (debouncedCondoSearchText) params.append('search', debouncedCondoSearchText);
       if (condosSortColumn) params.append('sortField', condosSortColumn);
       if (condosSortDirection) params.append('sortOrder', condosSortDirection);
       params.append('limit', condoItemsPerPage.toString());
@@ -830,7 +832,7 @@ export default function ExternalCondominiums() {
   // Reset page when search changes
   useEffect(() => {
     setCondoCurrentPage(1);
-  }, [condoSearchText]);
+  }, [debouncedCondoSearchText]);
 
   // Reset page when items per page changes
   useEffect(() => {

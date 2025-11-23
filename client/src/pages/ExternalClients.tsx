@@ -70,6 +70,7 @@ import {
 import { useLanguage } from "@/contexts/LanguageContext";
 import { useAuth } from "@/hooks/useAuth";
 import { useMobile } from "@/hooks/use-mobile";
+import { useDebounce } from "@/hooks/useDebounce";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useToast } from "@/hooks/use-toast";
@@ -97,6 +98,7 @@ export default function ExternalClients() {
 
   const [viewMode, setViewMode] = useState<"cards" | "table">(isMobile ? "cards" : "table");
   const [searchTerm, setSearchTerm] = useState("");
+  const debouncedSearchTerm = useDebounce(searchTerm, 400);
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [verifiedFilter, setVerifiedFilter] = useState<string>("all");
   const [currentPage, setCurrentPage] = useState(1);
@@ -114,12 +116,12 @@ export default function ExternalClients() {
   }, [isMobile]);
 
   const { data: clientsResponse, isLoading } = useQuery<{ data: ExternalClient[]; total: number; limit: number; offset: number; hasMore: boolean }>({
-    queryKey: ["/api/external-clients", statusFilter, verifiedFilter, searchTerm, sortField, sortOrder, currentPage, itemsPerPage],
+    queryKey: ["/api/external-clients", statusFilter, verifiedFilter, debouncedSearchTerm, sortField, sortOrder, currentPage, itemsPerPage],
     queryFn: async () => {
       const params = new URLSearchParams();
       if (statusFilter !== "all") params.append("status", statusFilter);
       if (verifiedFilter !== "all") params.append("isVerified", verifiedFilter === "verified" ? "true" : "false");
-      if (searchTerm.trim()) params.append("search", searchTerm.trim());
+      if (debouncedSearchTerm.trim()) params.append("search", debouncedSearchTerm.trim());
       if (sortField) params.append("sortField", sortField);
       if (sortOrder) params.append("sortOrder", sortOrder);
       params.append("limit", itemsPerPage.toString());
