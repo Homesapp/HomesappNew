@@ -25404,6 +25404,24 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(403).json({ message: "Access denied" });
       }
       
+      // Check if there's already an active contract for this unit
+      const activeContractForUnit = await db.select()
+        .from(externalRentalContracts)
+        .where(
+          and(
+            eq(externalRentalContracts.unitId, tenantForm.external_unit_id!),
+            eq(externalRentalContracts.agencyId, agencyId)
+          )
+        )
+        .limit(1);
+      
+      if (activeContractForUnit.length > 0) {
+        return res.status(400).json({ 
+          message: "Ya existe un contrato activo para esta unidad",
+          contractId: activeContractForUnit[0].id
+        });
+      }
+      
       // Extract data from forms
       const tenantData = tenantForm.tenant_data as any;
       const ownerData = ownerForm.owner_data as any;
@@ -25690,6 +25708,130 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.json(updatedContract);
     } catch (error: any) {
       console.error("Error uploading contract:", error);
+      handleGenericError(res, error);
+    }
+  });
+
+  // PATCH /api/external/contracts/:id/update-tenant-data - Update tenant form data
+  app.patch("/api/external/contracts/:id/update-tenant-data", isAuthenticated, requireRole(EXTERNAL_ADMIN_ROLES), async (req: any, res) => {
+    try {
+      const { id } = req.params;
+      const { tenantData } = req.body;
+      
+      if (!tenantData) {
+        return res.status(400).json({ message: "tenantData is required" });
+      }
+      
+      // Get contract
+      const contract = await storage.getExternalRentalContract(id);
+      if (!contract) {
+        return res.status(404).json({ message: "Contract not found" });
+      }
+      
+      // Verify ownership
+      const hasAccess = await verifyExternalAgencyOwnership(req, res, contract.agencyId);
+      if (!hasAccess) return;
+      
+      // Get tenant form
+      if (!contract.rentalFormGroupId) {
+        return res.status(400).json({ message: "Contract has no associated rental forms" });
+      }
+      
+      const forms = await db.select()
+        .from(tenantRentalFormTokens)
+        .where(eq(tenantRentalFormTokens.rentalFormGroupId, contract.rentalFormGroupId));
+      
+      const tenantForm = forms.find((f: any) => f.recipient_type === 'tenant');
+      if (!tenantForm) {
+        return res.status(404).json({ message: "Tenant form not found" });
+      }
+      
+      // Update tenant form data
+      await db.update(tenantRentalFormTokens)
+        .set({ 
+          tenant_data: tenantData,
+          updated_at: new Date()
+        })
+        .where(eq(tenantRentalFormTokens.id, tenantForm.id));
+      
+      // Also update contract fields that come from tenant data
+      const updateData: any = {};
+      if (tenantData.fullName) updateData.tenantName = tenantData.fullName;
+      if (tenantData.email) updateData.tenantEmail = tenantData.email;
+      if (tenantData.whatsapp || tenantData.phone) updateData.tenantPhone = tenantData.whatsapp || tenantData.phone;
+      
+      if (Object.keys(updateData).length > 0) {
+        await storage.updateExternalRentalContract(id, updateData);
+      }
+      
+      await createAuditLog(
+        req, 
+        "update", 
+        "external_rental_contract", 
+        id, 
+        `Updated tenant data`
+      );
+      
+      res.json({ success: true, message: "Tenant data updated" });
+    } catch (error: any) {
+      console.error("Error updating tenant data:", error);
+      handleGenericError(res, error);
+    }
+  });
+
+  // PATCH /api/external/contracts/:id/update-owner-data - Update owner form data
+  app.patch("/api/external/contracts/:id/update-owner-data", isAuthenticated, requireRole(EXTERNAL_ADMIN_ROLES), async (req: any, res) => {
+    try {
+      const { id } = req.params;
+      const { ownerData } = req.body;
+      
+      if (!ownerData) {
+        return res.status(400).json({ message: "ownerData is required" });
+      }
+      
+      // Get contract
+      const contract = await storage.getExternalRentalContract(id);
+      if (!contract) {
+        return res.status(404).json({ message: "Contract not found" });
+      }
+      
+      // Verify ownership
+      const hasAccess = await verifyExternalAgencyOwnership(req, res, contract.agencyId);
+      if (!hasAccess) return;
+      
+      // Get owner form
+      if (!contract.rentalFormGroupId) {
+        return res.status(400).json({ message: "Contract has no associated rental forms" });
+      }
+      
+      const forms = await db.select()
+        .from(tenantRentalFormTokens)
+        .where(eq(tenantRentalFormTokens.rentalFormGroupId, contract.rentalFormGroupId));
+      
+      const ownerForm = forms.find((f: any) => f.recipient_type === 'owner');
+      if (!ownerForm) {
+        return res.status(404).json({ message: "Owner form not found" });
+      }
+      
+      // Update owner form data
+      await db.update(tenantRentalFormTokens)
+        .set({ 
+          owner_data: ownerData,
+          updated_at: new Date()
+        })
+        .where(eq(tenantRentalFormTokens.id, ownerForm.id));
+      
+      await createAuditLog(
+        req, 
+        "update", 
+        "external_rental_contract", 
+        id, 
+        `Updated owner data`
+      );
+      
+      res.json({ success: true, message: "Owner data updated" });
+    } catch (error: any) {
+      console.error("Error updating owner data:", error);
       handleGenericError(res, error);
     }
   });

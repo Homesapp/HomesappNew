@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
@@ -6,6 +6,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Separator } from "@/components/ui/separator";
+import { Input } from "@/components/ui/input";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { queryClient, apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
@@ -14,16 +15,16 @@ import { es, enUS } from "date-fns/locale";
 import {
   FileText,
   CheckCircle2,
-  XCircle,
   Upload,
   User,
   Home,
-  Calendar,
-  DollarSign,
   Info,
   Download,
   Eye,
   Check,
+  Edit,
+  X,
+  Save,
 } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 
@@ -37,6 +38,10 @@ export default function ContractDetailDialog({ contractId, open, onOpenChange }:
   const { language } = useLanguage();
   const { toast } = useToast();
   const [contractFileUrl, setContractFileUrl] = useState("");
+  const [editingTenant, setEditingTenant] = useState(false);
+  const [editingOwner, setEditingOwner] = useState(false);
+  const [tenantFormData, setTenantFormData] = useState<any>({});
+  const [ownerFormData, setOwnerFormData] = useState<any>({});
 
   // Fetch contract details
   const { data, isLoading } = useQuery({
@@ -49,6 +54,75 @@ export default function ContractDetailDialog({ contractId, open, onOpenChange }:
   const unit = data?.unit;
   const tenantForm = data?.tenantForm;
   const ownerForm = data?.ownerForm;
+
+  // Initialize form data when tenant/owner data loads
+  useEffect(() => {
+    if (tenantForm?.tenantData) {
+      setTenantFormData(tenantForm.tenantData);
+    }
+  }, [tenantForm]);
+
+  useEffect(() => {
+    if (ownerForm?.ownerData) {
+      setOwnerFormData(ownerForm.ownerData);
+    }
+  }, [ownerForm]);
+
+  // Update tenant data mutation
+  const updateTenantDataMutation = useMutation({
+    mutationFn: async (tenantData: any) => {
+      return apiRequest(`/api/external/contracts/${contractId}/update-tenant-data`, {
+        method: 'PATCH',
+        body: { tenantData },
+      });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/external/contracts'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/external/contracts', contractId] });
+      setEditingTenant(false);
+      toast({
+        title: language === "es" ? "Datos actualizados" : "Data updated",
+        description: language === "es" 
+          ? "Los datos del inquilino han sido actualizados correctamente" 
+          : "Tenant data has been updated successfully",
+      });
+    },
+    onError: (error: any) => {
+      toast({
+        title: language === "es" ? "Error" : "Error",
+        description: error.message || (language === "es" ? "No se pudieron actualizar los datos" : "Could not update data"),
+        variant: "destructive",
+      });
+    },
+  });
+
+  // Update owner data mutation
+  const updateOwnerDataMutation = useMutation({
+    mutationFn: async (ownerData: any) => {
+      return apiRequest(`/api/external/contracts/${contractId}/update-owner-data`, {
+        method: 'PATCH',
+        body: { ownerData },
+      });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/external/contracts'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/external/contracts', contractId] });
+      setEditingOwner(false);
+      toast({
+        title: language === "es" ? "Datos actualizados" : "Data updated",
+        description: language === "es" 
+          ? "Los datos del propietario han sido actualizados correctamente" 
+          : "Owner data has been updated successfully",
+      });
+    },
+    onError: (error: any) => {
+      toast({
+        title: language === "es" ? "Error" : "Error",
+        description: error.message || (language === "es" ? "No se pudieron actualizar los datos" : "Could not update data"),
+        variant: "destructive",
+      });
+    },
+  });
 
   // Validate tenant documents mutation
   const validateTenantDocsMutation = useMutation({
@@ -181,6 +255,26 @@ export default function ContractDetailDialog({ contractId, open, onOpenChange }:
     );
   };
 
+  const handleStartEditTenant = () => {
+    setTenantFormData(tenantForm?.tenantData || {});
+    setEditingTenant(true);
+  };
+
+  const handleCancelEditTenant = () => {
+    setTenantFormData(tenantForm?.tenantData || {});
+    setEditingTenant(false);
+  };
+
+  const handleStartEditOwner = () => {
+    setOwnerFormData(ownerForm?.ownerData || {});
+    setEditingOwner(true);
+  };
+
+  const handleCancelEditOwner = () => {
+    setOwnerFormData(ownerForm?.ownerData || {});
+    setEditingOwner(false);
+  };
+
   if (isLoading) {
     return (
       <Dialog open={open} onOpenChange={onOpenChange}>
@@ -302,58 +396,144 @@ export default function ContractDetailDialog({ contractId, open, onOpenChange }:
                       <User className="h-5 w-5" />
                       {language === "es" ? "Información del Inquilino" : "Tenant Information"}
                     </CardTitle>
-                    {contract.tenantDocsValidated ? (
-                      <Badge variant="default" className="flex items-center gap-1">
-                        <CheckCircle2 className="h-3 w-3" />
-                        {language === "es" ? "Validado" : "Validated"}
-                      </Badge>
-                    ) : (
-                      <Button
-                        size="sm"
-                        onClick={() => validateTenantDocsMutation.mutate()}
-                        disabled={validateTenantDocsMutation.isPending}
-                        data-testid="button-validate-tenant"
-                      >
-                        <Check className="h-4 w-4 mr-2" />
-                        {language === "es" ? "Validar Documentos" : "Validate Documents"}
-                      </Button>
-                    )}
+                    <div className="flex items-center gap-2">
+                      {editingTenant ? (
+                        <>
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            onClick={handleCancelEditTenant}
+                            data-testid="button-cancel-edit-tenant"
+                          >
+                            <X className="h-4 w-4 mr-2" />
+                            {language === "es" ? "Cancelar" : "Cancel"}
+                          </Button>
+                          <Button
+                            size="sm"
+                            onClick={() => updateTenantDataMutation.mutate(tenantFormData)}
+                            disabled={updateTenantDataMutation.isPending}
+                            data-testid="button-save-tenant"
+                          >
+                            <Save className="h-4 w-4 mr-2" />
+                            {language === "es" ? "Guardar" : "Save"}
+                          </Button>
+                        </>
+                      ) : (
+                        <>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={handleStartEditTenant}
+                            data-testid="button-edit-tenant"
+                          >
+                            <Edit className="h-4 w-4 mr-2" />
+                            {language === "es" ? "Editar" : "Edit"}
+                          </Button>
+                          {contract.tenantDocsValidated ? (
+                            <Badge variant="default" className="flex items-center gap-1">
+                              <CheckCircle2 className="h-3 w-3" />
+                              {language === "es" ? "Validado" : "Validated"}
+                            </Badge>
+                          ) : (
+                            <Button
+                              size="sm"
+                              onClick={() => validateTenantDocsMutation.mutate()}
+                              disabled={validateTenantDocsMutation.isPending}
+                              data-testid="button-validate-tenant"
+                            >
+                              <Check className="h-4 w-4 mr-2" />
+                              {language === "es" ? "Validar Documentos" : "Validate Documents"}
+                            </Button>
+                          )}
+                        </>
+                      )}
+                    </div>
                   </div>
                 </CardHeader>
                 <CardContent className="grid gap-4 md:grid-cols-2">
                   {tenantData && (
                     <>
                       <div>
-                        <div className="text-sm font-medium text-muted-foreground">
+                        <div className="text-sm font-medium text-muted-foreground mb-1">
                           {language === "es" ? "Nombre Completo" : "Full Name"}
                         </div>
-                        <div className="text-base">{tenantData.fullName || "N/A"}</div>
+                        {editingTenant ? (
+                          <Input
+                            value={tenantFormData.fullName || ""}
+                            onChange={(e) => setTenantFormData({ ...tenantFormData, fullName: e.target.value })}
+                            data-testid="input-tenant-fullname"
+                          />
+                        ) : (
+                          <div className="text-base">{tenantData.fullName || "N/A"}</div>
+                        )}
                       </div>
                       <div>
-                        <div className="text-sm font-medium text-muted-foreground">Email</div>
-                        <div className="text-base">{tenantData.email || "N/A"}</div>
+                        <div className="text-sm font-medium text-muted-foreground mb-1">Email</div>
+                        {editingTenant ? (
+                          <Input
+                            type="email"
+                            value={tenantFormData.email || ""}
+                            onChange={(e) => setTenantFormData({ ...tenantFormData, email: e.target.value })}
+                            data-testid="input-tenant-email"
+                          />
+                        ) : (
+                          <div className="text-base">{tenantData.email || "N/A"}</div>
+                        )}
                       </div>
                       <div>
-                        <div className="text-sm font-medium text-muted-foreground">WhatsApp</div>
-                        <div className="text-base">{tenantData.whatsapp || "N/A"}</div>
+                        <div className="text-sm font-medium text-muted-foreground mb-1">WhatsApp</div>
+                        {editingTenant ? (
+                          <Input
+                            value={tenantFormData.whatsapp || ""}
+                            onChange={(e) => setTenantFormData({ ...tenantFormData, whatsapp: e.target.value })}
+                            data-testid="input-tenant-whatsapp"
+                          />
+                        ) : (
+                          <div className="text-base">{tenantData.whatsapp || "N/A"}</div>
+                        )}
                       </div>
                       <div>
-                        <div className="text-sm font-medium text-muted-foreground">
+                        <div className="text-sm font-medium text-muted-foreground mb-1">
                           {language === "es" ? "Nacionalidad" : "Nationality"}
                         </div>
-                        <div className="text-base">{tenantData.nationality || "N/A"}</div>
+                        {editingTenant ? (
+                          <Input
+                            value={tenantFormData.nationality || ""}
+                            onChange={(e) => setTenantFormData({ ...tenantFormData, nationality: e.target.value })}
+                            data-testid="input-tenant-nationality"
+                          />
+                        ) : (
+                          <div className="text-base">{tenantData.nationality || "N/A"}</div>
+                        )}
                       </div>
                       <div>
-                        <div className="text-sm font-medium text-muted-foreground">
+                        <div className="text-sm font-medium text-muted-foreground mb-1">
                           {language === "es" ? "Edad" : "Age"}
                         </div>
-                        <div className="text-base">{tenantData.age || "N/A"}</div>
+                        {editingTenant ? (
+                          <Input
+                            type="number"
+                            value={tenantFormData.age || ""}
+                            onChange={(e) => setTenantFormData({ ...tenantFormData, age: e.target.value })}
+                            data-testid="input-tenant-age"
+                          />
+                        ) : (
+                          <div className="text-base">{tenantData.age || "N/A"}</div>
+                        )}
                       </div>
                       <div>
-                        <div className="text-sm font-medium text-muted-foreground">
+                        <div className="text-sm font-medium text-muted-foreground mb-1">
                           {language === "es" ? "Ocupación" : "Occupation"}
                         </div>
-                        <div className="text-base">{tenantData.occupation || "N/A"}</div>
+                        {editingTenant ? (
+                          <Input
+                            value={tenantFormData.occupation || ""}
+                            onChange={(e) => setTenantFormData({ ...tenantFormData, occupation: e.target.value })}
+                            data-testid="input-tenant-occupation"
+                          />
+                        ) : (
+                          <div className="text-base">{tenantData.occupation || "N/A"}</div>
+                        )}
                       </div>
                       
                       <Separator className="col-span-2" />
@@ -398,58 +578,143 @@ export default function ContractDetailDialog({ contractId, open, onOpenChange }:
                       <Home className="h-5 w-5" />
                       {language === "es" ? "Información del Propietario" : "Owner Information"}
                     </CardTitle>
-                    {contract.ownerDocsValidated ? (
-                      <Badge variant="default" className="flex items-center gap-1">
-                        <CheckCircle2 className="h-3 w-3" />
-                        {language === "es" ? "Validado" : "Validated"}
-                      </Badge>
-                    ) : (
-                      <Button
-                        size="sm"
-                        onClick={() => validateOwnerDocsMutation.mutate()}
-                        disabled={validateOwnerDocsMutation.isPending}
-                        data-testid="button-validate-owner"
-                      >
-                        <Check className="h-4 w-4 mr-2" />
-                        {language === "es" ? "Validar Documentos" : "Validate Documents"}
-                      </Button>
-                    )}
+                    <div className="flex items-center gap-2">
+                      {editingOwner ? (
+                        <>
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            onClick={handleCancelEditOwner}
+                            data-testid="button-cancel-edit-owner"
+                          >
+                            <X className="h-4 w-4 mr-2" />
+                            {language === "es" ? "Cancelar" : "Cancel"}
+                          </Button>
+                          <Button
+                            size="sm"
+                            onClick={() => updateOwnerDataMutation.mutate(ownerFormData)}
+                            disabled={updateOwnerDataMutation.isPending}
+                            data-testid="button-save-owner"
+                          >
+                            <Save className="h-4 w-4 mr-2" />
+                            {language === "es" ? "Guardar" : "Save"}
+                          </Button>
+                        </>
+                      ) : (
+                        <>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={handleStartEditOwner}
+                            data-testid="button-edit-owner"
+                          >
+                            <Edit className="h-4 w-4 mr-2" />
+                            {language === "es" ? "Editar" : "Edit"}
+                          </Button>
+                          {contract.ownerDocsValidated ? (
+                            <Badge variant="default" className="flex items-center gap-1">
+                              <CheckCircle2 className="h-3 w-3" />
+                              {language === "es" ? "Validado" : "Validated"}
+                            </Badge>
+                          ) : (
+                            <Button
+                              size="sm"
+                              onClick={() => validateOwnerDocsMutation.mutate()}
+                              disabled={validateOwnerDocsMutation.isPending}
+                              data-testid="button-validate-owner"
+                            >
+                              <Check className="h-4 w-4 mr-2" />
+                              {language === "es" ? "Validar Documentos" : "Validate Documents"}
+                            </Button>
+                          )}
+                        </>
+                      )}
+                    </div>
                   </div>
                 </CardHeader>
                 <CardContent className="grid gap-4 md:grid-cols-2">
                   {ownerData && (
                     <>
                       <div>
-                        <div className="text-sm font-medium text-muted-foreground">
+                        <div className="text-sm font-medium text-muted-foreground mb-1">
                           {language === "es" ? "Nombre Completo" : "Full Name"}
                         </div>
-                        <div className="text-base">{ownerData.fullName || "N/A"}</div>
+                        {editingOwner ? (
+                          <Input
+                            value={ownerFormData.fullName || ""}
+                            onChange={(e) => setOwnerFormData({ ...ownerFormData, fullName: e.target.value })}
+                            data-testid="input-owner-fullname"
+                          />
+                        ) : (
+                          <div className="text-base">{ownerData.fullName || "N/A"}</div>
+                        )}
                       </div>
                       <div>
-                        <div className="text-sm font-medium text-muted-foreground">Email</div>
-                        <div className="text-base">{ownerData.email || "N/A"}</div>
+                        <div className="text-sm font-medium text-muted-foreground mb-1">Email</div>
+                        {editingOwner ? (
+                          <Input
+                            type="email"
+                            value={ownerFormData.email || ""}
+                            onChange={(e) => setOwnerFormData({ ...ownerFormData, email: e.target.value })}
+                            data-testid="input-owner-email"
+                          />
+                        ) : (
+                          <div className="text-base">{ownerData.email || "N/A"}</div>
+                        )}
                       </div>
                       <div>
-                        <div className="text-sm font-medium text-muted-foreground">WhatsApp</div>
-                        <div className="text-base">{ownerData.whatsapp || "N/A"}</div>
+                        <div className="text-sm font-medium text-muted-foreground mb-1">WhatsApp</div>
+                        {editingOwner ? (
+                          <Input
+                            value={ownerFormData.whatsapp || ""}
+                            onChange={(e) => setOwnerFormData({ ...ownerFormData, whatsapp: e.target.value })}
+                            data-testid="input-owner-whatsapp"
+                          />
+                        ) : (
+                          <div className="text-base">{ownerData.whatsapp || "N/A"}</div>
+                        )}
                       </div>
                       <div>
-                        <div className="text-sm font-medium text-muted-foreground">
+                        <div className="text-sm font-medium text-muted-foreground mb-1">
                           {language === "es" ? "Nacionalidad" : "Nationality"}
                         </div>
-                        <div className="text-base">{ownerData.nationality || "N/A"}</div>
+                        {editingOwner ? (
+                          <Input
+                            value={ownerFormData.nationality || ""}
+                            onChange={(e) => setOwnerFormData({ ...ownerFormData, nationality: e.target.value })}
+                            data-testid="input-owner-nationality"
+                          />
+                        ) : (
+                          <div className="text-base">{ownerData.nationality || "N/A"}</div>
+                        )}
                       </div>
                       <div>
-                        <div className="text-sm font-medium text-muted-foreground">
+                        <div className="text-sm font-medium text-muted-foreground mb-1">
                           {language === "es" ? "Banco" : "Bank"}
                         </div>
-                        <div className="text-base">{ownerData.bankName || "N/A"}</div>
+                        {editingOwner ? (
+                          <Input
+                            value={ownerFormData.bankName || ""}
+                            onChange={(e) => setOwnerFormData({ ...ownerFormData, bankName: e.target.value })}
+                            data-testid="input-owner-bank"
+                          />
+                        ) : (
+                          <div className="text-base">{ownerData.bankName || "N/A"}</div>
+                        )}
                       </div>
                       <div>
-                        <div className="text-sm font-medium text-muted-foreground">
+                        <div className="text-sm font-medium text-muted-foreground mb-1">
                           {language === "es" ? "Cuenta" : "Account Number"}
                         </div>
-                        <div className="text-base">{ownerData.accountNumber || "N/A"}</div>
+                        {editingOwner ? (
+                          <Input
+                            value={ownerFormData.accountNumber || ""}
+                            onChange={(e) => setOwnerFormData({ ...ownerFormData, accountNumber: e.target.value })}
+                            data-testid="input-owner-account"
+                          />
+                        ) : (
+                          <div className="text-base">{ownerData.accountNumber || "N/A"}</div>
+                        )}
                       </div>
                       
                       <Separator className="col-span-2" />
