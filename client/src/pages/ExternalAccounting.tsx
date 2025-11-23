@@ -105,70 +105,13 @@ export default function ExternalAccounting() {
   // Form state for condominium selection
   const [selectedCondominiumId, setSelectedCondominiumId] = useState<string>("");
 
-  const buildTransactionsQueryKey = () => {
-    const params = new URLSearchParams();
-    if (directionFilter !== "all") params.append("direction", directionFilter);
-    if (categoryFilter !== "all") params.append("category", categoryFilter);
-    if (statusFilter !== "all") params.append("status", statusFilter);
-    if (condominiumFilter !== "all") params.append("condominiumId", condominiumFilter);
-    if (unitFilter !== "all") params.append("unitId", unitFilter);
-    const queryString = params.toString();
-    return queryString ? `/api/external/accounting/transactions?${queryString}` : '/api/external/accounting/transactions';
-  };
-
-  // Frequently changing data: financial transactions
-  const { data: transactions, isLoading: transactionsLoading } = useQuery<ExternalFinancialTransaction[]>({
-    queryKey: ['/api/external/accounting/transactions', directionFilter, categoryFilter, statusFilter, condominiumFilter, unitFilter],
-    queryFn: async () => {
-      const url = buildTransactionsQueryKey();
-      const response = await fetch(url, { credentials: 'include' });
-      if (!response.ok) throw new Error('Failed to fetch transactions');
-      return response.json();
-    },
-    staleTime: 2 * 60 * 1000, // 2 minutes - transactions change frequently
-    cacheTime: 15 * 60 * 1000, // Keep in cache for 15 minutes
-  });
-
-  // Static/semi-static data: condominiums for dropdowns
-  const { data: condominiums } = useQuery<ExternalCondominium[]>({
-    queryKey: ['/api/external-condominiums'],
-    staleTime: 15 * 60 * 1000, // 15 minutes (rarely changes)
-  });
-
-  // Static/semi-static data: units for dropdowns
-  const { data: units } = useQuery<ExternalUnit[]>({
-    queryKey: ['/api/external-units'],
-    staleTime: 15 * 60 * 1000, // 15 minutes (rarely changes)
-  });
-
-  // Filter units by selected condominium for the create form
-  const filteredUnitsForForm = useMemo(() => {
-    if (!units || !selectedCondominiumId) return [];
-    return units.filter(unit => unit.condominiumId === selectedCondominiumId);
-  }, [units, selectedCondominiumId]);
-
-  // Filter transactions by date range and search term
-  const filteredTransactions = useMemo(() => {
-    if (!transactions) return [];
-    
-    // First apply search filter
-    let filtered = transactions;
-    if (searchTerm.trim()) {
-      const search = searchTerm.toLowerCase();
-      filtered = transactions.filter(t => 
-        t.description?.toLowerCase().includes(search) ||
-        t.paymentReference?.toLowerCase().includes(search) ||
-        getCategoryLabel(t.category).toLowerCase().includes(search) ||
-        getRoleLabel(t.payerRole).toLowerCase().includes(search) ||
-        getRoleLabel(t.payeeRole).toLowerCase().includes(search)
-      );
-    }
-    
-    if (dateFilter === "all") return filtered;
+  // Calculate date range based on dateFilter
+  const getDateRange = () => {
+    if (dateFilter === "all") return { startDate: undefined, endDate: undefined };
     
     const now = new Date();
-    let start: Date | null = null;
-    let end: Date | null = null;
+    let start: Date | undefined = undefined;
+    let end: Date | undefined = undefined;
 
     switch (dateFilter) {
       case "today":
@@ -197,61 +140,136 @@ export default function ExternalAccounting() {
         break;
     }
 
-    return filtered.filter(t => {
-      const transactionDate = t.dueDate ? new Date(t.dueDate) : null;
-      if (!transactionDate) return false;
+    return { startDate: start, endDate: end };
+  };
+
+  // Backend-paginated transactions data (for table display)
+  const { data: transactionsResponse, isLoading: transactionsLoading } = useQuery<{
+    data: ExternalFinancialTransaction[];
+    total: number;
+    limit: number;
+    offset: number;
+    hasMore: boolean;
+  }>({
+    queryKey: [
+      '/api/external/accounting/transactions', 
+      directionFilter, 
+      categoryFilter, 
+      statusFilter, 
+      condominiumFilter, 
+      unitFilter,
+      searchTerm,
+      dateFilter,
+      customStartDate,
+      customEndDate,
+      sortColumn,
+      sortDirection,
+      itemsPerPage,
+      currentPage
+    ],
+    queryFn: async () => {
+      const params = new URLSearchParams();
+      if (directionFilter !== "all") params.append("direction", directionFilter);
+      if (categoryFilter !== "all") params.append("category", categoryFilter);
+      if (statusFilter !== "all") params.append("status", statusFilter);
+      if (condominiumFilter !== "all") params.append("condominiumId", condominiumFilter);
+      if (unitFilter !== "all") params.append("unitId", unitFilter);
+      if (searchTerm) params.append("search", searchTerm);
       
-      if (start && transactionDate < start) return false;
-      if (end && transactionDate > end) return false;
+      const { startDate, endDate } = getDateRange();
+      if (startDate) params.append("startDate", startDate.toISOString());
+      if (endDate) params.append("endDate", endDate.toISOString());
       
-      return true;
-    });
-  }, [transactions, searchTerm, dateFilter, customStartDate, customEndDate]);
-
-  // Sort transactions
-  const sortedAndFilteredTransactions = useMemo(() => {
-    if (!filteredTransactions) return [];
-    if (!sortColumn) return filteredTransactions;
-
-    const sorted = [...filteredTransactions].sort((a, b) => {
-      let aVal: any = (a as any)[sortColumn];
-      let bVal: any = (b as any)[sortColumn];
-
-      // Handle date columns
-      if (sortColumn === 'dueDate' || sortColumn === 'performedDate') {
-        const aDate = aVal ? new Date(aVal).getTime() : 0;
-        const bDate = bVal ? new Date(bVal).getTime() : 0;
-        return sortDirection === "asc" ? aDate - bDate : bDate - aDate;
+      if (sortColumn) params.append("sortField", sortColumn);
+      if (sortDirection) params.append("sortOrder", sortDirection);
+      
+      params.append("limit", itemsPerPage.toString());
+      params.append("offset", ((currentPage - 1) * itemsPerPage).toString());
+      
+      const response = await fetch(`/api/external/accounting/transactions?${params.toString()}`, {
+        credentials: 'include',
+      });
+      
+      if (!response.ok) {
+        throw new Error('Failed to fetch transactions');
       }
+      
+      return response.json();
+    },
+    staleTime: 2 * 60 * 1000, // 2 minutes - transactions change frequently
+    cacheTime: 15 * 60 * 1000, // Keep in cache for 15 minutes
+    keepPreviousData: true, // Keep previous data while fetching new data for smooth UX
+  });
 
-      // Handle numeric columns
-      if (sortColumn === 'netAmount' || sortColumn === 'grossAmount' || sortColumn === 'fees') {
-        const aNum = parseFloat(aVal || '0');
-        const bNum = parseFloat(bVal || '0');
-        return sortDirection === "asc" ? aNum - bNum : bNum - aNum;
+  // Full dataset for analytics and receivables (without pagination)
+  const { data: allTransactionsRaw, isLoading: allTransactionsLoading } = useQuery<ExternalFinancialTransaction[] | {data: ExternalFinancialTransaction[]}>({
+    queryKey: [
+      '/api/external/accounting/transactions-all',
+      directionFilter,
+      categoryFilter,
+      statusFilter,
+      condominiumFilter,
+      unitFilter,
+      searchTerm,
+      dateFilter,
+      customStartDate,
+      customEndDate,
+    ],
+    queryFn: async () => {
+      const params = new URLSearchParams();
+      if (directionFilter !== "all") params.append("direction", directionFilter);
+      if (categoryFilter !== "all") params.append("category", categoryFilter);
+      if (statusFilter !== "all") params.append("status", statusFilter);
+      if (condominiumFilter !== "all") params.append("condominiumId", condominiumFilter);
+      if (unitFilter !== "all") params.append("unitId", unitFilter);
+      if (searchTerm) params.append("search", searchTerm);
+      
+      const { startDate, endDate } = getDateRange();
+      if (startDate) params.append("startDate", startDate.toISOString());
+      if (endDate) params.append("endDate", endDate.toISOString());
+      
+      // Don't include limit/offset to get all data (legacy mode)
+      
+      const response = await fetch(`/api/external/accounting/transactions?${params.toString()}`, {
+        credentials: 'include',
+      });
+      
+      if (!response.ok) {
+        throw new Error('Failed to fetch all transactions');
       }
+      
+      return response.json();
+    },
+    staleTime: 2 * 60 * 1000, // 2 minutes
+    cacheTime: 15 * 60 * 1000,
+  });
 
-      // Handle string columns
-      if (typeof aVal === "string" || typeof bVal === "string") {
-        aVal = (aVal || '').toString().toLowerCase();
-        bVal = (bVal || '').toString().toLowerCase();
-      }
+  // Guard: handle both array (legacy) and envelope formats
+  const allTransactions = allTransactionsRaw
+    ? (Array.isArray(allTransactionsRaw) ? allTransactionsRaw : allTransactionsRaw.data || [])
+    : [];
 
-      if (aVal < bVal) return sortDirection === "asc" ? -1 : 1;
-      if (aVal > bVal) return sortDirection === "asc" ? 1 : -1;
-      return 0;
-    });
-    return sorted;
-  }, [filteredTransactions, sortColumn, sortDirection]);
+  // Extract transactions and pagination metadata from backend response
+  const transactions = transactionsResponse?.data || [];
+  const totalPages = Math.max(1, Math.ceil((transactionsResponse?.total || 0) / itemsPerPage));
+  
+  // Static/semi-static data: condominiums for dropdowns
+  const { data: condominiums } = useQuery<ExternalCondominium[]>({
+    queryKey: ['/api/external-condominiums'],
+    staleTime: 15 * 60 * 1000, // 15 minutes (rarely changes)
+  });
 
-  // Paginate transactions
-  const paginatedTransactions = useMemo(() => {
-    const startIndex = (currentPage - 1) * itemsPerPage;
-    const endIndex = startIndex + itemsPerPage;
-    return sortedAndFilteredTransactions.slice(startIndex, endIndex);
-  }, [sortedAndFilteredTransactions, currentPage, itemsPerPage]);
+  // Static/semi-static data: units for dropdowns
+  const { data: units } = useQuery<ExternalUnit[]>({
+    queryKey: ['/api/external-units'],
+    staleTime: 15 * 60 * 1000, // 15 minutes (rarely changes)
+  });
 
-  const totalPages = Math.ceil(sortedAndFilteredTransactions.length / itemsPerPage);
+  // Filter units by selected condominium for the create form
+  const filteredUnitsForForm = useMemo(() => {
+    if (!units || !selectedCondominiumId) return [];
+    return units.filter(unit => unit.condominiumId === selectedCondominiumId);
+  }, [units, selectedCondominiumId]);
 
   // Auto-switch view mode on genuine breakpoint transitions (only if no manual override)
   useEffect(() => {
@@ -281,17 +299,18 @@ export default function ExternalAccounting() {
     setCurrentPage(1);
   }, [searchTerm, directionFilter, categoryFilter, statusFilter, condominiumFilter, unitFilter, dateFilter, customStartDate, customEndDate, itemsPerPage]);
   
-  // Clamp currentPage to valid range when data length changes
+  // Clamp currentPage to valid range when total count changes
   useEffect(() => {
-    if (!sortedAndFilteredTransactions || sortedAndFilteredTransactions.length === 0) {
+    const total = transactionsResponse?.total || 0;
+    if (total === 0) {
       setCurrentPage(1);
       return;
     }
-    const maxPage = Math.ceil(sortedAndFilteredTransactions.length / itemsPerPage) || 1;
+    const maxPage = Math.ceil(total / itemsPerPage) || 1;
     if (currentPage > maxPage) {
       setCurrentPage(maxPage);
     }
-  }, [sortedAndFilteredTransactions.length, itemsPerPage, currentPage]);
+  }, [transactionsResponse?.total, itemsPerPage, currentPage]);
 
   const handleSort = (column: string) => {
     if (sortColumn === column) {
@@ -337,6 +356,7 @@ export default function ExternalAccounting() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['/api/external/accounting/transactions'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/external/accounting/transactions-all'] });
       queryClient.invalidateQueries({ queryKey: ['/api/external/accounting/summary'] });
       setShowCreateDialog(false);
       createForm.reset();
@@ -363,6 +383,7 @@ export default function ExternalAccounting() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['/api/external/accounting/transactions'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/external/accounting/transactions-all'] });
       queryClient.invalidateQueries({ queryKey: ['/api/external/accounting/summary'] });
       setShowEditDialog(false);
       setSelectedTransaction(null);
@@ -389,6 +410,7 @@ export default function ExternalAccounting() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['/api/external/accounting/transactions'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/external/accounting/transactions-all'] });
       queryClient.invalidateQueries({ queryKey: ['/api/external/accounting/summary'] });
       setShowCancelDialog(false);
       setSelectedTransaction(null);
@@ -743,7 +765,7 @@ export default function ExternalAccounting() {
   };
 
   const handleExportExcel = () => {
-    if (!sortedAndFilteredTransactions || sortedAndFilteredTransactions.length === 0) {
+    if (!allTransactions || allTransactions.length === 0) {
       toast({
         title: t.error,
         description: t.noData,
@@ -752,66 +774,75 @@ export default function ExternalAccounting() {
       return;
     }
 
-    const exportData = sortedAndFilteredTransactions.map(t => ({
-      [t.dueDate]: formatDate(t.dueDate),
-      [t.direction]: t.direction === 'inflow' ? t.inflow : t.outflow,
-      [t.category]: getCategoryLabel(t.category),
-      [t.description]: t.description,
-      [t.payerRole]: getRoleLabel(t.payerRole),
-      [t.payeeRole]: getRoleLabel(t.payeeRole),
-      [t.grossAmount]: parseFloat(t.grossAmount),
-      [t.fees]: parseFloat(t.fees || '0'),
-      [t.netAmount]: parseFloat(t.netAmount),
-      [t.status]: t[t.status as keyof typeof t] || t.status,
-      [t.paymentMethod]: t.paymentMethod || 'N/A',
-      [t.paymentReference]: t.paymentReference || 'N/A',
-      [t.performedDate]: formatDate(t.performedDate),
-    }));
+    try {
+      // Use allTransactions which already has all filtered data
+      const exportData = allTransactions.map(tx => ({
+        "Due Date": formatDate(tx.dueDate),
+        "Direction": tx.direction === 'inflow' ? t.inflow : t.outflow,
+        "Category": getCategoryLabel(tx.category),
+        "Description": tx.description,
+        "Payer Role": getRoleLabel(tx.payerRole),
+        "Payee Role": getRoleLabel(tx.payeeRole),
+        "Gross Amount": parseFloat(tx.grossAmount),
+        "Fees": parseFloat(tx.fees || '0'),
+        "Net Amount": parseFloat(tx.netAmount),
+        "Status": tx.status === 'pending' ? t.pending : tx.status === 'posted' ? t.posted : tx.status === 'reconciled' ? t.reconciled : tx.status === 'cancelled' ? t.cancelled : tx.status,
+        "Payment Method": tx.paymentMethod || 'N/A',
+        "Payment Reference": tx.paymentReference || 'N/A',
+        "Performed Date": formatDate(tx.performedDate),
+      }));
 
-    const ws = XLSX.utils.json_to_sheet(exportData);
-    
-    // Set column widths
-    const wscols = [
-      { wch: 12 }, // Date
-      { wch: 10 }, // Direction
-      { wch: 20 }, // Category
-      { wch: 30 }, // Description
-      { wch: 12 }, // Payer
-      { wch: 12 }, // Payee
-      { wch: 12 }, // Gross
-      { wch: 10 }, // Fees
-      { wch: 12 }, // Net
-      { wch: 12 }, // Status
-      { wch: 15 }, // Method
-      { wch: 15 }, // Reference
-      { wch: 12 }, // Performed
-    ];
-    ws['!cols'] = wscols;
+      const ws = XLSX.utils.json_to_sheet(exportData);
+      
+      // Set column widths
+      const wscols = [
+        { wch: 12 }, // Date
+        { wch: 10 }, // Direction
+        { wch: 20 }, // Category
+        { wch: 30 }, // Description
+        { wch: 12 }, // Payer
+        { wch: 12 }, // Payee
+        { wch: 12 }, // Gross
+        { wch: 10 }, // Fees
+        { wch: 12 }, // Net
+        { wch: 12 }, // Status
+        { wch: 15 }, // Method
+        { wch: 15 }, // Reference
+        { wch: 12 }, // Performed
+      ];
+      ws['!cols'] = wscols;
 
-    const wb = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(wb, ws, language === 'es' ? 'Transacciones' : 'Transactions');
-    
-    const fileName = `transacciones_${format(new Date(), 'yyyy-MM-dd')}.xlsx`;
-    XLSX.writeFile(wb, fileName);
+      const wb = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(wb, ws, language === 'es' ? 'Transacciones' : 'Transactions');
+      
+      const fileName = `transacciones_${format(new Date(), 'yyyy-MM-dd')}.xlsx`;
+      XLSX.writeFile(wb, fileName);
 
-    toast({
-      title: language === 'es' ? 'Exportación exitosa' : 'Export successful',
-      description: language === 'es' ? `Se exportaron ${sortedAndFilteredTransactions.length} transacciones` : `Exported ${sortedAndFilteredTransactions.length} transactions`,
-    });
+      toast({
+        title: language === 'es' ? 'Exportación exitosa' : 'Export successful',
+        description: language === 'es' ? `Se exportaron ${allTransactions.length} transacciones` : `Exported ${allTransactions.length} transactions`,
+      });
+    } catch (error) {
+      toast({
+        title: t.error,
+        description: language === 'es' ? 'Error al exportar transacciones' : 'Error exporting transactions',
+        variant: "destructive",
+      });
+    }
   };
 
   const activeFilters = [directionFilter, categoryFilter, statusFilter, condominiumFilter, unitFilter].filter(f => f !== "all").length + (dateFilter !== "all" ? 1 : 0);
 
-  // Calculate receivables data
+  // Calculate receivables data using full dataset
   const receivablesData = useMemo(() => {
-    if (!transactions) return { today: [], upcoming: [], overdue: [], totalAmount: 0 };
+    if (!allTransactions) return { today: [], upcoming: [], overdue: [], totalAmount: 0 };
     
     const now = new Date();
     const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate());
     const todayEnd = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59);
     
     // Today: all pending transactions (inflow and outflow) due today
-    const today = transactions.filter(t => {
+    const today = allTransactions.filter(t => {
       if (t.status === 'cancelled') return false;
       const dueDate = t.dueDate ? new Date(t.dueDate) : null;
       return dueDate && dueDate >= todayStart && dueDate <= todayEnd && t.status === 'pending';
@@ -823,7 +854,7 @@ export default function ExternalAccounting() {
       return parseFloat(b.netAmount || '0') - parseFloat(a.netAmount || '0');
     });
     
-    const pending = transactions.filter(t => t.status === 'pending' && t.direction === 'inflow');
+    const pending = allTransactions.filter(t => t.status === 'pending' && t.direction === 'inflow');
     
     const upcoming = pending.filter(t => {
       const dueDate = t.dueDate ? new Date(t.dueDate) : null;
@@ -838,11 +869,11 @@ export default function ExternalAccounting() {
     const totalAmount = pending.reduce((sum, t) => sum + parseFloat(t.netAmount || '0'), 0);
     
     return { today, upcoming, overdue, totalAmount };
-  }, [transactions]);
+  }, [allTransactions]);
 
-  // Calculate report data
+  // Calculate report data using full dataset
   const reportData = useMemo(() => {
-    if (!transactions) return { monthly: [], categories: [] };
+    if (!allTransactions) return { monthly: [], categories: [] };
     
     // Last 12 months data
     const monthlyMap = new Map<string, { inflow: number, outflow: number, month: string }>();
@@ -855,7 +886,7 @@ export default function ExternalAccounting() {
       monthlyMap.set(key, { inflow: 0, outflow: 0, month: monthName });
     }
     
-    transactions.forEach(t => {
+    allTransactions.forEach(t => {
       const date = t.dueDate ? new Date(t.dueDate) : null;
       if (!date) return;
       
@@ -875,7 +906,7 @@ export default function ExternalAccounting() {
     
     // Category breakdown
     const categoryMap = new Map<string, number>();
-    transactions.forEach(t => {
+    allTransactions.forEach(t => {
       if (t.status === 'cancelled') return;
       const amount = parseFloat(t.netAmount || '0');
       const current = categoryMap.get(t.category) || 0;
@@ -888,7 +919,7 @@ export default function ExternalAccounting() {
       .slice(0, 5);
     
     return { monthly, categories };
-  }, [transactions, language]);
+  }, [allTransactions, language]);
 
   return (
     <div className="container mx-auto p-6 space-y-6">
@@ -909,7 +940,7 @@ export default function ExternalAccounting() {
           <Button
             variant="outline"
             onClick={handleExportExcel}
-            disabled={!sortedAndFilteredTransactions || sortedAndFilteredTransactions.length === 0}
+            disabled={!allTransactions || allTransactions.length === 0}
             data-testid="button-export-excel"
             className="w-full sm:w-auto"
           >
@@ -1344,7 +1375,7 @@ export default function ExternalAccounting() {
                 </Card>
               ))}
             </div>
-          ) : !sortedAndFilteredTransactions || sortedAndFilteredTransactions.length === 0 ? (
+          ) : !transactions || transactions.length === 0 ? (
             <Card>
               <CardContent className="text-center py-12">
                 <AlertCircle className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />
@@ -1364,7 +1395,7 @@ export default function ExternalAccounting() {
               />
 
               <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-                {paginatedTransactions.map((transaction) => (
+                {transactions.map((transaction) => (
                   <Card key={transaction.id} className="hover-elevate" data-testid={`card-transaction-${transaction.id}`}>
                     <CardHeader className="flex flex-row items-center justify-between gap-1 space-y-0 pb-2">
                       <div className="flex items-center gap-2">
@@ -1447,23 +1478,23 @@ export default function ExternalAccounting() {
                       <TableHead className="cursor-pointer hover:bg-muted text-sm" onClick={() => handleSort('dueDate')}>
                         {t.dueDate} {getSortIcon('dueDate')}
                       </TableHead>
-                      <TableHead className="cursor-pointer hover:bg-muted text-sm" onClick={() => handleSort('direction')}>
-                        {t.direction} {getSortIcon('direction')}
+                      <TableHead className="text-sm">
+                        {t.direction}
                       </TableHead>
                       <TableHead className="cursor-pointer hover:bg-muted text-sm" onClick={() => handleSort('category')}>
                         {t.category} {getSortIcon('category')}
                       </TableHead>
-                      <TableHead className="cursor-pointer hover:bg-muted text-sm" onClick={() => handleSort('description')}>
-                        {t.description} {getSortIcon('description')}
+                      <TableHead className="text-sm">
+                        {t.description}
                       </TableHead>
-                      <TableHead className="cursor-pointer hover:bg-muted text-sm" onClick={() => handleSort('payerRole')}>
-                        {t.payerRole} {getSortIcon('payerRole')}
+                      <TableHead className="text-sm">
+                        {t.payerRole}
                       </TableHead>
-                      <TableHead className="cursor-pointer hover:bg-muted text-sm" onClick={() => handleSort('payeeRole')}>
-                        {t.payeeRole} {getSortIcon('payeeRole')}
+                      <TableHead className="text-sm">
+                        {t.payeeRole}
                       </TableHead>
-                      <TableHead className="cursor-pointer hover:bg-muted text-sm" onClick={() => handleSort('netAmount')}>
-                        {t.amount} {getSortIcon('netAmount')}
+                      <TableHead className="cursor-pointer hover:bg-muted text-sm" onClick={() => handleSort('grossAmount')}>
+                        {t.amount} {getSortIcon('grossAmount')}
                       </TableHead>
                       <TableHead className="cursor-pointer hover:bg-muted text-sm" onClick={() => handleSort('status')}>
                         {t.status} {getSortIcon('status')}
@@ -1475,7 +1506,7 @@ export default function ExternalAccounting() {
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {paginatedTransactions.map((transaction) => (
+                    {transactions.map((transaction) => (
                       <TableRow key={transaction.id} data-testid={`row-transaction-${transaction.id}`}>
                         <TableCell className="text-sm px-3 py-3">{formatDate(transaction.dueDate)}</TableCell>
                         <TableCell className="text-sm px-3 py-3">{getDirectionBadge(transaction.direction)}</TableCell>
