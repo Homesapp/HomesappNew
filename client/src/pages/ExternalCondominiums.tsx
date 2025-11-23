@@ -827,7 +827,7 @@ export default function ExternalCondominiums() {
     if (condoCurrentPage > condoTotalPages && condoTotalPages > 0) {
       setCondoCurrentPage(condoTotalPages);
     }
-  }, [filteredCondominiums.length, condoItemsPerPage]);
+  }, [condominiumsResponse?.total, condoItemsPerPage, condoCurrentPage, condoTotalPages]);
 
   // Reset page when search changes
   useEffect(() => {

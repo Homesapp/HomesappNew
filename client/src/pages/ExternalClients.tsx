@@ -513,7 +513,7 @@ export default function ExternalClients() {
           <div className="text-center py-8 text-muted-foreground">
             {language === "es" ? "Cargando clientes..." : "Loading clients..."}
           </div>
-        ) : filteredAndSortedClients.length === 0 ? (
+        ) : paginatedClients.length === 0 ? (
           <Card>
             <CardContent className="py-8 text-center text-muted-foreground">
               {language === "es" ? "No se encontraron clientes" : "No clients found"}
