@@ -345,16 +345,33 @@ export default function ExternalClients() {
               : "Manage client and tenant registration"}
           </p>
         </div>
-        <Button 
-          onClick={() => setIsCreateDialogOpen(true)}
-          data-testid="button-create-client"
-        >
-          <Plus className="mr-2 h-4 w-4" />
-          {language === "es" ? "Nuevo Cliente" : "New Client"}
-        </Button>
       </div>
 
-      {/* Search and Filters */}
+      {/* Tabs */}
+      <Tabs value={activeTab} onValueChange={(value) => setActiveTab(value as "clients" | "leads")}>
+        <TabsList className="grid w-full max-w-md grid-cols-2">
+          <TabsTrigger value="clients" data-testid="tab-clients">
+            {language === "es" ? "Clientes" : "Clients"}
+          </TabsTrigger>
+          <TabsTrigger value="leads" data-testid="tab-leads">
+            {language === "es" ? "Leads" : "Leads"}
+          </TabsTrigger>
+        </TabsList>
+
+        {/* Clients Tab Content */}
+        <TabsContent value="clients" className="space-y-6 mt-6">
+          {/* Create Button */}
+          <div className="flex justify-end">
+            <Button 
+              onClick={() => setIsCreateDialogOpen(true)}
+              data-testid="button-create-client"
+            >
+              <Plus className="mr-2 h-4 w-4" />
+              {language === "es" ? "Nuevo Cliente" : "New Client"}
+            </Button>
+          </div>
+
+          {/* Search and Filters */}
       <Card>
         <CardContent className="pt-6">
           <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
@@ -1178,6 +1195,17 @@ export default function ExternalClients() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+        </TabsContent>
+
+        {/* Leads Tab Content */}
+        <TabsContent value="leads" className="space-y-6 mt-6">
+          <div className="flex justify-center items-center py-12">
+            <p className="text-muted-foreground">
+              {language === "es" ? "Sección de Leads - En construcción" : "Leads Section - Under construction"}
+            </p>
+          </div>
+        </TabsContent>
+      </Tabs>
     </div>
   );
 }
