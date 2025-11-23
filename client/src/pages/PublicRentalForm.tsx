@@ -493,6 +493,25 @@ export default function PublicRentalForm() {
     },
   });
 
+  // Update form values when prefillData is loaded
+  useEffect(() => {
+    if (tokenData?.prefillData) {
+      const prefill = tokenData.prefillData;
+      if (prefill.fullName) form.setValue('fullName', prefill.fullName);
+      if (prefill.whatsapp) form.setValue('whatsappNumber', prefill.whatsapp);
+      if (prefill.email) form.setValue('email', prefill.email);
+      if (prefill.nationality) form.setValue('nationality', prefill.nationality);
+      if (prefill.age) form.setValue('age', prefill.age);
+      if (prefill.jobPosition) form.setValue('jobPosition', prefill.jobPosition);
+      if (prefill.companyName) form.setValue('companyName', prefill.companyName);
+      if (prefill.monthlyIncome) form.setValue('monthlyIncome', prefill.monthlyIncome);
+      if (prefill.numberOfTenants) form.setValue('numberOfTenants', prefill.numberOfTenants);
+      if (prefill.hasPets) form.setValue('hasPets', prefill.hasPets === 'yes');
+      if (prefill.timeInTulum) form.setValue('timeInTulum', prefill.timeInTulum);
+      if (prefill.checkInDate) form.setValue('checkInDate', prefill.checkInDate);
+    }
+  }, [tokenData?.prefillData, form]);
+
   const submitMutation = useMutation({
     mutationFn: async (data: z.infer<typeof formSchema>) => {
       const response = await apiRequest("POST", `/api/rental-form-tokens/${token}/submit`, data);
