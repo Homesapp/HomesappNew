@@ -14092,12 +14092,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Rental Form Token routes - Enlaces privados para formato de renta de inquilino (soporta sistema interno y externo)
   app.post("/api/rental-form-tokens", isAuthenticated, requireRole(["admin", "master", "admin_jr", "seller", "external_agency_admin", "external_agency_accounting", "external_agency_staff"]), async (req: any, res) => {
     try {
-      const { propertyId, externalUnitId, externalClientId, leadId, recipientType = 'tenant' } = req.body;
+      const { propertyId, externalUnitId, externalClientId, externalUnitOwnerId, leadId, recipientType = 'tenant' } = req.body;
       const userId = req.user.claims.sub;
 
       let property = null;
       let externalUnit = null;
       let externalClient = null;
+      let externalUnitOwner = null;
       let auditMessage = "";
 
       // Determine if this is for internal or external system BEFORE any lookups
@@ -14116,8 +14117,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
           return res.status(403).json({ message: "No tienes acceso a esta unidad" });
         }
         
-        // If externalClientId provided, validate it belongs to same agency
-        if (externalClientId) {
+        // If externalClientId provided (tenant flow), validate it belongs to same agency
+        if (externalClientId && recipientType === 'tenant') {
           externalClient = await storage.getExternalClient(externalClientId);
           if (!externalClient) {
             return res.status(404).json({ message: "Cliente no encontrado" });
@@ -14127,11 +14128,25 @@ export async function registerRoutes(app: Express): Promise<Server> {
           }
         }
         
+        // If externalUnitOwnerId provided (owner flow), validate it exists and belongs to this unit
+        if (externalUnitOwnerId && recipientType === 'owner') {
+          externalUnitOwner = await storage.getExternalUnitOwner(externalUnitOwnerId);
+          if (!externalUnitOwner) {
+            return res.status(404).json({ message: "Propietario no encontrado" });
+          }
+          if (String(externalUnitOwner.unitId) !== String(externalUnitId)) {
+            return res.status(400).json({ message: "El propietario no pertenece a esta unidad" });
+          }
+        }
+        
         // Get condominium name for audit
         const condo = externalUnit.condominiumId ? await storage.getExternalCondominium(externalUnit.condominiumId) : null;
         auditMessage = `Token de formato de renta creado para unidad externa ${condo?.name || ''} - ${externalUnit.unitNumber} (Agency ID: ${agencyId})`;
         if (externalClient) {
           auditMessage += ` - Cliente: ${externalClient.firstName} ${externalClient.lastName}`;
+        }
+        if (externalUnitOwner) {
+          auditMessage += ` - Propietario: ${externalUnitOwner.ownerName}`;
         }
       } else if (propertyId) {
         // Internal system flow
@@ -14157,6 +14172,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           propertyId: propertyId || null,
           externalUnitId: externalUnitId || null,
           externalClientId: externalClientId || null,
+          externalUnitOwnerId: externalUnitOwnerId || null,
           leadId: leadId || null,
           createdBy: userId,
           expiresAt,
@@ -14164,14 +14180,23 @@ export async function registerRoutes(app: Express): Promise<Server> {
         })
         .returning();
 
-      // Business rule: Only one active rental form link per client
-      // Delete all OTHER active (non-completed) tokens for this client
+      // Business rule: Only one active rental form link per client/owner
+      // Delete all OTHER active (non-completed) tokens for this client or owner
       // This preserves completed tokens (isUsed = true) and the new token we just created
-      if (externalClientId) {
+      if (externalClientId && recipientType === 'tenant') {
         await db.delete(tenantRentalFormTokens)
           .where(
             and(
               eq(tenantRentalFormTokens.externalClientId, externalClientId),
+              eq(tenantRentalFormTokens.isUsed, false),
+              ne(tenantRentalFormTokens.id, rentalFormToken.id)
+            )
+          );
+      } else if (externalUnitOwnerId && recipientType === 'owner') {
+        await db.delete(tenantRentalFormTokens)
+          .where(
+            and(
+              eq(tenantRentalFormTokens.externalUnitOwnerId, externalUnitOwnerId),
               eq(tenantRentalFormTokens.isUsed, false),
               ne(tenantRentalFormTokens.id, rentalFormToken.id)
             )
@@ -14191,6 +14216,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         property,
         externalUnit,
         externalClient,
+        externalUnitOwner,
       });
     } catch (error: any) {
       console.error("Error creating rental form token:", error);
