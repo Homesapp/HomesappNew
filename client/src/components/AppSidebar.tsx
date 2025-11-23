@@ -13,7 +13,7 @@ import {
   SidebarFooter,
   useSidebar,
 } from "@/components/ui/sidebar";
-import { DraggableSidebarSection, SortableMenuItem } from "@/components/DraggableSidebarSection";
+import { DraggableSidebarSection, SortableMenuItem, SortableMenuSubItem } from "@/components/DraggableSidebarSection";
 import {
   Home,
   Building2,
@@ -484,14 +484,12 @@ export function AppSidebar({ userRole, userId }: AppSidebarProps) {
                   {(orderedItems) =>
                     orderedItems.map((item) => (
                       <SortableMenuItem key={item.titleKey} item={item}>
-                        <SidebarMenuItem>
-                          <SidebarMenuButton asChild isActive={location === item.url}>
-                            <Link href={item.url} data-testid={`link-${item.titleKey.toLowerCase()}`}>
-                              <item.icon />
-                              <span>{t(item.titleKey)}</span>
-                            </Link>
-                          </SidebarMenuButton>
-                        </SidebarMenuItem>
+                        <SidebarMenuButton asChild isActive={location === item.url}>
+                          <Link href={item.url} data-testid={`link-${item.titleKey.toLowerCase()}`}>
+                            <item.icon />
+                            <span>{t(item.titleKey)}</span>
+                          </Link>
+                        </SidebarMenuButton>
                       </SortableMenuItem>
                     ))
                   }
@@ -690,16 +688,14 @@ export function AppSidebar({ userRole, userId }: AppSidebarProps) {
                           <DraggableSidebarSection items={filteredExternalManagement} userRole={userRole}>
                             {(orderedItems) =>
                               orderedItems.map((item) => (
-                                <SortableMenuItem key={item.titleKey} item={item}>
-                                  <SidebarMenuSubItem>
-                                    <SidebarMenuSubButton asChild isActive={location === item.url}>
-                                      <Link href={item.url} data-testid={`link-${item.titleKey.toLowerCase()}`}>
-                                        <item.icon />
-                                        <span>{t(item.titleKey)}</span>
-                                      </Link>
-                                    </SidebarMenuSubButton>
-                                  </SidebarMenuSubItem>
-                                </SortableMenuItem>
+                                <SortableMenuSubItem key={item.titleKey} item={item}>
+                                  <SidebarMenuSubButton asChild isActive={location === item.url}>
+                                    <Link href={item.url} data-testid={`link-${item.titleKey.toLowerCase()}`}>
+                                      <item.icon />
+                                      <span>{t(item.titleKey)}</span>
+                                    </Link>
+                                  </SidebarMenuSubButton>
+                                </SortableMenuSubItem>
                               ))
                             }
                           </DraggableSidebarSection>

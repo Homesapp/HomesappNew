@@ -101,20 +101,72 @@ export function SortableMenuItem({
   };
 
   return (
-    <div ref={setNodeRef} style={style} className="relative group">
+    <li 
+      ref={setNodeRef} 
+      style={style} 
+      className="group/menu-item relative"
+      data-slot="sidebar-menu-item"
+      data-sidebar="menu-item"
+    >
       <div
         {...attributes}
         {...listeners}
         role="button"
         tabIndex={0}
         aria-label={`Drag to reorder ${item.titleKey}`}
-        className="absolute -left-5 top-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-100 focus-visible:opacity-100 group-focus-within:opacity-100 transition-opacity cursor-grab active:cursor-grabbing p-1 hover-elevate active-elevate-2 rounded-md z-10 focus-visible:ring-2 focus-visible:ring-primary"
+        className="absolute -left-5 top-1/2 -translate-y-1/2 opacity-0 group-hover/menu-item:opacity-100 focus-visible:opacity-100 transition-opacity cursor-grab active:cursor-grabbing p-1 hover-elevate active-elevate-2 rounded-md z-10 focus-visible:ring-2 focus-visible:ring-primary"
         data-testid={`drag-handle-${item.titleKey}`}
       >
         <GripVertical className="w-4 h-4 text-muted-foreground" />
       </div>
       {children}
-    </div>
+    </li>
+  );
+}
+
+export function SortableMenuSubItem({
+  item,
+  children,
+}: {
+  item: MenuItem;
+  children: React.ReactNode;
+}) {
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    transition,
+    isDragging,
+  } = useSortable({ id: item.titleKey });
+
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    opacity: isDragging ? 0.5 : 1,
+  };
+
+  return (
+    <li 
+      ref={setNodeRef} 
+      style={style} 
+      className="group/menu-sub-item relative"
+      data-slot="sidebar-menu-sub-item"
+      data-sidebar="menu-sub-item"
+    >
+      <div
+        {...attributes}
+        {...listeners}
+        role="button"
+        tabIndex={0}
+        aria-label={`Drag to reorder ${item.titleKey}`}
+        className="absolute -left-5 top-1/2 -translate-y-1/2 opacity-0 group-hover/menu-sub-item:opacity-100 focus-visible:opacity-100 transition-opacity cursor-grab active:cursor-grabbing p-1 hover-elevate active-elevate-2 rounded-md z-10 focus-visible:ring-2 focus-visible:ring-primary"
+        data-testid={`drag-handle-${item.titleKey}`}
+      >
+        <GripVertical className="w-4 h-4 text-muted-foreground" />
+      </div>
+      {children}
+    </li>
   );
 }
 
