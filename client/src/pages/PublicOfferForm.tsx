@@ -13,43 +13,301 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage, FormDes
 import { Checkbox } from "@/components/ui/checkbox";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
-import { Loader2, Home, CheckCircle2, AlertCircle, Upload, X, Pen, ChevronLeft, ChevronRight } from "lucide-react";
+import { Loader2, Home, CheckCircle2, AlertCircle, Upload, X } from "lucide-react";
 import logoPath from "@assets/H mes (500 x 300 px)_1759672952263.png";
 import { LanguageToggle } from "@/components/LanguageToggle";
+import { useLanguage } from "@/contexts/LanguageContext";
 
-const offerFormSchema = z.object({
-  fullName: z.string().min(2, "Nombre completo es requerido"),
-  email: z.string().email("Email inválido"),
-  phone: z.string().min(10, "Teléfono es requerido"),
-  nationality: z.string().min(2, "Nacionalidad es requerida"),
-  occupation: z.string().min(2, "Ocupación es requerida"),
-  usageType: z.enum(["vivienda", "subarrendamiento"], { required_error: "Selecciona el tipo de uso" }),
-  monthlyRent: z.string().min(1, "Renta mensual es requerida"),
-  currency: z.string().min(1, "Moneda es requerida"),
-  contractDuration: z.string().min(1, "Duración del contrato es requerida"),
-  moveInDate: z.string().min(1, "Fecha de ingreso es requerida"),
-  moveOutDate: z.string().optional(),
-  customContractDates: z.object({
-    start: z.string(),
-    end: z.string(),
-  }).optional(),
-  contractCost: z.number().optional(),
-  securityDeposit: z.number().optional(),
-  numberOfOccupants: z.string().min(1, "Número de ocupantes es requerido"),
-  pets: z.string().min(1, "Información sobre mascotas es requerida"),
-  petDetails: z.string().optional(),
-  petPhotos: z.array(z.string()).optional(),
-  offeredServices: z.array(z.string()).optional(),
-  propertyRequiredServices: z.array(z.string()).optional(),
-  additionalComments: z.string().optional(),
-  signature: z.string().optional(),
-});
-
-type OfferFormValues = z.infer<typeof offerFormSchema>;
+// Translation object
+const t = {
+  es: {
+    // Header
+    tradeMark: "Tulum Rental Homes ™",
+    
+    // Titles and headings
+    rentalOfferTitle: "Oferta de Renta",
+    completeYourOffer: "Completa tu oferta",
+    completeYourOfferDesc: "Por favor proporciona la siguiente información para formalizar tu interés en la propiedad.",
+    personalInfoSection: "Información Personal",
+    offerDetailsSection: "Detalles de la Oferta",
+    servicesSection: "Servicios",
+    additionalInfoSection: "Información Adicional",
+    digitalSignatureSection: "Firma Digital",
+    
+    // Property details
+    propertyPhotos: "Fotos de la Propiedad",
+    propertyPhoto: "Propiedad",
+    address: "Dirección",
+    notAvailable: "No disponible",
+    monthlyRentRequested: "Renta Mensual Solicitada por el Propietario",
+    perMonth: "/mes",
+    servicesRequiredByOwner: "Servicios que el Propietario Requiere que Pagues",
+    
+    // Form labels
+    fullName: "Nombre Completo",
+    email: "Email",
+    phone: "Teléfono",
+    nationality: "Nacionalidad",
+    occupation: "Ocupación",
+    usageType: "Tipo de Uso",
+    monthlyRentOffered: "Renta Mensual Ofertada",
+    currency: "Moneda",
+    contractDuration: "Duración del Contrato",
+    moveInDate: "Fecha de Ingreso",
+    moveOutDate: "Fecha de Salida",
+    numberOfOccupants: "Número de Ocupantes",
+    hasPets: "¿Tiene mascotas?",
+    petDetails: "Detalles de Mascotas",
+    petPhotos: "Fotos de Mascotas (máximo 3)",
+    servicesOfferedToPay: "Servicios que ofreces pagar",
+    additionalComments: "Comentarios Adicionales (Opcional)",
+    signatureLabel: "Firma aquí (Opcional)",
+    
+    // Placeholders
+    placeholderFullName: "Juan Pérez",
+    placeholderEmail: "juan@ejemplo.com",
+    placeholderPhone: "+52 123 456 7890",
+    placeholderNationality: "Mexicana",
+    placeholderOccupation: "Ingeniero de Software",
+    placeholderMonthlyRent: "15000",
+    placeholderSelectCurrency: "Selecciona moneda",
+    placeholderSelectDuration: "Selecciona duración",
+    placeholderSelectNumber: "Selecciona número",
+    placeholderPetDetails: "Tipo, raza, tamaño, etc.",
+    placeholderAdditionalComments: "Cualquier información adicional que desees compartir...",
+    placeholderSelectUsage: "Selecciona el tipo de uso",
+    placeholderSelectOption: "Selecciona una opción",
+    
+    // Select options
+    usageTypeLiving: "Para vivir (Costo contrato: $2,500 MXN, Depósito: 1 mes)",
+    usageTypeSublet: "Para subarrendar (Costo contrato: $3,800 MXN, Depósito: 2 meses)",
+    contractDuration6: "6 meses",
+    contractDuration12: "12 meses",
+    contractDuration18: "18 meses",
+    contractDuration24: "24 meses",
+    contractDurationCustom: "Personalizado (especificar fechas)",
+    occupants1: "1 persona",
+    occupants2: "2 personas",
+    occupants3: "3 personas",
+    occupants4: "4 personas",
+    occupants5plus: "5+ personas",
+    petsNo: "No",
+    petsYes: "Sí",
+    
+    // Service labels
+    serviceWater: "Agua",
+    serviceElectricity: "Luz/Electricidad",
+    serviceInternet: "Internet",
+    serviceGas: "Gas",
+    serviceCleaning: "Servicio de limpieza",
+    serviceGardening: "Jardinería",
+    serviceMaintenance: "Mantenimiento",
+    
+    // Descriptions and help text
+    usageDescriptionLiving: "Costo de contrato: $2,500 MXN + depósito de seguridad de 1 mes de renta",
+    usageDescriptionSublet: "Costo de contrato: $3,800 MXN + depósito de seguridad de 2 meses de renta",
+    totalCosts: "Costos totales:",
+    contractCost: "Costo de contrato:",
+    securityDeposit: "Depósito de seguridad:",
+    month: "mes",
+    months: "meses",
+    customContractDesc: "Especifica la fecha de salida para contrato personalizado",
+    servicesDesc: "Selecciona los servicios que estás dispuesto a cubrir",
+    uploadPetPhotos: "Sube fotos claras de tu(s) mascota(s)",
+    signatureDesc: "Dibuja tu firma en el espacio de arriba (opcional - puedes enviar sin firmar)",
+    confidentialInfo: "Tu información será tratada de forma confidencial",
+    
+    // Buttons
+    submitOffer: "Enviar Oferta",
+    clearSignature: "Limpiar firma",
+    signatureCaptured: "Firma capturada",
+    
+    // Loading and validation states
+    validatingLink: "Validando enlace...",
+    submitting: "Enviando...",
+    
+    // Success/Error messages
+    invalidLinkTitle: "Enlace no válido",
+    invalidLinkMessage: "Este enlace ha expirado o ya fue utilizado. Por favor, contacta a tu agente para obtener un nuevo enlace.",
+    offerSubmittedTitle: "¡Oferta enviada!",
+    offerSubmittedMessage: "Tu oferta ha sido recibida exitosamente. Nuestro equipo la revisará y te contactará en las próximas 24-48 horas.",
+    nextStepsTitle: "Próximos pasos:",
+    nextStep1: "1. Verificaremos tu información",
+    nextStep2: "2. Contactaremos al propietario",
+    nextStep3: "3. Te notificaremos la decisión",
+    successToastTitle: "¡Oferta enviada exitosamente!",
+    successToastDesc: "Nuestro equipo revisará tu oferta y te contactará pronto.",
+    errorToastTitle: "Error al enviar oferta",
+    photosUploadedTitle: "Fotos subidas exitosamente",
+    photosUploadedDesc: "foto(s) subida(s)",
+    errorUploadingPhotos: "Error al subir fotos",
+    limitExceeded: "Límite excedido",
+    maxPhotosMessage: "Máximo 3 fotos de mascotas",
+    
+    // Validation messages
+    validationFullName: "Nombre completo es requerido",
+    validationEmail: "Email inválido",
+    validationPhone: "Teléfono es requerido",
+    validationNationality: "Nacionalidad es requerida",
+    validationOccupation: "Ocupación es requerida",
+    validationUsageType: "Selecciona el tipo de uso",
+    validationMonthlyRent: "Renta mensual es requerida",
+    validationCurrency: "Moneda es requerida",
+    validationContractDuration: "Duración del contrato es requerida",
+    validationMoveInDate: "Fecha de ingreso es requerida",
+    validationNumberOfOccupants: "Número de ocupantes es requerido",
+    validationPets: "Información sobre mascotas es requerida",
+    
+    // Footer
+    footerHomesApp: "HomesApp - Tulum Rental Homes ™",
+  },
+  en: {
+    // Header
+    tradeMark: "Tulum Rental Homes ™",
+    
+    // Titles and headings
+    rentalOfferTitle: "Rental Offer",
+    completeYourOffer: "Complete your offer",
+    completeYourOfferDesc: "Please provide the following information to formalize your interest in the property.",
+    personalInfoSection: "Personal Information",
+    offerDetailsSection: "Offer Details",
+    servicesSection: "Services",
+    additionalInfoSection: "Additional Information",
+    digitalSignatureSection: "Digital Signature",
+    
+    // Property details
+    propertyPhotos: "Property Photos",
+    propertyPhoto: "Property",
+    address: "Address",
+    notAvailable: "Not available",
+    monthlyRentRequested: "Monthly Rent Requested by Owner",
+    perMonth: "/month",
+    servicesRequiredByOwner: "Services Owner Requires You to Pay",
+    
+    // Form labels
+    fullName: "Full Name",
+    email: "Email",
+    phone: "Phone",
+    nationality: "Nationality",
+    occupation: "Occupation",
+    usageType: "Usage Type",
+    monthlyRentOffered: "Monthly Rent Offered",
+    currency: "Currency",
+    contractDuration: "Contract Duration",
+    moveInDate: "Move-in Date",
+    moveOutDate: "Move-out Date",
+    numberOfOccupants: "Number of Occupants",
+    hasPets: "Do you have pets?",
+    petDetails: "Pet Details",
+    petPhotos: "Pet Photos (max 3)",
+    servicesOfferedToPay: "Services you offer to pay",
+    additionalComments: "Additional Comments (Optional)",
+    signatureLabel: "Sign here (Optional)",
+    
+    // Placeholders
+    placeholderFullName: "John Smith",
+    placeholderEmail: "john@example.com",
+    placeholderPhone: "+52 123 456 7890",
+    placeholderNationality: "American",
+    placeholderOccupation: "Software Engineer",
+    placeholderMonthlyRent: "15000",
+    placeholderSelectCurrency: "Select currency",
+    placeholderSelectDuration: "Select duration",
+    placeholderSelectNumber: "Select number",
+    placeholderPetDetails: "Type, breed, size, etc.",
+    placeholderAdditionalComments: "Any additional information you would like to share...",
+    placeholderSelectUsage: "Select usage type",
+    placeholderSelectOption: "Select an option",
+    
+    // Select options
+    usageTypeLiving: "For living (Contract cost: $2,500 MXN, Deposit: 1 month)",
+    usageTypeSublet: "For sublease (Contract cost: $3,800 MXN, Deposit: 2 months)",
+    contractDuration6: "6 months",
+    contractDuration12: "12 months",
+    contractDuration18: "18 months",
+    contractDuration24: "24 months",
+    contractDurationCustom: "Custom (specify dates)",
+    occupants1: "1 person",
+    occupants2: "2 people",
+    occupants3: "3 people",
+    occupants4: "4 people",
+    occupants5plus: "5+ people",
+    petsNo: "No",
+    petsYes: "Yes",
+    
+    // Service labels
+    serviceWater: "Water",
+    serviceElectricity: "Electricity",
+    serviceInternet: "Internet",
+    serviceGas: "Gas",
+    serviceCleaning: "Cleaning service",
+    serviceGardening: "Gardening",
+    serviceMaintenance: "Maintenance",
+    
+    // Descriptions and help text
+    usageDescriptionLiving: "Contract cost: $2,500 MXN + security deposit of 1 month rent",
+    usageDescriptionSublet: "Contract cost: $3,800 MXN + security deposit of 2 months rent",
+    totalCosts: "Total costs:",
+    contractCost: "Contract cost:",
+    securityDeposit: "Security deposit:",
+    month: "month",
+    months: "months",
+    customContractDesc: "Specify move-out date for custom contract",
+    servicesDesc: "Select the services you are willing to cover",
+    uploadPetPhotos: "Upload clear photos of your pet(s)",
+    signatureDesc: "Draw your signature in the space above (optional - you can submit without signing)",
+    confidentialInfo: "Your information will be treated confidentially",
+    
+    // Buttons
+    submitOffer: "Submit Offer",
+    clearSignature: "Clear signature",
+    signatureCaptured: "Signature captured",
+    
+    // Loading and validation states
+    validatingLink: "Validating link...",
+    submitting: "Submitting...",
+    
+    // Success/Error messages
+    invalidLinkTitle: "Invalid Link",
+    invalidLinkMessage: "This link has expired or has already been used. Please contact your agent to get a new link.",
+    offerSubmittedTitle: "Offer submitted!",
+    offerSubmittedMessage: "Your offer has been successfully received. Our team will review it and contact you within the next 24-48 hours.",
+    nextStepsTitle: "Next steps:",
+    nextStep1: "1. We will verify your information",
+    nextStep2: "2. We will contact the owner",
+    nextStep3: "3. We will notify you of the decision",
+    successToastTitle: "Offer submitted successfully!",
+    successToastDesc: "Our team will review your offer and contact you soon.",
+    errorToastTitle: "Error submitting offer",
+    photosUploadedTitle: "Photos uploaded successfully",
+    photosUploadedDesc: "photo(s) uploaded",
+    errorUploadingPhotos: "Error uploading photos",
+    limitExceeded: "Limit exceeded",
+    maxPhotosMessage: "Maximum 3 pet photos",
+    
+    // Validation messages
+    validationFullName: "Full name is required",
+    validationEmail: "Invalid email",
+    validationPhone: "Phone is required",
+    validationNationality: "Nationality is required",
+    validationOccupation: "Occupation is required",
+    validationUsageType: "Select usage type",
+    validationMonthlyRent: "Monthly rent is required",
+    validationCurrency: "Currency is required",
+    validationContractDuration: "Contract duration is required",
+    validationMoveInDate: "Move-in date is required",
+    validationNumberOfOccupants: "Number of occupants is required",
+    validationPets: "Pet information is required",
+    
+    // Footer
+    footerHomesApp: "HomesApp - Tulum Rental Homes ™",
+  }
+};
 
 export default function PublicOfferForm() {
   const { token } = useParams<{ token: string }>();
   const { toast } = useToast();
+  const { language } = useLanguage();
   const [isSubmitted, setIsSubmitted] = useState(false);
   const [petPhotoUrls, setPetPhotoUrls] = useState<string[]>([]);
   const [isUploadingPhotos, setIsUploadingPhotos] = useState(false);
@@ -57,13 +315,45 @@ export default function PublicOfferForm() {
   const [isDrawing, setIsDrawing] = useState(false);
   const [hasSignature, setHasSignature] = useState(false);
 
+  const text = language === "es" ? t.es : t.en;
+
+  const offerFormSchema = z.object({
+    fullName: z.string().min(2, text.validationFullName),
+    email: z.string().email(text.validationEmail),
+    phone: z.string().min(10, text.validationPhone),
+    nationality: z.string().min(2, text.validationNationality),
+    occupation: z.string().min(2, text.validationOccupation),
+    usageType: z.enum(["vivienda", "subarrendamiento"], { required_error: text.validationUsageType }),
+    monthlyRent: z.string().min(1, text.validationMonthlyRent),
+    currency: z.string().min(1, text.validationCurrency),
+    contractDuration: z.string().min(1, text.validationContractDuration),
+    moveInDate: z.string().min(1, text.validationMoveInDate),
+    moveOutDate: z.string().optional(),
+    customContractDates: z.object({
+      start: z.string(),
+      end: z.string(),
+    }).optional(),
+    contractCost: z.number().optional(),
+    securityDeposit: z.number().optional(),
+    numberOfOccupants: z.string().min(1, text.validationNumberOfOccupants),
+    pets: z.string().min(1, text.validationPets),
+    petDetails: z.string().optional(),
+    petPhotos: z.array(z.string()).optional(),
+    offeredServices: z.array(z.string()).optional(),
+    propertyRequiredServices: z.array(z.string()).optional(),
+    additionalComments: z.string().optional(),
+    signature: z.string().optional(),
+  });
+
+  type OfferFormValues = z.infer<typeof offerFormSchema>;
+
   const { data: validationData, isLoading: isValidating } = useQuery({
     queryKey: ["/api/offer-tokens", token, "validate"],
     queryFn: async () => {
       const res = await fetch(`/api/offer-tokens/${token}/validate`);
       if (!res.ok) {
         const error = await res.json();
-        throw new Error(error.message || "Token inválido");
+        throw new Error(error.message || text.invalidLinkMessage);
       }
       return res.json();
     },
@@ -92,7 +382,7 @@ export default function PublicOfferForm() {
       pets: "no",
       petDetails: "",
       petPhotos: [],
-      offeredServices: ["luz"], // Electricidad marcada por defecto
+      offeredServices: ["luz"],
       propertyRequiredServices: [],
       additionalComments: "",
       signature: "",
@@ -101,6 +391,8 @@ export default function PublicOfferForm() {
 
   const property = validationData?.property;
   const lead = validationData?.lead;
+  const agencyLogo = validationData?.externalAgency?.agencyLogoUrl;
+  const agencyName = validationData?.externalAgency?.name;
 
   const usageType = form.watch("usageType");
   const contractDuration = form.watch("contractDuration");
@@ -108,12 +400,10 @@ export default function PublicOfferForm() {
   const moveInDate = form.watch("moveInDate");
   const moveOutDate = form.watch("moveOutDate");
 
-  // Calculate contract costs based on usage type
   const contractCost = usageType === "vivienda" ? 2500 : 3800;
   const securityDepositMonths = usageType === "vivienda" ? 1 : 2;
   const securityDeposit = monthlyRent * securityDepositMonths;
 
-  // Update form values when costs change
   useEffect(() => {
     form.setValue("contractCost", contractCost);
   }, [contractCost, form]);
@@ -122,7 +412,6 @@ export default function PublicOfferForm() {
     form.setValue("securityDeposit", securityDeposit);
   }, [securityDeposit, form]);
 
-  // Update customContractDates when duration is personalizado
   useEffect(() => {
     if (contractDuration === "personalizado" && moveInDate && moveOutDate) {
       form.setValue("customContractDates", {
@@ -134,14 +423,12 @@ export default function PublicOfferForm() {
     }
   }, [contractDuration, moveInDate, moveOutDate, form]);
 
-  // Set property required services when property data loads
   useEffect(() => {
     if (property?.includedServices) {
       form.setValue("propertyRequiredServices", property.includedServices);
     }
   }, [property, form]);
 
-  // Pre-fill form with lead data when available
   useEffect(() => {
     if (lead) {
       if (lead.firstName && lead.lastName) {
@@ -153,15 +440,12 @@ export default function PublicOfferForm() {
       if (lead.phone) {
         form.setValue("phone", lead.phone);
       }
-      // Pre-fill contract duration if available (take first option from array)
       if (lead.contractDuration && lead.contractDuration.length > 0) {
         form.setValue("contractDuration", lead.contractDuration[0]);
       }
-      // Pre-fill move in date if available (take first option from array)
       if (lead.moveInDate && lead.moveInDate.length > 0) {
         form.setValue("moveInDate", lead.moveInDate[0]);
       }
-      // Pre-fill pets information if available
       if (lead.pets) {
         form.setValue("pets", lead.pets.toLowerCase().includes("no") ? "no" : "si");
         if (!lead.pets.toLowerCase().includes("no")) {
@@ -185,7 +469,7 @@ export default function PublicOfferForm() {
 
       if (!response.ok) {
         const error = await response.json();
-        throw new Error(error.message || "Error al subir fotos");
+        throw new Error(error.message || text.errorUploadingPhotos);
       }
 
       return response.json();
@@ -194,13 +478,13 @@ export default function PublicOfferForm() {
       setPetPhotoUrls([...petPhotoUrls, ...data.urls]);
       form.setValue("petPhotos", [...petPhotoUrls, ...data.urls]);
       toast({
-        title: "Fotos subidas exitosamente",
-        description: `${data.urls.length} foto(s) subida(s)`,
+        title: text.photosUploadedTitle,
+        description: `${data.urls.length} ${text.photosUploadedDesc}`,
       });
     },
     onError: (error: Error) => {
       toast({
-        title: "Error al subir fotos",
+        title: text.errorUploadingPhotos,
         description: error.message,
         variant: "destructive",
       });
@@ -212,8 +496,8 @@ export default function PublicOfferForm() {
     
     if (petPhotoUrls.length + e.target.files.length > 3) {
       toast({
-        title: "Límite excedido",
-        description: "Máximo 3 fotos de mascotas",
+        title: text.limitExceeded,
+        description: text.maxPhotosMessage,
         variant: "destructive",
       });
       return;
@@ -230,7 +514,6 @@ export default function PublicOfferForm() {
     form.setValue("petPhotos", newUrls);
   };
 
-  // Signature canvas handlers
   const startDrawing = (e: React.MouseEvent<HTMLCanvasElement> | React.TouchEvent<HTMLCanvasElement>) => {
     setIsDrawing(true);
     const canvas = canvasRef.current;
@@ -289,7 +572,6 @@ export default function PublicOfferForm() {
 
   const submitOfferMutation = useMutation({
     mutationFn: async (data: OfferFormValues) => {
-      // Ensure all calculated values are included
       const submissionData = {
         ...data,
         petPhotos: petPhotoUrls,
@@ -305,13 +587,13 @@ export default function PublicOfferForm() {
     onSuccess: () => {
       setIsSubmitted(true);
       toast({
-        title: "¡Oferta enviada exitosamente!",
-        description: "Nuestro equipo revisará tu oferta y te contactará pronto.",
+        title: text.successToastTitle,
+        description: text.successToastDesc,
       });
     },
     onError: (error: Error) => {
       toast({
-        title: "Error al enviar oferta",
+        title: text.errorToastTitle,
         description: error.message,
         variant: "destructive",
       });
@@ -323,7 +605,6 @@ export default function PublicOfferForm() {
     submitOfferMutation.mutate(data);
   };
 
-  // Debug form errors
   useEffect(() => {
     const errors = form.formState.errors;
     if (Object.keys(errors).length > 0) {
@@ -338,7 +619,7 @@ export default function PublicOfferForm() {
           <CardContent className="pt-6">
             <div className="flex flex-col items-center gap-4">
               <Loader2 className="h-8 w-8 animate-spin text-primary" data-testid="icon-loading" />
-              <p className="text-muted-foreground">Validando enlace...</p>
+              <p className="text-muted-foreground">{text.validatingLink}</p>
             </div>
           </CardContent>
         </Card>
@@ -353,12 +634,12 @@ export default function PublicOfferForm() {
           <CardHeader>
             <div className="flex items-center gap-2">
               <AlertCircle className="h-6 w-6 text-destructive" />
-              <CardTitle>Enlace no válido</CardTitle>
+              <CardTitle>{text.invalidLinkTitle}</CardTitle>
             </div>
           </CardHeader>
           <CardContent>
             <p className="text-muted-foreground">
-              Este enlace ha expirado o ya fue utilizado. Por favor, contacta a tu agente para obtener un nuevo enlace.
+              {text.invalidLinkMessage}
             </p>
           </CardContent>
         </Card>
@@ -373,22 +654,22 @@ export default function PublicOfferForm() {
           <CardHeader>
             <div className="flex items-center gap-2">
               <CheckCircle2 className="h-6 w-6 text-green-600" data-testid="icon-success" />
-              <CardTitle>¡Oferta enviada!</CardTitle>
+              <CardTitle>{text.offerSubmittedTitle}</CardTitle>
             </div>
           </CardHeader>
           <CardContent className="space-y-4">
             <p className="text-muted-foreground">
-              Tu oferta ha sido recibida exitosamente. Nuestro equipo la revisará y te contactará en las próximas 24-48 horas.
+              {text.offerSubmittedMessage}
             </p>
             <div className="bg-blue-50 dark:bg-blue-950 border border-blue-200 dark:border-blue-800 rounded-lg p-4">
               <p className="text-sm text-blue-900 dark:text-blue-100">
-                <strong>Próximos pasos:</strong>
+                <strong>{text.nextStepsTitle}</strong>
                 <br />
-                1. Verificaremos tu información
+                {text.nextStep1}
                 <br />
-                2. Contactaremos al propietario
+                {text.nextStep2}
                 <br />
-                3. Te notificaremos la decisión
+                {text.nextStep3}
               </p>
             </div>
           </CardContent>
@@ -399,13 +680,13 @@ export default function PublicOfferForm() {
 
   const propertyRequiredServices = property?.includedServices || [];
   const availableServices = [
-    { id: "agua", label: "Agua" },
-    { id: "luz", label: "Luz/Electricidad" },
-    { id: "internet", label: "Internet" },
-    { id: "gas", label: "Gas" },
-    { id: "limpieza", label: "Servicio de limpieza" },
-    { id: "jardineria", label: "Jardinería" },
-    { id: "mantenimiento", label: "Mantenimiento" },
+    { id: "agua", label: text.serviceWater },
+    { id: "luz", label: text.serviceElectricity },
+    { id: "internet", label: text.serviceInternet },
+    { id: "gas", label: text.serviceGas },
+    { id: "limpieza", label: text.serviceCleaning },
+    { id: "jardineria", label: text.serviceGardening },
+    { id: "mantenimiento", label: text.serviceMaintenance },
   ];
 
   const propertyPhotos = property?.photos || [];
@@ -414,34 +695,31 @@ export default function PublicOfferForm() {
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 dark:from-slate-900 dark:to-slate-800 py-8 px-4">
       <div className="max-w-4xl mx-auto">
-        {/* Header with Logo */}
         <div className="relative text-center mb-8">
           <div className="absolute top-0 right-0">
             <LanguageToggle />
           </div>
           <img 
-            src={logoPath} 
-            alt="HomesApp Logo" 
+            src={agencyLogo || logoPath} 
+            alt={agencyName ? `${agencyName} Logo` : "HomesApp Logo"}
             className="h-20 mx-auto mb-4"
-            data-testid="img-homesapp-logo"
+            data-testid="img-logo"
           />
-          <p className="text-sm text-slate-600 dark:text-slate-400">Tulum Rental Homes ™</p>
+          {!agencyLogo && <p className="text-sm text-slate-600 dark:text-slate-400">{text.tradeMark}</p>}
         </div>
 
-        {/* Property Information Card */}
         <Card className="mb-6">
           <CardHeader>
             <div className="flex items-center gap-2">
               <Home className="h-6 w-6 text-primary" />
-              <CardTitle className="text-2xl">Oferta de Renta</CardTitle>
+              <CardTitle className="text-2xl">{text.rentalOfferTitle}</CardTitle>
             </div>
-            <CardDescription className="text-lg">{property?.title || "Propiedad"}</CardDescription>
+            <CardDescription className="text-lg">{property?.title || text.propertyPhoto}</CardDescription>
           </CardHeader>
           <CardContent className="space-y-6">
-            {/* Photo Gallery */}
             {displayPhotos.length > 0 && (
               <div className="space-y-2">
-                <h3 className="text-sm font-medium text-muted-foreground">Fotos de la Propiedad</h3>
+                <h3 className="text-sm font-medium text-muted-foreground">{text.propertyPhotos}</h3>
                 <div className="flex gap-2 overflow-x-auto pb-2" data-testid="gallery-property-photos">
                   {displayPhotos.map((photo: string, index: number) => (
                     <div
@@ -450,7 +728,7 @@ export default function PublicOfferForm() {
                     >
                       <img
                         src={photo}
-                        alt={`Propiedad ${index + 1}`}
+                        alt={`${text.propertyPhoto} ${index + 1}`}
                         className="w-full h-full object-cover"
                         data-testid={`img-property-${index}`}
                       />
@@ -460,27 +738,26 @@ export default function PublicOfferForm() {
               </div>
             )}
 
-            {/* Property Details - Prominent Display */}
             <div className="bg-gradient-to-br from-primary/10 to-primary/5 border-2 border-primary/20 rounded-lg p-6">
               <div className="space-y-4">
                 <div>
-                  <p className="text-sm font-medium text-muted-foreground mb-1">Dirección</p>
-                  <p className="text-base font-semibold text-foreground">{property?.address || "No disponible"}</p>
+                  <p className="text-sm font-medium text-muted-foreground mb-1">{text.address}</p>
+                  <p className="text-base font-semibold text-foreground">{property?.address || text.notAvailable}</p>
                 </div>
                 
                 {property?.monthlyRentPrice && (
                   <div>
-                    <p className="text-sm font-medium text-muted-foreground mb-1">Renta Mensual Solicitada por el Propietario</p>
+                    <p className="text-sm font-medium text-muted-foreground mb-1">{text.monthlyRentRequested}</p>
                     <p className="text-3xl font-bold text-primary">
                       ${property.monthlyRentPrice.toLocaleString()} {property.currency || "USD"}
-                      <span className="text-base font-normal text-muted-foreground">/mes</span>
+                      <span className="text-base font-normal text-muted-foreground">{text.perMonth}</span>
                     </p>
                   </div>
                 )}
 
                 {propertyRequiredServices.length > 0 && (
                   <div>
-                    <p className="text-sm font-medium text-muted-foreground mb-2">Servicios que el Propietario Requiere que Pagues</p>
+                    <p className="text-sm font-medium text-muted-foreground mb-2">{text.servicesRequiredByOwner}</p>
                     <div className="flex flex-wrap gap-2">
                       {propertyRequiredServices.map((service: string) => (
                         <span
@@ -501,25 +778,25 @@ export default function PublicOfferForm() {
 
         <Card>
           <CardHeader>
-            <CardTitle>Completa tu oferta</CardTitle>
+            <CardTitle>{text.completeYourOffer}</CardTitle>
             <CardDescription>
-              Por favor proporciona la siguiente información para formalizar tu interés en la propiedad.
+              {text.completeYourOfferDesc}
             </CardDescription>
           </CardHeader>
           <CardContent>
             <Form {...form}>
               <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
                 <div className="space-y-4">
-                  <h3 className="text-lg font-semibold">Información Personal</h3>
+                  <h3 className="text-lg font-semibold">{text.personalInfoSection}</h3>
                   
                   <FormField
                     control={form.control}
                     name="fullName"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>Nombre Completo *</FormLabel>
+                        <FormLabel>{text.fullName} *</FormLabel>
                         <FormControl>
-                          <Input {...field} placeholder="Juan Pérez" data-testid="input-fullName" />
+                          <Input {...field} placeholder={text.placeholderFullName} data-testid="input-fullName" />
                         </FormControl>
                         <FormMessage />
                       </FormItem>
@@ -532,9 +809,9 @@ export default function PublicOfferForm() {
                       name="email"
                       render={({ field }) => (
                         <FormItem>
-                          <FormLabel>Email *</FormLabel>
+                          <FormLabel>{text.email} *</FormLabel>
                           <FormControl>
-                            <Input {...field} type="email" placeholder="juan@ejemplo.com" data-testid="input-email" />
+                            <Input {...field} type="email" placeholder={text.placeholderEmail} data-testid="input-email" />
                           </FormControl>
                           <FormMessage />
                         </FormItem>
@@ -546,9 +823,9 @@ export default function PublicOfferForm() {
                       name="phone"
                       render={({ field }) => (
                         <FormItem>
-                          <FormLabel>Teléfono *</FormLabel>
+                          <FormLabel>{text.phone} *</FormLabel>
                           <FormControl>
-                            <Input {...field} placeholder="+52 123 456 7890" data-testid="input-phone" />
+                            <Input {...field} placeholder={text.placeholderPhone} data-testid="input-phone" />
                           </FormControl>
                           <FormMessage />
                         </FormItem>
@@ -562,9 +839,9 @@ export default function PublicOfferForm() {
                       name="nationality"
                       render={({ field }) => (
                         <FormItem>
-                          <FormLabel>Nacionalidad *</FormLabel>
+                          <FormLabel>{text.nationality} *</FormLabel>
                           <FormControl>
-                            <Input {...field} placeholder="Mexicana" data-testid="input-nationality" />
+                            <Input {...field} placeholder={text.placeholderNationality} data-testid="input-nationality" />
                           </FormControl>
                           <FormMessage />
                         </FormItem>
@@ -576,9 +853,9 @@ export default function PublicOfferForm() {
                       name="occupation"
                       render={({ field }) => (
                         <FormItem>
-                          <FormLabel>Ocupación *</FormLabel>
+                          <FormLabel>{text.occupation} *</FormLabel>
                           <FormControl>
-                            <Input {...field} placeholder="Ingeniero de Software" data-testid="input-occupation" />
+                            <Input {...field} placeholder={text.placeholderOccupation} data-testid="input-occupation" />
                           </FormControl>
                           <FormMessage />
                         </FormItem>
@@ -588,29 +865,29 @@ export default function PublicOfferForm() {
                 </div>
 
                 <div className="space-y-4">
-                  <h3 className="text-lg font-semibold">Detalles de la Oferta</h3>
+                  <h3 className="text-lg font-semibold">{text.offerDetailsSection}</h3>
 
                   <FormField
                     control={form.control}
                     name="usageType"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>Tipo de Uso *</FormLabel>
+                        <FormLabel>{text.usageType} *</FormLabel>
                         <Select onValueChange={field.onChange} defaultValue={field.value}>
                           <FormControl>
                             <SelectTrigger data-testid="select-usageType">
-                              <SelectValue placeholder="Selecciona el tipo de uso" />
+                              <SelectValue placeholder={text.placeholderSelectUsage} />
                             </SelectTrigger>
                           </FormControl>
                           <SelectContent>
-                            <SelectItem value="vivienda">Para vivir (Costo contrato: $2,500 MXN, Depósito: 1 mes)</SelectItem>
-                            <SelectItem value="subarrendamiento">Para subarrendar (Costo contrato: $3,800 MXN, Depósito: 2 meses)</SelectItem>
+                            <SelectItem value="vivienda">{text.usageTypeLiving}</SelectItem>
+                            <SelectItem value="subarrendamiento">{text.usageTypeSublet}</SelectItem>
                           </SelectContent>
                         </Select>
                         <FormDescription>
                           {usageType === "vivienda" 
-                            ? "Costo de contrato: $2,500 MXN + depósito de seguridad de 1 mes de renta"
-                            : "Costo de contrato: $3,800 MXN + depósito de seguridad de 2 meses de renta"
+                            ? text.usageDescriptionLiving
+                            : text.usageDescriptionSublet
                           }
                         </FormDescription>
                         <FormMessage />
@@ -624,9 +901,9 @@ export default function PublicOfferForm() {
                       name="monthlyRent"
                       render={({ field }) => (
                         <FormItem>
-                          <FormLabel>Renta Mensual Ofertada *</FormLabel>
+                          <FormLabel>{text.monthlyRentOffered} *</FormLabel>
                           <FormControl>
-                            <Input {...field} type="number" placeholder="15000" data-testid="input-monthlyRent" />
+                            <Input {...field} type="number" placeholder={text.placeholderMonthlyRent} data-testid="input-monthlyRent" />
                           </FormControl>
                           <FormMessage />
                         </FormItem>
@@ -638,11 +915,11 @@ export default function PublicOfferForm() {
                       name="currency"
                       render={({ field }) => (
                         <FormItem>
-                          <FormLabel>Moneda *</FormLabel>
+                          <FormLabel>{text.currency} *</FormLabel>
                           <Select onValueChange={field.onChange} defaultValue={field.value}>
                             <FormControl>
                               <SelectTrigger data-testid="select-currency">
-                                <SelectValue placeholder="Selecciona moneda" />
+                                <SelectValue placeholder={text.placeholderSelectCurrency} />
                               </SelectTrigger>
                             </FormControl>
                             <SelectContent>
@@ -659,11 +936,11 @@ export default function PublicOfferForm() {
                   {monthlyRent > 0 && (
                     <div className="bg-green-50 dark:bg-green-950 border border-green-200 dark:border-green-800 rounded-lg p-4">
                       <p className="text-sm text-green-900 dark:text-green-100">
-                        <strong>Costos totales:</strong>
+                        <strong>{text.totalCosts}</strong>
                         <br />
-                        • Costo de contrato: ${contractCost.toLocaleString()} MXN
+                        • {text.contractCost} ${contractCost.toLocaleString()} MXN
                         <br />
-                        • Depósito de seguridad: ${securityDeposit.toLocaleString()} {form.watch("currency")} ({securityDepositMonths} {securityDepositMonths === 1 ? "mes" : "meses"})
+                        • {text.securityDeposit} ${securityDeposit.toLocaleString()} {form.watch("currency")} ({securityDepositMonths} {securityDepositMonths === 1 ? text.month : text.months})
                       </p>
                     </div>
                   )}
@@ -674,19 +951,19 @@ export default function PublicOfferForm() {
                       name="contractDuration"
                       render={({ field }) => (
                         <FormItem>
-                          <FormLabel>Duración del Contrato *</FormLabel>
+                          <FormLabel>{text.contractDuration} *</FormLabel>
                           <Select onValueChange={field.onChange} defaultValue={field.value}>
                             <FormControl>
                               <SelectTrigger data-testid="select-contractDuration">
-                                <SelectValue placeholder="Selecciona duración" />
+                                <SelectValue placeholder={text.placeholderSelectDuration} />
                               </SelectTrigger>
                             </FormControl>
                             <SelectContent>
-                              <SelectItem value="6 meses">6 meses</SelectItem>
-                              <SelectItem value="12 meses">12 meses</SelectItem>
-                              <SelectItem value="18 meses">18 meses</SelectItem>
-                              <SelectItem value="24 meses">24 meses</SelectItem>
-                              <SelectItem value="personalizado">Personalizado (especificar fechas)</SelectItem>
+                              <SelectItem value="6 meses">{text.contractDuration6}</SelectItem>
+                              <SelectItem value="12 meses">{text.contractDuration12}</SelectItem>
+                              <SelectItem value="18 meses">{text.contractDuration18}</SelectItem>
+                              <SelectItem value="24 meses">{text.contractDuration24}</SelectItem>
+                              <SelectItem value="personalizado">{text.contractDurationCustom}</SelectItem>
                             </SelectContent>
                           </Select>
                           <FormMessage />
@@ -699,7 +976,7 @@ export default function PublicOfferForm() {
                       name="moveInDate"
                       render={({ field }) => (
                         <FormItem>
-                          <FormLabel>Fecha de Ingreso *</FormLabel>
+                          <FormLabel>{text.moveInDate} *</FormLabel>
                           <FormControl>
                             <Input {...field} type="date" data-testid="input-moveInDate" />
                           </FormControl>
@@ -715,11 +992,11 @@ export default function PublicOfferForm() {
                       name="moveOutDate"
                       render={({ field }) => (
                         <FormItem>
-                          <FormLabel>Fecha de Salida *</FormLabel>
+                          <FormLabel>{text.moveOutDate} *</FormLabel>
                           <FormControl>
                             <Input {...field} type="date" data-testid="input-moveOutDate" />
                           </FormControl>
-                          <FormDescription>Especifica la fecha de salida para contrato personalizado</FormDescription>
+                          <FormDescription>{text.customContractDesc}</FormDescription>
                           <FormMessage />
                         </FormItem>
                       )}
@@ -731,19 +1008,19 @@ export default function PublicOfferForm() {
                     name="numberOfOccupants"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>Número de Ocupantes *</FormLabel>
+                        <FormLabel>{text.numberOfOccupants} *</FormLabel>
                         <Select onValueChange={field.onChange} defaultValue={field.value}>
                           <FormControl>
                             <SelectTrigger data-testid="select-numberOfOccupants">
-                              <SelectValue placeholder="Selecciona número" />
+                              <SelectValue placeholder={text.placeholderSelectNumber} />
                             </SelectTrigger>
                           </FormControl>
                           <SelectContent>
-                            <SelectItem value="1">1 persona</SelectItem>
-                            <SelectItem value="2">2 personas</SelectItem>
-                            <SelectItem value="3">3 personas</SelectItem>
-                            <SelectItem value="4">4 personas</SelectItem>
-                            <SelectItem value="5+">5+ personas</SelectItem>
+                            <SelectItem value="1">{text.occupants1}</SelectItem>
+                            <SelectItem value="2">{text.occupants2}</SelectItem>
+                            <SelectItem value="3">{text.occupants3}</SelectItem>
+                            <SelectItem value="4">{text.occupants4}</SelectItem>
+                            <SelectItem value="5+">{text.occupants5plus}</SelectItem>
                           </SelectContent>
                         </Select>
                         <FormMessage />
@@ -753,12 +1030,12 @@ export default function PublicOfferForm() {
                 </div>
 
                 <div className="space-y-4">
-                  <h3 className="text-lg font-semibold">Servicios</h3>
+                  <h3 className="text-lg font-semibold">{text.servicesSection}</h3>
 
                   {propertyRequiredServices && propertyRequiredServices.length > 0 && (
                     <div className="bg-amber-50 dark:bg-amber-950 border border-amber-200 dark:border-amber-800 rounded-lg p-4">
                       <p className="text-sm font-semibold text-amber-900 dark:text-amber-100 mb-2">
-                        Servicios requeridos por el propietario:
+                        {text.servicesRequiredByOwner}:
                       </p>
                       <ul className="list-disc list-inside text-sm text-amber-900 dark:text-amber-100">
                         {propertyRequiredServices.map((service: string, index: number) => (
@@ -773,8 +1050,8 @@ export default function PublicOfferForm() {
                     name="offeredServices"
                     render={() => (
                       <FormItem>
-                        <FormLabel>Servicios que ofreces pagar</FormLabel>
-                        <FormDescription>Selecciona los servicios que estás dispuesto a cubrir</FormDescription>
+                        <FormLabel>{text.servicesOfferedToPay}</FormLabel>
+                        <FormDescription>{text.servicesDesc}</FormDescription>
                         <div className="space-y-2">
                           {availableServices.map((service) => (
                             <FormField
@@ -814,23 +1091,23 @@ export default function PublicOfferForm() {
                 </div>
 
                 <div className="space-y-4">
-                  <h3 className="text-lg font-semibold">Información Adicional</h3>
+                  <h3 className="text-lg font-semibold">{text.additionalInfoSection}</h3>
 
                   <FormField
                     control={form.control}
                     name="pets"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>¿Tiene mascotas? *</FormLabel>
+                        <FormLabel>{text.hasPets} *</FormLabel>
                         <Select onValueChange={field.onChange} defaultValue={field.value}>
                           <FormControl>
                             <SelectTrigger data-testid="select-pets">
-                              <SelectValue placeholder="Selecciona una opción" />
+                              <SelectValue placeholder={text.placeholderSelectOption} />
                             </SelectTrigger>
                           </FormControl>
                           <SelectContent>
-                            <SelectItem value="no">No</SelectItem>
-                            <SelectItem value="yes">Sí</SelectItem>
+                            <SelectItem value="no">{text.petsNo}</SelectItem>
+                            <SelectItem value="yes">{text.petsYes}</SelectItem>
                           </SelectContent>
                         </Select>
                         <FormMessage />
@@ -845,11 +1122,11 @@ export default function PublicOfferForm() {
                         name="petDetails"
                         render={({ field }) => (
                           <FormItem>
-                            <FormLabel>Detalles de Mascotas</FormLabel>
+                            <FormLabel>{text.petDetails}</FormLabel>
                             <FormControl>
                               <Textarea
                                 {...field}
-                                placeholder="Tipo, raza, tamaño, etc."
+                                placeholder={text.placeholderPetDetails}
                                 data-testid="input-petDetails"
                               />
                             </FormControl>
@@ -859,11 +1136,11 @@ export default function PublicOfferForm() {
                       />
 
                       <div className="space-y-2">
-                        <FormLabel>Fotos de Mascotas (máximo 3)</FormLabel>
+                        <FormLabel>{text.petPhotos}</FormLabel>
                         <div className="flex flex-wrap gap-2">
                           {petPhotoUrls.map((url, index) => (
                             <div key={index} className="relative">
-                              <img src={url} alt={`Mascota ${index + 1}`} className="w-24 h-24 object-cover rounded-lg" />
+                              <img src={url} alt={`${text.petDetails} ${index + 1}`} className="w-24 h-24 object-cover rounded-lg" />
                               <Button
                                 type="button"
                                 variant="destructive"
@@ -895,7 +1172,7 @@ export default function PublicOfferForm() {
                             </label>
                           )}
                         </div>
-                        <FormDescription>Sube fotos claras de tu(s) mascota(s)</FormDescription>
+                        <FormDescription>{text.uploadPetPhotos}</FormDescription>
                       </div>
                     </>
                   )}
@@ -905,11 +1182,11 @@ export default function PublicOfferForm() {
                     name="additionalComments"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>Comentarios Adicionales (Opcional)</FormLabel>
+                        <FormLabel>{text.additionalComments}</FormLabel>
                         <FormControl>
                           <Textarea
                             {...field}
-                            placeholder="Cualquier información adicional que desees compartir..."
+                            placeholder={text.placeholderAdditionalComments}
                             data-testid="input-additionalComments"
                           />
                         </FormControl>
@@ -920,9 +1197,9 @@ export default function PublicOfferForm() {
                 </div>
 
                 <div className="space-y-4">
-                  <h3 className="text-lg font-semibold">Firma Digital</h3>
+                  <h3 className="text-lg font-semibold">{text.digitalSignatureSection}</h3>
                   <div className="space-y-2">
-                    <FormLabel>Firma aquí (Opcional)</FormLabel>
+                    <FormLabel>{text.signatureLabel}</FormLabel>
                     <div className="border-2 border-slate-300 dark:border-slate-700 rounded-lg p-2 bg-white dark:bg-slate-800">
                       <canvas
                         ref={canvasRef}
@@ -948,16 +1225,16 @@ export default function PublicOfferForm() {
                         data-testid="button-clear-signature"
                       >
                         <X className="h-4 w-4 mr-2" />
-                        Limpiar firma
+                        {text.clearSignature}
                       </Button>
                       {hasSignature && (
                         <p className="text-sm text-green-600 dark:text-green-400 flex items-center">
                           <CheckCircle2 className="h-4 w-4 mr-1" />
-                          Firma capturada
+                          {text.signatureCaptured}
                         </p>
                       )}
                     </div>
-                    <FormDescription>Dibuja tu firma en el espacio de arriba (opcional - puedes enviar sin firmar)</FormDescription>
+                    <FormDescription>{text.signatureDesc}</FormDescription>
                   </div>
                 </div>
 
@@ -968,7 +1245,7 @@ export default function PublicOfferForm() {
                   data-testid="button-submit-offer"
                 >
                   {submitOfferMutation.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                  Enviar Oferta
+                  {text.submitOffer}
                 </Button>
               </form>
             </Form>
@@ -976,8 +1253,8 @@ export default function PublicOfferForm() {
         </Card>
 
         <div className="text-center mt-6 text-sm text-slate-600 dark:text-slate-400">
-          <p>HomesApp - Tulum Rental Homes ™</p>
-          <p className="mt-1">Tu información será tratada de forma confidencial</p>
+          <p>{agencyName || text.footerHomesApp}</p>
+          <p className="mt-1">{text.confidentialInfo}</p>
         </div>
       </div>
     </div>

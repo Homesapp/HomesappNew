@@ -13740,6 +13740,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       let property = null;
       let externalUnit = null;
       let externalClient = null;
+      let externalAgency = null;
       
       // Determine if this is for internal or external system
       if (offerToken.externalUnitId) {
@@ -13747,6 +13748,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
         externalUnit = await storage.getExternalUnit(offerToken.externalUnitId);
         if (offerToken.externalClientId) {
           externalClient = await storage.getExternalClient(offerToken.externalClientId);
+        }
+        
+        // Get agency information including logo
+        if (externalUnit?.agencyId) {
+          externalAgency = await storage.getExternalAgency(externalUnit.agencyId);
         }
         
         // Map externalUnit to property format for frontend compatibility
@@ -13764,6 +13770,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
             description: externalUnit.description,
             includedServices: externalUnit.includedServices || [],
             photos: externalUnit.photos || [],
+            monthlyRentPrice: externalUnit.monthlyRent,
+            currency: externalUnit.currency,
+            address: condo?.address || '',
             isExternal: true,
           };
         }
@@ -13784,6 +13793,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         lead,
         externalUnit,
         externalClient,
+        externalAgency,
         expiresAt: offerToken.expiresAt,
       });
     } catch (error) {
@@ -14209,12 +14219,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
           client = await storage.getExternalClient(rentalFormToken.externalClientId);
         }
         
+        // Get agency information including logo
+        let externalAgency = null;
+        if (unit.agencyId) {
+          externalAgency = await storage.getExternalAgency(unit.agencyId);
+        }
+        
         res.json({
           valid: true,
           isExternal: true,
           unit,
           condominium,
           client,
+          externalAgency,
           expiresAt: rentalFormToken.expiresAt,
         });
       } else {

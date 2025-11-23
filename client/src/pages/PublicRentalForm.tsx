@@ -18,6 +18,7 @@ import { Loader2, CheckCircle2, AlertCircle, Home, Building2 } from "lucide-reac
 import { getPropertyTitle } from "@/lib/propertyHelpers";
 import { LanguageToggle } from "@/components/LanguageToggle";
 import { useLanguage } from "@/contexts/LanguageContext";
+import logoPath from "@assets/H mes (500 x 300 px)_1759672952263.png";
 
 const getRentalFormSchema = (text: any) => z.object({
   // Datos Personales
@@ -595,10 +596,40 @@ export default function PublicRentalForm() {
 
   const property = tokenData?.property;
   const progress = (currentStep / totalSteps) * 100;
+  
+  // Get agency branding information
+  const agencyLogo = tokenData?.externalAgency?.agencyLogoUrl;
+  const agencyName = tokenData?.externalAgency?.name;
+  const isExternalAgency = !!agencyLogo;
 
   return (
     <div className="min-h-screen bg-muted/30 py-8 px-4">
       <div className="max-w-4xl mx-auto space-y-6">
+        {/* Header with Agency/HomesApp Logo */}
+        {isExternalAgency && (
+          <div className="text-center mb-4">
+            <img 
+              src={agencyLogo} 
+              alt={`${agencyName} Logo`} 
+              className="h-20 mx-auto mb-2"
+              data-testid="img-agency-logo"
+            />
+            <p className="text-sm text-muted-foreground">{agencyName}</p>
+          </div>
+        )}
+        
+        {!isExternalAgency && (
+          <div className="text-center mb-4">
+            <img 
+              src={logoPath} 
+              alt="HomesApp Logo" 
+              className="h-20 mx-auto mb-2"
+              data-testid="img-homesapp-logo"
+            />
+            <p className="text-sm text-muted-foreground">Tulum Rental Homes ™</p>
+          </div>
+        )}
+        
         {/* Header with Property Info */}
         <Card>
           <CardHeader>
