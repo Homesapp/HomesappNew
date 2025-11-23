@@ -84,6 +84,7 @@ import type { ExternalMaintenanceTicket, ExternalCondominium, ExternalUnit, Exte
 import { insertExternalMaintenanceTicketSchema } from "@shared/schema";
 import { z } from "zod";
 import { format, toZonedTime, fromZonedTime } from "date-fns-tz";
+import { startOfDay, endOfDay, isWithinInterval } from "date-fns";
 import { es } from "date-fns/locale";
 import { cn } from "@/lib/utils";
 import { ExternalPaginationControls } from "@/components/external/ExternalPaginationControls";
@@ -192,6 +193,7 @@ export default function ExternalMaintenance() {
   const [priorityFilter, setPriorityFilter] = useState<string>("all");
   const [categoryFilter, setCategoryFilter] = useState<string>("all");
   const [condominiumFilter, setCondominiumFilter] = useState<string>("all");
+  const [dateFilter, setDateFilter] = useState<string>("all");
   const [formCondominiumId, setFormCondominiumId] = useState<string>("");
   // Schedule state that guarantees calendar visibility
   const [schedule, setSchedule] = useState<ScheduleState>(getDefaultSchedule());
@@ -620,8 +622,18 @@ export default function ExternalMaintenance() {
     const matchesPriority = priorityFilter === "all" || ticket.priority === priorityFilter;
     const matchesCategory = categoryFilter === "all" || ticket.category === categoryFilter;
     const matchesCondo = condominiumFilter === "all" || unitInfo?.condo?.id === condominiumFilter;
+    
+    // Date filter: today means scheduled for today
+    let matchesDate = true;
+    if (dateFilter === "today" && ticket.scheduledAt) {
+      const ticketDate = new Date(ticket.scheduledAt);
+      const today = new Date();
+      const todayStart = startOfDay(today);
+      const todayEnd = endOfDay(today);
+      matchesDate = isWithinInterval(ticketDate, { start: todayStart, end: todayEnd });
+    }
 
-    return matchesSearch && matchesStatus && matchesPriority && matchesCategory && matchesCondo;
+    return matchesSearch && matchesStatus && matchesPriority && matchesCategory && matchesCondo && matchesDate;
   }) || [];
 
   // Calculate metrics
@@ -743,6 +755,7 @@ export default function ExternalMaintenance() {
     actualCost: 'Costo Real',
     search: 'Buscar por título, descripción o unidad...',
     filters: 'Filtros',
+    today: 'HOY',
     status: 'Estado',
     priority: 'Prioridad',
     category: 'Categoría',
@@ -782,6 +795,7 @@ export default function ExternalMaintenance() {
     actualCost: 'Actual Cost',
     search: 'Search by title, description or unit...',
     filters: 'Filters',
+    today: 'TODAY',
     status: 'Status',
     priority: 'Priority',
     category: 'Category',
@@ -1203,6 +1217,20 @@ export default function ExternalMaintenance() {
               </div>
             </PopoverContent>
           </Popover>
+          
+          {/* HOY Button - Filter Today's Scheduled Tickets */}
+          <Button
+            variant={dateFilter === "today" ? "default" : "outline"}
+            className="flex-shrink-0"
+            onClick={() => {
+              setDateFilter(dateFilter === "today" ? "all" : "today");
+              setCurrentPage(1);
+            }}
+            data-testid="button-today"
+          >
+            <CalendarIcon className="h-4 w-4 mr-2" />
+            {t.today}
+          </Button>
           
           {/* View Mode Toggles - Desktop Only */}
           {!isMobile && (
