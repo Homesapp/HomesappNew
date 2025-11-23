@@ -520,19 +520,18 @@ export default function ExternalClients() {
 
       {/* Tabs */}
       <Tabs value={activeTab} onValueChange={(value) => setActiveTab(value as "clients" | "leads")}>
-        <TabsList className="grid w-full max-w-md grid-cols-2">
-          <TabsTrigger value="clients" data-testid="tab-clients">
-            {language === "es" ? "Clientes" : "Clients"}
-          </TabsTrigger>
-          <TabsTrigger value="leads" data-testid="tab-leads">
-            {language === "es" ? "Leads" : "Leads"}
-          </TabsTrigger>
-        </TabsList>
+        <div className="flex items-center justify-between gap-4">
+          <TabsList className="grid grid-cols-2" style={{ width: "fit-content" }}>
+            <TabsTrigger value="clients" data-testid="tab-clients">
+              {language === "es" ? "Clientes" : "Clients"}
+            </TabsTrigger>
+            <TabsTrigger value="leads" data-testid="tab-leads">
+              {language === "es" ? "Leads" : "Leads"}
+            </TabsTrigger>
+          </TabsList>
 
-        {/* Clients Tab Content */}
-        <TabsContent value="clients" className="space-y-6 mt-6">
           {/* Create Button */}
-          <div className="flex justify-end">
+          {activeTab === "clients" && (
             <Button 
               onClick={() => setIsCreateDialogOpen(true)}
               data-testid="button-create-client"
@@ -540,7 +539,20 @@ export default function ExternalClients() {
               <Plus className="mr-2 h-4 w-4" />
               {language === "es" ? "Nuevo Cliente" : "New Client"}
             </Button>
-          </div>
+          )}
+          {activeTab === "leads" && (
+            <Button 
+              onClick={() => setIsCreateLeadDialogOpen(true)}
+              data-testid="button-create-lead"
+            >
+              <Plus className="mr-2 h-4 w-4" />
+              {language === "es" ? "Nuevo Lead" : "New Lead"}
+            </Button>
+          )}
+        </div>
+
+        {/* Clients Tab Content */}
+        <TabsContent value="clients" className="space-y-6 mt-6">
 
           {/* Search and Filters */}
       <Card>
@@ -1370,17 +1382,6 @@ export default function ExternalClients() {
 
         {/* Leads Tab Content */}
         <TabsContent value="leads" className="space-y-6 mt-6">
-          {/* Create Button */}
-          <div className="flex justify-end">
-            <Button 
-              onClick={() => setIsCreateLeadDialogOpen(true)}
-              data-testid="button-create-lead"
-            >
-              <Plus className="mr-2 h-4 w-4" />
-              {language === "es" ? "Nuevo Lead" : "New Lead"}
-            </Button>
-          </div>
-
           {/* Search and Filters for Leads */}
           <Card>
             <CardContent className="pt-6">
