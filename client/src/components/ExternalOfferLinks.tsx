@@ -270,7 +270,7 @@ export default function ExternalOfferLinks({ searchTerm, statusFilter, viewMode 
                     <Button
                       variant="outline"
                       size="sm"
-                      onClick={() => window.open(`/offer/${token.token}`, "_blank")}
+                      onClick={() => window.open(`${window.location.origin}/offer/${token.token}`, "_blank")}
                       className="flex-1"
                       data-testid="button-open-offer-link"
                     >
@@ -394,7 +394,7 @@ export default function ExternalOfferLinks({ searchTerm, statusFilter, viewMode 
                         <Button
                           variant="ghost"
                           size="sm"
-                          onClick={() => window.open(`/offer/${token.token}`, "_blank")}
+                          onClick={() => window.open(`${window.location.origin}/offer/${token.token}`, "_blank")}
                           title={language === "es" ? "Abrir link" : "Open link"}
                           data-testid="button-open-offer-link"
                         >
