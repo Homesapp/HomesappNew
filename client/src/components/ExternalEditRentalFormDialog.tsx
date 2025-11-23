@@ -96,47 +96,50 @@ export default function ExternalEditRentalFormDialog({ open, onOpenChange, renta
 
   // Pre-fill form when dialog opens with data
   useEffect(() => {
-    if (open && rentalFormToken?.tenantData) {
-      const data = rentalFormToken.tenantData;
+    if (open && rentalFormToken) {
+      // CRITICAL: Owner forms read from ownerData, tenant forms read from tenantData
+      const sourceData = isOwnerForm ? rentalFormToken.ownerData : rentalFormToken.tenantData;
+      
+      if (!sourceData) return; // No data to pre-fill
       
       if (isOwnerForm) {
         const initialValues = {
-          fullName: data.fullName || "",
-          email: data.email || "",
-          whatsapp: data.whatsapp || "",
-          nationality: data.nationality || "",
-          age: data.age || undefined,
-          address: data.address || "",
-          bankName: data.bankName || "",
-          accountNumber: data.accountNumber || "",
-          clabe: data.clabe || "",
-          paymentPreference: data.paymentPreference || "",
-          minimumRentalPeriod: data.minimumRentalPeriod || "",
-          maximumOccupants: data.maximumOccupants || undefined,
-          petsAllowed: data.petsAllowed || false,
+          fullName: sourceData.fullName || "",
+          email: sourceData.email || "",
+          whatsapp: sourceData.whatsapp || "",
+          nationality: sourceData.nationality || "",
+          age: sourceData.age || undefined,
+          address: sourceData.address || "",
+          bankName: sourceData.bankName || "",
+          accountNumber: sourceData.accountNumber || "",
+          clabe: sourceData.clabe || "",
+          paymentPreference: sourceData.paymentPreference || "",
+          minimumRentalPeriod: sourceData.minimumRentalPeriod || "",
+          maximumOccupants: sourceData.maximumOccupants || undefined,
+          petsAllowed: Boolean(sourceData.petsAllowed), // Normalize to strict boolean
         };
         ownerForm.reset(initialValues);
         setOriginalData(initialValues);
       } else {
         const initialValues = {
-          fullName: data.fullName || "",
-          email: data.email || "",
-          whatsapp: data.whatsapp || "",
-          nationality: data.nationality || "",
-          age: data.age || undefined,
-          maritalStatus: data.maritalStatus || "",
-          timeInTulum: data.timeInTulum || "",
-          address: data.address || "",
-          jobPosition: data.jobPosition || "",
-          companyName: data.companyName || "",
-          workAddress: data.workAddress || "",
-          workPhone: data.workPhone || "",
-          monthlyIncome: data.monthlyIncome || undefined,
-          desiredMoveInDate: data.desiredMoveInDate || "",
-          desiredMoveOutDate: data.desiredMoveOutDate || "",
-          numberOfOccupants: data.numberOfOccupants || undefined,
-          hasPets: data.hasPets || false,
-          hasVehicle: data.hasVehicle || false,
+          fullName: sourceData.fullName || "",
+          email: sourceData.email || "",
+          whatsapp: sourceData.whatsapp || "",
+          nationality: sourceData.nationality || "",
+          age: sourceData.age || undefined,
+          maritalStatus: sourceData.maritalStatus || "",
+          timeInTulum: sourceData.timeInTulum || "",
+          address: sourceData.address || "",
+          jobPosition: sourceData.jobPosition || "",
+          companyName: sourceData.companyName || "",
+          workAddress: sourceData.workAddress || "",
+          workPhone: sourceData.workPhone || "",
+          monthlyIncome: sourceData.monthlyIncome || undefined,
+          desiredMoveInDate: sourceData.desiredMoveInDate || "",
+          desiredMoveOutDate: sourceData.desiredMoveOutDate || "",
+          numberOfOccupants: sourceData.numberOfOccupants || undefined,
+          hasPets: Boolean(sourceData.hasPets), // Normalize to strict boolean
+          hasVehicle: Boolean(sourceData.hasVehicle), // Normalize to strict boolean
         };
         tenantForm.reset(initialValues);
         setOriginalData(initialValues);
@@ -181,7 +184,18 @@ export default function ExternalEditRentalFormDialog({ open, onOpenChange, renta
   };
 
   const onSubmit = (data: TenantFormEditValues | OwnerFormEditValues) => {
-    updateMutation.mutate(data);
+    // Normalize boolean values to ensure strict boolean types
+    const normalizedData = { ...data };
+    if ('hasPets' in normalizedData) {
+      normalizedData.hasPets = Boolean(normalizedData.hasPets);
+    }
+    if ('hasVehicle' in normalizedData) {
+      normalizedData.hasVehicle = Boolean(normalizedData.hasVehicle);
+    }
+    if ('petsAllowed' in normalizedData) {
+      normalizedData.petsAllowed = Boolean(normalizedData.petsAllowed);
+    }
+    updateMutation.mutate(normalizedData);
   };
 
   const tenantFieldLabels: Record<string, string> = {
