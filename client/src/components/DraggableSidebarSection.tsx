@@ -114,7 +114,7 @@ export function SortableMenuItem({
         role="button"
         tabIndex={0}
         aria-label={`Drag to reorder ${item.titleKey}`}
-        className="absolute -left-5 top-0 bottom-0 my-auto h-fit hidden group-hover/menu-item:block focus-visible:block cursor-grab active:cursor-grabbing p-1 hover-elevate active-elevate-2 rounded-md z-10 focus-visible:ring-2 focus-visible:ring-primary"
+        className="absolute left-0 top-0 bottom-0 flex items-center -translate-x-full pr-1 hidden group-hover/menu-item:flex focus-visible:flex cursor-grab active:cursor-grabbing p-1 hover-elevate active-elevate-2 rounded-md z-10 focus-visible:ring-2 focus-visible:ring-primary"
         data-testid={`drag-handle-${item.titleKey}`}
       >
         <GripVertical className="w-4 h-4 text-muted-foreground" />
@@ -160,7 +160,7 @@ export function SortableMenuSubItem({
         role="button"
         tabIndex={0}
         aria-label={`Drag to reorder ${item.titleKey}`}
-        className="absolute -left-5 top-0 bottom-0 my-auto h-fit hidden group-hover/menu-sub-item:block focus-visible:block cursor-grab active:cursor-grabbing p-1 hover-elevate active-elevate-2 rounded-md z-10 focus-visible:ring-2 focus-visible:ring-primary"
+        className="absolute left-0 top-0 bottom-0 flex items-center -translate-x-full pr-1 hidden group-hover/menu-sub-item:flex focus-visible:flex cursor-grab active:cursor-grabbing p-1 hover-elevate active-elevate-2 rounded-md z-10 focus-visible:ring-2 focus-visible:ring-primary"
         data-testid={`drag-handle-${item.titleKey}`}
       >
         <GripVertical className="w-4 h-4 text-muted-foreground" />
