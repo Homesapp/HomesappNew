@@ -2,6 +2,9 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Card, CardHeader, CardTitle, CardContent, CardDescription } from "@/components/ui/card";
+import { Separator } from "@/components/ui/separator";
+import { Badge } from "@/components/ui/badge";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
@@ -10,7 +13,7 @@ import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { useState, useEffect } from "react";
-import { Loader2, ChevronLeft, ChevronRight } from "lucide-react";
+import { Loader2, ChevronLeft, ChevronRight, User, Briefcase, FileText, DollarSign, Calendar, Users, Home } from "lucide-react";
 import ChangeReviewStep from "./ChangeReviewStep";
 import {
   Form,
@@ -250,12 +253,45 @@ export default function ExternalEditRentalFormDialog({ open, onOpenChange, renta
         </DialogHeader>
 
         <Form {...form}>
-          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
             {/* Step 1: Edit Form */}
             {step === 1 && (
-              <div className="space-y-4">
-            {/* Common fields */}
-            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-6">
+                {/* Summary Banner */}
+                {rentalFormToken && (
+                  <div className="flex items-center gap-4 p-4 bg-muted/50 rounded-lg">
+                    <div className="flex items-center gap-2 flex-1">
+                      <User className="h-5 w-5 text-muted-foreground" />
+                      <div>
+                        <p className="text-sm font-medium">
+                          {rentalFormToken.tenantData?.fullName || rentalFormToken.ownerData?.fullName || (language === "es" ? "Sin nombre" : "No name")}
+                        </p>
+                        <p className="text-xs text-muted-foreground">
+                          {rentalFormToken.tenantData?.email || rentalFormToken.ownerData?.email || ""}
+                        </p>
+                      </div>
+                    </div>
+                    <Badge variant="secondary">
+                      {isOwnerForm ? (language === "es" ? "Propietario" : "Owner") : (language === "es" ? "Inquilino" : "Tenant")}
+                    </Badge>
+                  </div>
+                )}
+
+            {/* Personal Information Card */}
+            <Card>
+              <CardHeader className="space-y-1">
+                <div className="flex items-center gap-2">
+                  <User className="h-5 w-5 text-muted-foreground" />
+                  <CardTitle className="text-base">
+                    {language === "es" ? "Información Personal" : "Personal Information"}
+                  </CardTitle>
+                </div>
+                <CardDescription>
+                  {language === "es" ? "Datos básicos del formulario" : "Basic form information"}
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <FormField
                 control={form.control}
                 name="fullName"
@@ -346,16 +382,28 @@ export default function ExternalEditRentalFormDialog({ open, onOpenChange, renta
                 )}
               />
             </div>
+              </CardContent>
+            </Card>
 
             {/* Tenant-specific fields */}
             {!isOwnerForm && (
               <>
-                <h3 className="text-sm font-medium mt-4">
-                  {language === "es" ? "Información de Empleo" : "Employment Information"}
-                </h3>
-                <div className="grid grid-cols-2 gap-4">
+                <Card>
+                  <CardHeader className="space-y-1">
+                    <div className="flex items-center gap-2">
+                      <Briefcase className="h-5 w-5 text-muted-foreground" />
+                      <CardTitle className="text-base">
+                        {language === "es" ? "Información de Empleo" : "Employment Information"}
+                      </CardTitle>
+                    </div>
+                    <CardDescription>
+                      {language === "es" ? "Datos laborales del inquilino" : "Tenant employment details"}
+                    </CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <FormField
-                    control={tenantForm.control}
+                    control={form.control}
                     name="jobPosition"
                     render={({ field }) => (
                       <FormItem>
@@ -369,7 +417,7 @@ export default function ExternalEditRentalFormDialog({ open, onOpenChange, renta
                   />
 
                   <FormField
-                    control={tenantForm.control}
+                    control={form.control}
                     name="companyName"
                     render={({ field }) => (
                       <FormItem>
@@ -383,7 +431,7 @@ export default function ExternalEditRentalFormDialog({ open, onOpenChange, renta
                   />
 
                   <FormField
-                    control={tenantForm.control}
+                    control={form.control}
                     name="monthlyIncome"
                     render={({ field }) => (
                       <FormItem>
@@ -402,13 +450,30 @@ export default function ExternalEditRentalFormDialog({ open, onOpenChange, renta
                     )}
                   />
                 </div>
+                  </CardContent>
+                </Card>
 
-                <h3 className="text-sm font-medium mt-4">
-                  {language === "es" ? "Detalles de Renta" : "Rental Details"}
-                </h3>
-                <div className="grid grid-cols-2 gap-4">
+                <Card>
+                  <CardHeader className="space-y-1">
+                    <div className="flex items-center gap-2">
+                      <Home className="h-5 w-5 text-muted-foreground" />
+                      <CardTitle className="text-base">
+                        {language === "es" ? "Detalles de Renta" : "Rental Details"}
+                      </CardTitle>
+                    </div>
+                    <CardDescription>
+                      {language === "es" ? "Información sobre la renta deseada" : "Desired rental information"}
+                    </CardDescription>
+                  </CardHeader>
+                  <CardContent className="space-y-6">
+                    <div>
+                      <p className="text-sm font-medium mb-4 flex items-center gap-2">
+                        <Calendar className="h-4 w-4" />
+                        {language === "es" ? "Fechas" : "Dates"}
+                      </p>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <FormField
-                    control={tenantForm.control}
+                    control={form.control}
                     name="desiredMoveInDate"
                     render={({ field }) => (
                       <FormItem>
@@ -422,7 +487,7 @@ export default function ExternalEditRentalFormDialog({ open, onOpenChange, renta
                   />
 
                   <FormField
-                    control={tenantForm.control}
+                    control={form.control}
                     name="desiredMoveOutDate"
                     render={({ field }) => (
                       <FormItem>
@@ -435,8 +500,19 @@ export default function ExternalEditRentalFormDialog({ open, onOpenChange, renta
                     )}
                   />
 
+                    </div>
+                    </div>
+
+                    <Separator />
+
+                    <div>
+                      <p className="text-sm font-medium mb-4 flex items-center gap-2">
+                        <Users className="h-4 w-4" />
+                        {language === "es" ? "Ocupación" : "Occupancy"}
+                      </p>
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <FormField
-                    control={tenantForm.control}
+                    control={form.control}
                     name="numberOfOccupants"
                     render={({ field }) => (
                       <FormItem>
@@ -456,7 +532,7 @@ export default function ExternalEditRentalFormDialog({ open, onOpenChange, renta
                   />
 
                   <FormField
-                    control={tenantForm.control}
+                    control={form.control}
                     name="hasPets"
                     render={({ field }) => (
                       <FormItem className="flex flex-row items-center space-x-3 space-y-0">
@@ -475,7 +551,7 @@ export default function ExternalEditRentalFormDialog({ open, onOpenChange, renta
                   />
 
                   <FormField
-                    control={tenantForm.control}
+                    control={form.control}
                     name="hasVehicle"
                     render={({ field }) => (
                       <FormItem className="flex flex-row items-center space-x-3 space-y-0">
@@ -492,19 +568,32 @@ export default function ExternalEditRentalFormDialog({ open, onOpenChange, renta
                       </FormItem>
                     )}
                   />
-                </div>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
               </>
             )}
 
             {/* Owner-specific fields */}
             {isOwnerForm && (
               <>
-                <h3 className="text-sm font-medium mt-4">
-                  {language === "es" ? "Información Bancaria" : "Banking Information"}
-                </h3>
-                <div className="grid grid-cols-2 gap-4">
+                <Card>
+                  <CardHeader className="space-y-1">
+                    <div className="flex items-center gap-2">
+                      <DollarSign className="h-5 w-5 text-muted-foreground" />
+                      <CardTitle className="text-base">
+                        {language === "es" ? "Información Bancaria" : "Banking Information"}
+                      </CardTitle>
+                    </div>
+                    <CardDescription>
+                      {language === "es" ? "Datos para pagos de renta" : "Rental payment information"}
+                    </CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <FormField
-                    control={ownerForm.control}
+                    control={form.control}
                     name="bankName"
                     render={({ field }) => (
                       <FormItem>
@@ -518,7 +607,7 @@ export default function ExternalEditRentalFormDialog({ open, onOpenChange, renta
                   />
 
                   <FormField
-                    control={ownerForm.control}
+                    control={form.control}
                     name="accountNumber"
                     render={({ field }) => (
                       <FormItem>
@@ -532,7 +621,7 @@ export default function ExternalEditRentalFormDialog({ open, onOpenChange, renta
                   />
 
                   <FormField
-                    control={ownerForm.control}
+                    control={form.control}
                     name="clabe"
                     render={({ field }) => (
                       <FormItem className="col-span-2">
@@ -546,7 +635,7 @@ export default function ExternalEditRentalFormDialog({ open, onOpenChange, renta
                   />
 
                   <FormField
-                    control={ownerForm.control}
+                    control={form.control}
                     name="paymentPreference"
                     render={({ field }) => (
                       <FormItem className="col-span-2">
@@ -559,13 +648,25 @@ export default function ExternalEditRentalFormDialog({ open, onOpenChange, renta
                     )}
                   />
                 </div>
+                  </CardContent>
+                </Card>
 
-                <h3 className="text-sm font-medium mt-4">
-                  {language === "es" ? "Preferencias de Propiedad" : "Property Preferences"}
-                </h3>
-                <div className="grid grid-cols-2 gap-4">
+                <Card>
+                  <CardHeader className="space-y-1">
+                    <div className="flex items-center gap-2">
+                      <Home className="h-5 w-5 text-muted-foreground" />
+                      <CardTitle className="text-base">
+                        {language === "es" ? "Condiciones de Propiedad" : "Property Conditions"}
+                      </CardTitle>
+                    </div>
+                    <CardDescription>
+                      {language === "es" ? "Preferencias y requisitos de renta" : "Rental preferences and requirements"}
+                    </CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <FormField
-                    control={ownerForm.control}
+                    control={form.control}
                     name="minimumRentalPeriod"
                     render={({ field }) => (
                       <FormItem>
@@ -579,7 +680,7 @@ export default function ExternalEditRentalFormDialog({ open, onOpenChange, renta
                   />
 
                   <FormField
-                    control={ownerForm.control}
+                    control={form.control}
                     name="maximumOccupants"
                     render={({ field }) => (
                       <FormItem>
@@ -599,7 +700,7 @@ export default function ExternalEditRentalFormDialog({ open, onOpenChange, renta
                   />
 
                   <FormField
-                    control={ownerForm.control}
+                    control={form.control}
                     name="petsAllowed"
                     render={({ field }) => (
                       <FormItem className="flex flex-row items-center space-x-3 space-y-0 col-span-2">
@@ -617,6 +718,8 @@ export default function ExternalEditRentalFormDialog({ open, onOpenChange, renta
                     )}
                   />
                 </div>
+                  </CardContent>
+                </Card>
               </>
             )}
               </div>

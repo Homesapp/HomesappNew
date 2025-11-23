@@ -10,9 +10,12 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
+import { Card, CardHeader, CardTitle, CardContent, CardDescription } from "@/components/ui/card";
+import { Separator } from "@/components/ui/separator";
+import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
-import { Loader2, ChevronLeft, ChevronRight } from "lucide-react";
+import { Loader2, ChevronLeft, ChevronRight, User, Briefcase, FileText, DollarSign, Calendar, Users } from "lucide-react";
 import ChangeReviewStep from "./ChangeReviewStep";
 
 interface ExternalEditOfferDialogProps {
@@ -188,11 +191,39 @@ export default function ExternalEditOfferDialog({ open, onOpenChange, offerToken
             {/* Step 1: Edit Form */}
             {step === 1 && (
               <div className="space-y-6">
-            {/* Personal Information */}
-            <div className="space-y-4">
-              <h3 className="text-sm font-medium">
-                {language === "es" ? "Información Personal" : "Personal Information"}
-              </h3>
+                {/* Summary Banner */}
+                {offerToken?.offerData && (
+                  <div className="flex items-center gap-4 p-4 bg-muted/50 rounded-lg">
+                    <div className="flex items-center gap-2 flex-1">
+                      <User className="h-5 w-5 text-muted-foreground" />
+                      <div>
+                        <p className="text-sm font-medium">{offerToken.offerData.nombreCompleto || (language === "es" ? "Sin nombre" : "No name")}</p>
+                        <p className="text-xs text-muted-foreground">{offerToken.offerData.clientEmail || ""}</p>
+                      </div>
+                    </div>
+                    {offerToken.offerData.rentaOfertada && (
+                      <Badge variant="secondary" className="gap-1">
+                        <DollarSign className="h-3 w-3" />
+                        {new Intl.NumberFormat('es-MX', { style: 'currency', currency: 'MXN' }).format(offerToken.offerData.rentaOfertada)}
+                      </Badge>
+                    )}
+                  </div>
+                )}
+
+            {/* Personal Information Card */}
+            <Card>
+              <CardHeader className="space-y-1">
+                <div className="flex items-center gap-2">
+                  <User className="h-5 w-5 text-muted-foreground" />
+                  <CardTitle className="text-base">
+                    {language === "es" ? "Información Personal" : "Personal Information"}
+                  </CardTitle>
+                </div>
+                <CardDescription>
+                  {language === "es" ? "Datos básicos del solicitante" : "Applicant basic information"}
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <FormField
                   control={form.control}
@@ -279,13 +310,23 @@ export default function ExternalEditOfferDialog({ open, onOpenChange, offerToken
                   )}
                 />
               </div>
-            </div>
+              </CardContent>
+            </Card>
 
-            {/* Employment Information */}
-            <div className="space-y-4">
-              <h3 className="text-sm font-medium">
-                {language === "es" ? "Información Laboral" : "Employment Information"}
-              </h3>
+            {/* Employment Information Card */}
+            <Card>
+              <CardHeader className="space-y-1">
+                <div className="flex items-center gap-2">
+                  <Briefcase className="h-5 w-5 text-muted-foreground" />
+                  <CardTitle className="text-base">
+                    {language === "es" ? "Información Laboral" : "Employment Information"}
+                  </CardTitle>
+                </div>
+                <CardDescription>
+                  {language === "es" ? "Datos de empleo y capacidad económica" : "Employment and economic capacity"}
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <FormField
                   control={form.control}
@@ -327,13 +368,29 @@ export default function ExternalEditOfferDialog({ open, onOpenChange, offerToken
                   )}
                 />
               </div>
-            </div>
+              </CardContent>
+            </Card>
 
-            {/* Offer Details */}
-            <div className="space-y-4">
-              <h3 className="text-sm font-medium">
-                {language === "es" ? "Detalles de la Oferta" : "Offer Details"}
-              </h3>
+            {/* Offer Details Card */}
+            <Card>
+              <CardHeader className="space-y-1">
+                <div className="flex items-center gap-2">
+                  <FileText className="h-5 w-5 text-muted-foreground" />
+                  <CardTitle className="text-base">
+                    {language === "es" ? "Detalles de la Oferta" : "Offer Details"}
+                  </CardTitle>
+                </div>
+                <CardDescription>
+                  {language === "es" ? "Condiciones y términos de la oferta de renta" : "Rental offer terms and conditions"}
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-6">
+              {/* Rental Terms */}
+              <div>
+                <p className="text-sm font-medium mb-4 flex items-center gap-2">
+                  <DollarSign className="h-4 w-4" />
+                  {language === "es" ? "Condiciones Económicas" : "Economic Terms"}
+                </p>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <FormField
                   control={form.control}
@@ -407,6 +464,18 @@ export default function ExternalEditOfferDialog({ open, onOpenChange, offerToken
                     </FormItem>
                   )}
                 />
+              </div>
+              </div>
+
+              <Separator />
+
+              {/* Dates Section */}
+              <div>
+                <p className="text-sm font-medium mb-4 flex items-center gap-2">
+                  <Calendar className="h-4 w-4" />
+                  {language === "es" ? "Fechas" : "Dates"}
+                </p>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <FormField
                   control={form.control}
                   name="fechaIngreso"
@@ -433,6 +502,18 @@ export default function ExternalEditOfferDialog({ open, onOpenChange, offerToken
                     </FormItem>
                   )}
                 />
+                </div>
+              </div>
+
+              <Separator />
+
+              {/* Occupants Section */}
+              <div>
+                <p className="text-sm font-medium mb-4 flex items-center gap-2">
+                  <Users className="h-4 w-4" />
+                  {language === "es" ? "Ocupantes y Condiciones" : "Occupants and Conditions"}
+                </p>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <FormField
                   control={form.control}
                   name="numeroInquilinos"
@@ -495,7 +576,9 @@ export default function ExternalEditOfferDialog({ open, onOpenChange, offerToken
                   )}
                 />
               </div>
-            </div>
+              </div>
+              </CardContent>
+            </Card>
               </div>
             )}
 
