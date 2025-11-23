@@ -25528,10 +25528,29 @@ export async function registerRoutes(app: Express): Promise<Server> {
         sql`${completedFormsSubquery.ownerCompleted} = true`,
       ];
       
-      // NOTE: We do NOT filter out cancelled contracts - they should remain visible with a badge
-      // The frontend will show a "Cancelado" badge for contracts where cancelledAt is not null
+      // ⚠️ CRITICAL: SOFT DELETE PATTERN - DO NOT FILTER BY cancelledAt ⚠️
+      // 
+      // Cancelled contracts MUST remain visible in all status-filtered views
+      // with a "Cancelado" badge displayed alongside their status badge.
+      //
+      // Design pattern:
+      // - cancelledAt field: Orthogonal flag indicating cancellation (timestamp or null)
+      // - status field: Maintains original value (pending_validation, active, etc.)
+      // - Frontend: Shows BOTH status badge AND "Cancelado" badge when cancelledAt is set
+      //
+      // ❌ NEVER add: whereConditions.push(isNull(externalRentalContracts.cancelledAt))
+      // ❌ NEVER filter out cancelled contracts from any view
+      // ✅ ALWAYS show all contracts regardless of cancelledAt value
+      //
+      // This ensures:
+      // 1. Cancelled contracts remain visible in their original status category
+      // 2. Users can track what was cancelled and when
+      // 3. Audit trail is preserved
+      // 4. No data is lost or hidden
       
       // Filter by status if provided
+      // Note: Cancelled contracts retain their original status, so they will appear
+      // in the filtered results with a "Cancelado" badge
       if (status) {
         whereConditions.push(eq(externalRentalContracts.status, status as any));
       }
