@@ -125,7 +125,7 @@ export default function ExternalGenerateRentalFormLinkDialog({
 
   const generateTokenMutation = useMutation({
     mutationFn: async ({ unitId, clientId, ownerId, recipientType }: { unitId: string; clientId?: string; ownerId?: string; recipientType: "tenant" | "owner" }) => {
-      const response = await apiRequest("POST", "/api/external/rental-form-tokens", {
+      const response = await apiRequest("POST", "/api/rental-form-tokens", {
         externalUnitId: unitId,
         externalClientId: clientId,
         externalUnitOwnerId: ownerId,
