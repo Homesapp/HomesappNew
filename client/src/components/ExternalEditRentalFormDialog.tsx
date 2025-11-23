@@ -19,6 +19,7 @@ import {
   FormMessage,
 } from "@/components/ui/form";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Checkbox } from "@/components/ui/checkbox";
 
 interface ExternalEditRentalFormDialogProps {
   open: boolean;
@@ -26,95 +27,119 @@ interface ExternalEditRentalFormDialogProps {
   rentalFormToken: any;
 }
 
-const rentalFormEditSchema = z.object({
+// Schema for tenant forms
+const tenantFormEditSchema = z.object({
   fullName: z.string().min(2, "Nombre completo es requerido"),
-  email: z.string().email("Email inválido").optional(),
+  email: z.string().email("Email inválido").optional().or(z.literal("")),
   whatsapp: z.string().optional(),
   nationality: z.string().min(2, "Nacionalidad es requerida"),
-  age: z.coerce.number().min(18, "Edad mínima 18 años").optional().nullable(),
+  age: z.coerce.number().min(18, "Edad mínima 18 años").optional(),
   maritalStatus: z.string().optional(),
   timeInTulum: z.string().optional(),
   address: z.string().optional(),
-  birthDatePlace: z.string().optional(),
-  
   // Employment info
   jobPosition: z.string().optional(),
   companyName: z.string().optional(),
   workAddress: z.string().optional(),
   workPhone: z.string().optional(),
-  monthlyIncome: z.string().optional(),
-  
+  monthlyIncome: z.coerce.number().optional(),
   // Rental details
   desiredMoveInDate: z.string().optional(),
   desiredMoveOutDate: z.string().optional(),
-  numberOfOccupants: z.coerce.number().min(1).optional().nullable(),
-  hasPets: z.string().optional(),
-  hasVehicle: z.string().optional(),
+  numberOfOccupants: z.coerce.number().min(1).optional(),
+  hasPets: z.boolean().optional(),
+  hasVehicle: z.boolean().optional(),
 });
 
-type RentalFormEditValues = z.infer<typeof rentalFormEditSchema>;
+// Schema for owner forms
+const ownerFormEditSchema = z.object({
+  fullName: z.string().min(2, "Nombre completo es requerido"),
+  email: z.string().email("Email inválido").optional().or(z.literal("")),
+  whatsapp: z.string().optional(),
+  nationality: z.string().min(2, "Nacionalidad es requerida"),
+  age: z.coerce.number().min(18, "Edad mínima 18 años").optional(),
+  address: z.string().optional(),
+  // Owner-specific fields
+  bankName: z.string().optional(),
+  accountNumber: z.string().optional(),
+  clabe: z.string().optional(),
+  paymentPreference: z.string().optional(),
+  minimumRentalPeriod: z.string().optional(),
+  maximumOccupants: z.coerce.number().optional(),
+  petsAllowed: z.boolean().optional(),
+});
+
+type TenantFormEditValues = z.infer<typeof tenantFormEditSchema>;
+type OwnerFormEditValues = z.infer<typeof ownerFormEditSchema>;
 
 export default function ExternalEditRentalFormDialog({ open, onOpenChange, rentalFormToken }: ExternalEditRentalFormDialogProps) {
   const { toast } = useToast();
   const { language } = useLanguage();
+  const isOwnerForm = rentalFormToken?.recipientType === 'owner';
 
-  const form = useForm<RentalFormEditValues>({
-    resolver: zodResolver(rentalFormEditSchema),
-    defaultValues: {
-      fullName: "",
-      email: "",
-      whatsapp: "",
-      nationality: "",
-      age: undefined,
-      maritalStatus: "",
-      timeInTulum: "",
-      address: "",
-      birthDatePlace: "",
-      jobPosition: "",
-      companyName: "",
-      workAddress: "",
-      workPhone: "",
-      monthlyIncome: "",
-      desiredMoveInDate: "",
-      desiredMoveOutDate: "",
-      numberOfOccupants: undefined,
-      hasPets: "",
-      hasVehicle: "",
-    },
+  // Use appropriate schema based on form type
+  const tenantForm = useForm<TenantFormEditValues>({
+    resolver: zodResolver(tenantFormEditSchema),
+    defaultValues: {},
   });
+
+  const ownerForm = useForm<OwnerFormEditValues>({
+    resolver: zodResolver(ownerFormEditSchema),
+    defaultValues: {},
+  });
+
+  const form = isOwnerForm ? ownerForm : tenantForm;
 
   // Pre-fill form when dialog opens with data
   useEffect(() => {
     if (open && rentalFormToken?.tenantData) {
       const data = rentalFormToken.tenantData;
-      form.reset({
-        fullName: data.fullName || "",
-        email: data.email || "",
-        whatsapp: data.whatsapp || "",
-        nationality: data.nationality || "",
-        age: data.age || undefined,
-        maritalStatus: data.maritalStatus || "",
-        timeInTulum: data.timeInTulum || "",
-        address: data.address || "",
-        birthDatePlace: data.birthDatePlace || "",
-        jobPosition: data.jobPosition || "",
-        companyName: data.companyName || "",
-        workAddress: data.workAddress || "",
-        workPhone: data.workPhone || "",
-        monthlyIncome: data.monthlyIncome || "",
-        desiredMoveInDate: data.desiredMoveInDate || "",
-        desiredMoveOutDate: data.desiredMoveOutDate || "",
-        numberOfOccupants: data.numberOfOccupants || undefined,
-        hasPets: data.hasPets || "",
-        hasVehicle: data.hasVehicle || "",
-      });
+      
+      if (isOwnerForm) {
+        ownerForm.reset({
+          fullName: data.fullName || "",
+          email: data.email || "",
+          whatsapp: data.whatsapp || "",
+          nationality: data.nationality || "",
+          age: data.age || undefined,
+          address: data.address || "",
+          bankName: data.bankName || "",
+          accountNumber: data.accountNumber || "",
+          clabe: data.clabe || "",
+          paymentPreference: data.paymentPreference || "",
+          minimumRentalPeriod: data.minimumRentalPeriod || "",
+          maximumOccupants: data.maximumOccupants || undefined,
+          petsAllowed: data.petsAllowed || false,
+        });
+      } else {
+        tenantForm.reset({
+          fullName: data.fullName || "",
+          email: data.email || "",
+          whatsapp: data.whatsapp || "",
+          nationality: data.nationality || "",
+          age: data.age || undefined,
+          maritalStatus: data.maritalStatus || "",
+          timeInTulum: data.timeInTulum || "",
+          address: data.address || "",
+          jobPosition: data.jobPosition || "",
+          companyName: data.companyName || "",
+          workAddress: data.workAddress || "",
+          workPhone: data.workPhone || "",
+          monthlyIncome: data.monthlyIncome || undefined,
+          desiredMoveInDate: data.desiredMoveInDate || "",
+          desiredMoveOutDate: data.desiredMoveOutDate || "",
+          numberOfOccupants: data.numberOfOccupants || undefined,
+          hasPets: data.hasPets || false,
+          hasVehicle: data.hasVehicle || false,
+        });
+      }
     }
-  }, [open, rentalFormToken, form]);
+  }, [open, rentalFormToken, isOwnerForm, tenantForm, ownerForm]);
 
   const updateMutation = useMutation({
-    mutationFn: async (data: RentalFormEditValues) => {
+    mutationFn: async (data: TenantFormEditValues | OwnerFormEditValues) => {
       const response = await apiRequest("PATCH", `/api/external/rental-forms/${rentalFormToken.id}`, {
-        formData: data, // Backend will merge with existing data
+        formData: data,
       });
       return response;
     },
@@ -122,360 +147,418 @@ export default function ExternalEditRentalFormDialog({ open, onOpenChange, renta
       queryClient.invalidateQueries({ queryKey: ["/api/external/rental-form-tokens"] });
       toast({
         title: language === "es" ? "Formulario actualizado" : "Form updated",
-        description: language === "es" 
-          ? "El formulario de renta ha sido actualizado correctamente" 
-          : "The rental form has been updated successfully",
+        description: language === "es" ? "Los cambios han sido guardados" : "Changes have been saved",
       });
       onOpenChange(false);
     },
     onError: (error: any) => {
       toast({
-        variant: "destructive",
         title: language === "es" ? "Error" : "Error",
-        description: error.message || (language === "es" ? "No se pudo actualizar el formulario" : "Could not update form"),
+        description: error.message || (language === "es" ? "No se pudo actualizar" : "Could not update"),
+        variant: "destructive",
       });
     },
   });
 
-  const onSubmit = (data: RentalFormEditValues) => {
+  const onSubmit = (data: TenantFormEditValues | OwnerFormEditValues) => {
     updateMutation.mutate(data);
   };
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
+      <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>
-            {language === "es" ? "Editar Formulario de Renta" : "Edit Rental Form"}
+            {language === "es" 
+              ? `Editar Formulario de ${isOwnerForm ? 'Propietario' : 'Inquilino'}`
+              : `Edit ${isOwnerForm ? 'Owner' : 'Tenant'} Form`
+            }
           </DialogTitle>
         </DialogHeader>
 
         <Form {...form}>
-          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
-            {/* Personal Information */}
-            <div className="space-y-4">
-              <h3 className="text-lg font-semibold">
-                {language === "es" ? "Información Personal" : "Personal Information"}
-              </h3>
-              
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <FormField
-                  control={form.control}
-                  name="fullName"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>{language === "es" ? "Nombre Completo" : "Full Name"}</FormLabel>
-                      <FormControl>
-                        <Input {...field} data-testid="input-fullName" />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
+          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+            {/* Common fields */}
+            <div className="grid grid-cols-2 gap-4">
+              <FormField
+                control={form.control}
+                name="fullName"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>{language === "es" ? "Nombre Completo" : "Full Name"}</FormLabel>
+                    <FormControl>
+                      <Input {...field} data-testid="input-fullName" />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
 
-                <FormField
-                  control={form.control}
-                  name="email"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Email</FormLabel>
-                      <FormControl>
-                        <Input {...field} type="email" data-testid="input-email" />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
+              <FormField
+                control={form.control}
+                name="email"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>{language === "es" ? "Email" : "Email"}</FormLabel>
+                    <FormControl>
+                      <Input {...field} type="email" data-testid="input-email" />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
 
-                <FormField
-                  control={form.control}
-                  name="whatsapp"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>WhatsApp</FormLabel>
-                      <FormControl>
-                        <Input {...field} data-testid="input-whatsapp" />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
+              <FormField
+                control={form.control}
+                name="whatsapp"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>WhatsApp</FormLabel>
+                    <FormControl>
+                      <Input {...field} data-testid="input-whatsapp" />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
 
-                <FormField
-                  control={form.control}
-                  name="nationality"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>{language === "es" ? "Nacionalidad" : "Nationality"}</FormLabel>
-                      <FormControl>
-                        <Input {...field} data-testid="input-nationality" />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
+              <FormField
+                control={form.control}
+                name="nationality"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>{language === "es" ? "Nacionalidad" : "Nationality"}</FormLabel>
+                    <FormControl>
+                      <Input {...field} data-testid="input-nationality" />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
 
-                <FormField
-                  control={form.control}
-                  name="age"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>{language === "es" ? "Edad" : "Age"}</FormLabel>
-                      <FormControl>
-                        <Input 
-                          {...field} 
-                          type="number" 
-                          value={field.value || ""} 
-                          onChange={(e) => field.onChange(e.target.value ? Number(e.target.value) : undefined)}
-                          data-testid="input-age" 
-                        />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
+              <FormField
+                control={form.control}
+                name="age"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>{language === "es" ? "Edad" : "Age"}</FormLabel>
+                    <FormControl>
+                      <Input 
+                        {...field} 
+                        type="number" 
+                        value={field.value || ""} 
+                        onChange={(e) => field.onChange(e.target.value === "" ? undefined : parseInt(e.target.value))}
+                        data-testid="input-age" 
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
 
-                <FormField
-                  control={form.control}
-                  name="maritalStatus"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>{language === "es" ? "Estado Civil" : "Marital Status"}</FormLabel>
-                      <FormControl>
-                        <Input {...field} data-testid="input-maritalStatus" />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-
-                <FormField
-                  control={form.control}
-                  name="timeInTulum"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>{language === "es" ? "Tiempo en Tulum" : "Time in Tulum"}</FormLabel>
-                      <FormControl>
-                        <Input {...field} data-testid="input-timeInTulum" />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-
-                <FormField
-                  control={form.control}
-                  name="address"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>{language === "es" ? "Dirección Actual" : "Current Address"}</FormLabel>
-                      <FormControl>
-                        <Input {...field} data-testid="input-address" />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-              </div>
+              <FormField
+                control={form.control}
+                name="address"
+                render={({ field }) => (
+                  <FormItem className="col-span-2">
+                    <FormLabel>{language === "es" ? "Dirección" : "Address"}</FormLabel>
+                    <FormControl>
+                      <Input {...field} data-testid="input-address" />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
             </div>
 
-            {/* Employment Information */}
-            <div className="space-y-4">
-              <h3 className="text-lg font-semibold">
-                {language === "es" ? "Información Laboral" : "Employment Information"}
-              </h3>
-
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <FormField
-                  control={form.control}
-                  name="jobPosition"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>{language === "es" ? "Puesto/Giro" : "Position"}</FormLabel>
-                      <FormControl>
-                        <Input {...field} data-testid="input-jobPosition" />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-
-                <FormField
-                  control={form.control}
-                  name="companyName"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>{language === "es" ? "Empresa donde trabaja" : "Company Name"}</FormLabel>
-                      <FormControl>
-                        <Input {...field} data-testid="input-companyName" />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-
-                <FormField
-                  control={form.control}
-                  name="workAddress"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>{language === "es" ? "Domicilio de trabajo" : "Work Address"}</FormLabel>
-                      <FormControl>
-                        <Input {...field} data-testid="input-workAddress" />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-
-                <FormField
-                  control={form.control}
-                  name="workPhone"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>{language === "es" ? "Teléfono de trabajo" : "Work Phone"}</FormLabel>
-                      <FormControl>
-                        <Input {...field} data-testid="input-workPhone" />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-
-                <FormField
-                  control={form.control}
-                  name="monthlyIncome"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>{language === "es" ? "Ingreso mensual" : "Monthly Income"}</FormLabel>
-                      <FormControl>
-                        <Input {...field} data-testid="input-monthlyIncome" />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-              </div>
-            </div>
-
-            {/* Rental Details */}
-            <div className="space-y-4">
-              <h3 className="text-lg font-semibold">
-                {language === "es" ? "Detalles de Renta" : "Rental Details"}
-              </h3>
-
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <FormField
-                  control={form.control}
-                  name="desiredMoveInDate"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>{language === "es" ? "Fecha de ingreso" : "Move-in Date"}</FormLabel>
-                      <FormControl>
-                        <Input {...field} type="date" data-testid="input-desiredMoveInDate" />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-
-                <FormField
-                  control={form.control}
-                  name="desiredMoveOutDate"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>{language === "es" ? "Fecha de salida" : "Move-out Date"}</FormLabel>
-                      <FormControl>
-                        <Input {...field} type="date" data-testid="input-desiredMoveOutDate" />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-
-                <FormField
-                  control={form.control}
-                  name="numberOfOccupants"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>{language === "es" ? "Número de ocupantes" : "Number of Occupants"}</FormLabel>
-                      <FormControl>
-                        <Input 
-                          {...field} 
-                          type="number" 
-                          value={field.value || ""} 
-                          onChange={(e) => field.onChange(e.target.value ? Number(e.target.value) : undefined)}
-                          data-testid="input-numberOfOccupants" 
-                        />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-
-                <FormField
-                  control={form.control}
-                  name="hasPets"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>{language === "es" ? "¿Tiene mascotas?" : "Has Pets?"}</FormLabel>
-                      <Select onValueChange={field.onChange} value={field.value}>
+            {/* Tenant-specific fields */}
+            {!isOwnerForm && (
+              <>
+                <h3 className="text-sm font-medium mt-4">
+                  {language === "es" ? "Información de Empleo" : "Employment Information"}
+                </h3>
+                <div className="grid grid-cols-2 gap-4">
+                  <FormField
+                    control={tenantForm.control}
+                    name="jobPosition"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>{language === "es" ? "Puesto" : "Position"}</FormLabel>
                         <FormControl>
-                          <SelectTrigger data-testid="select-hasPets">
-                            <SelectValue placeholder={language === "es" ? "Seleccionar" : "Select"} />
-                          </SelectTrigger>
+                          <Input {...field} data-testid="input-jobPosition" />
                         </FormControl>
-                        <SelectContent>
-                          <SelectItem value="yes">{language === "es" ? "Sí" : "Yes"}</SelectItem>
-                          <SelectItem value="no">No</SelectItem>
-                        </SelectContent>
-                      </Select>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
 
-                <FormField
-                  control={form.control}
-                  name="hasVehicle"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>{language === "es" ? "¿Tiene vehículo?" : "Has Vehicle?"}</FormLabel>
-                      <Select onValueChange={field.onChange} value={field.value}>
+                  <FormField
+                    control={tenantForm.control}
+                    name="companyName"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>{language === "es" ? "Empresa" : "Company"}</FormLabel>
                         <FormControl>
-                          <SelectTrigger data-testid="select-hasVehicle">
-                            <SelectValue placeholder={language === "es" ? "Seleccionar" : "Select"} />
-                          </SelectTrigger>
+                          <Input {...field} data-testid="input-companyName" />
                         </FormControl>
-                        <SelectContent>
-                          <SelectItem value="yes">{language === "es" ? "Sí" : "Yes"}</SelectItem>
-                          <SelectItem value="no">No</SelectItem>
-                        </SelectContent>
-                      </Select>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-              </div>
-            </div>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
 
-            <div className="flex justify-end gap-2">
-              <Button 
-                type="button" 
-                variant="outline" 
+                  <FormField
+                    control={tenantForm.control}
+                    name="monthlyIncome"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>{language === "es" ? "Ingreso Mensual" : "Monthly Income"}</FormLabel>
+                        <FormControl>
+                          <Input 
+                            {...field} 
+                            type="number"
+                            value={field.value || ""} 
+                            onChange={(e) => field.onChange(e.target.value === "" ? undefined : parseFloat(e.target.value))}
+                            data-testid="input-monthlyIncome" 
+                          />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                </div>
+
+                <h3 className="text-sm font-medium mt-4">
+                  {language === "es" ? "Detalles de Renta" : "Rental Details"}
+                </h3>
+                <div className="grid grid-cols-2 gap-4">
+                  <FormField
+                    control={tenantForm.control}
+                    name="desiredMoveInDate"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>{language === "es" ? "Fecha de Entrada" : "Move-in Date"}</FormLabel>
+                        <FormControl>
+                          <Input {...field} type="date" data-testid="input-desiredMoveInDate" />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+
+                  <FormField
+                    control={tenantForm.control}
+                    name="desiredMoveOutDate"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>{language === "es" ? "Fecha de Salida" : "Move-out Date"}</FormLabel>
+                        <FormControl>
+                          <Input {...field} type="date" data-testid="input-desiredMoveOutDate" />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+
+                  <FormField
+                    control={tenantForm.control}
+                    name="numberOfOccupants"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>{language === "es" ? "# Ocupantes" : "# Occupants"}</FormLabel>
+                        <FormControl>
+                          <Input 
+                            {...field} 
+                            type="number"
+                            value={field.value || ""} 
+                            onChange={(e) => field.onChange(e.target.value === "" ? undefined : parseInt(e.target.value))}
+                            data-testid="input-numberOfOccupants" 
+                          />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+
+                  <FormField
+                    control={tenantForm.control}
+                    name="hasPets"
+                    render={({ field }) => (
+                      <FormItem className="flex flex-row items-center space-x-3 space-y-0">
+                        <FormControl>
+                          <Checkbox
+                            checked={field.value}
+                            onCheckedChange={field.onChange}
+                            data-testid="checkbox-hasPets"
+                          />
+                        </FormControl>
+                        <FormLabel className="font-normal">
+                          {language === "es" ? "Tiene Mascotas" : "Has Pets"}
+                        </FormLabel>
+                      </FormItem>
+                    )}
+                  />
+
+                  <FormField
+                    control={tenantForm.control}
+                    name="hasVehicle"
+                    render={({ field }) => (
+                      <FormItem className="flex flex-row items-center space-x-3 space-y-0">
+                        <FormControl>
+                          <Checkbox
+                            checked={field.value}
+                            onCheckedChange={field.onChange}
+                            data-testid="checkbox-hasVehicle"
+                          />
+                        </FormControl>
+                        <FormLabel className="font-normal">
+                          {language === "es" ? "Tiene Vehículo" : "Has Vehicle"}
+                        </FormLabel>
+                      </FormItem>
+                    )}
+                  />
+                </div>
+              </>
+            )}
+
+            {/* Owner-specific fields */}
+            {isOwnerForm && (
+              <>
+                <h3 className="text-sm font-medium mt-4">
+                  {language === "es" ? "Información Bancaria" : "Banking Information"}
+                </h3>
+                <div className="grid grid-cols-2 gap-4">
+                  <FormField
+                    control={ownerForm.control}
+                    name="bankName"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>{language === "es" ? "Banco" : "Bank"}</FormLabel>
+                        <FormControl>
+                          <Input {...field} data-testid="input-bankName" />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+
+                  <FormField
+                    control={ownerForm.control}
+                    name="accountNumber"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>{language === "es" ? "Número de Cuenta" : "Account Number"}</FormLabel>
+                        <FormControl>
+                          <Input {...field} data-testid="input-accountNumber" />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+
+                  <FormField
+                    control={ownerForm.control}
+                    name="clabe"
+                    render={({ field }) => (
+                      <FormItem className="col-span-2">
+                        <FormLabel>CLABE</FormLabel>
+                        <FormControl>
+                          <Input {...field} data-testid="input-clabe" />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+
+                  <FormField
+                    control={ownerForm.control}
+                    name="paymentPreference"
+                    render={({ field }) => (
+                      <FormItem className="col-span-2">
+                        <FormLabel>{language === "es" ? "Preferencia de Pago" : "Payment Preference"}</FormLabel>
+                        <FormControl>
+                          <Input {...field} data-testid="input-paymentPreference" />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                </div>
+
+                <h3 className="text-sm font-medium mt-4">
+                  {language === "es" ? "Preferencias de Propiedad" : "Property Preferences"}
+                </h3>
+                <div className="grid grid-cols-2 gap-4">
+                  <FormField
+                    control={ownerForm.control}
+                    name="minimumRentalPeriod"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>{language === "es" ? "Periodo Mínimo" : "Minimum Period"}</FormLabel>
+                        <FormControl>
+                          <Input {...field} data-testid="input-minimumRentalPeriod" />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+
+                  <FormField
+                    control={ownerForm.control}
+                    name="maximumOccupants"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>{language === "es" ? "Máximo Ocupantes" : "Maximum Occupants"}</FormLabel>
+                        <FormControl>
+                          <Input 
+                            {...field} 
+                            type="number"
+                            value={field.value || ""} 
+                            onChange={(e) => field.onChange(e.target.value === "" ? undefined : parseInt(e.target.value))}
+                            data-testid="input-maximumOccupants" 
+                          />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+
+                  <FormField
+                    control={ownerForm.control}
+                    name="petsAllowed"
+                    render={({ field }) => (
+                      <FormItem className="flex flex-row items-center space-x-3 space-y-0 col-span-2">
+                        <FormControl>
+                          <Checkbox
+                            checked={field.value}
+                            onCheckedChange={field.onChange}
+                            data-testid="checkbox-petsAllowed"
+                          />
+                        </FormControl>
+                        <FormLabel className="font-normal">
+                          {language === "es" ? "Mascotas Permitidas" : "Pets Allowed"}
+                        </FormLabel>
+                      </FormItem>
+                    )}
+                  />
+                </div>
+              </>
+            )}
+
+            <div className="flex justify-end gap-2 pt-4">
+              <Button
+                type="button"
+                variant="outline"
                 onClick={() => onOpenChange(false)}
+                disabled={updateMutation.isPending}
                 data-testid="button-cancel"
               >
                 {language === "es" ? "Cancelar" : "Cancel"}
               </Button>
-              <Button 
-                type="submit" 
-                disabled={updateMutation.isPending}
-                data-testid="button-submit"
-              >
+              <Button type="submit" disabled={updateMutation.isPending} data-testid="button-submit">
                 {updateMutation.isPending 
-                  ? (language === "es" ? "Guardando..." : "Saving...") 
-                  : (language === "es" ? "Guardar Cambios" : "Save Changes")}
+                  ? (language === "es" ? "Guardando..." : "Saving...")
+                  : (language === "es" ? "Guardar Cambios" : "Save Changes")
+                }
               </Button>
             </div>
           </form>

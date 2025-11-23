@@ -24595,6 +24595,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           
           return {
             ...token,
+            agencyId, // Include agencyId for ownership verification in PDFs
             unit,
             creator,
             client,
@@ -24640,6 +24641,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (rentalFormToken.externalUnitId) {
         const unit = await storage.getExternalUnit(rentalFormToken.externalUnitId);
         if (!unit || unit.agencyId !== agencyId) {
+          return res.status(403).json({ message: "Unauthorized" });
+        }
+      } else if (rentalFormToken.externalUnitOwnerId) {
+        // For owner forms, verify via owner's agency
+        const owner = await storage.getExternalUnitOwner(rentalFormToken.externalUnitOwnerId);
+        if (!owner || owner.agencyId !== agencyId) {
           return res.status(403).json({ message: "Unauthorized" });
         }
       } else {
@@ -24726,26 +24733,75 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ message: "Solo se pueden editar formularios completados" });
       }
 
-      // Basic validation schema for common fields (works for both tenant and owner)
-      const commonFieldsSchema = z.object({
+      // Define validation schemas for tenant and owner forms
+      const tenantFieldsSchema = z.object({
+        fullName: z.string().optional(),
+        email: z.string().email().optional().or(z.literal("")),
+        whatsapp: z.string().optional(),
+        nationality: z.string().optional(),
+        age: z.number().optional(),
+        maritalStatus: z.string().optional(),
+        timeInTulum: z.string().optional(),
+        address: z.string().optional(),
+        // Employment fields
+        jobPosition: z.string().optional(),
+        companyName: z.string().optional(),
+        workAddress: z.string().optional(),
+        workPhone: z.string().optional(),
+        monthlyIncome: z.number().optional(),
+        // Rental preferences
+        desiredMoveInDate: z.string().optional(),
+        desiredMoveOutDate: z.string().optional(),
+        numberOfOccupants: z.number().optional(),
+        hasPets: z.boolean().optional(),
+        hasVehicle: z.boolean().optional(),
+      }).passthrough();
+
+      const ownerFieldsSchema = z.object({
         fullName: z.string().optional(),
         email: z.string().email().optional().or(z.literal("")),
         whatsapp: z.string().optional(),
         nationality: z.string().optional(),
         age: z.number().optional(),
         address: z.string().optional(),
-        // Allow any other fields to pass through for compatibility
+        // Owner-specific fields
+        bankName: z.string().optional(),
+        accountNumber: z.string().optional(),
+        clabe: z.string().optional(),
+        paymentPreference: z.string().optional(),
+        minimumRentalPeriod: z.string().optional(),
+        maximumOccupants: z.number().optional(),
+        petsAllowed: z.boolean().optional(),
       }).passthrough();
 
-      // Validate incoming data
-      const validatedData = commonFieldsSchema.parse(req.body.formData || {});
+      // Use appropriate schema based on recipientType
+      const schema = rentalFormToken.recipientType === 'owner' ? ownerFieldsSchema : tenantFieldsSchema;
+      const validatedData = schema.parse(req.body.formData || {});
+
+      // Deep merge function to preserve nested structures
+      const deepMerge = (target: any, source: any) => {
+        const output = { ...target };
+        for (const key in source) {
+          if (source[key] !== undefined && source[key] !== null) {
+            // Only update if source has a defined value
+            if (Array.isArray(source[key])) {
+              // For arrays, preserve existing if source is empty, otherwise replace
+              output[key] = source[key].length > 0 ? source[key] : (target[key] || []);
+            } else if (typeof source[key] === 'object' && !Array.isArray(source[key])) {
+              // For objects, deep merge
+              output[key] = deepMerge(target[key] || {}, source[key]);
+            } else {
+              // For primitives, use source value
+              output[key] = source[key];
+            }
+          }
+        }
+        return output;
+      };
 
       // Merge validated data with existing data to preserve all fields
       const currentData = rentalFormToken.tenantData || {};
-      const updatedData = {
-        ...currentData,
-        ...validatedData,
-      };
+      const updatedData = deepMerge(currentData, validatedData);
 
       // Update tenant data
       const [updated] = await db
