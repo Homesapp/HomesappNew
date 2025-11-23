@@ -327,6 +327,75 @@ export default function PublicOwnerForm() {
     },
   });
 
+  // Document upload mutation
+  const uploadDocumentMutation = useMutation({
+    mutationFn: async ({ files, documentType }: { files: FileList; documentType: string }) => {
+      const formData = new FormData();
+      Array.from(files).forEach((file) => {
+        formData.append('documents', file);
+      });
+      formData.append('documentType', documentType);
+
+      const response = await fetch(`/api/owner-rental-form-tokens/${token}/upload-documents`, {
+        method: 'POST',
+        body: formData,
+      });
+
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.message || 'Error al subir documentos');
+      }
+
+      return response.json();
+    },
+    onSuccess: (data, variables) => {
+      const { documentType } = variables;
+      const { urls } = data;
+      
+      // Update form values based on document type
+      if (documentType === 'idDocument') {
+        form.setValue('idDocumentUrl', urls[0]);
+      } else if (documentType === 'constitutiveAct') {
+        form.setValue('constitutiveActUrl', urls[0]);
+      } else if (documentType === 'propertyDocuments') {
+        const currentUrls = form.getValues('propertyDocumentsUrls') || [];
+        form.setValue('propertyDocumentsUrls', [...currentUrls, ...urls]);
+      } else if (documentType === 'serviceReceipts') {
+        const currentUrls = form.getValues('serviceReceiptsUrls') || [];
+        form.setValue('serviceReceiptsUrls', [...currentUrls, ...urls]);
+      } else if (documentType === 'noDebtProof') {
+        const currentUrls = form.getValues('noDebtProofUrls') || [];
+        form.setValue('noDebtProofUrls', [...currentUrls, ...urls]);
+      } else if (documentType === 'servicesFormat') {
+        form.setValue('servicesFormatUrl', urls[0]);
+      } else if (documentType === 'internalRules') {
+        form.setValue('internalRulesUrl', urls[0]);
+      } else if (documentType === 'condoRegulations') {
+        form.setValue('condoRegulationsUrl', urls[0]);
+      }
+
+      toast({
+        title: language === "es" ? "Documentos subidos" : "Documents uploaded",
+        description: language === "es" ? `${urls.length} documento(s) subido(s) exitosamente` : `${urls.length} document(s) uploaded successfully`,
+      });
+    },
+    onError: (error: Error) => {
+      toast({
+        title: language === "es" ? "Error al subir documentos" : "Error uploading documents",
+        description: error.message,
+        variant: "destructive",
+      });
+    },
+  });
+
+  const handleDocumentUpload = async (e: React.ChangeEvent<HTMLInputElement>, documentType: string) => {
+    if (!e.target.files || e.target.files.length === 0) return;
+    
+    uploadDocumentMutation.mutate({ files: e.target.files, documentType });
+    // Clear input for next upload
+    e.target.value = '';
+  };
+
   // Redirect if token validation fails
   useEffect(() => {
     if (validationError) {
@@ -794,19 +863,183 @@ export default function PublicOwnerForm() {
 
               {/* Step 4: Documents */}
               {currentStep === 4 && (
-                <div className="space-y-4">
+                <div className="space-y-6">
                   <h3 className="text-lg font-semibold flex items-center gap-2">
                     <Upload className="h-5 w-5" />
                     {text.step4}
                   </h3>
                   
-                  <div className="space-y-3">
+                  <div className="space-y-4">
                     <p className="text-sm text-muted-foreground">
                       {language === "es" 
-                        ? "La subida de documentos se implementará en la siguiente fase. Por ahora, puede continuar con el formulario."
-                        : "Document upload will be implemented in the next phase. For now, you can continue with the form."}
+                        ? "Por favor sube los documentos requeridos. Los campos marcados con * son obligatorios."
+                        : "Please upload the required documents. Fields marked with * are mandatory."}
                     </p>
-                    {/* Document upload will be implemented in task 6 */}
+
+                    {/* ID Document */}
+                    <div className="space-y-2">
+                      <Label htmlFor="idDocument">{text.idDocument} *</Label>
+                      <Input
+                        id="idDocument"
+                        type="file"
+                        accept=".pdf,.jpg,.jpeg,.png"
+                        onChange={(e) => handleDocumentUpload(e, 'idDocument')}
+                        disabled={uploadDocumentMutation.isPending}
+                        data-testid="input-idDocument"
+                      />
+                      {form.watch('idDocumentUrl') && (
+                        <p className="text-sm text-green-600">
+                          ✓ {language === "es" ? "Documento subido" : "Document uploaded"}
+                        </p>
+                      )}
+                    </div>
+
+                    {/* Constitutive Act */}
+                    <div className="space-y-2">
+                      <Label htmlFor="constitutiveAct">{text.constitutiveAct}</Label>
+                      <Input
+                        id="constitutiveAct"
+                        type="file"
+                        accept=".pdf,.jpg,.jpeg,.png"
+                        onChange={(e) => handleDocumentUpload(e, 'constitutiveAct')}
+                        disabled={uploadDocumentMutation.isPending}
+                        data-testid="input-constitutiveAct"
+                      />
+                      {form.watch('constitutiveActUrl') && (
+                        <p className="text-sm text-green-600">
+                          ✓ {language === "es" ? "Documento subido" : "Document uploaded"}
+                        </p>
+                      )}
+                      <p className="text-xs text-muted-foreground">
+                        {language === "es" 
+                          ? "Solo para personas morales" 
+                          : "Only for legal entities"}
+                      </p>
+                    </div>
+
+                    {/* Property Documents */}
+                    <div className="space-y-2">
+                      <Label htmlFor="propertyDocuments">
+                        {language === "es" ? "Documentos de la Propiedad" : "Property Documents"}
+                      </Label>
+                      <Input
+                        id="propertyDocuments"
+                        type="file"
+                        accept=".pdf,.jpg,.jpeg,.png"
+                        multiple
+                        onChange={(e) => handleDocumentUpload(e, 'propertyDocuments')}
+                        disabled={uploadDocumentMutation.isPending}
+                        data-testid="input-propertyDocuments"
+                      />
+                      {form.watch('propertyDocumentsUrls')?.length > 0 && (
+                        <p className="text-sm text-green-600">
+                          ✓ {form.watch('propertyDocumentsUrls').length} {language === "es" ? "documento(s) subido(s)" : "document(s) uploaded"}
+                        </p>
+                      )}
+                    </div>
+
+                    {/* Service Receipts */}
+                    <div className="space-y-2">
+                      <Label htmlFor="serviceReceipts">
+                        {language === "es" ? "Recibos de Servicios" : "Service Receipts"}
+                      </Label>
+                      <Input
+                        id="serviceReceipts"
+                        type="file"
+                        accept=".pdf,.jpg,.jpeg,.png"
+                        multiple
+                        onChange={(e) => handleDocumentUpload(e, 'serviceReceipts')}
+                        disabled={uploadDocumentMutation.isPending}
+                        data-testid="input-serviceReceipts"
+                      />
+                      {form.watch('serviceReceiptsUrls')?.length > 0 && (
+                        <p className="text-sm text-green-600">
+                          ✓ {form.watch('serviceReceiptsUrls').length} {language === "es" ? "documento(s) subido(s)" : "document(s) uploaded"}
+                        </p>
+                      )}
+                    </div>
+
+                    {/* No Debt Proof */}
+                    <div className="space-y-2">
+                      <Label htmlFor="noDebtProof">
+                        {language === "es" ? "Comprobante de No Adeudo" : "No Debt Proof"}
+                      </Label>
+                      <Input
+                        id="noDebtProof"
+                        type="file"
+                        accept=".pdf,.jpg,.jpeg,.png"
+                        multiple
+                        onChange={(e) => handleDocumentUpload(e, 'noDebtProof')}
+                        disabled={uploadDocumentMutation.isPending}
+                        data-testid="input-noDebtProof"
+                      />
+                      {form.watch('noDebtProofUrls')?.length > 0 && (
+                        <p className="text-sm text-green-600">
+                          ✓ {form.watch('noDebtProofUrls').length} {language === "es" ? "documento(s) subido(s)" : "document(s) uploaded"}
+                        </p>
+                      )}
+                    </div>
+
+                    {/* Services Format */}
+                    <div className="space-y-2">
+                      <Label htmlFor="servicesFormat">{text.servicesFormat}</Label>
+                      <Input
+                        id="servicesFormat"
+                        type="file"
+                        accept=".pdf,.jpg,.jpeg,.png"
+                        onChange={(e) => handleDocumentUpload(e, 'servicesFormat')}
+                        disabled={uploadDocumentMutation.isPending}
+                        data-testid="input-servicesFormat"
+                      />
+                      {form.watch('servicesFormatUrl') && (
+                        <p className="text-sm text-green-600">
+                          ✓ {language === "es" ? "Documento subido" : "Document uploaded"}
+                        </p>
+                      )}
+                    </div>
+
+                    {/* Internal Rules */}
+                    <div className="space-y-2">
+                      <Label htmlFor="internalRules">{text.internalRules}</Label>
+                      <Input
+                        id="internalRules"
+                        type="file"
+                        accept=".pdf,.jpg,.jpeg,.png"
+                        onChange={(e) => handleDocumentUpload(e, 'internalRules')}
+                        disabled={uploadDocumentMutation.isPending}
+                        data-testid="input-internalRules"
+                      />
+                      {form.watch('internalRulesUrl') && (
+                        <p className="text-sm text-green-600">
+                          ✓ {language === "es" ? "Documento subido" : "Document uploaded"}
+                        </p>
+                      )}
+                    </div>
+
+                    {/* Condo Regulations */}
+                    <div className="space-y-2">
+                      <Label htmlFor="condoRegulations">{text.condoRegulations}</Label>
+                      <Input
+                        id="condoRegulations"
+                        type="file"
+                        accept=".pdf,.jpg,.jpeg,.png"
+                        onChange={(e) => handleDocumentUpload(e, 'condoRegulations')}
+                        disabled={uploadDocumentMutation.isPending}
+                        data-testid="input-condoRegulations"
+                      />
+                      {form.watch('condoRegulationsUrl') && (
+                        <p className="text-sm text-green-600">
+                          ✓ {language === "es" ? "Documento subido" : "Document uploaded"}
+                        </p>
+                      )}
+                    </div>
+
+                    {uploadDocumentMutation.isPending && (
+                      <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                        {language === "es" ? "Subiendo documentos..." : "Uploading documents..."}
+                      </div>
+                    )}
                   </div>
                 </div>
               )}
