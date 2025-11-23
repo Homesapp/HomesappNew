@@ -24018,9 +24018,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
           let unit = null;
           let creator = null;
           let client = null;
+          let condominium = null;
           
           if (token.externalUnitId) {
             unit = await storage.getExternalUnit(token.externalUnitId);
+            if (unit?.condominiumId) {
+              condominium = await storage.getExternalCondominium(unit.condominiumId);
+            }
           }
           if (token.createdBy) {
             creator = await storage.getUser(token.createdBy);
@@ -24029,11 +24033,22 @@ export async function registerRoutes(app: Express): Promise<Server> {
             client = await storage.getExternalClient(token.externalClientId);
           }
           
+          // Build display strings for UI
+          const clientName = client 
+            ? `${client.firstName} ${client.lastName}`.trim()
+            : null;
+          
+          const propertyTitle = unit && condominium
+            ? `${condominium.name} - ${unit.unitNumber}`
+            : null;
+          
           return {
             ...token,
             unit,
             creator,
             client,
+            clientName,
+            propertyTitle,
           };
         })
       );
