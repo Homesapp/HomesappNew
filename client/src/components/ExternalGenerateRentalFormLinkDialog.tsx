@@ -56,6 +56,7 @@ export default function ExternalGenerateRentalFormLinkDialog({
   const { language } = useLanguage();
   const { user } = useAuth();
   const agencyId = user?.externalAgencyId;
+  const [recipientType, setRecipientType] = useState<"tenant" | "owner">("tenant");
   const [selectedUnitId, setSelectedUnitId] = useState<string>("");
   const [selectedClientId, setSelectedClientId] = useState<string>(clientId?.toString() || "");
   const [generatedToken, setGeneratedToken] = useState<any>(null);
@@ -83,10 +84,11 @@ export default function ExternalGenerateRentalFormLinkDialog({
   });
 
   const generateTokenMutation = useMutation({
-    mutationFn: async ({ unitId, clientId }: { unitId: string; clientId: string }) => {
+    mutationFn: async ({ unitId, clientId, recipientType }: { unitId: string; clientId: string; recipientType: "tenant" | "owner" }) => {
       const response = await apiRequest("POST", "/api/rental-form-tokens", {
         externalUnitId: unitId,
         externalClientId: clientId,
+        recipientType: recipientType,
       });
       return response.json();
     },
@@ -153,7 +155,7 @@ export default function ExternalGenerateRentalFormLinkDialog({
       });
       return;
     }
-    generateTokenMutation.mutate({ unitId: selectedUnitId, clientId: selectedClientId });
+    generateTokenMutation.mutate({ unitId: selectedUnitId, clientId: selectedClientId, recipientType });
   };
 
   const getFormLink = () => {
@@ -258,10 +260,43 @@ Need help? I'm available for any questions! 😊`;
 
         {!generatedToken ? (
           <div className="space-y-4">
+            <div>
+              <Label htmlFor="recipientType">
+                {language === "es" ? "Tipo de Formulario" : "Form Type"}
+              </Label>
+              <Select
+                value={recipientType}
+                onValueChange={(value: "tenant" | "owner") => setRecipientType(value)}
+              >
+                <SelectTrigger data-testid="select-recipient-type">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="tenant">
+                    {language === "es" ? "Inquilino (Arrendatario)" : "Tenant"}
+                  </SelectItem>
+                  <SelectItem value="owner">
+                    {language === "es" ? "Propietario (Arrendador)" : "Owner (Landlord)"}
+                  </SelectItem>
+                </SelectContent>
+              </Select>
+              <p className="text-xs text-muted-foreground mt-1">
+                {recipientType === "tenant" 
+                  ? (language === "es" 
+                      ? "El inquilino completará sus datos personales, laborales y referencias." 
+                      : "The tenant will complete their personal, employment, and reference information.")
+                  : (language === "es"
+                      ? "El propietario completará datos de la propiedad, bancarios y subirá documentos."
+                      : "The owner will complete property data, banking info, and upload documents.")}
+              </p>
+            </div>
+
             {!clientId && (
               <div>
                 <Label htmlFor="client">
-                  {language === "es" ? "Selecciona el Cliente" : "Select Client"}
+                  {recipientType === "tenant"
+                    ? (language === "es" ? "Selecciona el Inquilino" : "Select Tenant")
+                    : (language === "es" ? "Selecciona el Propietario" : "Select Owner")}
                 </Label>
                 <Select
                   value={selectedClientId}

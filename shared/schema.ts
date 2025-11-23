@@ -4634,13 +4634,16 @@ export const offerTokensRelations = relations(offerTokens, ({ one }) => ({
   }),
 }));
 
-// Tenant Rental Form Tokens table - Links temporales para completar formato de renta de inquilino (soporta sistema interno y externo)
+// Tenant Rental Form Tokens table - Links temporales para completar formato de renta de inquilino/propietario (soporta sistema interno y externo)
 export const tenantRentalFormTokens = pgTable("tenant_rental_form_tokens", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   token: varchar("token").notNull().unique(),
+  recipientType: varchar("recipient_type", { length: 20 }).notNull().default('tenant'), // 'tenant' o 'owner'
+  rentalFormGroupId: varchar("rental_form_group_id"), // ID para vincular tokens de tenant + owner de la misma renta
   propertyId: varchar("property_id").references(() => properties.id, { onDelete: "cascade" }), // Para sistema interno
   externalUnitId: varchar("external_unit_id").references(() => externalUnits.id, { onDelete: "cascade" }), // Para sistema externo
   externalClientId: varchar("external_client_id").references(() => externalClients.id, { onDelete: "cascade" }), // Cliente externo (opcional)
+  externalUnitOwnerId: varchar("external_unit_owner_id"), // Owner externo (para recipient_type='owner') - referencia se agregará después
   leadId: varchar("lead_id").references(() => leads.id, { onDelete: "set null" }),
   createdBy: varchar("created_by").notNull().references(() => users.id, { onDelete: "cascade" }),
   expiresAt: timestamp("expires_at").notNull(),
@@ -4764,6 +4767,80 @@ export const insertTenantRentalFormSchema = createInsertSchema(tenantRentalForms
 
 export type InsertTenantRentalForm = z.infer<typeof insertTenantRentalFormSchema>;
 export type TenantRentalForm = typeof tenantRentalForms.$inferSelect;
+
+// Owner Rental Form Data table - Formularios de renta de propietario completados (para sistema externo)
+export const ownerRentalFormData = pgTable("owner_rental_form_data", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  tokenId: varchar("token_id").notNull().references(() => tenantRentalFormTokens.id, { onDelete: "cascade" }),
+  externalUnitId: varchar("external_unit_id").references(() => externalUnits.id, { onDelete: "cascade" }),
+  externalUnitOwnerId: varchar("external_unit_owner_id"), // Referencia se agregará después de que externalUnitOwners esté definido
+  rentalFormGroupId: varchar("rental_form_group_id"), // Vincula con el token del inquilino
+  
+  // Datos Generales del Arrendador
+  fullName: text("full_name").notNull(),
+  nationality: varchar("nationality"),
+  phoneNumber: varchar("phone_number"),
+  whatsappNumber: varchar("whatsapp_number"),
+  email: varchar("email").notNull(),
+  subleasingAllowed: boolean("subleasing_allowed").default(false),
+  
+  // Datos de la Propiedad
+  propertyAddress: text("property_address"),
+  subdivision: varchar("subdivision"), // Fraccionamiento
+  unitNumber: varchar("unit_number"),
+  agreedRent: decimal("agreed_rent", { precision: 12, scale: 2 }),
+  agreedDeposit: decimal("agreed_deposit", { precision: 12, scale: 2 }),
+  moveInDate: timestamp("move_in_date", { mode: 'date' }),
+  contractDuration: varchar("contract_duration"),
+  servicesIncluded: text("services_included").array(),
+  servicesNotIncluded: text("services_not_included").array(),
+  petsAllowed: boolean("pets_allowed").default(false),
+  specialNotes: text("special_notes"),
+  
+  // Datos Bancarios
+  bankName: varchar("bank_name"),
+  interbankCode: varchar("interbank_code"), // CLABE
+  accountOrCardNumber: varchar("account_or_card_number"),
+  accountHolderName: varchar("account_holder_name"),
+  swiftCode: varchar("swift_code"),
+  bankAddress: text("bank_address"),
+  bankEmail: varchar("bank_email"),
+  
+  // Documentos subidos (URLs de archivos en object storage)
+  idDocumentUrl: text("id_document_url"), // INE/Pasaporte
+  constitutiveActUrl: text("constitutive_act_url"), // Acta constitutiva (empresas)
+  propertyDocumentsUrls: text("property_documents_urls").array(), // Escrituras, contrato, fideicomiso
+  serviceReceiptsUrls: text("service_receipts_urls").array(), // CAPA, CFE, Internet
+  noDebtProofUrls: text("no_debt_proof_urls").array(), // Comprobantes no adeudo
+  servicesFormatUrl: text("services_format_url"),
+  internalRulesUrl: text("internal_rules_url"),
+  condoRegulationsUrl: text("condo_regulations_url"),
+  
+  // Términos y Condiciones
+  acceptedTerms: boolean("accepted_terms").notNull().default(false),
+  digitalSignature: text("digital_signature"),
+  signedAt: timestamp("signed_at"),
+  
+  // Status y metadata
+  status: varchar("status").notNull().default("submitted"), // submitted, under_review, approved, rejected
+  reviewedBy: varchar("reviewed_by").references(() => users.id),
+  reviewedAt: timestamp("reviewed_at"),
+  reviewNotes: text("review_notes"),
+  
+  submittedAt: timestamp("submitted_at").defaultNow().notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
+export const insertOwnerRentalFormDataSchema = createInsertSchema(ownerRentalFormData).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+  submittedAt: true,
+});
+
+export type InsertOwnerRentalFormData = z.infer<typeof insertOwnerRentalFormDataSchema>;
+export type OwnerRentalFormData = typeof ownerRentalFormData.$inferSelect;
 
 // Owner Document Tokens table - Links privados para propietarios
 export const ownerDocumentTokens = pgTable("owner_document_tokens", {
