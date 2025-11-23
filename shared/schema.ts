@@ -57,6 +57,7 @@ export const userRoleEnum = pgEnum("user_role", [
   "external_agency_maintenance",
   "external_agency_staff",
   "external_agency_seller",
+  "tenant", // Inquilino con acceso al portal
 ]);
 
 export const userStatusEnum = pgEnum("user_status", [
