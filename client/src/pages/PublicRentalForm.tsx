@@ -108,6 +108,13 @@ export default function PublicRentalForm() {
     enabled: !!token,
   });
 
+  // Redirect to owner form if recipientType is 'owner'
+  useEffect(() => {
+    if (tokenData && tokenData.recipientType === 'owner') {
+      setLocation(`/public-owner-form/${token}`);
+    }
+  }, [tokenData, token, setLocation]);
+
   // Translation object
   const t = {
     es: {
