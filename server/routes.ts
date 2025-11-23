@@ -24025,7 +24025,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const { tokenId } = req.params;
       
       // Get the current token
-      const currentToken = await storage.getOfferToken(tokenId);
+      const [currentToken] = await db
+        .select()
+        .from(offerTokens)
+        .where(eq(offerTokens.id, tokenId))
+        .limit(1);
+        
       if (!currentToken) {
         return res.status(404).json({ message: "Token not found" });
       }
