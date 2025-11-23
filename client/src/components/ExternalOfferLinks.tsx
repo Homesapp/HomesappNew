@@ -34,6 +34,10 @@ export default function ExternalOfferLinks({ searchTerm, statusFilter, viewMode 
 
   const { data: offerTokens, isLoading } = useQuery({
     queryKey: ["/api/external/offer-tokens"],
+    queryFn: async () => {
+      const res = await apiRequest("GET", "/api/external/offer-tokens");
+      return res.json();
+    },
     staleTime: 0, // Consider data stale immediately
     refetchOnWindowFocus: true, // Refetch when user returns to the tab
     refetchInterval: 10000, // Auto-refresh every 10 seconds while tab is active

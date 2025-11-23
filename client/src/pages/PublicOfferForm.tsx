@@ -351,7 +351,9 @@ export default function PublicOfferForm() {
     queryKey: ["/api/offer-tokens", token, "validate"],
     queryFn: async () => {
       console.log("[PublicOfferForm] Fetching validation for token:", token);
-      const res = await fetch(`/api/offer-tokens/${token}/validate`);
+      const res = await fetch(`/api/offer-tokens/${token}/validate`, {
+        credentials: "include"
+      });
       console.log("[PublicOfferForm] Response status:", res.status);
       
       if (!res.ok) {

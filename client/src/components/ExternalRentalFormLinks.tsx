@@ -34,6 +34,10 @@ export default function ExternalRentalFormLinks({ searchTerm, statusFilter, view
 
   const { data: formTokens, isLoading } = useQuery({
     queryKey: ["/api/external/rental-form-tokens"],
+    queryFn: async () => {
+      const res = await apiRequest("GET", "/api/external/rental-form-tokens");
+      return res.json();
+    },
     staleTime: 0, // Consider data stale immediately
     refetchOnWindowFocus: true, // Refetch when user returns to the tab
     refetchInterval: 10000, // Auto-refresh every 10 seconds while tab is active
