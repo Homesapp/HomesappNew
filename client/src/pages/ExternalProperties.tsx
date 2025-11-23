@@ -135,11 +135,15 @@ export default function ExternalProperties() {
     createMutation.mutate(data);
   };
 
-  const filteredProperties = properties?.filter((property) => 
-    property.address.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    property.city.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    property.ownerName.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  const filteredProperties = properties?.filter((property) => {
+    const search = searchTerm.toLowerCase();
+    return (
+      property.address?.toLowerCase().includes(search) ||
+      property.city?.toLowerCase().includes(search) ||
+      property.ownerName?.toLowerCase().includes(search) ||
+      (property.ownerEmail || "").toLowerCase().includes(search)
+    );
+  });
 
   return (
     <div className="container mx-auto p-6 space-y-6">
