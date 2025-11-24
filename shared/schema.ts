@@ -5758,7 +5758,7 @@ export const insertExternalLeadRegistrationTokenSchema = createInsertSchema(exte
 
 // Schema simplificado para crear links desde el frontend (solo requiere registrationType)
 export const createLeadRegistrationLinkSchema = z.object({
-  registrationType: leadRegistrationTypeEnum("registration_type"),
+  registrationType: z.enum(["broker", "seller"]),
 });
 
 export type InsertExternalLeadRegistrationToken = z.infer<typeof insertExternalLeadRegistrationTokenSchema>;
