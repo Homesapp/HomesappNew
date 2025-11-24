@@ -24443,6 +24443,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Solo requiere registrationType del frontend
       const { registrationType } = createLeadRegistrationLinkSchema.parse(req.body);
       
+      // Obtener userId del usuario autenticado
+      const userId = req.user?.claims?.sub || req.user?.id;
+      if (!userId) {
+        return res.status(401).json({ message: "Unauthorized: User ID not found" });
+      }
+      
       // Obtener agencyId del usuario autenticado
       const agencyId = await getUserAgencyId(req);
       if (!agencyId) {
@@ -24468,7 +24474,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         agencyName: agency.name,
         registrationType,
         expiresAt,
-        createdBy: req.user.id,
+        createdBy: userId,
       });
       
       await createAuditLog(req, "create", "external_lead_registration_token", registrationToken.id, 
