@@ -954,6 +954,21 @@ export default function ExternalRentals() {
               );
               })}
             </div>
+            
+            {filteredRentals.length > 0 && (
+              <ExternalPaginationControls
+                currentPage={currentPage}
+                totalPages={totalPages}
+                itemsPerPage={itemsPerPage}
+                onPageChange={setCurrentPage}
+                onItemsPerPageChange={(value) => {
+                  setItemsPerPage(value);
+                  setCurrentPage(1);
+                }}
+                language={language}
+                testIdPrefix="cards-"
+              />
+            )}
             </>
           ) : (
             <>
