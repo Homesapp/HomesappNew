@@ -4,6 +4,15 @@
 HomesApp is a SaaS platform for intelligent real estate property management in Tulum, Quintana Roo. It streamlines property management tasks including scheduling, client interactions, service coordination, and offer processing. Key features include role-based access, Google Calendar integration, a service provider marketplace, and digital agreement management. The platform aims to lead the Tulum market through advanced commission systems, marketing automation, predictive analytics, and AI capabilities.
 
 ## Recent Changes
+**November 24, 2025**: Tenant/Guarantor Document Upload System Implemented
+- Added comprehensive document upload functionality to rental application forms
+- Supports 6 document types: tenant ID, proof of address, proof of income + guarantor ID, proof of address, proof of income
+- Backend: Created multer-based upload endpoint at `/api/rental-form-tokens/:token/upload-documents` with file validation (jpg/png/pdf/webp, 10MB limit)
+- Frontend: Enhanced step 8 of PublicRentalForm.tsx with complete upload UI including file selection, progress states, success indicators, and removal capability
+- Database: Modified tenant_rental_forms schema to make property_id nullable and added external_unit_id for external system support
+- Fixed critical bug: Form submission now correctly extracts and persists document URLs from frontend payload into database
+- Files stored in attached_assets/tenant_documents/ directory with token-based organization
+
 **November 24, 2025**: Maintenance Module UI/UX Improvements
 - Reorganized ExternalMaintenance.tsx layout: moved "Nuevo Ticket" button to header alongside title for better accessibility
 - Removed mobile-only restriction for view mode toggles - cards/table toggle now available on all devices
