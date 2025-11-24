@@ -842,7 +842,7 @@ export default function ExternalMaintenance() {
 
       {/* Tabs for Tickets and Quotations */}
       <Tabs defaultValue="tickets" className="w-full">
-        <TabsList className="grid w-full grid-cols-2">
+        <TabsList>
           <TabsTrigger value="tickets" data-testid="tab-tickets">
             {language === 'es' ? 'Tickets' : 'Tickets'}
           </TabsTrigger>
