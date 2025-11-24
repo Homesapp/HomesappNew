@@ -14541,6 +14541,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
         transformedData.guarantorAge = Math.floor(guarantorAge); // Ensure integer
       }
 
+      // Extract documents object before cleaning
+      const documents = transformedData.documents || {};
+      delete transformedData.documents; // Remove from transformedData to avoid nesting issues
+      
       // Filter out undefined values to prevent Drizzle/Postgres errors
       const cleanedData: any = {};
       for (const [key, value] of Object.entries(transformedData)) {
@@ -14549,12 +14553,34 @@ export async function registerRoutes(app: Express): Promise<Server> {
         }
       }
 
+      // Map document URLs to database fields
+      const documentFields: any = {};
+      if (documents.tenantIdDocument) {
+        documentFields.tenantIdDocument = documents.tenantIdDocument;
+      }
+      if (documents.tenantProofOfAddress) {
+        documentFields.tenantProofOfAddress = documents.tenantProofOfAddress;
+      }
+      if (documents.tenantProofOfIncome && documents.tenantProofOfIncome.length > 0) {
+        documentFields.tenantProofOfIncome = documents.tenantProofOfIncome;
+      }
+      if (documents.guarantorIdDocument) {
+        documentFields.guarantorIdDocument = documents.guarantorIdDocument;
+      }
+      if (documents.guarantorProofOfAddress) {
+        documentFields.guarantorProofOfAddress = documents.guarantorProofOfAddress;
+      }
+      if (documents.guarantorProofOfIncome && documents.guarantorProofOfIncome.length > 0) {
+        documentFields.guarantorProofOfIncome = documents.guarantorProofOfIncome;
+      }
+
       // Create tenant rental form
       // Use the correct property field depending on internal vs external system
       const rentalFormData: any = {
         tokenId: rentalFormToken.id,
         leadId: rentalFormToken.leadId,
         ...cleanedData,
+        ...documentFields, // Include document URLs
         status: 'pendiente',
       };
       

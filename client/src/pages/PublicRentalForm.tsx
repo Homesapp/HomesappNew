@@ -14,7 +14,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Progress } from "@/components/ui/progress";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
-import { Loader2, CheckCircle2, AlertCircle, Home, Building2 } from "lucide-react";
+import { Loader2, CheckCircle2, AlertCircle, Home, Building2, Upload, X, FileText } from "lucide-react";
 import { getPropertyTitle } from "@/lib/propertyHelpers";
 import { LanguageToggle } from "@/components/LanguageToggle";
 import { useLanguage } from "@/contexts/LanguageContext";
@@ -101,7 +101,29 @@ export default function PublicRentalForm() {
   const { language } = useLanguage();
   const [currentStep, setCurrentStep] = useState(1);
   const [submitted, setSubmitted] = useState(false);
-  const totalSteps = 8; // 8 steps without documents (will implement file upload separately)
+  const totalSteps = 8;
+
+  // Document upload states
+  const [tenantIdDocument, setTenantIdDocument] = useState<File | null>(null);
+  const [tenantIdDocumentUrl, setTenantIdDocumentUrl] = useState<string>("");
+  const [tenantProofOfAddress, setTenantProofOfAddress] = useState<File | null>(null);
+  const [tenantProofOfAddressUrl, setTenantProofOfAddressUrl] = useState<string>("");
+  const [tenantProofOfIncome, setTenantProofOfIncome] = useState<File[]>([]);
+  const [tenantProofOfIncomeUrls, setTenantProofOfIncomeUrls] = useState<string[]>([]);
+  const [guarantorIdDocument, setGuarantorIdDocument] = useState<File | null>(null);
+  const [guarantorIdDocumentUrl, setGuarantorIdDocumentUrl] = useState<string>("");
+  const [guarantorProofOfAddress, setGuarantorProofOfAddress] = useState<File | null>(null);
+  const [guarantorProofOfAddressUrl, setGuarantorProofOfAddressUrl] = useState<string>("");
+  const [guarantorProofOfIncome, setGuarantorProofOfIncome] = useState<File[]>([]);
+  const [guarantorProofOfIncomeUrls, setGuarantorProofOfIncomeUrls] = useState<string[]>([]);
+
+  // Upload loading states
+  const [uploadingTenantId, setUploadingTenantId] = useState(false);
+  const [uploadingTenantAddress, setUploadingTenantAddress] = useState(false);
+  const [uploadingTenantIncome, setUploadingTenantIncome] = useState(false);
+  const [uploadingGuarantorId, setUploadingGuarantorId] = useState(false);
+  const [uploadingGuarantorAddress, setUploadingGuarantorAddress] = useState(false);
+  const [uploadingGuarantorIncome, setUploadingGuarantorIncome] = useState(false);
 
   const { data: tokenData, isLoading: isValidating, error: validationError } = useQuery({
     queryKey: [`/api/rental-form-tokens/${token}/validate`],
@@ -148,7 +170,7 @@ export default function PublicRentalForm() {
       step5: "Referencias Laborales",
       step6: "Referencias Personales",
       step7: "Datos del Garante (Opcional)",
-      step8: "Términos y Condiciones",
+      step8: "Documentos y Términos y Condiciones",
       
       // Step 1 labels
       fullName: "Nombre Completo",
@@ -305,7 +327,31 @@ export default function PublicRentalForm() {
       validationTenantsMax: "Máximo 20 inquilinos",
       validationGuarantorAgeMin: "Debe ser mayor de 18 años",
       validationGuarantorAgeMax: "Edad máxima: 150 años",
-      validationAcceptTerms: "Debes aceptar los términos y condiciones"
+      validationAcceptTerms: "Debes aceptar los términos y condiciones",
+      
+      // Document upload labels
+      documentsTitle: "Documentos Requeridos",
+      tenantDocuments: "Arrendatario",
+      guarantorDocuments: "Garante (Opcional)",
+      tenantIdDoc: "Identificación Oficial (INE/Pasaporte)",
+      tenantProofOfAddress: "Comprobante de Domicilio",
+      tenantProofOfIncome: "Comprobantes de Ingresos (hasta 3 archivos)",
+      guarantorIdDoc: "Identificación Oficial del Garante",
+      guarantorProofOfAddress: "Comprobante de Domicilio del Garante",
+      guarantorProofOfIncome: "Comprobantes de Ingresos del Garante (hasta 3 archivos)",
+      selectFile: "Seleccionar archivo",
+      selectFiles: "Seleccionar archivos",
+      uploadFile: "Subir archivo",
+      uploadFiles: "Subir archivos",
+      uploading: "Subiendo...",
+      uploaded: "Subido",
+      removeFile: "Remover archivo",
+      fileSelected: "archivo seleccionado",
+      filesSelected: "archivos seleccionados",
+      uploadSuccess: "Archivo subido exitosamente",
+      uploadError: "Error al subir archivo",
+      maxFiles: "Máximo 3 archivos",
+      termsAndConditionsTitle: "Términos y Condiciones"
     },
     en: {
       title: "Tenant Rental Application Form",
@@ -326,7 +372,7 @@ export default function PublicRentalForm() {
       step5: "Work References",
       step6: "Personal References",
       step7: "Guarantor/Co-Signer Information (Optional)",
-      step8: "Terms and Conditions",
+      step8: "Documents and Terms & Conditions",
       
       // Step 1 labels
       fullName: "Full Name",
@@ -483,7 +529,31 @@ export default function PublicRentalForm() {
       validationTenantsMax: "Maximum 20 tenants",
       validationGuarantorAgeMin: "Must be at least 18 years old",
       validationGuarantorAgeMax: "Maximum age: 150 years",
-      validationAcceptTerms: "You must accept the terms and conditions"
+      validationAcceptTerms: "You must accept the terms and conditions",
+      
+      // Document upload labels
+      documentsTitle: "Required Documents",
+      tenantDocuments: "Tenant",
+      guarantorDocuments: "Guarantor (Optional)",
+      tenantIdDoc: "Official ID (Voter ID/Passport)",
+      tenantProofOfAddress: "Proof of Address",
+      tenantProofOfIncome: "Proof of Income (up to 3 files)",
+      guarantorIdDoc: "Guarantor Official ID",
+      guarantorProofOfAddress: "Guarantor Proof of Address",
+      guarantorProofOfIncome: "Guarantor Proof of Income (up to 3 files)",
+      selectFile: "Select file",
+      selectFiles: "Select files",
+      uploadFile: "Upload file",
+      uploadFiles: "Upload files",
+      uploading: "Uploading...",
+      uploaded: "Uploaded",
+      removeFile: "Remove file",
+      fileSelected: "file selected",
+      filesSelected: "files selected",
+      uploadSuccess: "File uploaded successfully",
+      uploadError: "Error uploading file",
+      maxFiles: "Maximum 3 files",
+      termsAndConditionsTitle: "Terms and Conditions"
     }
   };
 
@@ -524,9 +594,61 @@ export default function PublicRentalForm() {
     }
   }, [tokenData?.prefillData, form]);
 
+  // Document upload handlers
+  const uploadDocument = async (files: File[], documentType: string, setUploading: (val: boolean) => void, setUrls: (urls: string[] | string) => void) => {
+    setUploading(true);
+    try {
+      const formData = new FormData();
+      files.forEach((file) => {
+        formData.append('files', file);
+      });
+      formData.append('documentType', documentType);
+
+      const response = await fetch(`/api/rental-form-tokens/${token}/upload-documents`, {
+        method: 'POST',
+        body: formData,
+      });
+
+      if (!response.ok) {
+        throw new Error('Upload failed');
+      }
+
+      const result = await response.json();
+      
+      if (Array.isArray(result.urls)) {
+        setUrls(result.urls);
+      } else if (result.url) {
+        setUrls(result.url);
+      }
+
+      toast({
+        title: text.uploadSuccess,
+      });
+    } catch (error) {
+      toast({
+        title: text.uploadError,
+        description: error instanceof Error ? error.message : 'Unknown error',
+        variant: "destructive",
+      });
+    } finally {
+      setUploading(false);
+    }
+  };
+
   const submitMutation = useMutation({
     mutationFn: async (data: z.infer<typeof formSchema>) => {
-      const response = await apiRequest("POST", `/api/rental-form-tokens/${token}/submit`, data);
+      const submissionData = {
+        ...data,
+        documents: {
+          tenantIdDocument: tenantIdDocumentUrl || undefined,
+          tenantProofOfAddress: tenantProofOfAddressUrl || undefined,
+          tenantProofOfIncome: tenantProofOfIncomeUrls.length > 0 ? tenantProofOfIncomeUrls : undefined,
+          guarantorIdDocument: guarantorIdDocumentUrl || undefined,
+          guarantorProofOfAddress: guarantorProofOfAddressUrl || undefined,
+          guarantorProofOfIncome: guarantorProofOfIncomeUrls.length > 0 ? guarantorProofOfIncomeUrls : undefined,
+        }
+      };
+      const response = await apiRequest("POST", `/api/rental-form-tokens/${token}/submit`, submissionData);
       return response.json();
     },
     onSuccess: () => {
@@ -1366,13 +1488,332 @@ export default function PublicRentalForm() {
                 </div>
               )}
 
-              {/* Step 8: Terms and Conditions */}
+              {/* Step 8: Documents and Terms and Conditions */}
               {currentStep === 8 && (
                 <div className="space-y-6">
-                  <div className="p-6 border rounded-lg bg-muted/30 max-h-96 overflow-y-auto">
-                    <h3 className="font-semibold text-lg mb-4">
-                      {activeTerms?.title || (language === 'es' ? 'TÉRMINOS Y CONDICIONES' : 'TERMS AND CONDITIONS')}
-                    </h3>
+                  {/* Document Upload Section */}
+                  <div className="space-y-6">
+                    <h3 className="text-lg font-semibold">{text.documentsTitle}</h3>
+                    
+                    {/* Tenant Documents */}
+                    <div className="p-4 border rounded-lg bg-muted/10 space-y-4">
+                      <h4 className="font-semibold text-md">{text.tenantDocuments}</h4>
+                      
+                      {/* Tenant ID Document */}
+                      <div className="space-y-2">
+                        <Label>{text.tenantIdDoc}</Label>
+                        <div className="flex gap-2 items-start">
+                          <Input
+                            type="file"
+                            accept=".jpg,.jpeg,.png,.pdf,.webp"
+                            onChange={(e) => {
+                              const file = e.target.files?.[0];
+                              if (file) setTenantIdDocument(file);
+                            }}
+                            disabled={uploadingTenantId || !!tenantIdDocumentUrl}
+                            data-testid="input-tenant-id-document"
+                          />
+                          {tenantIdDocument && !tenantIdDocumentUrl && (
+                            <Button
+                              type="button"
+                              onClick={() => uploadDocument([tenantIdDocument], 'tenantId', setUploadingTenantId, setTenantIdDocumentUrl)}
+                              disabled={uploadingTenantId}
+                              data-testid="button-upload-tenant-id"
+                            >
+                              {uploadingTenantId ? <Loader2 className="h-4 w-4 animate-spin" /> : <Upload className="h-4 w-4" />}
+                              {uploadingTenantId ? text.uploading : text.uploadFile}
+                            </Button>
+                          )}
+                        </div>
+                        {tenantIdDocumentUrl && (
+                          <div className="flex items-center gap-2 text-sm text-green-600 dark:text-green-500">
+                            <CheckCircle2 className="h-4 w-4" />
+                            <span>{text.uploaded}: {tenantIdDocument?.name}</span>
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => {
+                                setTenantIdDocument(null);
+                                setTenantIdDocumentUrl("");
+                              }}
+                              data-testid="button-remove-tenant-id"
+                            >
+                              <X className="h-4 w-4" />
+                            </Button>
+                          </div>
+                        )}
+                      </div>
+
+                      {/* Tenant Proof of Address */}
+                      <div className="space-y-2">
+                        <Label>{text.tenantProofOfAddress}</Label>
+                        <div className="flex gap-2 items-start">
+                          <Input
+                            type="file"
+                            accept=".jpg,.jpeg,.png,.pdf,.webp"
+                            onChange={(e) => {
+                              const file = e.target.files?.[0];
+                              if (file) setTenantProofOfAddress(file);
+                            }}
+                            disabled={uploadingTenantAddress || !!tenantProofOfAddressUrl}
+                            data-testid="input-tenant-proof-address"
+                          />
+                          {tenantProofOfAddress && !tenantProofOfAddressUrl && (
+                            <Button
+                              type="button"
+                              onClick={() => uploadDocument([tenantProofOfAddress], 'tenantProofOfAddress', setUploadingTenantAddress, setTenantProofOfAddressUrl)}
+                              disabled={uploadingTenantAddress}
+                              data-testid="button-upload-tenant-address"
+                            >
+                              {uploadingTenantAddress ? <Loader2 className="h-4 w-4 animate-spin" /> : <Upload className="h-4 w-4" />}
+                              {uploadingTenantAddress ? text.uploading : text.uploadFile}
+                            </Button>
+                          )}
+                        </div>
+                        {tenantProofOfAddressUrl && (
+                          <div className="flex items-center gap-2 text-sm text-green-600 dark:text-green-500">
+                            <CheckCircle2 className="h-4 w-4" />
+                            <span>{text.uploaded}: {tenantProofOfAddress?.name}</span>
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => {
+                                setTenantProofOfAddress(null);
+                                setTenantProofOfAddressUrl("");
+                              }}
+                              data-testid="button-remove-tenant-address"
+                            >
+                              <X className="h-4 w-4" />
+                            </Button>
+                          </div>
+                        )}
+                      </div>
+
+                      {/* Tenant Proof of Income */}
+                      <div className="space-y-2">
+                        <Label>{text.tenantProofOfIncome}</Label>
+                        <div className="flex gap-2 items-start">
+                          <Input
+                            type="file"
+                            accept=".jpg,.jpeg,.png,.pdf,.webp"
+                            multiple
+                            onChange={(e) => {
+                              const files = Array.from(e.target.files || []);
+                              if (files.length > 3) {
+                                toast({
+                                  title: text.maxFiles,
+                                  variant: "destructive",
+                                });
+                                return;
+                              }
+                              if (files.length > 0) setTenantProofOfIncome(files);
+                            }}
+                            disabled={uploadingTenantIncome || tenantProofOfIncomeUrls.length > 0}
+                            data-testid="input-tenant-proof-income"
+                          />
+                          {tenantProofOfIncome.length > 0 && tenantProofOfIncomeUrls.length === 0 && (
+                            <Button
+                              type="button"
+                              onClick={() => uploadDocument(tenantProofOfIncome, 'tenantProofOfIncome', setUploadingTenantIncome, setTenantProofOfIncomeUrls)}
+                              disabled={uploadingTenantIncome}
+                              data-testid="button-upload-tenant-income"
+                            >
+                              {uploadingTenantIncome ? <Loader2 className="h-4 w-4 animate-spin" /> : <Upload className="h-4 w-4" />}
+                              {uploadingTenantIncome ? text.uploading : text.uploadFiles}
+                            </Button>
+                          )}
+                        </div>
+                        {tenantProofOfIncomeUrls.length > 0 && (
+                          <div className="space-y-1">
+                            {tenantProofOfIncome.map((file, idx) => (
+                              <div key={idx} className="flex items-center gap-2 text-sm text-green-600 dark:text-green-500">
+                                <CheckCircle2 className="h-4 w-4" />
+                                <span>{text.uploaded}: {file.name}</span>
+                              </div>
+                            ))}
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => {
+                                setTenantProofOfIncome([]);
+                                setTenantProofOfIncomeUrls([]);
+                              }}
+                              data-testid="button-remove-tenant-income"
+                            >
+                              <X className="h-4 w-4" />
+                              {text.removeFile}
+                            </Button>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Guarantor Documents - Only show if hasGuarantor is true */}
+                    {form.watch("hasGuarantor") && (
+                      <div className="p-4 border rounded-lg bg-muted/10 space-y-4">
+                        <h4 className="font-semibold text-md">{text.guarantorDocuments}</h4>
+                        
+                        {/* Guarantor ID Document */}
+                        <div className="space-y-2">
+                          <Label>{text.guarantorIdDoc}</Label>
+                          <div className="flex gap-2 items-start">
+                            <Input
+                              type="file"
+                              accept=".jpg,.jpeg,.png,.pdf,.webp"
+                              onChange={(e) => {
+                                const file = e.target.files?.[0];
+                                if (file) setGuarantorIdDocument(file);
+                              }}
+                              disabled={uploadingGuarantorId || !!guarantorIdDocumentUrl}
+                              data-testid="input-guarantor-id-document"
+                            />
+                            {guarantorIdDocument && !guarantorIdDocumentUrl && (
+                              <Button
+                                type="button"
+                                onClick={() => uploadDocument([guarantorIdDocument], 'guarantorId', setUploadingGuarantorId, setGuarantorIdDocumentUrl)}
+                                disabled={uploadingGuarantorId}
+                                data-testid="button-upload-guarantor-id"
+                              >
+                                {uploadingGuarantorId ? <Loader2 className="h-4 w-4 animate-spin" /> : <Upload className="h-4 w-4" />}
+                                {uploadingGuarantorId ? text.uploading : text.uploadFile}
+                              </Button>
+                            )}
+                          </div>
+                          {guarantorIdDocumentUrl && (
+                            <div className="flex items-center gap-2 text-sm text-green-600 dark:text-green-500">
+                              <CheckCircle2 className="h-4 w-4" />
+                              <span>{text.uploaded}: {guarantorIdDocument?.name}</span>
+                              <Button
+                                type="button"
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => {
+                                  setGuarantorIdDocument(null);
+                                  setGuarantorIdDocumentUrl("");
+                                }}
+                                data-testid="button-remove-guarantor-id"
+                              >
+                                <X className="h-4 w-4" />
+                              </Button>
+                            </div>
+                          )}
+                        </div>
+
+                        {/* Guarantor Proof of Address */}
+                        <div className="space-y-2">
+                          <Label>{text.guarantorProofOfAddress}</Label>
+                          <div className="flex gap-2 items-start">
+                            <Input
+                              type="file"
+                              accept=".jpg,.jpeg,.png,.pdf,.webp"
+                              onChange={(e) => {
+                                const file = e.target.files?.[0];
+                                if (file) setGuarantorProofOfAddress(file);
+                              }}
+                              disabled={uploadingGuarantorAddress || !!guarantorProofOfAddressUrl}
+                              data-testid="input-guarantor-proof-address"
+                            />
+                            {guarantorProofOfAddress && !guarantorProofOfAddressUrl && (
+                              <Button
+                                type="button"
+                                onClick={() => uploadDocument([guarantorProofOfAddress], 'guarantorProofOfAddress', setUploadingGuarantorAddress, setGuarantorProofOfAddressUrl)}
+                                disabled={uploadingGuarantorAddress}
+                                data-testid="button-upload-guarantor-address"
+                              >
+                                {uploadingGuarantorAddress ? <Loader2 className="h-4 w-4 animate-spin" /> : <Upload className="h-4 w-4" />}
+                                {uploadingGuarantorAddress ? text.uploading : text.uploadFile}
+                              </Button>
+                            )}
+                          </div>
+                          {guarantorProofOfAddressUrl && (
+                            <div className="flex items-center gap-2 text-sm text-green-600 dark:text-green-500">
+                              <CheckCircle2 className="h-4 w-4" />
+                              <span>{text.uploaded}: {guarantorProofOfAddress?.name}</span>
+                              <Button
+                                type="button"
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => {
+                                  setGuarantorProofOfAddress(null);
+                                  setGuarantorProofOfAddressUrl("");
+                                }}
+                                data-testid="button-remove-guarantor-address"
+                              >
+                                <X className="h-4 w-4" />
+                              </Button>
+                            </div>
+                          )}
+                        </div>
+
+                        {/* Guarantor Proof of Income */}
+                        <div className="space-y-2">
+                          <Label>{text.guarantorProofOfIncome}</Label>
+                          <div className="flex gap-2 items-start">
+                            <Input
+                              type="file"
+                              accept=".jpg,.jpeg,.png,.pdf,.webp"
+                              multiple
+                              onChange={(e) => {
+                                const files = Array.from(e.target.files || []);
+                                if (files.length > 3) {
+                                  toast({
+                                    title: text.maxFiles,
+                                    variant: "destructive",
+                                  });
+                                  return;
+                                }
+                                if (files.length > 0) setGuarantorProofOfIncome(files);
+                              }}
+                              disabled={uploadingGuarantorIncome || guarantorProofOfIncomeUrls.length > 0}
+                              data-testid="input-guarantor-proof-income"
+                            />
+                            {guarantorProofOfIncome.length > 0 && guarantorProofOfIncomeUrls.length === 0 && (
+                              <Button
+                                type="button"
+                                onClick={() => uploadDocument(guarantorProofOfIncome, 'guarantorProofOfIncome', setUploadingGuarantorIncome, setGuarantorProofOfIncomeUrls)}
+                                disabled={uploadingGuarantorIncome}
+                                data-testid="button-upload-guarantor-income"
+                              >
+                                {uploadingGuarantorIncome ? <Loader2 className="h-4 w-4 animate-spin" /> : <Upload className="h-4 w-4" />}
+                                {uploadingGuarantorIncome ? text.uploading : text.uploadFiles}
+                              </Button>
+                            )}
+                          </div>
+                          {guarantorProofOfIncomeUrls.length > 0 && (
+                            <div className="space-y-1">
+                              {guarantorProofOfIncome.map((file, idx) => (
+                                <div key={idx} className="flex items-center gap-2 text-sm text-green-600 dark:text-green-500">
+                                  <CheckCircle2 className="h-4 w-4" />
+                                  <span>{text.uploaded}: {file.name}</span>
+                                </div>
+                              ))}
+                              <Button
+                                type="button"
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => {
+                                  setGuarantorProofOfIncome([]);
+                                  setGuarantorProofOfIncomeUrls([]);
+                                }}
+                                data-testid="button-remove-guarantor-income"
+                              >
+                                <X className="h-4 w-4" />
+                                {text.removeFile}
+                              </Button>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Terms and Conditions Section */}
+                  <div>
+                    <h3 className="text-lg font-semibold mb-4">{text.termsAndConditionsTitle}</h3>
+                    <div className="p-6 border rounded-lg bg-muted/30 max-h-96 overflow-y-auto">
                     {activeTerms ? (
                       <div className="space-y-4 text-sm whitespace-pre-wrap">
                         {activeTerms.content}
@@ -1492,6 +1933,7 @@ export default function PublicRentalForm() {
                       )}
                     </div>
                     )}
+                    </div>
                   </div>
 
                   <div className="flex items-start space-x-2">
