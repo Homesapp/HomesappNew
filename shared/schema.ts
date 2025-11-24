@@ -4988,6 +4988,7 @@ export const externalAgencies = pgTable("external_agencies", {
   name: varchar("name", { length: 255 }).notNull(), // Nombre de la agencia
   description: text("description"), // Descripción
   agencyLogoUrl: text("agency_logo_url"), // Logo de la agencia
+  pdfTemplateStyle: varchar("pdf_template_style", { length: 50 }).default('professional'), // Estilo de plantilla PDF: 'professional', 'modern', 'elegant'
   contactName: varchar("contact_name", { length: 255 }), // Nombre de contacto
   contactEmail: varchar("contact_email", { length: 255 }), // Email de contacto
   contactPhone: varchar("contact_phone", { length: 50 }), // Teléfono de contacto
