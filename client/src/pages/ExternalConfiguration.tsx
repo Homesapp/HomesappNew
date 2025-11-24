@@ -356,9 +356,16 @@ export default function ExternalConfiguration() {
 
     // Fetch integrations
     const { data: integrations, isLoading: isLoadingIntegrations } = useQuery({
-      queryKey: ['/api/external-agencies', agencyId, 'integrations'],
+      queryKey: [`/api/external-agencies/${agencyId}/integrations`],
       enabled: !!agencyId,
     });
+
+    // Hydrate local state when integrations data loads
+    useEffect(() => {
+      if (integrations) {
+        setUseReplitIntegration(integrations.openaiUseReplitIntegration ?? true);
+      }
+    }, [integrations]);
 
     // Update OpenAI mutation
     const updateOpenAIMutation = useMutation({
@@ -366,7 +373,7 @@ export default function ExternalConfiguration() {
         return apiRequest('PATCH', `/api/external-agencies/${agencyId}/integrations/openai`, config);
       },
       onSuccess: () => {
-        queryClient.invalidateQueries({ queryKey: ['/api/external-agencies', agencyId, 'integrations'] });
+        queryClient.invalidateQueries({ queryKey: [`/api/external-agencies/${agencyId}/integrations`] });
         toast({
           title: language === "es" ? "OpenAI configurado" : "OpenAI configured",
           description: language === "es" 
@@ -390,7 +397,7 @@ export default function ExternalConfiguration() {
         return apiRequest('DELETE', `/api/external-agencies/${agencyId}/integrations/google-calendar`, {});
       },
       onSuccess: () => {
-        queryClient.invalidateQueries({ queryKey: ['/api/external-agencies', agencyId, 'integrations'] });
+        queryClient.invalidateQueries({ queryKey: [`/api/external-agencies/${agencyId}/integrations`] });
         toast({
           title: language === "es" ? "Google Calendar desconectado" : "Google Calendar disconnected",
           description: language === "es" 
@@ -415,6 +422,9 @@ export default function ExternalConfiguration() {
     };
 
     const handleConnectGoogleCalendar = () => {
+      // TODO: Implement Google Calendar OAuth flow
+      // This will redirect to Google OAuth consent page and handle the callback
+      // Backend endpoints are ready: needs OAuth redirect URL and token exchange
       toast({
         title: language === "es" ? "Próximamente" : "Coming soon",
         description: language === "es"
