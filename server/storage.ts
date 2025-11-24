@@ -9583,6 +9583,176 @@ export class DatabaseStorage implements IStorage {
 
     return summary;
   }
+
+  // ========== OPTIMIZED PUBLIC TOKEN ENDPOINTS ==========
+  // Lightweight methods for public forms - minimal fields, single query
+
+  async getOfferTokenDataLean(token: string) {
+    const [result] = await db
+      .select({
+        // Token fields (COMPLETE - all needed for validation)
+        tokenId: offerTokens.id,
+        token: offerTokens.token,
+        isUsed: offerTokens.isUsed,
+        expiresAt: offerTokens.expiresAt,
+        offerData: offerTokens.offerData,
+        createdBy: offerTokens.createdBy,
+        propertyId: offerTokens.propertyId, // For internal system support
+        externalUnitId: offerTokens.externalUnitId,
+        externalClientId: offerTokens.externalClientId,
+        leadId: offerTokens.leadId, // For lead context display
+        
+        // Unit fields (only what's needed for display)
+        unitId: externalUnits.id,
+        unitNumber: externalUnits.unitNumber,
+        unitType: externalUnits.propertyType,
+        bedrooms: externalUnits.bedrooms,
+        bathrooms: externalUnits.bathrooms,
+        size: externalUnits.area,
+        description: externalUnits.description,
+        photos: externalUnits.photos,
+        monthlyRent: externalUnits.monthlyRent,
+        currency: externalUnits.currency,
+        includedServices: externalUnits.includedServices,
+        
+        // Condominium (only name and address)
+        condoName: externalCondominiums.name,
+        condoAddress: externalCondominiums.address,
+        
+        // Client fields (minimal)
+        clientId: externalClients.id,
+        clientFirstName: externalClients.firstName,
+        clientLastName: externalClients.lastName,
+        clientEmail: externalClients.email,
+        clientPhone: externalClients.phone,
+        
+        // Agency (only logo and name)
+        agencyId: externalAgencies.id,
+        agencyName: externalAgencies.name,
+        agencyLogo: externalAgencies.logoUrl,
+        
+        // Creator user (for profile pic display)
+        creatorId: users.id,
+        creatorFirstName: users.firstName,
+        creatorLastName: users.lastName,
+        creatorProfilePic: users.profileImageUrl,
+      })
+      .from(offerTokens)
+      .leftJoin(externalUnits, eq(offerTokens.externalUnitId, externalUnits.id))
+      .leftJoin(externalCondominiums, eq(externalUnits.condominiumId, externalCondominiums.id))
+      .leftJoin(externalClients, eq(offerTokens.externalClientId, externalClients.id))
+      .leftJoin(externalAgencies, eq(externalUnits.agencyId, externalAgencies.id))
+      .leftJoin(users, eq(offerTokens.createdBy, users.id))
+      .where(eq(offerTokens.token, token))
+      .limit(1);
+
+    return result;
+  }
+
+  async getRentalFormTokenDataLean(token: string) {
+    const [result] = await db
+      .select({
+        // Token fields (COMPLETE - needed for validation and submission)
+        tokenId: tenantRentalFormTokens.id,
+        token: tenantRentalFormTokens.token,
+        isUsed: tenantRentalFormTokens.isUsed,
+        expiresAt: tenantRentalFormTokens.expiresAt,
+        recipientType: tenantRentalFormTokens.recipientType,
+        rentalFormGroupId: tenantRentalFormTokens.rentalFormGroupId,
+        tenantData: tenantRentalFormTokens.tenantData,
+        ownerData: tenantRentalFormTokens.ownerData,
+        createdBy: tenantRentalFormTokens.createdBy,
+        propertyId: tenantRentalFormTokens.propertyId, // For internal system support
+        externalUnitId: tenantRentalFormTokens.externalUnitId,
+        externalClientId: tenantRentalFormTokens.externalClientId,
+        externalUnitOwnerId: tenantRentalFormTokens.externalUnitOwnerId,
+        leadId: tenantRentalFormTokens.leadId,
+        
+        // Unit fields
+        unitId: externalUnits.id,
+        unitNumber: externalUnits.unitNumber,
+        unitType: externalUnits.propertyType,
+        bedrooms: externalUnits.bedrooms,
+        bathrooms: externalUnits.bathrooms,
+        size: externalUnits.area,
+        monthlyRent: externalUnits.monthlyRent,
+        currency: externalUnits.currency,
+        
+        // Condominium
+        condoName: externalCondominiums.name,
+        condoAddress: externalCondominiums.address,
+        
+        // Client fields
+        clientFirstName: externalClients.firstName,
+        clientLastName: externalClients.lastName,
+        clientEmail: externalClients.email,
+        clientPhone: externalClients.phone,
+        
+        // Agency
+        agencyId: externalAgencies.id,
+        agencyName: externalAgencies.name,
+        agencyLogo: externalAgencies.logoUrl,
+        
+        // Creator user (needed for profile picture display)
+        creatorId: users.id,
+        creatorFirstName: users.firstName,
+        creatorLastName: users.lastName,
+        creatorProfilePic: users.profileImageUrl,
+      })
+      .from(tenantRentalFormTokens)
+      .leftJoin(externalUnits, eq(tenantRentalFormTokens.externalUnitId, externalUnits.id))
+      .leftJoin(externalCondominiums, eq(externalUnits.condominiumId, externalCondominiums.id))
+      .leftJoin(externalClients, eq(tenantRentalFormTokens.externalClientId, externalClients.id))
+      .leftJoin(externalAgencies, eq(externalUnits.agencyId, externalAgencies.id))
+      .leftJoin(users, eq(tenantRentalFormTokens.createdBy, users.id))
+      .where(eq(tenantRentalFormTokens.token, token))
+      .limit(1);
+
+    return result;
+  }
+
+  async getLatestOfferForPrefill(externalClientId: string) {
+    const [result] = await db
+      .select({
+        nombreCompleto: sql<string>`${offerTokens.offerData}->>'nombreCompleto'`,
+        nacionalidad: sql<string>`${offerTokens.offerData}->>'nacionalidad'`,
+        edad: sql<number>`(${offerTokens.offerData}->>'edad')::int`,
+        trabajoPosicion: sql<string>`${offerTokens.offerData}->>'trabajoPosicion'`,
+        companiaTrabaja: sql<string>`${offerTokens.offerData}->>'companiaTrabaja'`,
+        ingresoMensualPromedio: sql<string>`${offerTokens.offerData}->>'ingresoMensualPromedio'`,
+        numeroInquilinos: sql<number>`(${offerTokens.offerData}->>'numeroInquilinos')::int`,
+        tieneMascotas: sql<string>`${offerTokens.offerData}->>'tieneMascotas'`,
+        clientEmail: sql<string>`${offerTokens.offerData}->>'clientEmail'`,
+        clientPhone: sql<string>`${offerTokens.offerData}->>'clientPhone'`,
+        fechaIngreso: sql<string>`${offerTokens.offerData}->>'fechaIngreso'`,
+        tiempoResidenciaTulum: sql<string>`${offerTokens.offerData}->>'tiempoResidenciaTulum'`,
+      })
+      .from(offerTokens)
+      .where(
+        and(
+          eq(offerTokens.externalClientId, externalClientId),
+          eq(offerTokens.isUsed, true)
+        )
+      )
+      .orderBy(desc(offerTokens.updatedAt))
+      .limit(1);
+
+    return result;
+  }
+
+  async getOwnerForPrefill(externalUnitOwnerId: string) {
+    const [result] = await db
+      .select({
+        ownerName: externalUnitOwners.ownerName,
+        ownerEmail: externalUnitOwners.ownerEmail,
+        ownerPhone: externalUnitOwners.ownerPhone,
+      })
+      .from(externalUnitOwners)
+      .where(eq(externalUnitOwners.id, externalUnitOwnerId))
+      .limit(1);
+
+    return result;
+  }
 }
 
 export const storage = new DatabaseStorage();

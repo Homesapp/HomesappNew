@@ -13710,18 +13710,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Validate offer token (public route - supports internal and external systems)
+  // Validate offer token (public route - OPTIMIZED)
   app.get("/api/offer-tokens/:token/validate", async (req, res) => {
     try {
       const { token } = req.params;
 
-      const [offerToken] = await db
-        .select()
-        .from(offerTokens)
-        .where(eq(offerTokens.token, token))
-        .limit(1);
+      // Single optimized query with only necessary fields
+      const data = await storage.getOfferTokenDataLean(token);
 
-      if (!offerToken) {
+      if (!data) {
         return res.status(404).json({ 
           valid: false, 
           message: "Token no encontrado" 
@@ -13729,7 +13726,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       // Check if expired
-      if (new Date() > new Date(offerToken.expiresAt)) {
+      if (new Date() > new Date(data.expiresAt)) {
         return res.status(410).json({ 
           valid: false, 
           message: "Este enlace ha expirado" 
@@ -13737,79 +13734,58 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       // Check if already used - but allow viewing completed offers
-      const isCompleted = offerToken.isUsed;
+      const isCompleted = data.isUsed;
       
       // If token is used but has no offer data, something went wrong
-      if (isCompleted && !offerToken.offerData) {
+      if (isCompleted && !data.offerData) {
         return res.status(409).json({
           valid: false,
           message: "Este enlace fue utilizado pero no contiene datos de la oferta"
         });
       }
 
-      let property = null;
-      let externalUnit = null;
-      let externalClient = null;
-      let externalAgency = null;
-      let creatorUser = null;
-      
-      // Determine if this is for internal or external system
-      if (offerToken.externalUnitId) {
-        // External system flow
-        externalUnit = await storage.getExternalUnit(offerToken.externalUnitId);
-        if (offerToken.externalClientId) {
-          externalClient = await storage.getExternalClient(offerToken.externalClientId);
-        }
-        
-        // Get agency information including logo
-        if (externalUnit?.agencyId) {
-          externalAgency = await storage.getExternalAgency(externalUnit.agencyId);
-        }
-        
-        // Get creator user information (for profile picture)
-        if (offerToken.createdBy) {
-          const [user] = await db.select({
-            id: users.id,
-            firstName: users.firstName,
-            lastName: users.lastName,
-            profilePictureUrl: users.profileImageUrl,
-          })
-          .from(users)
-          .where(eq(users.id, offerToken.createdBy))
-          .limit(1);
-          creatorUser = user || null;
-        }
-        
-        // Map externalUnit to property format for frontend compatibility
-        if (externalUnit) {
-          const condo = externalUnit.condominiumId ? 
-            await storage.getExternalCondominium(externalUnit.condominiumId) : null;
-          
-          property = {
-            id: externalUnit.id,
-            title: `${condo?.name || ''} - Unidad ${externalUnit.unitNumber}`,
-            type: externalUnit.unitType,
-            bedrooms: externalUnit.bedrooms,
-            bathrooms: externalUnit.bathrooms,
-            size: externalUnit.size,
-            description: externalUnit.description,
-            includedServices: externalUnit.includedServices || [],
-            photos: externalUnit.photos || [],
-            monthlyRentPrice: externalUnit.monthlyRent,
-            currency: externalUnit.currency,
-            address: condo?.address || '',
-            isExternal: true,
-          };
-        }
-      } else if (offerToken.propertyId) {
-        // Internal system flow
-        property = await storage.getProperty(offerToken.propertyId);
-      }
+      // Map optimized data to frontend format
+      const property = data.unitId ? {
+        id: data.unitId,
+        title: `${data.condoName || ''} - Unidad ${data.unitNumber}`,
+        type: data.unitType,
+        bedrooms: data.bedrooms,
+        bathrooms: data.bathrooms,
+        size: data.size,
+        description: data.description,
+        includedServices: data.includedServices || [],
+        photos: data.photos || [],
+        monthlyRentPrice: data.monthlyRent,
+        currency: data.currency,
+        address: data.condoAddress || '',
+        isExternal: true,
+      } : null;
 
-      // Get lead info if leadId exists (internal system only)
+      const externalClient = data.clientId ? {
+        id: data.clientId,
+        firstName: data.clientFirstName,
+        lastName: data.clientLastName,
+        email: data.clientEmail,
+        phone: data.clientPhone,
+      } : null;
+
+      const externalAgency = data.agencyId ? {
+        id: data.agencyId,
+        name: data.agencyName,
+        logoUrl: data.agencyLogo,
+      } : null;
+
+      const creatorUser = data.creatorId ? {
+        id: data.creatorId,
+        firstName: data.creatorFirstName,
+        lastName: data.creatorLastName,
+        profilePictureUrl: data.creatorProfilePic,
+      } : null;
+
+      // Get lead info if leadId exists (internal system support)
       let lead = null;
-      if (offerToken.leadId) {
-        lead = await storage.getLead(offerToken.leadId);
+      if (data.leadId) {
+        lead = await storage.getLead(data.leadId);
       }
 
       res.json({
@@ -13817,12 +13793,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
         isCompleted,
         property,
         lead,
-        externalUnit,
         externalClient,
         externalAgency,
         creatorUser,
-        submittedOffer: isCompleted ? offerToken.offerData : null,
-        expiresAt: offerToken.expiresAt,
+        submittedOffer: isCompleted ? data.offerData : null,
+        expiresAt: data.expiresAt,
       });
     } catch (error) {
       console.error("Error validating offer token:", error);
@@ -14229,154 +14204,133 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Validate rental form token (public route)
+  // Validate rental form token (public route - OPTIMIZED)
   app.get("/api/rental-form-tokens/:token/validate", async (req, res) => {
     try {
       const { token } = req.params;
 
-      const [rentalFormToken] = await db
-        .select()
-        .from(tenantRentalFormTokens)
-        .where(eq(tenantRentalFormTokens.token, token))
-        .limit(1);
+      // Single optimized query with only necessary fields
+      const data = await storage.getRentalFormTokenDataLean(token);
 
-      if (!rentalFormToken) {
+      if (!data) {
         return res.status(404).json({ message: "Token no encontrado" });
       }
 
       // Check if token is expired
-      if (new Date() > new Date(rentalFormToken.expiresAt)) {
+      if (new Date() > new Date(data.expiresAt)) {
         return res.status(400).json({ message: "Este enlace ha expirado" });
       }
 
       // Check if token is already used
-      if (rentalFormToken.isUsed) {
+      if (data.isUsed) {
         return res.status(400).json({ message: "Este enlace ya ha sido utilizado" });
       }
 
-      // Handle both internal and external flows
-      const isExternalFlow = !!rentalFormToken.externalUnitId;
+      const recipientType = data.recipientType || 'tenant';
       
-      // Include recipient type in validation response
-      const recipientType = rentalFormToken.recipientType || 'tenant';
+      // Map optimized data to frontend format
+      const unit = data.unitId ? {
+        id: data.unitId,
+        unitNumber: data.unitNumber,
+        propertyType: data.unitType,
+        bedrooms: data.bedrooms,
+        bathrooms: data.bathrooms,
+        area: data.size,
+        monthlyRent: data.monthlyRent,
+        currency: data.currency,
+      } : null;
+
+      const condominium = data.condoName ? {
+        name: data.condoName,
+        address: data.condoAddress,
+      } : null;
+
+      const client = data.clientFirstName ? {
+        firstName: data.clientFirstName,
+        lastName: data.clientLastName,
+        email: data.clientEmail,
+        phone: data.clientPhone,
+      } : null;
+
+      const externalAgency = data.agencyId ? {
+        id: data.agencyId,
+        name: data.agencyName,
+        logoUrl: data.agencyLogo,
+      } : null;
+
+      const creatorUser = data.creatorId ? {
+        id: data.creatorId,
+        firstName: data.creatorFirstName,
+        lastName: data.creatorLastName,
+        profilePictureUrl: data.creatorProfilePic,
+      } : null;
+
+      // Pre-fill data for tenant forms: Get latest completed offer from this client
+      let prefillData = null;
+      if (recipientType === 'tenant' && data.externalClientId) {
+        const latestOffer = await storage.getLatestOfferForPrefill(data.externalClientId);
+        
+        if (latestOffer) {
+          prefillData = {
+            fullName: latestOffer.nombreCompleto || '',
+            nationality: latestOffer.nacionalidad || '',
+            age: latestOffer.edad || undefined,
+            jobPosition: latestOffer.trabajoPosicion || '',
+            companyName: latestOffer.companiaTrabaja || '',
+            monthlyIncome: latestOffer.ingresoMensualPromedio || '',
+            numberOfTenants: latestOffer.numeroInquilinos || undefined,
+            hasPets: latestOffer.tieneMascotas === 'Sí' ? 'yes' : latestOffer.tieneMascotas === 'No' ? 'no' : undefined,
+            email: latestOffer.clientEmail || client?.email || '',
+            whatsapp: latestOffer.clientPhone || client?.phone || '',
+            checkInDate: latestOffer.fechaIngreso || '',
+            timeInTulum: latestOffer.tiempoResidenciaTulum || '',
+          };
+        }
+      }
       
-      if (isExternalFlow) {
-        // External system flow - get unit and condominium info
-        const unit = await storage.getExternalUnit(rentalFormToken.externalUnitId);
-        if (!unit) {
-          return res.status(404).json({ message: "Unidad no encontrada" });
-        }
+      // Pre-fill data for owner forms: Get owner info from external_unit_owners
+      if (recipientType === 'owner' && data.externalUnitOwnerId) {
+        const owner = await storage.getOwnerForPrefill(data.externalUnitOwnerId);
         
-        let condominium = null;
-        if (unit.condominiumId) {
-          condominium = await storage.getExternalCondominium(unit.condominiumId);
+        if (owner) {
+          prefillData = {
+            fullName: owner.ownerName || '',
+            email: owner.ownerEmail || '',
+            phoneNumber: owner.ownerPhone || '',
+            whatsappNumber: owner.ownerPhone || '',
+          };
         }
-        
-        let client = null;
-        if (rentalFormToken.externalClientId) {
-          client = await storage.getExternalClient(rentalFormToken.externalClientId);
-        }
-        
-        // Get agency information including logo
-        let externalAgency = null;
-        if (unit.agencyId) {
-          externalAgency = await storage.getExternalAgency(unit.agencyId);
-        }
-        
-        // Get creator user information (for profile picture)
-        let creatorUser = null;
-        if (rentalFormToken.createdBy) {
-          const [user] = await db.select({
-            id: users.id,
-            firstName: users.firstName,
-            lastName: users.lastName,
-            profilePictureUrl: users.profileImageUrl,
-          })
-          .from(users)
-          .where(eq(users.id, rentalFormToken.createdBy))
-          .limit(1);
-          creatorUser = user || null;
-        }
-        
-        // Pre-fill data for tenant forms: Get latest completed offer from this client
-        let prefillData = null;
-        if (recipientType === 'tenant' && rentalFormToken.externalClientId) {
-          const [latestOffer] = await db
-            .select()
-            .from(offerTokens)
-            .where(
-              and(
-                eq(offerTokens.externalClientId, rentalFormToken.externalClientId),
-                eq(offerTokens.isUsed, true)
-              )
-            )
-            .orderBy(desc(offerTokens.updatedAt))
-            .limit(1);
-          
-          if (latestOffer && latestOffer.offerData) {
-            const offerData = latestOffer.offerData;
-            prefillData = {
-              fullName: offerData.nombreCompleto || '',
-              nationality: offerData.nacionalidad || '',
-              age: offerData.edad || undefined,
-              jobPosition: offerData.trabajoPosicion || '',
-              companyName: offerData.companiaTrabaja || '',
-              monthlyIncome: offerData.ingresoMensualPromedio || '',
-              numberOfTenants: offerData.numeroInquilinos || undefined,
-              hasPets: offerData.tieneMascotas === 'Sí' ? 'yes' : offerData.tieneMascotas === 'No' ? 'no' : undefined,
-              email: offerData.clientEmail || client?.email || '',
-              whatsapp: offerData.clientPhone || client?.phone || '',
-              checkInDate: offerData.fechaIngreso || '',
-              timeInTulum: offerData.tiempoResidenciaTulum || '',
-            };
-          }
-        }
-        
-        // Pre-fill data for owner forms: Get owner info from external_unit_owners
-        if (recipientType === 'owner' && rentalFormToken.externalUnitOwnerId) {
-          const [owner] = await db
-            .select()
-            .from(externalUnitOwners)
-            .where(eq(externalUnitOwners.id, rentalFormToken.externalUnitOwnerId))
-            .limit(1);
-          
-          if (owner) {
-            prefillData = {
-              fullName: owner.ownerName || '',
-              email: owner.ownerEmail || '',
-              phoneNumber: owner.ownerPhone || '',
-              whatsappNumber: owner.ownerPhone || '',
-            };
-          }
-        }
-        
-        res.json({
-          valid: true,
-          isExternal: true,
-          recipientType,
-          unit,
-          condominium,
-          client,
-          externalAgency,
-          creatorUser,
-          prefillData,
-          expiresAt: rentalFormToken.expiresAt,
-        });
-      } else {
-        // Internal system flow - get property info
-        const property = await storage.getProperty(rentalFormToken.propertyId);
+      }
+      
+      // Support for internal system flow if propertyId exists
+      const isExternalFlow = !!data.externalUnitId;
+      if (!isExternalFlow && data.propertyId) {
+        const property = await storage.getProperty(data.propertyId);
         if (!property) {
           return res.status(404).json({ message: "Propiedad no encontrada" });
         }
 
-        res.json({
+        return res.json({
           valid: true,
           isExternal: false,
           recipientType,
           property,
-          expiresAt: rentalFormToken.expiresAt,
+          expiresAt: data.expiresAt,
         });
       }
+      
+      res.json({
+        valid: true,
+        isExternal: true,
+        recipientType,
+        unit,
+        condominium,
+        client,
+        externalAgency,
+        creatorUser,
+        prefillData,
+        expiresAt: data.expiresAt,
+      });
     } catch (error) {
       console.error("Error validating rental form token:", error);
       res.status(500).json({ message: "Error al validar token" });
