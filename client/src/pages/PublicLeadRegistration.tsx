@@ -21,7 +21,8 @@ export default function PublicLeadRegistration() {
   const params = useParams<{ token: string }>();
   const token = params.token || "";
   const [formData, setFormData] = useState({
-    name: "",
+    firstName: "",
+    lastName: "",
     email: "",
     phone: "",
     phoneLast4: "",
@@ -76,8 +77,12 @@ export default function PublicLeadRegistration() {
   const validateForm = () => {
     const newErrors: Record<string, string> = {};
     
-    if (!formData.name.trim()) {
-      newErrors.name = "Name is required";
+    if (!formData.firstName.trim()) {
+      newErrors.firstName = "First name is required";
+    }
+    
+    if (!formData.lastName.trim()) {
+      newErrors.lastName = "Last name is required";
     }
 
     if (formInfo?.registrationType === "seller") {
@@ -182,17 +187,30 @@ export default function PublicLeadRegistration() {
         </CardHeader>
         <form onSubmit={handleSubmit}>
           <CardContent className="space-y-4">
-            {/* Name */}
-            <div className="space-y-2">
-              <Label htmlFor="name">Full Name *</Label>
-              <Input
-                id="name"
-                value={formData.name}
-                onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                placeholder="John Doe"
-                data-testid="input-name"
-              />
-              {errors.name && <p className="text-sm text-destructive">{errors.name}</p>}
+            {/* First and Last Name */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="firstName">First Name *</Label>
+                <Input
+                  id="firstName"
+                  value={formData.firstName}
+                  onChange={(e) => setFormData({ ...formData, firstName: e.target.value })}
+                  placeholder="John"
+                  data-testid="input-firstname"
+                />
+                {errors.firstName && <p className="text-sm text-destructive">{errors.firstName}</p>}
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="lastName">Last Name *</Label>
+                <Input
+                  id="lastName"
+                  value={formData.lastName}
+                  onChange={(e) => setFormData({ ...formData, lastName: e.target.value })}
+                  placeholder="Doe"
+                  data-testid="input-lastname"
+                />
+                {errors.lastName && <p className="text-sm text-destructive">{errors.lastName}</p>}
+              </div>
             </div>
 
             {/* Seller-specific fields */}

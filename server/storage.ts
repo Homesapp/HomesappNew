@@ -8957,7 +8957,8 @@ export class DatabaseStorage implements IStorage {
       const searchPattern = `%${sanitized}%`;
       conditions.push(
         or(
-          ilike(externalLeads.name, searchPattern),
+          ilike(externalLeads.firstName, searchPattern),
+          ilike(externalLeads.lastName, searchPattern),
           ilike(externalLeads.email, searchPattern),
           ilike(externalLeads.phone, searchPattern),
           ilike(externalLeads.phoneLast4, searchPattern)
@@ -8974,7 +8975,7 @@ export class DatabaseStorage implements IStorage {
     
     switch (filters?.sortField) {
       case 'name':
-        query = query.orderBy(sortFn(externalLeads.name));
+        query = query.orderBy(sortFn(externalLeads.firstName), sortFn(externalLeads.lastName));
         break;
       case 'status':
         query = query.orderBy(sortFn(externalLeads.status));
@@ -9020,7 +9021,8 @@ export class DatabaseStorage implements IStorage {
       const searchPattern = `%${sanitized}%`;
       conditions.push(
         or(
-          ilike(externalLeads.name, searchPattern),
+          ilike(externalLeads.firstName, searchPattern),
+          ilike(externalLeads.lastName, searchPattern),
           ilike(externalLeads.email, searchPattern),
           ilike(externalLeads.phone, searchPattern),
           ilike(externalLeads.phoneLast4, searchPattern)

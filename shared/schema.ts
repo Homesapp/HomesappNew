@@ -5648,25 +5648,20 @@ export const externalLeads = pgTable("external_leads", {
   registrationType: leadRegistrationTypeEnum("registration_type").notNull(), // broker o seller
   
   // Información básica
-  name: varchar("name", { length: 200 }).notNull(),
+  firstName: varchar("first_name", { length: 100 }).notNull(),
+  lastName: varchar("last_name", { length: 100 }).notNull(),
   email: varchar("email", { length: 255 }),
-  phone: varchar("phone", { length: 50 }), // Completo para seller
+  phone: varchar("phone", { length: 50 }),
   phoneLast4: varchar("phone_last_4", { length: 4 }), // Solo últimos 4 dígitos para broker
   
-  // Preferencias de búsqueda
-  contractDuration: integer("contract_duration"), // Tiempo de contrato en meses
-  checkInDate: date("check_in_date"),
-  allowsPets: boolean("allows_pets").default(false),
-  estimatedRentCost: decimal("estimated_rent_cost", { precision: 10, scale: 2 }),
-  bedroomsDesired: integer("bedrooms_desired"),
-  unitTypeDesired: varchar("unit_type_desired", { length: 100 }), // apartment, house, studio, etc
-  neighborhoodDesired: varchar("neighborhood_desired", { length: 200 }),
+  // Estado y origen
+  status: varchar("status", { length: 50 }).notNull().default("new"), // new, contacted, viewing, offer_sent, converted, lost
+  source: varchar("source", { length: 100 }), // de dónde vino el lead
   notes: text("notes"),
   
-  // Estado del lead
-  status: varchar("status", { length: 50 }).notNull().default("new"), // new, contacted, viewing, offer_sent, converted, lost
-  convertedToClientId: varchar("converted_to_client_id").references(() => externalClients.id), // Si se convirtió en cliente
-  convertedAt: timestamp("converted_at"), // Cuando se convirtió
+  // Contact dates
+  firstContactDate: timestamp("first_contact_date"),
+  lastContactDate: timestamp("last_contact_date"),
   
   // Metadata
   createdBy: varchar("created_by").references(() => users.id),
@@ -5676,14 +5671,11 @@ export const externalLeads = pgTable("external_leads", {
   index("idx_external_leads_agency").on(table.agencyId),
   index("idx_external_leads_status").on(table.status),
   index("idx_external_leads_registration_type").on(table.registrationType),
-  index("idx_external_leads_converted").on(table.convertedToClientId),
 ]);
 
 const baseExternalLeadSchema = createInsertSchema(externalLeads).omit({
   id: true,
   agencyId: true,
-  convertedToClientId: true,
-  convertedAt: true,
   createdBy: true,
   createdAt: true,
   updatedAt: true,

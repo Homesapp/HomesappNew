@@ -24604,10 +24604,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       
       // Validate form data based on registration type
-      const { name, email, phone, phoneLast4, checkInDate, allowsPets, estimatedRentCost, bedroomsDesired, notes } = req.body;
+      const { firstName, lastName, email, phone, phoneLast4, notes } = req.body;
       
-      if (!name || name.trim().length === 0) {
-        return res.status(400).json({ message: "Name is required" });
+      if (!firstName || firstName.trim().length === 0) {
+        return res.status(400).json({ message: "First name is required" });
+      }
+      
+      if (!lastName || lastName.trim().length === 0) {
+        return res.status(400).json({ message: "Last name is required" });
       }
       
       // Different validation for seller vs broker
@@ -24621,26 +24625,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
         }
       }
       
-      // Split name into firstName and lastName
-      const nameParts = name.trim().split(/\s+/);
-      const firstName = nameParts[0];
-      const lastName = nameParts.slice(1).join(' ') || firstName; // Use firstName if no lastName provided
-      
       // Create lead
       const lead = await storage.createExternalLead({
         agencyId: registrationToken.agencyId,
         registrationType: registrationToken.registrationType,
-        firstName,
-        lastName,
+        firstName: firstName.trim(),
+        lastName: lastName.trim(),
         email: email || null,
         phone: phone || null,
         phoneLast4: phoneLast4 || null,
-        checkInDate: checkInDate ? new Date(checkInDate) : null,
-        allowsPets: allowsPets || false,
-        estimatedRentCost: estimatedRentCost || null,
-        bedroomsDesired: bedroomsDesired || null,
         notes: notes || null,
         status: 'new',
+        source: 'public_registration',
         createdBy: null, // Public registration, no user
       });
       
