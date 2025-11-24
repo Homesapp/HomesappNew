@@ -5665,6 +5665,19 @@ export const externalLeads = pgTable("external_leads", {
   phone: varchar("phone", { length: 50 }),
   phoneLast4: varchar("phone_last4", { length: 4 }), // Solo últimos 4 dígitos para broker
   
+  // Detalles de búsqueda de propiedad
+  contractDuration: varchar("contract_duration", { length: 50 }), // e.g., "6 meses", "1 año"
+  checkInDate: timestamp("check_in_date"), // Fecha deseada de entrada
+  hasPets: varchar("has_pets", { length: 50 }), // "Sí", "No", "Perro", "Gato", etc.
+  estimatedRentCost: integer("estimated_rent_cost"), // Presupuesto del cliente
+  bedrooms: integer("bedrooms"), // Número de recámaras deseadas
+  desiredUnitType: varchar("desired_unit_type", { length: 100 }), // Casa, Departamento, etc.
+  desiredNeighborhood: varchar("desired_neighborhood", { length: 200 }), // Colonia preferida
+  
+  // Vendedor (puede ser seleccionado o escrito manualmente)
+  sellerId: varchar("seller_id").references(() => users.id), // Vendedor asignado (si es seleccionado)
+  sellerName: varchar("seller_name", { length: 200 }), // Nombre del vendedor (si es texto libre)
+  
   // Estado y origen
   status: externalLeadStatusEnum("status").notNull().default("nuevo_lead"),
   source: varchar("source", { length: 100 }), // de dónde vino el lead
