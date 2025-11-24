@@ -35,7 +35,7 @@ const createUserSchema = z.object({
   firstName: z.string().min(1, "Nombre requerido"),
   lastName: z.string().min(1, "Apellido requerido"),
   phone: z.string().optional(),
-  role: z.enum(["external_agency_admin", "external_agency_accounting", "external_agency_maintenance", "external_agency_staff"]),
+  role: z.enum(["external_agency_admin", "external_agency_accounting", "external_agency_maintenance", "external_agency_staff", "external_agency_seller"]),
   maintenanceSpecialty: z.enum(["encargado_mantenimiento", "mantenimiento_general", "electrico", "plomero", "refrigeracion", "carpintero", "pintor", "jardinero", "albanil", "limpieza"]).optional(),
 });
 
@@ -43,7 +43,7 @@ const updateUserSchema = z.object({
   firstName: z.string().min(1, "Nombre requerido"),
   lastName: z.string().min(1, "Apellido requerido"),
   phone: z.string().optional(),
-  role: z.enum(["external_agency_admin", "external_agency_accounting", "external_agency_maintenance", "external_agency_staff"]),
+  role: z.enum(["external_agency_admin", "external_agency_accounting", "external_agency_maintenance", "external_agency_staff", "external_agency_seller"]),
   maintenanceSpecialty: z.enum(["encargado_mantenimiento", "mantenimiento_general", "electrico", "plomero", "refrigeracion", "carpintero", "pintor", "jardinero", "albanil", "limpieza"]).optional(),
 });
 
@@ -56,12 +56,14 @@ const ROLE_LABELS = {
     external_agency_accounting: "Contabilidad",
     external_agency_maintenance: "Mantenimiento",
     external_agency_staff: "Staff",
+    external_agency_seller: "Vendedor",
   },
   en: {
     external_agency_admin: "Admin Jr",
     external_agency_accounting: "Accounting",
     external_agency_maintenance: "Maintenance",
     external_agency_staff: "Staff",
+    external_agency_seller: "Seller",
   },
 };
 
@@ -571,6 +573,9 @@ export default function ExternalAccounts() {
                           <SelectItem value="external_agency_staff">
                             {ROLE_LABELS[language].external_agency_staff}
                           </SelectItem>
+                          <SelectItem value="external_agency_seller">
+                            {ROLE_LABELS[language].external_agency_seller}
+                          </SelectItem>
                         </SelectContent>
                       </Select>
                       <FormMessage />
@@ -735,6 +740,7 @@ export default function ExternalAccounts() {
                         <SelectItem value="external_agency_accounting">{ROLE_LABELS[language].external_agency_accounting}</SelectItem>
                         <SelectItem value="external_agency_maintenance">{ROLE_LABELS[language].external_agency_maintenance}</SelectItem>
                         <SelectItem value="external_agency_staff">{ROLE_LABELS[language].external_agency_staff}</SelectItem>
+                        <SelectItem value="external_agency_seller">{ROLE_LABELS[language].external_agency_seller}</SelectItem>
                       </SelectContent>
                     </Select>
                   </div>
@@ -1115,6 +1121,9 @@ export default function ExternalAccounts() {
                         </SelectItem>
                         <SelectItem value="external_agency_staff">
                           {ROLE_LABELS[language].external_agency_staff}
+                        </SelectItem>
+                        <SelectItem value="external_agency_seller">
+                          {ROLE_LABELS[language].external_agency_seller}
                         </SelectItem>
                       </SelectContent>
                     </Select>

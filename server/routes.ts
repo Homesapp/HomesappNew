@@ -24528,7 +24528,22 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // POST /api/public/leads/vendedor - Public vendedor registration
   app.post("/api/public/leads/vendedor", async (req, res) => {
     try {
-      const { firstName, lastName, email, phone, source, notes } = req.body;
+      const { 
+        firstName, 
+        lastName, 
+        email, 
+        phone,
+        contractDuration,
+        checkInDate,
+        hasPets,
+        estimatedRentCost,
+        bedrooms,
+        desiredUnitType,
+        desiredNeighborhood,
+        sellerName,
+        source, 
+        notes 
+      } = req.body;
       
       // Basic validation
       if (!firstName || !lastName || !email || !phone) {
@@ -24552,6 +24567,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
         email,
         phone,
         phoneLast4: phone.slice(-4),
+        contractDuration: contractDuration || null,
+        checkInDate: checkInDate ? new Date(checkInDate) : null,
+        hasPets: hasPets || null,
+        estimatedRentCost: estimatedRentCost ? parseInt(estimatedRentCost) : null,
+        bedrooms: bedrooms ? parseInt(bedrooms) : null,
+        desiredUnitType: desiredUnitType || null,
+        desiredNeighborhood: desiredNeighborhood || null,
+        sellerName: sellerName || null,
         registrationType: "seller",
         status: "nuevo_lead",
         source: source || "public_web_vendedor",
@@ -24568,7 +24591,23 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // POST /api/public/leads/broker - Public broker registration
   app.post("/api/public/leads/broker", async (req, res) => {
     try {
-      const { firstName, lastName, phoneLast4, source, notes } = req.body;
+      const { 
+        firstName, 
+        lastName, 
+        email,
+        phone,
+        phoneLast4,
+        contractDuration,
+        checkInDate,
+        hasPets,
+        estimatedRentCost,
+        bedrooms,
+        desiredUnitType,
+        desiredNeighborhood,
+        sellerName,
+        source, 
+        notes 
+      } = req.body;
       
       // Basic validation
       if (!firstName || !lastName || !phoneLast4) {
@@ -24588,9 +24627,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
         agencyId,
         firstName,
         lastName,
-        email: null,
-        phone: null,
+        email: email || null,
+        phone: phone || null,
         phoneLast4,
+        contractDuration: contractDuration || null,
+        checkInDate: checkInDate ? new Date(checkInDate) : null,
+        hasPets: hasPets || null,
+        estimatedRentCost: estimatedRentCost ? parseInt(estimatedRentCost) : null,
+        bedrooms: bedrooms ? parseInt(bedrooms) : null,
+        desiredUnitType: desiredUnitType || null,
+        desiredNeighborhood: desiredNeighborhood || null,
+        sellerName: sellerName || null,
         registrationType: "broker",
         status: "nuevo_lead",
         source: source || "public_web_broker",
