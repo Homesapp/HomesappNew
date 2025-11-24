@@ -1362,22 +1362,24 @@ export default function ExternalCondominiums() {
                   </div>
                 );
               })()
-            ) : viewMode === "cards" ? (
+            ) : (
               <>
+                {/* Pagination Controls - shared by both cards and table view */}
                 <ExternalPaginationControls
-                    currentPage={condoCurrentPage}
-                    totalPages={condoTotalPages}
-                    itemsPerPage={condoItemsPerPage}
-                    onPageChange={setCondoCurrentPage}
-                    onItemsPerPageChange={(items) => {
-                      setCondoItemsPerPage(items);
-                      setCondoCurrentPage(1);
-                    }}
-                    language={language}
-                    testIdPrefix="cards"
-                  />
+                  currentPage={condoCurrentPage}
+                  totalPages={condoTotalPages}
+                  itemsPerPage={condoItemsPerPage}
+                  onPageChange={setCondoCurrentPage}
+                  onItemsPerPageChange={(items) => {
+                    setCondoItemsPerPage(items);
+                    setCondoCurrentPage(1);
+                  }}
+                  language={language}
+                  testIdPrefix="condos"
+                />
 
-                <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3 mt-[2px]">
+                {viewMode === "cards" ? (
+                  <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3 mt-[2px]">
                   {paginatedCondominiums.map((condo) => {
                   const condoUnits = getUnitsForCondo(condo.id);
                   const activeUnits = condoUnits.filter(u => u.isActive);
@@ -1654,26 +1656,7 @@ export default function ExternalCondominiums() {
                   );
                   })}
                 </div>
-              </>
-            ) : (
-              <>
-                {/* Pagination Controls */}
-                {condominiums.length > 0 && (
-                  <ExternalPaginationControls
-                    currentPage={condoCurrentPage}
-                    totalPages={condoTotalPages}
-                    itemsPerPage={condoItemsPerPage}
-                    onPageChange={setCondoCurrentPage}
-                    onItemsPerPageChange={(items) => {
-                      setCondoItemsPerPage(items);
-                      setCondoCurrentPage(1);
-                    }}
-                    language={language}
-                    testIdPrefix="table"
-                  />
-                )}
-
-                {/* Table view of condominiums */}
+                ) : (
                 <Card className="border mt-[2px]">
                   <CardContent className="p-0">
                     <Table className="text-sm">
