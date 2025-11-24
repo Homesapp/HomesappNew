@@ -5015,6 +5015,38 @@ export const insertExternalAgencySchema = createInsertSchema(externalAgencies).o
 export type InsertExternalAgency = z.infer<typeof insertExternalAgencySchema>;
 export type ExternalAgency = typeof externalAgencies.$inferSelect;
 
+// External Agency Integrations - Configuraciones de integraciones por agencia
+export const externalAgencyIntegrations = pgTable("external_agency_integrations", {
+  id: varchar("id").primaryKey().$defaultFn(() => crypto.randomUUID()),
+  agencyId: varchar("agency_id").notNull().references(() => externalAgencies.id, { onDelete: "cascade" }).unique(),
+  
+  // Google Calendar OAuth
+  googleCalendarAccessToken: text("google_calendar_access_token"), // Token de acceso
+  googleCalendarRefreshToken: text("google_calendar_refresh_token"), // Token de refresco
+  googleCalendarTokenExpiry: timestamp("google_calendar_token_expiry"), // Expiración del token
+  googleCalendarId: varchar("google_calendar_id", { length: 255 }), // ID del calendario a usar
+  googleCalendarConnectedAt: timestamp("google_calendar_connected_at"), // Cuándo se conectó
+  
+  // OpenAI Configuration
+  openaiApiKey: text("openai_api_key"), // API key encriptada (null si usa Replit Integration)
+  openaiUseReplitIntegration: boolean("openai_use_replit_integration").default(true), // Si usa la integración de Replit
+  openaiConnectedAt: timestamp("openai_connected_at"), // Cuándo se configuró
+  
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+}, (table) => [
+  index("idx_external_agency_integrations_agency").on(table.agencyId),
+]);
+
+export const insertExternalAgencyIntegrationSchema = createInsertSchema(externalAgencyIntegrations).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export type InsertExternalAgencyIntegration = z.infer<typeof insertExternalAgencyIntegrationSchema>;
+export type ExternalAgencyIntegration = typeof externalAgencyIntegrations.$inferSelect;
+
 // External Properties - Propiedades gestionadas externamente
 export const externalProperties = pgTable("external_properties", {
   id: varchar("id").primaryKey().$defaultFn(() => crypto.randomUUID()),

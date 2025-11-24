@@ -1168,6 +1168,21 @@ export interface IStorage {
   toggleExternalAgencyActive(id: string, isActive: boolean): Promise<ExternalAgency>;
   deleteExternalAgency(id: string): Promise<void>;
 
+  // External Agency Integrations operations
+  getExternalAgencyIntegration(agencyId: string): Promise<ExternalAgencyIntegration | undefined>;
+  upsertExternalAgencyIntegration(agencyId: string, data: Partial<InsertExternalAgencyIntegration>): Promise<ExternalAgencyIntegration>;
+  updateGoogleCalendarTokens(agencyId: string, tokens: {
+    accessToken: string;
+    refreshToken: string;
+    expiry: Date;
+    calendarId?: string;
+  }): Promise<ExternalAgencyIntegration>;
+  disconnectGoogleCalendar(agencyId: string): Promise<ExternalAgencyIntegration | undefined>;
+  updateOpenAIConfig(agencyId: string, config: {
+    apiKey?: string | null;
+    useReplitIntegration?: boolean;
+  }): Promise<ExternalAgencyIntegration>;
+
   // External Management System - Property operations
   getExternalProperty(id: string): Promise<ExternalProperty | undefined>;
   getExternalPropertiesByAgency(agencyId: string, filters?: { status?: string }): Promise<ExternalProperty[]>;
@@ -7576,6 +7591,76 @@ export class DatabaseStorage implements IStorage {
   async deleteExternalAgency(id: string): Promise<void> {
     await db.delete(externalAgencies)
       .where(eq(externalAgencies.id, id));
+  }
+
+  // External Agency Integrations operations
+  async getExternalAgencyIntegration(agencyId: string): Promise<ExternalAgencyIntegration | undefined> {
+    const [integration] = await db.select()
+      .from(externalAgencyIntegrations)
+      .where(eq(externalAgencyIntegrations.agencyId, agencyId))
+      .limit(1);
+    return integration;
+  }
+
+  async upsertExternalAgencyIntegration(agencyId: string, data: Partial<InsertExternalAgencyIntegration>): Promise<ExternalAgencyIntegration> {
+    const existing = await this.getExternalAgencyIntegration(agencyId);
+    
+    if (existing) {
+      const [updated] = await db.update(externalAgencyIntegrations)
+        .set({ ...data, updatedAt: new Date() })
+        .where(eq(externalAgencyIntegrations.agencyId, agencyId))
+        .returning();
+      return updated;
+    } else {
+      const [created] = await db.insert(externalAgencyIntegrations)
+        .values({ agencyId, ...data })
+        .returning();
+      return created;
+    }
+  }
+
+  async updateGoogleCalendarTokens(agencyId: string, tokens: {
+    accessToken: string;
+    refreshToken: string;
+    expiry: Date;
+    calendarId?: string;
+  }): Promise<ExternalAgencyIntegration> {
+    return this.upsertExternalAgencyIntegration(agencyId, {
+      googleCalendarAccessToken: tokens.accessToken,
+      googleCalendarRefreshToken: tokens.refreshToken,
+      googleCalendarTokenExpiry: tokens.expiry,
+      googleCalendarId: tokens.calendarId,
+      googleCalendarConnectedAt: new Date(),
+    });
+  }
+
+  async disconnectGoogleCalendar(agencyId: string): Promise<ExternalAgencyIntegration | undefined> {
+    const existing = await this.getExternalAgencyIntegration(agencyId);
+    if (!existing) return undefined;
+
+    const [updated] = await db.update(externalAgencyIntegrations)
+      .set({
+        googleCalendarAccessToken: null,
+        googleCalendarRefreshToken: null,
+        googleCalendarTokenExpiry: null,
+        googleCalendarId: null,
+        googleCalendarConnectedAt: null,
+        updatedAt: new Date(),
+      })
+      .where(eq(externalAgencyIntegrations.agencyId, agencyId))
+      .returning();
+    return updated;
+  }
+
+  async updateOpenAIConfig(agencyId: string, config: {
+    apiKey?: string | null;
+    useReplitIntegration?: boolean;
+  }): Promise<ExternalAgencyIntegration> {
+    return this.upsertExternalAgencyIntegration(agencyId, {
+      openaiApiKey: config.apiKey,
+      openaiUseReplitIntegration: config.useReplitIntegration,
+      openaiConnectedAt: new Date(),
+    });
   }
 
   // External Management System - Property operations
