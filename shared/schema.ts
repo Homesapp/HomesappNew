@@ -5652,7 +5652,7 @@ export const externalLeads = pgTable("external_leads", {
   lastName: varchar("last_name", { length: 100 }).notNull(),
   email: varchar("email", { length: 255 }),
   phone: varchar("phone", { length: 50 }),
-  phoneLast4: varchar("phone_last_4", { length: 4 }), // Solo últimos 4 dígitos para broker
+  phoneLast4: varchar("phone_last4", { length: 4 }), // Solo últimos 4 dígitos para broker
   
   // Estado y origen
   status: varchar("status", { length: 50 }).notNull().default("new"), // new, contacted, viewing, offer_sent, converted, lost

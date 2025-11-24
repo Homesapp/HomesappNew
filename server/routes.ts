@@ -154,6 +154,7 @@ import {
   externalLeads,
   insertExternalLeadSchema,
   updateExternalLeadSchema,
+  insertExternalLeadRegistrationTokenSchema,
   insertExternalPropertySchema,
   insertExternalRentalContractSchema,
   insertExternalRentalTenantSchema,
