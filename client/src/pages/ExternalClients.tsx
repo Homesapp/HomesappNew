@@ -46,6 +46,11 @@ import {
   TabsList,
   TabsTrigger,
 } from "@/components/ui/tabs";
+import {
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger,
+} from "@/components/ui/collapsible";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Textarea } from "@/components/ui/textarea";
 import {
@@ -141,6 +146,7 @@ export default function ExternalClients() {
   const [leadItemsPerPage, setLeadItemsPerPage] = useState(12);
   const [leadSortField, setLeadSortField] = useState<string>("createdAt");
   const [leadSortOrder, setLeadSortOrder] = useState<"asc" | "desc">("desc");
+  const [isPublicLinksExpanded, setIsPublicLinksExpanded] = useState(false);
 
   useLayoutEffect(() => {
     setViewMode(isMobile ? "cards" : "table");
@@ -565,92 +571,109 @@ export default function ExternalClients() {
       </div>
 
       {/* Public Registration Links Section */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-lg flex items-center gap-2">
-            <LinkIcon className="h-5 w-5" />
-            {language === "es" ? "Links de Registro Público" : "Public Registration Links"}
-          </CardTitle>
-          <p className="text-sm text-muted-foreground">
-            {language === "es" 
-              ? "Comparte estos links permanentes para recibir registros de vendedores y brokers"
-              : "Share these permanent links to receive registrations from sellers and brokers"}
-          </p>
-        </CardHeader>
-        <CardContent>
-          <div className="grid gap-4 md:grid-cols-2">
-            {/* Vendedor Link */}
-            <Card className="border-2">
-              <CardHeader className="pb-3">
-                <div className="flex items-center gap-2">
-                  <div className="p-2 rounded-lg bg-primary/10">
-                    <Building2 className="h-5 w-5 text-primary" />
-                  </div>
-                  <CardTitle className="text-base">
-                    {language === "es" ? "Registro de Vendedor" : "Seller Registration"}
-                  </CardTitle>
-                </div>
-              </CardHeader>
-              <CardContent className="space-y-3">
-                <div className="p-3 bg-muted rounded-md font-mono text-xs break-all">
-                  {`${window.location.origin}/leads/vendedor`}
-                </div>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  className="w-full"
-                  onClick={() => {
-                    navigator.clipboard.writeText(`${window.location.origin}/leads/vendedor`);
-                    toast({
-                      title: language === "es" ? "Link copiado" : "Link copied",
-                      description: language === "es" ? "El link ha sido copiado al portapapeles" : "The link has been copied to clipboard",
-                    });
-                  }}
-                  data-testid="button-copy-vendedor-link"
-                >
-                  <Copy className="h-4 w-4 mr-2" />
-                  {language === "es" ? "Copiar Link" : "Copy Link"}
+      <Collapsible open={isPublicLinksExpanded} onOpenChange={setIsPublicLinksExpanded}>
+        <Card>
+          <CardHeader>
+            <div className="flex items-center justify-between">
+              <div className="space-y-1">
+                <CardTitle className="text-lg flex items-center gap-2">
+                  <LinkIcon className="h-5 w-5" />
+                  {language === "es" ? "Links de Registro Público" : "Public Registration Links"}
+                </CardTitle>
+                <p className="text-sm text-muted-foreground">
+                  {language === "es" 
+                    ? "Comparte estos links permanentes para recibir registros de vendedores y brokers"
+                    : "Share these permanent links to receive registrations from sellers and brokers"}
+                </p>
+              </div>
+              <CollapsibleTrigger asChild>
+                <Button variant="ghost" size="sm" data-testid="button-toggle-public-links">
+                  {isPublicLinksExpanded ? (
+                    <ChevronUp className="h-4 w-4" />
+                  ) : (
+                    <ChevronDown className="h-4 w-4" />
+                  )}
                 </Button>
-              </CardContent>
-            </Card>
+              </CollapsibleTrigger>
+            </div>
+          </CardHeader>
+          <CollapsibleContent>
+            <CardContent>
+              <div className="grid gap-4 md:grid-cols-2">
+                {/* Vendedor Link */}
+                <Card className="border-2">
+                  <CardHeader className="pb-3">
+                    <div className="flex items-center gap-2">
+                      <div className="p-2 rounded-lg bg-primary/10">
+                        <Building2 className="h-5 w-5 text-primary" />
+                      </div>
+                      <CardTitle className="text-base">
+                        {language === "es" ? "Registro de Vendedor" : "Seller Registration"}
+                      </CardTitle>
+                    </div>
+                  </CardHeader>
+                  <CardContent className="space-y-3">
+                    <div className="p-3 bg-muted rounded-md font-mono text-xs break-all">
+                      {`${window.location.origin}/leads/vendedor`}
+                    </div>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="w-full"
+                      onClick={() => {
+                        navigator.clipboard.writeText(`${window.location.origin}/leads/vendedor`);
+                        toast({
+                          title: language === "es" ? "Link copiado" : "Link copied",
+                          description: language === "es" ? "El link ha sido copiado al portapapeles" : "The link has been copied to clipboard",
+                        });
+                      }}
+                      data-testid="button-copy-vendedor-link"
+                    >
+                      <Copy className="h-4 w-4 mr-2" />
+                      {language === "es" ? "Copiar Link" : "Copy Link"}
+                    </Button>
+                  </CardContent>
+                </Card>
 
-            {/* Broker Link */}
-            <Card className="border-2">
-              <CardHeader className="pb-3">
-                <div className="flex items-center gap-2">
-                  <div className="p-2 rounded-lg bg-primary/10">
-                    <Handshake className="h-5 w-5 text-primary" />
-                  </div>
-                  <CardTitle className="text-base">
-                    {language === "es" ? "Registro de Broker" : "Broker Registration"}
-                  </CardTitle>
-                </div>
-              </CardHeader>
-              <CardContent className="space-y-3">
-                <div className="p-3 bg-muted rounded-md font-mono text-xs break-all">
-                  {`${window.location.origin}/leads/broker`}
-                </div>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  className="w-full"
-                  onClick={() => {
-                    navigator.clipboard.writeText(`${window.location.origin}/leads/broker`);
-                    toast({
-                      title: language === "es" ? "Link copiado" : "Link copied",
-                      description: language === "es" ? "El link ha sido copiado al portapapeles" : "The link has been copied to clipboard",
-                    });
-                  }}
-                  data-testid="button-copy-broker-link"
-                >
-                  <Copy className="h-4 w-4 mr-2" />
-                  {language === "es" ? "Copiar Link" : "Copy Link"}
-                </Button>
-              </CardContent>
-            </Card>
-          </div>
-        </CardContent>
-      </Card>
+                {/* Broker Link */}
+                <Card className="border-2">
+                  <CardHeader className="pb-3">
+                    <div className="flex items-center gap-2">
+                      <div className="p-2 rounded-lg bg-primary/10">
+                        <Handshake className="h-5 w-5 text-primary" />
+                      </div>
+                      <CardTitle className="text-base">
+                        {language === "es" ? "Registro de Broker" : "Broker Registration"}
+                      </CardTitle>
+                    </div>
+                  </CardHeader>
+                  <CardContent className="space-y-3">
+                    <div className="p-3 bg-muted rounded-md font-mono text-xs break-all">
+                      {`${window.location.origin}/leads/broker`}
+                    </div>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="w-full"
+                      onClick={() => {
+                        navigator.clipboard.writeText(`${window.location.origin}/leads/broker`);
+                        toast({
+                          title: language === "es" ? "Link copiado" : "Link copied",
+                          description: language === "es" ? "El link ha sido copiado al portapapeles" : "The link has been copied to clipboard",
+                        });
+                      }}
+                      data-testid="button-copy-broker-link"
+                    >
+                      <Copy className="h-4 w-4 mr-2" />
+                      {language === "es" ? "Copiar Link" : "Copy Link"}
+                    </Button>
+                  </CardContent>
+                </Card>
+              </div>
+            </CardContent>
+          </CollapsibleContent>
+        </Card>
+      </Collapsible>
 
       {/* Tabs */}
       <Tabs value={activeTab} onValueChange={(value) => setActiveTab(value as "clients" | "leads")}>
