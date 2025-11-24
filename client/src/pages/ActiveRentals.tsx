@@ -126,11 +126,6 @@ export default function ActiveRentals() {
   useEffect(() => {
     setPaymentsPage(1);
   }, [paymentsPerPage]);
-
-  // Reset rentals page when data changes (useLayoutEffect for synchronous execution)
-  useLayoutEffect(() => {
-    setRentalsPage(1);
-  }, [rentals.length]);
   
   // Handler for service type change - resets page synchronously
   const handleServiceTypeChange = (serviceType: string) => {
@@ -156,6 +151,11 @@ export default function ActiveRentals() {
   const { data: rentals = [], isLoading: rentalsLoading } = useQuery<ActiveRental[]>({
     queryKey: [rentalsEndpoint],
   });
+
+  // Reset rentals page when data changes (useLayoutEffect for synchronous execution)
+  useLayoutEffect(() => {
+    setRentalsPage(1);
+  }, [rentals.length]);
 
   // Obtener contratos en proceso del cliente
   const { data: contracts = [], isLoading: contractsLoading } = useQuery({
