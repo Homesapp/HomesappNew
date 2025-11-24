@@ -311,6 +311,7 @@ function drawDualLogos(
   doc: any,
   yPos: number,
   agencyName: string,
+  agencyLogoUrl: string | null | undefined,
   colors: typeof PDF_TEMPLATES.professional
 ): number {
   // HomesApp logo (left)
@@ -324,8 +325,11 @@ function drawDualLogos(
     .font('Helvetica')
     .text('Tulum Rental Homes ™', 50, yPos + 24);
 
-  // Agency name (right)
+  // Agency branding (right)
   if (agencyName) {
+    // Note: Logo image rendering would require loading from URL
+    // For now, we display agency name as text branding
+    // TODO: Implement image loading if agencyLogoUrl is provided
     doc.fontSize(16)
       .fillColor(colors.primary)
       .font('Helvetica-Bold')
@@ -508,6 +512,7 @@ export async function generateRentalFormPDF(
   tenantData: any,
   property: any,
   agencyName: string = '',
+  agencyLogoUrl: string | null = null,
   templateStyle: TemplateStyle = 'professional'
 ): Promise<Buffer> {
   return new Promise((resolve, reject) => {
@@ -526,7 +531,7 @@ export async function generateRentalFormPDF(
 
       // Header with dual logos
       let yPosition = 40;
-      yPosition = drawDualLogos(doc, yPosition, agencyName, colors);
+      yPosition = drawDualLogos(doc, yPosition, agencyName, agencyLogoUrl, colors);
 
       // Title
       doc.fontSize(22)
