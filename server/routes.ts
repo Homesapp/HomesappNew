@@ -184,6 +184,8 @@ import {
   insertExternalWorkerAssignmentSchema,
   insertExternalFinancialTransactionSchema,
   updateExternalFinancialTransactionSchema,
+  insertExternalTermsAndConditionsSchema,
+  updateExternalTermsAndConditionsSchema,
   externalAgencies,
   externalCondominiums,
   externalUnits,
@@ -27812,6 +27814,185 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.status(204).send();
     } catch (error: any) {
       console.error("Error deleting financial transaction:", error);
+      handleGenericError(res, error);
+    }
+  });
+
+  // ============================================================================
+  // EXTERNAL MANAGEMENT SYSTEM - TERMS AND CONDITIONS ROUTES
+  // ============================================================================
+
+  // GET /api/external/configuration/terms - Get all terms for agency
+  app.get("/api/external/configuration/terms", isAuthenticated, requireRole(EXTERNAL_ALL_ROLES), async (req: any, res) => {
+    try {
+      const agencyId = await getUserExternalAgencyId(req, res);
+      if (!agencyId) return;
+
+      const type = req.query.type as 'tenant' | 'owner' | undefined;
+      const terms = await storage.getExternalTermsAndConditions(agencyId, type);
+      res.json(terms);
+    } catch (error: any) {
+      console.error("Error fetching terms and conditions:", error);
+      handleGenericError(res, error);
+    }
+  });
+
+  // GET /api/external/configuration/terms/active - Get active terms for agency
+  app.get("/api/external/configuration/terms/active", isAuthenticated, requireRole(EXTERNAL_ALL_ROLES), async (req: any, res) => {
+    try {
+      const agencyId = await getUserExternalAgencyId(req, res);
+      if (!agencyId) return;
+
+      const type = req.query.type as 'tenant' | 'owner';
+      if (!type) {
+        return res.status(400).json({ message: "Type (tenant or owner) is required" });
+      }
+
+      const terms = await storage.getActiveExternalTermsAndConditions(agencyId, type);
+      res.json(terms || null);
+    } catch (error: any) {
+      console.error("Error fetching active terms:", error);
+      handleGenericError(res, error);
+    }
+  });
+
+  // GET /api/external/configuration/terms/:id - Get specific terms
+  app.get("/api/external/configuration/terms/:id", isAuthenticated, requireRole(EXTERNAL_ALL_ROLES), async (req: any, res) => {
+    try {
+      const { id } = req.params;
+      const terms = await storage.getExternalTermsAndConditionsById(id);
+
+      if (!terms) {
+        return res.status(404).json({ message: "Terms and conditions not found" });
+      }
+
+      const hasAccess = await verifyExternalAgencyOwnership(req, res, terms.agencyId);
+      if (!hasAccess) return;
+
+      res.json(terms);
+    } catch (error: any) {
+      console.error("Error fetching terms by ID:", error);
+      handleGenericError(res, error);
+    }
+  });
+
+  // POST /api/external/configuration/terms - Create new terms
+  app.post("/api/external/configuration/terms", isAuthenticated, requireRole(EXTERNAL_ADMIN_ROLES), async (req: any, res) => {
+    try {
+      const agencyId = await getUserExternalAgencyId(req, res);
+      if (!agencyId) return;
+
+      const termsData = insertExternalTermsAndConditionsSchema.parse({
+        ...req.body,
+        agencyId,
+        createdBy: req.user.id,
+      });
+
+      const terms = await storage.createExternalTermsAndConditions(termsData);
+
+      await createAuditLog(req, "create", "external_terms_and_conditions", terms.id, "Created terms and conditions");
+      res.status(201).json(terms);
+    } catch (error: any) {
+      console.error("Error creating terms:", error);
+      if (error.name === "ZodError") {
+        return handleZodError(res, error);
+      }
+      handleGenericError(res, error);
+    }
+  });
+
+  // PATCH /api/external/configuration/terms/:id - Update terms
+  app.patch("/api/external/configuration/terms/:id", isAuthenticated, requireRole(EXTERNAL_ADMIN_ROLES), async (req: any, res) => {
+    try {
+      const { id } = req.params;
+      const existing = await storage.getExternalTermsAndConditionsById(id);
+
+      if (!existing) {
+        return res.status(404).json({ message: "Terms and conditions not found" });
+      }
+
+      const hasAccess = await verifyExternalAgencyOwnership(req, res, existing.agencyId);
+      if (!hasAccess) return;
+
+      const updates = updateExternalTermsAndConditionsSchema.parse(req.body);
+      const terms = await storage.updateExternalTermsAndConditions(id, updates);
+
+      await createAuditLog(req, "update", "external_terms_and_conditions", id, "Updated terms and conditions");
+      res.json(terms);
+    } catch (error: any) {
+      console.error("Error updating terms:", error);
+      if (error.name === "ZodError") {
+        return handleZodError(res, error);
+      }
+      handleGenericError(res, error);
+    }
+  });
+
+  // POST /api/external/configuration/terms/:id/publish - Publish terms
+  app.post("/api/external/configuration/terms/:id/publish", isAuthenticated, requireRole(EXTERNAL_ADMIN_ROLES), async (req: any, res) => {
+    try {
+      const { id } = req.params;
+      const existing = await storage.getExternalTermsAndConditionsById(id);
+
+      if (!existing) {
+        return res.status(404).json({ message: "Terms and conditions not found" });
+      }
+
+      const hasAccess = await verifyExternalAgencyOwnership(req, res, existing.agencyId);
+      if (!hasAccess) return;
+
+      const terms = await storage.publishExternalTermsAndConditions(id, req.user.id);
+
+      await createAuditLog(req, "update", "external_terms_and_conditions", id, "Published terms and conditions");
+      res.json(terms);
+    } catch (error: any) {
+      console.error("Error publishing terms:", error);
+      handleGenericError(res, error);
+    }
+  });
+
+  // POST /api/external/configuration/terms/:id/unpublish - Unpublish terms
+  app.post("/api/external/configuration/terms/:id/unpublish", isAuthenticated, requireRole(EXTERNAL_ADMIN_ROLES), async (req: any, res) => {
+    try {
+      const { id } = req.params;
+      const existing = await storage.getExternalTermsAndConditionsById(id);
+
+      if (!existing) {
+        return res.status(404).json({ message: "Terms and conditions not found" });
+      }
+
+      const hasAccess = await verifyExternalAgencyOwnership(req, res, existing.agencyId);
+      if (!hasAccess) return;
+
+      const terms = await storage.unpublishExternalTermsAndConditions(id);
+
+      await createAuditLog(req, "update", "external_terms_and_conditions", id, "Unpublished terms and conditions");
+      res.json(terms);
+    } catch (error: any) {
+      console.error("Error unpublishing terms:", error);
+      handleGenericError(res, error);
+    }
+  });
+
+  // DELETE /api/external/configuration/terms/:id - Delete terms
+  app.delete("/api/external/configuration/terms/:id", isAuthenticated, requireRole(EXTERNAL_ADMIN_ROLES), async (req: any, res) => {
+    try {
+      const { id } = req.params;
+      const existing = await storage.getExternalTermsAndConditionsById(id);
+
+      if (!existing) {
+        return res.status(404).json({ message: "Terms and conditions not found" });
+      }
+
+      const hasAccess = await verifyExternalAgencyOwnership(req, res, existing.agencyId);
+      if (!hasAccess) return;
+
+      await storage.deleteExternalTermsAndConditions(id);
+
+      await createAuditLog(req, "delete", "external_terms_and_conditions", id, "Deleted terms and conditions");
+      res.status(204).send();
+    } catch (error: any) {
+      console.error("Error deleting terms:", error);
       handleGenericError(res, error);
     }
   });

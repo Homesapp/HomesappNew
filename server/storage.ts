@@ -375,6 +375,10 @@ import {
   externalFinancialTransactions,
   type ExternalFinancialTransaction,
   type InsertExternalFinancialTransaction,
+  externalTermsAndConditions,
+  type ExternalTermsAndConditions,
+  type InsertExternalTermsAndConditions,
+  type UpdateExternalTermsAndConditions,
   offerTokens,
   tenantRentalFormTokens,
 } from "@shared/schema";
@@ -1363,6 +1367,16 @@ export interface IStorage {
     reconciledInflow: number;
     reconciledOutflow: number;
   }>;
+
+  // External Management System - Terms and Conditions operations
+  getExternalTermsAndConditions(agencyId: string, type?: 'tenant' | 'owner'): Promise<any[]>;
+  getExternalTermsAndConditionsById(id: string): Promise<any | undefined>;
+  getActiveExternalTermsAndConditions(agencyId: string, type: 'tenant' | 'owner'): Promise<any | undefined>;
+  createExternalTermsAndConditions(terms: any): Promise<any>;
+  updateExternalTermsAndConditions(id: string, updates: any): Promise<any>;
+  publishExternalTermsAndConditions(id: string, publishedBy: string): Promise<any>;
+  unpublishExternalTermsAndConditions(id: string): Promise<any>;
+  deleteExternalTermsAndConditions(id: string): Promise<void>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -9752,6 +9766,109 @@ export class DatabaseStorage implements IStorage {
       .limit(1);
 
     return result;
+  }
+
+  // External Management System - Terms and Conditions operations
+  async getExternalTermsAndConditions(agencyId: string, type?: 'tenant' | 'owner'): Promise<ExternalTermsAndConditions[]> {
+    const conditions = [eq(externalTermsAndConditions.agencyId, agencyId)];
+    if (type) {
+      conditions.push(eq(externalTermsAndConditions.type, type));
+    }
+
+    return await db
+      .select()
+      .from(externalTermsAndConditions)
+      .where(and(...conditions))
+      .orderBy(desc(externalTermsAndConditions.createdAt));
+  }
+
+  async getExternalTermsAndConditionsById(id: string): Promise<ExternalTermsAndConditions | undefined> {
+    const [result] = await db
+      .select()
+      .from(externalTermsAndConditions)
+      .where(eq(externalTermsAndConditions.id, id));
+    return result;
+  }
+
+  async getActiveExternalTermsAndConditions(agencyId: string, type: 'tenant' | 'owner'): Promise<ExternalTermsAndConditions | undefined> {
+    const [result] = await db
+      .select()
+      .from(externalTermsAndConditions)
+      .where(
+        and(
+          eq(externalTermsAndConditions.agencyId, agencyId),
+          eq(externalTermsAndConditions.type, type),
+          eq(externalTermsAndConditions.isActive, true)
+        )
+      )
+      .limit(1);
+    return result;
+  }
+
+  async createExternalTermsAndConditions(termsData: InsertExternalTermsAndConditions): Promise<ExternalTermsAndConditions> {
+    const [result] = await db
+      .insert(externalTermsAndConditions)
+      .values(termsData)
+      .returning();
+    return result;
+  }
+
+  async updateExternalTermsAndConditions(id: string, updates: UpdateExternalTermsAndConditions): Promise<ExternalTermsAndConditions> {
+    const [result] = await db
+      .update(externalTermsAndConditions)
+      .set({ ...updates, updatedAt: new Date() })
+      .where(eq(externalTermsAndConditions.id, id))
+      .returning();
+    return result;
+  }
+
+  async publishExternalTermsAndConditions(id: string, publishedBy: string): Promise<ExternalTermsAndConditions> {
+    // First get the terms to unpublish others of the same type
+    const terms = await this.getExternalTermsAndConditionsById(id);
+    if (!terms) {
+      throw new Error('Terms and conditions not found');
+    }
+
+    // Unpublish all active terms of the same type for this agency
+    await db
+      .update(externalTermsAndConditions)
+      .set({ isActive: false, updatedAt: new Date() })
+      .where(
+        and(
+          eq(externalTermsAndConditions.agencyId, terms.agencyId),
+          eq(externalTermsAndConditions.type, terms.type),
+          eq(externalTermsAndConditions.isActive, true)
+        )
+      );
+
+    // Publish the selected terms
+    const [result] = await db
+      .update(externalTermsAndConditions)
+      .set({
+        isActive: true,
+        publishedAt: new Date(),
+        publishedBy,
+        updatedAt: new Date()
+      })
+      .where(eq(externalTermsAndConditions.id, id))
+      .returning();
+
+    return result;
+  }
+
+  async unpublishExternalTermsAndConditions(id: string): Promise<ExternalTermsAndConditions> {
+    const [result] = await db
+      .update(externalTermsAndConditions)
+      .set({ isActive: false, updatedAt: new Date() })
+      .where(eq(externalTermsAndConditions.id, id))
+      .returning();
+    return result;
+  }
+
+  async deleteExternalTermsAndConditions(id: string): Promise<void> {
+    await db
+      .delete(externalTermsAndConditions)
+      .where(eq(externalTermsAndConditions.id, id));
   }
 }
 
