@@ -183,6 +183,8 @@ import {
   insertExternalOwnerNotificationSchema,
   insertExternalWorkerAssignmentSchema,
   insertExternalFinancialTransactionSchema,
+  insertExternalQuotationSchema,
+  updateExternalQuotationSchema,
   updateExternalFinancialTransactionSchema,
   insertExternalTermsAndConditionsSchema,
   updateExternalTermsAndConditionsSchema,
