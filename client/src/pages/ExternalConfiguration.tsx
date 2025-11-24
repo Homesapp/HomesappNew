@@ -507,20 +507,30 @@ export default function ExternalConfiguration() {
                     type="password"
                     value={openaiApiKey}
                     onChange={(e) => setOpenaiApiKey(e.target.value)}
-                    placeholder="sk-..."
+                    placeholder={integrations?.openaiHasCustomKey 
+                      ? (language === "es" ? "•••• (configurada)" : "•••• (configured)")
+                      : "sk-..."}
                     data-testid="input-openai-api-key"
                   />
-                  <p className="text-sm text-muted-foreground">
-                    {language === "es" 
-                      ? "Tu API key se almacenará de forma segura y encriptada."
-                      : "Your API key will be stored securely and encrypted."}
-                  </p>
+                  {integrations?.openaiHasCustomKey ? (
+                    <p className="text-sm text-muted-foreground">
+                      {language === "es" 
+                        ? "✓ API key personalizada configurada. Deja en blanco para mantenerla o ingresa una nueva para reemplazarla."
+                        : "✓ Custom API key configured. Leave blank to keep it or enter a new one to replace it."}
+                    </p>
+                  ) : (
+                    <p className="text-sm text-muted-foreground">
+                      {language === "es" 
+                        ? "Tu API key se almacenará de forma segura y encriptada."
+                        : "Your API key will be stored securely and encrypted."}
+                    </p>
+                  )}
                 </div>
               )}
 
               <Button
                 onClick={handleSaveOpenAI}
-                disabled={updateOpenAIMutation.isPending || (!useReplitIntegration && !openaiApiKey)}
+                disabled={updateOpenAIMutation.isPending || (!useReplitIntegration && !openaiApiKey && !integrations?.openaiHasCustomKey)}
                 className="w-full"
                 data-testid="button-save-openai"
               >

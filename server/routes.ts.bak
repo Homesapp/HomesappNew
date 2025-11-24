@@ -21167,6 +21167,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           openaiConnected: !!(integration.openaiApiKey || integration.openaiUseReplitIntegration),
           openaiUseReplitIntegration: integration.openaiUseReplitIntegration,
           openaiHasCustomKey: !!integration.openaiApiKey,
+          openaiConnected: !!(integration.openaiApiKey || integration.openaiUseReplitIntegration),
         });
       } else {
         res.json({
@@ -21175,7 +21176,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
           openaiConnected: false,
           openaiUseReplitIntegration: true,
           openaiHasCustomKey: false,
+          openaiUseReplitIntegration: true,
+          openaiHasCustomKey: false,
         });
+      }
     } catch (error: any) {
       console.error("Error fetching agency integrations:", error);
       handleGenericError(res, error);
