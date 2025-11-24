@@ -119,11 +119,11 @@ export default function ExternalQuotations() {
         method: "POST",
         body: JSON.stringify({
           ...rest,
-          services: JSON.stringify(services),
-          subtotal: subtotal.toFixed(2),
-          adminFee: adminFee.toFixed(2),
-          adminFeePercentage: adminFeePercentage.toFixed(2),
-          total: total.toFixed(2),
+          services,
+          subtotal,
+          adminFee,
+          adminFeePercentage,
+          total,
         }),
       });
     },
@@ -156,11 +156,11 @@ export default function ExternalQuotations() {
         method: "PATCH",
         body: JSON.stringify({
           ...rest,
-          services: JSON.stringify(services),
-          subtotal: subtotal.toFixed(2),
-          adminFee: adminFee.toFixed(2),
-          adminFeePercentage: adminFeePercentage.toFixed(2),
-          total: total.toFixed(2),
+          services,
+          subtotal,
+          adminFee,
+          adminFeePercentage,
+          total,
         }),
       });
     },
