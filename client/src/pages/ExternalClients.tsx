@@ -142,10 +142,6 @@ export default function ExternalClients() {
   const [leadSortField, setLeadSortField] = useState<string>("createdAt");
   const [leadSortOrder, setLeadSortOrder] = useState<"asc" | "desc">("desc");
 
-  // Registration Link states
-  const [isRegistrationLinkDialogOpen, setIsRegistrationLinkDialogOpen] = useState(false);
-  const [registrationLinkType, setRegistrationLinkType] = useState<"seller" | "broker">("seller");
-
   useLayoutEffect(() => {
     setViewMode(isMobile ? "cards" : "table");
   }, [isMobile]);
@@ -486,106 +482,6 @@ export default function ExternalClients() {
     },
   });
 
-  // Registration Links Query
-  const { data: registrationLinks = [] } = useQuery<any[]>({
-    queryKey: ["/api/external-lead-registration-links"],
-    queryFn: async () => {
-      const response = await fetch("/api/external-lead-registration-links", { credentials: "include" });
-      if (!response.ok) throw new Error("Failed to fetch registration links");
-      return response.json();
-    },
-    staleTime: 2 * 60 * 1000,
-  });
-
-  const createRegistrationLinkMutation = useMutation({
-    mutationFn: async (type: "seller" | "broker") => {
-      const res = await apiRequest("POST", "/api/external-lead-registration-links", {
-        agencyId: user?.agencyId,
-        agencyName: user?.agencyName || "Agency",
-        registrationType: type,
-      });
-      return res.json();
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/external-lead-registration-links"] });
-      toast({
-        title: language === "es" ? "Link creado" : "Link created",
-        description: language === "es"
-          ? "El link de registro ha sido creado exitosamente."
-          : "Registration link has been created successfully.",
-      });
-      setIsRegistrationLinkDialogOpen(false);
-    },
-    onError: (error: any) => {
-      toast({
-        variant: "destructive",
-        title: language === "es" ? "Error" : "Error",
-        description: error.message || (language === "es"
-          ? "No se pudo crear el link."
-          : "Failed to create link."),
-      });
-    },
-  });
-
-  const regenerateRegistrationLinkMutation = useMutation({
-    mutationFn: async (id: string) => {
-      const res = await apiRequest("POST", `/api/external-lead-registration-links/${id}/regenerate`);
-      return res.json();
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/external-lead-registration-links"] });
-      toast({
-        title: language === "es" ? "Link regenerado" : "Link regenerated",
-        description: language === "es"
-          ? "El link ha sido regenerado exitosamente."
-          : "Link has been regenerated successfully.",
-      });
-    },
-    onError: (error: any) => {
-      toast({
-        variant: "destructive",
-        title: language === "es" ? "Error" : "Error",
-        description: error.message || (language === "es"
-          ? "No se pudo regenerar el link."
-          : "Failed to regenerate link."),
-      });
-    },
-  });
-
-  const deleteRegistrationLinkMutation = useMutation({
-    mutationFn: async (id: string) => {
-      await apiRequest("DELETE", `/api/external-lead-registration-links/${id}`);
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/external-lead-registration-links"] });
-      toast({
-        title: language === "es" ? "Link eliminado" : "Link deleted",
-        description: language === "es"
-          ? "El link ha sido eliminado exitosamente."
-          : "Link has been deleted successfully.",
-      });
-    },
-    onError: (error: any) => {
-      toast({
-        variant: "destructive",
-        title: language === "es" ? "Error" : "Error",
-        description: error.message || (language === "es"
-          ? "No se pudo eliminar el link."
-          : "Failed to delete link."),
-      });
-    },
-  });
-
-  const copyToClipboard = (text: string) => {
-    navigator.clipboard.writeText(text);
-    toast({
-      title: language === "es" ? "Copiado" : "Copied",
-      description: language === "es"
-        ? "Link copiado al portapapeles."
-        : "Link copied to clipboard.",
-    });
-  };
-
   const handleSort = (field: SortField) => {
     if (sortField === field) {
       setSortOrder(sortOrder === "asc" ? "desc" : "asc");
@@ -779,23 +675,13 @@ export default function ExternalClients() {
             </Button>
           )}
           {activeTab === "leads" && (
-            <div className="flex gap-2">
-              <Button 
-                onClick={() => setIsCreateLeadDialogOpen(true)}
-                data-testid="button-create-lead"
-              >
-                <Plus className="mr-2 h-4 w-4" />
-                {language === "es" ? "Nuevo Lead" : "New Lead"}
-              </Button>
-              <Button
-                variant="outline"
-                onClick={() => setIsRegistrationLinkDialogOpen(true)}
-                data-testid="button-create-registration-link"
-              >
-                <LinkIcon className="mr-2 h-4 w-4" />
-                {language === "es" ? "Generar Link" : "Generate Link"}
-              </Button>
-            </div>
+            <Button 
+              onClick={() => setIsCreateLeadDialogOpen(true)}
+              data-testid="button-create-lead"
+            >
+              <Plus className="mr-2 h-4 w-4" />
+              {language === "es" ? "Nuevo Lead" : "New Lead"}
+            </Button>
           )}
         </div>
 
@@ -2437,71 +2323,6 @@ export default function ExternalClients() {
               {deleteLeadMutation.isPending 
                 ? (language === "es" ? "Eliminando..." : "Deleting...")
                 : (language === "es" ? "Eliminar" : "Delete")}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
-      {/* Create Registration Link Dialog */}
-      <Dialog open={isRegistrationLinkDialogOpen} onOpenChange={setIsRegistrationLinkDialogOpen}>
-        <DialogContent className="max-w-md">
-          <DialogHeader>
-            <DialogTitle>
-              {language === "es" ? "Generar Link de Registro" : "Generate Registration Link"}
-            </DialogTitle>
-            <DialogDescription>
-              {language === "es"
-                ? "Selecciona el tipo de registro para generar un link público."
-                : "Select the registration type to generate a public link."}
-            </DialogDescription>
-          </DialogHeader>
-          <div className="space-y-4">
-            <div className="space-y-2">
-              <h4 className="font-medium text-sm">
-                {language === "es" ? "Tipo de Registro" : "Registration Type"}
-              </h4>
-              <Tabs value={registrationLinkType} onValueChange={(v) => setRegistrationLinkType(v as "seller" | "broker")}>
-                <TabsList className="grid w-full grid-cols-2">
-                  <TabsTrigger value="seller" data-testid="tab-seller">
-                    {language === "es" ? "Vendedor" : "Seller"}
-                  </TabsTrigger>
-                  <TabsTrigger value="broker" data-testid="tab-broker">
-                    {language === "es" ? "Broker" : "Broker"}
-                  </TabsTrigger>
-                </TabsList>
-                <TabsContent value="seller" className="mt-4">
-                  <p className="text-sm text-muted-foreground">
-                    {language === "es"
-                      ? "Los vendedores proporcionarán nombre completo, email y teléfono."
-                      : "Sellers will provide full name, email, and phone number."}
-                  </p>
-                </TabsContent>
-                <TabsContent value="broker" className="mt-4">
-                  <p className="text-sm text-muted-foreground">
-                    {language === "es"
-                      ? "Los brokers proporcionarán nombre completo y últimos 4 dígitos del teléfono."
-                      : "Brokers will provide full name and last 4 digits of phone."}
-                  </p>
-                </TabsContent>
-              </Tabs>
-            </div>
-          </div>
-          <DialogFooter>
-            <Button
-              variant="outline"
-              onClick={() => setIsRegistrationLinkDialogOpen(false)}
-              data-testid="button-cancel-registration-link"
-            >
-              {language === "es" ? "Cancelar" : "Cancel"}
-            </Button>
-            <Button
-              onClick={() => createRegistrationLinkMutation.mutate(registrationLinkType)}
-              disabled={createRegistrationLinkMutation.isPending}
-              data-testid="button-create-registration-link"
-            >
-              {createRegistrationLinkMutation.isPending
-                ? (language === "es" ? "Generando..." : "Generating...")
-                : (language === "es" ? "Generar Link" : "Generate Link")}
             </Button>
           </DialogFooter>
         </DialogContent>

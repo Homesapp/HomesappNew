@@ -41,10 +41,18 @@ export default function LeadRegistrationBroker() {
 
   const submitMutation = useMutation({
     mutationFn: async (data: BrokerFormData) => {
-      return await apiRequest("/api/public/leads/broker", {
+      const response = await fetch("/api/public/leads/broker", {
         method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
         body: JSON.stringify(data),
       });
+      if (!response.ok) {
+        const error = await response.json().catch(() => ({ message: "Error al enviar" }));
+        throw new Error(error.message);
+      }
+      return response.json();
     },
     onSuccess: () => {
       setSubmitted(true);
