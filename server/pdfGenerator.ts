@@ -273,7 +273,243 @@ export async function generateOfferPDF(offerData: any, property: any): Promise<B
   });
 }
 
-export async function generateRentalFormPDF(tenantData: any, property: any): Promise<Buffer> {
+// PDF Template Styles Configuration
+const PDF_TEMPLATES = {
+  professional: {
+    primary: '#2F2A1F',      // Dark brown
+    secondary: '#4F4A40',    // Medium brown
+    accent: '#C19A6B',       // Gold/tan
+    surface: '#F7F4EF',      // Light beige
+    border: '#DED6C3',       // Light tan border
+    text: '#1a1a1a',
+    textSecondary: '#666666',
+  },
+  modern: {
+    primary: '#1a2332',      // Dark slate
+    secondary: '#2d3e50',    // Medium slate
+    accent: '#7C9CBF',       // Soft blue
+    surface: '#F5F7FA',      // Light gray-blue
+    border: '#D5DBE1',       // Light slate border
+    text: '#1a1a1a',
+    textSecondary: '#4a5568',
+  },
+  elegant: {
+    primary: '#2C1810',      // Deep espresso
+    secondary: '#5D4E37',    // Coffee brown
+    accent: '#A0826D',       // Muted rose gold
+    surface: '#FAF8F5',      // Off-white
+    border: '#E8DED2',       // Warm beige border
+    text: '#1a1a1a',
+    textSecondary: '#6b5d54',
+  },
+};
+
+type TemplateStyle = keyof typeof PDF_TEMPLATES;
+
+// Helper: Draw dual logos (HomesApp + Agency)
+function drawDualLogos(
+  doc: any,
+  yPos: number,
+  agencyName: string,
+  colors: typeof PDF_TEMPLATES.professional
+): number {
+  // HomesApp logo (left)
+  doc.fontSize(20)
+    .fillColor(colors.primary)
+    .font('Helvetica-Bold')
+    .text('HomesApp', 50, yPos);
+  
+  doc.fontSize(9)
+    .fillColor(colors.textSecondary)
+    .font('Helvetica')
+    .text('Tulum Rental Homes ™', 50, yPos + 24);
+
+  // Agency name (right)
+  if (agencyName) {
+    doc.fontSize(16)
+      .fillColor(colors.primary)
+      .font('Helvetica-Bold')
+      .text(agencyName, 400, yPos, { align: 'right', width: 145 });
+    
+    doc.fontSize(9)
+      .fillColor(colors.textSecondary)
+      .font('Helvetica')
+      .text('Agencia Inmobiliaria', 400, yPos + 22, { align: 'right', width: 145 });
+  }
+
+  return yPos + 50;
+}
+
+// Helper: Draw section header
+function drawSectionHeader(
+  doc: any,
+  title: string,
+  yPos: number,
+  colors: typeof PDF_TEMPLATES.professional,
+  withBackground: boolean = false
+): number {
+  if (withBackground) {
+    doc.rect(50, yPos - 5, 495, 28)
+      .fillColor(colors.surface)
+      .fill();
+  }
+
+  doc.fontSize(14)
+    .fillColor(colors.primary)
+    .font('Helvetica-Bold')
+    .text(title, 55, yPos);
+  
+  doc.font('Helvetica');
+  return yPos + 30;
+}
+
+// Helper: Draw key-value grid (2 columns)
+function drawKeyValueGrid(
+  doc: any,
+  items: Array<{ label: string; value: string | null | undefined }>,
+  yPos: number,
+  colors: typeof PDF_TEMPLATES.professional
+): number {
+  let currentY = yPos;
+  
+  items.forEach(({ label, value }) => {
+    if (value) {
+      // Check if we need a new page
+      if (currentY > 720) {
+        doc.addPage();
+        currentY = 50;
+      }
+
+      doc.fontSize(8)
+        .fillColor(colors.textSecondary)
+        .text(`${label}:`, 60, currentY);
+      
+      doc.fontSize(10)
+        .fillColor(colors.text)
+        .font('Helvetica-Bold')
+        .text(String(value), 200, currentY, { width: 335 });
+      
+      doc.font('Helvetica');
+      currentY += 18;
+    }
+  });
+  
+  return currentY + 10;
+}
+
+// Helper: Draw document list
+function drawDocumentList(
+  doc: any,
+  title: string,
+  documents: Array<{ label: string; url: string | string[] | null | undefined }>,
+  yPos: number,
+  colors: typeof PDF_TEMPLATES.professional
+): number {
+  let currentY = yPos;
+
+  // Check if we need a new page
+  if (currentY > 680) {
+    doc.addPage();
+    currentY = 50;
+  }
+
+  doc.fontSize(12)
+    .fillColor(colors.secondary)
+    .font('Helvetica-Bold')
+    .text(title, 60, currentY);
+  
+  currentY += 20;
+  doc.font('Helvetica');
+
+  let hasDocuments = false;
+  documents.forEach(({ label, url }) => {
+    if (url) {
+      hasDocuments = true;
+      const urls = Array.isArray(url) ? url : [url];
+      urls.forEach((u, idx) => {
+        if (u) {
+          doc.fontSize(9)
+            .fillColor(colors.text)
+            .text(`• ${label}${urls.length > 1 ? ` (${idx + 1})` : ''}: `, 70, currentY);
+          
+          doc.fontSize(8)
+            .fillColor(colors.accent)
+            .text('Documento adjunto', 180, currentY);
+          
+          currentY += 16;
+        }
+      });
+    }
+  });
+
+  if (!hasDocuments) {
+    doc.fontSize(9)
+      .fillColor(colors.textSecondary)
+      .text('No se adjuntaron documentos', 70, currentY);
+    currentY += 16;
+  }
+
+  return currentY + 15;
+}
+
+// Helper: Draw signature block
+function drawSignatureBlock(
+  doc: any,
+  name: string,
+  signatureUrl: string | null | undefined,
+  yPos: number,
+  colors: typeof PDF_TEMPLATES.professional
+): number {
+  let currentY = yPos;
+
+  // Check if we need a new page
+  if (currentY > 680) {
+    doc.addPage();
+    currentY = 50;
+  }
+
+  doc.fontSize(10)
+    .fillColor(colors.text)
+    .font('Helvetica-Bold')
+    .text(name, 60, currentY);
+  
+  currentY += 20;
+  doc.font('Helvetica');
+
+  if (signatureUrl) {
+    doc.fontSize(8)
+      .fillColor(colors.accent)
+      .text('✓ Firmado digitalmente', 60, currentY);
+    currentY += 15;
+    doc.fontSize(7)
+      .fillColor(colors.textSecondary)
+      .text(`Fecha: ${new Date().toLocaleDateString('es-MX')}`, 60, currentY);
+  } else {
+    doc.fontSize(8)
+      .fillColor(colors.textSecondary)
+      .text('Firma pendiente', 60, currentY);
+  }
+
+  // Signature line
+  doc.moveTo(60, currentY + 40)
+    .lineTo(260, currentY + 40)
+    .strokeColor(colors.border)
+    .lineWidth(1)
+    .stroke();
+  
+  doc.fontSize(7)
+    .fillColor(colors.textSecondary)
+    .text('Firma', 60, currentY + 45);
+
+  return currentY + 70;
+}
+
+export async function generateRentalFormPDF(
+  tenantData: any,
+  property: any,
+  agencyName: string = '',
+  templateStyle: TemplateStyle = 'professional'
+): Promise<Buffer> {
   return new Promise((resolve, reject) => {
     try {
       const doc = new PDFDocument({
@@ -286,210 +522,125 @@ export async function generateRentalFormPDF(tenantData: any, property: any): Pro
       doc.on('end', () => resolve(Buffer.concat(chunks)));
       doc.on('error', reject);
 
-      const primaryColor = '#3b82f6';
-      const secondaryColor = '#64748b';
-      const accentColor = '#10b981';
-      const bgColor = '#f8fafc';
-      const borderColor = '#e2e8f0';
+      const colors = PDF_TEMPLATES[templateStyle] || PDF_TEMPLATES.professional;
 
-      // Header with background
-      doc.rect(0, 0, 595, 120)
-        .fillColor('#1e40af')
-        .fill();
+      // Header with dual logos
+      let yPosition = 40;
+      yPosition = drawDualLogos(doc, yPosition, agencyName, colors);
 
-      doc.fontSize(32)
-        .fillColor('#ffffff')
-        .text('HomesApp', 50, 35);
-
-      doc.fontSize(14)
-        .fillColor('#bfdbfe')
-        .text('Tulum Rental Homes ™', 50, 75);
-
-      // Title Section
-      doc.fontSize(24)
-        .fillColor('#1e293b')
-        .text('Formulario de Inquilino', 50, 150);
-
-      doc.fontSize(10)
-        .fillColor(secondaryColor)
+      // Title
+      doc.fontSize(22)
+        .fillColor(colors.primary)
+        .font('Helvetica-Bold')
+        .text('Formulario de Solicitud de Arrendamiento', 50, yPosition, { align: 'center', width: 495 });
+      
+      yPosition += 35;
+      doc.fontSize(9)
+        .fillColor(colors.textSecondary)
+        .font('Helvetica')
         .text(`Generado el ${new Date().toLocaleDateString('es-MX', { 
           year: 'numeric', 
           month: 'long', 
           day: 'numeric',
           hour: '2-digit',
           minute: '2-digit'
-        })}`, 50, 185);
-
-      doc.moveTo(50, 210)
-        .lineTo(545, 210)
-        .strokeColor(borderColor)
-        .lineWidth(2)
-        .stroke();
-
-      let yPosition = 230;
-
-      // Property Section
-      doc.rect(50, yPosition - 5, 495, 70)
-        .fillColor(bgColor)
-        .fill();
-
-      doc.fontSize(16)
-        .fillColor(primaryColor)
-        .text('PROPIEDAD', 60, yPosition + 5);
-      
-      yPosition += 30;
-      doc.fontSize(12)
-        .fillColor('#1e293b')
-        .font('Helvetica-Bold')
-        .text(`${property.title || 'Sin título'}`, 60, yPosition);
-      
-      yPosition += 20;
-      doc.fontSize(10)
-        .font('Helvetica')
-        .fillColor(secondaryColor)
-        .text(`${property.address || 'Dirección no disponible'}`, 60, yPosition);
-
-      yPosition += 50;
-
-      // Tenant Personal Information
-      doc.fontSize(16)
-        .fillColor(primaryColor)
-        .text('INFORMACIÓN PERSONAL', 50, yPosition);
+        })}`, 50, yPosition, { align: 'center', width: 495 });
 
       yPosition += 25;
-      const personalInfo = [
+      doc.moveTo(50, yPosition)
+        .lineTo(545, yPosition)
+        .strokeColor(colors.border)
+        .lineWidth(1)
+        .stroke();
+
+      yPosition += 25;
+
+      // Property Section
+      yPosition = drawSectionHeader(doc, 'PROPIEDAD', yPosition, colors, true);
+      yPosition = drawKeyValueGrid(doc, [
+        { label: 'Propiedad', value: property.title || 'Sin título' },
+        { label: 'Dirección', value: property.address || 'No disponible' },
+        { label: 'Ciudad', value: property.city || 'Tulum' },
+        { label: 'Estado', value: property.state || 'Quintana Roo' },
+      ], yPosition, colors);
+
+      // Tenant Personal Information
+      yPosition = drawSectionHeader(doc, 'INFORMACIÓN PERSONAL DEL INQUILINO', yPosition, colors, true);
+      yPosition = drawKeyValueGrid(doc, [
         { label: 'Nombre completo', value: tenantData.fullName },
         { label: 'Email', value: tenantData.email },
         { label: 'Teléfono', value: tenantData.phone },
         { label: 'Fecha de nacimiento', value: tenantData.birthDate ? new Date(tenantData.birthDate).toLocaleDateString('es-MX') : null },
         { label: 'Nacionalidad', value: tenantData.nationality },
-      ];
+        { label: 'Estatus laboral', value: tenantData.employmentStatus },
+        { label: 'Ingreso mensual', value: tenantData.monthlyIncome ? `$${parseFloat(tenantData.monthlyIncome).toLocaleString()} USD` : null },
+        { label: 'Empresa', value: tenantData.employerName },
+        { label: 'Mascotas', value: tenantData.hasPets === 'yes' ? 'Sí' : 'No' },
+        { label: 'Vehículo', value: tenantData.hasVehicle === 'yes' ? 'Sí' : 'No' },
+      ], yPosition, colors);
 
-      personalInfo.forEach(({ label, value }) => {
-        if (value) {
-          doc.fontSize(9)
-            .fillColor(secondaryColor)
-            .text(`${label}:`, 50, yPosition);
-          
-          doc.fontSize(10)
-            .fillColor('#1e293b')
-            .font('Helvetica-Bold')
-            .text(value, 180, yPosition);
-          
-          doc.font('Helvetica');
-          yPosition += 20;
-        }
-      });
+      // Tenant Documents
+      yPosition = drawDocumentList(doc, 'Documentos del Inquilino', [
+        { label: 'INE/Pasaporte', url: tenantData.tenantIdDocument },
+        { label: 'Comprobante de domicilio', url: tenantData.tenantProofOfAddress },
+        { label: 'Comprobante de ingresos', url: tenantData.tenantProofOfIncome },
+      ], yPosition, colors);
 
-      yPosition += 15;
+      // Guarantor Information
+      if (tenantData.guarantorFullName) {
+        yPosition = drawSectionHeader(doc, 'INFORMACIÓN DEL AVAL', yPosition, colors, true);
+        yPosition = drawKeyValueGrid(doc, [
+          { label: 'Nombre completo', value: tenantData.guarantorFullName },
+          { label: 'Email', value: tenantData.guarantorEmail },
+          { label: 'Teléfono', value: tenantData.guarantorPhone },
+          { label: 'Relación', value: tenantData.guarantorRelationship },
+          { label: 'Empresa', value: tenantData.guarantorEmployerName },
+          { label: 'Ingreso mensual', value: tenantData.guarantorMonthlyIncome ? `$${parseFloat(tenantData.guarantorMonthlyIncome).toLocaleString()} USD` : null },
+        ], yPosition, colors);
 
-      // Employment Information
-      if (tenantData.employmentStatus || tenantData.monthlyIncome) {
-        doc.fontSize(16)
-          .fillColor(primaryColor)
-          .text('INFORMACIÓN LABORAL', 50, yPosition);
-
-        yPosition += 25;
-        const employmentInfo = [
-          { label: 'Estatus laboral', value: tenantData.employmentStatus },
-          { label: 'Ingreso mensual', value: tenantData.monthlyIncome ? `$${parseFloat(tenantData.monthlyIncome).toLocaleString()} USD` : null },
-          { label: 'Empresa', value: tenantData.employerName },
-        ];
-
-        employmentInfo.forEach(({ label, value }) => {
-          if (value) {
-            doc.fontSize(9)
-              .fillColor(secondaryColor)
-              .text(`${label}:`, 50, yPosition);
-            
-            doc.fontSize(10)
-              .fillColor('#1e293b')
-              .font('Helvetica-Bold')
-              .text(value, 180, yPosition);
-            
-            doc.font('Helvetica');
-            yPosition += 20;
-          }
-        });
-
-        yPosition += 15;
+        // Guarantor Documents
+        yPosition = drawDocumentList(doc, 'Documentos del Aval', [
+          { label: 'INE/Pasaporte', url: tenantData.guarantorIdDocument },
+          { label: 'Comprobante de domicilio', url: tenantData.guarantorProofOfAddress },
+          { label: 'Comprobante de ingresos', url: tenantData.guarantorProofOfIncome },
+        ], yPosition, colors);
       }
 
       // References
       if (tenantData.references && tenantData.references.length > 0) {
-        doc.fontSize(16)
-          .fillColor(primaryColor)
-          .text('REFERENCIAS', 50, yPosition);
-
-        yPosition += 25;
+        yPosition = drawSectionHeader(doc, 'REFERENCIAS', yPosition, colors, true);
         tenantData.references.forEach((ref: any, index: number) => {
-          doc.fontSize(11)
-            .fillColor(secondaryColor)
-            .font('Helvetica-Bold')
-            .text(`Referencia ${index + 1}`, 50, yPosition);
-          
-          yPosition += 18;
-          doc.fontSize(10)
-            .font('Helvetica')
-            .fillColor('#1e293b')
-            .text(`Nombre: ${ref.name || 'No especificado'}`, 70, yPosition);
-          yPosition += 16;
-          doc.text(`Teléfono: ${ref.phone || 'No especificado'}`, 70, yPosition);
-          yPosition += 16;
-          doc.text(`Relación: ${ref.relationship || 'No especificado'}`, 70, yPosition);
-          yPosition += 25;
+          yPosition = drawKeyValueGrid(doc, [
+            { label: `Referencia ${index + 1}`, value: ref.name },
+            { label: 'Teléfono', value: ref.phone },
+            { label: 'Relación', value: ref.relationship },
+          ], yPosition, colors);
         });
       }
 
-      // Additional Information
-      if (tenantData.hasPets || tenantData.hasVehicle) {
-        doc.fontSize(16)
-          .fillColor(primaryColor)
-          .text('INFORMACIÓN ADICIONAL', 50, yPosition);
+      // Signatures Section
+      doc.addPage();
+      yPosition = 50;
+      yPosition = drawSectionHeader(doc, 'FIRMAS Y DECLARACIONES', yPosition, colors, true);
+      yPosition += 10;
 
-        yPosition += 25;
-        if (tenantData.hasPets) {
-          doc.fontSize(10)
-            .fillColor(secondaryColor)
-            .text('Mascotas:', 50, yPosition);
-          doc.fillColor('#1e293b')
-            .font('Helvetica-Bold')
-            .text(tenantData.hasPets === 'yes' ? 'Sí' : 'No', 180, yPosition);
-          doc.font('Helvetica');
-          yPosition += 20;
-        }
-        if (tenantData.hasVehicle) {
-          doc.fontSize(10)
-            .fillColor(secondaryColor)
-            .text('Vehículo:', 50, yPosition);
-          doc.fillColor('#1e293b')
-            .font('Helvetica-Bold')
-            .text(tenantData.hasVehicle === 'yes' ? 'Sí' : 'No', 180, yPosition);
-          doc.font('Helvetica');
-          yPosition += 20;
-        }
+      yPosition = drawSignatureBlock(doc, 'Inquilino: ' + (tenantData.fullName || ''), tenantData.digitalSignature, yPosition, colors);
+      
+      if (tenantData.guarantorFullName) {
+        yPosition = drawSignatureBlock(doc, 'Aval: ' + tenantData.guarantorFullName, tenantData.guarantorDigitalSignature, yPosition, colors);
       }
 
       // Footer
       doc.rect(0, doc.page.height - 60, 595, 60)
-        .fillColor('#f1f5f9')
+        .fillColor(colors.surface)
         .fill();
 
-      doc.fontSize(8)
-        .fillColor(secondaryColor)
-        .text(
-          'Este documento es un formulario de inquilino generado automáticamente por HomesApp.',
-          50,
-          doc.page.height - 45,
-          { width: 495, align: 'center' }
-        );
-      
       doc.fontSize(7)
-        .fillColor(secondaryColor)
+        .fillColor(colors.textSecondary)
         .text(
-          'HomesApp se reserva el derecho de aprobar o rechazar solicitudes según políticas internas.',
+          'Este documento es una solicitud de arrendamiento generada automáticamente.',
           50,
-          doc.page.height - 25,
+          doc.page.height - 40,
           { width: 495, align: 'center' }
         );
 
