@@ -10,7 +10,7 @@ import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
 import { queryClient, apiRequest } from "@/lib/queryClient";
-import { Settings, FileText, CheckCircle, XCircle, Plus, Edit, Trash2, Building2 } from "lucide-react";
+import { Settings, FileText, CheckCircle, XCircle, Plus, Edit, Trash2, Building2, Plug, Calendar, Bot } from "lucide-react";
 import {
   Select,
   SelectContent,
@@ -52,7 +52,7 @@ type TermsFormData = z.infer<typeof termsFormSchema>;
 export default function ExternalConfiguration() {
   const { t, language } = useLanguage();
   const { toast } = useToast();
-  const [activeTab, setActiveTab] = useState<"tenant" | "owner" | "designs">("tenant");
+  const [activeTab, setActiveTab] = useState<"tenant" | "owner" | "designs" | "integrations">("tenant");
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editingTerms, setEditingTerms] = useState<any>(null);
   const [selectedAgencyId, setSelectedAgencyId] = useState<string | null>(null);
@@ -349,6 +349,243 @@ export default function ExternalConfiguration() {
     );
   };
 
+  // Integrations Content Component
+  const IntegrationsContent = ({ agencyId, language, toast }: { agencyId?: string, language: string, toast: any }) => {
+    const [openaiApiKey, setOpenaiApiKey] = useState("");
+    const [useReplitIntegration, setUseReplitIntegration] = useState(true);
+
+    // Fetch integrations
+    const { data: integrations, isLoading: isLoadingIntegrations } = useQuery({
+      queryKey: ['/api/external-agencies', agencyId, 'integrations'],
+      enabled: !!agencyId,
+    });
+
+    // Update OpenAI mutation
+    const updateOpenAIMutation = useMutation({
+      mutationFn: async (config: { apiKey?: string, useReplitIntegration: boolean }) => {
+        return apiRequest('PATCH', `/api/external-agencies/${agencyId}/integrations/openai`, config);
+      },
+      onSuccess: () => {
+        queryClient.invalidateQueries({ queryKey: ['/api/external-agencies', agencyId, 'integrations'] });
+        toast({
+          title: language === "es" ? "OpenAI configurado" : "OpenAI configured",
+          description: language === "es" 
+            ? "La configuración de OpenAI se actualizó correctamente." 
+            : "OpenAI configuration updated successfully.",
+        });
+        setOpenaiApiKey("");
+      },
+      onError: (error: any) => {
+        toast({
+          title: language === "es" ? "Error" : "Error",
+          description: error.message || (language === "es" ? "Error al configurar OpenAI" : "Failed to configure OpenAI"),
+          variant: "destructive",
+        });
+      },
+    });
+
+    // Disconnect Google Calendar mutation
+    const disconnectGoogleCalendarMutation = useMutation({
+      mutationFn: async () => {
+        return apiRequest('DELETE', `/api/external-agencies/${agencyId}/integrations/google-calendar`, {});
+      },
+      onSuccess: () => {
+        queryClient.invalidateQueries({ queryKey: ['/api/external-agencies', agencyId, 'integrations'] });
+        toast({
+          title: language === "es" ? "Google Calendar desconectado" : "Google Calendar disconnected",
+          description: language === "es" 
+            ? "Google Calendar se desconectó correctamente." 
+            : "Google Calendar disconnected successfully.",
+        });
+      },
+      onError: (error: any) => {
+        toast({
+          title: language === "es" ? "Error" : "Error",
+          description: error.message || (language === "es" ? "Error al desconectar Google Calendar" : "Failed to disconnect Google Calendar"),
+          variant: "destructive",
+        });
+      },
+    });
+
+    const handleSaveOpenAI = () => {
+      updateOpenAIMutation.mutate({
+        apiKey: openaiApiKey || undefined,
+        useReplitIntegration,
+      });
+    };
+
+    const handleConnectGoogleCalendar = () => {
+      toast({
+        title: language === "es" ? "Próximamente" : "Coming soon",
+        description: language === "es"
+          ? "La integración de Google Calendar estará disponible próximamente."
+          : "Google Calendar integration will be available soon.",
+      });
+    };
+
+    if (isLoadingIntegrations) {
+      return (
+        <Card>
+          <CardContent className="py-12">
+            <div className="text-center text-muted-foreground">
+              {language === "es" ? "Cargando integraciones..." : "Loading integrations..."}
+            </div>
+          </CardContent>
+        </Card>
+      );
+    }
+
+    const googleCalendarConnected = integrations?.googleCalendarConnected || false;
+    const openaiConnected = integrations?.openaiConnected || false;
+
+    return (
+      <div className="space-y-6">
+        {/* OpenAI Integration */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Bot className="h-5 w-5" />
+              {language === "es" ? "OpenAI Chatbot" : "OpenAI Chatbot"}
+            </CardTitle>
+            <CardDescription>
+              {language === "es" 
+                ? "Configura OpenAI para habilitar el chatbot inteligente en tu agencia."
+                : "Configure OpenAI to enable intelligent chatbot for your agency."}
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="flex items-center justify-between p-3 bg-muted rounded-lg">
+              <div className="flex items-center gap-2">
+                {openaiConnected ? (
+                  <CheckCircle className="h-5 w-5 text-green-600" />
+                ) : (
+                  <XCircle className="h-5 w-5 text-gray-400" />
+                )}
+                <span className="font-medium">
+                  {language === "es" ? "Estado:" : "Status:"}{" "}
+                  {openaiConnected 
+                    ? (language === "es" ? "Conectado" : "Connected")
+                    : (language === "es" ? "No configurado" : "Not configured")}
+                </span>
+              </div>
+            </div>
+
+            <div className="space-y-3">
+              <div className="flex items-center space-x-2">
+                <input
+                  type="checkbox"
+                  id="useReplitIntegration"
+                  checked={useReplitIntegration}
+                  onChange={(e) => setUseReplitIntegration(e.target.checked)}
+                  className="h-4 w-4"
+                  data-testid="checkbox-use-replit-integration"
+                />
+                <Label htmlFor="useReplitIntegration">
+                  {language === "es" 
+                    ? "Usar integración de Replit (recomendado - sin costo de API key)" 
+                    : "Use Replit integration (recommended - no API key cost)"}
+                </Label>
+              </div>
+
+              {!useReplitIntegration && (
+                <div className="space-y-2">
+                  <Label htmlFor="openaiApiKey">
+                    {language === "es" ? "API Key de OpenAI" : "OpenAI API Key"}
+                  </Label>
+                  <Input
+                    id="openaiApiKey"
+                    type="password"
+                    value={openaiApiKey}
+                    onChange={(e) => setOpenaiApiKey(e.target.value)}
+                    placeholder="sk-..."
+                    data-testid="input-openai-api-key"
+                  />
+                  <p className="text-sm text-muted-foreground">
+                    {language === "es" 
+                      ? "Tu API key se almacenará de forma segura y encriptada."
+                      : "Your API key will be stored securely and encrypted."}
+                  </p>
+                </div>
+              )}
+
+              <Button
+                onClick={handleSaveOpenAI}
+                disabled={updateOpenAIMutation.isPending || (!useReplitIntegration && !openaiApiKey)}
+                className="w-full"
+                data-testid="button-save-openai"
+              >
+                {updateOpenAIMutation.isPending 
+                  ? (language === "es" ? "Guardando..." : "Saving...") 
+                  : (language === "es" ? "Guardar configuración" : "Save configuration")}
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Google Calendar Integration */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Calendar className="h-5 w-5" />
+              {language === "es" ? "Google Calendar" : "Google Calendar"}
+            </CardTitle>
+            <CardDescription>
+              {language === "es" 
+                ? "Sincroniza tus citas y eventos con Google Calendar."
+                : "Sync your appointments and events with Google Calendar."}
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="flex items-center justify-between p-3 bg-muted rounded-lg">
+              <div className="flex items-center gap-2">
+                {googleCalendarConnected ? (
+                  <CheckCircle className="h-5 w-5 text-green-600" />
+                ) : (
+                  <XCircle className="h-5 w-5 text-gray-400" />
+                )}
+                <span className="font-medium">
+                  {language === "es" ? "Estado:" : "Status:"}{" "}
+                  {googleCalendarConnected 
+                    ? (language === "es" ? "Conectado" : "Connected")
+                    : (language === "es" ? "No conectado" : "Not connected")}
+                </span>
+              </div>
+              {googleCalendarConnected && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => disconnectGoogleCalendarMutation.mutate()}
+                  disabled={disconnectGoogleCalendarMutation.isPending}
+                  data-testid="button-disconnect-google-calendar"
+                >
+                  {language === "es" ? "Desconectar" : "Disconnect"}
+                </Button>
+              )}
+            </div>
+
+            {!googleCalendarConnected && (
+              <Button
+                onClick={handleConnectGoogleCalendar}
+                className="w-full"
+                data-testid="button-connect-google-calendar"
+              >
+                <Calendar className="h-4 w-4 mr-2" />
+                {language === "es" ? "Conectar Google Calendar" : "Connect Google Calendar"}
+              </Button>
+            )}
+
+            {googleCalendarConnected && integrations?.googleCalendarConnectedAt && (
+              <p className="text-sm text-muted-foreground">
+                {language === "es" ? "Conectado el" : "Connected on"}{" "}
+                {new Date(integrations.googleCalendarConnectedAt).toLocaleDateString()}
+              </p>
+            )}
+          </CardContent>
+        </Card>
+      </div>
+    );
+  };
+
   return (
     <div className="container mx-auto p-6 max-w-6xl" data-testid="page-external-configuration">
       <div className="flex items-center justify-between mb-6">
@@ -369,7 +606,7 @@ export default function ExternalConfiguration() {
       </div>
 
       <Tabs value={activeTab} onValueChange={(value: any) => setActiveTab(value)} className="w-full">
-        <TabsList className="grid w-full max-w-2xl grid-cols-3">
+        <TabsList className="grid w-full max-w-3xl grid-cols-4">
           <TabsTrigger value="tenant" data-testid="tab-tenant-terms">
             {t("configuration.tenantTerms")}
           </TabsTrigger>
@@ -378,6 +615,10 @@ export default function ExternalConfiguration() {
           </TabsTrigger>
           <TabsTrigger value="designs" data-testid="tab-pdf-designs">
             {language === "es" ? "Diseños de PDF" : "PDF Designs"}
+          </TabsTrigger>
+          <TabsTrigger value="integrations" data-testid="tab-integrations">
+            <Plug className="h-4 w-4 mr-2" />
+            {language === "es" ? "Integraciones" : "Integrations"}
           </TabsTrigger>
         </TabsList>
 
@@ -608,6 +849,73 @@ export default function ExternalConfiguration() {
               </div>
             </CardContent>
           </Card>
+          )}
+        </TabsContent>
+
+        <TabsContent value="integrations" className="mt-6">
+          {isLoadingAgencies ? (
+            <Card>
+              <CardContent className="py-12">
+                <div className="text-center text-muted-foreground">
+                  {language === "es" 
+                    ? "Cargando información de la agencia..."
+                    : "Loading agency information..."}
+                </div>
+              </CardContent>
+            </Card>
+          ) : hasNoAgency ? (
+            <Card>
+              <CardContent className="py-12">
+                <div className="text-center">
+                  <Settings className="mx-auto h-12 w-12 text-muted-foreground mb-4" />
+                  <h3 className="text-lg font-semibold mb-2">
+                    {language === "es" 
+                      ? "No hay agencia configurada"
+                      : "No agency configured"}
+                  </h3>
+                  <p className="text-sm text-muted-foreground">
+                    {language === "es" 
+                      ? "Contacta al administrador para configurar tu agencia primero."
+                      : "Contact the administrator to configure your agency first."}
+                  </p>
+                </div>
+              </CardContent>
+            </Card>
+          ) : (
+            <div className="space-y-6">
+              {hasMultipleAgencies && (
+                <Card>
+                  <CardHeader className="pb-3">
+                    <div className="flex items-center gap-2">
+                      <Building2 className="h-5 w-5 text-muted-foreground" />
+                      <Label className="text-base font-medium">
+                        {language === "es" ? "Agencia" : "Agency"}
+                      </Label>
+                    </div>
+                  </CardHeader>
+                  <CardContent>
+                    <Select value={agency?.id} onValueChange={setSelectedAgencyId}>
+                      <SelectTrigger className="w-full min-w-[250px]" data-testid="select-agency-integrations">
+                        <SelectValue placeholder={language === "es" ? "Selecciona una agencia" : "Select an agency"} />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {agencies?.map((a: any) => (
+                          <SelectItem key={a.id} value={a.id} data-testid={`select-agency-item-${a.id}`}>
+                            {a.name}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </CardContent>
+                </Card>
+              )}
+
+              <IntegrationsContent 
+                agencyId={agency?.id} 
+                language={language}
+                toast={toast}
+              />
+            </div>
           )}
         </TabsContent>
       </Tabs>

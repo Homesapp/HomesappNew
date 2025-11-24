@@ -21138,6 +21138,98 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+
+  // ==============================
+  // External Agency Integrations Routes
+  // ==============================
+
+  // GET /api/external-agencies/:agencyId/integrations - Get integration settings for agency
+  app.get("/api/external-agencies/:agencyId/integrations", isAuthenticated, requireRole(EXTERNAL_ADMIN_ROLES), async (req: any, res) => {
+    try {
+      const { agencyId } = req.params;
+      
+      // Verify user has access to this agency
+      const userAgencyId = await getUserAgencyId(req);
+      if (userAgencyId && userAgencyId !== agencyId && !ADMIN_ONLY.includes(req.user.role)) {
+        return res.status(403).json({ message: "Access denied" });
+      }
+
+      const integration = await storage.getExternalAgencyIntegration(agencyId);
+      
+      // Don't return sensitive tokens to frontend, only connection status
+      if (integration) {
+        res.json({
+          ...integration,
+          googleCalendarAccessToken: undefined,
+          googleCalendarRefreshToken: undefined,
+          openaiApiKey: undefined,
+          googleCalendarConnected: !!integration.googleCalendarAccessToken,
+          openaiConnected: !!(integration.openaiApiKey || integration.openaiUseReplitIntegration),
+        });
+      } else {
+        res.json({
+          agencyId,
+          googleCalendarConnected: false,
+          openaiConnected: false,
+        });
+      }
+    } catch (error: any) {
+      console.error("Error fetching agency integrations:", error);
+      handleGenericError(res, error);
+    }
+  });
+
+  // PATCH /api/external-agencies/:agencyId/integrations/openai - Update OpenAI configuration
+  app.patch("/api/external-agencies/:agencyId/integrations/openai", isAuthenticated, requireRole(EXTERNAL_ADMIN_ROLES), async (req: any, res) => {
+    try {
+      const { agencyId } = req.params;
+      const { apiKey, useReplitIntegration } = req.body;
+      
+      // Verify user has access to this agency
+      const userAgencyId = await getUserAgencyId(req);
+      if (userAgencyId && userAgencyId !== agencyId && !ADMIN_ONLY.includes(req.user.role)) {
+        return res.status(403).json({ message: "Access denied" });
+      }
+
+      const integration = await storage.updateOpenAIConfig(agencyId, {
+        apiKey: apiKey || null,
+        useReplitIntegration: useReplitIntegration ?? true,
+      });
+
+      await createAuditLog(req, "update", "external_agency_integration", agencyId, "Updated OpenAI configuration");
+      
+      res.json({
+        ...integration,
+        openaiApiKey: undefined, // Don't return API key
+        openaiConnected: !!(integration.openaiApiKey || integration.openaiUseReplitIntegration),
+      });
+    } catch (error: any) {
+      console.error("Error updating OpenAI config:", error);
+      handleGenericError(res, error);
+    }
+  });
+
+  // DELETE /api/external-agencies/:agencyId/integrations/google-calendar - Disconnect Google Calendar
+  app.delete("/api/external-agencies/:agencyId/integrations/google-calendar", isAuthenticated, requireRole(EXTERNAL_ADMIN_ROLES), async (req: any, res) => {
+    try {
+      const { agencyId } = req.params;
+      
+      // Verify user has access to this agency
+      const userAgencyId = await getUserAgencyId(req);
+      if (userAgencyId && userAgencyId !== agencyId && !ADMIN_ONLY.includes(req.user.role)) {
+        return res.status(403).json({ message: "Access denied" });
+      }
+
+      await storage.disconnectGoogleCalendar(agencyId);
+      
+      await createAuditLog(req, "delete", "external_agency_integration", agencyId, "Disconnected Google Calendar");
+      
+      res.status(204).send();
+    } catch (error: any) {
+      console.error("Error disconnecting Google Calendar:", error);
+      handleGenericError(res, error);
+    }
+  });
   // ==============================
   // External Agency User Management Routes
   // ==============================
