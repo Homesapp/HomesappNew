@@ -403,7 +403,10 @@ export default function ExternalRentalFormLinks({ searchTerm, statusFilter, view
                       <Button
                         variant="outline"
                         size="sm"
-                        onClick={() => window.open(`${window.location.origin}/public-rental-form/${token.token}`, "_blank")}
+                        onClick={() => {
+                          const formPath = token.recipientType === 'owner' ? 'public-owner-form' : 'public-rental-form';
+                          window.open(`${window.location.origin}/${formPath}/${token.token}`, "_blank");
+                        }}
                         className="flex-1"
                         data-testid="button-open-form-link"
                       >
@@ -570,7 +573,10 @@ export default function ExternalRentalFormLinks({ searchTerm, statusFilter, view
                           <Button
                             variant="ghost"
                             size="sm"
-                            onClick={() => window.open(`${window.location.origin}/public-rental-form/${token.token}`, "_blank")}
+                            onClick={() => {
+                              const formPath = token.recipientType === 'owner' ? 'public-owner-form' : 'public-rental-form';
+                              window.open(`${window.location.origin}/${formPath}/${token.token}`, "_blank");
+                            }}
                             title={language === "es" ? "Abrir link" : "Open link"}
                             data-testid="button-open-form-link"
                           >
