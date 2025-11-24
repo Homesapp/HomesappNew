@@ -369,6 +369,9 @@ import {
   type ExternalLead,
   type InsertExternalLead,
   type UpdateExternalLead,
+  externalLeadRegistrationTokens,
+  type ExternalLeadRegistrationToken,
+  type InsertExternalLeadRegistrationToken,
   externalFinancialTransactions,
   type ExternalFinancialTransaction,
   type InsertExternalFinancialTransaction,
@@ -1285,6 +1288,13 @@ export interface IStorage {
   convertLeadToClient(leadId: string, clientId: string): Promise<void>;
   checkExternalClientDuplicate(agencyId: string, firstName: string, lastName: string, phone?: string | null, excludeId?: string): Promise<ExternalClient | null>;
   checkExternalLeadDuplicate(agencyId: string, firstName: string, lastName: string, phoneOrLast4?: string | null, excludeId?: string): Promise<ExternalLead | null>;
+
+  // External Lead Registration Tokens
+  getExternalLeadRegistrationToken(token: string): Promise<ExternalLeadRegistrationToken | undefined>;
+  getExternalLeadRegistrationTokensByAgency(agencyId: string): Promise<ExternalLeadRegistrationToken[]>;
+  createExternalLeadRegistrationToken(tokenData: InsertExternalLeadRegistrationToken): Promise<ExternalLeadRegistrationToken>;
+  completeExternalLeadRegistrationToken(tokenId: string, leadId: string): Promise<void>;
+  deleteExternalLeadRegistrationToken(id: string): Promise<void>;
 
   // External Client Documents
   getExternalClientDocuments(clientId: string): Promise<ExternalClientDocument[]>;
@@ -9141,6 +9151,47 @@ export class DatabaseStorage implements IStorage {
     }
     
     return null;
+  }
+
+  // External Lead Registration Tokens operations
+  async getExternalLeadRegistrationToken(token: string): Promise<ExternalLeadRegistrationToken | undefined> {
+    const [result] = await db.select()
+      .from(externalLeadRegistrationTokens)
+      .where(eq(externalLeadRegistrationTokens.token, token))
+      .limit(1);
+    return result;
+  }
+
+  async getExternalLeadRegistrationTokensByAgency(agencyId: string): Promise<ExternalLeadRegistrationToken[]> {
+    return await db.select()
+      .from(externalLeadRegistrationTokens)
+      .where(eq(externalLeadRegistrationTokens.agencyId, agencyId))
+      .orderBy(desc(externalLeadRegistrationTokens.createdAt));
+  }
+
+  async createExternalLeadRegistrationToken(tokenData: InsertExternalLeadRegistrationToken): Promise<ExternalLeadRegistrationToken> {
+    const [result] = await db.insert(externalLeadRegistrationTokens)
+      .values({
+        ...tokenData,
+        id: crypto.randomUUID(),
+      })
+      .returning();
+    return result;
+  }
+
+  async completeExternalLeadRegistrationToken(tokenId: string, leadId: string): Promise<void> {
+    await db.update(externalLeadRegistrationTokens)
+      .set({
+        completedAt: new Date(),
+        leadId,
+        updatedAt: new Date(),
+      })
+      .where(eq(externalLeadRegistrationTokens.id, tokenId));
+  }
+
+  async deleteExternalLeadRegistrationToken(id: string): Promise<void> {
+    await db.delete(externalLeadRegistrationTokens)
+      .where(eq(externalLeadRegistrationTokens.id, id));
   }
 
   // External Client Documents operations

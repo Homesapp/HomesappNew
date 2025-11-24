@@ -24434,6 +24434,229 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // External Lead Registration Links Endpoints
+  // POST /api/external-lead-registration-links - Create registration link
+  app.post("/api/external-lead-registration-links", isAuthenticated, requireRole(EXTERNAL_ADMIN_ROLES), async (req: any, res) => {
+    try {
+      const validatedData = insertExternalLeadRegistrationTokenSchema.parse(req.body);
+      
+      // Verify agency ownership
+      const hasAccess = await verifyExternalAgencyOwnership(req, res, validatedData.agencyId);
+      if (!hasAccess) return;
+      
+      // Generate unique token
+      const token = crypto.randomBytes(32).toString('base64url');
+      
+      // Set expiration to 7 days from now
+      const expiresAt = new Date();
+      expiresAt.setDate(expiresAt.getDate() + 7);
+      
+      const registrationToken = await storage.createExternalLeadRegistrationToken({
+        ...validatedData,
+        token,
+        expiresAt,
+        createdBy: req.user.id,
+      });
+      
+      await createAuditLog(req, "create", "external_lead_registration_token", registrationToken.id, 
+        `Created ${validatedData.registrationType} registration link`);
+      
+      res.status(201).json(registrationToken);
+    } catch (error: any) {
+      console.error("Error creating registration link:", error);
+      handleGenericError(res, error);
+    }
+  });
+
+  // GET /api/external-lead-registration-links - List all registration links for agency
+  app.get("/api/external-lead-registration-links", isAuthenticated, requireRole(EXTERNAL_ADMIN_ROLES), async (req: any, res) => {
+    try {
+      const agencyId = await getAgencyIdForUser(req.user);
+      if (!agencyId) {
+        return res.status(403).json({ message: "User not associated with any agency" });
+      }
+      
+      const links = await storage.getExternalLeadRegistrationTokensByAgency(agencyId);
+      res.json(links);
+    } catch (error: any) {
+      console.error("Error fetching registration links:", error);
+      handleGenericError(res, error);
+    }
+  });
+
+  // POST /api/external-lead-registration-links/:id/regenerate - Regenerate expired link
+  app.post("/api/external-lead-registration-links/:id/regenerate", isAuthenticated, requireRole(EXTERNAL_ADMIN_ROLES), async (req: any, res) => {
+    try {
+      const { id } = req.params;
+      const existingToken = await storage.getExternalLeadRegistrationToken(id);
+      
+      if (!existingToken) {
+        return res.status(404).json({ message: "Registration link not found" });
+      }
+      
+      // Verify agency ownership
+      const hasAccess = await verifyExternalAgencyOwnership(req, res, existingToken.agencyId);
+      if (!hasAccess) return;
+      
+      // Delete old token
+      await storage.deleteExternalLeadRegistrationToken(id);
+      
+      // Create new token with same settings
+      const newToken = crypto.randomBytes(32).toString('base64url');
+      const expiresAt = new Date();
+      expiresAt.setDate(expiresAt.getDate() + 7);
+      
+      const regeneratedToken = await storage.createExternalLeadRegistrationToken({
+        agencyId: existingToken.agencyId,
+        agencyName: existingToken.agencyName,
+        registrationType: existingToken.registrationType,
+        token: newToken,
+        expiresAt,
+        createdBy: req.user.id,
+      });
+      
+      await createAuditLog(req, "create", "external_lead_registration_token", regeneratedToken.id, 
+        `Regenerated ${existingToken.registrationType} registration link`);
+      
+      res.json(regeneratedToken);
+    } catch (error: any) {
+      console.error("Error regenerating registration link:", error);
+      handleGenericError(res, error);
+    }
+  });
+
+  // DELETE /api/external-lead-registration-links/:id - Delete registration link
+  app.delete("/api/external-lead-registration-links/:id", isAuthenticated, requireRole(EXTERNAL_ADMIN_ROLES), async (req: any, res) => {
+    try {
+      const { id } = req.params;
+      const existingToken = await storage.getExternalLeadRegistrationToken(id);
+      
+      if (!existingToken) {
+        return res.status(404).json({ message: "Registration link not found" });
+      }
+      
+      // Verify agency ownership
+      const hasAccess = await verifyExternalAgencyOwnership(req, res, existingToken.agencyId);
+      if (!hasAccess) return;
+      
+      await storage.deleteExternalLeadRegistrationToken(id);
+      
+      await createAuditLog(req, "delete", "external_lead_registration_token", id, 
+        `Deleted ${existingToken.registrationType} registration link`);
+      
+      res.status(204).send();
+    } catch (error: any) {
+      console.error("Error deleting registration link:", error);
+      handleGenericError(res, error);
+    }
+  });
+
+  // Public endpoint - GET registration form data
+  app.get("/api/public/external-lead-registration/:token", async (req, res) => {
+    try {
+      const { token } = req.params;
+      const registrationToken = await storage.getExternalLeadRegistrationToken(token);
+      
+      if (!registrationToken) {
+        return res.status(404).json({ message: "Registration link not found" });
+      }
+      
+      // Check if expired
+      if (new Date() > new Date(registrationToken.expiresAt)) {
+        return res.status(410).json({ message: "Registration link has expired" });
+      }
+      
+      // Check if already completed
+      if (registrationToken.completedAt) {
+        return res.status(410).json({ message: "Registration link has already been used" });
+      }
+      
+      // Return only necessary data for form display
+      res.json({
+        agencyName: registrationToken.agencyName,
+        registrationType: registrationToken.registrationType,
+        expiresAt: registrationToken.expiresAt,
+      });
+    } catch (error: any) {
+      console.error("Error fetching registration form:", error);
+      handleGenericError(res, error);
+    }
+  });
+
+  // Public endpoint - Submit registration form
+  app.post("/api/public/external-lead-registration/:token", async (req, res) => {
+    try {
+      const { token } = req.params;
+      const registrationToken = await storage.getExternalLeadRegistrationToken(token);
+      
+      if (!registrationToken) {
+        return res.status(404).json({ message: "Registration link not found" });
+      }
+      
+      // Check if expired
+      if (new Date() > new Date(registrationToken.expiresAt)) {
+        return res.status(410).json({ message: "Registration link has expired" });
+      }
+      
+      // Check if already completed
+      if (registrationToken.completedAt) {
+        return res.status(410).json({ message: "Registration link has already been used" });
+      }
+      
+      // Validate form data based on registration type
+      const { name, email, phone, phoneLast4, checkInDate, allowsPets, estimatedRentCost, bedroomsDesired, notes } = req.body;
+      
+      if (!name || name.trim().length === 0) {
+        return res.status(400).json({ message: "Name is required" });
+      }
+      
+      // Different validation for seller vs broker
+      if (registrationToken.registrationType === 'seller') {
+        if (!email || !phone) {
+          return res.status(400).json({ message: "Seller must provide email and phone" });
+        }
+      } else if (registrationToken.registrationType === 'broker') {
+        if (!phoneLast4 || phoneLast4.length !== 4) {
+          return res.status(400).json({ message: "Broker must provide last 4 digits of phone" });
+        }
+      }
+      
+      // Split name into firstName and lastName
+      const nameParts = name.trim().split(/\s+/);
+      const firstName = nameParts[0];
+      const lastName = nameParts.slice(1).join(' ') || firstName; // Use firstName if no lastName provided
+      
+      // Create lead
+      const lead = await storage.createExternalLead({
+        agencyId: registrationToken.agencyId,
+        registrationType: registrationToken.registrationType,
+        firstName,
+        lastName,
+        email: email || null,
+        phone: phone || null,
+        phoneLast4: phoneLast4 || null,
+        checkInDate: checkInDate ? new Date(checkInDate) : null,
+        allowsPets: allowsPets || false,
+        estimatedRentCost: estimatedRentCost || null,
+        bedroomsDesired: bedroomsDesired || null,
+        notes: notes || null,
+        status: 'new',
+        createdBy: null, // Public registration, no user
+      });
+      
+      // Mark token as completed
+      await storage.completeExternalLeadRegistrationToken(registrationToken.id, lead.id);
+      
+      res.status(201).json({ 
+        message: "Registration successful",
+        leadId: lead.id 
+      });
+    } catch (error: any) {
+      console.error("Error submitting registration:", error);
+      handleGenericError(res, error);
+    }
+  });
+
   // External Client Documents Endpoints
   // GET /api/external-clients/:clientId/documents - Get all documents for a client
   app.get("/api/external-clients/:clientId/documents", isAuthenticated, requireRole(EXTERNAL_ALL_ROLES), async (req: any, res) => {
