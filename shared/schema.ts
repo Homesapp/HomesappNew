@@ -496,6 +496,15 @@ export const financialTransactionCategoryEnum = pgEnum("financial_transaction_ca
   "adjustment",           // Ajuste contable
 ]);
 
+export const externalQuotationStatusEnum = pgEnum("external_quotation_status", [
+  "draft",                  // Borrador
+  "sent",                   // Enviada
+  "approved",               // Aprobada
+  "rejected",               // Rechazada
+  "converted_to_ticket",    // Convertida a ticket
+  "cancelled",              // Cancelada
+]);
+
 export const financialTransactionStatusEnum = pgEnum("financial_transaction_status", [
   "pending",      // Pendiente
   "posted",       // Contabilizado/Procesado
@@ -5418,6 +5427,7 @@ export const externalMaintenanceTickets = pgTable("external_maintenance_tickets"
   unitId: varchar("unit_id").notNull().references(() => externalUnits.id, { onDelete: "cascade" }), // Unidad/propiedad
   contractId: varchar("contract_id").references(() => externalRentalContracts.id, { onDelete: "set null" }),
   propertyId: varchar("property_id").references(() => externalProperties.id, { onDelete: "cascade" }), // Deprecated - usar unitId
+  quotationId: varchar("quotation_id").references(() => externalQuotations.id, { onDelete: "set null" }), // Cotización de origen
   title: varchar("title", { length: 255 }).notNull(), // Título del ticket
   description: text("description").notNull(), // Descripción del problema
   category: tenantMaintenanceTypeEnum("category").notNull(), // plumbing, electrical, etc
@@ -5427,6 +5437,9 @@ export const externalMaintenanceTickets = pgTable("external_maintenance_tickets"
   assignedTo: varchar("assigned_to").references(() => users.id), // A quién está asignado
   estimatedCost: decimal("estimated_cost", { precision: 10, scale: 2 }), // Costo estimado
   actualCost: decimal("actual_cost", { precision: 10, scale: 2 }), // Costo real
+  quotedTotal: decimal("quoted_total", { precision: 12, scale: 2 }), // Total de la cotización (si viene de cotización)
+  quotedAdminFee: decimal("quoted_admin_fee", { precision: 12, scale: 2 }), // Fee administrativo de la cotización
+  quotedServices: jsonb("quoted_services"), // Snapshot de servicios cotizados
   scheduledDate: timestamp("scheduled_date"), // Fecha programada para resolver (deprecated - usar scheduledWindowStart/End)
   scheduledWindowStart: timestamp("scheduled_window_start"), // Inicio de ventana de programación
   scheduledWindowEnd: timestamp("scheduled_window_end"), // Fin de ventana de programación
@@ -5777,6 +5790,99 @@ export const createLeadRegistrationLinkSchema = z.object({
 export type InsertExternalLeadRegistrationToken = z.infer<typeof insertExternalLeadRegistrationTokenSchema>;
 export type CreateLeadRegistrationLink = z.infer<typeof createLeadRegistrationLinkSchema>;
 export type ExternalLeadRegistrationToken = typeof externalLeadRegistrationTokens.$inferSelect;
+
+// External Quotations - Cotizaciones profesionales para trabajos de mantenimiento
+export const externalQuotations = pgTable("external_quotations", {
+  id: varchar("id").primaryKey().$defaultFn(() => crypto.randomUUID()),
+  agencyId: varchar("agency_id").notNull().references(() => externalAgencies.id, { onDelete: "cascade" }),
+  clientId: varchar("client_id").references(() => externalClients.id, { onDelete: "set null" }),
+  propertyId: varchar("property_id").references(() => externalProperties.id, { onDelete: "set null" }),
+  unitId: varchar("unit_id").references(() => externalUnits.id, { onDelete: "set null" }),
+  title: varchar("title", { length: 255 }).notNull(),
+  description: text("description"),
+  
+  // Servicios como JSONB array: [{ id, name, description, quantity, unitPrice, subtotal }]
+  services: jsonb("services").notNull().default("[]"),
+  
+  // Cálculos financieros
+  subtotal: decimal("subtotal", { precision: 12, scale: 2 }).notNull().default("0"),
+  adminFee: decimal("admin_fee", { precision: 12, scale: 2 }).notNull().default("0"), // 15% del subtotal
+  adminFeePercentage: decimal("admin_fee_percentage", { precision: 5, scale: 2 }).notNull().default("15.00"), // Configurable, default 15%
+  total: decimal("total", { precision: 12, scale: 2 }).notNull().default("0"), // subtotal + adminFee
+  currency: varchar("currency", { length: 3 }).notNull().default("MXN"),
+  
+  // Información adicional
+  notes: text("notes"),
+  terms: text("terms"), // Términos y condiciones de la cotización
+  
+  // Estado y fechas
+  status: externalQuotationStatusEnum("status").notNull().default("draft"),
+  sentAt: timestamp("sent_at"),
+  approvedAt: timestamp("approved_at"),
+  rejectedAt: timestamp("rejected_at"),
+  cancelledAt: timestamp("cancelled_at"),
+  
+  // Referencias
+  convertedTicketId: varchar("converted_ticket_id").references(() => externalMaintenanceTickets.id, { onDelete: "set null" }),
+  shareTokenId: varchar("share_token_id"), // ID del token de compartir
+  
+  // Metadata
+  createdBy: varchar("created_by").notNull().references(() => users.id),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+}, (table) => [
+  index("idx_external_quotations_agency").on(table.agencyId),
+  index("idx_external_quotations_client").on(table.clientId),
+  index("idx_external_quotations_property").on(table.propertyId),
+  index("idx_external_quotations_unit").on(table.unitId),
+  index("idx_external_quotations_status").on(table.status),
+  index("idx_external_quotations_created_by").on(table.createdBy),
+]);
+
+export const insertExternalQuotationSchema = createInsertSchema(externalQuotations).omit({
+  id: true,
+  sentAt: true,
+  approvedAt: true,
+  rejectedAt: true,
+  cancelledAt: true,
+  convertedTicketId: true,
+  shareTokenId: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export const updateExternalQuotationSchema = insertExternalQuotationSchema.partial().omit({
+  agencyId: true,
+  createdBy: true,
+});
+
+export type InsertExternalQuotation = z.infer<typeof insertExternalQuotationSchema>;
+export type UpdateExternalQuotation = z.infer<typeof updateExternalQuotationSchema>;
+export type ExternalQuotation = typeof externalQuotations.$inferSelect;
+
+// External Quotation Tokens - Links públicos para compartir cotizaciones
+export const externalQuotationTokens = pgTable("external_quotation_tokens", {
+  id: varchar("id").primaryKey().$defaultFn(() => crypto.randomUUID()),
+  quotationId: varchar("quotation_id").notNull().references(() => externalQuotations.id, { onDelete: "cascade" }),
+  token: varchar("token").notNull().unique(), // Token único para la URL pública
+  expiresAt: timestamp("expires_at"), // Opcional - puede no expirar
+  accessCount: integer("access_count").notNull().default(0), // Contador de accesos
+  lastAccessedAt: timestamp("last_accessed_at"), // Última vez que se accedió
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+}, (table) => [
+  index("idx_external_quotation_tokens_quotation").on(table.quotationId),
+  index("idx_external_quotation_tokens_expires").on(table.expiresAt),
+]);
+
+export const insertExternalQuotationTokenSchema = createInsertSchema(externalQuotationTokens).omit({
+  id: true,
+  accessCount: true,
+  lastAccessedAt: true,
+  createdAt: true,
+});
+
+export type InsertExternalQuotationToken = z.infer<typeof insertExternalQuotationTokenSchema>;
+export type ExternalQuotationToken = typeof externalQuotationTokens.$inferSelect;
 
 // Broker Terms - Términos y condiciones para el programa de brokers
 export const brokerTerms = pgTable("broker_terms", {
