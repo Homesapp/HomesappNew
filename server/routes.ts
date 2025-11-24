@@ -28024,6 +28024,217 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // ============================================================================
+  // EXTERNAL MANAGEMENT SYSTEM - QUOTATIONS ROUTES
+  // ============================================================================
+
+  // GET /api/external/quotations - List all quotations for agency
+  app.get("/api/external/quotations", isAuthenticated, requireRole(EXTERNAL_ALL_ROLES), async (req: any, res) => {
+    try {
+      const agencyId = await getUserAgencyId(req);
+      if (!agencyId) {
+        return res.status(403).json({ message: "User is not assigned to any agency" });
+      }
+
+      const quotations = await storage.getExternalQuotations(agencyId);
+      res.json(quotations);
+    } catch (error: any) {
+      console.error("Error fetching quotations:", error);
+      handleGenericError(res, error);
+    }
+  });
+
+  // GET /api/external/quotations/:id - Get specific quotation
+  app.get("/api/external/quotations/:id", isAuthenticated, requireRole(EXTERNAL_ALL_ROLES), async (req: any, res) => {
+    try {
+      const { id } = req.params;
+      const agencyId = await getUserAgencyId(req);
+      if (!agencyId) {
+        return res.status(403).json({ message: "User is not assigned to any agency" });
+      }
+
+      const quotation = await storage.getExternalQuotationById(id, agencyId);
+      if (!quotation) {
+        return res.status(404).json({ message: "Quotation not found" });
+      }
+
+      res.json(quotation);
+    } catch (error: any) {
+      console.error("Error fetching quotation:", error);
+      handleGenericError(res, error);
+    }
+  });
+
+  // POST /api/external/quotations - Create new quotation
+  app.post("/api/external/quotations", isAuthenticated, requireRole(EXTERNAL_ADMIN_ROLES), async (req: any, res) => {
+    try {
+      const agencyId = await getUserAgencyId(req);
+      if (!agencyId) {
+        return res.status(403).json({ message: "User is not assigned to any agency" });
+      }
+
+      const quotationData = insertExternalQuotationSchema.parse({
+        ...req.body,
+        agencyId,
+        createdBy: req.user.id,
+      });
+
+      const quotation = await storage.createExternalQuotation(quotationData);
+
+      await createAuditLog(req, "create", "external_quotation", quotation.id, "Created quotation");
+      res.status(201).json(quotation);
+    } catch (error: any) {
+      console.error("Error creating quotation:", error);
+      if (error.name === "ZodError") {
+        return handleZodError(res, error);
+      }
+      handleGenericError(res, error);
+    }
+  });
+
+  // PATCH /api/external/quotations/:id - Update quotation
+  app.patch("/api/external/quotations/:id", isAuthenticated, requireRole(EXTERNAL_ADMIN_ROLES), async (req: any, res) => {
+    try {
+      const { id } = req.params;
+      const agencyId = await getUserAgencyId(req);
+      if (!agencyId) {
+        return res.status(403).json({ message: "User is not assigned to any agency" });
+      }
+
+      const updates = updateExternalQuotationSchema.parse(req.body);
+      const quotation = await storage.updateExternalQuotation(id, agencyId, updates);
+
+      await createAuditLog(req, "update", "external_quotation", id, "Updated quotation");
+      res.json(quotation);
+    } catch (error: any) {
+      console.error("Error updating quotation:", error);
+      if (error.name === "ZodError") {
+        return handleZodError(res, error);
+      }
+      if (error.message?.includes("not found")) {
+        return res.status(404).json({ message: error.message });
+      }
+      handleGenericError(res, error);
+    }
+  });
+
+  // DELETE /api/external/quotations/:id - Delete quotation
+  app.delete("/api/external/quotations/:id", isAuthenticated, requireRole(EXTERNAL_ADMIN_ROLES), async (req: any, res) => {
+    try {
+      const { id } = req.params;
+      const agencyId = await getUserAgencyId(req);
+      if (!agencyId) {
+        return res.status(403).json({ message: "User is not assigned to any agency" });
+      }
+
+      await storage.deleteExternalQuotation(id, agencyId);
+
+      await createAuditLog(req, "delete", "external_quotation", id, "Deleted quotation");
+      res.status(204).send();
+    } catch (error: any) {
+      console.error("Error deleting quotation:", error);
+      if (error.message?.includes("not found")) {
+        return res.status(404).json({ message: error.message });
+      }
+      handleGenericError(res, error);
+    }
+  });
+
+  // PATCH /api/external/quotations/:id/status - Update quotation status
+  app.patch("/api/external/quotations/:id/status", isAuthenticated, requireRole(EXTERNAL_ADMIN_ROLES), async (req: any, res) => {
+    try {
+      const { id } = req.params;
+      const { status } = req.body;
+      const agencyId = await getUserAgencyId(req);
+      
+      if (!agencyId) {
+        return res.status(403).json({ message: "User is not assigned to any agency" });
+      }
+
+      if (!status || !['draft', 'sent', 'accepted', 'rejected', 'cancelled'].includes(status)) {
+        return res.status(400).json({ message: "Invalid status" });
+      }
+
+      const quotation = await storage.updateExternalQuotationStatus(id, agencyId, status);
+
+      await createAuditLog(req, "update", "external_quotation", id, `Updated quotation status to ${status}`);
+      res.json(quotation);
+    } catch (error: any) {
+      console.error("Error updating quotation status:", error);
+      if (error.message?.includes("not found")) {
+        return res.status(404).json({ message: error.message });
+      }
+      if (error.message?.includes("Invalid status transition")) {
+        return res.status(400).json({ message: error.message });
+      }
+      handleGenericError(res, error);
+    }
+  });
+
+  // POST /api/external/quotations/:id/share - Generate share token for quotation
+  app.post("/api/external/quotations/:id/share", isAuthenticated, requireRole(EXTERNAL_ADMIN_ROLES), async (req: any, res) => {
+    try {
+      const { id } = req.params;
+      const { expiresInDays } = req.body;
+      const agencyId = await getUserAgencyId(req);
+      
+      if (!agencyId) {
+        return res.status(403).json({ message: "User is not assigned to any agency" });
+      }
+
+      // Verify quotation exists and belongs to agency
+      const quotation = await storage.getExternalQuotationById(id, agencyId);
+      if (!quotation) {
+        return res.status(404).json({ message: "Quotation not found" });
+      }
+
+      // Generate unique token
+      const token = crypto.randomBytes(32).toString('hex');
+      
+      // Calculate expiration (default 30 days, max 365 days)
+      const daysToExpire = Math.min(expiresInDays || 30, 365);
+      const expiresAt = new Date();
+      expiresAt.setDate(expiresAt.getDate() + daysToExpire);
+
+      const shareToken = await storage.createExternalQuotationToken({
+        quotationId: id,
+        token,
+        expiresAt: daysToExpire ? expiresAt : null,
+      });
+
+      await createAuditLog(req, "create", "external_quotation_token", shareToken.id, `Created share link for quotation`);
+      res.status(201).json({
+        token: shareToken.token,
+        expiresAt: shareToken.expiresAt,
+        publicUrl: `/quotations/view/${shareToken.token}`,
+      });
+    } catch (error: any) {
+      console.error("Error creating share token:", error);
+      handleGenericError(res, error);
+    }
+  });
+
+  // GET /api/public/external/quotations/:token - Public endpoint to view quotation
+  app.get("/api/public/external/quotations/:token", async (req: any, res) => {
+    try {
+      const { token } = req.params;
+      
+      const result = await storage.getExternalQuotationByToken(token);
+      
+      if (!result) {
+        return res.status(404).json({ message: "Quotation not found or link has expired" });
+      }
+
+      // Increment access count
+      await storage.incrementQuotationTokenAccess(result.token.id);
+
+      res.json(result.quotation);
+    } catch (error: any) {
+      console.error("Error fetching public quotation:", error);
+      handleGenericError(res, error);
+    }
+  });
+
   const httpServer = createServer(app);
   const sessionMiddleware = getSession();
   
