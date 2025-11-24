@@ -379,6 +379,13 @@ import {
   type ExternalTermsAndConditions,
   type InsertExternalTermsAndConditions,
   type UpdateExternalTermsAndConditions,
+  externalQuotations,
+  type ExternalQuotation,
+  type InsertExternalQuotation,
+  type UpdateExternalQuotation,
+  externalQuotationTokens,
+  type ExternalQuotationToken,
+  type InsertExternalQuotationToken,
   offerTokens,
   tenantRentalFormTokens,
 } from "@shared/schema";

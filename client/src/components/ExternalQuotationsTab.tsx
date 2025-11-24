@@ -96,9 +96,11 @@ export default function ExternalQuotations() {
   });
 
   // Fetch clients for dropdown
-  const { data: clients = [] } = useQuery<any[]>({
+  const { data: clientsResponse } = useQuery<{data: any[]}>({
     queryKey: ["/api/external-clients"],
   });
+  
+  const clients = clientsResponse?.data || [];
 
   // Fetch properties for dropdown
   const { data: properties = [] } = useQuery<any[]>({
