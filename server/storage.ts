@@ -8806,9 +8806,10 @@ export class DatabaseStorage implements IStorage {
     }
     if (filters?.search && filters.search.trim().length > 0) {
       // Sanitize search string: escape SQL LIKE wildcards and backslashes, limit length
-      // Order matters: escape backslash first, then % and _
+      // Normalize to lowercase once to match GIN trigram indexes
       const sanitized = filters.search
         .trim()
+        .toLowerCase() // Normalize to lowercase
         .slice(0, 100) // Max 100 chars
         .replace(/\\/g, '\\\\') // Escape backslashes first
         .replace(/%/g, '\\%')   // Then escape %
@@ -8816,10 +8817,10 @@ export class DatabaseStorage implements IStorage {
       const searchPattern = `%${sanitized}%`;
       conditions.push(
         or(
-          ilike(externalClients.firstName, searchPattern),
-          ilike(externalClients.lastName, searchPattern),
-          ilike(externalClients.email, searchPattern),
-          ilike(externalClients.phone, searchPattern)
+          sql`lower(${externalClients.firstName}) LIKE ${searchPattern}`,
+          sql`lower(${externalClients.lastName}) LIKE ${searchPattern}`,
+          sql`lower(${externalClients.email}) LIKE ${searchPattern}`,
+          sql`lower(${externalClients.phone}) LIKE ${searchPattern}`
         )!
       );
     }
@@ -8875,9 +8876,10 @@ export class DatabaseStorage implements IStorage {
     }
     if (filters?.search && filters.search.trim().length > 0) {
       // Sanitize search string: escape SQL LIKE wildcards and backslashes, limit length
-      // Order matters: escape backslash first, then % and _
+      // Normalize to lowercase once to match GIN trigram indexes
       const sanitized = filters.search
         .trim()
+        .toLowerCase() // Normalize to lowercase
         .slice(0, 100) // Max 100 chars
         .replace(/\\/g, '\\\\') // Escape backslashes first
         .replace(/%/g, '\\%')   // Then escape %
@@ -8885,10 +8887,10 @@ export class DatabaseStorage implements IStorage {
       const searchPattern = `%${sanitized}%`;
       conditions.push(
         or(
-          ilike(externalClients.firstName, searchPattern),
-          ilike(externalClients.lastName, searchPattern),
-          ilike(externalClients.email, searchPattern),
-          ilike(externalClients.phone, searchPattern)
+          sql`lower(${externalClients.firstName}) LIKE ${searchPattern}`,
+          sql`lower(${externalClients.lastName}) LIKE ${searchPattern}`,
+          sql`lower(${externalClients.email}) LIKE ${searchPattern}`,
+          sql`lower(${externalClients.phone}) LIKE ${searchPattern}`
         )!
       );
     }
