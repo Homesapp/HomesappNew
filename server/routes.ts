@@ -17978,7 +17978,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const user = userId ? await storage.getUser(userId) : null;
 
       const errorData = {
-        agencyId,
+        agencyId: user?.externalAgencyId || null,
         userId,
         userEmail: user?.email || req.body.userEmail,
         userRole: user?.role || req.body.userRole,
