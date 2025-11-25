@@ -22071,6 +22071,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           unitId: externalUnitAccessControls.unitId,
           unitNumber: externalUnits.unitNumber,
           condominiumId: externalUnits.condominiumId,
+        agencyId: externalUnits.agencyId,
         })
         .from(externalUnitAccessControls)
         .innerJoin(externalUnits, eq(externalUnitAccessControls.unitId, externalUnits.id))
@@ -22165,6 +22166,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           updatedAt: externalUnitAccessControls.updatedAt,
           unitNumber: externalUnits.unitNumber,
           condominiumId: externalUnits.condominiumId,
+        agencyId: externalUnits.agencyId,
         })
         .from(externalUnitAccessControls)
         .innerJoin(externalUnits, eq(externalUnitAccessControls.unitId, externalUnits.id))
@@ -26584,11 +26586,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
           )
         : eq(externalUnits.agencyId, agencyId);
       
-      // Get only id, unitNumber, and condominiumId for filter dropdowns
+      // Get id, unitNumber, condominiumId and agencyId for filter dropdowns
       const units = await db.select({
         id: externalUnits.id,
         unitNumber: externalUnits.unitNumber,
         condominiumId: externalUnits.condominiumId,
+        agencyId: externalUnits.agencyId,
       })
         .from(externalUnits)
         .where(whereConditions)
