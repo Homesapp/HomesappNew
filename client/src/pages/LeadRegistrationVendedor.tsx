@@ -1,31 +1,67 @@
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { useMutation } from "@tanstack/react-query";
+import { useMutation, useQuery } from "@tanstack/react-query";
 import { useLocation } from "wouter";
 import { z } from "zod";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
+import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Checkbox } from "@/components/ui/checkbox";
 import { useToast } from "@/hooks/use-toast";
-import { apiRequest } from "@/lib/queryClient";
-import { Building2, CheckCircle2 } from "lucide-react";
+import { Building2, CheckCircle2, Loader2, Home } from "lucide-react";
 import { useState } from "react";
 import logoPath from "@assets/H mes (500 x 300 px)_1759672952263.png";
+
+const COUNTRY_CODES = [
+  { code: "+52", country: "MX", flag: "MX" },
+  { code: "+1", country: "US/CA", flag: "US" },
+  { code: "+57", country: "CO", flag: "CO" },
+  { code: "+54", country: "AR", flag: "AR" },
+  { code: "+56", country: "CL", flag: "CL" },
+  { code: "+34", country: "ES", flag: "ES" },
+  { code: "+55", country: "BR", flag: "BR" },
+  { code: "+51", country: "PE", flag: "PE" },
+];
+
+const UNIT_TYPES = [
+  "Departamento",
+  "Casa",
+  "Estudio",
+  "PH / Penthouse",
+  "Villa",
+  "Loft",
+];
+
+const NEIGHBORHOODS = [
+  "Aldea Zama",
+  "Centro",
+  "La Veleta",
+  "Region 15",
+  "Region 8",
+  "Holistika",
+  "Selva Zama",
+  "Otro",
+];
 
 const vendedorFormSchema = z.object({
   firstName: z.string().min(1, "Nombre requerido"),
   lastName: z.string().min(1, "Apellido requerido"),
-  email: z.string().email("Correo electrónico válido requerido"),
-  phone: z.string().min(10, "Teléfono requerido"),
+  email: z.string().email("Correo electrónico válido").optional().or(z.literal("")),
+  countryCode: z.string().min(1, "Código de país requerido"),
+  phone: z.string().min(10, "Teléfono requerido (mínimo 10 dígitos)"),
   contractDuration: z.string().min(1, "Tiempo de contrato requerido"),
   checkInDate: z.string().min(1, "Fecha de check-in requerida"),
   hasPets: z.string().min(1, "Información sobre mascotas requerida"),
   estimatedRentCost: z.string().min(1, "Costo estimado requerido"),
   bedrooms: z.string().min(1, "Número de recámaras requerido"),
-  desiredUnitType: z.string().min(1, "Tipo de unidad requerido"),
-  desiredNeighborhood: z.string().min(1, "Colonia deseada requerida"),
+  desiredUnitTypes: z.array(z.string()).optional(),
+  desiredNeighborhoods: z.array(z.string()).optional(),
+  interestedCondominiumId: z.string().optional(),
+  interestedUnitIds: z.array(z.string()).optional(),
+  sellerId: z.string().optional(),
   sellerName: z.string().optional(),
   source: z.string().optional(),
   notes: z.string().optional(),
@@ -37,6 +73,58 @@ export default function LeadRegistrationVendedor() {
   const { toast } = useToast();
   const [, navigate] = useLocation();
   const [submitted, setSubmitted] = useState(false);
+  const [selectedCondominiumId, setSelectedCondominiumId] = useState<string>("");
+  const [selectedUnitTypes, setSelectedUnitTypes] = useState<string[]>([]);
+  const [selectedNeighborhoods, setSelectedNeighborhoods] = useState<string[]>([]);
+  const [selectedUnitIds, setSelectedUnitIds] = useState<string[]>([]);
+
+  // Fetch agency info for logo
+  const { data: agencyData } = useQuery<{ id: string; name: string; logoUrl: string }>({
+    queryKey: ["/api/public/agency"],
+    queryFn: async () => {
+      const response = await fetch("/api/public/agency");
+      if (!response.ok) return { id: "", name: "", logoUrl: "" };
+      return response.json();
+    },
+    staleTime: 30 * 60 * 1000,
+  });
+
+  // Fetch sellers for dropdown
+  const { data: sellersData, isLoading: isLoadingSellers } = useQuery<{ id: string; fullName: string }[]>({
+    queryKey: ["/api/public/sellers"],
+    queryFn: async () => {
+      const response = await fetch("/api/public/sellers");
+      if (!response.ok) return [];
+      return response.json();
+    },
+    staleTime: 10 * 60 * 1000,
+  });
+  const sellers = sellersData || [];
+
+  // Fetch condominiums
+  const { data: condominiumsData, isLoading: isLoadingCondos } = useQuery<{ id: string; name: string; neighborhood?: string }[]>({
+    queryKey: ["/api/public/condominiums"],
+    queryFn: async () => {
+      const response = await fetch("/api/public/condominiums");
+      if (!response.ok) return [];
+      return response.json();
+    },
+    staleTime: 10 * 60 * 1000,
+  });
+  const condominiums = condominiumsData || [];
+
+  // Fetch units for selected condominium
+  const { data: unitsData, isLoading: isLoadingUnits } = useQuery<{ id: string; unitNumber: string; type?: string }[]>({
+    queryKey: ["/api/public/condominiums", selectedCondominiumId, "units"],
+    queryFn: async () => {
+      const response = await fetch(`/api/public/condominiums/${selectedCondominiumId}/units`);
+      if (!response.ok) return [];
+      return response.json();
+    },
+    enabled: !!selectedCondominiumId,
+    staleTime: 5 * 60 * 1000,
+  });
+  const units = unitsData || [];
 
   const form = useForm<VendedorFormData>({
     resolver: zodResolver(vendedorFormSchema),
@@ -44,15 +132,18 @@ export default function LeadRegistrationVendedor() {
       firstName: "",
       lastName: "",
       email: "",
+      countryCode: "+52",
       phone: "",
       contractDuration: "",
       checkInDate: "",
       hasPets: "",
       estimatedRentCost: "",
       bedrooms: "",
-      desiredUnitType: "",
-      desiredNeighborhood: "",
-      sellerName: "",
+      desiredUnitTypes: [],
+      desiredNeighborhoods: [],
+      interestedCondominiumId: "",
+      interestedUnitIds: [],
+      sellerId: "",
       source: "",
       notes: "",
     },
@@ -60,16 +151,26 @@ export default function LeadRegistrationVendedor() {
 
   const submitMutation = useMutation({
     mutationFn: async (data: VendedorFormData) => {
+      const fullPhone = `${data.countryCode}${data.phone}`;
+      const seller = sellers.find(s => s.id === data.sellerId);
       const response = await fetch("/api/public/leads/vendedor", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
         },
-        body: JSON.stringify(data),
+        body: JSON.stringify({
+          ...data,
+          phone: fullPhone,
+          desiredUnitType: data.desiredUnitTypes?.join(", ") || "",
+          desiredNeighborhood: data.desiredNeighborhoods?.join(", ") || "",
+          interestedUnitId: data.interestedUnitIds?.join(",") || "",
+          sellerName: seller?.fullName || "",
+          sellerId: data.sellerId,
+        }),
       });
       if (!response.ok) {
         const error = await response.json().catch(() => ({ message: "Error al enviar" }));
-        throw new Error(error.message);
+        throw new Error(error.message || error.detail);
       }
       return response.json();
     },
@@ -77,7 +178,7 @@ export default function LeadRegistrationVendedor() {
       setSubmitted(true);
       toast({
         title: "¡Registro Exitoso!",
-        description: "Gracias por tu interés. Te contactaremos pronto.",
+        description: "Gracias por registrar este lead. El vendedor será notificado.",
       });
     },
     onError: (error: any) => {
@@ -90,7 +191,12 @@ export default function LeadRegistrationVendedor() {
   });
 
   const onSubmit = (data: VendedorFormData) => {
-    submitMutation.mutate(data);
+    submitMutation.mutate({
+      ...data,
+      desiredUnitTypes: selectedUnitTypes,
+      desiredNeighborhoods: selectedNeighborhoods,
+      interestedUnitIds: selectedUnitIds,
+    });
   };
 
   if (submitted) {
@@ -103,7 +209,7 @@ export default function LeadRegistrationVendedor() {
             </div>
             <CardTitle className="text-2xl">¡Registro Completado!</CardTitle>
             <CardDescription className="text-base">
-              Hemos recibido tu información. Nuestro equipo se pondrá en contacto contigo pronto.
+              Hemos recibido la información del lead. El vendedor asignado será notificado.
             </CardDescription>
           </CardHeader>
         </Card>
@@ -115,23 +221,34 @@ export default function LeadRegistrationVendedor() {
     <div className="min-h-screen flex items-center justify-center p-4 bg-gradient-to-br from-background to-muted">
       <Card className="w-full max-w-2xl">
         <CardHeader className="text-center">
-          <div className="flex justify-center mb-4">
+          <div className="flex justify-center items-center gap-4 mb-4">
             <img 
               src={logoPath} 
               alt="HomesApp Logo" 
               className="h-12 w-auto"
             />
+            {agencyData?.logoUrl && (
+              <>
+                <span className="text-muted-foreground">x</span>
+                <img 
+                  src={agencyData.logoUrl} 
+                  alt={`${agencyData.name} Logo`} 
+                  className="h-12 w-auto max-w-[150px] object-contain"
+                />
+              </>
+            )}
           </div>
           <CardTitle className="text-3xl">Registro de Lead para Vendedores</CardTitle>
           <CardDescription className="text-base">
             Registra los datos del cliente interesado en propiedades de renta
+            {agencyData?.name && <span className="block mt-1 font-medium">{agencyData.name}</span>}
           </CardDescription>
         </CardHeader>
         <CardContent>
           <Form {...form}>
             <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
               <div className="space-y-4">
-                <h3 className="font-semibold text-sm text-muted-foreground">Información Personal</h3>
+                <h3 className="font-semibold text-sm text-muted-foreground">Información del Cliente</h3>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <FormField
                     control={form.control}
@@ -166,27 +283,54 @@ export default function LeadRegistrationVendedor() {
                     name="email"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>Correo Electrónico *</FormLabel>
+                        <FormLabel>Correo Electrónico</FormLabel>
                         <FormControl>
-                          <Input {...field} type="email" placeholder="ejemplo@email.com" data-testid="input-email" />
+                          <Input {...field} type="email" placeholder="ejemplo@email.com (opcional)" data-testid="input-email" />
                         </FormControl>
                         <FormMessage />
                       </FormItem>
                     )}
                   />
-                  <FormField
-                    control={form.control}
-                    name="phone"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Teléfono *</FormLabel>
-                        <FormControl>
-                          <Input {...field} type="tel" placeholder="9981234567" data-testid="input-phone" />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
+                  <div className="space-y-2">
+                    <FormLabel>Teléfono *</FormLabel>
+                    <div className="flex gap-2">
+                      <FormField
+                        control={form.control}
+                        name="countryCode"
+                        render={({ field }) => (
+                          <FormItem className="w-28">
+                            <Select onValueChange={field.onChange} value={field.value}>
+                              <FormControl>
+                                <SelectTrigger data-testid="select-country-code">
+                                  <SelectValue placeholder="Lada" />
+                                </SelectTrigger>
+                              </FormControl>
+                              <SelectContent>
+                                {COUNTRY_CODES.map((cc) => (
+                                  <SelectItem key={cc.code} value={cc.code}>
+                                    {cc.code} {cc.country}
+                                  </SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                      <FormField
+                        control={form.control}
+                        name="phone"
+                        render={({ field }) => (
+                          <FormItem className="flex-1">
+                            <FormControl>
+                              <Input {...field} type="tel" placeholder="9981234567" data-testid="input-phone" />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                    </div>
+                  </div>
                 </div>
               </div>
 
@@ -199,9 +343,19 @@ export default function LeadRegistrationVendedor() {
                     render={({ field }) => (
                       <FormItem>
                         <FormLabel>Tiempo de Contrato *</FormLabel>
-                        <FormControl>
-                          <Input {...field} placeholder="6 meses, 1 año..." data-testid="input-contract-duration" />
-                        </FormControl>
+                        <Select onValueChange={field.onChange} value={field.value}>
+                          <FormControl>
+                            <SelectTrigger data-testid="select-contract-duration">
+                              <SelectValue placeholder="Seleccionar duración" />
+                            </SelectTrigger>
+                          </FormControl>
+                          <SelectContent>
+                            <SelectItem value="6 meses">6 meses</SelectItem>
+                            <SelectItem value="1 año">1 año</SelectItem>
+                            <SelectItem value="2 años">2 años</SelectItem>
+                            <SelectItem value="3+ años">3+ años</SelectItem>
+                          </SelectContent>
+                        </Select>
                         <FormMessage />
                       </FormItem>
                     )}
@@ -227,9 +381,19 @@ export default function LeadRegistrationVendedor() {
                     render={({ field }) => (
                       <FormItem>
                         <FormLabel>Mascotas *</FormLabel>
-                        <FormControl>
-                          <Input {...field} placeholder="Sí, No, Perro, Gato..." data-testid="input-has-pets" />
-                        </FormControl>
+                        <Select onValueChange={field.onChange} value={field.value}>
+                          <FormControl>
+                            <SelectTrigger data-testid="select-has-pets">
+                              <SelectValue placeholder="¿Tiene mascotas?" />
+                            </SelectTrigger>
+                          </FormControl>
+                          <SelectContent>
+                            <SelectItem value="No">No</SelectItem>
+                            <SelectItem value="Sí - Perro">Sí - Perro</SelectItem>
+                            <SelectItem value="Sí - Gato">Sí - Gato</SelectItem>
+                            <SelectItem value="Sí - Otro">Sí - Otro</SelectItem>
+                          </SelectContent>
+                        </Select>
                         <FormMessage />
                       </FormItem>
                     )}
@@ -239,7 +403,7 @@ export default function LeadRegistrationVendedor() {
                     name="estimatedRentCost"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>Costo Estimado de Renta *</FormLabel>
+                        <FormLabel>Presupuesto de Renta (MXN) *</FormLabel>
                         <FormControl>
                           <Input {...field} type="number" placeholder="15000" data-testid="input-estimated-rent" />
                         </FormControl>
@@ -255,53 +419,220 @@ export default function LeadRegistrationVendedor() {
                     render={({ field }) => (
                       <FormItem>
                         <FormLabel>Recámaras *</FormLabel>
-                        <FormControl>
-                          <Input {...field} type="number" placeholder="2" data-testid="input-bedrooms" />
-                        </FormControl>
+                        <Select onValueChange={field.onChange} value={field.value}>
+                          <FormControl>
+                            <SelectTrigger data-testid="select-bedrooms">
+                              <SelectValue placeholder="Cantidad" />
+                            </SelectTrigger>
+                          </FormControl>
+                          <SelectContent>
+                            <SelectItem value="1">1</SelectItem>
+                            <SelectItem value="2">2</SelectItem>
+                            <SelectItem value="3">3</SelectItem>
+                            <SelectItem value="4+">4+</SelectItem>
+                          </SelectContent>
+                        </Select>
                         <FormMessage />
                       </FormItem>
                     )}
                   />
+                  <FormItem className="col-span-2">
+                    <FormLabel>Tipo de Unidad (opcional, múltiple)</FormLabel>
+                    <div className="flex flex-wrap gap-2 p-2 border rounded-md min-h-[40px]">
+                      {UNIT_TYPES.map((type) => (
+                        <label
+                          key={type}
+                          className={`flex items-center gap-1 px-2 py-1 rounded-md text-sm cursor-pointer transition-colors ${
+                            selectedUnitTypes.includes(type)
+                              ? "bg-primary text-primary-foreground"
+                              : "bg-muted hover:bg-muted/80"
+                          }`}
+                        >
+                          <input
+                            type="checkbox"
+                            className="sr-only"
+                            checked={selectedUnitTypes.includes(type)}
+                            onChange={(e) => {
+                              if (e.target.checked) {
+                                setSelectedUnitTypes([...selectedUnitTypes, type]);
+                              } else {
+                                setSelectedUnitTypes(selectedUnitTypes.filter(t => t !== type));
+                              }
+                            }}
+                            data-testid={`checkbox-unit-type-${type.toLowerCase().replace(/[^a-z]/g, '-')}`}
+                          />
+                          {type}
+                        </label>
+                      ))}
+                    </div>
+                  </FormItem>
+                </div>
+                <FormItem>
+                  <FormLabel>Zona Deseada (opcional, múltiple)</FormLabel>
+                  <div className="flex flex-wrap gap-2 p-2 border rounded-md min-h-[40px]">
+                    {NEIGHBORHOODS.map((zone) => (
+                      <label
+                        key={zone}
+                        className={`flex items-center gap-1 px-2 py-1 rounded-md text-sm cursor-pointer transition-colors ${
+                          selectedNeighborhoods.includes(zone)
+                            ? "bg-primary text-primary-foreground"
+                            : "bg-muted hover:bg-muted/80"
+                        }`}
+                      >
+                        <input
+                          type="checkbox"
+                          className="sr-only"
+                          checked={selectedNeighborhoods.includes(zone)}
+                          onChange={(e) => {
+                            if (e.target.checked) {
+                              setSelectedNeighborhoods([...selectedNeighborhoods, zone]);
+                            } else {
+                              setSelectedNeighborhoods(selectedNeighborhoods.filter(z => z !== zone));
+                            }
+                          }}
+                          data-testid={`checkbox-neighborhood-${zone.toLowerCase().replace(/[^a-z]/g, '-')}`}
+                        />
+                        {zone}
+                      </label>
+                    ))}
+                  </div>
+                </FormItem>
+              </div>
+
+              {/* Property Interest Section */}
+              <div className="space-y-4">
+                <h3 className="font-semibold text-sm text-muted-foreground flex items-center gap-2">
+                  <Building2 className="h-4 w-4" />
+                  Propiedad de Interés (Opcional)
+                </h3>
+                <p className="text-xs text-muted-foreground">
+                  Si el cliente está interesado en propiedades específicas de nuestro portafolio, selecciónalas aquí.
+                </p>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <FormField
                     control={form.control}
-                    name="desiredUnitType"
+                    name="interestedCondominiumId"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>Tipo de Unidad *</FormLabel>
-                        <FormControl>
-                          <Input {...field} placeholder="Casa, Departamento..." data-testid="input-unit-type" />
-                        </FormControl>
+                        <FormLabel>Condominio</FormLabel>
+                        <Select 
+                          onValueChange={(value) => {
+                            field.onChange(value);
+                            setSelectedCondominiumId(value);
+                            setSelectedUnitIds([]);
+                          }} 
+                          value={field.value}
+                        >
+                          <FormControl>
+                            <SelectTrigger data-testid="select-condominium">
+                              <SelectValue placeholder={isLoadingCondos ? "Cargando..." : "Seleccionar condominio"} />
+                            </SelectTrigger>
+                          </FormControl>
+                          <SelectContent>
+                            {condominiums.map((condo) => (
+                              <SelectItem key={condo.id} value={condo.id}>
+                                {condo.name} {condo.neighborhood ? `(${condo.neighborhood})` : ""}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
                         <FormMessage />
                       </FormItem>
                     )}
                   />
-                  <FormField
-                    control={form.control}
-                    name="desiredNeighborhood"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Colonia Deseada *</FormLabel>
-                        <FormControl>
-                          <Input {...field} placeholder="Aldea Zama..." data-testid="input-neighborhood" />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
+                  <FormItem>
+                    <FormLabel>Unidades de Interés (múltiple)</FormLabel>
+                    {!selectedCondominiumId ? (
+                      <p className="text-xs text-muted-foreground p-2 border rounded-md">
+                        Primero seleccione un condominio
+                      </p>
+                    ) : isLoadingUnits ? (
+                      <div className="flex items-center gap-2 p-2 border rounded-md">
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                        <span className="text-sm text-muted-foreground">Cargando unidades...</span>
+                      </div>
+                    ) : units.length === 0 ? (
+                      <p className="text-xs text-muted-foreground p-2 border rounded-md">
+                        Sin unidades disponibles
+                      </p>
+                    ) : (
+                      <div className="flex flex-wrap gap-2 p-2 border rounded-md max-h-32 overflow-y-auto">
+                        {units.map((unit) => (
+                          <label
+                            key={unit.id}
+                            className={`flex items-center gap-1 px-2 py-1 rounded-md text-sm cursor-pointer transition-colors ${
+                              selectedUnitIds.includes(unit.id)
+                                ? "bg-primary text-primary-foreground"
+                                : "bg-muted hover:bg-muted/80"
+                            }`}
+                          >
+                            <input
+                              type="checkbox"
+                              className="sr-only"
+                              checked={selectedUnitIds.includes(unit.id)}
+                              onChange={(e) => {
+                                if (e.target.checked) {
+                                  setSelectedUnitIds([...selectedUnitIds, unit.id]);
+                                } else {
+                                  setSelectedUnitIds(selectedUnitIds.filter(id => id !== unit.id));
+                                }
+                              }}
+                              data-testid={`checkbox-unit-${unit.id}`}
+                            />
+                            <Home className="h-3 w-3" />
+                            {unit.unitNumber} {unit.type ? `(${unit.type})` : ""}
+                          </label>
+                        ))}
+                      </div>
                     )}
-                  />
+                  </FormItem>
                 </div>
               </div>
 
               <div className="space-y-4">
-                <h3 className="font-semibold text-sm text-muted-foreground">Información Adicional</h3>
+                <h3 className="font-semibold text-sm text-muted-foreground">Información del Vendedor</h3>
                 <FormField
                   control={form.control}
-                  name="sellerName"
+                  name="sellerId"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Nombre del Vendedor</FormLabel>
-                      <FormControl>
-                        <Input {...field} placeholder="Escribe el nombre del vendedor" data-testid="input-seller-name" />
-                      </FormControl>
+                      <FormLabel>Vendedor que Registra {sellers.length > 0 ? "*" : ""}</FormLabel>
+                      {isLoadingSellers ? (
+                        <div className="flex items-center gap-2 p-2 border rounded-md">
+                          <Loader2 className="h-4 w-4 animate-spin" />
+                          <span className="text-sm text-muted-foreground">Cargando vendedores...</span>
+                        </div>
+                      ) : sellers.length === 0 ? (
+                        <div className="p-2 border rounded-md">
+                          <Input 
+                            placeholder="Tu nombre (vendedor)" 
+                            value={form.watch("sellerName") || ""} 
+                            onChange={(e) => form.setValue("sellerName", e.target.value)}
+                            data-testid="input-seller-name-fallback"
+                          />
+                          <p className="text-xs text-muted-foreground mt-1">
+                            No hay vendedores registrados. Escribe tu nombre.
+                          </p>
+                        </div>
+                      ) : (
+                        <Select onValueChange={field.onChange} value={field.value}>
+                          <FormControl>
+                            <SelectTrigger data-testid="select-seller">
+                              <SelectValue placeholder="Seleccionar vendedor" />
+                            </SelectTrigger>
+                          </FormControl>
+                          <SelectContent>
+                            {sellers.map((seller) => (
+                              <SelectItem key={seller.id} value={seller.id}>
+                                {seller.fullName}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      )}
+                      <FormDescription className="text-xs">
+                        {sellers.length > 0 ? "Selecciona tu nombre de la lista de vendedores registrados" : ""}
+                      </FormDescription>
                       <FormMessage />
                     </FormItem>
                   )}
@@ -311,10 +642,25 @@ export default function LeadRegistrationVendedor() {
                   name="source"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>¿Cómo nos conociste?</FormLabel>
-                      <FormControl>
-                        <Input {...field} placeholder="Facebook, Instagram, Referencia..." data-testid="input-source" />
-                      </FormControl>
+                      <FormLabel>¿Cómo conoció el cliente la propiedad?</FormLabel>
+                      <Select onValueChange={field.onChange} value={field.value}>
+                        <FormControl>
+                          <SelectTrigger data-testid="select-source">
+                            <SelectValue placeholder="Seleccionar origen" />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          <SelectItem value="Referencia directa">Referencia directa</SelectItem>
+                          <SelectItem value="Facebook">Facebook</SelectItem>
+                          <SelectItem value="Instagram">Instagram</SelectItem>
+                          <SelectItem value="WhatsApp">WhatsApp</SelectItem>
+                          <SelectItem value="Airbnb">Airbnb</SelectItem>
+                          <SelectItem value="Booking">Booking</SelectItem>
+                          <SelectItem value="Google">Google</SelectItem>
+                          <SelectItem value="Espectacular">Espectacular / Publicidad física</SelectItem>
+                          <SelectItem value="Otro">Otro</SelectItem>
+                        </SelectContent>
+                      </Select>
                       <FormMessage />
                     </FormItem>
                   )}
@@ -324,9 +670,9 @@ export default function LeadRegistrationVendedor() {
                   name="notes"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Notas</FormLabel>
+                      <FormLabel>Notas Adicionales</FormLabel>
                       <FormControl>
-                        <Textarea {...field} placeholder="Cuéntanos sobre tus propiedades o experiencia..." rows={3} data-testid="input-notes" />
+                        <Textarea {...field} placeholder="Información adicional sobre el cliente o sus preferencias..." rows={3} data-testid="input-notes" />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
@@ -335,7 +681,14 @@ export default function LeadRegistrationVendedor() {
               </div>
 
               <Button type="submit" className="w-full" disabled={submitMutation.isPending} data-testid="button-submit">
-                {submitMutation.isPending ? "Enviando..." : "Registrarme"}
+                {submitMutation.isPending ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    Enviando...
+                  </>
+                ) : (
+                  "Registrar Lead"
+                )}
               </Button>
             </form>
           </Form>

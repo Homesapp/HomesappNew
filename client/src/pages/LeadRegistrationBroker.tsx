@@ -10,24 +10,56 @@ import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
-import { Handshake, CheckCircle2, Building2, Home, Loader2 } from "lucide-react";
+import { CheckCircle2, Building2, Home, Loader2 } from "lucide-react";
 import { useState } from "react";
 import logoPath from "@assets/H mes (500 x 300 px)_1759672952263.png";
+
+const COUNTRY_CODES = [
+  { code: "+52", country: "MX", flag: "MX" },
+  { code: "+1", country: "US/CA", flag: "US" },
+  { code: "+57", country: "CO", flag: "CO" },
+  { code: "+54", country: "AR", flag: "AR" },
+  { code: "+56", country: "CL", flag: "CL" },
+  { code: "+34", country: "ES", flag: "ES" },
+  { code: "+55", country: "BR", flag: "BR" },
+  { code: "+51", country: "PE", flag: "PE" },
+];
+
+const UNIT_TYPES = [
+  "Departamento",
+  "Casa",
+  "Estudio",
+  "PH / Penthouse",
+  "Villa",
+  "Loft",
+];
+
+const NEIGHBORHOODS = [
+  "Aldea Zama",
+  "Centro",
+  "La Veleta",
+  "Region 15",
+  "Region 8",
+  "Holistika",
+  "Selva Zama",
+  "Otro",
+];
 
 const brokerFormSchema = z.object({
   firstName: z.string().min(1, "Nombre requerido"),
   lastName: z.string().min(1, "Apellido requerido"),
-  email: z.string().email("Correo electrónico válido requerido"),
+  email: z.string().email("Correo electrónico válido").optional().or(z.literal("")),
+  countryCode: z.string().min(1, "Código de país requerido"),
   phoneLast4: z.string().length(4, "Últimos 4 dígitos del teléfono del cliente"),
   contractDuration: z.string().min(1, "Tiempo de contrato requerido"),
   checkInDate: z.string().min(1, "Fecha de check-in requerida"),
   hasPets: z.string().min(1, "Información sobre mascotas requerida"),
   estimatedRentCost: z.string().min(1, "Costo estimado requerido"),
   bedrooms: z.string().min(1, "Número de recámaras requerido"),
-  desiredUnitType: z.string().min(1, "Tipo de unidad requerido"),
-  desiredNeighborhood: z.string().min(1, "Colonia deseada requerida"),
+  desiredUnitTypes: z.array(z.string()).optional(),
+  desiredNeighborhoods: z.array(z.string()).optional(),
   interestedCondominiumId: z.string().optional(),
-  interestedUnitId: z.string().optional(),
+  interestedUnitIds: z.array(z.string()).optional(),
   sellerName: z.string().optional(),
   source: z.string().optional(),
   notes: z.string().optional(),
@@ -40,6 +72,20 @@ export default function LeadRegistrationBroker() {
   const [, navigate] = useLocation();
   const [submitted, setSubmitted] = useState(false);
   const [selectedCondominiumId, setSelectedCondominiumId] = useState<string>("");
+  const [selectedUnitTypes, setSelectedUnitTypes] = useState<string[]>([]);
+  const [selectedNeighborhoods, setSelectedNeighborhoods] = useState<string[]>([]);
+  const [selectedUnitIds, setSelectedUnitIds] = useState<string[]>([]);
+
+  // Fetch agency info for logo
+  const { data: agencyData } = useQuery<{ id: string; name: string; logoUrl: string }>({
+    queryKey: ["/api/public/agency"],
+    queryFn: async () => {
+      const response = await fetch("/api/public/agency");
+      if (!response.ok) return { id: "", name: "", logoUrl: "" };
+      return response.json();
+    },
+    staleTime: 30 * 60 * 1000,
+  });
 
   // Fetch condominiums for property interest selection
   const { data: condominiumsData, isLoading: isLoadingCondos } = useQuery<{ id: string; name: string; neighborhood?: string }[]>({
@@ -72,16 +118,17 @@ export default function LeadRegistrationBroker() {
       firstName: "",
       lastName: "",
       email: "",
+      countryCode: "+52",
       phoneLast4: "",
       contractDuration: "",
       checkInDate: "",
       hasPets: "",
       estimatedRentCost: "",
       bedrooms: "",
-      desiredUnitType: "",
-      desiredNeighborhood: "",
+      desiredUnitTypes: [],
+      desiredNeighborhoods: [],
       interestedCondominiumId: "",
-      interestedUnitId: "",
+      interestedUnitIds: [],
       sellerName: "",
       source: "",
       notes: "",
@@ -95,11 +142,16 @@ export default function LeadRegistrationBroker() {
         headers: {
           "Content-Type": "application/json",
         },
-        body: JSON.stringify(data),
+        body: JSON.stringify({
+          ...data,
+          desiredUnitType: data.desiredUnitTypes?.join(", ") || "",
+          desiredNeighborhood: data.desiredNeighborhoods?.join(", ") || "",
+          interestedUnitId: data.interestedUnitIds?.join(",") || "",
+        }),
       });
       if (!response.ok) {
         const error = await response.json().catch(() => ({ message: "Error al enviar" }));
-        throw new Error(error.message);
+        throw new Error(error.message || error.detail);
       }
       return response.json();
     },
@@ -120,7 +172,12 @@ export default function LeadRegistrationBroker() {
   });
 
   const onSubmit = (data: BrokerFormData) => {
-    submitMutation.mutate(data);
+    submitMutation.mutate({
+      ...data,
+      desiredUnitTypes: selectedUnitTypes,
+      desiredNeighborhoods: selectedNeighborhoods,
+      interestedUnitIds: selectedUnitIds,
+    });
   };
 
   if (submitted) {
@@ -145,16 +202,27 @@ export default function LeadRegistrationBroker() {
     <div className="min-h-screen flex items-center justify-center p-4 bg-gradient-to-br from-background to-muted">
       <Card className="w-full max-w-2xl">
         <CardHeader className="text-center">
-          <div className="flex justify-center mb-4">
+          <div className="flex justify-center items-center gap-4 mb-4">
             <img 
               src={logoPath} 
               alt="HomesApp Logo" 
               className="h-12 w-auto"
             />
+            {agencyData?.logoUrl && (
+              <>
+                <span className="text-muted-foreground">x</span>
+                <img 
+                  src={agencyData.logoUrl} 
+                  alt={`${agencyData.name} Logo`} 
+                  className="h-12 w-auto max-w-[150px] object-contain"
+                />
+              </>
+            )}
           </div>
           <CardTitle className="text-3xl">Registro de Lead para Brokers</CardTitle>
           <CardDescription className="text-base">
             Registra los datos del cliente interesado en propiedades de renta
+            {agencyData?.name && <span className="block mt-1 font-medium">{agencyData.name}</span>}
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -196,30 +264,57 @@ export default function LeadRegistrationBroker() {
                     name="email"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>Correo Electrónico *</FormLabel>
+                        <FormLabel>Correo Electrónico</FormLabel>
                         <FormControl>
-                          <Input {...field} type="email" placeholder="cliente@ejemplo.com" data-testid="input-email" />
+                          <Input {...field} type="email" placeholder="cliente@ejemplo.com (opcional)" data-testid="input-email" />
                         </FormControl>
                         <FormMessage />
                       </FormItem>
                     )}
                   />
-                  <FormField
-                    control={form.control}
-                    name="phoneLast4"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Últimos 4 dígitos del teléfono *</FormLabel>
-                        <FormControl>
-                          <Input {...field} type="text" maxLength={4} placeholder="1234" data-testid="input-phone-last4" />
-                        </FormControl>
-                        <FormDescription className="text-xs">
-                          Solo los últimos 4 dígitos para identificación
-                        </FormDescription>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
+                  <div className="space-y-2">
+                    <FormLabel>Últimos 4 dígitos del teléfono *</FormLabel>
+                    <div className="flex gap-2">
+                      <FormField
+                        control={form.control}
+                        name="countryCode"
+                        render={({ field }) => (
+                          <FormItem className="w-28">
+                            <Select onValueChange={field.onChange} value={field.value}>
+                              <FormControl>
+                                <SelectTrigger data-testid="select-country-code">
+                                  <SelectValue placeholder="Lada" />
+                                </SelectTrigger>
+                              </FormControl>
+                              <SelectContent>
+                                {COUNTRY_CODES.map((cc) => (
+                                  <SelectItem key={cc.code} value={cc.code}>
+                                    {cc.code} {cc.country}
+                                  </SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                      <FormField
+                        control={form.control}
+                        name="phoneLast4"
+                        render={({ field }) => (
+                          <FormItem className="flex-1">
+                            <FormControl>
+                              <Input {...field} type="text" maxLength={4} placeholder="1234" data-testid="input-phone-last4" />
+                            </FormControl>
+                            <FormDescription className="text-xs">
+                              Solo los últimos 4 dígitos para identificación
+                            </FormDescription>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                    </div>
+                  </div>
                 </div>
               </div>
 
@@ -325,58 +420,67 @@ export default function LeadRegistrationBroker() {
                       </FormItem>
                     )}
                   />
-                  <FormField
-                    control={form.control}
-                    name="desiredUnitType"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Tipo de Unidad *</FormLabel>
-                        <Select onValueChange={field.onChange} value={field.value}>
-                          <FormControl>
-                            <SelectTrigger data-testid="select-unit-type">
-                              <SelectValue placeholder="Seleccionar tipo" />
-                            </SelectTrigger>
-                          </FormControl>
-                          <SelectContent>
-                            <SelectItem value="Departamento">Departamento</SelectItem>
-                            <SelectItem value="Casa">Casa</SelectItem>
-                            <SelectItem value="Estudio">Estudio</SelectItem>
-                            <SelectItem value="PH">PH / Penthouse</SelectItem>
-                            <SelectItem value="Villa">Villa</SelectItem>
-                          </SelectContent>
-                        </Select>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                  <FormField
-                    control={form.control}
-                    name="desiredNeighborhood"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Zona Deseada *</FormLabel>
-                        <Select onValueChange={field.onChange} value={field.value}>
-                          <FormControl>
-                            <SelectTrigger data-testid="select-neighborhood">
-                              <SelectValue placeholder="Seleccionar zona" />
-                            </SelectTrigger>
-                          </FormControl>
-                          <SelectContent>
-                            <SelectItem value="Aldea Zama">Aldea Zama</SelectItem>
-                            <SelectItem value="Centro">Centro</SelectItem>
-                            <SelectItem value="La Veleta">La Veleta</SelectItem>
-                            <SelectItem value="Region 15">Region 15</SelectItem>
-                            <SelectItem value="Region 8">Region 8</SelectItem>
-                            <SelectItem value="Holistika">Holistika</SelectItem>
-                            <SelectItem value="Selva Zama">Selva Zama</SelectItem>
-                            <SelectItem value="Otro">Otro</SelectItem>
-                          </SelectContent>
-                        </Select>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
+                  <FormItem className="col-span-2">
+                    <FormLabel>Tipo de Unidad (opcional, múltiple)</FormLabel>
+                    <div className="flex flex-wrap gap-2 p-2 border rounded-md min-h-[40px]">
+                      {UNIT_TYPES.map((type) => (
+                        <label
+                          key={type}
+                          className={`flex items-center gap-1 px-2 py-1 rounded-md text-sm cursor-pointer transition-colors ${
+                            selectedUnitTypes.includes(type)
+                              ? "bg-primary text-primary-foreground"
+                              : "bg-muted hover:bg-muted/80"
+                          }`}
+                        >
+                          <input
+                            type="checkbox"
+                            className="sr-only"
+                            checked={selectedUnitTypes.includes(type)}
+                            onChange={(e) => {
+                              if (e.target.checked) {
+                                setSelectedUnitTypes([...selectedUnitTypes, type]);
+                              } else {
+                                setSelectedUnitTypes(selectedUnitTypes.filter(t => t !== type));
+                              }
+                            }}
+                            data-testid={`checkbox-unit-type-${type.toLowerCase().replace(/[^a-z]/g, '-')}`}
+                          />
+                          {type}
+                        </label>
+                      ))}
+                    </div>
+                  </FormItem>
                 </div>
+                <FormItem>
+                  <FormLabel>Zona Deseada (opcional, múltiple)</FormLabel>
+                  <div className="flex flex-wrap gap-2 p-2 border rounded-md min-h-[40px]">
+                    {NEIGHBORHOODS.map((zone) => (
+                      <label
+                        key={zone}
+                        className={`flex items-center gap-1 px-2 py-1 rounded-md text-sm cursor-pointer transition-colors ${
+                          selectedNeighborhoods.includes(zone)
+                            ? "bg-primary text-primary-foreground"
+                            : "bg-muted hover:bg-muted/80"
+                        }`}
+                      >
+                        <input
+                          type="checkbox"
+                          className="sr-only"
+                          checked={selectedNeighborhoods.includes(zone)}
+                          onChange={(e) => {
+                            if (e.target.checked) {
+                              setSelectedNeighborhoods([...selectedNeighborhoods, zone]);
+                            } else {
+                              setSelectedNeighborhoods(selectedNeighborhoods.filter(z => z !== zone));
+                            }
+                          }}
+                          data-testid={`checkbox-neighborhood-${zone.toLowerCase().replace(/[^a-z]/g, '-')}`}
+                        />
+                        {zone}
+                      </label>
+                    ))}
+                  </div>
+                </FormItem>
               </div>
 
               {/* Property Interest Section */}
@@ -386,7 +490,7 @@ export default function LeadRegistrationBroker() {
                   Propiedad de Interés (Opcional)
                 </h3>
                 <p className="text-xs text-muted-foreground">
-                  Si el cliente está interesado en una propiedad específica de nuestro portafolio, selecciónala aquí.
+                  Si el cliente está interesado en propiedades específicas de nuestro portafolio, selecciónalas aquí.
                 </p>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <FormField
@@ -399,7 +503,7 @@ export default function LeadRegistrationBroker() {
                           onValueChange={(value) => {
                             field.onChange(value);
                             setSelectedCondominiumId(value);
-                            form.setValue("interestedUnitId", "");
+                            setSelectedUnitIds([]);
                           }} 
                           value={field.value}
                         >
@@ -420,42 +524,52 @@ export default function LeadRegistrationBroker() {
                       </FormItem>
                     )}
                   />
-                  <FormField
-                    control={form.control}
-                    name="interestedUnitId"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Unidad Específica</FormLabel>
-                        <Select 
-                          onValueChange={field.onChange} 
-                          value={field.value}
-                          disabled={!selectedCondominiumId || units.length === 0}
-                        >
-                          <FormControl>
-                            <SelectTrigger data-testid="select-unit">
-                              <SelectValue placeholder={
-                                !selectedCondominiumId 
-                                  ? "Primero seleccione condominio"
-                                  : isLoadingUnits
-                                    ? "Cargando unidades..."
-                                    : units.length === 0
-                                      ? "Sin unidades disponibles"
-                                      : "Seleccionar unidad"
-                              } />
-                            </SelectTrigger>
-                          </FormControl>
-                          <SelectContent>
-                            {units.map((unit) => (
-                              <SelectItem key={unit.id} value={unit.id}>
-                                {unit.unitNumber} {unit.type ? `(${unit.type})` : ""}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                        <FormMessage />
-                      </FormItem>
+                  <FormItem>
+                    <FormLabel>Unidades de Interés (múltiple)</FormLabel>
+                    {!selectedCondominiumId ? (
+                      <p className="text-xs text-muted-foreground p-2 border rounded-md">
+                        Primero seleccione un condominio
+                      </p>
+                    ) : isLoadingUnits ? (
+                      <div className="flex items-center gap-2 p-2 border rounded-md">
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                        <span className="text-sm text-muted-foreground">Cargando unidades...</span>
+                      </div>
+                    ) : units.length === 0 ? (
+                      <p className="text-xs text-muted-foreground p-2 border rounded-md">
+                        Sin unidades disponibles
+                      </p>
+                    ) : (
+                      <div className="flex flex-wrap gap-2 p-2 border rounded-md max-h-32 overflow-y-auto">
+                        {units.map((unit) => (
+                          <label
+                            key={unit.id}
+                            className={`flex items-center gap-1 px-2 py-1 rounded-md text-sm cursor-pointer transition-colors ${
+                              selectedUnitIds.includes(unit.id)
+                                ? "bg-primary text-primary-foreground"
+                                : "bg-muted hover:bg-muted/80"
+                            }`}
+                          >
+                            <input
+                              type="checkbox"
+                              className="sr-only"
+                              checked={selectedUnitIds.includes(unit.id)}
+                              onChange={(e) => {
+                                if (e.target.checked) {
+                                  setSelectedUnitIds([...selectedUnitIds, unit.id]);
+                                } else {
+                                  setSelectedUnitIds(selectedUnitIds.filter(id => id !== unit.id));
+                                }
+                              }}
+                              data-testid={`checkbox-unit-${unit.id}`}
+                            />
+                            <Home className="h-3 w-3" />
+                            {unit.unitNumber} {unit.type ? `(${unit.type})` : ""}
+                          </label>
+                        ))}
+                      </div>
                     )}
-                  />
+                  </FormItem>
                 </div>
               </div>
 
@@ -493,9 +607,11 @@ export default function LeadRegistrationBroker() {
                           <SelectItem value="Referencia directa">Referencia directa</SelectItem>
                           <SelectItem value="Facebook">Facebook</SelectItem>
                           <SelectItem value="Instagram">Instagram</SelectItem>
+                          <SelectItem value="WhatsApp">WhatsApp</SelectItem>
                           <SelectItem value="Airbnb">Airbnb</SelectItem>
                           <SelectItem value="Booking">Booking</SelectItem>
                           <SelectItem value="Google">Google</SelectItem>
+                          <SelectItem value="Espectacular">Espectacular / Publicidad física</SelectItem>
                           <SelectItem value="Otro">Otro</SelectItem>
                         </SelectContent>
                       </Select>
@@ -521,7 +637,7 @@ export default function LeadRegistrationBroker() {
               <Button type="submit" className="w-full" disabled={submitMutation.isPending} data-testid="button-submit">
                 {submitMutation.isPending ? (
                   <>
-                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                     Enviando...
                   </>
                 ) : (

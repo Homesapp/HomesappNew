@@ -25228,25 +25228,26 @@ export async function registerRoutes(app: Express): Promise<Server> {
         bedrooms,
         desiredUnitType,
         desiredNeighborhood,
+        interestedCondominiumId,
+        interestedUnitId,
+        sellerId,
         sellerName,
         source, 
         notes 
       } = req.body;
       
-      // Basic validation
-      if (!firstName || !lastName || !email || !phone) {
-        return res.status(400).json({ message: "Faltan campos requeridos" });
+      // Basic validation - email is optional
+      if (!firstName || !lastName || !phone) {
+        return res.status(400).json({ message: "Faltan campos requeridos (nombre, apellido, teléfono)" });
       }
       
       // For now, we'll assign to first available external agency
-      // In production, this could be based on domain, query param, or other logic
       const agencies = await storage.getExternalAgencies();
       if (!agencies || agencies.length === 0) {
         return res.status(500).json({ message: "No hay agencias disponibles" });
       }
       
       const agencyId = agencies[0].id;
-      
       
       // Check for duplicate lead with 3-month expiry
       const phoneLast4 = phone.slice(-4);
@@ -25265,12 +25266,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
           }
         });
       }
+      
       // Create lead
       const lead = await storage.createExternalLead({
         agencyId,
         firstName,
         lastName,
-        email,
+        email: email || null,
         phone,
         phoneLast4: phone.slice(-4),
         contractDuration: contractDuration || null,
@@ -25280,6 +25282,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
         bedrooms: bedrooms ? parseInt(bedrooms) : null,
         desiredUnitType: desiredUnitType || null,
         desiredNeighborhood: desiredNeighborhood || null,
+        interestedCondominiumId: interestedCondominiumId || null,
+        interestedUnitId: interestedUnitId || null,
+        assignedSellerId: sellerId || null,
         sellerName: sellerName || null,
         registrationType: "seller",
         status: "nuevo_lead",
@@ -25288,7 +25293,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       });
       
       res.status(201).json({ success: true, leadId: lead.id });
-    } catch (error: any) {
+    } catch (error) {
       console.error("Error creating vendedor lead:", error);
       handleGenericError(res, error);
     }
@@ -25375,6 +25380,46 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error: any) {
       console.error("Error creating broker lead:", error);
       handleGenericError(res, error);
+    }
+  });
+
+  // GET /api/public/agency - Get public agency info (name, logo)
+  app.get("/api/public/agency", async (req, res) => {
+    try {
+      const agencies = await storage.getExternalAgencies({ isActive: true });
+      if (!agencies || agencies.length === 0) {
+        return res.json({ name: "", logoUrl: "" });
+      }
+      const agency = agencies[0];
+      res.json({
+        id: agency.id,
+        name: agency.name,
+        logoUrl: agency.agencyLogoUrl || ""
+      });
+    } catch (error: any) {
+      console.error("Error fetching public agency:", error);
+      res.json({ name: "", logoUrl: "" });
+    }
+  });
+
+  // GET /api/public/sellers - Get public list of sellers for lead registration dropdown
+  app.get("/api/public/sellers", async (req, res) => {
+    try {
+      const agencies = await storage.getExternalAgencies({ isActive: true });
+      if (!agencies || agencies.length === 0) {
+        return res.json([]);
+      }
+      const agencyId = agencies[0].id;
+      const sellers = await storage.getExternalSellersByAgency(agencyId);
+      const activeSellers = sellers.filter(s => s.isActive);
+      const publicSellers = activeSellers.map(s => ({
+        id: s.id,
+        fullName: `${s.firstName} ${s.lastName}`
+      }));
+      res.json(publicSellers);
+    } catch (error: any) {
+      console.error("Error fetching public sellers:", error);
+      res.json([]);
     }
   });
 
