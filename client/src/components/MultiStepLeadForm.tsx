@@ -8,6 +8,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem } from "@/components/ui/command";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import {
@@ -84,6 +85,8 @@ export default function MultiStepLeadForm({ onSubmit, isPending, defaultValues }
   const phone = form.watch("phone");
   const { data: duplicateCheck } = useQuery<{
     isDuplicate: boolean;
+    expirationDays?: number;
+    isExpired?: boolean;
     lead?: {
       firstName: string;
       lastName: string;
@@ -242,38 +245,96 @@ export default function MultiStepLeadForm({ onSubmit, isPending, defaultValues }
                 )}
               />
 
-              {isDuplicate && duplicateCheck?.lead && (
-                <Alert variant="destructive" data-testid="alert-duplicate">
-                  <AlertCircle className="h-4 w-4" />
-                  <AlertDescription>
-                    <div className="space-y-2">
-                      <p className="font-semibold">Este teléfono ya está registrado:</p>
-                      <div className="text-sm space-y-1">
-                        <p>• Cliente: {duplicateCheck.lead.firstName} {duplicateCheck.lead.lastName}</p>
-                        {duplicateCheck.lead.email && <p>• Email: {duplicateCheck.lead.email}</p>}
-                        {duplicateCheck.lead.budget && <p>• Presupuesto: ${duplicateCheck.lead.budget.toLocaleString()}</p>}
-                        <p>• Registrado: {new Date(duplicateCheck.lead.createdAt).toLocaleDateString()}</p>
+              {/* Duplicate Lead Modal */}
+              <Dialog open={isDuplicate && !!duplicateCheck?.lead} onOpenChange={() => {}}>
+                <DialogContent className="max-w-md" onInteractOutside={(e) => e.preventDefault()}>
+                  <DialogHeader>
+                    <div className="flex items-center gap-3">
+                      <div className="p-3 rounded-full bg-red-100 dark:bg-red-900/30">
+                        <AlertCircle className="h-6 w-6 text-red-600 dark:text-red-400" />
+                      </div>
+                      <div>
+                        <DialogTitle className="text-red-600 dark:text-red-400">
+                          Lead Ya Registrado
+                        </DialogTitle>
+                        <DialogDescription>
+                          Este cliente ya está en el sistema
+                        </DialogDescription>
+                      </div>
+                    </div>
+                  </DialogHeader>
+                  
+                  {duplicateCheck?.lead && (
+                    <div className="space-y-4 py-4">
+                      <div className="bg-red-50 dark:bg-red-900/20 rounded-lg p-4 space-y-3">
+                        <div className="grid grid-cols-2 gap-3 text-sm">
+                          <div>
+                            <span className="text-muted-foreground text-xs">Cliente</span>
+                            <p className="font-semibold">{duplicateCheck.lead.firstName} {duplicateCheck.lead.lastName}</p>
+                          </div>
+                          {duplicateCheck.lead.email && (
+                            <div>
+                              <span className="text-muted-foreground text-xs">Email</span>
+                              <p className="font-medium">{duplicateCheck.lead.email}</p>
+                            </div>
+                          )}
+                          {duplicateCheck.lead.budget && (
+                            <div>
+                              <span className="text-muted-foreground text-xs">Presupuesto</span>
+                              <p className="font-medium text-green-600">${duplicateCheck.lead.budget.toLocaleString()}</p>
+                            </div>
+                          )}
+                          <div>
+                            <span className="text-muted-foreground text-xs">Registrado</span>
+                            <p className="font-medium">{new Date(duplicateCheck.lead.createdAt).toLocaleDateString()}</p>
+                          </div>
+                        </div>
                         {duplicateCheck.lead.seller && (
-                          <p>• Vendedor: {duplicateCheck.lead.seller.firstName} {duplicateCheck.lead.seller.lastName}</p>
+                          <div className="pt-3 border-t border-red-200 dark:border-red-800">
+                            <span className="text-muted-foreground text-xs">Vendedor Asignado</span>
+                            <p className="font-semibold">{duplicateCheck.lead.seller.firstName} {duplicateCheck.lead.seller.lastName}</p>
+                          </div>
+                        )}
+                        {duplicateCheck.expirationDays !== undefined && (
+                          <div className="pt-2">
+                            <Badge variant={duplicateCheck.expirationDays <= 7 ? "destructive" : "secondary"}>
+                              {duplicateCheck.expirationDays > 0 
+                                ? `Expira en ${duplicateCheck.expirationDays} días`
+                                : "Lead expirado - puede ser registrado nuevamente"}
+                            </Badge>
+                          </div>
                         )}
                       </div>
-                      {duplicateCheck.lead.seller?.email && (
-                        <Button
-                          type="button"
-                          size="sm"
-                          variant="outline"
-                          onClick={handleContactSeller}
-                          className="mt-2"
-                          data-testid="button-contact-seller"
-                        >
-                          <Mail className="h-3 w-3 mr-1" />
-                          Contactar a {duplicateCheck.lead.seller.firstName}
-                        </Button>
-                      )}
+                      
+                      <p className="text-sm text-muted-foreground text-center">
+                        Por favor contacta al vendedor asignado para más información sobre este cliente.
+                      </p>
                     </div>
-                  </AlertDescription>
-                </Alert>
-              )}
+                  )}
+                  
+                  <DialogFooter className="gap-2">
+                    {duplicateCheck?.lead?.seller?.email && (
+                      <Button
+                        type="button"
+                        variant="outline"
+                        onClick={handleContactSeller}
+                        data-testid="button-contact-seller-modal"
+                      >
+                        <Mail className="h-4 w-4 mr-2" />
+                        Contactar a {duplicateCheck.lead.seller.firstName}
+                      </Button>
+                    )}
+                    <Button
+                      type="button"
+                      variant="default"
+                      onClick={() => form.setValue("phone", "")}
+                      data-testid="button-change-phone"
+                    >
+                      Usar otro teléfono
+                    </Button>
+                  </DialogFooter>
+                </DialogContent>
+              </Dialog>
 
               <FormField
                 control={form.control}

@@ -24749,6 +24749,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(403).json({ message: "No agency access" });
       }
       
+      // Get agency info to include as first seller option
+      const agency = await db.select({
+        id: externalAgencies.id,
+        name: externalAgencies.name,
+      })
+      .from(externalAgencies)
+      .where(eq(externalAgencies.id, agencyId))
+      .limit(1);
+      
       // Get all sellers for this agency
       const sellers = await db.select({
         id: users.id,
@@ -24759,11 +24768,23 @@ export async function registerRoutes(app: Express): Promise<Server> {
       .from(users)
       .where(and(
         eq(users.externalAgencyId, agencyId),
-        eq(users.role, 'external_agency_seller')
+        eq(users.role, 'external_agency_seller'),
+        eq(users.isSuspended, false)
       ))
       .orderBy(users.firstName);
       
-      res.json(sellers);
+      // Include agency as first option (using agency ID prefixed with 'agency_')
+      const agencyAsSeller = agency[0] ? {
+        id: `agency_${agency[0].id}`,
+        firstName: agency[0].name,
+        lastName: '',
+        email: '',
+        isAgency: true
+      } : null;
+      
+      const result = agencyAsSeller ? [agencyAsSeller, ...sellers] : sellers;
+      
+      res.json(result);
     } catch (error: any) {
       console.error("Error fetching external sellers:", error);
       handleGenericError(res, error);
@@ -24949,6 +24970,67 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.json(lead);
     } catch (error: any) {
       console.error("Error updating external lead:", error);
+      handleGenericError(res, error);
+    }
+  });
+
+
+  // POST /api/external-leads/:id/reassign - Reassign lead to different seller
+  app.post("/api/external-leads/:id/reassign", isAuthenticated, requireRole(EXTERNAL_ADMIN_ROLES), async (req: any, res) => {
+    try {
+      const { id } = req.params;
+      const { newSellerId, newSellerName } = req.body;
+      const agencyId = await getUserAgencyId(req);
+      
+      if (!agencyId) {
+        return res.status(403).json({ message: "No agency access" });
+      }
+      
+      // Verify lead belongs to this agency
+      const existingLead = await storage.getExternalLead(id);
+      if (!existingLead || existingLead.agencyId !== agencyId) {
+        return res.status(404).json({ message: "Lead not found" });
+      }
+      
+      // Determine if reassigning to agency or to a seller
+      let updateData: any = {};
+      
+      if (newSellerId?.startsWith('agency_')) {
+        // Reassigning to agency (no specific seller)
+        updateData = {
+          assignedSellerId: null,
+          sellerId: null,
+          sellerName: newSellerName || null,
+        };
+      } else if (newSellerId) {
+        // Reassigning to a specific seller
+        const seller = await db.select().from(users).where(eq(users.id, newSellerId)).limit(1);
+        if (!seller[0] || seller[0].externalAgencyId !== agencyId) {
+          return res.status(400).json({ message: "Invalid seller" });
+        }
+        updateData = {
+          assignedSellerId: newSellerId,
+          sellerId: newSellerId,
+          sellerName: `${seller[0].firstName} ${seller[0].lastName}`,
+        };
+      } else {
+        return res.status(400).json({ message: "New seller ID is required" });
+      }
+      
+      const updatedLead = await storage.updateExternalLead(id, updateData);
+      
+      // Log the reassignment
+      await storage.createAuditLog({
+        userId: req.user.id,
+        action: "external_lead_reassigned",
+        resourceType: "external_lead",
+        resourceId: id,
+        details: `Lead reasignado a ${newSellerName || 'nuevo vendedor'}`,
+      });
+      
+      res.json(updatedLead);
+    } catch (error: any) {
+      console.error("Error reassigning lead:", error);
       handleGenericError(res, error);
     }
   });

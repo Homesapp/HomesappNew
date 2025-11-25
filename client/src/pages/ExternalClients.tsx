@@ -160,6 +160,8 @@ export default function ExternalClients() {
   const [isDeleteLeadDialogOpen, setIsDeleteLeadDialogOpen] = useState(false);
   const [isLeadDetailOpen, setIsLeadDetailOpen] = useState(false);
   const [selectedLead, setSelectedLead] = useState<ExternalLead | null>(null);
+  const [isReassignDialogOpen, setIsReassignDialogOpen] = useState(false);
+  const [newAssignedSellerId, setNewAssignedSellerId] = useState<string>("");
   const [selectedAgencyIdForLead, setSelectedAgencyIdForLead] = useState<string>("");
   
   // Check if user is master/admin (needs agency selection)
@@ -607,6 +609,34 @@ export default function ExternalClients() {
         description: error.message || (language === "es" 
           ? "No se pudo actualizar el estado del lead."
           : "Failed to update lead status."),
+      });
+    },
+  });
+
+  // Reassign lead to different seller mutation
+  const reassignLeadMutation = useMutation({
+    mutationFn: async ({ leadId, newSellerId, newSellerName }: { leadId: string; newSellerId: string; newSellerName: string }) => {
+      const res = await apiRequest("POST", `/api/external-leads/${leadId}/reassign`, { newSellerId, newSellerName });
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/external-leads"] });
+      setIsReassignDialogOpen(false);
+      setNewAssignedSellerId("");
+      toast({
+        title: language === "es" ? "Lead reasignado" : "Lead reassigned",
+        description: language === "es" 
+          ? "El lead ha sido reasignado exitosamente."
+          : "The lead has been successfully reassigned.",
+      });
+    },
+    onError: (error: any) => {
+      toast({
+        variant: "destructive",
+        title: language === "es" ? "Error" : "Error",
+        description: error.message || (language === "es" 
+          ? "No se pudo reasignar el lead."
+          : "Failed to reassign lead."),
       });
     },
   });
@@ -3726,21 +3756,20 @@ export default function ExternalClients() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
-
-      {/* Lead Detail Dialog */}
+      {/* Lead Detail Dialog - Enhanced */}
       <Dialog open={isLeadDetailOpen} onOpenChange={setIsLeadDetailOpen}>
-        <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
+        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
           <DialogHeader className="pb-4 border-b">
             <div className="flex items-center gap-3">
               <div className="p-2 rounded-lg bg-primary/10">
                 <UserPlus className="h-5 w-5 text-primary" />
               </div>
               <div className="flex-1">
-                <div className="flex items-center justify-between">
+                <div className="flex items-center justify-between flex-wrap gap-2">
                   <DialogTitle className="text-xl">
                     {selectedLead?.firstName} {selectedLead?.lastName}
                   </DialogTitle>
-                  <div className="flex items-center gap-2">
+                  <div className="flex items-center gap-2 flex-wrap">
                     <Badge variant={selectedLead?.registrationType === "broker" ? "default" : "secondary"}>
                       {selectedLead?.registrationType === "broker" ? "Broker" : (language === "es" ? "Vendedor" : "Seller")}
                     </Badge>
@@ -3757,137 +3786,261 @@ export default function ExternalClients() {
           </DialogHeader>
           
           {selectedLead && (
-            <div className="space-y-6 py-4">
-              {/* Contact Information */}
-              <div className="space-y-4">
-                <h3 className="text-sm font-semibold flex items-center gap-2">
-                  <User className="h-4 w-4" />
-                  {language === "es" ? "Información de Contacto" : "Contact Information"}
-                </h3>
-                <div className="grid grid-cols-2 gap-4 text-sm">
-                  <div>
-                    <span className="text-muted-foreground">{language === "es" ? "Nombre:" : "Name:"}</span>
-                    <p className="font-medium">{selectedLead.firstName} {selectedLead.lastName}</p>
-                  </div>
-                  {selectedLead.registrationType === "broker" ? (
-                    <div>
-                      <span className="text-muted-foreground">{language === "es" ? "Teléfono:" : "Phone:"}</span>
-                      <p className="font-medium">****{selectedLead.phoneLast4}</p>
-                    </div>
-                  ) : (
-                    <>
-                      {selectedLead.phone && (
-                        <div>
-                          <span className="text-muted-foreground">{language === "es" ? "Teléfono:" : "Phone:"}</span>
-                          <p className="font-medium flex items-center gap-1">
-                            <Phone className="h-3 w-3" /> {selectedLead.phone}
-                          </p>
-                        </div>
-                      )}
-                      {selectedLead.email && (
-                        <div>
-                          <span className="text-muted-foreground">Email:</span>
-                          <p className="font-medium flex items-center gap-1">
-                            <Mail className="h-3 w-3" /> {selectedLead.email}
-                          </p>
-                        </div>
-                      )}
-                    </>
-                  )}
-                </div>
-              </div>
-
-              {/* Location Information */}
-              {(selectedLead.nationality || selectedLead.city || selectedLead.address) && (
-                <div className="space-y-4 pt-4 border-t">
-                  <h3 className="text-sm font-semibold flex items-center gap-2">
-                    <MapPin className="h-4 w-4" />
-                    {language === "es" ? "Ubicación" : "Location"}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 py-4">
+              {/* Left Column */}
+              <div className="space-y-6">
+                {/* Contact Information */}
+                <div className="space-y-3">
+                  <h3 className="text-sm font-semibold flex items-center gap-2 text-primary">
+                    <User className="h-4 w-4" />
+                    {language === "es" ? "Información de Contacto" : "Contact Information"}
                   </h3>
-                  <div className="grid grid-cols-2 gap-4 text-sm">
-                    {selectedLead.nationality && (
+                  <div className="bg-muted/30 rounded-lg p-4 space-y-3">
+                    <div className="grid grid-cols-2 gap-3 text-sm">
                       <div>
-                        <span className="text-muted-foreground">{language === "es" ? "Nacionalidad:" : "Nationality:"}</span>
-                        <p className="font-medium">{selectedLead.nationality}</p>
+                        <span className="text-muted-foreground text-xs">{language === "es" ? "Nombre" : "Name"}</span>
+                        <p className="font-medium">{selectedLead.firstName} {selectedLead.lastName}</p>
                       </div>
-                    )}
-                    {selectedLead.city && (
-                      <div>
-                        <span className="text-muted-foreground">{language === "es" ? "Ciudad:" : "City:"}</span>
-                        <p className="font-medium">{selectedLead.city}</p>
-                      </div>
-                    )}
-                    {selectedLead.address && (
-                      <div className="col-span-2">
-                        <span className="text-muted-foreground">{language === "es" ? "Dirección:" : "Address:"}</span>
-                        <p className="font-medium">{selectedLead.address}</p>
-                      </div>
-                    )}
-                  </div>
-                </div>
-              )}
-
-              {/* Source and Date Information */}
-              <div className="space-y-4 pt-4 border-t">
-                <h3 className="text-sm font-semibold flex items-center gap-2">
-                  <CalendarIcon className="h-4 w-4" />
-                  {language === "es" ? "Origen y Fechas" : "Source & Dates"}
-                </h3>
-                <div className="grid grid-cols-2 gap-4 text-sm">
-                  {selectedLead.source && (
-                    <div>
-                      <span className="text-muted-foreground">{language === "es" ? "Fuente:" : "Source:"}</span>
-                      <p className="font-medium">{selectedLead.source}</p>
+                      {selectedLead.registrationType === "broker" ? (
+                        <div>
+                          <span className="text-muted-foreground text-xs">{language === "es" ? "Teléfono" : "Phone"}</span>
+                          <p className="font-medium">****{selectedLead.phoneLast4}</p>
+                        </div>
+                      ) : (
+                        <>
+                          {selectedLead.phone && (
+                            <div>
+                              <span className="text-muted-foreground text-xs">{language === "es" ? "Teléfono" : "Phone"}</span>
+                              <p className="font-medium flex items-center gap-1">
+                                <Phone className="h-3 w-3" /> {selectedLead.phone}
+                              </p>
+                            </div>
+                          )}
+                        </>
+                      )}
                     </div>
-                  )}
-                  <div>
-                    <span className="text-muted-foreground">{language === "es" ? "Fecha de Registro:" : "Registration Date:"}</span>
-                    <p className="font-medium">
-                      {selectedLead.createdAt ? format(new Date(selectedLead.createdAt), "dd MMM yyyy HH:mm", { locale: language === "es" ? es : enUS }) : "-"}
-                    </p>
+                    {selectedLead.email && selectedLead.registrationType !== "broker" && (
+                      <div>
+                        <span className="text-muted-foreground text-xs">Email</span>
+                        <p className="font-medium flex items-center gap-1">
+                          <Mail className="h-3 w-3" /> {selectedLead.email}
+                        </p>
+                      </div>
+                    )}
+                    {(selectedLead.nationality || selectedLead.city) && (
+                      <div className="grid grid-cols-2 gap-3">
+                        {selectedLead.nationality && (
+                          <div>
+                            <span className="text-muted-foreground text-xs">{language === "es" ? "Nacionalidad" : "Nationality"}</span>
+                            <p className="font-medium">{selectedLead.nationality}</p>
+                          </div>
+                        )}
+                        {selectedLead.city && (
+                          <div>
+                            <span className="text-muted-foreground text-xs">{language === "es" ? "Ciudad" : "City"}</span>
+                            <p className="font-medium">{selectedLead.city}</p>
+                          </div>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                {/* Property Preferences */}
+                <div className="space-y-3">
+                  <h3 className="text-sm font-semibold flex items-center gap-2 text-primary">
+                    <Home className="h-4 w-4" />
+                    {language === "es" ? "Preferencias de Propiedad" : "Property Preferences"}
+                  </h3>
+                  <div className="bg-muted/30 rounded-lg p-4 space-y-3">
+                    <div className="grid grid-cols-2 gap-3 text-sm">
+                      {(selectedLead.estimatedRentCost || selectedLead.estimatedRentCostText) && (
+                        <div>
+                          <span className="text-muted-foreground text-xs">{language === "es" ? "Presupuesto" : "Budget"}</span>
+                          <p className="font-medium text-green-600">
+                            {selectedLead.estimatedRentCost ? `$${selectedLead.estimatedRentCost.toLocaleString()}` : selectedLead.estimatedRentCostText}
+                          </p>
+                        </div>
+                      )}
+                      {(selectedLead.bedrooms || selectedLead.bedroomsText) && (
+                        <div>
+                          <span className="text-muted-foreground text-xs">{language === "es" ? "Recámaras" : "Bedrooms"}</span>
+                          <p className="font-medium">{selectedLead.bedrooms || selectedLead.bedroomsText}</p>
+                        </div>
+                      )}
+                      {selectedLead.desiredUnitType && (
+                        <div>
+                          <span className="text-muted-foreground text-xs">{language === "es" ? "Tipo de Unidad" : "Unit Type"}</span>
+                          <p className="font-medium">{selectedLead.desiredUnitType}</p>
+                        </div>
+                      )}
+                      {selectedLead.contractDuration && (
+                        <div>
+                          <span className="text-muted-foreground text-xs">{language === "es" ? "Duración Contrato" : "Contract Duration"}</span>
+                          <p className="font-medium">{selectedLead.contractDuration}</p>
+                        </div>
+                      )}
+                      {selectedLead.hasPets && (
+                        <div>
+                          <span className="text-muted-foreground text-xs">{language === "es" ? "Mascotas" : "Pets"}</span>
+                          <p className="font-medium">{selectedLead.hasPets}</p>
+                        </div>
+                      )}
+                      {(selectedLead.checkInDate || selectedLead.checkInDateText) && (
+                        <div>
+                          <span className="text-muted-foreground text-xs">{language === "es" ? "Fecha de Mudanza" : "Move-in Date"}</span>
+                          <p className="font-medium">
+                            {selectedLead.checkInDate 
+                              ? format(new Date(selectedLead.checkInDate), "dd MMM yyyy", { locale: language === "es" ? es : enUS })
+                              : selectedLead.checkInDateText}
+                          </p>
+                        </div>
+                      )}
+                    </div>
+                    {selectedLead.desiredNeighborhood && (
+                      <div>
+                        <span className="text-muted-foreground text-xs">{language === "es" ? "Zona Preferida" : "Preferred Area"}</span>
+                        <p className="font-medium">{selectedLead.desiredNeighborhood}</p>
+                      </div>
+                    )}
+                    {selectedLead.desiredProperty && (
+                      <div>
+                        <span className="text-muted-foreground text-xs">{language === "es" ? "Propiedad de Interés" : "Property of Interest"}</span>
+                        <p className="font-medium">{selectedLead.desiredProperty}</p>
+                      </div>
+                    )}
                   </div>
                 </div>
               </div>
 
-              {/* Status Update Section */}
-              <div className="space-y-4 pt-4 border-t">
-                <h3 className="text-sm font-semibold flex items-center gap-2">
-                  <RefreshCw className="h-4 w-4" />
-                  {language === "es" ? "Actualizar Estado" : "Update Status"}
-                </h3>
-                <div className="flex items-center gap-2 flex-wrap">
-                  {["nuevo_lead", "cita_coordinada", "interesado", "oferta_enviada", "proceso_renta", "renta_concretada", "perdido", "muerto"].map((status) => (
-                    <Button
-                      key={status}
-                      size="sm"
-                      variant={selectedLead.status === status ? "default" : "outline"}
-                      onClick={() => {
-                        updateLeadStatusMutation.mutate({ leadId: selectedLead.id, status });
-                        setSelectedLead({ ...selectedLead, status });
-                      }}
-                      disabled={updateLeadStatusMutation.isPending}
-                      className="text-xs"
-                    >
-                      {getLeadStatusLabel(status)}
-                    </Button>
-                  ))}
-                </div>
-              </div>
-
-              {/* Notes Section */}
-              <div className="space-y-4 pt-4 border-t">
-                <h3 className="text-sm font-semibold flex items-center gap-2">
-                  <FileText className="h-4 w-4" />
-                  {language === "es" ? "Notas y Seguimiento" : "Notes & Follow-up"}
-                </h3>
-                {selectedLead.notes ? (
-                  <div className="bg-muted/50 rounded-lg p-4">
-                    <p className="text-sm whitespace-pre-wrap">{selectedLead.notes}</p>
+              {/* Right Column */}
+              <div className="space-y-6">
+                {/* Seller Assignment */}
+                <div className="space-y-3">
+                  <h3 className="text-sm font-semibold flex items-center gap-2 text-primary">
+                    <Users className="h-4 w-4" />
+                    {language === "es" ? "Vendedor Asignado" : "Assigned Seller"}
+                  </h3>
+                  <div className="bg-muted/30 rounded-lg p-4 space-y-3">
+                    <div className="flex items-center justify-between gap-2">
+                      <div>
+                        <span className="text-muted-foreground text-xs">{language === "es" ? "Vendedor Actual" : "Current Seller"}</span>
+                        <p className="font-medium">
+                          {selectedLead.sellerName || 
+                           sellers.find(s => s.id === selectedLead.sellerId || s.id === selectedLead.assignedSellerId)?.firstName + ' ' + 
+                           sellers.find(s => s.id === selectedLead.sellerId || s.id === selectedLead.assignedSellerId)?.lastName ||
+                           (language === "es" ? "Sin asignar" : "Unassigned")}
+                        </p>
+                      </div>
+                      <Button 
+                        size="sm" 
+                        variant="outline"
+                        onClick={() => {
+                          setNewAssignedSellerId(selectedLead.assignedSellerId || selectedLead.sellerId || "");
+                          setIsReassignDialogOpen(true);
+                        }}
+                        data-testid="button-reassign-lead"
+                      >
+                        <RefreshCw className="h-3 w-3 mr-1" />
+                        {language === "es" ? "Reasignar" : "Reassign"}
+                      </Button>
+                    </div>
+                    {selectedLead.assistantSellerName && (
+                      <div>
+                        <span className="text-muted-foreground text-xs">{language === "es" ? "Vendedor Secundario" : "Secondary Seller"}</span>
+                        <p className="font-medium">{selectedLead.assistantSellerName}</p>
+                      </div>
+                    )}
                   </div>
-                ) : (
-                  <p className="text-sm text-muted-foreground italic">
-                    {language === "es" ? "Sin notas registradas" : "No notes recorded"}
-                  </p>
+                </div>
+
+                {/* Source and Dates */}
+                <div className="space-y-3">
+                  <h3 className="text-sm font-semibold flex items-center gap-2 text-primary">
+                    <CalendarIcon className="h-4 w-4" />
+                    {language === "es" ? "Origen y Fechas" : "Source & Dates"}
+                  </h3>
+                  <div className="bg-muted/30 rounded-lg p-4 space-y-3">
+                    <div className="grid grid-cols-2 gap-3 text-sm">
+                      {selectedLead.source && (
+                        <div>
+                          <span className="text-muted-foreground text-xs">{language === "es" ? "Fuente" : "Source"}</span>
+                          <p className="font-medium">{selectedLead.source}</p>
+                        </div>
+                      )}
+                      <div>
+                        <span className="text-muted-foreground text-xs">{language === "es" ? "Fecha de Registro" : "Registration Date"}</span>
+                        <p className="font-medium">
+                          {selectedLead.createdAt ? format(new Date(selectedLead.createdAt), "dd MMM yyyy", { locale: language === "es" ? es : enUS }) : "-"}
+                        </p>
+                      </div>
+                      {selectedLead.firstContactDate && (
+                        <div>
+                          <span className="text-muted-foreground text-xs">{language === "es" ? "Primer Contacto" : "First Contact"}</span>
+                          <p className="font-medium">
+                            {format(new Date(selectedLead.firstContactDate), "dd MMM yyyy", { locale: language === "es" ? es : enUS })}
+                          </p>
+                        </div>
+                      )}
+                      {selectedLead.lastContactDate && (
+                        <div>
+                          <span className="text-muted-foreground text-xs">{language === "es" ? "Último Contacto" : "Last Contact"}</span>
+                          <p className="font-medium">
+                            {format(new Date(selectedLead.lastContactDate), "dd MMM yyyy", { locale: language === "es" ? es : enUS })}
+                          </p>
+                        </div>
+                      )}
+                    </div>
+                    {selectedLead.validUntil && (
+                      <div className="pt-2 border-t">
+                        <span className="text-muted-foreground text-xs">{language === "es" ? "Válido Hasta" : "Valid Until"}</span>
+                        <p className={`font-medium ${new Date(selectedLead.validUntil) < new Date() ? 'text-red-500' : ''}`}>
+                          {format(new Date(selectedLead.validUntil), "dd MMM yyyy", { locale: language === "es" ? es : enUS })}
+                          {new Date(selectedLead.validUntil) < new Date() && (
+                            <Badge variant="destructive" className="ml-2 text-xs">{language === "es" ? "Expirado" : "Expired"}</Badge>
+                          )}
+                        </p>
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                {/* Status Update */}
+                <div className="space-y-3">
+                  <h3 className="text-sm font-semibold flex items-center gap-2 text-primary">
+                    <RefreshCw className="h-4 w-4" />
+                    {language === "es" ? "Actualizar Estado" : "Update Status"}
+                  </h3>
+                  <div className="flex items-center gap-2 flex-wrap">
+                    {["nuevo_lead", "cita_coordinada", "interesado", "oferta_enviada", "proceso_renta", "renta_concretada", "perdido", "muerto"].map((status) => (
+                      <Button
+                        key={status}
+                        size="sm"
+                        variant={selectedLead.status === status ? "default" : "outline"}
+                        onClick={() => {
+                          updateLeadStatusMutation.mutate({ leadId: selectedLead.id, status });
+                          setSelectedLead({ ...selectedLead, status });
+                        }}
+                        disabled={updateLeadStatusMutation.isPending}
+                        className="text-xs"
+                      >
+                        {getLeadStatusLabel(status)}
+                      </Button>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Notes */}
+                {selectedLead.notes && (
+                  <div className="space-y-3">
+                    <h3 className="text-sm font-semibold flex items-center gap-2 text-primary">
+                      <FileText className="h-4 w-4" />
+                      {language === "es" ? "Notas" : "Notes"}
+                    </h3>
+                    <div className="bg-muted/30 rounded-lg p-4">
+                      <p className="text-sm whitespace-pre-wrap">{selectedLead.notes}</p>
+                    </div>
+                  </div>
                 )}
               </div>
             </div>
@@ -3932,6 +4085,62 @@ export default function ExternalClients() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Reassign Lead Dialog */}
+      <Dialog open={isReassignDialogOpen} onOpenChange={setIsReassignDialogOpen}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <RefreshCw className="h-5 w-5" />
+              {language === "es" ? "Reasignar Lead" : "Reassign Lead"}
+            </DialogTitle>
+            <DialogDescription>
+              {language === "es" 
+                ? "Selecciona el nuevo vendedor para este lead."
+                : "Select the new seller for this lead."}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="py-4">
+            <Label>{language === "es" ? "Nuevo Vendedor" : "New Seller"}</Label>
+            <Select value={newAssignedSellerId} onValueChange={setNewAssignedSellerId}>
+              <SelectTrigger data-testid="select-new-seller">
+                <SelectValue placeholder={language === "es" ? "Seleccionar vendedor..." : "Select seller..."} />
+              </SelectTrigger>
+              <SelectContent>
+                {sellers.map((seller) => (
+                  <SelectItem key={seller.id} value={seller.id} data-testid={`select-seller-${seller.id}`}>
+                    {seller.firstName} {seller.lastName} {seller.isAgency ? `(${language === "es" ? "Agencia" : "Agency"})` : ""}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setIsReassignDialogOpen(false)}>
+              {language === "es" ? "Cancelar" : "Cancel"}
+            </Button>
+            <Button 
+              onClick={() => {
+                if (selectedLead && newAssignedSellerId) {
+                  const seller = sellers.find(s => s.id === newAssignedSellerId);
+                  reassignLeadMutation.mutate({ 
+                    leadId: selectedLead.id, 
+                    newSellerId: newAssignedSellerId,
+                    newSellerName: seller ? `${seller.firstName} ${seller.lastName}` : ""
+                  });
+                }
+              }}
+              disabled={!newAssignedSellerId || reassignLeadMutation.isPending}
+              data-testid="button-confirm-reassign"
+            >
+              {reassignLeadMutation.isPending 
+                ? (language === "es" ? "Reasignando..." : "Reassigning...")
+                : (language === "es" ? "Reasignar" : "Reassign")}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
 
       {/* Lead Import Dialog */}
       <Dialog open={isImportDialogOpen} onOpenChange={setIsImportDialogOpen}>
