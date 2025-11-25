@@ -193,18 +193,22 @@ export default function ExternalAccounts() {
       form.reset();
     },
     onError: (error: any) => {
-      const errorMessage = (error?.message || "").toLowerCase();
+      const rawMessage = error?.message || "";
+      // Normalize: lowercase and remove accents for comparison
+      const errorMessage = rawMessage.toLowerCase()
+        .normalize("NFD").replace(/[\u0300-\u036f]/g, "");
       let description = language === "es" ? "No se pudo crear el usuario" : "Could not create user";
       
-      // Check for duplicate email first (more specific)
+      // Check for duplicate email first (more specific) - using normalized text without accents
       if (errorMessage.includes("already exists") || 
           errorMessage.includes("ya existe") || 
-          errorMessage.includes("ya está registrado") ||
           errorMessage.includes("ya esta registrado") ||
-          errorMessage.includes("correo electrónico ya") ||
           errorMessage.includes("correo electronico ya") ||
+          errorMessage.includes("correo ya") ||
+          errorMessage.includes("email ya") ||
           errorMessage.includes("duplicate") ||
-          errorMessage.includes("conflict")) {
+          errorMessage.includes("registrado") ||
+          error?.status === 409) {
         description = language === "es" 
           ? "Ya existe un usuario con este email. Usa otro email o busca al usuario en la lista."
           : "A user with this email already exists. Use a different email or find the user in the list.";
