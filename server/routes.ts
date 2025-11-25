@@ -25410,9 +25410,22 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.json([]);
       }
       const agencyId = agencies[0].id;
-      const sellers = await storage.getExternalSellersByAgency(agencyId);
-      const activeSellers = sellers.filter(s => s.isActive);
-      const publicSellers = activeSellers.map(s => ({
+      
+      // Get all sellers for this agency directly from database
+      const sellers = await db.select({
+        id: users.id,
+        firstName: users.firstName,
+        lastName: users.lastName,
+      })
+      .from(users)
+      .where(and(
+        eq(users.externalAgencyId, agencyId),
+        eq(users.role, 'external_agency_seller'),
+        eq(users.status, 'approved')
+      ))
+      .orderBy(users.firstName);
+      
+      const publicSellers = sellers.map(s => ({
         id: s.id,
         fullName: `${s.firstName} ${s.lastName}`
       }));
