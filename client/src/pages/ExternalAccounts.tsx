@@ -1120,8 +1120,8 @@ The HomesApp Team`;
                             {language === "es" ? "Suspendido" : "Suspended"}
                           </Badge>
                         ) : (
-                          <Badge variant={user.status === 'approved' ? 'default' : 'secondary'}>
-                            {user.status}
+                          <Badge variant="default" className="bg-green-600 hover:bg-green-700">
+                            {language === "es" ? "Activo" : "Active"}
                           </Badge>
                         )}
                       </TableCell>
@@ -1241,8 +1241,8 @@ The HomesApp Team`;
                       {language === "es" ? "Suspendido" : "Suspended"}
                     </Badge>
                   ) : (
-                    <Badge variant={user.status === 'approved' ? 'default' : 'secondary'} className="text-xs">
-                      {user.status}
+                    <Badge variant="default" className="text-xs bg-green-600 hover:bg-green-700">
+                      {language === "es" ? "Activo" : "Active"}
                     </Badge>
                   )}
                   <div className="flex gap-1">
