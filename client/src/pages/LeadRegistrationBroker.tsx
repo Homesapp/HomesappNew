@@ -12,6 +12,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { useToast } from "@/hooks/use-toast";
 import { Handshake, CheckCircle2, Building2, Home, Loader2 } from "lucide-react";
 import { useState } from "react";
+import logoPath from "@assets/H mes (500 x 300 px)_1759672952263.png";
 
 const brokerFormSchema = z.object({
   firstName: z.string().min(1, "Nombre requerido"),
@@ -144,12 +145,16 @@ export default function LeadRegistrationBroker() {
     <div className="min-h-screen flex items-center justify-center p-4 bg-gradient-to-br from-background to-muted">
       <Card className="w-full max-w-2xl">
         <CardHeader className="text-center">
-          <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-primary/10">
-            <Handshake className="h-10 w-10 text-primary" />
+          <div className="flex justify-center mb-4">
+            <img 
+              src={logoPath} 
+              alt="HomesApp Logo" 
+              className="h-12 w-auto"
+            />
           </div>
-          <CardTitle className="text-3xl">Registro de Broker</CardTitle>
+          <CardTitle className="text-3xl">Registro de Lead para Brokers</CardTitle>
           <CardDescription className="text-base">
-            Completa los datos del cliente para conectar con oportunidades inmobiliarias
+            Registra los datos del cliente interesado en propiedades de renta
           </CardDescription>
         </CardHeader>
         <CardContent>

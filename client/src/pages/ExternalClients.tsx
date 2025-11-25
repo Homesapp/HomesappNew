@@ -258,7 +258,7 @@ export default function ExternalClients() {
   const sellers = sellersData || [];
 
   // Fetch condominiums for property interest selection in leads
-  const { data: condominiumsData } = useQuery<{ id: string; name: string; neighborhood?: string }[]>({
+  const { data: condominiumsData } = useQuery<{ data: { id: string; name: string; neighborhood?: string }[] }>({
     queryKey: ["/api/external-condominiums"],
     queryFn: async () => {
       const response = await fetch(`/api/external-condominiums`, { credentials: 'include' });
@@ -267,7 +267,7 @@ export default function ExternalClients() {
     },
     staleTime: 10 * 60 * 1000,
   });
-  const condominiums = condominiumsData || [];
+  const condominiums = condominiumsData?.data || [];
 
   // Fetch units for selected condominium (for lead create form)
   const [createCondominiumId, setCreateCondominiumId] = useState<string>("");
