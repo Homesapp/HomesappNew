@@ -89,6 +89,7 @@ import {
   Building2,
   Handshake,
   User,
+  Users,
   UserPlus,
   Briefcase,
   DollarSign,
