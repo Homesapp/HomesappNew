@@ -1300,6 +1300,7 @@ export interface IStorage {
   // External Management System - Unit Owner operations
   getExternalUnitOwner(id: string): Promise<ExternalUnitOwner | undefined>;
   getExternalUnitOwnersByUnit(unitId: string): Promise<ExternalUnitOwner[]>;
+  getExternalOwnersByAgency(agencyId: string): Promise<any[]>;
   getActiveExternalUnitOwner(unitId: string): Promise<ExternalUnitOwner | undefined>;
   createExternalUnitOwner(owner: InsertExternalUnitOwner): Promise<ExternalUnitOwner>;
   updateExternalUnitOwner(id: string, updates: Partial<InsertExternalUnitOwner>): Promise<ExternalUnitOwner>;
@@ -8947,6 +8948,25 @@ export class DatabaseStorage implements IStorage {
       .from(externalUnitOwners)
       .where(eq(externalUnitOwners.unitId, unitId))
       .orderBy(desc(externalUnitOwners.isActive), desc(externalUnitOwners.createdAt));
+  }
+
+  async getExternalOwnersByAgency(agencyId: string): Promise<any[]> {
+    // Optimized: Single query to get all owners with their unit info for an agency
+    const result = await db
+      .select({
+        owner: externalUnitOwners,
+        unit: externalUnits,
+      })
+      .from(externalUnitOwners)
+      .innerJoin(externalUnits, eq(externalUnitOwners.unitId, externalUnits.id))
+      .where(eq(externalUnits.agencyId, agencyId))
+      .orderBy(desc(externalUnitOwners.isActive), desc(externalUnitOwners.createdAt));
+    
+    // Flatten the result to match expected format
+    return result.map(r => ({
+      ...r.owner,
+      unit: r.unit
+    }));
   }
 
   async getActiveExternalUnitOwner(unitId: string): Promise<ExternalUnitOwner | undefined> {

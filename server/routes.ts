@@ -23890,27 +23890,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ message: "No agency assigned to user" });
       }
 
-      // Get all units for this agency - already filtered by agency
-      const units = await storage.getExternalUnitsByAgency(agencyId);
-      
-      // Verify ownership for each unit (extra security layer)
-      for (const unit of units) {
-        const hasAccess = await verifyExternalAgencyOwnership(req, res, unit.agencyId);
-        if (!hasAccess) return;
-      }
-      
-      // Get all owners for all units
-      const ownersPromises = units.map(unit => storage.getExternalUnitOwnersByUnit(unit.id));
-      const ownersArrays = await Promise.all(ownersPromises);
-      
-      // Flatten and add unit info to each owner
-      const owners = ownersArrays.flat().map((owner) => {
-        const ownerUnit = units.find(u => u.id === owner.unitId);
-        return {
-          ...owner,
-          unit: ownerUnit
-        };
-      });
+      // OPTIMIZED: Get all owners for agency with their units in a single efficient query
+      const owners = await storage.getExternalOwnersByAgency(agencyId);
       
       res.json(owners);
     } catch (error: any) {
