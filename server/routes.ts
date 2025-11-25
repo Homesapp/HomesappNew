@@ -4514,7 +4514,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       const sanitizedBody = {
-        ...req.body,
+        agencyId,
         title: sanitizeText(req.body.title),
         description: sanitizeHtml(req.body.description),
         location: sanitizeText(req.body.location),
@@ -4593,7 +4593,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       const sanitizedBody = {
-        ...req.body,
+        agencyId,
         title: req.body.title ? sanitizeText(req.body.title) : undefined,
         description: req.body.description ? sanitizeHtml(req.body.description) : undefined,
         location: req.body.location ? sanitizeText(req.body.location) : undefined,
@@ -4784,7 +4784,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // (persona_moral needs same docs as persona_fisica PLUS acta_constitutiva)
 
       const documentData = {
-        ...req.body,
+        agencyId,
         propertyId,
       };
 
@@ -7580,7 +7580,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       // CRITICAL: Always inject authenticated userId, never trust client
       const validationResult = insertPropertySubmissionDraftSchema.safeParse({
-        ...req.body,
+        agencyId,
         userId // Enforce server-side userId
       });
       
@@ -8202,7 +8202,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const userId = req.user.claims.sub;
       
       const validationResult = insertPropertyAgreementSchema.safeParse({
-        ...req.body,
+        agencyId,
         userId
       });
       
@@ -9960,7 +9960,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       
       const referralData = {
-        ...req.body,
+        agencyId,
         referrerId: userId,
         commissionPercent: req.body.commissionPercent || "20.00",
       };
@@ -10573,7 +10573,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       // Clean special values and convert date string to Date object if needed
       const cleanedBody = {
-        ...req.body,
+        agencyId,
         clientId,
         conciergeId: req.body.conciergeId === "none" ? undefined : req.body.conciergeId,
         // Convert date string to Date object (JSON serialization converts Date to string)
@@ -11144,7 +11144,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       // Include createdById before validation
       const eventData = {
-        ...req.body,
+        agencyId,
         startDate: new Date(req.body.startDate),
         endDate: new Date(req.body.endDate),
         createdById: userId,
@@ -11657,7 +11657,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       const cardData = insertPresentationCardSchema.parse({
-        ...req.body,
+        agencyId,
         clientId,
       });
 
@@ -11955,7 +11955,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const userId = req.user.claims.sub;
       const providerData = insertServiceProviderSchema.parse({
-        ...req.body,
+        agencyId,
         userId,
       });
 
@@ -12004,7 +12004,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       // Force providerId from authenticated user's service provider
       const serviceData = insertServiceSchema.parse({
-        ...req.body,
+        agencyId,
         providerId: provider.id,
       });
       
@@ -12068,7 +12068,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const userId = req.user.claims.sub;
       const bookingData = insertServiceBookingSchema.parse({
-        ...req.body,
+        agencyId,
         clientId: userId,
       });
       
@@ -12110,7 +12110,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post("/api/provider-applications", async (req, res) => {
     try {
       const applicationData = insertProviderApplicationSchema.parse({
-        ...req.body,
+        agencyId,
         status: "pending",
       });
       
@@ -12385,7 +12385,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const commissionPercent = config?.clientReferralCommissionPercent || "5.00";
 
       const referralData = {
-        ...req.body,
+        agencyId,
         referrerId: userId,
         commissionPercent,
         status: "pendiente_confirmacion",
@@ -12476,7 +12476,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const commissionPercent = config?.ownerReferralCommissionPercent || "10.00";
 
       const referralData = {
-        ...req.body,
+        agencyId,
         referrerId: userId,
         commissionPercent,
         status: "pendiente_confirmacion",
@@ -12665,7 +12665,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       // Clean special values
       const cleanedBody = {
-        ...req.body,
+        agencyId,
         clientId,
         appointmentId: req.body.appointmentId === "none" ? undefined : req.body.appointmentId,
       };
@@ -15165,7 +15165,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       const validationResult = insertContractLegalDocumentSchema.safeParse({
-        ...req.body,
+        agencyId,
         rentalContractId: contractId,
         uploadedById: userId,
       });
@@ -15294,7 +15294,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       const validationResult = insertContractTermDiscussionSchema.safeParse({
-        ...req.body,
+        agencyId,
         legalDocumentId: documentId,
         userId,
       });
@@ -15416,7 +15416,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       const validationResult = insertContractApprovalSchema.safeParse({
-        ...req.body,
+        agencyId,
         legalDocumentId: documentId,
         userId,
         userRole,
@@ -15535,7 +15535,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       const validationResult = insertCheckInAppointmentSchema.safeParse({
-        ...req.body,
+        agencyId,
         rentalContractId: contractId,
         propertyId: contract.propertyId,
         tenantId: contract.tenantId,
@@ -15662,7 +15662,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       const validationResult = insertContractSignedDocumentSchema.safeParse({
-        ...req.body,
+        agencyId,
         rentalContractId: contractId,
         uploadedById: userId,
       });
@@ -15766,7 +15766,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       
       const applicationData = insertRentalApplicationSchema.parse({
-        ...req.body,
+        agencyId,
         applicantId,
       });
 
@@ -16503,7 +16503,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       
       const requestData = insertTenantMaintenanceRequestSchema.parse({
-        ...req.body,
+        agencyId,
         rentalContractId: id,
         tenantId: userId,
         ownerId: rental.ownerId,
@@ -16878,7 +16878,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       const budgetData = insertBudgetSchema.parse({
-        ...req.body,
+        agencyId,
         staffId: req.body.staffId || userId,
       });
       
@@ -17003,7 +17003,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       // Clean special values
       const cleanedBody = {
-        ...req.body,
+        agencyId,
         budgetId: req.body.budgetId === "none" ? undefined : req.body.budgetId,
       };
 
@@ -17125,7 +17125,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const userId = req.user.claims.sub;
       const reportData = insertWorkReportSchema.parse({
-        ...req.body,
+        agencyId,
         staffId: req.body.staffId || userId,
       });
 
@@ -17410,7 +17410,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post("/api/chat/messages", isAuthenticated, async (req: any, res) => {
     try {
       const sanitizedBody = {
-        ...req.body,
+        agencyId,
         content: sanitizeText(req.body.content),
       };
       const messageData = insertChatMessageSchema.parse(sanitizedBody);
@@ -17908,7 +17908,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       const sanitizedBody = {
-        ...req.body,
+        agencyId,
         title: sanitizeText(req.body.title),
         description: sanitizeHtml(req.body.description),
       };
@@ -17978,7 +17978,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const user = userId ? await storage.getUser(userId) : null;
 
       const errorData = {
-        ...req.body,
+        agencyId,
         userId,
         userEmail: user?.email || req.body.userEmail,
         userRole: user?.role || req.body.userRole,
@@ -18108,7 +18108,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const userId = (req.user as any).claims.sub;
       const validationResult = insertRentalCommissionConfigSchema.safeParse({
-        ...req.body,
+        agencyId,
         createdBy: userId,
       });
 
@@ -18214,7 +18214,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const userId = (req.user as any).claims.sub;
       const validationResult = insertAccountantAssignmentSchema.safeParse({
-        ...req.body,
+        agencyId,
         createdBy: userId,
       });
 
@@ -18322,7 +18322,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const batchNumber = await storage.generatePayoutBatchNumber();
 
       const validationResult = insertPayoutBatchSchema.safeParse({
-        ...req.body,
+        agencyId,
         batchNumber,
         createdBy: userId,
       });
@@ -18453,7 +18453,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const userId = (req.user as any).claims.sub;
       const validationResult = insertIncomeTransactionSchema.safeParse({
-        ...req.body,
+        agencyId,
         createdBy: userId,
       });
 
@@ -19988,7 +19988,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const userId = req.session.adminUser?.id || req.user?.claims?.sub;
       const validationResult = insertCondominiumFeeSchema.safeParse({
-        ...req.body,
+        agencyId,
         createdById: userId,
       });
 
@@ -20087,7 +20087,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const userId = req.user.claims.sub;
       const validationResult = insertCondominiumFeePaymentSchema.safeParse({
-        ...req.body,
+        agencyId,
         condominiumFeeId: req.params.feeId,
         registeredById: userId,
       });
@@ -20168,7 +20168,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const userId = req.user.claims.sub;
       const validationResult = insertCondominiumIssueSchema.safeParse({
-        ...req.body,
+        agencyId,
         reportedById: userId,
       });
 
@@ -20299,7 +20299,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const userId = req.user.claims.sub;
       const validationResult = insertHoaManagerAssignmentSchema.safeParse({
-        ...req.body,
+        agencyId,
         managerId: userId,
         status: "pending",
       });
@@ -20573,7 +20573,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const userId = req.user.claims.sub;
       const validationResult = insertHoaAnnouncementSchema.safeParse({
-        ...req.body,
+        agencyId,
         managerId: userId,
         isActive: false,
       });
@@ -21292,7 +21292,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const passwordHash = await bcrypt.hash(generatedPassword, 10);
 
       const userData = {
-        ...req.body,
+        agencyId,
         externalAgencyId: agencyId,
         passwordHash,
         requirePasswordChange: true,
@@ -23088,7 +23088,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!hasAccess) return;
       
       const validated = insertExternalMaintenanceUpdateSchema.parse({
-        ...req.body,
+        agencyId,
         ticketId: id,
         createdBy: userId,
         statusSnapshot: ticket.status,
@@ -23153,7 +23153,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!hasAccess) return;
       
       const validated = insertExternalMaintenancePhotoSchema.parse({
-        ...req.body,
+        agencyId,
         ticketId: id,
         uploadedBy: userId,
       });
@@ -24418,7 +24418,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       
       const report = await storage.createExternalCheckoutReport({
-        ...req.body,
+        agencyId,
         agencyId,
         createdBy: req.user.id,
       });
@@ -24780,7 +24780,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       // Transform checkInDate from ISO string to Date before validation
       const requestData = {
-        ...req.body,
+        agencyId,
         checkInDate: req.body.checkInDate ? new Date(req.body.checkInDate) : undefined,
       };
       
@@ -25694,7 +25694,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const storageKey = req.body.objectPath;
       
       const validatedData = insertExternalClientDocumentSchema.parse({
-        ...req.body,
+        agencyId,
         clientId,
         storageKey,
         uploadedBy: req.user.id,
@@ -25779,7 +25779,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!hasAccess) return;
       
       const validatedData = insertExternalClientIncidentSchema.parse({
-        ...req.body,
+        agencyId,
         clientId,
         reportedBy: req.user.id,
       });
@@ -27688,7 +27688,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!hasAccess) return;
       
       const noteData = insertExternalRentalNoteSchema.parse({
-        ...req.body,
+        agencyId,
         agencyId: contract.agencyId,
         contractId,
         createdBy: req.user.id,
@@ -28652,7 +28652,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       const transactionData = insertExternalFinancialTransactionSchema.parse({
-        ...req.body,
+        agencyId,
         agencyId,
         createdBy: req.user?.id || req.session?.userId,
       });
@@ -28791,7 +28791,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       const termsData = insertExternalTermsAndConditionsSchema.parse({
-        ...req.body,
+        agencyId,
         agencyId,
         createdBy: req.user.id,
       });
@@ -28954,10 +28954,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(403).json({ message: "User is not assigned to any agency" });
       }
 
+      // Convert numeric fields to strings as schema expects, preserving all other fields
       const quotationData = insertExternalQuotationSchema.parse({
         ...req.body,
+        subtotal: req.body.subtotal?.toString(),
+        adminFee: req.body.adminFee?.toString(),
+        adminFeePercentage: req.body.adminFeePercentage?.toString(),
+        total: req.body.total?.toString(),
         agencyId,
-        createdBy: req.user.id,
+        createdBy: req.user?.claims?.sub ?? req.user?.id,
       });
 
       const quotation = await storage.createExternalQuotation(quotationData);
