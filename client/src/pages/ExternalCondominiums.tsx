@@ -1,4 +1,4 @@
-import { useState, useEffect, useLayoutEffect, useMemo, lazy, Suspense } from "react";
+import { useState, useEffect, useLayoutEffect, useMemo, lazy, Suspense, useRef } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { useLocation } from "wouter";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -108,21 +108,25 @@ export default function ExternalCondominiums() {
     }
   }, [isMobile, prevIsMobile, manualViewModeOverride]);
 
-  // Auto-adjust itemsPerPage when switching view modes
-  useEffect(() => {
-    setCondoItemsPerPage(10);
-    setCondoCurrentPage(1);
-  }, [viewMode]);
+  // Reset units page to 1 when ONLY search/filter criteria change (not when page changes)
+  const prevUnitSearchText = useRef(unitSearchText);
+  const prevSelectedCondoFilter = useRef(selectedCondoFilter);
+  const prevRentalStatusFilter = useRef(rentalStatusFilter);
+  const prevUnitStatusFilter = useRef(unitStatusFilter);
   
-  // Reset page when items per page changes
   useEffect(() => {
-    setCondoCurrentPage(1);
-  }, [condoItemsPerPage]);
-
-  // Reset to page 1 when filters change
-  useEffect(() => {
-    setUnitsPage(1);
-  }, [unitSearchText, selectedCondoFilter, rentalStatusFilter, unitStatusFilter, unitsPerPage]);
+    // Only reset if actual filter values changed, not on every render
+    if (prevUnitSearchText.current !== unitSearchText ||
+        prevSelectedCondoFilter.current !== selectedCondoFilter ||
+        prevRentalStatusFilter.current !== rentalStatusFilter ||
+        prevUnitStatusFilter.current !== unitStatusFilter) {
+      setUnitsPage(1);
+      prevUnitSearchText.current = unitSearchText;
+      prevSelectedCondoFilter.current = selectedCondoFilter;
+      prevRentalStatusFilter.current = rentalStatusFilter;
+      prevUnitStatusFilter.current = unitStatusFilter;
+    }
+  }, [unitSearchText, selectedCondoFilter, rentalStatusFilter, unitStatusFilter]);
 
   // Backend-paginated condominiums data
   const { data: condominiumsResponse, isLoading: condosLoading, isError: condosError, error: condosErrorMsg } = useQuery<{
@@ -751,17 +755,24 @@ export default function ExternalCondominiums() {
       : filteredUnits.length / unitsPerPage
   );
 
-  // Clamp unitsPage to valid range when data length changes
+  // Clamp unitsPage to valid range when total changes significantly
+  // Use ref to track previous total to avoid unnecessary resets during loading states
+  const prevUnitsTotalRef = useRef(unitsTotalFromBackend);
   useEffect(() => {
-    if (unitsTotalFromBackend === 0) {
-      setUnitsPage(1);
+    // Skip if data is loading (total = 0 during transition) 
+    if (unitsTotalFromBackend === 0 && prevUnitsTotalRef.current > 0) {
+      // Data is loading, don't reset
       return;
     }
+    prevUnitsTotalRef.current = unitsTotalFromBackend;
+    
+    if (unitsTotalFromBackend === 0) return;
+    
     const maxPage = Math.ceil(unitsTotalFromBackend / unitsPerPage) || 1;
     if (unitsPage > maxPage) {
       setUnitsPage(maxPage);
     }
-  }, [unitsTotalFromBackend, unitsPerPage]);
+  }, [unitsTotalFromBackend, unitsPerPage, unitsPage]);
 
   const handleUnitsSort = (column: string) => {
     if (unitsSortColumn === column) {
@@ -794,29 +805,31 @@ export default function ExternalCondominiums() {
   // Backend handles filtering, sorting, and pagination - use data directly
   const paginatedCondominiums = condominiums;
 
-  // Pre-render page clamping using useLayoutEffect
-  useLayoutEffect(() => {
-    if (condoCurrentPage > condoTotalPages) {
+  // Clamp condo page only when truly needed (user is beyond last page)
+  // Skip during loading transitions to prevent unnecessary resets
+  const prevCondoTotalRef = useRef(condominiumsResponse?.total || 0);
+  useEffect(() => {
+    const currentTotal = condominiumsResponse?.total || 0;
+    
+    // Skip if data is loading (total = 0 during transition)
+    if (currentTotal === 0 && prevCondoTotalRef.current > 0) {
+      return;
+    }
+    prevCondoTotalRef.current = currentTotal;
+    
+    if (condoTotalPages > 0 && condoCurrentPage > condoTotalPages) {
       setCondoCurrentPage(condoTotalPages);
     }
-  }, [condoCurrentPage, condoTotalPages]);
+  }, [condominiumsResponse?.total, condoTotalPages, condoCurrentPage]);
 
-  // Clamp page when data changes
+  // Reset condo page when search changes (using ref to avoid unnecessary resets)
+  const prevCondoSearchText = useRef(debouncedCondoSearchText);
   useEffect(() => {
-    if (condoCurrentPage > condoTotalPages && condoTotalPages > 0) {
-      setCondoCurrentPage(condoTotalPages);
+    if (prevCondoSearchText.current !== debouncedCondoSearchText) {
+      setCondoCurrentPage(1);
+      prevCondoSearchText.current = debouncedCondoSearchText;
     }
-  }, [condominiumsResponse?.total, condoItemsPerPage, condoCurrentPage, condoTotalPages]);
-
-  // Reset page when search changes
-  useEffect(() => {
-    setCondoCurrentPage(1);
   }, [debouncedCondoSearchText]);
-
-  // Reset page when items per page changes
-  useEffect(() => {
-    setCondoCurrentPage(1);
-  }, [condoItemsPerPage]);
 
   return (
     <div className="container mx-auto p-6 space-y-6">
