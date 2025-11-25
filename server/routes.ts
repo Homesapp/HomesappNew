@@ -3732,6 +3732,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const { condominiumId } = req.params;
       
+      // Basic UUID validation to prevent injection
+      const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+      if (!uuidRegex.test(condominiumId)) {
+        return res.json([]);
+      }
       const units = await db
         .select()
         .from(condominiumUnits)
@@ -3768,6 +3773,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       const { condominiumId } = req.params;
       const { unitNumber } = req.body;
+      // Basic UUID validation to prevent injection
+      const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+      if (!uuidRegex.test(condominiumId)) {
+        return res.json([]);
+      }
 
       if (!unitNumber || unitNumber.trim() === "") {
         return res.status(400).json({ message: "El número de unidad es requerido" });
@@ -23535,6 +23545,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const { condominiumId } = req.params;
       
+      // Basic UUID validation to prevent injection
+      const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+      if (!uuidRegex.test(condominiumId)) {
+        return res.json([]);
+      }
       // Verify condominium exists and get its agency
       const condominium = await storage.getExternalCondominium(condominiumId);
       if (!condominium) {
@@ -25381,7 +25396,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.json(publicCondos);
     } catch (error: any) {
       console.error("Error fetching public condominiums:", error);
-      res.json([]);
+      handleGenericError(res, error);
     }
   });
 
@@ -25389,6 +25404,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get("/api/public/condominiums/:condominiumId/units", async (req, res) => {
     try {
       const { condominiumId } = req.params;
+      // Basic UUID validation to prevent injection
+      const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+      if (!uuidRegex.test(condominiumId)) {
+        return res.json([]);
+      }
       const units = await storage.getExternalUnitsByCondominium(condominiumId);
       const publicUnits = units.map(u => ({
         id: u.id,
@@ -25398,7 +25418,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.json(publicUnits);
     } catch (error: any) {
       console.error("Error fetching public units:", error);
-      res.json([]);
+      handleGenericError(res, error);
     }
   });
   // GET /api/public/external/terms-and-conditions/active - Public endpoint to get active terms
