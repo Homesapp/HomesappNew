@@ -48,3 +48,12 @@ export const propertySubmissionLimiter = rateLimit({
   legacyHeaders: false,
   skipSuccessfulRequests: false, // Count all requests, not just failed ones
 });
+
+export const publicLeadRegistrationLimiter = rateLimit({
+  windowMs: 60 * 60 * 1000, // 1 hour
+  max: 10, // Max 10 lead registrations per hour per IP
+  message: { message: 'Demasiadas solicitudes de registro. Por favor, intenta de nuevo en 1 hora.' },
+  standardHeaders: true,
+  legacyHeaders: false,
+  skipSuccessfulRequests: false,
+});

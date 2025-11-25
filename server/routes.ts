@@ -17,7 +17,7 @@ import { getPropertyTitle } from "./propertyHelpers";
 import { setupGoogleAuth } from "./googleAuth";
 import { generateOfferPDF, generateRentalFormPDF, generateOwnerFormPDF, generateQuotationPDF } from "./pdfGenerator";
 import { processChatbotMessage, generatePropertyRecommendations } from "./chatbot";
-import { authLimiter, registrationLimiter, emailVerificationLimiter, chatbotLimiter, propertySubmissionLimiter } from "./rateLimiters";
+import { authLimiter, registrationLimiter, emailVerificationLimiter, chatbotLimiter, propertySubmissionLimiter, publicLeadRegistrationLimiter } from "./rateLimiters";
 import { encrypt, decrypt } from "./encryption";
 import { 
   sanitizeText, 
@@ -25348,7 +25348,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   // Public simplified lead registration endpoints (no tokens required)
   // POST /api/public/leads/vendedor - Public vendedor registration
-  app.post("/api/public/leads/vendedor", async (req, res) => {
+  app.post("/api/public/leads/vendedor", publicLeadRegistrationLimiter, async (req, res) => {
     try {
       const { 
         firstName, 
@@ -25429,7 +25429,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // POST /api/public/leads/broker - Public broker registration
-  app.post("/api/public/leads/broker", async (req, res) => {
+  app.post("/api/public/leads/broker", publicLeadRegistrationLimiter, async (req, res) => {
     try {
       const { 
         firstName, 
