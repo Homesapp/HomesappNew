@@ -188,6 +188,13 @@ import {
   updateExternalQuotationSchema,
   updateExternalFinancialTransactionSchema,
   insertExternalTermsAndConditionsSchema,
+  insertExternalRolePermissionSchema,
+  insertExternalUserPermissionSchema,
+  EXTERNAL_PERMISSION_SECTIONS,
+  EXTERNAL_PERMISSION_ACTIONS,
+  DEFAULT_ROLE_PERMISSIONS,
+  PERMISSION_SECTION_LABELS,
+  PERMISSION_ACTION_LABELS,
   updateExternalTermsAndConditionsSchema,
   externalAgencies,
   externalCondominiums,
@@ -21266,6 +21273,191 @@ export async function registerRoutes(app: Express): Promise<Server> {
       handleGenericError(res, error);
     }
   });
+  // ==============================
+  // External Permission Management Routes
+  // ==============================
+
+  // GET /api/external/permissions/roles - Get all role permissions for agency
+  app.get("/api/external/permissions/roles", isAuthenticated, requireRole(EXTERNAL_ADMIN_ROLES), async (req: any, res) => {
+    try {
+      const agencyId = await getUserAgencyId(req);
+      if (!agencyId) {
+        return res.status(403).json({ message: "User is not assigned to any agency" });
+      }
+
+      const permissions = await storage.getExternalRolePermissions(agencyId);
+      
+      // Return both saved permissions and default structure
+      res.json({
+        permissions,
+        defaults: DEFAULT_ROLE_PERMISSIONS,
+        sections: EXTERNAL_PERMISSION_SECTIONS,
+        actions: EXTERNAL_PERMISSION_ACTIONS,
+        sectionLabels: PERMISSION_SECTION_LABELS,
+        actionLabels: PERMISSION_ACTION_LABELS,
+      });
+    } catch (error: any) {
+      console.error("Error fetching role permissions:", error);
+      handleGenericError(res, error);
+    }
+  });
+
+  // PATCH /api/external/permissions/roles - Update role permissions (bulk upsert)
+  app.patch("/api/external/permissions/roles", isAuthenticated, requireRole(EXTERNAL_ADMIN_ROLES), async (req: any, res) => {
+    try {
+      const agencyId = await getUserAgencyId(req);
+      if (!agencyId) {
+        return res.status(403).json({ message: "User is not assigned to any agency" });
+      }
+
+      const { permissions } = req.body;
+      if (!Array.isArray(permissions)) {
+        return res.status(400).json({ message: "permissions must be an array" });
+      }
+
+      // Validate and prepare permissions
+      const validatedPermissions = permissions.map((p: any) => {
+        const validated = insertExternalRolePermissionSchema.parse({
+          agencyId,
+          role: p.role,
+          section: p.section,
+          action: p.action,
+          allowed: p.allowed,
+        });
+        return validated;
+      });
+
+      const results = await storage.bulkUpsertExternalRolePermissions(validatedPermissions);
+      
+      await createAuditLog(req, "update", "external_role_permissions", agencyId, `Updated ${results.length} role permissions`);
+      
+      res.json(results);
+    } catch (error: any) {
+      console.error("Error updating role permissions:", error);
+      handleGenericError(res, error);
+    }
+  });
+
+  // GET /api/external/permissions/users - Get all user permission overrides for agency
+  app.get("/api/external/permissions/users", isAuthenticated, requireRole(EXTERNAL_ADMIN_ROLES), async (req: any, res) => {
+    try {
+      const agencyId = await getUserAgencyId(req);
+      if (!agencyId) {
+        return res.status(403).json({ message: "User is not assigned to any agency" });
+      }
+
+      const permissions = await storage.getExternalUserPermissions(agencyId);
+      const agencyUsers = await storage.getUsersByAgency(agencyId);
+      
+      res.json({
+        permissions,
+        users: agencyUsers.map(u => ({
+          id: u.id,
+          firstName: u.firstName,
+          lastName: u.lastName,
+          email: u.email,
+          role: u.role,
+        })),
+        sections: EXTERNAL_PERMISSION_SECTIONS,
+        actions: EXTERNAL_PERMISSION_ACTIONS,
+        sectionLabels: PERMISSION_SECTION_LABELS,
+        actionLabels: PERMISSION_ACTION_LABELS,
+      });
+    } catch (error: any) {
+      console.error("Error fetching user permissions:", error);
+      handleGenericError(res, error);
+    }
+  });
+
+  // GET /api/external/permissions/users/:userId - Get specific user's permission overrides
+  app.get("/api/external/permissions/users/:userId", isAuthenticated, requireRole(EXTERNAL_ADMIN_ROLES), async (req: any, res) => {
+    try {
+      const agencyId = await getUserAgencyId(req);
+      if (!agencyId) {
+        return res.status(403).json({ message: "User is not assigned to any agency" });
+      }
+
+      const { userId } = req.params;
+      const permissions = await storage.getExternalUserPermissionsByUser(agencyId, userId);
+      
+      res.json(permissions);
+    } catch (error: any) {
+      console.error("Error fetching user permissions:", error);
+      handleGenericError(res, error);
+    }
+  });
+
+  // PATCH /api/external/permissions/users/:userId - Update specific user's permission overrides
+  app.patch("/api/external/permissions/users/:userId", isAuthenticated, requireRole(EXTERNAL_ADMIN_ROLES), async (req: any, res) => {
+    try {
+      const agencyId = await getUserAgencyId(req);
+      if (!agencyId) {
+        return res.status(403).json({ message: "User is not assigned to any agency" });
+      }
+
+      const { userId } = req.params;
+      const { permissions } = req.body;
+      
+      if (!Array.isArray(permissions)) {
+        return res.status(400).json({ message: "permissions must be an array" });
+      }
+
+      // Validate user belongs to agency
+      const user = await storage.getUser(userId);
+      if (!user || user.externalAgencyId !== agencyId) {
+        return res.status(404).json({ message: "User not found in agency" });
+      }
+
+      // Validate and prepare permissions
+      const validatedPermissions = permissions.map((p: any) => {
+        const validated = insertExternalUserPermissionSchema.parse({
+          agencyId,
+          userId,
+          section: p.section,
+          action: p.action,
+          allowed: p.allowed,
+        });
+        return validated;
+      });
+
+      const results = await storage.bulkUpsertExternalUserPermissions(validatedPermissions);
+      
+      await createAuditLog(req, "update", "external_user_permissions", userId, `Updated ${results.length} user permissions`);
+      
+      res.json(results);
+    } catch (error: any) {
+      console.error("Error updating user permissions:", error);
+      handleGenericError(res, error);
+    }
+  });
+
+  // DELETE /api/external/permissions/users/:userId - Clear all permission overrides for a user
+  app.delete("/api/external/permissions/users/:userId", isAuthenticated, requireRole(EXTERNAL_ADMIN_ROLES), async (req: any, res) => {
+    try {
+      const agencyId = await getUserAgencyId(req);
+      if (!agencyId) {
+        return res.status(403).json({ message: "User is not assigned to any agency" });
+      }
+
+      const { userId } = req.params;
+      
+      // Validate user belongs to agency
+      const user = await storage.getUser(userId);
+      if (!user || user.externalAgencyId !== agencyId) {
+        return res.status(404).json({ message: "User not found in agency" });
+      }
+
+      await storage.deleteAllExternalUserPermissions(agencyId, userId);
+      
+      await createAuditLog(req, "delete", "external_user_permissions", userId, "Cleared all user permission overrides");
+      
+      res.status(204).send();
+    } catch (error: any) {
+      console.error("Error clearing user permissions:", error);
+      handleGenericError(res, error);
+    }
+  });
+
   // ==============================
   // External Agency User Management Routes
   // ==============================
