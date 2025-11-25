@@ -25240,7 +25240,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       // For now, we'll assign to first available external agency
       // In production, this could be based on domain, query param, or other logic
-      const agencies = await storage.getAllExternalAgencies();
+      const agencies = await storage.getExternalAgencies();
       if (!agencies || agencies.length === 0) {
         return res.status(500).json({ message: "No hay agencias disponibles" });
       }
@@ -25323,7 +25323,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       
       // For now, we'll assign to first available external agency
-      const agencies = await storage.getAllExternalAgencies();
+      const agencies = await storage.getExternalAgencies();
       if (!agencies || agencies.length === 0) {
         return res.status(500).json({ message: "No hay agencias disponibles" });
       }
@@ -25382,7 +25382,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // GET /api/public/condominiums - Public list of condominiums for lead registration
   app.get("/api/public/condominiums", async (req, res) => {
     try {
-      const agencies = await storage.getAllExternalAgencies();
+      const agencies = await storage.getExternalAgencies();
       if (!agencies || agencies.length === 0) {
         return res.json([]);
       }
