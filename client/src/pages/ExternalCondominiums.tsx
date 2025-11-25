@@ -1765,7 +1765,7 @@ export default function ExternalCondominiums() {
                             {condo.address || '-'}
                           </TableCell>
                           <TableCell data-testid={`cell-total-${condo.id}`}>
-                            {condoUnits.length}
+                            {condo.totalUnits || 0}
                           </TableCell>
                           <TableCell data-testid={`cell-active-${condo.id}`}>
                             {activeUnits.length}
