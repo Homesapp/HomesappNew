@@ -23330,6 +23330,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         storage.getExternalCondominiumsCountByAgency(agencyId, {
           isActive: filters.isActive,
           search: filters.search,
+          sellerId: filters.sellerId,
+          expiringDays: filters.expiringDays,
         }),
       ]);
       
@@ -23577,6 +23579,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
           isActive: filters.isActive,
           condominiumId: filters.condominiumId,
           search: filters.search,
+          sellerId: filters.sellerId,
+          expiringDays: filters.expiringDays,
         }),
       ]);
       
@@ -24603,6 +24607,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
           status: filters.status,
           isVerified: filters.isVerified,
           search: filters.search,
+          sellerId: filters.sellerId,
+          expiringDays: filters.expiringDays,
         }),
       ]);
       
@@ -24774,7 +24780,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(403).json({ message: "No agency access" });
       }
       
-      const { status, registrationType, search, sortField, sortOrder, limit = '50', offset = '0' } = req.query;
+      const { status, registrationType, sellerId, expiringDays, search, sortField, sortOrder, limit = '50', offset = '0' } = req.query;
       
       const limitNum = Math.max(1, Math.min(parseInt(limit as string, 10) || 50, 1000));
       const offsetNum = Math.max(0, parseInt(offset as string, 10) || 0);
@@ -24782,6 +24788,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const filters = {
         status: status as string | undefined,
         registrationType: registrationType as string | undefined,
+        sellerId: sellerId as string | undefined,
+        expiringDays: expiringDays ? parseInt(expiringDays as string, 10) : undefined,
         search: search as string | undefined,
         sortField: sortField as string | undefined,
         sortOrder: (sortOrder === 'asc' || sortOrder === 'desc') ? sortOrder : 'desc' as 'asc' | 'desc',
@@ -24795,6 +24803,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
           status: filters.status,
           registrationType: filters.registrationType,
           search: filters.search,
+          sellerId: filters.sellerId,
+          expiringDays: filters.expiringDays,
         }),
       ]);
       
@@ -28516,6 +28526,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
             startDate: filters.startDate,
             endDate: filters.endDate,
             search: filters.search,
+          sellerId: filters.sellerId,
+          expiringDays: filters.expiringDays,
           }),
         ]);
 
