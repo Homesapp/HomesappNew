@@ -21646,7 +21646,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const existingUser = await storage.getUserByEmail(validatedData.email);
       console.log(`Existing user found:`, existingUser ? `Yes - ID: ${existingUser.id}, Role: ${existingUser.role}` : 'No');
       if (existingUser) {
-        return res.status(400).json({ message: "User with this email already exists" });
+        return res.status(409).json({ message: "Este correo electrónico ya está registrado en el sistema" });
       }
 
       // Generate temporary password
@@ -28954,9 +28954,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(403).json({ message: "User is not assigned to any agency" });
       }
 
-      // Convert numeric fields to strings as schema expects, preserving all other fields
+      // Convert numeric fields to strings and empty strings to null for FK fields
       const quotationData = insertExternalQuotationSchema.parse({
         ...req.body,
+        clientId: req.body.clientId || null,
+        propertyId: req.body.propertyId || null,
+        unitId: req.body.unitId || null,
         subtotal: req.body.subtotal?.toString(),
         adminFee: req.body.adminFee?.toString(),
         adminFeePercentage: req.body.adminFeePercentage?.toString(),

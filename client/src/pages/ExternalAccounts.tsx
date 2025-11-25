@@ -196,7 +196,7 @@ export default function ExternalAccounts() {
       const errorMessage = error?.message || "";
       let description = language === "es" ? "No se pudo crear el usuario" : "Could not create user";
       
-      if (errorMessage.includes("already exists") || errorMessage.includes("ya existe")) {
+      if (errorMessage.includes("already exists") || errorMessage.includes("ya existe") || errorMessage.includes("ya está registrado")) {
         description = language === "es" 
           ? "Ya existe un usuario con este email. Usa otro email o busca al usuario en la lista."
           : "A user with this email already exists. Use a different email or find the user in the list.";
