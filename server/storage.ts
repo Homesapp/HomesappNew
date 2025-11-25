@@ -8326,7 +8326,7 @@ export class DatabaseStorage implements IStorage {
       const today = new Date();
       const startOfDay = new Date(today.getFullYear(), today.getMonth(), today.getDate());
       const endOfDay = new Date(today.getFullYear(), today.getMonth(), today.getDate(), 23, 59, 59, 999);
-      conditions.push(between(externalMaintenanceTickets.scheduledAt, startOfDay, endOfDay));
+      conditions.push(between(externalMaintenanceTickets.scheduledDate, startOfDay, endOfDay));
     }
     
     // Search filter - search in title, description
@@ -8358,7 +8358,8 @@ export class DatabaseStorage implements IStorage {
       'createdAt': externalMaintenanceTickets.createdAt,
       'updated': externalMaintenanceTickets.updatedAt,
       'updatedAt': externalMaintenanceTickets.updatedAt,
-      'scheduledAt': externalMaintenanceTickets.scheduledAt,
+      'scheduledAt': externalMaintenanceTickets.scheduledDate,
+      'scheduledDate': externalMaintenanceTickets.scheduledDate,
     };
     
     const orderByField = sortFieldMap[sortField] || externalMaintenanceTickets.createdAt;
