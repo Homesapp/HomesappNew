@@ -73,6 +73,7 @@ import {
   Phone,
   MapPin,
   Calendar as CalendarIcon,
+  CalendarDays,
   Tag,
   FileText,
   UserCheck,
@@ -83,6 +84,17 @@ import {
   RefreshCw,
   Building2,
   Handshake,
+  User,
+  UserPlus,
+  Briefcase,
+  DollarSign,
+  BedDouble,
+  Home,
+  Clock,
+  PawPrint,
+  Activity,
+  Globe,
+  Loader2,
 } from "lucide-react";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { useAuth } from "@/hooks/useAuth";
@@ -379,7 +391,7 @@ export default function ExternalClients() {
   const leadForm = useForm<LeadFormData>({
     resolver: zodResolver(insertExternalLeadSchema),
     defaultValues: {
-      registrationType: "broker",
+      registrationType: "seller",
       firstName: "",
       lastName: "",
       phoneLast4: "",
@@ -388,6 +400,15 @@ export default function ExternalClients() {
       status: "nuevo_lead",
       source: "",
       notes: "",
+      contractDuration: "",
+      checkInDate: undefined,
+      hasPets: "",
+      estimatedRentCost: undefined,
+      bedrooms: undefined,
+      desiredUnitType: "",
+      desiredNeighborhood: "",
+      sellerId: undefined,
+      sellerName: "",
     },
   });
 
@@ -1137,33 +1158,47 @@ export default function ExternalClients() {
 
       {/* Create Dialog */}
       <Dialog open={isCreateDialogOpen} onOpenChange={setIsCreateDialogOpen}>
-        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
-          <DialogHeader>
-            <DialogTitle>
-              {language === "es" ? "Nuevo Cliente" : "New Client"}
-            </DialogTitle>
-            <DialogDescription>
-              {language === "es" 
-                ? "Complete la información del nuevo cliente." 
-                : "Fill in the new client information."}
-            </DialogDescription>
+        <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader className="pb-4 border-b">
+            <div className="flex items-center gap-3">
+              <div className="p-2 rounded-lg bg-primary/10">
+                <UserPlus className="h-5 w-5 text-primary" />
+              </div>
+              <div>
+                <DialogTitle className="text-xl">
+                  {language === "es" ? "Registrar Nuevo Cliente" : "Register New Client"}
+                </DialogTitle>
+                <DialogDescription className="mt-1">
+                  {language === "es" 
+                    ? "Complete la información del cliente. Los campos con * son obligatorios." 
+                    : "Fill in the client information. Fields with * are required."}
+                </DialogDescription>
+              </div>
+            </div>
           </DialogHeader>
+          
           <Form {...form}>
-            <form onSubmit={form.handleSubmit((data) => createMutation.mutate(data))} className="space-y-6">
-              {/* Datos Personales */}
+            <form onSubmit={form.handleSubmit((data) => createMutation.mutate(data))} className="space-y-6 py-4">
+              
+              {/* Section 1: Personal Information */}
               <div className="space-y-4">
-                <h3 className="text-sm font-semibold text-foreground">
+                <div className="flex items-center gap-2 text-sm font-semibold text-foreground">
+                  <div className="flex items-center justify-center w-6 h-6 rounded-full bg-primary text-primary-foreground text-xs">1</div>
                   {language === "es" ? "Datos Personales" : "Personal Information"}
-                </h3>
-                <div className="grid grid-cols-3 gap-4">
+                </div>
+                
+                <div className="grid gap-4 sm:grid-cols-3">
                   <FormField
                     control={form.control}
                     name="firstName"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>{language === "es" ? "Nombre *" : "First Name *"}</FormLabel>
+                        <FormLabel className="flex items-center gap-2">
+                          <User className="h-3.5 w-3.5 text-muted-foreground" />
+                          {language === "es" ? "Nombre *" : "First Name *"}
+                        </FormLabel>
                         <FormControl>
-                          <Input {...field} data-testid="input-first-name" />
+                          <Input {...field} placeholder={language === "es" ? "Juan" : "John"} data-testid="input-first-name" />
                         </FormControl>
                         <FormMessage />
                       </FormItem>
@@ -1174,9 +1209,12 @@ export default function ExternalClients() {
                     name="middleName"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>{language === "es" ? "Segundo Nombre" : "Middle Name"}</FormLabel>
+                        <FormLabel className="flex items-center gap-2">
+                          <User className="h-3.5 w-3.5 text-muted-foreground" />
+                          {language === "es" ? "Segundo Nombre" : "Middle Name"}
+                        </FormLabel>
                         <FormControl>
-                          <Input {...field} data-testid="input-middle-name" />
+                          <Input {...field} placeholder={language === "es" ? "Carlos" : "Michael"} data-testid="input-middle-name" />
                         </FormControl>
                         <FormMessage />
                       </FormItem>
@@ -1187,9 +1225,12 @@ export default function ExternalClients() {
                     name="lastName"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>{language === "es" ? "Apellido *" : "Last Name *"}</FormLabel>
+                        <FormLabel className="flex items-center gap-2">
+                          <User className="h-3.5 w-3.5 text-muted-foreground" />
+                          {language === "es" ? "Apellido *" : "Last Name *"}
+                        </FormLabel>
                         <FormControl>
-                          <Input {...field} data-testid="input-last-name" />
+                          <Input {...field} placeholder={language === "es" ? "Perez" : "Smith"} data-testid="input-last-name" />
                         </FormControl>
                         <FormMessage />
                       </FormItem>
@@ -1202,42 +1243,71 @@ export default function ExternalClients() {
                   name="nationality"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>{language === "es" ? "Nacionalidad" : "Nationality"}</FormLabel>
-                      <FormControl>
-                        <Input {...field} placeholder={language === "es" ? "Ej: Mexicana, Estadounidense..." : "E.g: Mexican, American..."} data-testid="input-nationality" />
-                      </FormControl>
+                      <FormLabel className="flex items-center gap-2">
+                        <Globe className="h-3.5 w-3.5 text-muted-foreground" />
+                        {language === "es" ? "Nacionalidad" : "Nationality"}
+                      </FormLabel>
+                      <Select onValueChange={field.onChange} value={field.value || ""}>
+                        <FormControl>
+                          <SelectTrigger data-testid="select-nationality">
+                            <SelectValue placeholder={language === "es" ? "Seleccione nacionalidad" : "Select nationality"} />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent className="max-h-[300px]">
+                          <SelectItem value="Mexicana">{language === "es" ? "Mexicana" : "Mexican"}</SelectItem>
+                          <SelectItem value="Estadounidense">{language === "es" ? "Estadounidense" : "American"}</SelectItem>
+                          <SelectItem value="Canadiense">{language === "es" ? "Canadiense" : "Canadian"}</SelectItem>
+                          <SelectItem value="Britanica">{language === "es" ? "Britanica" : "British"}</SelectItem>
+                          <SelectItem value="Francesa">{language === "es" ? "Francesa" : "French"}</SelectItem>
+                          <SelectItem value="Alemana">{language === "es" ? "Alemana" : "German"}</SelectItem>
+                          <SelectItem value="Espanola">{language === "es" ? "Espanola" : "Spanish"}</SelectItem>
+                          <SelectItem value="Italiana">{language === "es" ? "Italiana" : "Italian"}</SelectItem>
+                          <SelectItem value="Argentina">{language === "es" ? "Argentina" : "Argentine"}</SelectItem>
+                          <SelectItem value="Colombiana">{language === "es" ? "Colombiana" : "Colombian"}</SelectItem>
+                          <SelectItem value="Brasilena">{language === "es" ? "Brasilena" : "Brazilian"}</SelectItem>
+                          <SelectItem value="Otra">{language === "es" ? "Otra" : "Other"}</SelectItem>
+                        </SelectContent>
+                      </Select>
                       <FormMessage />
                     </FormItem>
                   )}
                 />
               </div>
 
-              {/* Información de Contacto */}
-              <div className="space-y-4">
-                <h3 className="text-sm font-semibold text-foreground">
-                  {language === "es" ? "Información de Contacto" : "Contact Information"}
-                </h3>
+              {/* Section 2: Contact Information */}
+              <div className="space-y-4 pt-2 border-t">
+                <div className="flex items-center gap-2 text-sm font-semibold text-foreground pt-2">
+                  <div className="flex items-center justify-center w-6 h-6 rounded-full bg-primary text-primary-foreground text-xs">2</div>
+                  {language === "es" ? "Informacion de Contacto" : "Contact Information"}
+                </div>
+                
                 <FormField
                   control={form.control}
                   name="email"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>{language === "es" ? "Email" : "Email"}</FormLabel>
+                      <FormLabel className="flex items-center gap-2">
+                        <Mail className="h-3.5 w-3.5 text-muted-foreground" />
+                        {language === "es" ? "Correo Electronico" : "Email"}
+                      </FormLabel>
                       <FormControl>
-                        <Input type="email" {...field} data-testid="input-email" />
+                        <Input type="email" {...field} placeholder="correo@ejemplo.com" data-testid="input-email" />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
                   )}
                 />
                 
-                <div className="grid grid-cols-3 gap-4">
+                <div className="grid gap-4 sm:grid-cols-4">
                   <FormField
                     control={form.control}
                     name="phoneCountryCode"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>{language === "es" ? "Código" : "Code"}</FormLabel>
+                        <FormLabel className="flex items-center gap-2">
+                          <Phone className="h-3.5 w-3.5 text-muted-foreground" />
+                          {language === "es" ? "Codigo" : "Code"}
+                        </FormLabel>
                         <Select onValueChange={field.onChange} defaultValue={field.value || "+52"}>
                           <FormControl>
                             <SelectTrigger data-testid="select-phone-country-code">
@@ -1245,40 +1315,40 @@ export default function ExternalClients() {
                             </SelectTrigger>
                           </FormControl>
                           <SelectContent className="max-h-[300px]">
-                            <SelectItem value="+1">🇺🇸 +1 (USA/CAN)</SelectItem>
-                            <SelectItem value="+52">🇲🇽 +52 (MX)</SelectItem>
-                            <SelectItem value="+44">🇬🇧 +44 (UK)</SelectItem>
-                            <SelectItem value="+33">🇫🇷 +33 (FR)</SelectItem>
-                            <SelectItem value="+49">🇩🇪 +49 (DE)</SelectItem>
-                            <SelectItem value="+34">🇪🇸 +34 (ES)</SelectItem>
-                            <SelectItem value="+39">🇮🇹 +39 (IT)</SelectItem>
-                            <SelectItem value="+351">🇵🇹 +351 (PT)</SelectItem>
-                            <SelectItem value="+55">🇧🇷 +55 (BR)</SelectItem>
-                            <SelectItem value="+54">🇦🇷 +54 (AR)</SelectItem>
-                            <SelectItem value="+56">🇨🇱 +56 (CL)</SelectItem>
-                            <SelectItem value="+57">🇨🇴 +57 (CO)</SelectItem>
-                            <SelectItem value="+51">🇵🇪 +51 (PE)</SelectItem>
-                            <SelectItem value="+593">🇪🇨 +593 (EC)</SelectItem>
-                            <SelectItem value="+598">🇺🇾 +598 (UY)</SelectItem>
-                            <SelectItem value="+506">🇨🇷 +506 (CR)</SelectItem>
-                            <SelectItem value="+507">🇵🇦 +507 (PA)</SelectItem>
-                            <SelectItem value="+504">🇭🇳 +504 (HN)</SelectItem>
-                            <SelectItem value="+503">🇸🇻 +503 (SV)</SelectItem>
-                            <SelectItem value="+502">🇬🇹 +502 (GT)</SelectItem>
-                            <SelectItem value="+505">🇳🇮 +505 (NI)</SelectItem>
-                            <SelectItem value="+81">🇯🇵 +81 (JP)</SelectItem>
-                            <SelectItem value="+86">🇨🇳 +86 (CN)</SelectItem>
-                            <SelectItem value="+82">🇰🇷 +82 (KR)</SelectItem>
-                            <SelectItem value="+91">🇮🇳 +91 (IN)</SelectItem>
-                            <SelectItem value="+61">🇦🇺 +61 (AU)</SelectItem>
-                            <SelectItem value="+64">🇳🇿 +64 (NZ)</SelectItem>
-                            <SelectItem value="+27">🇿🇦 +27 (ZA)</SelectItem>
-                            <SelectItem value="+971">🇦🇪 +971 (AE)</SelectItem>
-                            <SelectItem value="+966">🇸🇦 +966 (SA)</SelectItem>
-                            <SelectItem value="+7">🇷🇺 +7 (RU)</SelectItem>
-                            <SelectItem value="+380">🇺🇦 +380 (UA)</SelectItem>
-                            <SelectItem value="+48">🇵🇱 +48 (PL)</SelectItem>
-                            <SelectItem value="+90">🇹🇷 +90 (TR)</SelectItem>
+                            <SelectItem value="+1">+1 (USA/CAN)</SelectItem>
+                            <SelectItem value="+52">+52 (MX)</SelectItem>
+                            <SelectItem value="+44">+44 (UK)</SelectItem>
+                            <SelectItem value="+33">+33 (FR)</SelectItem>
+                            <SelectItem value="+49">+49 (DE)</SelectItem>
+                            <SelectItem value="+34">+34 (ES)</SelectItem>
+                            <SelectItem value="+39">+39 (IT)</SelectItem>
+                            <SelectItem value="+351">+351 (PT)</SelectItem>
+                            <SelectItem value="+55">+55 (BR)</SelectItem>
+                            <SelectItem value="+54">+54 (AR)</SelectItem>
+                            <SelectItem value="+56">+56 (CL)</SelectItem>
+                            <SelectItem value="+57">+57 (CO)</SelectItem>
+                            <SelectItem value="+51">+51 (PE)</SelectItem>
+                            <SelectItem value="+593">+593 (EC)</SelectItem>
+                            <SelectItem value="+598">+598 (UY)</SelectItem>
+                            <SelectItem value="+506">+506 (CR)</SelectItem>
+                            <SelectItem value="+507">+507 (PA)</SelectItem>
+                            <SelectItem value="+504">+504 (HN)</SelectItem>
+                            <SelectItem value="+503">+503 (SV)</SelectItem>
+                            <SelectItem value="+502">+502 (GT)</SelectItem>
+                            <SelectItem value="+505">+505 (NI)</SelectItem>
+                            <SelectItem value="+81">+81 (JP)</SelectItem>
+                            <SelectItem value="+86">+86 (CN)</SelectItem>
+                            <SelectItem value="+82">+82 (KR)</SelectItem>
+                            <SelectItem value="+91">+91 (IN)</SelectItem>
+                            <SelectItem value="+61">+61 (AU)</SelectItem>
+                            <SelectItem value="+64">+64 (NZ)</SelectItem>
+                            <SelectItem value="+27">+27 (ZA)</SelectItem>
+                            <SelectItem value="+971">+971 (AE)</SelectItem>
+                            <SelectItem value="+966">+966 (SA)</SelectItem>
+                            <SelectItem value="+7">+7 (RU)</SelectItem>
+                            <SelectItem value="+380">+380 (UA)</SelectItem>
+                            <SelectItem value="+48">+48 (PL)</SelectItem>
+                            <SelectItem value="+90">+90 (TR)</SelectItem>
                           </SelectContent>
                         </Select>
                         <FormMessage />
@@ -1289,8 +1359,11 @@ export default function ExternalClients() {
                     control={form.control}
                     name="phone"
                     render={({ field }) => (
-                      <FormItem className="col-span-2">
-                        <FormLabel>{language === "es" ? "Teléfono" : "Phone"}</FormLabel>
+                      <FormItem className="sm:col-span-3">
+                        <FormLabel className="flex items-center gap-2">
+                          <Phone className="h-3.5 w-3.5 text-muted-foreground" />
+                          {language === "es" ? "Telefono" : "Phone"}
+                        </FormLabel>
                         <FormControl>
                           <Input {...field} placeholder="998 123 4567" data-testid="input-phone" />
                         </FormControl>
@@ -1301,20 +1374,25 @@ export default function ExternalClients() {
                 </div>
               </div>
 
-              {/* Ubicación */}
-              <div className="space-y-4">
-                <h3 className="text-sm font-semibold text-foreground">
-                  {language === "es" ? "Ubicación" : "Location"}
-                </h3>
-                <div className="grid grid-cols-2 gap-4">
+              {/* Section 3: Location */}
+              <div className="space-y-4 pt-2 border-t">
+                <div className="flex items-center gap-2 text-sm font-semibold text-foreground pt-2">
+                  <div className="flex items-center justify-center w-6 h-6 rounded-full bg-primary text-primary-foreground text-xs">3</div>
+                  {language === "es" ? "Ubicacion" : "Location"}
+                </div>
+                
+                <div className="grid gap-4 sm:grid-cols-2">
                   <FormField
                     control={form.control}
                     name="city"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>{language === "es" ? "Ciudad" : "City"}</FormLabel>
+                        <FormLabel className="flex items-center gap-2">
+                          <MapPin className="h-3.5 w-3.5 text-muted-foreground" />
+                          {language === "es" ? "Ciudad" : "City"}
+                        </FormLabel>
                         <FormControl>
-                          <Input {...field} data-testid="input-city" />
+                          <Input {...field} placeholder={language === "es" ? "Ciudad de Mexico" : "Mexico City"} data-testid="input-city" />
                         </FormControl>
                         <FormMessage />
                       </FormItem>
@@ -1325,10 +1403,33 @@ export default function ExternalClients() {
                     name="country"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>{language === "es" ? "País" : "Country"}</FormLabel>
-                        <FormControl>
-                          <Input {...field} data-testid="input-country" />
-                        </FormControl>
+                        <FormLabel className="flex items-center gap-2">
+                          <Globe className="h-3.5 w-3.5 text-muted-foreground" />
+                          {language === "es" ? "Pais" : "Country"}
+                        </FormLabel>
+                        <Select onValueChange={field.onChange} value={field.value || ""}>
+                          <FormControl>
+                            <SelectTrigger data-testid="select-country">
+                              <SelectValue placeholder={language === "es" ? "Seleccione pais" : "Select country"} />
+                            </SelectTrigger>
+                          </FormControl>
+                          <SelectContent className="max-h-[300px]">
+                            <SelectItem value="Mexico">Mexico</SelectItem>
+                            <SelectItem value="Estados Unidos">{language === "es" ? "Estados Unidos" : "United States"}</SelectItem>
+                            <SelectItem value="Canada">Canada</SelectItem>
+                            <SelectItem value="Reino Unido">{language === "es" ? "Reino Unido" : "United Kingdom"}</SelectItem>
+                            <SelectItem value="Francia">{language === "es" ? "Francia" : "France"}</SelectItem>
+                            <SelectItem value="Alemania">{language === "es" ? "Alemania" : "Germany"}</SelectItem>
+                            <SelectItem value="Espana">{language === "es" ? "Espana" : "Spain"}</SelectItem>
+                            <SelectItem value="Italia">{language === "es" ? "Italia" : "Italy"}</SelectItem>
+                            <SelectItem value="Argentina">Argentina</SelectItem>
+                            <SelectItem value="Colombia">Colombia</SelectItem>
+                            <SelectItem value="Brasil">Brasil</SelectItem>
+                            <SelectItem value="Chile">Chile</SelectItem>
+                            <SelectItem value="Peru">Peru</SelectItem>
+                            <SelectItem value="Otro">{language === "es" ? "Otro" : "Other"}</SelectItem>
+                          </SelectContent>
+                        </Select>
                         <FormMessage />
                       </FormItem>
                     )}
@@ -1336,22 +1437,37 @@ export default function ExternalClients() {
                 </div>
               </div>
 
-              {/* Notas */}
-              <FormField
-                control={form.control}
-                name="notes"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>{language === "es" ? "Notas" : "Notes"}</FormLabel>
-                    <FormControl>
-                      <Textarea {...field} rows={3} placeholder={language === "es" ? "Información adicional sobre el cliente..." : "Additional client information..."} data-testid="input-notes" />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
+              {/* Section 4: Notes */}
+              <div className="space-y-4 pt-2 border-t">
+                <div className="flex items-center gap-2 text-sm font-semibold text-foreground pt-2">
+                  <div className="flex items-center justify-center w-6 h-6 rounded-full bg-primary text-primary-foreground text-xs">4</div>
+                  {language === "es" ? "Informacion Adicional" : "Additional Information"}
+                </div>
+                
+                <FormField
+                  control={form.control}
+                  name="notes"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel className="flex items-center gap-2">
+                        <FileText className="h-3.5 w-3.5 text-muted-foreground" />
+                        {language === "es" ? "Notas" : "Notes"}
+                      </FormLabel>
+                      <FormControl>
+                        <Textarea 
+                          {...field} 
+                          className="min-h-[80px] resize-none"
+                          placeholder={language === "es" ? "Informacion adicional sobre el cliente..." : "Additional client information..."} 
+                          data-testid="input-notes" 
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              </div>
 
-              <DialogFooter>
+              <DialogFooter className="pt-4 border-t gap-2 sm:gap-0">
                 <Button
                   type="button"
                   variant="outline"
@@ -1360,10 +1476,18 @@ export default function ExternalClients() {
                 >
                   {language === "es" ? "Cancelar" : "Cancel"}
                 </Button>
-                <Button type="submit" disabled={createMutation.isPending} data-testid="button-submit">
-                  {createMutation.isPending 
-                    ? (language === "es" ? "Creando..." : "Creating...")
-                    : (language === "es" ? "Crear Cliente" : "Create Client")}
+                <Button type="submit" disabled={createMutation.isPending} data-testid="button-submit" className="gap-2">
+                  {createMutation.isPending ? (
+                    <>
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                      {language === "es" ? "Creando..." : "Creating..."}
+                    </>
+                  ) : (
+                    <>
+                      <Plus className="h-4 w-4" />
+                      {language === "es" ? "Crear Cliente" : "Create Client"}
+                    </>
+                  )}
                 </Button>
               </DialogFooter>
             </form>
@@ -1891,29 +2015,40 @@ export default function ExternalClients() {
 
       {/* Create Lead Dialog */}
       <Dialog open={isCreateLeadDialogOpen} onOpenChange={setIsCreateLeadDialogOpen}>
-        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
-          <DialogHeader>
-            <DialogTitle>
-              {language === "es" ? "Crear Nuevo Lead" : "Create New Lead"}
-            </DialogTitle>
-            <DialogDescription>
-              {language === "es" 
-                ? "Complete la información del nuevo lead. Los campos marcados con * son obligatorios."
-                : "Fill in the information for the new lead. Fields marked with * are required."}
-            </DialogDescription>
+        <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader className="pb-4 border-b">
+            <div className="flex items-center gap-3">
+              <div className="p-2 rounded-lg bg-primary/10">
+                <UserPlus className="h-5 w-5 text-primary" />
+              </div>
+              <div>
+                <DialogTitle className="text-xl">
+                  {language === "es" ? "Registrar Nuevo Lead" : "Register New Lead"}
+                </DialogTitle>
+                <DialogDescription className="mt-1">
+                  {language === "es" 
+                    ? "Complete la información del prospecto. Los campos con * son obligatorios."
+                    : "Fill in the prospect information. Fields with * are required."}
+                </DialogDescription>
+              </div>
+            </div>
           </DialogHeader>
+          
           <Form {...leadForm}>
-            <form onSubmit={leadForm.handleSubmit((data) => createLeadMutation.mutate(data))} className="space-y-4">
+            <form onSubmit={leadForm.handleSubmit((data) => createLeadMutation.mutate(data))} className="space-y-6 py-4">
+              
               {/* Agency selector for master/admin users */}
               {isMasterOrAdmin && (
-                <div className="space-y-2">
-                  <label className="text-sm font-medium">{language === "es" ? "Agencia *" : "Agency *"}</label>
+                <div className="p-4 rounded-lg border bg-muted/30">
+                  <div className="flex items-center gap-2 mb-3">
+                    <Building2 className="h-4 w-4 text-primary" />
+                    <span className="font-medium text-sm">{language === "es" ? "Asignación de Agencia" : "Agency Assignment"}</span>
+                  </div>
                   <Select 
                     value={selectedAgencyIdForLead} 
                     onValueChange={setSelectedAgencyIdForLead}
                   >
-                    <SelectTrigger data-testid="select-create-lead-agency">
-                      <Building2 className="h-4 w-4 mr-2 text-muted-foreground" />
+                    <SelectTrigger data-testid="select-create-lead-agency" className="bg-background">
                       <SelectValue placeholder={language === "es" ? "Seleccione la agencia" : "Select agency"} />
                     </SelectTrigger>
                     <SelectContent>
@@ -1924,8 +2059,8 @@ export default function ExternalClients() {
                       ))}
                     </SelectContent>
                   </Select>
-                  {isMasterOrAdmin && !selectedAgencyIdForLead && (
-                    <p className="text-xs text-muted-foreground">
+                  {!selectedAgencyIdForLead && (
+                    <p className="text-xs text-muted-foreground mt-2">
                       {language === "es" 
                         ? "Como administrador, debes seleccionar una agencia para el lead."
                         : "As an administrator, you must select an agency for the lead."}
@@ -1934,82 +2069,113 @@ export default function ExternalClients() {
                 </div>
               )}
 
-              <FormField
-                control={leadForm.control}
-                name="registrationType"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>{language === "es" ? "Tipo de Registro *" : "Registration Type *"}</FormLabel>
-                    <Select onValueChange={field.onChange} defaultValue={field.value}>
-                      <FormControl>
-                        <SelectTrigger data-testid="select-create-lead-type">
-                          <SelectValue placeholder={language === "es" ? "Seleccione el tipo" : "Select type"} />
-                        </SelectTrigger>
-                      </FormControl>
-                      <SelectContent>
-                        <SelectItem value="broker">{language === "es" ? "Broker (solo últimos 4 dígitos)" : "Broker (last 4 digits only)"}</SelectItem>
-                        <SelectItem value="seller">{language === "es" ? "Vendedor (contacto completo)" : "Seller (full contact)"}</SelectItem>
-                      </SelectContent>
-                    </Select>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
+              {/* Section 1: Contact Type & Basic Info */}
+              <div className="space-y-4">
+                <div className="flex items-center gap-2 text-sm font-semibold text-foreground">
+                  <div className="flex items-center justify-center w-6 h-6 rounded-full bg-primary text-primary-foreground text-xs">1</div>
+                  {language === "es" ? "Información de Contacto" : "Contact Information"}
+                </div>
+                
+                <FormField
+                  control={leadForm.control}
+                  name="registrationType"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel className="flex items-center gap-2">
+                        <Tag className="h-3.5 w-3.5 text-muted-foreground" />
+                        {language === "es" ? "Tipo de Registro *" : "Registration Type *"}
+                      </FormLabel>
+                      <Select onValueChange={field.onChange} value={field.value}>
+                        <FormControl>
+                          <SelectTrigger data-testid="select-create-lead-type">
+                            <SelectValue placeholder={language === "es" ? "Seleccione el tipo" : "Select type"} />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          <SelectItem value="seller">
+                            <div className="flex items-center gap-2">
+                              <User className="h-4 w-4" />
+                              {language === "es" ? "Vendedor (contacto completo)" : "Seller (full contact)"}
+                            </div>
+                          </SelectItem>
+                          <SelectItem value="broker">
+                            <div className="flex items-center gap-2">
+                              <Briefcase className="h-4 w-4" />
+                              {language === "es" ? "Broker (solo últimos 4 dígitos)" : "Broker (last 4 digits only)"}
+                            </div>
+                          </SelectItem>
+                        </SelectContent>
+                      </Select>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
 
-              <div className="grid gap-4 sm:grid-cols-2">
-                <FormField
-                  control={leadForm.control}
-                  name="firstName"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>{language === "es" ? "Nombre *" : "First Name *"}</FormLabel>
-                      <FormControl>
-                        <Input {...field} data-testid="input-create-lead-firstname" />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                <FormField
-                  control={leadForm.control}
-                  name="lastName"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>{language === "es" ? "Apellido *" : "Last Name *"}</FormLabel>
-                      <FormControl>
-                        <Input {...field} data-testid="input-create-lead-lastname" />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-              </div>
+                <div className="grid gap-4 sm:grid-cols-2">
+                  <FormField
+                    control={leadForm.control}
+                    name="firstName"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel className="flex items-center gap-2">
+                          <User className="h-3.5 w-3.5 text-muted-foreground" />
+                          {language === "es" ? "Nombre *" : "First Name *"}
+                        </FormLabel>
+                        <FormControl>
+                          <Input {...field} placeholder={language === "es" ? "Ingrese el nombre" : "Enter first name"} data-testid="input-create-lead-firstname" />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  <FormField
+                    control={leadForm.control}
+                    name="lastName"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel className="flex items-center gap-2">
+                          <User className="h-3.5 w-3.5 text-muted-foreground" />
+                          {language === "es" ? "Apellido *" : "Last Name *"}
+                        </FormLabel>
+                        <FormControl>
+                          <Input {...field} placeholder={language === "es" ? "Ingrese el apellido" : "Enter last name"} data-testid="input-create-lead-lastname" />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                </div>
 
-              {leadForm.watch("registrationType") === "broker" ? (
-                <FormField
-                  control={leadForm.control}
-                  name="phoneLast4"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>{language === "es" ? "Últimos 4 dígitos del teléfono *" : "Last 4 Phone Digits *"}</FormLabel>
-                      <FormControl>
-                        <Input {...field} value={field.value || ""} maxLength={4} placeholder="1234" data-testid="input-create-lead-phonelast4" />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-              ) : (
-                <>
+                {leadForm.watch("registrationType") === "broker" ? (
+                  <FormField
+                    control={leadForm.control}
+                    name="phoneLast4"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel className="flex items-center gap-2">
+                          <Phone className="h-3.5 w-3.5 text-muted-foreground" />
+                          {language === "es" ? "Últimos 4 dígitos del teléfono *" : "Last 4 Phone Digits *"}
+                        </FormLabel>
+                        <FormControl>
+                          <Input {...field} value={field.value || ""} maxLength={4} placeholder="1234" className="max-w-[150px]" data-testid="input-create-lead-phonelast4" />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                ) : (
                   <div className="grid gap-4 sm:grid-cols-2">
                     <FormField
                       control={leadForm.control}
                       name="phone"
                       render={({ field }) => (
                         <FormItem>
-                          <FormLabel>{language === "es" ? "Teléfono *" : "Phone *"}</FormLabel>
+                          <FormLabel className="flex items-center gap-2">
+                            <Phone className="h-3.5 w-3.5 text-muted-foreground" />
+                            {language === "es" ? "Teléfono *" : "Phone *"}
+                          </FormLabel>
                           <FormControl>
-                            <Input {...field} value={field.value || ""} data-testid="input-create-lead-phone" />
+                            <Input {...field} value={field.value || ""} placeholder="+52 998 123 4567" data-testid="input-create-lead-phone" />
                           </FormControl>
                           <FormMessage />
                         </FormItem>
@@ -2020,54 +2186,329 @@ export default function ExternalClients() {
                       name="email"
                       render={({ field }) => (
                         <FormItem>
-                          <FormLabel>{language === "es" ? "Email *" : "Email *"}</FormLabel>
+                          <FormLabel className="flex items-center gap-2">
+                            <Mail className="h-3.5 w-3.5 text-muted-foreground" />
+                            {language === "es" ? "Email *" : "Email *"}
+                          </FormLabel>
                           <FormControl>
-                            <Input {...field} value={field.value || ""} type="email" data-testid="input-create-lead-email" />
+                            <Input {...field} value={field.value || ""} type="email" placeholder="correo@ejemplo.com" data-testid="input-create-lead-email" />
                           </FormControl>
                           <FormMessage />
                         </FormItem>
                       )}
                     />
                   </div>
-                </>
-              )}
+                )}
+              </div>
 
-              <div className="grid gap-4 sm:grid-cols-2">
+              {/* Section 2: Property Search Preferences */}
+              <div className="space-y-4 pt-2 border-t">
+                <div className="flex items-center gap-2 text-sm font-semibold text-foreground pt-2">
+                  <div className="flex items-center justify-center w-6 h-6 rounded-full bg-primary text-primary-foreground text-xs">2</div>
+                  {language === "es" ? "Preferencias de Búsqueda" : "Search Preferences"}
+                </div>
+
+                <div className="grid gap-4 sm:grid-cols-3">
+                  <FormField
+                    control={leadForm.control}
+                    name="estimatedRentCost"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel className="flex items-center gap-2">
+                          <DollarSign className="h-3.5 w-3.5 text-muted-foreground" />
+                          {language === "es" ? "Presupuesto (MXN)" : "Budget (MXN)"}
+                        </FormLabel>
+                        <FormControl>
+                          <Input 
+                            {...field} 
+                            type="number"
+                            value={field.value || ""} 
+                            onChange={(e) => field.onChange(e.target.value ? parseInt(e.target.value) : undefined)}
+                            placeholder="25000"
+                            data-testid="input-create-lead-budget" 
+                          />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  <FormField
+                    control={leadForm.control}
+                    name="bedrooms"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel className="flex items-center gap-2">
+                          <BedDouble className="h-3.5 w-3.5 text-muted-foreground" />
+                          {language === "es" ? "Recámaras" : "Bedrooms"}
+                        </FormLabel>
+                        <Select 
+                          onValueChange={(value) => field.onChange(value ? parseInt(value) : undefined)} 
+                          value={field.value?.toString() || ""}
+                        >
+                          <FormControl>
+                            <SelectTrigger data-testid="select-create-lead-bedrooms">
+                              <SelectValue placeholder={language === "es" ? "Seleccionar" : "Select"} />
+                            </SelectTrigger>
+                          </FormControl>
+                          <SelectContent>
+                            <SelectItem value="0">Studio</SelectItem>
+                            <SelectItem value="1">1</SelectItem>
+                            <SelectItem value="2">2</SelectItem>
+                            <SelectItem value="3">3</SelectItem>
+                            <SelectItem value="4">4+</SelectItem>
+                          </SelectContent>
+                        </Select>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  <FormField
+                    control={leadForm.control}
+                    name="desiredUnitType"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel className="flex items-center gap-2">
+                          <Home className="h-3.5 w-3.5 text-muted-foreground" />
+                          {language === "es" ? "Tipo de Propiedad" : "Property Type"}
+                        </FormLabel>
+                        <Select onValueChange={field.onChange} value={field.value || ""}>
+                          <FormControl>
+                            <SelectTrigger data-testid="select-create-lead-unittype">
+                              <SelectValue placeholder={language === "es" ? "Seleccionar" : "Select"} />
+                            </SelectTrigger>
+                          </FormControl>
+                          <SelectContent>
+                            <SelectItem value="Departamento">{language === "es" ? "Departamento" : "Apartment"}</SelectItem>
+                            <SelectItem value="Casa">{language === "es" ? "Casa" : "House"}</SelectItem>
+                            <SelectItem value="Estudio">{language === "es" ? "Estudio" : "Studio"}</SelectItem>
+                            <SelectItem value="PH">PH / Penthouse</SelectItem>
+                            <SelectItem value="Villa">Villa</SelectItem>
+                          </SelectContent>
+                        </Select>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                </div>
+
+                <div className="grid gap-4 sm:grid-cols-2">
+                  <FormField
+                    control={leadForm.control}
+                    name="desiredNeighborhood"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel className="flex items-center gap-2">
+                          <MapPin className="h-3.5 w-3.5 text-muted-foreground" />
+                          {language === "es" ? "Zona / Colonia Preferida" : "Preferred Area"}
+                        </FormLabel>
+                        <Select onValueChange={field.onChange} value={field.value || ""}>
+                          <FormControl>
+                            <SelectTrigger data-testid="select-create-lead-neighborhood">
+                              <SelectValue placeholder={language === "es" ? "Seleccione zona" : "Select area"} />
+                            </SelectTrigger>
+                          </FormControl>
+                          <SelectContent>
+                            <SelectItem value="Aldea Zama">Aldea Zama</SelectItem>
+                            <SelectItem value="Centro">Centro</SelectItem>
+                            <SelectItem value="La Veleta">La Veleta</SelectItem>
+                            <SelectItem value="Region 15">Region 15</SelectItem>
+                            <SelectItem value="Region 8">Region 8</SelectItem>
+                            <SelectItem value="Holistika">Holistika</SelectItem>
+                            <SelectItem value="Selva Zama">Selva Zama</SelectItem>
+                            <SelectItem value="Otro">{language === "es" ? "Otro" : "Other"}</SelectItem>
+                          </SelectContent>
+                        </Select>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  <FormField
+                    control={leadForm.control}
+                    name="contractDuration"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel className="flex items-center gap-2">
+                          <Clock className="h-3.5 w-3.5 text-muted-foreground" />
+                          {language === "es" ? "Duración del Contrato" : "Contract Duration"}
+                        </FormLabel>
+                        <Select onValueChange={field.onChange} value={field.value || ""}>
+                          <FormControl>
+                            <SelectTrigger data-testid="select-create-lead-duration">
+                              <SelectValue placeholder={language === "es" ? "Seleccionar" : "Select"} />
+                            </SelectTrigger>
+                          </FormControl>
+                          <SelectContent>
+                            <SelectItem value="6 meses">6 {language === "es" ? "meses" : "months"}</SelectItem>
+                            <SelectItem value="1 año">1 {language === "es" ? "año" : "year"}</SelectItem>
+                            <SelectItem value="2 años">2 {language === "es" ? "años" : "years"}</SelectItem>
+                            <SelectItem value="3+ años">3+ {language === "es" ? "años" : "years"}</SelectItem>
+                          </SelectContent>
+                        </Select>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                </div>
+
+                <div className="grid gap-4 sm:grid-cols-2">
+                  <FormField
+                    control={leadForm.control}
+                    name="checkInDate"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel className="flex items-center gap-2">
+                          <CalendarDays className="h-3.5 w-3.5 text-muted-foreground" />
+                          {language === "es" ? "Fecha de Entrada Deseada" : "Desired Move-in Date"}
+                        </FormLabel>
+                        <FormControl>
+                          <Input 
+                            type="date" 
+                            value={field.value ? new Date(field.value).toISOString().split('T')[0] : ""} 
+                            onChange={(e) => field.onChange(e.target.value ? new Date(e.target.value) : undefined)}
+                            data-testid="input-create-lead-checkin"
+                          />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  <FormField
+                    control={leadForm.control}
+                    name="hasPets"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel className="flex items-center gap-2">
+                          <PawPrint className="h-3.5 w-3.5 text-muted-foreground" />
+                          {language === "es" ? "¿Tiene Mascotas?" : "Has Pets?"}
+                        </FormLabel>
+                        <Select onValueChange={field.onChange} value={field.value || ""}>
+                          <FormControl>
+                            <SelectTrigger data-testid="select-create-lead-pets">
+                              <SelectValue placeholder={language === "es" ? "Seleccionar" : "Select"} />
+                            </SelectTrigger>
+                          </FormControl>
+                          <SelectContent>
+                            <SelectItem value="No">No</SelectItem>
+                            <SelectItem value="Sí - Perro">{language === "es" ? "Sí - Perro" : "Yes - Dog"}</SelectItem>
+                            <SelectItem value="Sí - Gato">{language === "es" ? "Sí - Gato" : "Yes - Cat"}</SelectItem>
+                            <SelectItem value="Sí - Otro">{language === "es" ? "Sí - Otro" : "Yes - Other"}</SelectItem>
+                          </SelectContent>
+                        </Select>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                </div>
+              </div>
+
+              {/* Section 3: Status & Additional Info */}
+              <div className="space-y-4 pt-2 border-t">
+                <div className="flex items-center gap-2 text-sm font-semibold text-foreground pt-2">
+                  <div className="flex items-center justify-center w-6 h-6 rounded-full bg-primary text-primary-foreground text-xs">3</div>
+                  {language === "es" ? "Estado y Seguimiento" : "Status & Follow-up"}
+                </div>
+
+                <div className="grid gap-4 sm:grid-cols-2">
+                  <FormField
+                    control={leadForm.control}
+                    name="status"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel className="flex items-center gap-2">
+                          <Activity className="h-3.5 w-3.5 text-muted-foreground" />
+                          {language === "es" ? "Estado del Lead" : "Lead Status"}
+                        </FormLabel>
+                        <Select onValueChange={field.onChange} value={field.value}>
+                          <FormControl>
+                            <SelectTrigger data-testid="select-create-lead-status">
+                              <SelectValue />
+                            </SelectTrigger>
+                          </FormControl>
+                          <SelectContent>
+                            <SelectItem value="nuevo_lead">{language === "es" ? "Nuevo Lead" : "New Lead"}</SelectItem>
+                            <SelectItem value="cita_coordinada">{language === "es" ? "Cita Coordinada" : "Appointment Scheduled"}</SelectItem>
+                            <SelectItem value="interesado">{language === "es" ? "Interesado" : "Interested"}</SelectItem>
+                            <SelectItem value="oferta_enviada">{language === "es" ? "Oferta Enviada" : "Offer Sent"}</SelectItem>
+                            <SelectItem value="proceso_renta">{language === "es" ? "Proceso de Renta" : "Rental Process"}</SelectItem>
+                            <SelectItem value="renta_concretada">{language === "es" ? "Renta Concretada" : "Rental Completed"}</SelectItem>
+                            <SelectItem value="perdido">{language === "es" ? "Perdido" : "Lost"}</SelectItem>
+                            <SelectItem value="muerto">{language === "es" ? "Muerto" : "Dead"}</SelectItem>
+                          </SelectContent>
+                        </Select>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  <FormField
+                    control={leadForm.control}
+                    name="source"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel className="flex items-center gap-2">
+                          <Globe className="h-3.5 w-3.5 text-muted-foreground" />
+                          {language === "es" ? "Fuente / Origen" : "Source"}
+                        </FormLabel>
+                        <Select onValueChange={field.onChange} value={field.value || ""}>
+                          <FormControl>
+                            <SelectTrigger data-testid="select-create-lead-source">
+                              <SelectValue placeholder={language === "es" ? "¿Cómo llegó?" : "How did they find us?"} />
+                            </SelectTrigger>
+                          </FormControl>
+                          <SelectContent>
+                            <SelectItem value="WhatsApp">WhatsApp</SelectItem>
+                            <SelectItem value="Web">Web</SelectItem>
+                            <SelectItem value="Referido">{language === "es" ? "Referido" : "Referral"}</SelectItem>
+                            <SelectItem value="Redes Sociales">{language === "es" ? "Redes Sociales" : "Social Media"}</SelectItem>
+                            <SelectItem value="Llamada">{language === "es" ? "Llamada" : "Phone Call"}</SelectItem>
+                            <SelectItem value="Evento">{language === "es" ? "Evento" : "Event"}</SelectItem>
+                            <SelectItem value="Otro">{language === "es" ? "Otro" : "Other"}</SelectItem>
+                          </SelectContent>
+                        </Select>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                </div>
+
                 <FormField
                   control={leadForm.control}
-                  name="status"
+                  name="sellerName"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>{language === "es" ? "Estado" : "Status"}</FormLabel>
-                      <Select onValueChange={field.onChange} defaultValue={field.value}>
-                        <FormControl>
-                          <SelectTrigger data-testid="select-create-lead-status">
-                            <SelectValue />
-                          </SelectTrigger>
-                        </FormControl>
-                        <SelectContent>
-                          <SelectItem value="nuevo_lead">{language === "es" ? "Nuevo Lead" : "New Lead"}</SelectItem>
-                          <SelectItem value="cita_coordinada">{language === "es" ? "Cita Coordinada" : "Appointment Scheduled"}</SelectItem>
-                          <SelectItem value="interesado">{language === "es" ? "Interesado" : "Interested"}</SelectItem>
-                          <SelectItem value="oferta_enviada">{language === "es" ? "Oferta Enviada" : "Offer Sent"}</SelectItem>
-                          <SelectItem value="proceso_renta">{language === "es" ? "Proceso de Renta" : "Rental Process"}</SelectItem>
-                          <SelectItem value="renta_concretada">{language === "es" ? "Renta Concretada" : "Rental Completed"}</SelectItem>
-                          <SelectItem value="perdido">{language === "es" ? "Perdido" : "Lost"}</SelectItem>
-                          <SelectItem value="muerto">{language === "es" ? "Muerto" : "Dead"}</SelectItem>
-                        </SelectContent>
-                      </Select>
+                      <FormLabel className="flex items-center gap-2">
+                        <UserCheck className="h-3.5 w-3.5 text-muted-foreground" />
+                        {language === "es" ? "Vendedor Asignado (opcional)" : "Assigned Seller (optional)"}
+                      </FormLabel>
+                      <FormControl>
+                        <Input 
+                          {...field} 
+                          value={field.value || ""} 
+                          placeholder={language === "es" ? "Nombre del vendedor" : "Seller name"}
+                          data-testid="input-create-lead-seller" 
+                        />
+                      </FormControl>
                       <FormMessage />
                     </FormItem>
                   )}
                 />
+
                 <FormField
                   control={leadForm.control}
-                  name="source"
+                  name="notes"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>{language === "es" ? "Fuente" : "Source"}</FormLabel>
+                      <FormLabel className="flex items-center gap-2">
+                        <FileText className="h-3.5 w-3.5 text-muted-foreground" />
+                        {language === "es" ? "Notas Adicionales" : "Additional Notes"}
+                      </FormLabel>
                       <FormControl>
-                        <Input {...field} value={field.value || ""} data-testid="input-create-lead-source" />
+                        <Textarea 
+                          {...field} 
+                          value={field.value || ""} 
+                          placeholder={language === "es" ? "Información adicional sobre el prospecto..." : "Additional information about the prospect..."}
+                          className="min-h-[80px] resize-none"
+                          data-testid="input-create-lead-notes" 
+                        />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
@@ -2075,21 +2516,7 @@ export default function ExternalClients() {
                 />
               </div>
 
-              <FormField
-                control={leadForm.control}
-                name="notes"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>{language === "es" ? "Notas" : "Notes"}</FormLabel>
-                    <FormControl>
-                      <Textarea {...field} value={field.value || ""} data-testid="input-create-lead-notes" />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-
-              <DialogFooter>
+              <DialogFooter className="pt-4 border-t gap-2 sm:gap-0">
                 <Button
                   type="button"
                   variant="outline"
@@ -2102,10 +2529,19 @@ export default function ExternalClients() {
                   type="submit" 
                   disabled={createLeadMutation.isPending || (isMasterOrAdmin && !selectedAgencyIdForLead)} 
                   data-testid="button-create-lead-submit"
+                  className="gap-2"
                 >
-                  {createLeadMutation.isPending 
-                    ? (language === "es" ? "Creando..." : "Creating...")
-                    : (language === "es" ? "Crear Lead" : "Create Lead")}
+                  {createLeadMutation.isPending ? (
+                    <>
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                      {language === "es" ? "Creando..." : "Creating..."}
+                    </>
+                  ) : (
+                    <>
+                      <Plus className="h-4 w-4" />
+                      {language === "es" ? "Crear Lead" : "Create Lead"}
+                    </>
+                  )}
                 </Button>
               </DialogFooter>
             </form>
