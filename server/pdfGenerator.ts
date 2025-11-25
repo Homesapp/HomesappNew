@@ -882,9 +882,13 @@ export async function generateQuotationPDF(
 
       // Quotation metadata
       let yPosition = 205;
+      // Format quotation number as #0000001
+      const quotationNumber = quotationData.sequenceNumber 
+        ? `#${String(quotationData.sequenceNumber).padStart(7, '0')}`
+        : `#${quotationData.id?.slice(0, 8) || 'N/A'}`;
       doc.fontSize(10)
         .fillColor(secondaryColor)
-        .text(`No. Cotización: ${quotationData.id || 'N/A'}`, 50, yPosition);
+        .text(`No. Cotización: ${quotationNumber}`, 50, yPosition);
       
       doc.text(
         `Fecha: ${new Date(quotationData.createdAt || Date.now()).toLocaleDateString('es-MX', { 
@@ -903,7 +907,7 @@ export async function generateQuotationPDF(
       const statusColors: Record<string, string> = {
         draft: secondaryColor,
         sent: primaryColor,
-        accepted: accentColor,
+        approved: accentColor,
         rejected: '#ef4444',
         cancelled: secondaryColor
       };
@@ -911,7 +915,7 @@ export async function generateQuotationPDF(
       const statusLabels: Record<string, string> = {
         draft: 'BORRADOR',
         sent: 'ENVIADA',
-        accepted: 'ACEPTADA',
+        approved: 'APROBADA',
         rejected: 'RECHAZADA',
         cancelled: 'CANCELADA'
       };
@@ -925,6 +929,28 @@ export async function generateQuotationPDF(
         .font('Helvetica-Bold')
         .text(`Estado: ${statusLabel}`, 50, yPosition);
       doc.font('Helvetica');
+
+      // Show maintenance manager who created the quote
+      if (quotationData.createdByName) {
+        yPosition += 18;
+        doc.fontSize(9)
+          .fillColor(secondaryColor)
+          .text('Elaborado por: ', 50, yPosition, { continued: true })
+          .font('Helvetica-Bold')
+          .fillColor('#1e293b')
+          .text(quotationData.createdByName);
+        doc.font('Helvetica');
+      }
+
+      // Show unit if available
+      if (quotationData.unitName) {
+        yPosition += 18;
+        doc.fontSize(9)
+          .fillColor(secondaryColor)
+          .text('Unidad: ', 50, yPosition, { continued: true })
+          .fillColor('#1e293b')
+          .text(quotationData.unitName);
+      }
 
       yPosition += 10;
       doc.moveTo(50, yPosition)
@@ -1073,9 +1099,11 @@ export async function generateQuotationPDF(
         // Use precomputed subtotal if available, otherwise calculate
         const subtotal = service.subtotal ?? ((service.quantity || 0) * (service.unitPrice || 0));
 
+        // Use name as primary, description as secondary
+        const serviceDesc = service.name || service.description || 'Sin descripción';
         doc.fontSize(9)
           .fillColor('#1e293b')
-          .text(service.description || 'N/A', 60, yPosition + 8, { width: 230 })
+          .text(serviceDesc, 60, yPosition + 8, { width: 230 })
           .text(String(service.quantity || 0), 295, yPosition + 8, { width: 45, align: 'center' })
           .fillColor(secondaryColor)
           .text(`$${(service.unitPrice || 0).toLocaleString('es-MX', { minimumFractionDigits: 2 })}`, 345, yPosition + 8, { width: 85, align: 'right' })
@@ -1102,6 +1130,17 @@ export async function generateQuotationPDF(
 
       yPosition += 15;
 
+      // Calculate totals from services if not provided directly
+      const calculatedSubtotal = services.reduce((sum: number, s: any) => {
+        const sSubtotal = s.subtotal ?? ((s.quantity || 0) * (s.unitPrice || 0));
+        return sum + Number(sSubtotal || 0);
+      }, 0);
+      const subtotalValue = Number(quotationData.subtotal) || calculatedSubtotal;
+      const adminFeePercentageValue = Number(quotationData.adminFeePercentage) || 15;
+      const adminFeeValue = Number(quotationData.adminFee) || (subtotalValue * adminFeePercentageValue / 100);
+      const totalValue = Number(quotationData.total) || (subtotalValue + adminFeeValue);
+      const currency = quotationData.currency || 'MXN';
+
       // Subtotal
       doc.fontSize(11)
         .fillColor(secondaryColor)
@@ -1111,7 +1150,7 @@ export async function generateQuotationPDF(
         .fillColor('#1e293b')
         .font('Helvetica-Bold')
         .text(
-          `$${(quotationData.financials?.subtotal || 0).toLocaleString('es-MX', { minimumFractionDigits: 2 })}`,
+          `$${subtotalValue.toLocaleString('es-MX', { minimumFractionDigits: 2 })}`,
           435,
           yPosition,
           { width: 100, align: 'right' }
@@ -1121,16 +1160,15 @@ export async function generateQuotationPDF(
       yPosition += 25;
 
       // Admin Fee
-      const adminFeePercentage = quotationData.financials?.adminFeePercentage || 15;
       doc.fontSize(10)
         .fillColor(secondaryColor)
-        .text(`Tarifa administrativa (${adminFeePercentage}%):`, 350, yPosition, { width: 85, align: 'right' });
+        .text(`Tarifa administrativa (${adminFeePercentageValue}%):`, 350, yPosition, { width: 85, align: 'right' });
       
       doc.fontSize(11)
         .fillColor(warningColor)
         .font('Helvetica-Bold')
         .text(
-          `$${(quotationData.financials?.adminFee || 0).toLocaleString('es-MX', { minimumFractionDigits: 2 })}`,
+          `$${adminFeeValue.toLocaleString('es-MX', { minimumFractionDigits: 2 })}`,
           435,
           yPosition,
           { width: 100, align: 'right' }
@@ -1150,14 +1188,11 @@ export async function generateQuotationPDF(
         .fillColor(secondaryColor)
         .text('TOTAL:', 350, yPosition, { width: 85, align: 'right' });
       
-      // Use stored currency or default to MXN
-      const currency = quotationData.financials?.currency || quotationData.currency || 'MXN';
-      
       doc.fontSize(16)
         .fillColor(accentColor)
         .font('Helvetica-Bold')
         .text(
-          `$${(quotationData.financials?.total || 0).toLocaleString('es-MX', { minimumFractionDigits: 2 })} ${currency}`,
+          `$${totalValue.toLocaleString('es-MX', { minimumFractionDigits: 2 })} ${currency}`,
           435,
           yPosition - 2,
           { width: 100, align: 'right' }

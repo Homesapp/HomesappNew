@@ -28990,7 +28990,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(403).json({ message: "User is not assigned to any agency" });
       }
 
-      const updates = updateExternalQuotationSchema.parse(req.body);
+      // Convert numeric fields to strings and empty strings to null for FK fields
+      const updates = updateExternalQuotationSchema.parse({
+        ...req.body,
+        clientId: req.body.clientId || null,
+        propertyId: req.body.propertyId || null,
+        unitId: req.body.unitId || null,
+        subtotal: req.body.subtotal?.toString(),
+        adminFee: req.body.adminFee?.toString(),
+        adminFeePercentage: req.body.adminFeePercentage?.toString(),
+        total: req.body.total?.toString(),
+      });
       const quotation = await storage.updateExternalQuotation(id, agencyId, updates);
 
       await createAuditLog(req, "update", "external_quotation", id, "Updated quotation");
@@ -29146,14 +29156,40 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ message: "Agency not found" });
       }
 
+      // Get user who created the quotation
+      const createdByUser = quotation.createdBy ? await storage.getUser(quotation.createdBy) : null;
+
+      // Get client info if clientId exists
+      const client = quotation.clientId ? await storage.getExternalClient(quotation.clientId, agencyId) : null;
+
+      // Get unit info if unitId exists
+      const unit = quotation.unitId ? await storage.getExternalUnit(quotation.unitId, agencyId) : null;
+
+      // Count quotations to generate sequence number
+      const allQuotations = await storage.getExternalQuotations(agencyId);
+      const quotationIndex = allQuotations.findIndex((q: any) => q.id === quotation.id);
+      const sequenceNumber = allQuotations.length - quotationIndex;
+
+      // Prepare enhanced quotation data for PDF
+      const enhancedQuotation = {
+        ...quotation,
+        sequenceNumber,
+        clientName: client?.name || null,
+        clientEmail: client?.email || null,
+        clientPhone: client?.phone || null,
+        unitName: unit?.name || null,
+        createdByName: createdByUser ? `${createdByUser.firstName || ""} ${createdByUser.lastName || ""}`.trim() : null,
+      };
+
       // Prepare agency data for PDF
       const agencyData = {
         name: agency.name,
-        contact: agency.phone || agency.email || undefined,
+        logo: agency.agencyLogoUrl || undefined,
+        contact: agency.contactPhone || agency.contactEmail || undefined,
       };
 
       // Generate PDF
-      const pdfBuffer = await generateQuotationPDF(quotation, agencyData);
+      const pdfBuffer = await generateQuotationPDF(enhancedQuotation, agencyData);
 
       // Set headers for PDF download
       res.setHeader('Content-Type', 'application/pdf');
