@@ -24651,6 +24651,36 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // ==============================
+  // GET /api/external-sellers - Get sellers for agency (for lead assignment dropdown)
+  app.get("/api/external-sellers", isAuthenticated, requireRole([...EXTERNAL_ADMIN_ROLES, 'external_agency_seller']), async (req: any, res) => {
+    try {
+      const agencyId = await getUserAgencyId(req);
+      
+      if (!agencyId) {
+        return res.status(403).json({ message: "No agency access" });
+      }
+      
+      // Get all sellers for this agency
+      const sellers = await db.select({
+        id: users.id,
+        firstName: users.firstName,
+        lastName: users.lastName,
+        email: users.email,
+      })
+      .from(users)
+      .where(and(
+        eq(users.externalAgencyId, agencyId),
+        eq(users.role, 'external_agency_seller')
+      ))
+      .orderBy(users.firstName);
+      
+      res.json(sellers);
+    } catch (error: any) {
+      console.error("Error fetching external sellers:", error);
+      handleGenericError(res, error);
+    }
+  });
+
   // External Leads Routes
   // ==============================
 

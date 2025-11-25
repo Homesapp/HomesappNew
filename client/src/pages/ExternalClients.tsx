@@ -232,6 +232,12 @@ export default function ExternalClients() {
   });
   const agencies = agenciesData || [];
 
+  // Fetch sellers for agency (for lead assignment dropdown)
+  const { data: sellersData } = useQuery<{ id: string; firstName: string; lastName: string; email: string }[]>({
+    queryKey: ["/api/external-sellers"],
+    staleTime: 5 * 60 * 1000,
+  });
+  const sellers = sellersData || [];
   useEffect(() => {
     const clampedPage = Math.min(leadCurrentPage, totalLeadPages);
     if (clampedPage !== leadCurrentPage) {
@@ -408,7 +414,7 @@ export default function ExternalClients() {
       desiredUnitType: "",
       desiredNeighborhood: "",
       sellerId: undefined,
-      sellerName: "",
+      sellerId: undefined,
     },
   });
 
@@ -2474,24 +2480,33 @@ export default function ExternalClients() {
                     )}
                   />
                 </div>
-
                 <FormField
                   control={leadForm.control}
-                  name="sellerName"
+                  name="sellerId"
                   render={({ field }) => (
                     <FormItem>
                       <FormLabel className="flex items-center gap-2">
                         <UserCheck className="h-3.5 w-3.5 text-muted-foreground" />
-                        {language === "es" ? "Vendedor Asignado (opcional)" : "Assigned Seller (optional)"}
+                        {language === "es" ? "Vendedor Asignado" : "Assigned Seller"}
                       </FormLabel>
-                      <FormControl>
-                        <Input 
-                          {...field} 
-                          value={field.value || ""} 
-                          placeholder={language === "es" ? "Nombre del vendedor" : "Seller name"}
-                          data-testid="input-create-lead-seller" 
-                        />
-                      </FormControl>
+                      <Select onValueChange={field.onChange} value={field.value || ""}>
+                        <FormControl>
+                          <SelectTrigger data-testid="select-create-lead-seller">
+                            <SelectValue placeholder={language === "es" ? "Seleccionar vendedor" : "Select seller"} />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          {sellers.length === 0 ? (
+                            <SelectItem value="none" disabled>{language === "es" ? "No hay vendedores disponibles" : "No sellers available"}</SelectItem>
+                          ) : (
+                            sellers.map((seller) => (
+                              <SelectItem key={seller.id} value={seller.id}>
+                                {seller.firstName} {seller.lastName}
+                              </SelectItem>
+                            ))
+                          )}
+                        </SelectContent>
+                      </Select>
                       <FormMessage />
                     </FormItem>
                   )}
