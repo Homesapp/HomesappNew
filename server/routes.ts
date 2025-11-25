@@ -4514,7 +4514,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       const sanitizedBody = {
-        agencyId,
+        ...req.body,
         title: sanitizeText(req.body.title),
         description: sanitizeHtml(req.body.description),
         location: sanitizeText(req.body.location),
@@ -4593,7 +4593,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       const sanitizedBody = {
-        agencyId,
+        ...req.body,
         title: req.body.title ? sanitizeText(req.body.title) : undefined,
         description: req.body.description ? sanitizeHtml(req.body.description) : undefined,
         location: req.body.location ? sanitizeText(req.body.location) : undefined,
@@ -4784,7 +4784,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // (persona_moral needs same docs as persona_fisica PLUS acta_constitutiva)
 
       const documentData = {
-        agencyId,
+        ...req.body,
         propertyId,
       };
 
@@ -7580,7 +7580,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       // CRITICAL: Always inject authenticated userId, never trust client
       const validationResult = insertPropertySubmissionDraftSchema.safeParse({
-        agencyId,
+        ...req.body,
         userId // Enforce server-side userId
       });
       
@@ -8202,7 +8202,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const userId = req.user.claims.sub;
       
       const validationResult = insertPropertyAgreementSchema.safeParse({
-        agencyId,
+        ...req.body,
         userId
       });
       
@@ -9960,7 +9960,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       
       const referralData = {
-        agencyId,
+        ...req.body,
         referrerId: userId,
         commissionPercent: req.body.commissionPercent || "20.00",
       };
@@ -10573,7 +10573,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       // Clean special values and convert date string to Date object if needed
       const cleanedBody = {
-        agencyId,
+        ...req.body,
         clientId,
         conciergeId: req.body.conciergeId === "none" ? undefined : req.body.conciergeId,
         // Convert date string to Date object (JSON serialization converts Date to string)
@@ -11144,7 +11144,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       // Include createdById before validation
       const eventData = {
-        agencyId,
+        ...req.body,
         startDate: new Date(req.body.startDate),
         endDate: new Date(req.body.endDate),
         createdById: userId,
@@ -11657,7 +11657,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       const cardData = insertPresentationCardSchema.parse({
-        agencyId,
+        ...req.body,
         clientId,
       });
 
@@ -11955,7 +11955,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const userId = req.user.claims.sub;
       const providerData = insertServiceProviderSchema.parse({
-        agencyId,
+        ...req.body,
         userId,
       });
 
@@ -12004,7 +12004,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       // Force providerId from authenticated user's service provider
       const serviceData = insertServiceSchema.parse({
-        agencyId,
+        ...req.body,
         providerId: provider.id,
       });
       
@@ -12068,7 +12068,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const userId = req.user.claims.sub;
       const bookingData = insertServiceBookingSchema.parse({
-        agencyId,
+        ...req.body,
         clientId: userId,
       });
       
@@ -12110,7 +12110,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post("/api/provider-applications", async (req, res) => {
     try {
       const applicationData = insertProviderApplicationSchema.parse({
-        agencyId,
+        ...req.body,
         status: "pending",
       });
       
@@ -12385,7 +12385,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const commissionPercent = config?.clientReferralCommissionPercent || "5.00";
 
       const referralData = {
-        agencyId,
+        ...req.body,
         referrerId: userId,
         commissionPercent,
         status: "pendiente_confirmacion",
@@ -12476,7 +12476,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const commissionPercent = config?.ownerReferralCommissionPercent || "10.00";
 
       const referralData = {
-        agencyId,
+        ...req.body,
         referrerId: userId,
         commissionPercent,
         status: "pendiente_confirmacion",
@@ -12665,7 +12665,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       // Clean special values
       const cleanedBody = {
-        agencyId,
+        ...req.body,
         clientId,
         appointmentId: req.body.appointmentId === "none" ? undefined : req.body.appointmentId,
       };
@@ -15165,7 +15165,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       const validationResult = insertContractLegalDocumentSchema.safeParse({
-        agencyId,
+        ...req.body,
         rentalContractId: contractId,
         uploadedById: userId,
       });
@@ -15294,7 +15294,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       const validationResult = insertContractTermDiscussionSchema.safeParse({
-        agencyId,
+        ...req.body,
         legalDocumentId: documentId,
         userId,
       });
@@ -15416,7 +15416,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       const validationResult = insertContractApprovalSchema.safeParse({
-        agencyId,
+        ...req.body,
         legalDocumentId: documentId,
         userId,
         userRole,
@@ -15535,7 +15535,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       const validationResult = insertCheckInAppointmentSchema.safeParse({
-        agencyId,
+        ...req.body,
         rentalContractId: contractId,
         propertyId: contract.propertyId,
         tenantId: contract.tenantId,
@@ -15662,7 +15662,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       const validationResult = insertContractSignedDocumentSchema.safeParse({
-        agencyId,
+        ...req.body,
         rentalContractId: contractId,
         uploadedById: userId,
       });
@@ -15766,7 +15766,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       
       const applicationData = insertRentalApplicationSchema.parse({
-        agencyId,
+        ...req.body,
         applicantId,
       });
 
@@ -16503,7 +16503,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       
       const requestData = insertTenantMaintenanceRequestSchema.parse({
-        agencyId,
+        ...req.body,
         rentalContractId: id,
         tenantId: userId,
         ownerId: rental.ownerId,
@@ -16878,7 +16878,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       const budgetData = insertBudgetSchema.parse({
-        agencyId,
+        ...req.body,
         staffId: req.body.staffId || userId,
       });
       
@@ -17003,7 +17003,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       // Clean special values
       const cleanedBody = {
-        agencyId,
+        ...req.body,
         budgetId: req.body.budgetId === "none" ? undefined : req.body.budgetId,
       };
 
@@ -17125,7 +17125,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const userId = req.user.claims.sub;
       const reportData = insertWorkReportSchema.parse({
-        agencyId,
+        ...req.body,
         staffId: req.body.staffId || userId,
       });
 
@@ -17410,7 +17410,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post("/api/chat/messages", isAuthenticated, async (req: any, res) => {
     try {
       const sanitizedBody = {
-        agencyId,
+        ...req.body,
         content: sanitizeText(req.body.content),
       };
       const messageData = insertChatMessageSchema.parse(sanitizedBody);
@@ -17908,7 +17908,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       const sanitizedBody = {
-        agencyId,
+        ...req.body,
         title: sanitizeText(req.body.title),
         description: sanitizeHtml(req.body.description),
       };
@@ -17978,7 +17978,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const user = userId ? await storage.getUser(userId) : null;
 
       const errorData = {
-        agencyId: user?.externalAgencyId || null,
+        ...req.body,
         userId,
         userEmail: user?.email || req.body.userEmail,
         userRole: user?.role || req.body.userRole,
@@ -18108,7 +18108,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const userId = (req.user as any).claims.sub;
       const validationResult = insertRentalCommissionConfigSchema.safeParse({
-        agencyId,
+        ...req.body,
         createdBy: userId,
       });
 
@@ -18214,7 +18214,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const userId = (req.user as any).claims.sub;
       const validationResult = insertAccountantAssignmentSchema.safeParse({
-        agencyId,
+        ...req.body,
         createdBy: userId,
       });
 
@@ -18322,7 +18322,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const batchNumber = await storage.generatePayoutBatchNumber();
 
       const validationResult = insertPayoutBatchSchema.safeParse({
-        agencyId,
+        ...req.body,
         batchNumber,
         createdBy: userId,
       });
@@ -18453,7 +18453,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const userId = (req.user as any).claims.sub;
       const validationResult = insertIncomeTransactionSchema.safeParse({
-        agencyId,
+        ...req.body,
         createdBy: userId,
       });
 
@@ -19988,7 +19988,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const userId = req.session.adminUser?.id || req.user?.claims?.sub;
       const validationResult = insertCondominiumFeeSchema.safeParse({
-        agencyId,
+        ...req.body,
         createdById: userId,
       });
 
@@ -20087,7 +20087,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const userId = req.user.claims.sub;
       const validationResult = insertCondominiumFeePaymentSchema.safeParse({
-        agencyId,
+        ...req.body,
         condominiumFeeId: req.params.feeId,
         registeredById: userId,
       });
@@ -20168,7 +20168,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const userId = req.user.claims.sub;
       const validationResult = insertCondominiumIssueSchema.safeParse({
-        agencyId,
+        ...req.body,
         reportedById: userId,
       });
 
@@ -20299,7 +20299,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const userId = req.user.claims.sub;
       const validationResult = insertHoaManagerAssignmentSchema.safeParse({
-        agencyId,
+        ...req.body,
         managerId: userId,
         status: "pending",
       });
@@ -20573,7 +20573,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const userId = req.user.claims.sub;
       const validationResult = insertHoaAnnouncementSchema.safeParse({
-        agencyId,
+        ...req.body,
         managerId: userId,
         isActive: false,
       });
@@ -21292,7 +21292,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const passwordHash = await bcrypt.hash(generatedPassword, 10);
 
       const userData = {
-        agencyId,
+        ...req.body,
         externalAgencyId: agencyId,
         passwordHash,
         requirePasswordChange: true,
@@ -21595,7 +21595,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       // Get all users with external agency roles that belong to this agency
-      const externalRoles = ["external_agency_admin", "external_agency_accounting", "external_agency_maintenance", "external_agency_staff", "external_agency_seller"];
+      const externalRoles = ["external_agency_admin", "external_agency_accounting", "external_agency_maintenance", "external_agency_staff"];
       const externalUsers = await db
         .select({
           id: users.id,
@@ -21611,7 +21611,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         .from(users)
         .where(and(
           inArray(users.role, externalRoles),
-          eq(users.externalAgencyId, agencyId)
+          eq(users.assignedToUser, agencyId)
         ))
         .orderBy(users.createdAt);
 
@@ -21635,7 +21635,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         firstName: z.string().min(1, "First name required"),
         lastName: z.string().min(1, "Last name required"),
         phone: z.string().optional(),
-        role: z.enum(["external_agency_admin", "external_agency_accounting", "external_agency_maintenance", "external_agency_staff", "external_agency_seller"]),
+        role: z.enum(["external_agency_admin", "external_agency_accounting", "external_agency_maintenance", "external_agency_staff"]),
         maintenanceSpecialty: z.enum(["encargado_mantenimiento", "mantenimiento_general", "electrico", "plomero", "refrigeracion", "carpintero", "pintor", "jardinero", "albanil", "limpieza"]).optional(),
       });
 
@@ -21646,7 +21646,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const existingUser = await storage.getUserByEmail(validatedData.email);
       console.log(`Existing user found:`, existingUser ? `Yes - ID: ${existingUser.id}, Role: ${existingUser.role}` : 'No');
       if (existingUser) {
-        return res.status(409).json({ message: "Este correo electrónico ya está registrado en el sistema" });
+        return res.status(400).json({ message: "User with this email already exists" });
       }
 
       // Generate temporary password
@@ -21664,7 +21664,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         status: "approved",
         emailVerified: true, // Auto-verify external agency users
         requirePasswordChange: true, // Force password change on first login
-        externalAgencyId: agencyId, // Link user to their external agency for multi-tenancy
+        assignedToUser: agencyId, // Link user to agency via assignedToUser field
         maintenanceSpecialty: validatedData.maintenanceSpecialty || null,
       });
 
@@ -21705,7 +21705,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         firstName: z.string().min(1, "First name required").optional(),
         lastName: z.string().min(1, "Last name required").optional(),
         phone: z.string().optional().nullable(),
-        role: z.enum(["external_agency_admin", "external_agency_accounting", "external_agency_maintenance", "external_agency_staff", "external_agency_seller"]).optional(),
+        role: z.enum(["external_agency_admin", "external_agency_accounting", "external_agency_maintenance", "external_agency_staff"]).optional(),
         maintenanceSpecialty: z.enum(["encargado_mantenimiento", "mantenimiento_general", "electrico", "plomero", "refrigeracion", "carpintero", "pintor", "jardinero", "albanil", "limpieza"]).optional().nullable(),
       });
 
@@ -22071,7 +22071,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
           unitId: externalUnitAccessControls.unitId,
           unitNumber: externalUnits.unitNumber,
           condominiumId: externalUnits.condominiumId,
-        agencyId: externalUnits.agencyId,
         })
         .from(externalUnitAccessControls)
         .innerJoin(externalUnits, eq(externalUnitAccessControls.unitId, externalUnits.id))
@@ -22166,7 +22165,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
           updatedAt: externalUnitAccessControls.updatedAt,
           unitNumber: externalUnits.unitNumber,
           condominiumId: externalUnits.condominiumId,
-        agencyId: externalUnits.agencyId,
         })
         .from(externalUnitAccessControls)
         .innerJoin(externalUnits, eq(externalUnitAccessControls.unitId, externalUnits.id))
@@ -22787,7 +22785,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // External Maintenance Tickets Routes
   app.get("/api/external-tickets", isAuthenticated, requireRole(EXTERNAL_ALL_ROLES), async (req: any, res) => {
     try {
-      const { propertyId, assignedTo, status, priority, category, condominiumId, dateFilter, search, sortField, sortOrder, page, pageSize } = req.query;
+      const { propertyId, assignedTo, status, priority } = req.query;
       
       if (propertyId) {
         const tickets = await storage.getExternalMaintenanceTicketsByProperty(propertyId);
@@ -22799,46 +22797,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.json(tickets);
       }
       
-      // Get agency ID from authenticated user (secure: never trust client-provided agencyId)
-      const userAgencyId = await getUserAgencyId(req);
-      if (!userAgencyId) {
-        return res.status(400).json({ message: "User is not assigned to any agency" });
+      // Get agency ID from authenticated user (admin/master can pass agencyId to view other agencies)
+      let agencyId = req.query.agencyId;
+      if (!agencyId) {
+        agencyId = await getUserAgencyId(req);
+        if (!agencyId) {
+          return res.status(400).json({ message: "User is not assigned to any agency" });
+        }
       }
       
-      // Use server-side pagination if page/pageSize are provided
-      if (page !== undefined && pageSize !== undefined) {
-        const pageNum = Math.max(1, parseInt(page as string) || 1);
-        const limit = Math.min(100, Math.max(1, parseInt(pageSize as string) || 20));
-        const offset = (pageNum - 1) * limit;
-        
-        const result = await storage.getExternalMaintenanceTicketsPaginated(userAgencyId, {
-          limit,
-          offset,
-          search: search as string,
-          status: status as string,
-          priority: priority as string,
-          category: category as string,
-          condominiumId: condominiumId as string,
-          dateFilter: dateFilter as string,
-          sortField: sortField as string,
-          sortOrder: sortOrder as 'asc' | 'desc',
-        });
-        
-        return res.json({
-          data: result.data,
-          total: result.total,
-          page: pageNum,
-          pageSize: limit,
-          totalPages: Math.ceil(result.total / limit),
-        });
-      }
-      
-      // Fallback: Legacy behavior without pagination (for backwards compatibility)
       const filters: any = {};
       if (status) filters.status = status;
       if (priority) filters.priority = priority;
       
-      const tickets = await storage.getExternalMaintenanceTicketsByAgency(userAgencyId, filters);
+      const tickets = await storage.getExternalMaintenanceTicketsByAgency(agencyId, filters);
       
       res.json(tickets);
     } catch (error: any) {
@@ -22865,12 +22837,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.post("/api/external-tickets", isAuthenticated, requireRole(EXTERNAL_MAINTENANCE_ROLES), async (req: any, res) => {
     try {
-      // Convert scheduledDate from ISO string to Date if present
-      const bodyWithConvertedDate = { ...req.body };
-      if (typeof req.body.scheduledDate === "string") {
-        bodyWithConvertedDate.scheduledDate = new Date(req.body.scheduledDate);
-      }
-      const validatedData = insertExternalMaintenanceTicketSchema.parse(bodyWithConvertedDate);
+      const validatedData = insertExternalMaintenanceTicketSchema.parse(req.body);
       const ticket = await storage.createExternalMaintenanceTicket({
         ...validatedData,
         createdBy: req.user.id,
@@ -23088,7 +23055,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!hasAccess) return;
       
       const validated = insertExternalMaintenanceUpdateSchema.parse({
-        agencyId,
+        ...req.body,
         ticketId: id,
         createdBy: userId,
         statusSnapshot: ticket.status,
@@ -23153,7 +23120,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!hasAccess) return;
       
       const validated = insertExternalMaintenancePhotoSchema.parse({
-        agencyId,
+        ...req.body,
         ticketId: id,
         uploadedBy: userId,
       });
@@ -23923,8 +23890,27 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ message: "No agency assigned to user" });
       }
 
-      // OPTIMIZED: Get all owners for agency with their units in a single efficient query
-      const owners = await storage.getExternalOwnersByAgency(agencyId);
+      // Get all units for this agency - already filtered by agency
+      const units = await storage.getExternalUnitsByAgency(agencyId);
+      
+      // Verify ownership for each unit (extra security layer)
+      for (const unit of units) {
+        const hasAccess = await verifyExternalAgencyOwnership(req, res, unit.agencyId);
+        if (!hasAccess) return;
+      }
+      
+      // Get all owners for all units
+      const ownersPromises = units.map(unit => storage.getExternalUnitOwnersByUnit(unit.id));
+      const ownersArrays = await Promise.all(ownersPromises);
+      
+      // Flatten and add unit info to each owner
+      const owners = ownersArrays.flat().map((owner) => {
+        const ownerUnit = units.find(u => u.id === owner.unitId);
+        return {
+          ...owner,
+          unit: ownerUnit
+        };
+      });
       
       res.json(owners);
     } catch (error: any) {
@@ -24418,7 +24404,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       
       const report = await storage.createExternalCheckoutReport({
-        agencyId,
+        ...req.body,
         agencyId,
         createdBy: req.user.id,
       });
@@ -24781,7 +24767,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Transform checkInDate from ISO string to Date before validation
       const requestData = {
         ...req.body,
-        agencyId,
         checkInDate: req.body.checkInDate ? new Date(req.body.checkInDate) : undefined,
       };
       
@@ -24919,31 +24904,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ message: "No leads to import" });
       }
 
-      // Map status from Excel to system status - expanded for common variations
+      // Map status from Excel to system status
       const statusMap: Record<string, string> = {
         'nuevo': 'nuevo_lead',
-        'nuevo lead': 'nuevo_lead',
-        'nuevo_lead': 'nuevo_lead',
-        'en proceso': 'cita_coordinada',
-        'en_proceso': 'cita_coordinada',
-        'contactado': 'interesado',
-        'interesado': 'interesado',
-        'cita agendada': 'cita_coordinada',
-        'cita coordinada': 'cita_coordinada',
-        'cita_coordinada': 'cita_coordinada',
-        'visita realizada': 'proceso_renta',
-        'negociando': 'oferta_enviada',
-        'oferta enviada': 'oferta_enviada',
-        'oferta_enviada': 'oferta_enviada',
-        'cerrado': 'renta_concretada',
-        'renta concretada': 'renta_concretada',
-        'renta_concretada': 'renta_concretada',
-        'proceso renta': 'proceso_renta',
-        'proceso_renta': 'proceso_renta',
-        'lead muerto': 'muerto',
-        'muerto': 'muerto',
-        'perdido': 'perdido',
-        'no interesado': 'perdido',
+        'en proceso': 'en_proceso',
+        'contactado': 'contactado',
+        'cita agendada': 'cita_agendada',
+        'visita realizada': 'visita_realizada',
+        'negociando': 'negociando',
+        'cerrado': 'cerrado',
+        'lead muerto': 'no_interesado',
+        'perdido': 'no_interesado',
         '': 'nuevo_lead',
       };
 
@@ -24951,173 +24922,81 @@ export async function registerRoutes(app: Express): Promise<Server> {
         imported: 0,
         duplicates: 0,
         errors: [] as Array<{ row: number; name: string; error: string }>,
-        warnings: [] as Array<{ row: number; name: string; warning: string }>,
-      };
-
-      // Pre-fetch ALL existing leads for this agency for duplicate detection
-      // Important: Include ALL leads (even expired) to prevent re-importing historical data
-      const existingLeads = await db.select()
-        .from(externalLeads)
-        .where(eq(externalLeads.agencyId, agencyId));
-
-      // Normalize function for names
-      const normalizeName = (name: string): string => {
-        return name.toLowerCase()
-          .normalize("NFD")
-          .replace(/[\u0300-\u036f]/g, "")
-          .replace(/[^a-z0-9]/g, '');
-      };
-
-      // Normalize phone for comparison
-      const normalizePhone = (phone: string): string => {
-        return phone.toString().replace(/[^\d]/g, '');
       };
 
       for (let i = 0; i < importData.length; i++) {
         const row = importData[i];
-        const rowNum = i + 2; // Account for header row (1-indexed)
-        
         try {
-          // Parse name - accept both frontend field names (fullName, firstName, lastName)
-          // and legacy field names (nombre, name)
-          let firstName = '';
-          let lastName = '';
-          
-          if (row.fullName) {
-            const nameParts = row.fullName.trim().split(' ');
-            firstName = nameParts[0] || '';
-            lastName = nameParts.slice(1).join(' ') || '';
-          } else if (row.firstName) {
-            firstName = row.firstName.trim();
-            lastName = (row.lastName || '').trim();
-          } else if (row.nombre || row.name) {
-            const fullName = (row.nombre || row.name || '').trim();
-            const nameParts = fullName.split(' ');
-            firstName = nameParts[0] || '';
-            lastName = nameParts.slice(1).join(' ') || '';
+          // Parse name into firstName and lastName
+          const fullName = (row.nombre || row.name || '').trim();
+          const nameParts = fullName.split(' ');
+          const firstName = nameParts[0] || 'Sin nombre';
+          const lastName = nameParts.slice(1).join(' ') || '-';
+
+          // Clean phone number
+          let phone = (row.telefono || row.phone || '').toString().replace(/[^\d+]/g, '');
+          if (!phone || phone.length < 4) {
+            phone = '0000';
           }
 
-          if (!firstName) {
-            results.errors.push({
-              row: rowNum,
-              name: 'Unknown',
-              error: 'Missing name (nombre, fullName, or firstName required)',
-            });
-            continue;
+          // Parse budget
+          let estimatedRentCost: number | null = null;
+          let estimatedRentCostText = (row.presupuesto || row.budget || '').toString();
+          const budgetMatch = estimatedRentCostText.match(/[\d,]+/);
+          if (budgetMatch) {
+            estimatedRentCost = parseInt(budgetMatch[0].replace(/,/g, ''), 10);
           }
 
-          // Clean and validate phone number - REQUIRED
-          const rawPhone = (row.phone || row.telefono || '').toString();
-          const phone = normalizePhone(rawPhone);
-          
-          if (!phone || phone.length < 7) {
-            results.errors.push({
-              row: rowNum,
-              name: `${firstName} ${lastName}`.trim(),
-              error: 'Invalid or missing phone number (minimum 7 digits required)',
-            });
-            continue;
+          // Parse bedrooms
+          let bedrooms: number | null = null;
+          let bedroomsText = (row.recamaras || row.bedrooms || '').toString();
+          const bedroomsMatch = bedroomsText.match(/^\d+/);
+          if (bedroomsMatch) {
+            bedrooms = parseInt(bedroomsMatch[0], 10);
           }
 
-          const phoneLast4 = phone.slice(-4);
-
-          // Email (optional but used for duplicate detection)
-          const email = (row.email || row.correo || '').toString().trim() || null;
-
-          // Parse original created date - with explicit error if missing
+          // Parse original created date
           let originalCreatedAt: Date | null = null;
-          const dateStr = (row.originalCreatedAt || row.fecha || row.date || '').toString();
-          
+          const dateStr = (row.fecha || row.date || '').toString();
           if (dateStr) {
-            // Try multiple date formats
             const datePatterns = [
-              /^(\d{1,2})\/(\d{1,2})\/(\d{4})$/,   // DD/MM/YYYY
-              /^(\d{1,2})\/(\d{1,2})\/(\d{2})$/,   // DD/MM/YY
-              /^(\d{4})-(\d{2})-(\d{2})/,           // YYYY-MM-DD
-              /^(\d{1,2})-(\d{1,2})-(\d{4})$/,     // DD-MM-YYYY
+              /^(\d{1,2})\/(\d{1,2})\/(\d{4})$/,
+              /^(\d{1,2})\/(\d{1,2})\/(\d{2})$/,
+              /^(\d{1,2})\/(\d{1,2})$/,
             ];
-            
             for (const pattern of datePatterns) {
               const match = dateStr.match(pattern);
               if (match) {
-                if (pattern.source.startsWith('^(\\d{4})')) {
-                  // YYYY-MM-DD format
-                  originalCreatedAt = new Date(parseInt(match[1], 10), parseInt(match[2], 10) - 1, parseInt(match[3], 10));
-                } else {
-                  // DD/MM/YYYY or DD-MM-YYYY format
-                  let day = parseInt(match[1], 10);
-                  let month = parseInt(match[2], 10) - 1;
-                  let year = match[3] ? (match[3].length === 2 ? 2000 + parseInt(match[3], 10) : parseInt(match[3], 10)) : new Date().getFullYear();
-                  originalCreatedAt = new Date(year, month, day);
-                }
+                let day = parseInt(match[1], 10);
+                let month = parseInt(match[2], 10) - 1;
+                let year = match[3] ? (match[3].length === 2 ? 2000 + parseInt(match[3], 10) : parseInt(match[3], 10)) : new Date().getFullYear();
+                originalCreatedAt = new Date(year, month, day);
                 break;
               }
             }
-            
-            // Try parsing as Excel serial date number
-            if (!originalCreatedAt && !isNaN(Number(dateStr))) {
-              const excelEpoch = new Date(1899, 11, 30);
-              originalCreatedAt = new Date(excelEpoch.getTime() + Number(dateStr) * 86400000);
-            }
           }
 
-          // Track warning if original date is missing - use current date but report to admin
-          if (!originalCreatedAt) {
-            originalCreatedAt = new Date();
-            results.warnings.push({
-              row: rowNum,
-              name: `${firstName} ${lastName}`.trim(),
-              warning: 'Missing registration date - using current date (lead will start fresh 3-month period)',
-            });
-          }
-
-          // Calculate validUntil (3 months from original date)
-          const validUntil = new Date(originalCreatedAt);
+          // Calculate validUntil (3 months from original date or now)
+          const baseDate = originalCreatedAt || new Date();
+          const validUntil = new Date(baseDate);
           validUntil.setMonth(validUntil.getMonth() + 3);
 
-          // Check if lead has already expired based on original date
-          if (validUntil < new Date()) {
-            // Lead's 3-month window has passed, can be imported fresh
-            validUntil.setTime(new Date().getTime());
-            validUntil.setMonth(validUntil.getMonth() + 3);
-          }
-
-          // Duplicate detection - comprehensive approach
-          const normalizedName = normalizeName(`${firstName}${lastName}`);
-          const normalizedPhone = normalizePhone(phone);
+          // Check for duplicates
+          const normalizedName = fullName.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9]/g, '');
+          const phoneLast4 = phone.slice(-4);
           
-          const isDuplicate = existingLeads.some(existing => {
-            // Primary: Check phone match
-            const existingPhone = normalizePhone(existing.phone || existing.phoneLast4 || '');
-            if (existingPhone.length >= 4 && normalizedPhone.length >= 4) {
-              // Compare last 4 digits
-              if (existingPhone.slice(-4) === phoneLast4) {
-                return true;
-              }
-              // Full phone match
-              if (existingPhone === normalizedPhone || existingPhone.endsWith(normalizedPhone) || normalizedPhone.endsWith(existingPhone)) {
-                return true;
-              }
-            }
-            
-            // Secondary: Email match
-            if (email && existing.email && email.toLowerCase() === existing.email.toLowerCase()) {
-              return true;
-            }
-            
-            // Tertiary: Name match (for brokers with masked phones)
-            const existingNormalizedName = normalizeName(`${existing.firstName}${existing.lastName}`);
-            if (existingNormalizedName === normalizedName && existingNormalizedName.length > 5) {
-              // Additional check: similar original date (within 7 days)
-              if (existing.originalCreatedAt && originalCreatedAt) {
-                const daysDiff = Math.abs(existing.originalCreatedAt.getTime() - originalCreatedAt.getTime()) / (1000 * 60 * 60 * 24);
-                if (daysDiff < 7) {
-                  return true;
-                }
-              }
-            }
-            
-            return false;
+          const existingLeads = await db.select()
+            .from(externalLeads)
+            .where(and(
+              eq(externalLeads.agencyId, agencyId),
+              gte(externalLeads.validUntil, new Date())
+            ));
+
+          const isDuplicate = existingLeads.some(lead => {
+            const existingNormalizedName = `\${lead.firstName}\${lead.lastName}`.toLowerCase()
+              .normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9]/g, '');
+            const existingPhoneLast4 = (lead.phone || lead.phoneLast4 || '').slice(-4);
+            return existingNormalizedName === normalizedName && existingPhoneLast4 === phoneLast4;
           });
 
           if (isDuplicate) {
@@ -25125,30 +25004,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
             continue;
           }
 
-          // Parse additional fields from frontend
-          const estimatedRentCostText = (row.estimatedRentCostText || row.presupuesto || row.budget || '').toString() || null;
-          let estimatedRentCost: number | null = null;
-          if (estimatedRentCostText) {
-            const budgetMatch = estimatedRentCostText.match(/[\d,]+/);
-            if (budgetMatch) {
-              estimatedRentCost = parseInt(budgetMatch[0].replace(/,/g, ''), 10);
-            }
-          }
-
-          const bedroomsText = (row.bedroomsText || row.recamaras || row.bedrooms || '').toString() || null;
-          let bedrooms: number | null = null;
-          if (bedroomsText) {
-            const bedroomsMatch = bedroomsText.match(/^\d+/);
-            if (bedroomsMatch) {
-              bedrooms = parseInt(bedroomsMatch[0], 10);
-            }
-          }
-
           // Map status
-          const rawStatus = (row.status || row.estado || '').toString().toLowerCase().trim();
+          const rawStatus = (row.estado || row.status || '').toString().toLowerCase().trim();
           const status = statusMap[rawStatus] || 'nuevo_lead';
 
-          // Create lead with all fields
+          // Create lead
           const leadData = {
             agencyId,
             registrationType: registrationType as 'broker' | 'seller',
@@ -25156,20 +25016,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
             lastName,
             phone,
             phoneLast4,
-            email,
-            contractDuration: (row.contractDuration || row.duracion || '').toString() || null,
-            checkInDateText: (row.checkInDateText || row.mudanza || row.checkInDate || '').toString() || null,
-            hasPets: (row.hasPets || row.mascotas || row.pets || '').toString() || null,
+            email: row.email || null,
+            contractDuration: row.duracion || row.contractDuration || null,
+            checkInDateText: row.mudanza || row.checkInDate || null,
+            hasPets: row.mascotas || row.pets || null,
             estimatedRentCost,
-            estimatedRentCostText,
+            estimatedRentCostText: estimatedRentCostText || null,
             bedrooms,
-            bedroomsText,
-            desiredUnitType: (row.desiredUnitType || row.tipo || row.unitType || '').toString() || null,
-            desiredProperty: (row.desiredProperty || row.propiedad || row.property || '').toString() || null,
-            preferredNeighborhood: (row.preferredNeighborhood || row.zona || row.neighborhood || '').toString() || null,
-            sellerName: (row.sellerName || row.vendedor || row.seller || '').toString() || null,
-            assistantSellerName: (row.assistantSellerName || row.vendedorSecundario || row.assistantSeller || '').toString() || null,
-            notes: (row.notes || row.notas || '').toString() || null,
+            bedroomsText: bedroomsText || null,
+            desiredUnitType: row.tipo || row.unitType || null,
+            desiredProperty: row.propiedad || row.property || null,
+            desiredNeighborhood: row.zona || row.neighborhood || null,
+            sellerName: row.vendedor || row.seller || null,
+            assistantSellerName: row.vendedorSecundario || row.assistantSeller || null,
+            notes: row.notas || row.notes || null,
             status: status as any,
             source: 'import',
             validUntil,
@@ -25180,32 +25040,23 @@ export async function registerRoutes(app: Express): Promise<Server> {
           await db.insert(externalLeads).values(leadData);
           results.imported++;
 
-          // Add to existing leads for duplicate detection in subsequent rows
-          existingLeads.push({
-            ...leadData,
-            id: 'temp-' + i,
-            createdAt: new Date(),
-            updatedAt: new Date(),
-          } as any);
-
         } catch (rowError: any) {
           results.errors.push({
-            row: rowNum,
-            name: (row.fullName || row.firstName || row.nombre || row.name || 'Unknown').toString(),
+            row: i + 1,
+            name: row.nombre || row.name || 'Unknown',
             error: rowError.message || 'Unknown error',
           });
         }
       }
 
       await createAuditLog(req, "create", "external_lead_import", null, 
-        `Imported ${results.imported} leads (${results.duplicates} duplicates skipped, ${results.errors.length} errors, ${results.warnings.length} warnings)`);
+        `Imported \${results.imported} leads (\${results.duplicates} duplicates skipped, \${results.errors.length} errors)`);
 
       res.json({
         success: true,
         imported: results.imported,
         duplicates: results.duplicates,
         errors: results.errors,
-        warnings: results.warnings,
         total: importData.length,
       });
     } catch (error: any) {
@@ -25446,7 +25297,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
         desiredNeighborhood,
         sellerName,
         source, 
-        notes 
+        notes,
+        interestedCondominiumId,
+        interestedUnitId
       } = req.body;
       
       // Basic validation
@@ -25498,6 +25351,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         registrationType: "broker",
         status: "nuevo_lead",
         source: source || "public_web_broker",
+        interestedCondominiumId: interestedCondominiumId || null,
+        interestedUnitId: interestedUnitId || null,
         notes,
       });
       
@@ -25508,6 +25363,44 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+
+  // GET /api/public/condominiums - Public list of condominiums for lead registration
+  app.get("/api/public/condominiums", async (req, res) => {
+    try {
+      const agencies = await storage.getAllExternalAgencies();
+      if (!agencies || agencies.length === 0) {
+        return res.json([]);
+      }
+      const agencyId = agencies[0].id;
+      const condominiums = await storage.getExternalCondominiumsByAgency(agencyId);
+      const publicCondos = condominiums.map(c => ({
+        id: c.id,
+        name: c.name,
+        neighborhood: c.neighborhood
+      }));
+      res.json(publicCondos);
+    } catch (error: any) {
+      console.error("Error fetching public condominiums:", error);
+      res.json([]);
+    }
+  });
+
+  // GET /api/public/condominiums/:condominiumId/units - Public list of units
+  app.get("/api/public/condominiums/:condominiumId/units", async (req, res) => {
+    try {
+      const { condominiumId } = req.params;
+      const units = await storage.getExternalUnitsByCondominium(condominiumId);
+      const publicUnits = units.map(u => ({
+        id: u.id,
+        unitNumber: u.unitNumber,
+        type: u.type
+      }));
+      res.json(publicUnits);
+    } catch (error: any) {
+      console.error("Error fetching public units:", error);
+      res.json([]);
+    }
+  });
   // GET /api/public/external/terms-and-conditions/active - Public endpoint to get active terms
   app.get("/api/public/external/terms-and-conditions/active", async (req, res) => {
     try {
@@ -25695,7 +25588,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const storageKey = req.body.objectPath;
       
       const validatedData = insertExternalClientDocumentSchema.parse({
-        agencyId,
+        ...req.body,
         clientId,
         storageKey,
         uploadedBy: req.user.id,
@@ -25780,7 +25673,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!hasAccess) return;
       
       const validatedData = insertExternalClientIncidentSchema.parse({
-        agencyId,
+        ...req.body,
         clientId,
         reportedBy: req.user.id,
       });
@@ -26592,12 +26485,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
           )
         : eq(externalUnits.agencyId, agencyId);
       
-      // Get id, unitNumber, condominiumId and agencyId for filter dropdowns
+      // Get only id, unitNumber, and condominiumId for filter dropdowns
       const units = await db.select({
         id: externalUnits.id,
         unitNumber: externalUnits.unitNumber,
         condominiumId: externalUnits.condominiumId,
-        agencyId: externalUnits.agencyId,
       })
         .from(externalUnits)
         .where(whereConditions)
@@ -27689,7 +27581,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!hasAccess) return;
       
       const noteData = insertExternalRentalNoteSchema.parse({
-        agencyId,
+        ...req.body,
         agencyId: contract.agencyId,
         contractId,
         createdBy: req.user.id,
@@ -28283,7 +28175,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         .from(users)
         .where(and(
           eq(users.role, "external_agency_maintenance"),
-          eq(users.externalAgencyId, agencyId)
+          eq(users.assignedToUser, agencyId)
         ))
         .orderBy(users.firstName);
 
@@ -28653,7 +28545,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       const transactionData = insertExternalFinancialTransactionSchema.parse({
-        agencyId,
+        ...req.body,
         agencyId,
         createdBy: req.user?.id || req.session?.userId,
       });
@@ -28792,7 +28684,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       const termsData = insertExternalTermsAndConditionsSchema.parse({
-        agencyId,
+        ...req.body,
         agencyId,
         createdBy: req.user.id,
       });
@@ -28955,18 +28847,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(403).json({ message: "User is not assigned to any agency" });
       }
 
-      // Convert numeric fields to strings and empty strings to null for FK fields
       const quotationData = insertExternalQuotationSchema.parse({
         ...req.body,
-        clientId: req.body.clientId || null,
-        propertyId: req.body.propertyId || null,
-        unitId: req.body.unitId || null,
-        subtotal: req.body.subtotal?.toString(),
-        adminFee: req.body.adminFee?.toString(),
-        adminFeePercentage: req.body.adminFeePercentage?.toString(),
-        total: req.body.total?.toString(),
         agencyId,
-        createdBy: req.user?.claims?.sub ?? req.user?.id,
+        createdBy: req.user.id,
       });
 
       const quotation = await storage.createExternalQuotation(quotationData);
@@ -28991,17 +28875,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(403).json({ message: "User is not assigned to any agency" });
       }
 
-      // Convert numeric fields to strings and empty strings to null for FK fields
-      const updates = updateExternalQuotationSchema.parse({
-        ...req.body,
-        clientId: req.body.clientId || null,
-        propertyId: req.body.propertyId || null,
-        unitId: req.body.unitId || null,
-        subtotal: req.body.subtotal?.toString(),
-        adminFee: req.body.adminFee?.toString(),
-        adminFeePercentage: req.body.adminFeePercentage?.toString(),
-        total: req.body.total?.toString(),
-      });
+      const updates = updateExternalQuotationSchema.parse(req.body);
       const quotation = await storage.updateExternalQuotation(id, agencyId, updates);
 
       await createAuditLog(req, "update", "external_quotation", id, "Updated quotation");
@@ -29157,40 +29031,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ message: "Agency not found" });
       }
 
-      // Get user who created the quotation
-      const createdByUser = quotation.createdBy ? await storage.getUser(quotation.createdBy) : null;
-
-      // Get client info if clientId exists
-      const client = quotation.clientId ? await storage.getExternalClient(quotation.clientId, agencyId) : null;
-
-      // Get unit info if unitId exists
-      const unit = quotation.unitId ? await storage.getExternalUnit(quotation.unitId, agencyId) : null;
-
-      // Count quotations to generate sequence number
-      const allQuotations = await storage.getExternalQuotations(agencyId);
-      const quotationIndex = allQuotations.findIndex((q: any) => q.id === quotation.id);
-      const sequenceNumber = allQuotations.length - quotationIndex;
-
-      // Prepare enhanced quotation data for PDF
-      const enhancedQuotation = {
-        ...quotation,
-        sequenceNumber,
-        clientName: client?.name || null,
-        clientEmail: client?.email || null,
-        clientPhone: client?.phone || null,
-        unitName: unit?.name || null,
-        createdByName: createdByUser ? `${createdByUser.firstName || ""} ${createdByUser.lastName || ""}`.trim() : null,
-      };
-
       // Prepare agency data for PDF
       const agencyData = {
         name: agency.name,
-        logo: agency.agencyLogoUrl || undefined,
-        contact: agency.contactPhone || agency.contactEmail || undefined,
+        contact: agency.phone || agency.email || undefined,
       };
 
       // Generate PDF
-      const pdfBuffer = await generateQuotationPDF(enhancedQuotation, agencyData);
+      const pdfBuffer = await generateQuotationPDF(quotation, agencyData);
 
       // Set headers for PDF download
       res.setHeader('Content-Type', 'application/pdf');
