@@ -2187,7 +2187,7 @@ export default function ExternalClients() {
         <TabsContent value="leads" className="space-y-6 mt-6">
           {/* Search and Filters for Leads */}
           <Card>
-            <CardContent className="pt-6">
+            <CardContent className="pt-6 space-y-4">
               <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
                 <div className="relative flex-1">
                   <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
@@ -2233,73 +2233,74 @@ export default function ExternalClients() {
                   </>
                 )}
 
-                <Popover>
-                  <PopoverTrigger asChild>
-                    <Button 
-                      variant="outline" 
-                      size="icon"
-                      className="flex-shrink-0 relative"
-                      data-testid="button-lead-filters"
-                    >
-                      <Filter className="h-4 w-4" />
-                      {(leadStatusFilter !== "all" || leadRegistrationTypeFilter !== "all") && (
-                        <Badge variant="default" className="absolute -top-1 -right-1 h-4 w-4 p-0 flex items-center justify-center text-[10px]">
-                          {(leadStatusFilter !== "all" ? 1 : 0) + (leadRegistrationTypeFilter !== "all" ? 1 : 0)}
-                        </Badge>
-                      )}
-                    </Button>
-                  </PopoverTrigger>
-                  <PopoverContent align="end" className="w-80">
-                    <div className="space-y-4">
-                      <div>
-                        <h4 className="font-medium mb-2">{language === "es" ? "Estado" : "Status"}</h4>
-                        <Select value={leadStatusFilter} onValueChange={setLeadStatusFilter}>
-                          <SelectTrigger data-testid="select-lead-status">
-                            <SelectValue />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="all">{language === "es" ? "Todos" : "All"}</SelectItem>
-                            <SelectItem value="nuevo_lead">{language === "es" ? "Nuevo Lead" : "New Lead"}</SelectItem>
-                            <SelectItem value="cita_coordinada">{language === "es" ? "Cita Coordinada" : "Appointment Scheduled"}</SelectItem>
-                            <SelectItem value="interesado">{language === "es" ? "Interesado" : "Interested"}</SelectItem>
-                            <SelectItem value="oferta_enviada">{language === "es" ? "Oferta Enviada" : "Offer Sent"}</SelectItem>
-                            <SelectItem value="proceso_renta">{language === "es" ? "Proceso de Renta" : "Rental Process"}</SelectItem>
-                            <SelectItem value="renta_concretada">{language === "es" ? "Renta Concretada" : "Rental Completed"}</SelectItem>
-                            <SelectItem value="perdido">{language === "es" ? "Perdido" : "Lost"}</SelectItem>
-                            <SelectItem value="muerto">{language === "es" ? "Muerto" : "Dead"}</SelectItem>
-                          </SelectContent>
-                        </Select>
-                      </div>
-                      <div>
-                        <h4 className="font-medium mb-2">{language === "es" ? "Tipo de Registro" : "Registration Type"}</h4>
-                        <Select value={leadRegistrationTypeFilter} onValueChange={setLeadRegistrationTypeFilter}>
-                          <SelectTrigger data-testid="select-lead-type">
-                            <SelectValue />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="all">{language === "es" ? "Todos" : "All"}</SelectItem>
-                            <SelectItem value="broker">{language === "es" ? "Broker" : "Broker"}</SelectItem>
-                            <SelectItem value="seller">{language === "es" ? "Vendedor" : "Seller"}</SelectItem>
-                          </SelectContent>
-                        </Select>
-                      </div>
-                      {(leadStatusFilter !== "all" || leadRegistrationTypeFilter !== "all") && (
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => {
-                            setLeadStatusFilter("all");
-                            setLeadRegistrationTypeFilter("all");
-                          }}
-                          className="w-full"
-                          data-testid="button-lead-clear-filters"
-                        >
-                          {language === "es" ? "Limpiar Filtros" : "Clear Filters"}
-                        </Button>
-                      )}
-                    </div>
-                  </PopoverContent>
-                </Popover>
+                {/* Clear Filters Button */}
+                {(leadStatusFilter !== "all" || leadRegistrationTypeFilter !== "all") && (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => {
+                      setLeadStatusFilter("all");
+                      setLeadRegistrationTypeFilter("all");
+                    }}
+                    className="flex-shrink-0"
+                    data-testid="button-lead-clear-filters"
+                  >
+                    <X className="h-4 w-4 mr-1" />
+                    {language === "es" ? "Limpiar" : "Clear"}
+                  </Button>
+                )}
+              </div>
+              
+              {/* Quick Status Filter Buttons */}
+              <div className="flex flex-wrap gap-2">
+                <span className="text-sm text-muted-foreground flex items-center mr-2">
+                  {language === "es" ? "Estado:" : "Status:"}
+                </span>
+                {[
+                  { value: "all", label: { es: "Todos", en: "All" } },
+                  { value: "nuevo_lead", label: { es: "Nuevo", en: "New" } },
+                  { value: "cita_coordinada", label: { es: "Cita", en: "Appt" } },
+                  { value: "interesado", label: { es: "Interesado", en: "Interested" } },
+                  { value: "oferta_enviada", label: { es: "Oferta", en: "Offer" } },
+                  { value: "proceso_renta", label: { es: "Proceso", en: "Process" } },
+                  { value: "renta_concretada", label: { es: "Cerrado", en: "Closed" } },
+                  { value: "perdido", label: { es: "Perdido", en: "Lost" } },
+                  { value: "muerto", label: { es: "Muerto", en: "Dead" } },
+                ].map((status) => (
+                  <Button
+                    key={status.value}
+                    variant={leadStatusFilter === status.value ? "default" : "outline"}
+                    size="sm"
+                    onClick={() => setLeadStatusFilter(status.value)}
+                    className="h-7 px-2 text-xs"
+                    data-testid={`button-filter-status-${status.value}`}
+                  >
+                    {language === "es" ? status.label.es : status.label.en}
+                  </Button>
+                ))}
+              </div>
+              
+              {/* Quick Registration Type Filter Buttons */}
+              <div className="flex flex-wrap gap-2">
+                <span className="text-sm text-muted-foreground flex items-center mr-2">
+                  {language === "es" ? "Tipo:" : "Type:"}
+                </span>
+                {[
+                  { value: "all", label: { es: "Todos", en: "All" } },
+                  { value: "broker", label: { es: "Broker", en: "Broker" } },
+                  { value: "seller", label: { es: "Vendedor", en: "Seller" } },
+                ].map((type) => (
+                  <Button
+                    key={type.value}
+                    variant={leadRegistrationTypeFilter === type.value ? "default" : "outline"}
+                    size="sm"
+                    onClick={() => setLeadRegistrationTypeFilter(type.value)}
+                    className="h-7 px-2 text-xs"
+                    data-testid={`button-filter-type-${type.value}`}
+                  >
+                    {language === "es" ? type.label.es : type.label.en}
+                  </Button>
+                ))}
               </div>
             </CardContent>
           </Card>
