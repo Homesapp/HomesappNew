@@ -138,6 +138,10 @@ export default function ExternalClients() {
   const [isEditLeadDialogOpen, setIsEditLeadDialogOpen] = useState(false);
   const [isDeleteLeadDialogOpen, setIsDeleteLeadDialogOpen] = useState(false);
   const [selectedLead, setSelectedLead] = useState<ExternalLead | null>(null);
+  const [selectedAgencyIdForLead, setSelectedAgencyIdForLead] = useState<string>("");
+  
+  // Check if user is master/admin (needs agency selection)
+  const isMasterOrAdmin = user?.role === 'master' || user?.role === 'admin';
   const [leadSearchTerm, setLeadSearchTerm] = useState("");
   const debouncedLeadSearchTerm = useDebounce(leadSearchTerm, 400);
   const [leadStatusFilter, setLeadStatusFilter] = useState<string>("all");
@@ -202,6 +206,19 @@ export default function ExternalClients() {
   const totalLeads = leadsResponse?.total || 0;
   const paginatedLeads = leads;
   const totalLeadPages = Math.max(1, Math.ceil(totalLeads / leadItemsPerPage));
+
+  // Fetch agencies for master/admin users to select when creating leads
+  const { data: agenciesData } = useQuery<{ id: string; name: string }[]>({
+    queryKey: ["/api/external-agencies"],
+    queryFn: async () => {
+      const response = await fetch(`/api/external-agencies`, { credentials: 'include' });
+      if (!response.ok) throw new Error('Failed to fetch agencies');
+      return response.json();
+    },
+    enabled: isMasterOrAdmin,
+    staleTime: 10 * 60 * 1000,
+  });
+  const agencies = agenciesData || [];
 
   useEffect(() => {
     const clampedPage = Math.min(leadCurrentPage, totalLeadPages);
@@ -380,7 +397,11 @@ export default function ExternalClients() {
 
   const createLeadMutation = useMutation({
     mutationFn: async (data: LeadFormData) => {
-      const res = await apiRequest("POST", "/api/external-leads", data);
+      // For master/admin users, include the selected agencyId
+      const payload = isMasterOrAdmin && selectedAgencyIdForLead 
+        ? { ...data, agencyId: selectedAgencyIdForLead }
+        : data;
+      const res = await apiRequest("POST", "/api/external-leads", payload);
       return res.json();
     },
     onSuccess: () => {
@@ -392,6 +413,7 @@ export default function ExternalClients() {
           : "Lead has been created successfully.",
       });
       setIsCreateLeadDialogOpen(false);
+      setSelectedAgencyIdForLead(""); // Reset agency selection
       leadForm.reset();
     },
     onError: (error: any) => {
@@ -1882,6 +1904,36 @@ export default function ExternalClients() {
           </DialogHeader>
           <Form {...leadForm}>
             <form onSubmit={leadForm.handleSubmit((data) => createLeadMutation.mutate(data))} className="space-y-4">
+              {/* Agency selector for master/admin users */}
+              {isMasterOrAdmin && (
+                <div className="space-y-2">
+                  <label className="text-sm font-medium">{language === "es" ? "Agencia *" : "Agency *"}</label>
+                  <Select 
+                    value={selectedAgencyIdForLead} 
+                    onValueChange={setSelectedAgencyIdForLead}
+                  >
+                    <SelectTrigger data-testid="select-create-lead-agency">
+                      <Building2 className="h-4 w-4 mr-2 text-muted-foreground" />
+                      <SelectValue placeholder={language === "es" ? "Seleccione la agencia" : "Select agency"} />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {agencies.map((agency) => (
+                        <SelectItem key={agency.id} value={agency.id} data-testid={`select-item-agency-${agency.id}`}>
+                          {agency.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  {isMasterOrAdmin && !selectedAgencyIdForLead && (
+                    <p className="text-xs text-muted-foreground">
+                      {language === "es" 
+                        ? "Como administrador, debes seleccionar una agencia para el lead."
+                        : "As an administrator, you must select an agency for the lead."}
+                    </p>
+                  )}
+                </div>
+              )}
+
               <FormField
                 control={leadForm.control}
                 name="registrationType"
@@ -2046,7 +2098,11 @@ export default function ExternalClients() {
                 >
                   {language === "es" ? "Cancelar" : "Cancel"}
                 </Button>
-                <Button type="submit" disabled={createLeadMutation.isPending} data-testid="button-create-lead-submit">
+                <Button 
+                  type="submit" 
+                  disabled={createLeadMutation.isPending || (isMasterOrAdmin && !selectedAgencyIdForLead)} 
+                  data-testid="button-create-lead-submit"
+                >
                   {createLeadMutation.isPending 
                     ? (language === "es" ? "Creando..." : "Creating...")
                     : (language === "es" ? "Crear Lead" : "Create Lead")}

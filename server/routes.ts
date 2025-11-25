@@ -24678,9 +24678,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // POST /api/external-leads - Create new lead
   app.post("/api/external-leads", isAuthenticated, requireRole([...EXTERNAL_ADMIN_ROLES, 'external_agency_seller']), async (req: any, res) => {
     try {
-      const agencyId = await getUserAgencyId(req);
+      const userRole = req.user?.role;
+      let agencyId = await getUserAgencyId(req);
+      
+      // Master/admin users can specify agencyId in the body
+      if ((userRole === 'master' || userRole === 'admin') && req.body.agencyId) {
+        agencyId = req.body.agencyId;
+      }
+      
       if (!agencyId) {
-        return res.status(403).json({ message: "No agency access" });
+        return res.status(403).json({ message: "No agency access. Master/Admin users must specify agencyId." });
       }
       
       const validatedData = insertExternalLeadSchema.parse(req.body);
