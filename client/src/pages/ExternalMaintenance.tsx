@@ -416,7 +416,13 @@ export default function ExternalMaintenance() {
       return await apiRequest('POST', '/api/external-tickets', payload);
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['/api/external-tickets'] });
+      // Invalidate all queries that start with /api/external-tickets
+      queryClient.invalidateQueries({ 
+        predicate: (query) => {
+          const key = query.queryKey[0];
+          return typeof key === 'string' && key.startsWith('/api/external-tickets');
+        }
+      });
       setShowDialog(false);
       setFormCondominiumId("");
       // Reset schedule and sync with form
@@ -451,16 +457,14 @@ export default function ExternalMaintenance() {
     mutationFn: async ({ ticketId, status }: { ticketId: string; status: string }) => {
       return await apiRequest('PATCH', `/api/external-tickets/${ticketId}/status`, { status });
     },
-    onSuccess: (_, variables) => {
-      const ticket = tickets?.find(t => t.id === variables.ticketId);
-      queryClient.invalidateQueries({ queryKey: ['/api/external-tickets'] });
-      if (ticket) {
-        const unit = units?.find(u => u.id === ticket.unitId);
-        if (unit) {
-          queryClient.invalidateQueries({ queryKey: ['/api/external-tickets', unit.condominiumId] });
-          queryClient.invalidateQueries({ queryKey: ['/api/external-tickets', unit.id] });
+    onSuccess: () => {
+      // Invalidate all queries that start with /api/external-tickets
+      queryClient.invalidateQueries({ 
+        predicate: (query) => {
+          const key = query.queryKey[0];
+          return typeof key === 'string' && key.startsWith('/api/external-tickets');
         }
-      }
+      });
       toast({
         title: language === "es" ? "Estado actualizado" : "Status updated",
         description: language === "es" ? "El estado del ticket se actualizó exitosamente" : "Ticket status updated successfully",
@@ -489,16 +493,14 @@ export default function ExternalMaintenance() {
     mutationFn: async ({ ticketId, data }: { ticketId: string; data: EditMaintenanceFormData }) => {
       return await apiRequest('PATCH', `/api/external-tickets/${ticketId}`, data);
     },
-    onSuccess: (_, variables) => {
-      const ticket = tickets?.find(t => t.id === variables.ticketId);
-      queryClient.invalidateQueries({ queryKey: ['/api/external-tickets'] });
-      if (ticket) {
-        const unit = units?.find(u => u.id === ticket.unitId);
-        if (unit) {
-          queryClient.invalidateQueries({ queryKey: ['/api/external-tickets', unit.condominiumId] });
-          queryClient.invalidateQueries({ queryKey: ['/api/external-tickets', unit.id] });
+    onSuccess: () => {
+      // Invalidate all queries that start with /api/external-tickets
+      queryClient.invalidateQueries({ 
+        predicate: (query) => {
+          const key = query.queryKey[0];
+          return typeof key === 'string' && key.startsWith('/api/external-tickets');
         }
-      }
+      });
       setShowEditDialog(false);
       setEditingTicket(null);
       editForm.reset();
