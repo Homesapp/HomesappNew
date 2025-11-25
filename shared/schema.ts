@@ -5047,6 +5047,276 @@ export const insertExternalAgencyIntegrationSchema = createInsertSchema(external
 export type InsertExternalAgencyIntegration = z.infer<typeof insertExternalAgencyIntegrationSchema>;
 export type ExternalAgencyIntegration = typeof externalAgencyIntegrations.$inferSelect;
 
+// External Permission Sections - Sections of the external agency system
+export const EXTERNAL_PERMISSION_SECTIONS = [
+  "dashboard",
+  "condominiums", 
+  "units",
+  "owners",
+  "clients",
+  "leads",
+  "rentals",
+  "payments",
+  "maintenance",
+  "workers",
+  "calendar",
+  "accounting",
+  "configuration",
+  "accounts",
+  "quotations",
+  "accesses",
+] as const;
+
+export type ExternalPermissionSection = typeof EXTERNAL_PERMISSION_SECTIONS[number];
+
+// External Permission Actions - Actions that can be performed in each section
+export const EXTERNAL_PERMISSION_ACTIONS = [
+  "view",
+  "create",
+  "edit",
+  "delete",
+  "import",
+  "export",
+  "assign",
+  "reassign",
+  "approve",
+  "cancel",
+  "generate_pdf",
+  "share",
+  "send_reminder",
+  "mark_paid",
+  "toggle_status",
+  "send_codes",
+  "sync",
+  "manage_permissions",
+] as const;
+
+export type ExternalPermissionAction = typeof EXTERNAL_PERMISSION_ACTIONS[number];
+
+// Default permissions per role
+export const DEFAULT_ROLE_PERMISSIONS: Record<string, Record<ExternalPermissionSection, ExternalPermissionAction[]>> = {
+  external_agency_admin: {
+    dashboard: ["view"],
+    condominiums: ["view", "create", "edit", "delete", "import"],
+    units: ["view", "create", "edit", "delete", "toggle_status", "import"],
+    owners: ["view", "create", "edit", "delete"],
+    clients: ["view", "create", "edit", "delete", "assign"],
+    leads: ["view", "create", "edit", "delete", "import", "reassign"],
+    rentals: ["view", "create", "edit", "delete", "cancel", "generate_pdf"],
+    payments: ["view", "create", "edit", "delete", "mark_paid", "send_reminder"],
+    maintenance: ["view", "create", "edit", "delete", "assign"],
+    workers: ["view", "create", "edit", "delete", "assign"],
+    calendar: ["view", "create", "edit", "delete", "sync"],
+    accounting: ["view", "create", "edit", "delete", "export"],
+    configuration: ["view", "edit"],
+    accounts: ["view", "create", "edit", "delete", "manage_permissions"],
+    quotations: ["view", "create", "edit", "delete", "generate_pdf", "share"],
+    accesses: ["view", "create", "edit", "delete", "send_codes"],
+  },
+  external_agency_accounting: {
+    dashboard: ["view"],
+    condominiums: ["view"],
+    units: ["view"],
+    owners: ["view"],
+    clients: ["view"],
+    leads: ["view"],
+    rentals: ["view", "generate_pdf"],
+    payments: ["view", "create", "edit", "mark_paid", "send_reminder"],
+    maintenance: ["view"],
+    workers: ["view"],
+    calendar: ["view"],
+    accounting: ["view", "create", "edit", "export"],
+    configuration: ["view"],
+    accounts: ["view"],
+    quotations: ["view", "create", "edit", "generate_pdf", "share"],
+    accesses: ["view"],
+  },
+  external_agency_maintenance: {
+    dashboard: ["view"],
+    condominiums: ["view"],
+    units: ["view", "edit"],
+    owners: ["view"],
+    clients: ["view"],
+    leads: ["view"],
+    rentals: ["view"],
+    payments: ["view"],
+    maintenance: ["view", "create", "edit", "assign"],
+    workers: ["view", "edit", "assign"],
+    calendar: ["view", "create", "edit"],
+    accounting: ["view"],
+    configuration: ["view"],
+    accounts: ["view"],
+    quotations: ["view", "create", "edit", "generate_pdf"],
+    accesses: ["view", "create", "edit", "send_codes"],
+  },
+  external_agency_staff: {
+    dashboard: ["view"],
+    condominiums: ["view"],
+    units: ["view"],
+    owners: ["view"],
+    clients: ["view", "create", "edit"],
+    leads: ["view", "create", "edit"],
+    rentals: ["view", "generate_pdf"],
+    payments: ["view"],
+    maintenance: ["view", "create"],
+    workers: ["view"],
+    calendar: ["view"],
+    accounting: ["view"],
+    configuration: ["view"],
+    accounts: ["view"],
+    quotations: ["view", "generate_pdf"],
+    accesses: ["view"],
+  },
+  external_agency_seller: {
+    dashboard: ["view"],
+    condominiums: ["view"],
+    units: ["view"],
+    owners: ["view"],
+    clients: ["view", "create", "edit"],
+    leads: ["view", "create", "edit"],
+    rentals: ["view"],
+    payments: ["view"],
+    maintenance: ["view"],
+    workers: ["view"],
+    calendar: ["view"],
+    accounting: [],
+    configuration: [],
+    accounts: [],
+    quotations: ["view"],
+    accesses: ["view"],
+  },
+};
+
+// Section labels for UI
+export const PERMISSION_SECTION_LABELS = {
+  es: {
+    dashboard: "Panel Principal",
+    condominiums: "Condominios",
+    units: "Unidades",
+    owners: "Propietarios",
+    clients: "Clientes",
+    leads: "Leads",
+    rentals: "Rentas/Contratos",
+    payments: "Pagos",
+    maintenance: "Mantenimiento",
+    workers: "Trabajadores",
+    calendar: "Calendario",
+    accounting: "Contabilidad",
+    configuration: "Configuración",
+    accounts: "Cuentas de Usuario",
+    quotations: "Cotizaciones",
+    accesses: "Control de Accesos",
+  },
+  en: {
+    dashboard: "Dashboard",
+    condominiums: "Condominiums",
+    units: "Units",
+    owners: "Owners",
+    clients: "Clients",
+    leads: "Leads",
+    rentals: "Rentals/Contracts",
+    payments: "Payments",
+    maintenance: "Maintenance",
+    workers: "Workers",
+    calendar: "Calendar",
+    accounting: "Accounting",
+    configuration: "Configuration",
+    accounts: "User Accounts",
+    quotations: "Quotations",
+    accesses: "Access Control",
+  },
+};
+
+// Action labels for UI
+export const PERMISSION_ACTION_LABELS = {
+  es: {
+    view: "Ver",
+    create: "Crear",
+    edit: "Editar",
+    delete: "Eliminar",
+    import: "Importar",
+    export: "Exportar",
+    assign: "Asignar",
+    reassign: "Reasignar",
+    approve: "Aprobar",
+    cancel: "Cancelar",
+    generate_pdf: "Generar PDF",
+    share: "Compartir",
+    send_reminder: "Enviar Recordatorio",
+    mark_paid: "Marcar Pagado",
+    toggle_status: "Cambiar Estado",
+    send_codes: "Enviar Códigos",
+    sync: "Sincronizar",
+    manage_permissions: "Gestionar Permisos",
+  },
+  en: {
+    view: "View",
+    create: "Create",
+    edit: "Edit",
+    delete: "Delete",
+    import: "Import",
+    export: "Export",
+    assign: "Assign",
+    reassign: "Reassign",
+    approve: "Approve",
+    cancel: "Cancel",
+    generate_pdf: "Generate PDF",
+    share: "Share",
+    send_reminder: "Send Reminder",
+    mark_paid: "Mark Paid",
+    toggle_status: "Toggle Status",
+    send_codes: "Send Codes",
+    sync: "Sync",
+    manage_permissions: "Manage Permissions",
+  },
+};
+
+// External Role Permissions - Permisos por rol para cada agencia
+export const externalRolePermissions = pgTable("external_role_permissions", {
+  id: varchar("id").primaryKey().$defaultFn(() => crypto.randomUUID()),
+  agencyId: varchar("agency_id").notNull().references(() => externalAgencies.id, { onDelete: "cascade" }),
+  role: varchar("role", { length: 50 }).notNull(), // external_agency_admin, external_agency_accounting, etc.
+  section: varchar("section", { length: 50 }).notNull(), // dashboard, condominiums, etc.
+  action: varchar("action", { length: 50 }).notNull(), // view, create, edit, delete, etc.
+  allowed: boolean("allowed").notNull().default(true),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+}, (table) => [
+  index("idx_external_role_permissions_agency").on(table.agencyId),
+  index("idx_external_role_permissions_role").on(table.role),
+  uniqueIndex("idx_external_role_permissions_unique").on(table.agencyId, table.role, table.section, table.action),
+]);
+
+export const insertExternalRolePermissionSchema = createInsertSchema(externalRolePermissions).omit({
+  id: true,
+  updatedAt: true,
+});
+
+export type InsertExternalRolePermission = z.infer<typeof insertExternalRolePermissionSchema>;
+export type ExternalRolePermission = typeof externalRolePermissions.$inferSelect;
+
+// External User Permissions - Permisos específicos por usuario (sobrescriben los de rol)
+export const externalUserPermissions = pgTable("external_user_permissions", {
+  id: varchar("id").primaryKey().$defaultFn(() => crypto.randomUUID()),
+  agencyId: varchar("agency_id").notNull().references(() => externalAgencies.id, { onDelete: "cascade" }),
+  userId: varchar("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  section: varchar("section", { length: 50 }).notNull(), // dashboard, condominiums, etc.
+  action: varchar("action", { length: 50 }).notNull(), // view, create, edit, delete, etc.
+  allowed: boolean("allowed").notNull(), // true = grant, false = deny (override)
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+}, (table) => [
+  index("idx_external_user_permissions_agency").on(table.agencyId),
+  index("idx_external_user_permissions_user").on(table.userId),
+  uniqueIndex("idx_external_user_permissions_unique").on(table.agencyId, table.userId, table.section, table.action),
+]);
+
+export const insertExternalUserPermissionSchema = createInsertSchema(externalUserPermissions).omit({
+  id: true,
+  updatedAt: true,
+});
+
+export type InsertExternalUserPermission = z.infer<typeof insertExternalUserPermissionSchema>;
+export type ExternalUserPermission = typeof externalUserPermissions.$inferSelect;
+
 // External Properties - Propiedades gestionadas externamente
 export const externalProperties = pgTable("external_properties", {
   id: varchar("id").primaryKey().$defaultFn(() => crypto.randomUUID()),
