@@ -157,6 +157,7 @@ export default function ExternalClients() {
   const [isCreateLeadDialogOpen, setIsCreateLeadDialogOpen] = useState(false);
   const [isEditLeadDialogOpen, setIsEditLeadDialogOpen] = useState(false);
   const [isDeleteLeadDialogOpen, setIsDeleteLeadDialogOpen] = useState(false);
+  const [isLeadDetailOpen, setIsLeadDetailOpen] = useState(false);
   const [selectedLead, setSelectedLead] = useState<ExternalLead | null>(null);
   const [selectedAgencyIdForLead, setSelectedAgencyIdForLead] = useState<string>("");
   
@@ -814,6 +815,16 @@ export default function ExternalClients() {
   const handleDelete = (client: ExternalClient) => {
     setSelectedClient(client);
     setIsDeleteDialogOpen(true);
+  };
+
+  const handleClientClick = (client: ExternalClient) => {
+    setSelectedClient(client);
+    setIsClientDetailOpen(true);
+  };
+
+  const handleLeadClick = (lead: ExternalLead) => {
+    setSelectedLead(lead);
+    setIsLeadDetailOpen(true);
   };
 
   const SortableHeader = ({ field, children }: { field: SortField; children: string }) => (
@@ -2243,6 +2254,23 @@ export default function ExternalClients() {
             </CardContent>
           </Card>
 
+          {/* Pagination Controls - Above table for visual consistency */}
+          {!leadsLoading && paginatedLeads.length > 0 && viewMode !== "kanban" && (
+            <ExternalPaginationControls
+              currentPage={leadCurrentPage}
+              totalPages={totalLeadPages}
+              totalItems={totalLeads}
+              itemsPerPage={leadItemsPerPage}
+              onPageChange={setLeadCurrentPage}
+              onItemsPerPageChange={(value) => {
+                setLeadItemsPerPage(value);
+                setLeadCurrentPage(1);
+              }}
+              language={language}
+              isMobile={isMobile}
+            />
+          )}
+
           {/* Leads Content */}
           {leadsLoading ? (
             <div className="flex justify-center py-12">
@@ -2273,6 +2301,7 @@ export default function ExternalClients() {
                     setSelectedLead(lead);
                     setIsDeleteLeadDialogOpen(true);
                   }}
+                  onViewDetail={handleLeadClick}
                 />
               ) : viewMode === "table" ? (
                 <Card>
@@ -2291,7 +2320,11 @@ export default function ExternalClients() {
                       </TableHeader>
                       <TableBody>
                         {paginatedLeads.map((lead) => (
-                          <TableRow key={lead.id}>
+                          <TableRow 
+                            key={lead.id} 
+                            className="cursor-pointer hover:bg-muted/50"
+                            onClick={() => handleLeadClick(lead)}
+                          >
                             <TableCell className="font-medium">{`${lead.firstName} ${lead.lastName}`}</TableCell>
                             <TableCell>
                               <Badge variant={lead.registrationType === "broker" ? "default" : "secondary"}>
@@ -2320,7 +2353,7 @@ export default function ExternalClients() {
                               {lead.createdAt ? format(new Date(lead.createdAt), "dd MMM yyyy", { locale: language === "es" ? es : enUS }) : "-"}
                             </TableCell>
                             <TableCell className="text-right">
-                              <div className="flex justify-end gap-2">
+                              <div className="flex justify-end gap-2" onClick={(e) => e.stopPropagation()}>
                                 <Button
                                   variant="ghost"
                                   size="icon"
@@ -2355,7 +2388,11 @@ export default function ExternalClients() {
               ) : (
                 <div className="grid gap-4 md:grid-cols-2">
                   {paginatedLeads.map((lead) => (
-                    <Card key={lead.id} className="hover-elevate">
+                    <Card 
+                      key={lead.id} 
+                      className="hover-elevate cursor-pointer"
+                      onClick={() => handleLeadClick(lead)}
+                    >
                       <CardHeader>
                         <div className="flex items-start justify-between">
                           <div className="space-y-1">
@@ -2372,7 +2409,7 @@ export default function ExternalClients() {
                               </Badge>
                             </div>
                           </div>
-                          <div className="flex gap-1">
+                          <div className="flex gap-1" onClick={(e) => e.stopPropagation()}>
                             <Button
                               variant="ghost"
                               size="icon"
@@ -2434,19 +2471,6 @@ export default function ExternalClients() {
                 </div>
               )}
 
-              <ExternalPaginationControls
-                currentPage={leadCurrentPage}
-                totalPages={totalLeadPages}
-                totalItems={totalLeads}
-                itemsPerPage={leadItemsPerPage}
-                onPageChange={setLeadCurrentPage}
-                onItemsPerPageChange={(value) => {
-                  setLeadItemsPerPage(value);
-                  setLeadCurrentPage(1);
-                }}
-                language={language}
-                isMobile={isMobile}
-              />
             </>
           )}
         </TabsContent>
