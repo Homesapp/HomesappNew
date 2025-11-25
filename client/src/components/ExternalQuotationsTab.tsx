@@ -42,7 +42,7 @@ import {
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import type { ExternalQuotation } from "@shared/schema";
-import { FileText, Plus, Send, Check, X, Ban, Link2, Trash2, Eye, Pencil, Search, Filter, LayoutGrid, Table as TableIcon } from "lucide-react";
+import { FileText, Plus, Send, Check, X, Ban, Link2, Trash2, Eye, Pencil, Search, Filter, LayoutGrid, Table as TableIcon, Download } from "lucide-react";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { useMobile } from "@/hooks/use-mobile";
 import { useAuth } from "@/hooks/useAuth";
@@ -74,7 +74,7 @@ const quotationFormSchema = z.object({
   notes: z.string().optional(),
   terms: z.string().optional(),
   currency: z.string().default("MXN"),
-  status: z.enum(["draft", "sent", "accepted", "rejected", "cancelled"]).default("draft"),
+  status: z.enum(["draft", "sent", "approved", "rejected", "cancelled"]).default("draft"),
 });
 
 type QuotationFormData = z.infer<typeof quotationFormSchema>;
@@ -82,7 +82,7 @@ type QuotationFormData = z.infer<typeof quotationFormSchema>;
 const statusConfig = {
   draft: { label: "Borrador", color: "bg-gray-500", icon: FileText },
   sent: { label: "Enviada", color: "bg-blue-500", icon: Send },
-  accepted: { label: "Aceptada", color: "bg-green-500", icon: Check },
+  approved: { label: "Aceptada", color: "bg-green-500", icon: Check },
   rejected: { label: "Rechazada", color: "bg-red-500", icon: X },
   cancelled: { label: "Cancelada", color: "bg-gray-600", icon: Ban },
 };
@@ -246,6 +246,50 @@ export default function ExternalQuotations() {
     onError: (error: any) => {
       toast({
         title: "Error al generar enlace",
+        description: error.message,
+        variant: "destructive",
+      });
+    },
+  });
+
+  // Download PDF mutation
+  const downloadPdfMutation = useMutation({
+    mutationFn: async ({ quotationId, quotationTitle }: { quotationId: string; quotationTitle: string }) => {
+      const response = await fetch(`/api/external/quotations/${quotationId}/pdf`, {
+        credentials: 'include',
+      });
+      
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.message || 'Error al generar PDF');
+      }
+      
+      const blob = await response.blob();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      // Normalize and sanitize filename preserving Unicode characters
+      const safeName = quotationTitle
+        .normalize('NFD')
+        .replace(/[\u0300-\u036f]/g, '') // Remove diacritics
+        .replace(/[^\w\s-]/g, '') // Remove special chars except word chars, spaces, hyphens
+        .replace(/\s+/g, '-') // Replace spaces with hyphens
+        .toLowerCase()
+        .slice(0, 50); // Limit length
+      a.download = `cotizacion-${safeName || quotationId}.pdf`;
+      document.body.appendChild(a);
+      a.click();
+      window.URL.revokeObjectURL(url);
+      document.body.removeChild(a);
+      
+      return { success: true };
+    },
+    onSuccess: () => {
+      toast({ title: "PDF descargado exitosamente" });
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Error al descargar PDF",
         description: error.message,
         variant: "destructive",
       });
@@ -896,7 +940,7 @@ export default function ExternalQuotations() {
                             <Button
                               variant="ghost"
                               size="icon"
-                              onClick={() => updateStatusMutation.mutate({ id: quotation.id, status: "accepted" })}
+                              onClick={() => updateStatusMutation.mutate({ id: quotation.id, status: "approved" })}
                               data-testid={`button-accept-${quotation.id}`}
                             >
                               <Check className="h-4 w-4 text-green-500" />
@@ -918,6 +962,16 @@ export default function ExternalQuotations() {
                           data-testid={`button-share-${quotation.id}`}
                         >
                           <Link2 className="h-4 w-4" />
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => downloadPdfMutation.mutate({ quotationId: quotation.id, quotationTitle: quotation.title })}
+                          data-testid={`button-download-${quotation.id}`}
+                          title="Descargar PDF"
+                          disabled={downloadPdfMutation.isPending}
+                        >
+                          <Download className={`h-4 w-4 ${downloadPdfMutation.isPending ? 'animate-pulse' : ''}`} />
                         </Button>
                         <Button
                           variant="ghost"
@@ -1007,7 +1061,7 @@ export default function ExternalQuotations() {
                             <Button
                               variant="outline"
                               size="sm"
-                              onClick={() => updateStatusMutation.mutate({ id: quotation.id, status: "accepted" })}
+                              onClick={() => updateStatusMutation.mutate({ id: quotation.id, status: "approved" })}
                               data-testid={`button-accept-${quotation.id}`}
                             >
                               <Check className="h-3 w-3 mr-1 text-green-500" />
@@ -1032,6 +1086,16 @@ export default function ExternalQuotations() {
                         >
                           <Link2 className="h-3 w-3 mr-1" />
                           Compartir
+                        </Button>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => downloadPdfMutation.mutate({ quotationId: quotation.id, quotationTitle: quotation.title })}
+                          data-testid={`button-download-card-${quotation.id}`}
+                          disabled={downloadPdfMutation.isPending}
+                        >
+                          <Download className={`h-3 w-3 mr-1 ${downloadPdfMutation.isPending ? 'animate-pulse' : ''}`} />
+                          {downloadPdfMutation.isPending ? 'Generando...' : 'PDF'}
                         </Button>
                         <Button
                           variant="outline"
