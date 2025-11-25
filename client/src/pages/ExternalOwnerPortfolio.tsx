@@ -140,6 +140,8 @@ export default function ExternalOwnerPortfolio() {
   const [prevIsMobile, setPrevIsMobile] = useState(isMobile);
   const [openDialog, setOpenDialog] = useState(false);
   const [editingOwner, setEditingOwner] = useState<ExternalUnitOwner | null>(null);
+  const [formCondominiumId, setFormCondominiumId] = useState<string>("");
+  const [unitSearchTerm, setUnitSearchTerm] = useState<string>("");
   const [originalGroupingKey, setOriginalGroupingKey] = useState<string | null>(null);
   const [minUnits, setMinUnits] = useState<number>(0);
   const [minOccupancy, setMinOccupancy] = useState<number>(0);
@@ -236,7 +238,7 @@ export default function ExternalOwnerPortfolio() {
   // Create owner mutation
   const createOwnerMutation = useMutation({
     mutationFn: async (data: OwnerFormValues) => {
-      return await apiRequest("/api/external-owners", {
+      return await apiRequest("/api/external-unit-owners", {
         method: "POST",
         body: JSON.stringify(data),
       });
@@ -252,14 +254,22 @@ export default function ExternalOwnerPortfolio() {
       setOpenDialog(false);
       form.reset();
     },
-    onError: () => {
+    onError: (error: any) => {
+      let errorMessage = language === 'es' 
+        ? "No se pudo crear el propietario" 
+        : "Could not create owner";
+      
+      // Try to extract backend error message
+      if (error?.message) {
+        errorMessage = error.message;
+      }
+      
       toast({
         variant: "destructive",
         title: language === 'es' ? "Error" : "Error",
-        description: language === 'es' 
-          ? "No se pudo crear el propietario" 
-          : "Could not create owner",
+        description: errorMessage,
       });
+      console.error("Create owner error:", error);
     },
   });
 
@@ -276,7 +286,7 @@ export default function ExternalOwnerPortfolio() {
 
       // Update all matching records
       const updatePromises = ownersToUpdate.map(owner =>
-        apiRequest(`/api/external-owners/${owner.id}`, {
+        apiRequest(`/api/external-unit-owners/${owner.id}`, {
           method: "PATCH",
           body: JSON.stringify({
             ownerName: updateData.ownerName,
@@ -303,14 +313,22 @@ export default function ExternalOwnerPortfolio() {
       setOriginalGroupingKey(null);
       form.reset();
     },
-    onError: () => {
+    onError: (error: any) => {
+      let errorMessage = language === 'es' 
+        ? "No se pudo actualizar el propietario" 
+        : "Could not update owner";
+      
+      // Try to extract backend error message
+      if (error?.message) {
+        errorMessage = error.message;
+      }
+      
       toast({
         variant: "destructive",
         title: language === 'es' ? "Error" : "Error",
-        description: language === 'es' 
-          ? "No se pudo actualizar el propietario" 
-          : "Could not update owner",
+        description: errorMessage,
       });
+      console.error("Update owner error:", error);
     },
   });
 
@@ -1404,6 +1422,8 @@ export default function ExternalOwnerPortfolio() {
         if (!open) {
           setEditingOwner(null);
           setOriginalGroupingKey(null);
+          setFormCondominiumId("");
+          setUnitSearchTerm("");
           form.reset();
         }
       }}>
@@ -1480,43 +1500,107 @@ export default function ExternalOwnerPortfolio() {
                 )}
               />
 
+              {/* Condominium selector (step 1) - optional for filtering units */}
+              {condominiums && condominiums.length > 0 && (
+                <FormItem>
+                  <FormLabel>{language === 'es' ? 'Condominio' : 'Condominium'}</FormLabel>
+                  <Select 
+                    onValueChange={(value) => {
+                      const newCondoId = value === "__all__" ? "" : value;
+                      setFormCondominiumId(newCondoId);
+                      setUnitSearchTerm("");
+                      // Only clear unitId if the currently selected unit doesn't match the new filter
+                      const currentUnitId = form.getValues('unitId');
+                      if (currentUnitId && newCondoId) {
+                        const currentUnit = units?.find(u => u.id === currentUnitId);
+                        if (currentUnit && currentUnit.condominiumId !== newCondoId) {
+                          form.setValue('unitId', '');
+                        }
+                      }
+                    }}
+                    value={formCondominiumId || "__all__"}
+                    disabled={!!editingOwner}
+                  >
+                    <FormControl>
+                      <SelectTrigger data-testid="select-condominium">
+                        <SelectValue placeholder={language === 'es' ? 'Filtrar por condominio (opcional)' : 'Filter by condominium (optional)'} />
+                      </SelectTrigger>
+                    </FormControl>
+                    <SelectContent>
+                      <SelectItem value="__all__">
+                        {language === 'es' ? 'Todos los condominios' : 'All condominiums'}
+                      </SelectItem>
+                      {condominiums?.map(condo => (
+                        <SelectItem key={condo.id} value={condo.id}>
+                          {condo.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </FormItem>
+              )}
+
+              {/* Unit selector (step 2) - filtered by condominium */}
               <FormField
                 control={form.control}
                 name="unitId"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>{language === 'es' ? 'Unidad' : 'Unit'} *</FormLabel>
-                    <Select 
-                      onValueChange={field.onChange} 
-                      value={field.value}
-                      disabled={!!editingOwner}
-                    >
-                      <FormControl>
-                        <SelectTrigger data-testid="select-unit">
-                          <SelectValue placeholder={language === 'es' ? 'Seleccionar unidad' : 'Select unit'} />
-                        </SelectTrigger>
-                      </FormControl>
-                      <SelectContent>
-                        {units?.map(unit => {
-                          const condo = condominiums?.find(c => c.id === unit.condominiumId);
-                          return (
-                            <SelectItem key={unit.id} value={unit.id}>
-                              {condo?.name} - {unit.unitNumber} ({unit.typology || '-'})
-                            </SelectItem>
-                          );
-                        })}
-                      </SelectContent>
-                    </Select>
-                    {editingOwner && (
-                      <p className="text-xs text-muted-foreground">
-                        {language === 'es' 
-                          ? 'La unidad no se puede cambiar al editar. Para asignar otra unidad, cree un nuevo registro.' 
-                          : 'Unit cannot be changed when editing. To assign another unit, create a new record.'}
-                      </p>
-                    )}
-                    <FormMessage />
-                  </FormItem>
-                )}
+                render={({ field }) => {
+                  const filteredUnits = units?.filter(u => {
+                    const matchesCondo = formCondominiumId && formCondominiumId !== "__all__" ? u.condominiumId === formCondominiumId : true;
+                    const matchesSearch = unitSearchTerm 
+                      ? u.unitNumber.toLowerCase().includes(unitSearchTerm.toLowerCase()) ||
+                        (u.typology?.toLowerCase().includes(unitSearchTerm.toLowerCase()))
+                      : true;
+                    return matchesCondo && matchesSearch;
+                  }) || [];
+                  
+                  return (
+                    <FormItem>
+                      <FormLabel>{language === 'es' ? 'Unidad' : 'Unit'} *</FormLabel>
+                      {formCondominiumId && filteredUnits.length > 10 && (
+                        <Input
+                          placeholder={language === 'es' ? 'Buscar unidad...' : 'Search unit...'}
+                          value={unitSearchTerm}
+                          onChange={(e) => setUnitSearchTerm(e.target.value)}
+                          className="mb-2"
+                          data-testid="input-unit-search"
+                        />
+                      )}
+                      <Select 
+                        onValueChange={field.onChange} 
+                        value={field.value}
+                        disabled={!!editingOwner}
+                      >
+                        <FormControl>
+                          <SelectTrigger data-testid="select-unit">
+                            <SelectValue placeholder={language === 'es' ? 'Seleccionar unidad' : 'Select unit'} />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent className="max-h-60">
+                          {filteredUnits.length === 0 ? (
+                            <div className="py-2 px-2 text-sm text-muted-foreground">
+                              {language === 'es' ? 'No hay unidades disponibles' : 'No units available'}
+                            </div>
+                          ) : (
+                            filteredUnits.map(unit => (
+                              <SelectItem key={unit.id} value={unit.id}>
+                                {unit.unitNumber} {unit.typology ? `(${unit.typology})` : ''}
+                              </SelectItem>
+                            ))
+                          )}
+                        </SelectContent>
+                      </Select>
+                      {editingOwner && (
+                        <p className="text-xs text-muted-foreground">
+                          {language === 'es' 
+                            ? 'La unidad no se puede cambiar al editar. Para asignar otra unidad, cree un nuevo registro.' 
+                            : 'Unit cannot be changed when editing. To assign another unit, create a new record.'}
+                        </p>
+                      )}
+                      <FormMessage />
+                    </FormItem>
+                  );
+                }}
               />
 
               <div className="flex gap-2 justify-end pt-4">
