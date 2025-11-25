@@ -180,7 +180,8 @@ export default function ExternalAccounts() {
 
   const createMutation = useMutation({
     mutationFn: async (data: CreateUserForm) => {
-      return await apiRequest("POST", "/api/external-agency-users", data);
+      const res = await apiRequest("POST", "/api/external-agency-users", data);
+      return await res.json();
     },
     onSuccess: (response: any) => {
       queryClient.invalidateQueries({ queryKey: ['/api/external-agency-users'] });
