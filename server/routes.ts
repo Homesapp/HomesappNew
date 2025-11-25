@@ -25052,6 +25052,24 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       const agencyId = agencies[0].id;
       
+      
+      // Check for duplicate lead with 3-month expiry
+      const phoneLast4 = phone.slice(-4);
+      const duplicateCheck = await checkExternalLeadDuplicateWithExpiry(
+        storage, agencyId, firstName, lastName, phoneLast4
+      );
+      
+      if (duplicateCheck.isDuplicate) {
+        return res.status(409).json({
+          message: duplicateCheck.detail,
+          detail: duplicateCheck.detail,
+          duplicate: {
+            sellerName: duplicateCheck.sellerName,
+            timeRemainingText: duplicateCheck.timeRemainingText,
+            daysRemaining: duplicateCheck.daysRemaining
+          }
+        });
+      }
       // Create lead
       const lead = await storage.createExternalLead({
         agencyId,
@@ -25115,6 +25133,23 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       const agencyId = agencies[0].id;
       
+      
+      // Check for duplicate lead with 3-month expiry
+      const duplicateCheck = await checkExternalLeadDuplicateWithExpiry(
+        storage, agencyId, firstName, lastName, phoneLast4
+      );
+      
+      if (duplicateCheck.isDuplicate) {
+        return res.status(409).json({
+          message: duplicateCheck.detail,
+          detail: duplicateCheck.detail,
+          duplicate: {
+            sellerName: duplicateCheck.sellerName,
+            timeRemainingText: duplicateCheck.timeRemainingText,
+            daysRemaining: duplicateCheck.daysRemaining
+          }
+        });
+      }
       // Create lead
       const lead = await storage.createExternalLead({
         agencyId,
