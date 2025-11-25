@@ -5874,7 +5874,14 @@ export const externalClients = pgTable("external_clients", {
   // Status & Verification
   status: varchar("status", { length: 50 }).notNull().default("active"), // active, inactive, archived
   isVerified: boolean("is_verified").notNull().default(false),
-  source: varchar("source", { length: 100 }), // referral, website, agent, social_media, etc
+  source: varchar("source", { length: 100 }), // referral, website, agent, social_media, lead_conversion, etc
+  sourceLeadId: varchar("source_lead_id"), // ID del lead si el cliente fue convertido de un lead
+  
+  // Blacklist Management
+  blacklistStatus: varchar("blacklist_status", { length: 50 }).default("none"), // none, warned, blacklisted
+  blacklistReason: text("blacklist_reason"),
+  blacklistedAt: timestamp("blacklisted_at"),
+  blacklistedBy: varchar("blacklisted_by").references(() => users.id),
   
   // Notes & Tags
   notes: text("notes"),
@@ -5894,6 +5901,8 @@ export const externalClients = pgTable("external_clients", {
   index("idx_external_clients_phone").on(table.phone),
   index("idx_external_clients_status").on(table.status),
   index("idx_external_clients_verified").on(table.isVerified),
+  index("idx_external_clients_source_lead").on(table.sourceLeadId),
+  index("idx_external_clients_blacklist").on(table.blacklistStatus),
 ]);
 
 export const insertExternalClientSchema = createInsertSchema(externalClients).omit({
@@ -6021,6 +6030,10 @@ export const externalLeads = pgTable("external_leads", {
   // Expiración del lead (3 meses por defecto)
   validUntil: timestamp("valid_until"), // Fecha de expiración del lead
   
+  // Lead Conversion - cuando el lead se convierte en cliente
+  convertedToClientId: varchar("converted_to_client_id"), // ID del cliente creado (si fue convertido)
+  convertedAt: timestamp("converted_at"), // Fecha de conversión
+  
   // Metadata
   createdBy: varchar("created_by").references(() => users.id),
   originalCreatedAt: timestamp("original_created_at"), // Fecha original del registro (para importaciones)
@@ -6031,6 +6044,7 @@ export const externalLeads = pgTable("external_leads", {
   index("idx_external_leads_status").on(table.status),
   index("idx_external_leads_registration_type").on(table.registrationType),
   index("idx_external_leads_valid_until").on(table.validUntil),
+  index("idx_external_leads_converted").on(table.convertedToClientId),
 ]);
 
 const baseExternalLeadSchema = createInsertSchema(externalLeads).omit({
@@ -6115,6 +6129,239 @@ export const createLeadRegistrationLinkSchema = z.object({
 export type InsertExternalLeadRegistrationToken = z.infer<typeof insertExternalLeadRegistrationTokenSchema>;
 export type CreateLeadRegistrationLink = z.infer<typeof createLeadRegistrationLinkSchema>;
 export type ExternalLeadRegistrationToken = typeof externalLeadRegistrationTokens.$inferSelect;
+
+// ========================================
+// CRM TABLES - Lead & Client Activity Tracking
+// ========================================
+
+// Enum for activity types
+export const crmActivityTypeEnum = pgEnum("crm_activity_type", [
+  "call",
+  "email", 
+  "meeting",
+  "whatsapp",
+  "showing",
+  "note",
+  "status_change",
+  "document_upload",
+  "contract_created",
+  "payment",
+  "other"
+]);
+
+// Lead Activities - Track all interactions with leads
+export const externalLeadActivities = pgTable("external_lead_activities", {
+  id: varchar("id").primaryKey().$defaultFn(() => crypto.randomUUID()),
+  leadId: varchar("lead_id").notNull().references(() => externalLeads.id, { onDelete: "cascade" }),
+  agencyId: varchar("agency_id").notNull().references(() => externalAgencies.id, { onDelete: "cascade" }),
+  
+  activityType: crmActivityTypeEnum("activity_type").notNull(),
+  title: varchar("title", { length: 255 }).notNull(),
+  description: text("description"),
+  
+  // For scheduled activities
+  scheduledAt: timestamp("scheduled_at"),
+  completedAt: timestamp("completed_at"),
+  
+  // Outcome/result of the activity
+  outcome: varchar("outcome", { length: 100 }), // positive, negative, neutral, pending
+  outcomeNotes: text("outcome_notes"),
+  
+  // Related references
+  relatedPropertyId: varchar("related_property_id").references(() => externalProperties.id, { onDelete: "set null" }),
+  relatedUnitId: varchar("related_unit_id").references(() => externalUnits.id, { onDelete: "set null" }),
+  
+  // Metadata
+  createdBy: varchar("created_by").notNull().references(() => users.id),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+}, (table) => [
+  index("idx_lead_activities_lead").on(table.leadId),
+  index("idx_lead_activities_agency").on(table.agencyId),
+  index("idx_lead_activities_type").on(table.activityType),
+  index("idx_lead_activities_created").on(table.createdAt),
+]);
+
+export const insertExternalLeadActivitySchema = createInsertSchema(externalLeadActivities).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export type InsertExternalLeadActivity = z.infer<typeof insertExternalLeadActivitySchema>;
+export type ExternalLeadActivity = typeof externalLeadActivities.$inferSelect;
+
+// Lead Status History - Track status changes for leads
+export const externalLeadStatusHistory = pgTable("external_lead_status_history", {
+  id: varchar("id").primaryKey().$defaultFn(() => crypto.randomUUID()),
+  leadId: varchar("lead_id").notNull().references(() => externalLeads.id, { onDelete: "cascade" }),
+  agencyId: varchar("agency_id").notNull().references(() => externalAgencies.id, { onDelete: "cascade" }),
+  
+  fromStatus: varchar("from_status", { length: 50 }),
+  toStatus: varchar("to_status", { length: 50 }).notNull(),
+  reason: text("reason"),
+  
+  changedBy: varchar("changed_by").notNull().references(() => users.id),
+  changedAt: timestamp("changed_at").defaultNow().notNull(),
+}, (table) => [
+  index("idx_lead_status_history_lead").on(table.leadId),
+  index("idx_lead_status_history_agency").on(table.agencyId),
+  index("idx_lead_status_history_changed").on(table.changedAt),
+]);
+
+export const insertExternalLeadStatusHistorySchema = createInsertSchema(externalLeadStatusHistory).omit({
+  id: true,
+  changedAt: true,
+});
+
+export type InsertExternalLeadStatusHistory = z.infer<typeof insertExternalLeadStatusHistorySchema>;
+export type ExternalLeadStatusHistory = typeof externalLeadStatusHistory.$inferSelect;
+
+// Lead Showings - Track property showings for leads
+export const externalLeadShowings = pgTable("external_lead_showings", {
+  id: varchar("id").primaryKey().$defaultFn(() => crypto.randomUUID()),
+  leadId: varchar("lead_id").notNull().references(() => externalLeads.id, { onDelete: "cascade" }),
+  agencyId: varchar("agency_id").notNull().references(() => externalAgencies.id, { onDelete: "cascade" }),
+  propertyId: varchar("property_id").references(() => externalProperties.id, { onDelete: "set null" }),
+  unitId: varchar("unit_id").references(() => externalUnits.id, { onDelete: "set null" }),
+  
+  // Property details (in case property is deleted)
+  propertyName: varchar("property_name", { length: 255 }),
+  unitNumber: varchar("unit_number", { length: 50 }),
+  
+  // Scheduling
+  scheduledAt: timestamp("scheduled_at").notNull(),
+  duration: integer("duration").default(30), // minutes
+  
+  // Status and outcome
+  status: varchar("status", { length: 50 }).notNull().default("scheduled"), // scheduled, completed, cancelled, no_show
+  outcome: varchar("outcome", { length: 50 }), // interested, not_interested, needs_follow_up, made_offer
+  
+  // Feedback
+  leadFeedback: text("lead_feedback"),
+  agentNotes: text("agent_notes"),
+  rating: integer("rating"), // 1-5 stars for the property from lead's perspective
+  
+  // Agent
+  agentId: varchar("agent_id").references(() => users.id, { onDelete: "set null" }),
+  
+  // Metadata
+  createdBy: varchar("created_by").notNull().references(() => users.id),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+}, (table) => [
+  index("idx_lead_showings_lead").on(table.leadId),
+  index("idx_lead_showings_agency").on(table.agencyId),
+  index("idx_lead_showings_property").on(table.propertyId),
+  index("idx_lead_showings_scheduled").on(table.scheduledAt),
+  index("idx_lead_showings_status").on(table.status),
+]);
+
+export const insertExternalLeadShowingSchema = createInsertSchema(externalLeadShowings).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+}).extend({
+  scheduledAt: z.coerce.date(),
+});
+
+export const updateExternalLeadShowingSchema = insertExternalLeadShowingSchema.partial();
+
+export type InsertExternalLeadShowing = z.infer<typeof insertExternalLeadShowingSchema>;
+export type UpdateExternalLeadShowing = z.infer<typeof updateExternalLeadShowingSchema>;
+export type ExternalLeadShowing = typeof externalLeadShowings.$inferSelect;
+
+// Client Activities - Track all interactions with clients
+export const externalClientActivities = pgTable("external_client_activities", {
+  id: varchar("id").primaryKey().$defaultFn(() => crypto.randomUUID()),
+  clientId: varchar("client_id").notNull().references(() => externalClients.id, { onDelete: "cascade" }),
+  agencyId: varchar("agency_id").notNull().references(() => externalAgencies.id, { onDelete: "cascade" }),
+  
+  activityType: crmActivityTypeEnum("activity_type").notNull(),
+  title: varchar("title", { length: 255 }).notNull(),
+  description: text("description"),
+  
+  // For scheduled activities
+  scheduledAt: timestamp("scheduled_at"),
+  completedAt: timestamp("completed_at"),
+  
+  // Outcome/result
+  outcome: varchar("outcome", { length: 100 }), // positive, negative, neutral, pending
+  outcomeNotes: text("outcome_notes"),
+  
+  // Related references
+  relatedContractId: varchar("related_contract_id").references(() => externalRentalContracts.id, { onDelete: "set null" }),
+  relatedPropertyId: varchar("related_property_id").references(() => externalProperties.id, { onDelete: "set null" }),
+  relatedUnitId: varchar("related_unit_id").references(() => externalUnits.id, { onDelete: "set null" }),
+  
+  // Metadata
+  createdBy: varchar("created_by").notNull().references(() => users.id),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+}, (table) => [
+  index("idx_client_activities_client").on(table.clientId),
+  index("idx_client_activities_agency").on(table.agencyId),
+  index("idx_client_activities_type").on(table.activityType),
+  index("idx_client_activities_created").on(table.createdAt),
+]);
+
+export const insertExternalClientActivitySchema = createInsertSchema(externalClientActivities).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export type InsertExternalClientActivity = z.infer<typeof insertExternalClientActivitySchema>;
+export type ExternalClientActivity = typeof externalClientActivities.$inferSelect;
+
+// Client Property History - Track all properties a client has been associated with
+export const externalClientPropertyHistory = pgTable("external_client_property_history", {
+  id: varchar("id").primaryKey().$defaultFn(() => crypto.randomUUID()),
+  clientId: varchar("client_id").notNull().references(() => externalClients.id, { onDelete: "cascade" }),
+  agencyId: varchar("agency_id").notNull().references(() => externalAgencies.id, { onDelete: "cascade" }),
+  propertyId: varchar("property_id").references(() => externalProperties.id, { onDelete: "set null" }),
+  unitId: varchar("unit_id").references(() => externalUnits.id, { onDelete: "set null" }),
+  contractId: varchar("contract_id").references(() => externalRentalContracts.id, { onDelete: "set null" }),
+  
+  // Property details snapshot (in case property is deleted)
+  propertyName: varchar("property_name", { length: 255 }),
+  unitNumber: varchar("unit_number", { length: 50 }),
+  
+  // Tenure details
+  relationshipType: varchar("relationship_type", { length: 50 }).notNull(), // tenant, owner, prospect, previous_tenant
+  startDate: date("start_date"),
+  endDate: date("end_date"),
+  
+  // Financial snapshot
+  monthlyRent: decimal("monthly_rent", { precision: 12, scale: 2 }),
+  currency: varchar("currency", { length: 3 }).default("MXN"),
+  
+  // Notes
+  notes: text("notes"),
+  
+  // Metadata
+  createdBy: varchar("created_by").notNull().references(() => users.id),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+}, (table) => [
+  index("idx_client_property_history_client").on(table.clientId),
+  index("idx_client_property_history_agency").on(table.agencyId),
+  index("idx_client_property_history_property").on(table.propertyId),
+  index("idx_client_property_history_unit").on(table.unitId),
+  index("idx_client_property_history_type").on(table.relationshipType),
+]);
+
+export const insertExternalClientPropertyHistorySchema = createInsertSchema(externalClientPropertyHistory).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+}).extend({
+  startDate: z.coerce.date().optional(),
+  endDate: z.coerce.date().optional(),
+});
+
+export type InsertExternalClientPropertyHistory = z.infer<typeof insertExternalClientPropertyHistorySchema>;
+export type ExternalClientPropertyHistory = typeof externalClientPropertyHistory.$inferSelect;
 
 // External Quotations - Cotizaciones profesionales para trabajos de mantenimiento
 export const externalQuotations = pgTable("external_quotations", {

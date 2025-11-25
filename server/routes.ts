@@ -156,6 +156,11 @@ import {
   insertExternalLeadSchema,
   updateExternalLeadSchema,
   insertExternalLeadRegistrationTokenSchema,
+  insertExternalLeadActivitySchema,
+  insertExternalLeadShowingSchema,
+  updateExternalLeadShowingSchema,
+  insertExternalClientActivitySchema,
+  insertExternalClientPropertyHistorySchema,
   createLeadRegistrationLinkSchema,
   insertExternalPropertySchema,
   insertExternalRentalContractSchema,
@@ -25179,7 +25184,31 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!hasAccess) return;
       
       const validatedData = updateExternalLeadSchema.parse(req.body);
+      // Track status change for history
+      const oldStatus = existing.status;
+      const newStatus = validatedData.status;
+      
       const lead = await storage.updateExternalLead(id, validatedData);
+      
+      // Log status change to history if status changed
+      if (newStatus && oldStatus !== newStatus) {
+        await storage.createExternalLeadStatusHistory({
+          leadId: id,
+          agencyId: existing.agencyId,
+          fromStatus: oldStatus,
+          toStatus: newStatus,
+          changedBy: req.user.id,
+        });
+        
+        // Create activity entry for the status change
+        await storage.createExternalLeadActivity({
+          leadId: id,
+          agencyId: existing.agencyId,
+          activityType: "status_change",
+          title: `Cambio de estado: ${oldStatus} → ${newStatus}`,
+          createdBy: req.user.id,
+        });
+      }
       
       await createAuditLog(req, "update", "external_lead", id, "Updated lead");
       res.json(lead);
@@ -25586,6 +25615,343 @@ export async function registerRoutes(app: Express): Promise<Server> {
       handleGenericError(res, error);
     }
   });
+
+  // ========================================
+  // CRM ROUTES - Lead & Client Activity Tracking
+  // ========================================
+
+  // GET /api/external-leads/:id/activities - Get all activities for a lead
+  app.get("/api/external-leads/:id/activities", isAuthenticated, requireRole([...EXTERNAL_ADMIN_ROLES, 'external_agency_seller']), async (req: any, res) => {
+    try {
+      const { id } = req.params;
+      const lead = await storage.getExternalLead(id);
+      
+      if (!lead) {
+        return res.status(404).json({ message: "Lead not found" });
+      }
+      
+      const hasAccess = await verifyExternalAgencyOwnership(req, res, lead.agencyId);
+      if (!hasAccess) return;
+      
+      const activities = await storage.getExternalLeadActivities(id);
+      res.json(activities);
+    } catch (error: any) {
+      console.error("Error fetching lead activities:", error);
+      handleGenericError(res, error);
+    }
+  });
+
+  // POST /api/external-leads/:id/activities - Create activity for a lead
+  app.post("/api/external-leads/:id/activities", isAuthenticated, requireRole([...EXTERNAL_ADMIN_ROLES, 'external_agency_seller']), async (req: any, res) => {
+    try {
+      const { id } = req.params;
+      const lead = await storage.getExternalLead(id);
+      
+      if (!lead) {
+        return res.status(404).json({ message: "Lead not found" });
+      }
+      
+      const hasAccess = await verifyExternalAgencyOwnership(req, res, lead.agencyId);
+      if (!hasAccess) return;
+      
+      const validatedData = insertExternalLeadActivitySchema.omit({ leadId: true, agencyId: true, createdBy: true }).parse(req.body);
+      const activity = await storage.createExternalLeadActivity({
+        ...validatedData,
+        leadId: id,
+        agencyId: lead.agencyId,
+        createdBy: req.user.id,
+      });
+      // Update lead's lastContactDate
+      await storage.updateExternalLead(id, { lastContactDate: new Date() });
+      
+      await createAuditLog(req, "create", "external_lead_activity", activity.id, "Created lead activity");
+      res.status(201).json(activity);
+    } catch (error: any) {
+      console.error("Error creating lead activity:", error);
+      handleGenericError(res, error);
+    }
+  });
+
+  // GET /api/external-leads/:id/status-history - Get status history for a lead
+  app.get("/api/external-leads/:id/status-history", isAuthenticated, requireRole([...EXTERNAL_ADMIN_ROLES, 'external_agency_seller']), async (req: any, res) => {
+    try {
+      const { id } = req.params;
+      const lead = await storage.getExternalLead(id);
+      
+      if (!lead) {
+        return res.status(404).json({ message: "Lead not found" });
+      }
+      
+      const hasAccess = await verifyExternalAgencyOwnership(req, res, lead.agencyId);
+      if (!hasAccess) return;
+      
+      const history = await storage.getExternalLeadStatusHistory(id);
+      res.json(history);
+    } catch (error: any) {
+      console.error("Error fetching lead status history:", error);
+      handleGenericError(res, error);
+    }
+  });
+
+  // GET /api/external-leads/:id/showings - Get all showings for a lead
+  app.get("/api/external-leads/:id/showings", isAuthenticated, requireRole([...EXTERNAL_ADMIN_ROLES, 'external_agency_seller']), async (req: any, res) => {
+    try {
+      const { id } = req.params;
+      const lead = await storage.getExternalLead(id);
+      
+      if (!lead) {
+        return res.status(404).json({ message: "Lead not found" });
+      }
+      
+      const hasAccess = await verifyExternalAgencyOwnership(req, res, lead.agencyId);
+      if (!hasAccess) return;
+      
+      const showings = await storage.getExternalLeadShowings(id);
+      res.json(showings);
+    } catch (error: any) {
+      console.error("Error fetching lead showings:", error);
+      handleGenericError(res, error);
+    }
+  });
+
+  // POST /api/external-leads/:id/showings - Create showing for a lead
+  app.post("/api/external-leads/:id/showings", isAuthenticated, requireRole([...EXTERNAL_ADMIN_ROLES, 'external_agency_seller']), async (req: any, res) => {
+    try {
+      const { id } = req.params;
+      const lead = await storage.getExternalLead(id);
+      
+      if (!lead) {
+        return res.status(404).json({ message: "Lead not found" });
+      }
+      
+      const hasAccess = await verifyExternalAgencyOwnership(req, res, lead.agencyId);
+      if (!hasAccess) return;
+      
+      const validatedShowing = insertExternalLeadShowingSchema.omit({ leadId: true, agencyId: true, createdBy: true }).parse(req.body);
+      const showing = await storage.createExternalLeadShowing({
+        ...validatedShowing,
+        leadId: id,
+        agencyId: lead.agencyId,
+        createdBy: req.user.id,
+      });
+      
+      // Create activity entry for the showing
+      await storage.createExternalLeadActivity({
+        leadId: id,
+        agencyId: lead.agencyId,
+        activityType: 'showing',
+        title: `Recorrido programado: ${showing.propertyName || 'Propiedad'}`,
+        description: `Recorrido programado para ${new Date(showing.scheduledAt).toLocaleDateString('es-MX')}`,
+        scheduledAt: showing.scheduledAt,
+        createdBy: req.user.id,
+      });
+      
+      await createAuditLog(req, "create", "external_lead_showing", showing.id, "Created lead showing");
+      res.status(201).json(showing);
+    } catch (error: any) {
+      console.error("Error creating lead showing:", error);
+      handleGenericError(res, error);
+    }
+  });
+
+  // PATCH /api/external-lead-showings/:id - Update showing
+  app.patch("/api/external-lead-showings/:id", isAuthenticated, requireRole([...EXTERNAL_ADMIN_ROLES, 'external_agency_seller']), async (req: any, res) => {
+    try {
+      const { id } = req.params;
+      const showing = await storage.getExternalLeadShowing(id);
+      
+      if (!showing) {
+        return res.status(404).json({ message: "Showing not found" });
+      }
+      
+      const hasAccess = await verifyExternalAgencyOwnership(req, res, showing.agencyId);
+      if (!hasAccess) return;
+      
+      const updated = await storage.updateExternalLeadShowing(id, req.body);
+      
+      await createAuditLog(req, "update", "external_lead_showing", id, "Updated lead showing");
+      res.json(updated);
+    } catch (error: any) {
+      console.error("Error updating lead showing:", error);
+      handleGenericError(res, error);
+    }
+  });
+
+  // DELETE /api/external-lead-showings/:id - Delete showing
+  app.delete("/api/external-lead-showings/:id", isAuthenticated, requireRole(EXTERNAL_ADMIN_ROLES), async (req: any, res) => {
+    try {
+      const { id } = req.params;
+      const showing = await storage.getExternalLeadShowing(id);
+      
+      if (!showing) {
+        return res.status(404).json({ message: "Showing not found" });
+      }
+      
+      const hasAccess = await verifyExternalAgencyOwnership(req, res, showing.agencyId);
+      if (!hasAccess) return;
+      
+      await storage.deleteExternalLeadShowing(id);
+      
+      await createAuditLog(req, "delete", "external_lead_showing", id, "Deleted lead showing");
+      res.status(204).send();
+    } catch (error: any) {
+      console.error("Error deleting lead showing:", error);
+      handleGenericError(res, error);
+    }
+  });
+
+  // GET /api/external-clients/:id/activities - Get all activities for a client
+  app.get("/api/external-clients/:id/activities", isAuthenticated, requireRole([...EXTERNAL_ADMIN_ROLES, 'external_agency_seller']), async (req: any, res) => {
+    try {
+      const { id } = req.params;
+      const client = await storage.getExternalClient(id);
+      
+      if (!client) {
+        return res.status(404).json({ message: "Client not found" });
+      }
+      
+      const hasAccess = await verifyExternalAgencyOwnership(req, res, client.agencyId);
+      if (!hasAccess) return;
+      
+      const activities = await storage.getExternalClientActivities(id);
+      res.json(activities);
+    } catch (error: any) {
+      console.error("Error fetching client activities:", error);
+      handleGenericError(res, error);
+    }
+  });
+
+  // POST /api/external-clients/:id/activities - Create activity for a client
+  app.post("/api/external-clients/:id/activities", isAuthenticated, requireRole([...EXTERNAL_ADMIN_ROLES, 'external_agency_seller']), async (req: any, res) => {
+    try {
+      const { id } = req.params;
+      const client = await storage.getExternalClient(id);
+      
+      if (!client) {
+        return res.status(404).json({ message: "Client not found" });
+      }
+      
+      const hasAccess = await verifyExternalAgencyOwnership(req, res, client.agencyId);
+      if (!hasAccess) return;
+      
+      const validatedActivity = insertExternalClientActivitySchema.omit({ clientId: true, agencyId: true, createdBy: true }).parse(req.body);
+      const activity = await storage.createExternalClientActivity({
+        ...validatedActivity,
+        clientId: id,
+        agencyId: client.agencyId,
+        createdBy: req.user.id,
+      });
+      
+      // Update client's lastContactDate
+      await storage.updateExternalClient(id, { lastContactDate: new Date() });
+      
+      await createAuditLog(req, "create", "external_client_activity", activity.id, "Created client activity");
+      res.status(201).json(activity);
+    } catch (error: any) {
+      console.error("Error creating client activity:", error);
+      handleGenericError(res, error);
+    }
+  });
+
+  // GET /api/external-clients/:id/property-history - Get property history for a client
+  app.get("/api/external-clients/:id/property-history", isAuthenticated, requireRole([...EXTERNAL_ADMIN_ROLES, 'external_agency_seller']), async (req: any, res) => {
+    try {
+      const { id } = req.params;
+      const client = await storage.getExternalClient(id);
+      
+      if (!client) {
+        return res.status(404).json({ message: "Client not found" });
+      }
+      
+      const hasAccess = await verifyExternalAgencyOwnership(req, res, client.agencyId);
+      if (!hasAccess) return;
+      
+      const history = await storage.getExternalClientPropertyHistory(id);
+      res.json(history);
+    } catch (error: any) {
+      console.error("Error fetching client property history:", error);
+      handleGenericError(res, error);
+    }
+  });
+
+  // POST /api/external-clients/:id/property-history - Add property history entry
+  app.post("/api/external-clients/:id/property-history", isAuthenticated, requireRole(EXTERNAL_ADMIN_ROLES), async (req: any, res) => {
+    try {
+      const { id } = req.params;
+      const client = await storage.getExternalClient(id);
+      
+      if (!client) {
+        return res.status(404).json({ message: "Client not found" });
+      }
+      
+      const hasAccess = await verifyExternalAgencyOwnership(req, res, client.agencyId);
+      if (!hasAccess) return;
+      
+      const validatedHistory = insertExternalClientPropertyHistorySchema.omit({ clientId: true, agencyId: true, createdBy: true }).parse(req.body);
+      const history = await storage.createExternalClientPropertyHistory({
+        ...validatedHistory,
+        clientId: id,
+        agencyId: client.agencyId,
+        createdBy: req.user.id,
+      });
+      
+      await createAuditLog(req, "create", "external_client_property_history", history.id, "Created client property history");
+      res.status(201).json(history);
+    } catch (error: any) {
+      console.error("Error creating client property history:", error);
+      handleGenericError(res, error);
+    }
+  });
+
+  // PATCH /api/external-clients/:id/blacklist - Update client blacklist status
+  app.patch("/api/external-clients/:id/blacklist", isAuthenticated, requireRole(EXTERNAL_ADMIN_ROLES), async (req: any, res) => {
+    try {
+      const { id } = req.params;
+      const client = await storage.getExternalClient(id);
+      
+      if (!client) {
+        return res.status(404).json({ message: "Client not found" });
+      }
+      
+      const hasAccess = await verifyExternalAgencyOwnership(req, res, client.agencyId);
+      if (!hasAccess) return;
+      
+      const { blacklistStatus, blacklistReason } = req.body;
+      
+      const updates: any = {
+        blacklistStatus,
+        blacklistReason,
+      };
+      
+      if (blacklistStatus === 'blacklisted') {
+        updates.blacklistedAt = new Date();
+        updates.blacklistedBy = req.user.id;
+      } else if (blacklistStatus === 'none') {
+        updates.blacklistedAt = null;
+        updates.blacklistedBy = null;
+        updates.blacklistReason = null;
+      }
+      
+      const updated = await storage.updateExternalClient(id, updates);
+      
+      // Log activity for blacklist change
+      await storage.createExternalClientActivity({
+        clientId: id,
+        agencyId: client.agencyId,
+        activityType: 'note',
+        title: `Estado de blacklist cambiado a: ${blacklistStatus}`,
+        description: blacklistReason || undefined,
+        createdBy: req.user.id,
+      });
+      
+      await createAuditLog(req, "update", "external_client", id, `Updated blacklist status to ${blacklistStatus}`);
+      res.json(updated);
+    } catch (error: any) {
+      console.error("Error updating client blacklist:", error);
+      handleGenericError(res, error);
+    }
+  });
+
 
   // Public simplified lead registration endpoints (no tokens required)
   // POST /api/public/leads/vendedor - Public vendedor registration

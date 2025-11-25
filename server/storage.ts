@@ -372,6 +372,22 @@ import {
   externalLeadRegistrationTokens,
   type ExternalLeadRegistrationToken,
   type InsertExternalLeadRegistrationToken,
+  externalLeadActivities,
+  type ExternalLeadActivity,
+  type InsertExternalLeadActivity,
+  externalLeadStatusHistory,
+  type ExternalLeadStatusHistory,
+  type InsertExternalLeadStatusHistory,
+  externalLeadShowings,
+  type ExternalLeadShowing,
+  type InsertExternalLeadShowing,
+  type UpdateExternalLeadShowing,
+  externalClientActivities,
+  type ExternalClientActivity,
+  type InsertExternalClientActivity,
+  externalClientPropertyHistory,
+  type ExternalClientPropertyHistory,
+  type InsertExternalClientPropertyHistory,
   externalFinancialTransactions,
   type ExternalFinancialTransaction,
   type InsertExternalFinancialTransaction,
@@ -1395,6 +1411,30 @@ export interface IStorage {
   createExternalClientIncident(incident: InsertExternalClientIncident): Promise<ExternalClientIncident>;
   updateExternalClientIncident(id: string, updates: UpdateExternalClientIncident): Promise<ExternalClientIncident>;
   deleteExternalClientIncident(id: string): Promise<void>;
+
+  // CRM - Lead Activities
+  getExternalLeadActivities(leadId: string): Promise<ExternalLeadActivity[]>;
+  createExternalLeadActivity(activity: InsertExternalLeadActivity): Promise<ExternalLeadActivity>;
+  
+  // CRM - Lead Status History
+  getExternalLeadStatusHistory(leadId: string): Promise<ExternalLeadStatusHistory[]>;
+  createExternalLeadStatusHistory(history: InsertExternalLeadStatusHistory): Promise<ExternalLeadStatusHistory>;
+  
+  // CRM - Lead Showings
+  getExternalLeadShowings(leadId: string): Promise<ExternalLeadShowing[]>;
+  getExternalLeadShowing(id: string): Promise<ExternalLeadShowing | undefined>;
+  getExternalLeadShowingsByAgency(agencyId: string, filters?: { status?: string; startDate?: Date; endDate?: Date }): Promise<ExternalLeadShowing[]>;
+  createExternalLeadShowing(showing: InsertExternalLeadShowing): Promise<ExternalLeadShowing>;
+  updateExternalLeadShowing(id: string, updates: UpdateExternalLeadShowing): Promise<ExternalLeadShowing>;
+  deleteExternalLeadShowing(id: string): Promise<void>;
+  
+  // CRM - Client Activities
+  getExternalClientActivities(clientId: string): Promise<ExternalClientActivity[]>;
+  createExternalClientActivity(activity: InsertExternalClientActivity): Promise<ExternalClientActivity>;
+  
+  // CRM - Client Property History
+  getExternalClientPropertyHistory(clientId: string): Promise<ExternalClientPropertyHistory[]>;
+  createExternalClientPropertyHistory(history: InsertExternalClientPropertyHistory): Promise<ExternalClientPropertyHistory>;
 
   // External Management System - Offer Token operations
   getExternalOfferTokensByAgency(agencyId: string): Promise<any[]>;
@@ -9927,6 +9967,127 @@ export class DatabaseStorage implements IStorage {
   async deleteExternalClientIncident(id: string): Promise<void> {
     await db.delete(externalClientIncidents)
       .where(eq(externalClientIncidents.id, id));
+  }
+
+  // CRM - Lead Activities
+  async getExternalLeadActivities(leadId: string): Promise<ExternalLeadActivity[]> {
+    const activities = await db.select()
+      .from(externalLeadActivities)
+      .where(eq(externalLeadActivities.leadId, leadId))
+      .orderBy(desc(externalLeadActivities.createdAt));
+    return activities;
+  }
+
+  async createExternalLeadActivity(activity: InsertExternalLeadActivity): Promise<ExternalLeadActivity> {
+    const [created] = await db.insert(externalLeadActivities)
+      .values(activity)
+      .returning();
+    return created;
+  }
+
+  // CRM - Lead Status History
+  async getExternalLeadStatusHistory(leadId: string): Promise<ExternalLeadStatusHistory[]> {
+    const history = await db.select()
+      .from(externalLeadStatusHistory)
+      .where(eq(externalLeadStatusHistory.leadId, leadId))
+      .orderBy(desc(externalLeadStatusHistory.changedAt));
+    return history;
+  }
+
+  async createExternalLeadStatusHistory(history: InsertExternalLeadStatusHistory): Promise<ExternalLeadStatusHistory> {
+    const [created] = await db.insert(externalLeadStatusHistory)
+      .values(history)
+      .returning();
+    return created;
+  }
+
+  // CRM - Lead Showings
+  async getExternalLeadShowings(leadId: string): Promise<ExternalLeadShowing[]> {
+    const showings = await db.select()
+      .from(externalLeadShowings)
+      .where(eq(externalLeadShowings.leadId, leadId))
+      .orderBy(desc(externalLeadShowings.scheduledAt));
+    return showings;
+  }
+
+  async getExternalLeadShowing(id: string): Promise<ExternalLeadShowing | undefined> {
+    const [showing] = await db.select()
+      .from(externalLeadShowings)
+      .where(eq(externalLeadShowings.id, id))
+      .limit(1);
+    return showing;
+  }
+
+  async getExternalLeadShowingsByAgency(agencyId: string, filters?: { status?: string; startDate?: Date; endDate?: Date }): Promise<ExternalLeadShowing[]> {
+    const conditions: SQL[] = [eq(externalLeadShowings.agencyId, agencyId)];
+    
+    if (filters?.status) {
+      conditions.push(eq(externalLeadShowings.status, filters.status));
+    }
+    if (filters?.startDate) {
+      conditions.push(gte(externalLeadShowings.scheduledAt, filters.startDate));
+    }
+    if (filters?.endDate) {
+      conditions.push(lte(externalLeadShowings.scheduledAt, filters.endDate));
+    }
+    
+    const showings = await db.select()
+      .from(externalLeadShowings)
+      .where(and(...conditions))
+      .orderBy(desc(externalLeadShowings.scheduledAt));
+    return showings;
+  }
+
+  async createExternalLeadShowing(showing: InsertExternalLeadShowing): Promise<ExternalLeadShowing> {
+    const [created] = await db.insert(externalLeadShowings)
+      .values(showing)
+      .returning();
+    return created;
+  }
+
+  async updateExternalLeadShowing(id: string, updates: UpdateExternalLeadShowing): Promise<ExternalLeadShowing> {
+    const [updated] = await db.update(externalLeadShowings)
+      .set({ ...updates, updatedAt: new Date() })
+      .where(eq(externalLeadShowings.id, id))
+      .returning();
+    return updated;
+  }
+
+  async deleteExternalLeadShowing(id: string): Promise<void> {
+    await db.delete(externalLeadShowings)
+      .where(eq(externalLeadShowings.id, id));
+  }
+
+  // CRM - Client Activities
+  async getExternalClientActivities(clientId: string): Promise<ExternalClientActivity[]> {
+    const activities = await db.select()
+      .from(externalClientActivities)
+      .where(eq(externalClientActivities.clientId, clientId))
+      .orderBy(desc(externalClientActivities.createdAt));
+    return activities;
+  }
+
+  async createExternalClientActivity(activity: InsertExternalClientActivity): Promise<ExternalClientActivity> {
+    const [created] = await db.insert(externalClientActivities)
+      .values(activity)
+      .returning();
+    return created;
+  }
+
+  // CRM - Client Property History
+  async getExternalClientPropertyHistory(clientId: string): Promise<ExternalClientPropertyHistory[]> {
+    const history = await db.select()
+      .from(externalClientPropertyHistory)
+      .where(eq(externalClientPropertyHistory.clientId, clientId))
+      .orderBy(desc(externalClientPropertyHistory.createdAt));
+    return history;
+  }
+
+  async createExternalClientPropertyHistory(history: InsertExternalClientPropertyHistory): Promise<ExternalClientPropertyHistory> {
+    const [created] = await db.insert(externalClientPropertyHistory)
+      .values(history)
+      .returning();
+    return created;
   }
 
   // External Offer Token operations

@@ -19,6 +19,16 @@ Core architectural features include unified middleware, content adaptation, real
 
 The system implements extensive pagination, sortable columns, and consistent page reset logic. Mobile responsiveness includes SSR-safe auto-switching between card and table views with manual override. Unified filter UX is managed through Popover modals, and performance is optimized using TanStack Query caching and React memoization. Enterprise-grade security includes data encryption (AES-256-GCM), enhanced audit logging, rate limiting, and strict multi-tenant isolation. Performance for external endpoints is optimized with PostgreSQL trigram indexes and lean DTOs. The External Management System includes a comprehensive Kanban board for lead management with drag-and-drop functionality, three distinct views (table, cards, Kanban), and localized status labels. Duplicate detection for clients and leads is implemented using normalized name comparison and phone number matching. Public lead registration is facilitated through permanent URLs for seller and broker registrations. The system supports drag-and-drop sidebar reordering with user role-specific persistence. Contract sections utilize unified token tables for internal and external systems, ensuring multi-tenant isolation, link generation for rental offers and tenant applications, and real-time status updates via intelligent polling. The External Management System now includes a professional quotation system with service line items, automatic 15% administrative fee calculation, PDF generation, shareable public links via tokens, and conversion to maintenance tickets with service snapshot preservation. It also supports 3 selectable PDF design templates (Professional, Modern, Elegant) for rental forms and owner forms, with dual branding (HomesApp and agency logos).
 
+The External Management System now includes comprehensive CRM functionality for leads and clients with:
+- Lead activity tracking (calls, emails, meetings, WhatsApp, showings)
+- Lead status history with automatic logging when status changes
+- Property showings scheduling with outcome tracking and feedback
+- Client activity tracking and timeline
+- Client property history for tracking tenant/owner relationships across properties
+- Client blacklist management with warning and blacklisted statuses
+- Lead-to-client conversion with sourceLeadId/convertedToClientId linking
+- Improved duplicate detection for lead-to-client conversion errors
+
 ## External Dependencies
 *   Google Calendar API
 *   Google OAuth 2.0

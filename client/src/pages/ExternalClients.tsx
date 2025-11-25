@@ -651,19 +651,33 @@ export default function ExternalClients() {
         lastName: lead.lastName,
         email: lead.email || undefined,
         phone: lead.phone || undefined,
+        phoneCountryCode: lead.phoneCountryCode || undefined,
         nationality: lead.nationality || undefined,
         city: lead.city || undefined,
         address: lead.address || undefined,
         notes: lead.notes || undefined,
         status: "active",
-        externalAgencyId: lead.externalAgencyId,
+        source: "lead_conversion",
+        sourceLeadId: lead.id,
       };
       const res = await apiRequest("POST", "/api/external-clients", clientData);
+      if (!res.ok) {
+        const errorData = await res.json().catch(() => ({}));
+        if (errorData.code === "DUPLICATE_ENTRY" || res.status === 409) {
+          throw new Error(language === "es" 
+            ? "Ya existe un cliente con el mismo email o telefono. Verifica los datos del lead."
+            : "A client with the same email or phone already exists. Check the lead data.");
+        }
+        throw new Error(errorData.message || (language === "es" 
+          ? "Error al crear cliente"
+          : "Error creating client"));
+      }
       const newClient = await res.json();
       
       // Update lead status to converted
       await apiRequest("PATCH", `/api/external-leads/${lead.id}`, { 
         status: "renta_concretada",
+        convertedToClientId: newClient.id,
         notes: `${lead.notes || ""}\n\n[${new Date().toISOString()}] Convertido a cliente ID: ${newClient.id}`.trim()
       });
       
