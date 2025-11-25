@@ -1,0 +1,1930 @@
+Zona	Condominio	Unidad
+La Veleta	Cacao	A101
+Aldea Zama	Paramar Viva	206
+La Veleta	Cacao	A301
+La Veleta	Cacao	B102
+La Veleta	Cacao	B104
+La Veleta	Cacao	B105
+La Veleta	Cacao	E302
+La Veleta	Cacao	E303
+La Veleta	Cacao	D304
+La Veleta	Cacao	A102
+La Veleta	Cacao	B301
+Aldea Zama	Ik Zama	9
+Aldea Zama	Paramar Viva	113
+Region 15	Solemn	307
+Region 15		F3 14
+Region 15	Solemn	302
+Aldea Zama	Arba II	-
+Aldea Zama	Arba I	101-102-103
+Kukulkan	Adora	H8
+Centro	Tuk Tulum	Agua 107
+La Veleta	Gautama	
+Aldea Zama	Arba I	201-202-203
+Aldea Zama	Arba I	301-302-303
+La Veleta	Palalma Casa	20
+Region 15	Solemn	207
+Kukulkan	Naia Tulum	314
+La Veleta	Condos Ocho	A3
+Av coba	Edena by TAO	2
+Region 15	Solemn 	201
+Aldea Zama	Agua de mar 	308
+Centro	Maria Tulum	-
+Kukulkan	NaiaTulum	C33
+La Veleta	Rosa de Piedra	3
+La Veleta	Panoramic	PH4A
+Av coba	Edena by Tao	112
+Tumben kaa	Distrito La Selva	5
+La Veleta	Seremonia Selva	404
+La Veleta	Central Park Lagunas	E101
+Tumben kaa	Casa Blanca	-
+Aldea Zama	Casa Jaax	
+La Veleta	Palalma Tierra	8
+Kukulkan	Adora	304
+Region 15	Solemn 	401
+Tumben kaa	Distrito La Selva	6
+Region 15	Solemn 	105
+Region 15	Solemn 	102
+La Veleta	Casa Purusha	-
+Aldea Zama	Estela Tulum	(sin muebles)
+Aldea Zama	Casa Chacah	-
+Region 15	AAK	L1
+Aldea Zama	Estela Tulum	
+Aldea Zama	Zama Tower	B109
+Aldea Zama	Estela Tulum	D101 (sin muebles)
+Aldea Zama	Estela Tulum	B302 (sin muebles)
+La Veleta	Villa Cielo Tulum	
+Kukulkan	Noil Villas	2D
+Tumben kaa	Xunik	T4 #304
+Aldea Zama	Coati	201
+Zona hotelera 	Casa Amor	-
+La Veleta	Boni Gardens	L3
+La Veleta	Xamira	36
+Holistika	Villa Guacamaya	
+Region 15	Mistiq Villas	16
+Tumben kaa	Villaggio Montorso	#2
+Region 15	Mistiq gardens l 	28
+Tumben kaa	Tulix	Casa #7 sin muebles
+Aldea Zama	Quinto Sol	3
+Kukulkan	Adora	207
+Kukulkan	Adora	208
+Mun Tulum	Mun Townhouse	12
+Kukulkan	Adora	Villa 1
+Kukulkan	Adora	Villa 5 (solo vacacional)
+Region 15	Noil Residences	2
+Holistika	Villa Tuunich	1
+Selva Norte	Selva Norte	Beek 301
+Aldea Zama	Amira Central	103
+Centro	Maria Tulum	237
+La Veleta	Cacao	D302
+Aldea Zama	Paramar Viva	304
+La Veleta	Villa Penelopa	2
+La Veleta	Zona Nove	5
+La Veleta	Palalma Tierra	27
+Region 12	Aldea Savia F1	G23
+Aldea Zama	Paramar Ve	5
+Aldea Zama	Quinto Sol	12 (serv incl)
+La Veleta	Tanik Hotel	Boho
+La Veleta	Tanik Hotel	Dark Penth
+La Veleta	Palalma Tierra	18
+Aldea Zama	Vientos Tulum	1
+Tumben kaa	Casa Tigrillo	-
+La Veleta	Rama	315
+Aldea Zama	Quinto Sol	6
+La Veleta	Rama	201
+Aldea Tulum	Aldea Tulum	13
+Region 15	Casa Amal	-
+La Veleta	Cuatro Cielos Tulum	Villa Sur
+La Veleta	Cuatro Cielos Tulum	Villa Oeste
+Aldea Zama	Amira central	104
+Aldea Zama	Lik Zama	306
+Aldea Zama	Quinto Sol	25
+Centro	Tuk Tulum	 Fuego 312
+La Veleta	Rama	204
+La Veleta	Rama	101
+Kukulkan	Adora	412
+Kukulkan	Adora	H13
+La Veleta	Cacao	C101
+Centro	Kalmuk	306
+La Veleta	Heavens Lagoon	3
+La Veleta	Heavens Lagoon	12
+Aldea Tulum	Mza 24 lt1 uc2 C. 302 J2	
+La Veleta	Siddartha	109
+Region 15	Casa Ananta	-
+La Veleta	Central Park Lagunas 	C205
+La Veleta	Villa Lool	-
+La Veleta	Kantuun	T2 B1
+Aldea Zama	Miraluna	112
+La Veleta	Xeiba	201
+Aldea Zama	Luna Residence 	301
+Kukulkan	Chaac	315
+La Veleta	Zanza Studios	2002
+La Veleta	Xperience Residences	19
+Riviera Tulum	Keystone	
+La Veleta	Acinte by Endémico	ph6
+Region 15	Mistiq Temple I	C105
+La Veleta	Rama	103
+Macario Gomez	Casa Olivia	-
+Macario Gomez	Casa Sylvia	-
+Kukulkan	Chaac	116
+La Veleta	Cacao	C102
+Region 8	Nook	3104
+La Veleta	DK Tulum	6
+Region 15	Koah	6
+Region 15	Koah	11
+Region 15	Koah	1
+Riviera Tulum	Casa Pocahontas	-
+La Veleta	Heavens Lagoon	9
+La Veleta	Heavens Lagoon	8
+Riviera Tulum	Anayansi	1 (incluye servicios)
+Kukulkan	Adora	406
+Aldea Zama	Zama Tower Premium	D005
+Aldea Zama	Zama Tower  	D112
+Aldea Zama	Amira central	202
+Aldea Zama	La Privada	49
+Aldea Tulum	Aldea Tulum	17
+Region 15	Reverence	206
+Centro	Tuk Tulum	Fuego 103
+Centro	Tuk Tulum	Fuego 14
+Centro	Tuk Tulum	Tierra 307
+Centro	Tuk Tulum	Tierra 211
+Centro	Tuk Tulum	Fuego 001
+Aldea Zama	Villa G	
+Centro	Bakal 	208
+La Veleta	Cacao	204A
+Region 12	Aldea Savia F2	G58
+Kukulkan	Adora	401
+La Veleta	Kantuun 	T1 B2
+Centro	Maria Tulum 	2
+Centro	Maria tulum 	5
+Centro	Maria tulum 	6
+Centro	Maria tulum 	7
+La Veleta	Palalma Tierra	9
+La Veleta	Santal 	116
+La Veleta	Santal	214
+La Veleta	The secret garden 	-
+Aldea Zama	Luna Residence	106
+La Veleta	Smart depas	A308
+La Veleta	Smart Depas	C309
+Centro	Bakal 	109
+Centro	Bakal 	415 PH
+Aldea Tulum	Aldea tulum 	203
+Centro	Hacienda Tuuk Torre Yah	3
+La Veleta	Heavens Lagoon	2
+La Veleta	Blue Luxury	101 B
+La Veleta	Casa armonia 	-
+Playa Del Carmen	Playazul	
+La Veleta	Zen 	pb1 
+Kukulkan	Chaac	222
+Centro	Tuk Tulum	Fuego 110
+Region 12	Aldea Savia F1	314
+Aldea Zama	Miraluna	341
+La Veleta	Cordelia	B3
+La Veleta	Kanta 	B2
+La Veleta	Heaven 	PH
+La Veleta	Atipika 	302
+La Veleta	Palalma Casa	4
+Playa Del Carmen	Beel 19	2
+Aldea Zama	Gaia	308
+Av coba	Edena by TAO	8
+Chemuyil	Casa Chemuyil 	-
+La Veleta	Central Park 	E
+Av coba	Gardens by Coba	103
+Kukulkan	Waves	F305
+Centro	Tuk Tulum	Tierra 108
+Av coba	Gardens by coba 	310
+La Veleta	Smart Depas 	D208
+Aldea Tulum	Aldea Tulum 	7
+La Veleta	Palalma Tierra	5
+Av coba	Edena by TAO	2
+La Veleta	Lighthouse	-
+Aldea Zama	Akua Tulum	18
+Kukulkan	Waves	sp103
+La Veleta	Cordelia	B4
+Bahia Principe	Downtown	29
+Region 15	Mistiq Gardens I	223
+Aldea Zama	Ik Zama	14
+Region 15	Areia 	F2 6
+Aldea Zama	Paramar Viva	211
+Aldea Tulum	Aldea Tulum	304
+Kukulkan	Waves	F314
+Selva Norte	Kayum	203 sin muebles
+Centro	Tuk Tulum	Tierra 310
+Region 15	Mistiq Temple II	C304
+Villas Tulum	Casa Jaguares	-
+Villas Tulum	Alma 	B2
+Villas Tulum	Alma 	C6
+Villas Tulum	Alma 	1
+Aldea Zama	Akua Tulum	13
+Region 12	Aldea Savia	C21
+La Veleta	Sky Tulum	K102
+La Veleta	Seremonia Selva	515
+Kukulkan	Adora	111
+Villas Tulum	Selva Maya	B1
+Villas Tulum	Selva Maya	
+Villas Tulum	Selva Maya	
+Bahia Principe	Downtown	6
+Aldea Zama	Katia	210
+Av coba	Edena by Tao	43 sin muebles
+Villas Tulum	Homes	301
+La Veleta	Casa Chehchen	Town House
+Aldea Zama	Paramar Viva	11
+La Veleta	Seremonia Origen	310
+La Veleta	Jungle Chic	306
+Region 15	Majaro	
+La Veleta	Tierra Blanca	202
+Region 15	Muuk	307
+La Veleta	Smart Depas	A109
+La Veleta	Smart Depas	B210
+Aldea Zama	Brava Towers 	407
+Region 15	Mistiq Temple I	A302
+Kukulkan	Mistiq Tulum	E104
+Region 15	Mistiq Temple I	C205
+Selva Norte	Almendro	38
+Region 15	Mistiq Temple I	E302
+Riviera Tulum	Keystone 	
+Aldea Zama	Art House	8-201
+La Veleta	Palalma Tierra	14
+Tumben kaa	Vida Tulum	2
+Tumben kaa	Vida Tulum	8
+Aldea Zama	Aguasanta	1
+Tumben kaa	Miel y Almendras	3
+Tumben kaa	Xunik	B103
+Centro	Menesse	306
+Region 15	Mistiq Gardens I	302
+La Veleta	Smart Depas	A105
+La Veleta	Smart Depas	A106
+La Veleta	Smart Depas	B104
+La Veleta	Smart Depas	B206
+La Veleta	Smart Depas	C203
+La Veleta	Smart Depas	C205
+La Veleta	Smart Depas	D104
+Region 15	Mistiq Gardens I	104
+Kukulkan	Mistiq Tulum	A201
+Kukulkan	Mistiq Tulum	H201
+Kukulkan	Mistiq Tulum	H204
+Region 15	Mistiq Gardens I	105
+Region 15	Mistiq Gardens I	117
+Region 15	Mistiq Gardens I	211
+Region 15	Mistiq Gardens I	212
+Region 15	Mistiq Gardens I	214
+Region 15	Mistiq Gardens I	221
+Region 15	Mistiq Gardens I	305
+Region 15	Mistiq Temple I	B208
+Region 15	Mistiq Temple II	B202
+Region 15	Mistiq Temple I	B207
+Region 15	Mistiq Temple II	B201
+La Veleta	Kaatal Oox	5
+La Veleta	Casa Libelula	-
+La Veleta	Panoramic	PH 3C
+Kukulkan	Mistiq Tulum	B303
+Kukulkan	Mistiq Tulum	F103
+Region 15	Mistiq Temple I	C305
+Region 15	Mistiq Temple II	B208
+Region 15	Mistiq Temple II	B403
+Region 15	Mistiq Temple II	C208
+Region 15	Mistiq Temple II	C209
+Region 15	Mistiq Temple II	C303
+Region 15	Mistiq Villas	28
+Region 15	Mistiq Villas	25
+Region 15	Mistiq Villas	26
+Region 15	Mistiq Villas	20
+La Veleta	Magnolias	B2
+Centro	Kiimak Tulum	3
+Centro	Mayapax	F
+La Veleta	DK Tulum	232
+Region 15	Mistiq Villas	15 (sin muebles)
+Centro	Hotel Kassia	
+Aldea Tulum	Aldea Tulum	201
+La Veleta	Condos Ocho	B5
+La Veleta	Erena	510
+La Veleta	Erena	305
+Region 15	Chaac	215
+Kukulkan	Mistiq Tulum	A204
+Region 15	Mistiq Gardens I	124
+Aldea Zama	Yakuntik	Copal #101
+Aldea Zama	Yakuntik	Ceiba Pentandra #106
+Aldea Zama	Yakuntik	Copal #201
+Aldea Zama	Yakuntik	Balche #202
+Aldea Zama	Yakuntik	Chit #301
+Region 15	Zizal	103
+Region 15	Zizal	202
+Region 15	Zizal	203
+Region 15	Zizal	205
+Region 15	Zizal	302
+Region 15	Zizal	303
+Region 15	Zizal	305
+Cenote Caracol	Casa Giselle	-
+Kukulkan	Adora	204
+La Veleta	Palalma Casa	7
+La Veleta	Coco Village	C1
+Region 15	Mistiq Temple ll	B212
+Centro	Tuk Vientos	207
+Kukulkan	Mistiq Tulum	B201
+Region 15	Mistiq Temple I	A401
+Kukulkan	Adora	7
+Aldea Tulum	Aldea Tulum	Fer
+La Veleta	Luxury Condo	#3
+Limas	Limas Tulum	111
+Region 15	Xibalba	23
+Av coba	Edena by Tao	60 (sin muebles)
+Aldea Tulum	Aldea Tulum	
+Region 11	Casa Camel	-
+Akumal	Siete Gotas	
+La Veleta	Cacao 	C104
+Villas Tulum	Paraiso Chaak	
+Villas Tulum	Tuane	802
+La Veleta	Villa El Canto	
+La Veleta	Etnica Ku	
+Centro	Tuk Vientos	307
+Aldea Zama	Calakmul	101
+Centro	Maria Tulum	203
+Aldea Tulum	Aldea Tulum Plus	T1 3B
+Aldea Tulum	Aldea Tulum	P-404
+Macario Gomez	Macario Gomez	
+Gran Sirenis	G. Sirenis ed. La selva	D302
+Av coba	Edena by Tao	46
+Bahia Principe	Anah Village	B15
+Bahia Principe	Anah Village	B44
+Tumben kaa	(Palma Central)	2 unidades
+Region 12	Aldea Savia F2	 G64
+La Veleta	Condos Che 721	
+Aldea Zama	Casa Kuk	-
+Limas	Limas Tulum	313
+Limas	Limas Tulum	402 (sin muebles)
+Limas	Limas Tulum	901 (sin muebles)
+La Veleta	Smart Depas	C208 sin muebles
+La Veleta	Palalma casa	26
+Region 15	Koah 	7
+Region 15	Mistiq Gardens I	102
+Aldea Tulum	Aldea Tulum	casa Baax al
+La Veleta	Asana Leaf 	Casa 1
+Kukulkan	Mistiq Tulum	D303
+Kukulkan	Mistiq Tulum	G301
+Centro	Locales Plaza Hexa	
+Aldea Zama	Casa Nirvana	-
+Aldea Tulum	Aldea Tulum	(sin muebles)
+Aldea Zama	Miraluna	322
+Region 15	Mistiq Temple II	B210
+Aldea Zama	Omara	210
+Tumben kaa	Tulix	12
+Selva Norte	Selva Norte	Balche 49
+La Veleta	Casa Veleta	-
+La Veleta	Acinte	A8
+Region 15	Noil Residences	PP8
+Tumben kaa	Xunik	 T3 #102
+Aldea Zama	Town Center	T6 #101
+Kukulkan	Noil Villas	2C (sin muebles)
+Centro	Maria Tulum	113
+Tumben kaa	Tulix	24
+Aldea Zama	Yakuntik	Kerpis #305
+Aldea Zama	Yakuntik	Zapote #210
+Selva Norte	Copal	301
+La Veleta	Erena	512
+Aldea Zama	Origen Jungle	2D
+Aldea Zama	Origen Jungle	3D
+Aldea Zama	Katia Residence	213
+Region 15	Xibalba	216
+Region 15	Zizal	102 (serv incl)
+La Veleta	Cacao 	D202
+Villas Tulum	Tuane	302
+Villas Tulum	Tuane	401
+Kukulkan	Loch Condo	401
+Holistika	Ahal 1	102
+Centro	Tuk Viento	107
+Av coba	Humana	F101
+Villas Tulum	Homes	106
+Villas Tulum	Homes	205
+La Veleta	Xiimbal	212
+Kukulkan	Mistiq Tulum	D301
+Region 15	Reverence	103
+Region 15	Reverence	102
+La Veleta	Edificio Baay	
+Holistika	Ahal 2	T4 402
+Limas	Limas Tulum	302 (sin muebles)
+Kukulkan	Mistiq Tulum	D201
+Bahia Principe	Anah Village	B41
+Centro	Kiimak	4
+Akumal	Santamar by tao	A307
+Bahia Principe	Anah Suites	C307
+Aldea Zama	Naj Tulum	2B
+Aldea Zama	Naj Tulum	1B
+Aldea Tulum	Aldea Tulum	B2 - 101
+Kukulkan	Mistiq Tulum	D302
+Kukulkan	Mistiq Tulum	J303
+Kukulkan	Mistiq Tulum 	B204
+Kukulkan	Mistiq Tulum	F201
+Aldea Tulum	Aldea Tulum	Mz 8 Lt1 #50
+La Veleta	Asana Leaf 	4
+Region 15	Xibalba	111
+Aldea Zama	Parque Zama	T4 D202
+Tumben kaa	Xunik	T3 #304
+La Veleta	Naia Naay	E302
+Region 15	Angelique	302
+Limas	Limas Tulum	312
+Region 15	Angelique	101
+Region 15	Jade	30
+Aldea Zama	Amelia	107
+Aldea Tulum	Aldea Tulum Plus 	T49 4A
+Centro	Bakal	413
+La Veleta	Casa Chehchen	casa #1
+Region 15	Mistiq Gardens I	209
+Region 15	Mistiq Gardens I	210
+Region 15	Mistiq Gardens I	222
+Aldea Zama	Yakuntik	Ceiba insignis #102
+La Veleta	Asana 	1
+Aldea Zama	Carmela	304
+Centro	Maria Tulum	313
+Aldea Zama	Miraluna	133
+Aldea Zama	Locales parques Zama	T3 #2
+Aldea Zama	Locales parques Zama	T3 #4
+Aldea Zama	Locales parques Zama	T4 #2
+Aldea Zama	Locales parques Zama	T4 #1
+Aldea Zama	Locales parques Zama	T3 #1
+Aldea Zama	Locales parques Zama	T4 #4
+Aldea Zama	Locales parques Zama	T2 #4
+La Veleta	Nequén	208
+Aldea Zama	Ophelia 	K4
+La Veleta	Casa Imox	01B
+La Veleta	Casa Imox	202B
+Aldea Zama	Azara	202
+Aldea Zama	Azara 	301
+Aldea Zama	Mareas Condo	3A
+La Veleta	Acinte by Endémico	#B1
+Av coba	Edena by Tao	10
+La Veleta	Boni Gardens	201
+Aldea Tulum	Aldea Tulum Plus	T24 3B
+Region 8	Recinto	1
+La Veleta	Xiimbal	29
+Region 15	Mistiq Temple II	#A212
+Region 15	Mistiq Temple II	#A205
+Region 15	Mistiq Temple II	C402
+La Veleta	Nayal	5
+Region 15	Jade	6
+Aldea Tulum	Aldea Tulum F2 	201
+Kukulkan	Naia Tulum	B13
+Aldea Zama	Aru Tulum	103
+Xuul Ka	Casa Tepy	-
+Kukulkan	Mistiq Tulum	H303
+La Veleta	Blue Luxury	102E
+Aldea Zama	Aru Tulum	308
+Kukulkan	Mistiq Tulum	A302
+Kukulkan	Mistiq Tulum	B101
+Aldea Zama	Azara	203
+Zona hotelera 	Amira District	B204
+Region 15	Mistiq Temple ll	A301,B203,B207,B208,B211,B301,B302,B304,B305,B403,C201,C202,C203,C207,C208,C209,C301,C302
+Kukulkan	Loch Condo	104
+Kukulkan	Loch Condo	223
+Av coba	Gardens by coba	PH01
+Av coba	Gardens by coba	204
+Av coba	Gardens by coba	205
+Region 15	Jungle paradise	213
+Region 8	Canopia	110
+Region 15	Siwa	D1-105
+Centro	Edificio BAHA	6 depas
+Region 15	Satori	301 PH
+Aldea Zama	Local Anemona	101
+Riviera Tulum	Casa Riviera Tulum (sin muebles)	-
+Kukulkan	Adora	206
+Aldea Zama	Azara	302
+Aldea Zama	Azara	307
+Aldea Zama	Coba II	PH22
+Xuul ka	Local comercial 	
+Aldea Zama	Parque Zama	D301 (sin muebles)
+Aldea Zama	Parque Zama	D306 (sin muebles)
+Aldea Zama	Paramar Viva	18
+Holistika	Casa Noni	-
+Centro	Tuk Tulum	Agua 103
+La Veleta	Palalma Tierra	34
+La Veleta	Naab	B301
+Bahia Principe	Anah Suites	A7
+Gran Sirenis	Sirenis	103
+Kukulkan	Mistiq Tulum	H301
+Kukulkan	Mistiq Tulum	G104
+La Veleta	Villas Kuxtal	
+Aldea Zama	Bonita Love And Explore	2
+Aldea Zama	Phimai	8
+Riviera Tulum	Casa Fran	-
+Riviera Tulum	Casa Flip	-
+Bahia Principe	Downtown 	40
+La Veleta	Central Park Lagunas	A112
+Aldea Zama	Yaxiik	32
+Selva Norte	Ceiba 	102
+Region 15	Mistiq gardens I	125
+Region 15	Mistiq gardens I	119
+Aldea Zama	Phimai	7B
+Region 15	Mistiq Temple I	A206
+Kukulkan	Mistiq Tulum	G202
+La Veleta	Green Oasis	-
+Aldea Zama	Town Center	T4 #205
+Tumben kaa	Tulix	casa #25
+Holistika	Amar Tulum	202
+Region 15	Casa Arroqueño	-
+Aldea Zama	Casa Alia	-
+Aldea Zama	Local Anemona	#1
+Aldea Zama	Local Anemona	#2
+La Veleta	Cacao 	B205
+La Veleta	Naia Naay	H205
+Region 15	Mistiq Villas	7
+Region 15	Mistiq Temple ll	A206
+Region 15	Mistiq Gardens I	103
+Av coba	Edena by tao	116
+Av coba	Edena by tao	58
+Centro	Mun Tulum	33
+La Veleta	Xiimbal	35 (sin muebles)
+Region 8	Botanic	311
+Region 12	Aldea Savia F1	R23
+Region 12	Nativa Tulum	#2304
+Bahia Principe	Anah Suites	A4
+Kukulkan	Blue Luxury kukulkan	102 F
+Kukulkan	Blue Luxury kukulkan	201 F
+Centro	Tuk Tulum	Agua 113
+Region 15	Mistiq Gardens ll 	13
+Tumben kaa	Xunik	T1 #101(sin muebles)
+Tumben kaa	Xunik	T3 #201(sin muebles)
+Tumben kaa	Xunik	T3 #305(sin muebles)
+Tumben kaa	Xunik	T5 #102(sin muebles)
+Tumben kaa	Xunik 	T4 #203(sin muebles)
+Tumben kaa	Xunik 	T4 #303(sin muebles)
+La Veleta	Sky Tulum	S-003
+Aldea Zama	Azara	#306
+La Veleta	Casa Santiago	#1 (3 disponibles)
+Aldea Zama	Brava Towers 	308
+Aldea Zama	Town Center	T1 #104
+Kukulkan	Mistiq Tulum 	E102
+Kukulkan	Mistiq Tulum	G204
+Centro	Nadet	#31
+Centro	Nadet	#33
+Centro	Nadet	#34
+Centro	Nadet	#35
+Aldea Zama	Tao	119
+Aldea Tulum	Aldea Tulum	10
+Kukulkan	Mistiq Tulum	C303
+Aldea Zama	Paramar Viva	213
+Aldea Zama	Paramar Viva	130
+Aldea Zama	Ik Zama	3
+Aldea Zama	Ik Zama	7
+Mun Tulum	Mun Townhouse	3
+Mun Tulum	Mun Townhouse	7
+Mun Tulum	Mun Townhouse	17
+Mun Tulum	Mun Townhouse	20
+Kukulkan	Adora	302
+Kukulkan	Adora	H4
+Kukulkan	Adora	Villa 2
+Villas Tulum	Homes	101
+Kukulkan	Adora	301
+Mun Tulum	Mun Townhouse	31
+Aldea Zama	Paramar Viva	10
+Aldea Zama	Paramar Viva	207
+La Veleta	Kaatal Oox	7
+La Veleta	Zona Nove	4
+La Veleta	Zona Nove	3
+Riviera Tulum	Casa Lili	-
+La Veleta	Seremonia	studio
+La Veleta	Palalma Tierra	19
+La Veleta	Palalma Tierra	21
+La Veleta	Palalma Tierra	26
+La Veleta	Asana 	3
+Region 12	Aldea Savia	PH 333
+Region 15	Mistiq Temple I	C106
+Aldea Zama	Quinto Sol	14
+Aldea Zama	Quinto Sol	21
+Selva Norte	Selva Norte	Nikte 101
+La Veleta	Villa Vidrio	-
+Riviera Tulum	Casa Marta	-
+Yax-Kin	Xun Kari	-
+Region 12	Aldea Savia F2	G55
+Aldea Tulum	Aldea Tulum	2
+Aldea Tulum	Aldea Tulum	3
+Aldea Tulum	Aldea Tulum	4
+Aldea Tulum	Aldea Tulum	5
+Aldea Tulum	Aldea Tulum	6
+Aldea Tulum	Aldea Tulum	8
+Aldea Tulum	Aldea Tulum	9
+Aldea Tulum	Aldea Tulum	11
+Aldea Tulum	Aldea Tulum	12
+Aldea Tulum	Mza.22 Ed. R1 Dpto 202	7
+Aldea Tulum	Mz 65 ed B2 dto 302	
+Riviera Tulum	Aldea Ka an	
+La Veleta	Xamira Fase 1	8
+La Veleta	Selva Tulum	B1
+Kukulkan	La coordenada perfecta	4
+La Veleta	Condos Ocho	C1
+Region 15	Mistiq Temple I	A212
+Kukulkan	Naia Tulum 	C15
+Tumben kaa	Ka An	
+Riviera Tulum	Ware House Black	
+Aldea Zama	Eve Residences	
+Region 15	Mistiq Temple I	A306
+Riviera Tulum	Casa Melodia	-
+La Veleta	Cuatro Cielos Tulum	Villa Marina
+La Veleta	Rama	301
+Aldea Zama	Ophelia	302
+Aldea Zama	Ophelia	
+Region 15	Areia 	F2 18
+Kukulkan	Adora	411
+Kukulkan	Adora	H1
+Kukulkan	Adora	H2
+Kukulkan	Adora	H16
+Kukulkan	Adora	H17
+Kukulkan	Adora	H19
+Tumben kaa	Ka An Tulum	
+La Veleta	Condos Ocho	D2
+Aldea Zama	Quinto Sol	20
+La Veleta	Heavens Lagoon	7
+La Veleta	Cacao	B201
+La Veleta	Cacao	C103
+La Veleta	Cacao	C301
+La Veleta	Cacao	E102
+Bahia Principe	Tao TSE	m2
+Selva Norte	Kayum 	104
+Aldea Zama	Zama 120	3
+Region 12	Aldea Savia	511
+Aldea Zama	Tao 	304
+La Veleta	Rama	110
+Aldea Zama	Paramar Viva	203
+Region 8	Recinto	B8
+La Veleta	El Nido	104
+Aldea Zama	Kuukum	104
+Aldea Tulum	aldea tulum 	15
+Aldea Tulum	Aldea tulum F3	16
+Riviera Tulum	Anayansi	3
+La Veleta	Xeiba	202
+Aldea Zama	Miraluna	111
+Aldea Zama	Miraluna	323
+Aldea Zama	Miraluna	324
+La Veleta	La Veleta Luxury	4
+La Veleta	La Veleta Luxury	8
+La Veleta	La Veleta Luxury	9
+Villas Tulum	Homes	1er nivel
+Kukulkan	Chaac	13
+Region 15	Casa Pala	-
+La Veleta	Via Aqua	102
+Tumben kaa	Luz Tulum	302
+Riviera Tulum	Riviera	23
+Aldea Zama	Alma de Flores	108
+Aldea Zama	Alma de Flores	208
+Aldea Zama	Alma de Flores	304
+Region 12	Aldea Savia F2	R44
+Region 12	Aldea Savia F1	G34
+Aldea Zama	Querido Tulum	102
+Aldea Zama	Carmela 	303
+Aldea Zama	Akua Reserve	34
+Holistika	Casa Mono 	-
+Aldea Zama	Vientos Tulum	2
+Holistika	Amar Tulum	Luna 403
+Holistika	Amar Tulum	Cielo 303
+La Veleta	Rama	202
+Region 15	Casa Laguna	308
+Region 15	Casa Laguna	206
+Region 15	Casa Laguna	204 sin muebles
+Region 15	Casa Laguna	101
+La Veleta	Erena	106
+La Veleta	Erena	203
+Aldea Zama	Artia	221
+Region 15	Koah	5
+Kukulkan	Adora	209
+La Veleta	DK Tulum	5
+Aldea Zama	Paramar Viva	118
+Kukulkan	Naia Tulum	B31
+Aldea Zama	Ik Zama	4
+Tumben kaa	Miel y almendras	4
+La Veleta	DK Tulum	1
+La Veleta	Casa Veleta Flores	-
+Aldea Zama	Quinto sol	7
+Aldea Zama	Quinto sol	23
+La Veleta	Central Park Lagunas 	E303
+La Veleta	Kantuun	T2 B3
+La Veleta	Casa Veleta 6BR	-
+La Veleta	Naab	A201
+La Veleta	Erena	309
+La Veleta	Villa sam	
+La Veleta	Cacao	203A
+La Veleta	Cacao	204B
+Centro	Mama Blue	Gypsea Loft
+Centro	Mama Blue	boho
+La Veleta	Terra Ego	301
+Riviera Tulum	Casa Nance	-
+Tumben kaa	Edificio Jabali	21
+Tumben kaa	Edificio Jabali	26
+Kukulkan	Adora	402
+Centro	Tuk Tulum	Agua 112
+Tumben kaa	Casa Venado	-
+Aldea Zama	Tao 	204
+Kukulkan	Adora	103
+Holistika	Casa Risueña 	-
+Centro	Mama Blue	Dharma
+Centro	Casa Boho 	-
+Kukulkan	Chaac	14
+Holistika	Casa Risueña PB	-
+Holistika	Casa Risueña PA	-
+Aldea Zama	Aflora	309
+La Veleta	Condo Los amigos 3	-
+La Veleta	Panoramic	PH6C
+La Veleta	Smart Depas 	C310
+Aldea Tulum	Aldea tulum 	201
+Kukulkan	Adora	409
+Region 15	Mistiq Temple I	B202
+Kukulkan	Naia Tulum	C34
+Kukulkan	Naia Tulum 	A13
+La Veleta	Rama 	111
+La Veleta	Zen	3
+La Veleta	Central Park Lagunas 	B115
+La Veleta	Halaken	PB4
+La Veleta	Zen 	S10
+Aldea Zama	Paramar Viva	108
+La Veleta	Rosa de Plata	306
+Region 15	Muuk	310
+Tumben kaa	Edificio Jabali	12
+Tumben kaa	Edifcio Jabali 	14
+Aldea Zama	Paramar Ve	101
+La Veleta	Kasa Mate	
+La Veleta	Siddartha 	106
+La Veleta	Surya	A2 
+La Veleta	Surya 	PH3
+La Veleta	Heaven	C
+La Veleta	Heaven	E
+La Veleta	Xintok	1002
+Aldea Zama	Kuukum 	105
+Region 12	Aldea Savia F1	121
+Aldea Zama	Miraluna	224
+Aldea Zama	Zama Tower	302
+La Veleta	Palalma Tierra	4
+La Veleta	Tzunum 	2
+La Veleta	Xiimbal 	7
+La Veleta	Xamira Fase 1	25
+Aldea Zama	Quinto Sol	16
+Aldea Zama	Brava Towers 	303
+La Veleta	Smart Depas 	B307
+Aldea Zama	Chen	302
+Aldea Zama	Chen	203
+Av coba	Edena by TAO	47
+La Veleta	Elementus 	d1
+Aldea Zama	Luxury Apartment 	Crypto
+Av coba	Edena by TAO	54
+La Veleta	Elementus 	b3
+La Veleta	Elementus 	j3
+Zona hotelera 	Habitaciones	-
+Zona hotelera 	Restaurant 	-
+Zona hotelera 	Local comercial 	-
+Selva Norte	Hibisco 	204
+Av coba	Edena by Tao	51
+Aldea Zama	Miraluna	241
+Tumben kaa	Casa Malix	-
+Zona hotelera 	Local comercial 	
+Aldea Zama	Loft Andador Kaan	2
+Aldea Zama	Loft Andador Kaan	1
+Aldea Zama	Zama Tower	207
+Aldea Zama	Chen	101
+Aldea Zama	Chen	301
+Akumal	Piedra de mar	4
+Centro	Hostal Tzunum	
+La Veleta	Oasis Yaaxlum	401
+Kukulkan	Adora	107
+Kukulkan	Waves	C313
+Region 12	Aldea Savia	211
+Av coba	Edena by Tao	57
+Aldea Zama	Town Center	103
+Playa Del Carmen	Allegranza	67
+Region 12	Aldea Savia	C23
+Bahia Principe	Anah Village	B2
+Muyil	Casa Ana	-
+Aldea Zama	Artia	103
+Centro	Tuk Tulum	Fuego 203
+Aldea Zama	Quinto Sol	17
+Aldea Zama	Paramar VE	102
+La Veleta	DK Tulum	124
+La Veleta	Palalma Tierra	11
+La Veleta	Xamira Fase 1	14
+Region 15	AAK	D3
+La Veleta	Lool Village	
+Av coba	Edena by Tao	48
+La Veleta	Cacao	A302
+La Veleta	Casa en La Veleta	-
+Tumben kaa	Luz Tulum	F101
+La Veleta	Coco Village	B1
+Region 15	Mistiq Gardens I	23
+Region 15	Mistiq Gardens I	24
+La Veleta	Coco Village	C3
+La Veleta	Cacao 	C202
+La Veleta	Rio de Plata	Casa 1
+Aldea Zama	Macondo	101 serv incl
+La Veleta	Xperience Residences	5
+Region 12	Aldea Savia	206
+Region 12	Aldea Savia F2	G56
+Aldea Zama	Aflora	211
+Region 12	Aldea Savia F1	DR14
+La Veleta	Sands Tulum	6
+La Veleta	Sands Tulum	1
+La Veleta	Sands Tulum	3
+La Veleta	Sands Tulum	4
+La Veleta	Sands Tulum	5
+La Veleta	Coco Village	A1
+La Veleta	Coco Village	A3
+La Veleta	Coco Village	C2
+Region 12	Aldea Savia	R25
+La Veleta	Tierra Blanca	302
+Aldea Zama	Chen Luum	102
+Kukulkan	Waves	A108
+Holistika	Ahal 1	A103
+La Veleta	Smart Depas	A304
+La Veleta	Smart Depas	B107
+Region 12	Aldea Savia F1	 R49
+Aldea Zama	Miraluna	221
+Centro	Menesse	127
+Tumben kaa	Luz Tulum	D302
+Zona hotelera 	Amira District	B302
+La Veleta	Sky Tulum	2
+Tumben kaa	Edificio Jabali	PH Sin muebles
+La Veleta	Zena Liza	A
+Tumben kaa	Casitas	Casita 1
+Tumben kaa	Casitas	Casita 2
+La Veleta	Coco Village	D2
+La Veleta	Cacao	C302
+Region 12	Casa Toh (Surenna)	-
+Mun Tulum	Mun Townhouse	8
+Aldea Tulum	Aldea Tulum Plus	T52
+Aldea Zama	Querido Tulum	103
+Aldea Zama	Casa Natura	201
+La Veleta	Rosa de Plata	F101
+La Veleta	Condos Ocho	B6
+Region 15	Mistiq Gardens I	213
+La Veleta	Sukha	308
+Tumben kaa	Xunik	B102
+Tumben kaa	Xunik	T1 #105
+Centro	Mama Blue	La Vie Boheme
+Region 15	Mistiq Gardens I	307
+La Veleta	Cacao	D201
+Aldea Zama	Brava Towers 	410
+Kukulkan	Mistiq Tulum	H104
+Region 15	Mistiq Temple II	B110
+Region 15	Mistiq Temple II	B111
+Centro	Samsara	F226
+Aldea Zama	Casa Natura	204
+Region 15	Mistiq Temple I	C301
+Region 15	Mistiq Temple II	A114
+Region 15	Mistiq Temple II	B112
+Region 15	Mistiq Temple II	B304
+Region 15	Mistiq Temple II	B305
+Aldea Zama	Brava Towers 	412
+Aldea Zama	Mirak	
+Region 15	Mistiq Temple II	B404
+Region 15	Mistiq Villas	29
+La Veleta	Sukha	301
+Selva Norte	Kayum	102
+Riviera Tulum	Residencial	
+La Veleta	Palalma Tierra	38
+Aldea Zama	Casa Melón	-
+Aldea Zama	Oceano	8
+Aldea Zama	Oceano	6
+La Veleta	Baay	8
+La Veleta	Kamil Ha	201
+La Veleta	Piaf	1
+Centro	Tierra Santa	204
+Tumben kaa	Luz Tulum	B301
+Region 15	Mistiq Temple I	B109
+La Veleta	Palalma Tierra	15
+Villas Tulum	Paam Cheel	202
+Yax-Kin	Casa Privada	-
+Region 15	Mistiq Gardens II	15
+Av coba	Edena by Tao	88
+Aldea Zama	Paramar Black	14
+Aldea Zama	Ophelia 	105
+Cenote Caracol	Casa Aneli	-
+Kukulkan	Mistiq Tulum	A301
+Akumal	Villa Tao	
+La Veleta	Cacao	E101
+Region 15	Areia 	F3 #7
+Av coba	Edena by Tao	73 sin muebles
+Region 15	Mistiq Gardens II	303
+Aldea Zama	Lik Zama 	202
+La Veleta	Edificio Zoe 	
+La Veleta	Coco Village	B2
+Kukulkan	Adora	101
+Region 15	Mistiq Temple II	A401
+Region 12	Aldea Savia 	603E
+Aldea Zama	Kune	207
+Bahia Principe	Condominio Baalam	-
+Holistika	Amar Tulum	Muuka 
+Aldea Zama	Tao	123
+Av coba	Bo's Home	
+Kukulkan	Naia Tulum	B11
+Kukulkan	Blue Luxury Kukulkan	01 C
+Kukulkan	Blue Luxury Kukulkan	PH E
+Region 15	Mistiq Temple I	B111
+Region 15	Mistiq Gardens I	7
+Villas Tulum	Paam Cheel	104
+Region 15	Mistiq Villas	14
+Tumben kaa	Casa Lagunas	-
+La Veleta	Boni Gardens	4
+Riviera Tulum	Riviera Tulum	
+Kukulkan	Blue Luxury Kukulkan	PH A
+La Veleta	Palalma Tierra 	16
+La Veleta	Condos Ocho 	C3
+Region 15	Mistiq Gardens ll	31
+km 8 Tulum/Coba	Casa Arekas	-
+Aldea Zama	Zama Tower	304
+Villas Tulum	Paraiso Chaak 	10
+La Veleta	Naia Naay	H305
+Bahia Principe	Anah suites	A14
+Aldea Zama	Estela Tulum	D203
+La Veleta	Erena	107 (sin muebles)
+La Veleta	Erena	301 (sin muebles)
+Region 15	Muuk	112
+Region 15	Mistiq Temple I	-
+Limas	Limas Tulum	303
+La Veleta	Mulatte	5
+Aldea Zama	Zama Village	Casa Elisa
+Aldea Zama	Estudio en renta	
+Aldea Zama	Casa Yaax	-
+Holistika	Amar Tulum	301
+La Veleta	Casa Selva	-
+La Veleta	Casa Rosi	-
+La Veleta	Casa privada en la veleta	-
+Aldea Zama	Ophelia 	317
+Aldea Zama	Bungalows village	218
+Aldea Zama	Bungalows village	225
+Region 11	Casa Coral	-
+Aldea Tulum	ALDEA TULUM PLUS	T48 2A
+Av coba	Edena by Tao	111
+Region 15	Neo +	3
+Holistika	Amar Tulum	LUNA 402
+Aldea Zama	Ophelia 	310
+Aldea Zama	Origen Jungle	1D
+Kukulkan	Adora	102
+La Veleta	Baay	1
+La Veleta	Baay	2
+La Veleta	Balba	1
+Region 15	Angelique	304
+Villas Tulum	VILLAS TULUM	
+Riviera Tulum	Casa Paradise	-
+Region 15	Zizal	106
+Region 15	Muuk	301
+La Veleta	Casa Chehchen	casa rolis
+La Veleta	Casa Chehchen	casa laura
+La Veleta	Casa Chehchen	estudio sky
+Region 15	Mistiq Temple ll	A112
+Region 12	Aldea Savia F2	523
+Region 15	Mistiq Gardens I	11
+La Veleta	Mulatte	
+Aldea Zama	Itza 1	102
+Kukulkan	Mistiq Tulum	F202
+Holistika	Amar Tulum	401
+Centro	Kiimak	1
+Kukulkan	Mistiq Tulum	C304
+Kukulkan	Mistiq Tulum	C301
+Region 15	Mistiq Villas	28
+Region 15	Mistiq Temple II	A402
+Tumben kaa	Jabali	13
+Kukulkan	Mistiq Tulum	G101
+Aldea Zama	Artia	106
+Av coba	Edena by Tao	61
+Aldea Zama	Sanctuary Residence	201
+La Veleta	Casa Imox	02A
+Aldea Zama	Azara	201
+Aldea Zama	Mareas Condo	2B
+Av coba	Edena by tao	86
+Region 15	Mistiq Temple I	#A303
+Region 15	Atia	5
+Aldea Zama	Parque Zama	T5 202
+Centro	Tuk tulum	Fuego 111
+La Veleta	Mulatte	6B
+La Veleta	Buena Vida	13
+Aldea Zama	Bonita Love and Explore	1
+Limas	Limas Tulum	401
+Region 15	Mistiq Temple ll	A101
+Aldea Zama	Paramar Viva	134
+Region 15	Atman Residences	117
+Region 15	Atman Residences	118
+Region 15	Mistiq Temple I	B306
+Region 15	Mistiq Gardens I	18
+Holistika	Ahal 3	1
+Centro	Tuk tulum	Agua 102 (falta enlistar)
+Centro	Tuk Tulum	Fuego 17
+Aldea Zama	Aru Tulum	102
+Region 15	Atman Residences	131
+Aldea Zama	Paramar Viva	103
+Aldea Zama	Azara	308
+La Veleta	Casa 4 Recamaras	CA
+Region 15	Mistiq Villas 	2
+Aldea Zama	Zambo - Luum zama	101
+Region 15	AAK	l1
+La Veleta	Che Condo	1
+Region 15	Mistiq Temple I	C104
+La Veleta	Maia	107
+Holistika	Amar Tulum	Alma 103
+Region 15	Mistiq Temple I	C111
+Region 15	Entorno Tulum	Villa 5
+Region 15	Entorno Tulum	Villa 6
+Region 15	Entorno Tulum	Villa 10
+Region 15	Mistiq Temple I	A114
+Tumben kaa	Tejon	E103
+Tumben kaa	Villa Tumben Kaa	
+Tumben kaa	Loft Mayapax	
+Aldea Zama	Bonita Love And Explore	8
+Region 15	Muuk	103
+Region 15	Kanta 	2
+Aldea Zama	solum	307b
+Region 15	Mistiq gardens I	5
+Region 15	mistiq gardens I	32
+Region 15	Mistiq Temple I	B105
+Region 15	Mistiq Temple I	C108
+Region 15	Mistiq Temple ll	A102
+Region 15	Mistiq Temple ll	A109
+Region 15	Mistiq Temple ll	C102
+Region 15	Mistiq Temple I	C114
+Aldea Zama	Town Center	T7 #308 (semiamob)
+Tumben kaa	Tulix	Casa #8
+Region 15	Villa Niburu	-
+Aldea Zama	Xalet Luxury	A402
+Aldea Zama	Elle Residences	203
+Region 15	Mistiq Gardens I	9
+Region 15	Mistiq Gardens I	16
+La Veleta	Zona Nove	Casa Pitahaya
+Region 15	Mistiq Gardens ll 	1
+Region 15	Mistiq Gardens ll 	11
+Tumben kaa	Xunik 	T1 #301(sin muebles)
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		

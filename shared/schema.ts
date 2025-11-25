@@ -6049,6 +6049,7 @@ export const externalUnits = pgTable("external_units", {
   agencyId: varchar("agency_id").notNull().references(() => externalAgencies.id, { onDelete: "cascade" }),
   condominiumId: varchar("condominium_id").references(() => externalCondominiums.id, { onDelete: "cascade" }), // Null si es propiedad independiente
   unitNumber: varchar("unit_number", { length: 50 }).notNull(), // Número de unidad/apartamento
+  zone: varchar("zone", { length: 100 }), // Zona/colonia donde se ubica la unidad
   propertyType: varchar("property_type", { length: 50 }), // Tipo de propiedad
   typology: unitTypologyEnum("typology"), // Tipología de la unidad
   bedrooms: integer("bedrooms"),
@@ -6065,6 +6066,7 @@ export const externalUnits = pgTable("external_units", {
   index("idx_external_units_agency").on(table.agencyId),
   index("idx_external_units_condominium").on(table.condominiumId),
   index("idx_external_units_active").on(table.isActive),
+  index("idx_external_units_zone").on(table.zone),
   unique("unique_unit_number_per_condominium").on(table.condominiumId, table.unitNumber),
 ]);
 
