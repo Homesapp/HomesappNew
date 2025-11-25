@@ -3441,6 +3441,81 @@ export default function ExternalClients() {
                 </div>
               </div>
 
+              {/* Property Interest Section */}
+              <div className="space-y-4 pt-4 border-t">
+                <h3 className="text-sm font-semibold flex items-center gap-2">
+                  <Building2 className="h-4 w-4" />
+                  {language === "es" ? "Propiedad de Interés" : "Property Interest"}
+                </h3>
+                <div className="grid gap-4 sm:grid-cols-2">
+                  <FormField
+                    control={editLeadForm.control}
+                    name="interestedCondominiumId"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>{language === "es" ? "Condominio" : "Condominium"}</FormLabel>
+                        <Select 
+                          onValueChange={(value) => {
+                            field.onChange(value);
+                            setSelectedCondominiumId(value);
+                            editLeadForm.setValue("interestedUnitId", undefined);
+                          }} 
+                          value={field.value || ""}
+                        >
+                          <FormControl>
+                            <SelectTrigger data-testid="select-edit-lead-condominium">
+                              <SelectValue placeholder={language === "es" ? "Seleccionar condominio" : "Select condominium"} />
+                            </SelectTrigger>
+                          </FormControl>
+                          <SelectContent>
+                            {condominiums.map((condo) => (
+                              <SelectItem key={condo.id} value={condo.id}>
+                                {condo.name} {condo.neighborhood ? `(${condo.neighborhood})` : ""}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  <FormField
+                    control={editLeadForm.control}
+                    name="interestedUnitId"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>{language === "es" ? "Unidad" : "Unit"}</FormLabel>
+                        <Select 
+                          onValueChange={field.onChange} 
+                          value={field.value || ""}
+                          disabled={!selectedCondominiumId || units.length === 0}
+                        >
+                          <FormControl>
+                            <SelectTrigger data-testid="select-edit-lead-unit">
+                              <SelectValue placeholder={
+                                !selectedCondominiumId 
+                                  ? (language === "es" ? "Primero seleccione condominio" : "First select condominium")
+                                  : units.length === 0
+                                    ? (language === "es" ? "Sin unidades disponibles" : "No units available")
+                                    : (language === "es" ? "Seleccionar unidad" : "Select unit")
+                              } />
+                            </SelectTrigger>
+                          </FormControl>
+                          <SelectContent>
+                            {units.map((unit) => (
+                              <SelectItem key={unit.id} value={unit.id}>
+                                {unit.unitNumber} {unit.type ? `(${unit.type})` : ""}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                </div>
+              </div>
+
               {/* Notes Section */}
               <div className="space-y-4 pt-4 border-t">
                 <h3 className="text-sm font-semibold flex items-center gap-2">
