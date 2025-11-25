@@ -62,6 +62,7 @@ import {
   X,
   MoreVertical,
   Pencil,
+  Edit2,
   Trash2,
   LayoutGrid,
   Table as TableIcon,
@@ -1210,19 +1211,6 @@ export default function ExternalClients() {
           </Card>
         ) : (
           <div className="space-y-4">
-            {/* Pagination Controls - Above Content */}
-            <ExternalPaginationControls
-              currentPage={currentPage}
-              totalPages={totalPages}
-              itemsPerPage={itemsPerPage}
-              onPageChange={setCurrentPage}
-              onItemsPerPageChange={(value) => {
-                setItemsPerPage(value);
-                setCurrentPage(1);
-              }}
-              language={language}
-            />
-
             {viewMode === "cards" ? (
               <div className="grid gap-4 sm:grid-cols-2">
                 {paginatedClients.map((client) => (
@@ -1435,6 +1423,19 @@ export default function ExternalClients() {
             </CardContent>
           </Card>
         )}
+            
+            {/* Pagination Controls - Below Content */}
+            <ExternalPaginationControls
+              currentPage={currentPage}
+              totalPages={totalPages}
+              itemsPerPage={itemsPerPage}
+              onPageChange={setCurrentPage}
+              onItemsPerPageChange={(value) => {
+                setItemsPerPage(value);
+                setCurrentPage(1);
+              }}
+              language={language}
+            />
           </div>
         )}
 
