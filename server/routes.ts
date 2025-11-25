@@ -21664,7 +21664,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         status: "approved",
         emailVerified: true, // Auto-verify external agency users
         requirePasswordChange: true, // Force password change on first login
-        assignedToUser: agencyId, // Link user to agency via assignedToUser field
+        externalAgencyId: agencyId, // Link user to their external agency for multi-tenancy
         maintenanceSpecialty: validatedData.maintenanceSpecialty || null,
       });
 
