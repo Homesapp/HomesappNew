@@ -29877,6 +29877,76 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // POST /api/external/quotations/:id/convert-to-ticket - Convert accepted quotation to maintenance ticket
+  app.post("/api/external/quotations/:id/convert-to-ticket", isAuthenticated, requireRole(EXTERNAL_ADMIN_ROLES), async (req: any, res) => {
+    try {
+      const { id } = req.params;
+      const agencyId = await getUserAgencyId(req);
+      
+      if (!agencyId) {
+        return res.status(403).json({ message: "User is not assigned to any agency" });
+      }
+
+      const quotation = await storage.getExternalQuotationById(id, agencyId);
+      if (!quotation) {
+        return res.status(404).json({ message: "Quotation not found" });
+      }
+
+      if (quotation.status !== "accepted") {
+        return res.status(400).json({ message: "Solo se pueden convertir cotizaciones aceptadas" });
+      }
+
+      if ((quotation as any).convertedTicketId) {
+        return res.status(400).json({ message: "Esta cotización ya fue convertida a ticket" });
+      }
+
+      const services = typeof quotation.services === 'string' 
+        ? JSON.parse(quotation.services) 
+        : quotation.services;
+      
+      const servicesDescription = services.map((s: any) => 
+        `- ${s.name}: ${s.quantity} x ${s.unitPrice} = ${s.subtotal}`
+      ).join('\n');
+
+      const ticketData = {
+        title: quotation.title,
+        description: quotation.description || '',
+        type: 'corrective' as const,
+        priority: 'medium' as const,
+        status: 'open' as const,
+        agencyId,
+        clientId: quotation.clientId || null,
+        propertyId: quotation.propertyId || null,
+        unitId: quotation.unitId || null,
+        estimatedCost: quotation.total,
+        actualCost: null,
+        currency: quotation.currency,
+        notes: `Creado desde cotización: ${quotation.quotationNumber}\n\nServicios:\n${servicesDescription}\n\nNotas: ${quotation.notes || 'N/A'}`,
+        createdBy: req.user.id,
+        sourceQuotationId: quotation.id,
+      };
+
+      const ticket = await storage.createExternalMaintenanceTicket(ticketData);
+
+      await storage.updateExternalQuotation(id, agencyId, { 
+        convertedTicketId: ticket.id 
+      });
+
+      await createAuditLog(req, "create", "external_maintenance_ticket", ticket.id, `Converted from quotation ${quotation.quotationNumber}`);
+      
+      res.status(201).json({ 
+        ticket,
+        message: "Cotización convertida a ticket exitosamente" 
+      });
+    } catch (error: any) {
+      console.error("Error converting quotation to ticket:", error);
+      if (error instanceof NotFoundError) {
+        return res.status(404).json({ message: error.message });
+      }
+      handleGenericError(res, error);
+    }
+  });
+
   const httpServer = createServer(app);
   const sessionMiddleware = getSession();
   

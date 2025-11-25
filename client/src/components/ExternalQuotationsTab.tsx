@@ -42,7 +42,7 @@ import {
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import type { ExternalQuotation } from "@shared/schema";
-import { FileText, Plus, Send, Check, X, Ban, Link2, Trash2, Eye, Pencil, Search, Filter, LayoutGrid, Table as TableIcon, Download } from "lucide-react";
+import { FileText, Plus, Send, Check, X, Ban, Link2, Trash2, Eye, Pencil, Search, Filter, LayoutGrid, Table as TableIcon, Download, Ticket } from "lucide-react";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { useMobile } from "@/hooks/use-mobile";
 import { useAuth } from "@/hooks/useAuth";
@@ -74,7 +74,7 @@ const quotationFormSchema = z.object({
   notes: z.string().optional(),
   terms: z.string().optional(),
   currency: z.string().default("MXN"),
-  status: z.enum(["draft", "sent", "approved", "rejected", "cancelled"]).default("draft"),
+  status: z.enum(["draft", "sent", "accepted", "rejected", "cancelled"]).default("draft"),
 });
 
 type QuotationFormData = z.infer<typeof quotationFormSchema>;
@@ -82,7 +82,7 @@ type QuotationFormData = z.infer<typeof quotationFormSchema>;
 const statusConfig = {
   draft: { label: "Borrador", color: "bg-gray-500", icon: FileText },
   sent: { label: "Enviada", color: "bg-blue-500", icon: Send },
-  approved: { label: "Aceptada", color: "bg-green-500", icon: Check },
+  accepted: { label: "Aceptada", color: "bg-green-500", icon: Check },
   rejected: { label: "Rechazada", color: "bg-red-500", icon: X },
   cancelled: { label: "Cancelada", color: "bg-gray-600", icon: Ban },
 };
@@ -326,6 +326,27 @@ export default function ExternalQuotations() {
     onError: (error: any) => {
       toast({
         title: "Error al descargar PDF",
+        description: error.message,
+        variant: "destructive",
+      });
+    },
+  });
+
+  const convertToTicketMutation = useMutation({
+    mutationFn: async (quotationId: string) => {
+      const response = await apiRequest(`/api/external/quotations/${quotationId}/convert-to-ticket`, {
+        method: 'POST',
+      });
+      return response;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/external/quotations'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/external-tickets'] });
+      toast({ title: "Cotización convertida a ticket exitosamente" });
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Error al convertir a ticket",
         description: error.message,
         variant: "destructive",
       });
@@ -1080,7 +1101,7 @@ export default function ExternalQuotations() {
                             <Button
                               variant="ghost"
                               size="icon"
-                              onClick={() => updateStatusMutation.mutate({ id: quotation.id, status: "approved" })}
+                              onClick={() => updateStatusMutation.mutate({ id: quotation.id, status: "accepted" })}
                               data-testid={`button-accept-${quotation.id}`}
                             >
                               <Check className="h-4 w-4 text-green-500" />
@@ -1113,6 +1134,18 @@ export default function ExternalQuotations() {
                         >
                           <Download className={`h-4 w-4 ${downloadPdfMutation.isPending ? 'animate-pulse' : ''}`} />
                         </Button>
+                        {quotation.status === "accepted" && !quotation.convertedTicketId && (
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            onClick={() => convertToTicketMutation.mutate(quotation.id)}
+                            data-testid={`button-convert-ticket-${quotation.id}`}
+                            title="Convertir a Ticket"
+                            disabled={convertToTicketMutation.isPending}
+                          >
+                            <Ticket className={`h-4 w-4 text-orange-500 ${convertToTicketMutation.isPending ? 'animate-pulse' : ''}`} />
+                          </Button>
+                        )}
                         <Button
                           variant="ghost"
                           size="icon"
@@ -1201,7 +1234,7 @@ export default function ExternalQuotations() {
                             <Button
                               variant="outline"
                               size="sm"
-                              onClick={() => updateStatusMutation.mutate({ id: quotation.id, status: "approved" })}
+                              onClick={() => updateStatusMutation.mutate({ id: quotation.id, status: "accepted" })}
                               data-testid={`button-accept-${quotation.id}`}
                             >
                               <Check className="h-3 w-3 mr-1 text-green-500" />
@@ -1237,6 +1270,18 @@ export default function ExternalQuotations() {
                           <Download className={`h-3 w-3 mr-1 ${downloadPdfMutation.isPending ? 'animate-pulse' : ''}`} />
                           {downloadPdfMutation.isPending ? 'Generando...' : 'PDF'}
                         </Button>
+                        {quotation.status === "accepted" && !quotation.convertedTicketId && (
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => convertToTicketMutation.mutate(quotation.id)}
+                            data-testid={`button-convert-ticket-card-${quotation.id}`}
+                            disabled={convertToTicketMutation.isPending}
+                          >
+                            <Ticket className={`h-3 w-3 mr-1 text-orange-500 ${convertToTicketMutation.isPending ? 'animate-pulse' : ''}`} />
+                            {convertToTicketMutation.isPending ? 'Convirtiendo...' : 'A Ticket'}
+                          </Button>
+                        )}
                         <Button
                           variant="outline"
                           size="sm"
