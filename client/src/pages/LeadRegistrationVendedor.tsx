@@ -164,12 +164,16 @@ export default function LeadRegistrationVendedor() {
       const fullPhone = `${data.countryCode}${data.phone}`;
       const seller = sellers.find(s => s.id === data.sellerId);
       
-      // Serialize property interests to comma-separated format for backend compatibility
+      // Prepare property interests with full structure for backend
+      const propertyInterestsPayload = propertyInterests.map(p => ({
+        condominiumId: p.condominiumId,
+        condominiumName: p.condominiumName,
+        unitIds: p.unitIds,
+      }));
+      
+      // Also provide legacy comma-separated format for backward compatibility
       const allCondominiumIds = propertyInterests.map(p => p.condominiumId).join(",");
       const allUnitIds = propertyInterests.flatMap(p => p.unitIds).join(",");
-      const propertyInterestsSummary = propertyInterests.map(p => 
-        `${p.condominiumName}: ${p.unitIds.length} unidad(es)`
-      ).join("; ");
       
       const response = await fetch("/api/public/leads/vendedor", {
         method: "POST",
@@ -181,9 +185,11 @@ export default function LeadRegistrationVendedor() {
           phone: fullPhone,
           desiredUnitType: data.desiredUnitTypes?.join(", ") || "",
           desiredNeighborhood: data.desiredNeighborhoods?.join(", ") || "",
+          // Full structured property interests
+          propertyInterests: propertyInterestsPayload,
+          // Legacy fields for backward compatibility
           interestedCondominiumId: allCondominiumIds || "",
           interestedUnitId: allUnitIds || "",
-          propertyInterestsSummary: propertyInterestsSummary || "",
           sellerName: seller?.fullName || data.sellerName || "",
           sellerId: data.sellerId,
         }),
