@@ -158,12 +158,18 @@ export default function ExternalCondominiums() {
   const condominiums = condominiumsResponse?.data || [];
   const condoTotalPages = Math.max(1, Math.ceil((condominiumsResponse?.total || 0) / condoItemsPerPage));
 
-  // Static/semi-static data: units list for dropdowns
-  const { data: units, isLoading: unitsLoading } = useQuery<ExternalUnit[]>({
-    queryKey: ['/api/external-units'],
+  // Static/semi-static data: units list for dropdowns (load all with high limit)
+  const { data: unitsResponse, isLoading: unitsLoading } = useQuery<{ data: ExternalUnit[], total: number }>({
+    queryKey: ['/api/external-units', { limit: 2000 }],
+    queryFn: async () => {
+      const response = await fetch('/api/external-units?limit=2000', { credentials: 'include' });
+      if (!response.ok) throw new Error('Failed to fetch units');
+      return response.json();
+    },
     staleTime: 30 * 60 * 1000, // 30 minutes (rarely changes)
     cacheTime: 60 * 60 * 1000, // Keep in cache for 1 hour
   });
+  const units = unitsResponse?.data || [];
 
   // Frequently changing data: rental contracts
   const contractsQuery = useQuery<ExternalRentalContract[]>({

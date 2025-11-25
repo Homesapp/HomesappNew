@@ -23178,6 +23178,29 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+
+  // External Dashboard Summary - optimized endpoint for dashboard statistics
+  app.get("/api/external-dashboard-summary", isAuthenticated, requireRole(EXTERNAL_ALL_ROLES), async (req: any, res) => {
+    try {
+      let agencyId = req.query.agencyId;
+      if (!agencyId) {
+        agencyId = await getUserAgencyId(req);
+        if (!agencyId) {
+          return res.status(400).json({ message: "User is not assigned to any agency" });
+        }
+      }
+      
+      // Verify ownership
+      const hasAccess = await verifyExternalAgencyOwnership(req, res, agencyId);
+      if (!hasAccess) return;
+      
+      const summary = await storage.getExternalDashboardSummary(agencyId);
+      res.json(summary);
+    } catch (error: any) {
+      console.error("Error fetching dashboard summary:", error);
+      handleGenericError(res, error);
+    }
+  });
   // External Condominiums Routes
   app.get("/api/external-condominiums", isAuthenticated, requireRole(EXTERNAL_ALL_ROLES), async (req: any, res) => {
     try {
@@ -23196,54 +23219,37 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const hasAccess = await verifyExternalAgencyOwnership(req, res, agencyId);
       if (!hasAccess) return; // Response already sent by helper
       
-      // Detect if pagination is requested (for backward compatibility)
-      // Only check limit/offset to avoid breaking legacy consumers that use search/sortField
-      const usePagination = (limit !== undefined && limit !== '') || (offset !== undefined && offset !== '');
+      // Always use pagination for performance - defaults: limit=50, offset=0
+      const limitNum = limit ? parseInt(limit as string, 10) : 50;
+      const offsetNum = offset ? parseInt(offset as string, 10) : 0;
+      const parsedLimit = Number.isFinite(limitNum) ? Math.min(Math.max(1, limitNum), 100) : 50;
+      const parsedOffset = Number.isFinite(offsetNum) ? Math.max(0, offsetNum) : 0;
       
-      if (usePagination) {
-        // Parse and validate pagination parameters
-        const limitNum = limit ? parseInt(limit as string, 10) : 50;
-        const offsetNum = offset ? parseInt(offset as string, 10) : 0;
-        const parsedLimit = Number.isFinite(limitNum) ? Math.min(Math.max(1, limitNum), 100) : 50;
-        const parsedOffset = Number.isFinite(offsetNum) ? Math.max(0, offsetNum) : 0;
-        
-        // Build filters
-        const filters: any = {};
-        if (isActive !== undefined) filters.isActive = isActive === 'true';
-        if (search) filters.search = search as string;
-        if (sortField) filters.sortField = sortField as string;
-        if (sortOrder && (sortOrder === 'asc' || sortOrder === 'desc')) filters.sortOrder = sortOrder;
-        filters.limit = parsedLimit;
-        filters.offset = parsedOffset;
-        
-        // Execute data fetch and count in parallel
-        const [condominiums, total] = await Promise.all([
-          storage.getExternalCondominiumsByAgency(agencyId, filters),
-          storage.getExternalCondominiumsCountByAgency(agencyId, {
-            isActive: filters.isActive,
-            search: filters.search,
-          }),
-        ]);
-        
-        res.json({
-          data: condominiums,
-          total,
-          limit: parsedLimit,
-          offset: parsedOffset,
-          hasMore: parsedOffset + condominiums.length < total,
-        });
-      } else {
-        // Legacy mode: return simple array (NO pagination - full dataset)
-        // Preserve historical behavior: only isActive and search, NO sortField/sortOrder
-        // Storage will use default alphabetical ordering
-        const filters: any = {};
-        if (isActive !== undefined) filters.isActive = isActive === 'true';
-        if (search) filters.search = search as string;
-        // DO NOT pass sortField/sortOrder/limit/offset - legacy callers expect default behavior
-        
-        const condominiums = await storage.getExternalCondominiumsByAgency(agencyId, filters);
-        res.json(condominiums);
-      }
+      // Build filters
+      const filters: any = {};
+      if (isActive !== undefined) filters.isActive = isActive === 'true';
+      if (search) filters.search = search as string;
+      if (sortField) filters.sortField = sortField as string;
+      if (sortOrder && (sortOrder === 'asc' || sortOrder === 'desc')) filters.sortOrder = sortOrder;
+      filters.limit = parsedLimit;
+      filters.offset = parsedOffset;
+      
+      // Execute data fetch and count in parallel
+      const [condominiums, total] = await Promise.all([
+        storage.getExternalCondominiumsByAgency(agencyId, filters),
+        storage.getExternalCondominiumsCountByAgency(agencyId, {
+          isActive: filters.isActive,
+          search: filters.search,
+        }),
+      ]);
+      
+      res.json({
+        data: condominiums,
+        total,
+        limit: parsedLimit,
+        offset: parsedOffset,
+        hasMore: parsedOffset + condominiums.length < total,
+      });
     } catch (error: any) {
       console.error("Error fetching external condominiums:", error);
       handleGenericError(res, error);
@@ -23444,7 +23450,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // External Units Routes
   app.get("/api/external-units", isAuthenticated, requireRole(EXTERNAL_ALL_ROLES), async (req: any, res) => {
     try {
-      const { condominiumId, isActive } = req.query;
+      const { condominiumId, isActive, search, sortField, sortOrder, limit, offset } = req.query;
       
       // Get agency ID from authenticated user (admin/master can pass agencyId to view other agencies)
       let agencyId = req.query.agencyId;
@@ -23459,11 +23465,30 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const hasAccess = await verifyExternalAgencyOwnership(req, res, agencyId);
       if (!hasAccess) return;
       
+      // Always use pagination for performance - defaults: limit=50, offset=0
+      const limitNum = limit ? parseInt(limit as string, 10) : 50;
+      const offsetNum = offset ? parseInt(offset as string, 10) : 0;
+      const parsedLimit = Number.isFinite(limitNum) ? Math.min(Math.max(1, limitNum), 100) : 50;
+      const parsedOffset = Number.isFinite(offsetNum) ? Math.max(0, offsetNum) : 0;
+      
       const filters: any = {};
       if (isActive !== undefined) filters.isActive = isActive === 'true';
       if (condominiumId) filters.condominiumId = condominiumId;
+      if (search) filters.search = search as string;
+      if (sortField) filters.sortField = sortField as string;
+      if (sortOrder && (sortOrder === 'asc' || sortOrder === 'desc')) filters.sortOrder = sortOrder;
+      filters.limit = parsedLimit;
+      filters.offset = parsedOffset;
       
-      const units = await storage.getExternalUnitsByAgency(agencyId, filters);
+      // Execute data fetch and count in parallel
+      const [units, total] = await Promise.all([
+        storage.getExternalUnitsByAgency(agencyId, filters),
+        storage.getExternalUnitsCountByAgency(agencyId, {
+          isActive: filters.isActive,
+          condominiumId: filters.condominiumId,
+          search: filters.search,
+        }),
+      ]);
       
       // Get all active contracts for this agency to determine which units are rented
       const activeContracts = await storage.getExternalRentalContractsByAgency(agencyId);
@@ -23480,7 +23505,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
         currentContractId: activeContractsByUnit.get(unit.id) || null,
       }));
       
-      res.json(unitsWithContractInfo);
+      res.json({
+        data: unitsWithContractInfo,
+        total,
+        limit: parsedLimit,
+        offset: parsedOffset,
+        hasMore: parsedOffset + units.length < total,
+      });
     } catch (error: any) {
       console.error("Error fetching external units:", error);
       handleGenericError(res, error);

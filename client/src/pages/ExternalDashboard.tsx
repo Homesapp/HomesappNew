@@ -3,195 +3,83 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Building2, DollarSign, Wrench, AlertCircle, TrendingUp, Calendar, FileText, ClipboardCheck, ArrowRight, User, TrendingDown, ArrowUpRight, ArrowDownRight, Home, Wifi, Zap, Droplet, Flame, Receipt } from "lucide-react";
+import { Building2, DollarSign, Wrench, TrendingUp, Calendar, FileText, ArrowRight, User, TrendingDown, ArrowUpRight, ArrowDownRight, Wifi, Zap, Droplet, Flame, Receipt } from "lucide-react";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { Link } from "wouter";
-import { format, addDays, startOfDay, isBefore, startOfMonth, endOfMonth } from "date-fns";
+import { format, addDays, startOfDay } from "date-fns";
 import { es, enUS } from "date-fns/locale";
-import type { ExternalCondominium, ExternalUnit, ExternalRentalContract, ExternalPayment, ExternalMaintenanceTicket, ExternalOwner, ExternalFinancialTransaction } from "@shared/schema";
+import type { ExternalPayment, ExternalMaintenanceTicket } from "@shared/schema";
 
-// Type for the enhanced contract response from the API
-type RentalContractWithDetails = {
-  contract: ExternalRentalContract;
-  unit: ExternalUnit | null;
-  condominium: ExternalCondominium | null;
-  activeServices?: Array<{ serviceType: string; amount: number; dayOfMonth: number }>;
-  nextPayment?: ExternalPayment | null;
+type DashboardSummary = {
+  totalCondominiums: number;
+  totalUnits: number;
+  activeRentals: number;
+  rentalsEndingSoon: number;
+  completedRentals: number;
+  pendingPayments: number;
+  overduePayments: number;
+  paymentsNext7Days: number;
+  openTickets: number;
+  scheduledTicketsNext7Days: number;
+  totalOwners: number;
+  monthlyIncome: number;
+  monthlyExpenses: number;
+  expectedMonthlyIncome: number;
+  occupancyRate: number;
+};
+
+type TodayEvent = {
+  type: 'payment' | 'service' | 'ticket';
+  title: string;
+  serviceType?: string;
+  date: Date;
+  status: string;
 };
 
 export default function ExternalDashboard() {
   const { language } = useLanguage();
-
-  // Extended cache for static/rarely-changing data
-  const { data: condominiums, isLoading: condosLoading } = useQuery<ExternalCondominium[]>({
-    queryKey: ['/api/external-condominiums'],
-    staleTime: 15 * 60 * 1000, // 15 minutes
-  });
-
-  const { data: units, isLoading: unitsLoading } = useQuery<ExternalUnit[]>({
-    queryKey: ['/api/external-units'],
-    staleTime: 15 * 60 * 1000, // 15 minutes
-  });
-
-  const { data: rentalContractsData, isLoading: contractsLoading } = useQuery<RentalContractWithDetails[]>({
-    queryKey: ['/api/external-rental-contracts'],
-    staleTime: 5 * 60 * 1000, // 5 minutes (default)
-  });
-
-  const { data: payments, isLoading: paymentsLoading } = useQuery<ExternalPayment[]>({
-    queryKey: ['/api/external-payments'],
-    staleTime: 5 * 60 * 1000, // 5 minutes (default)
-  });
-
-  const { data: tickets, isLoading: ticketsLoading } = useQuery<ExternalMaintenanceTicket[]>({
-    queryKey: ['/api/external-tickets'],
-    staleTime: 5 * 60 * 1000, // 5 minutes (default)
-  });
-
-  const { data: owners, isLoading: ownersLoading } = useQuery<ExternalOwner[]>({
-    queryKey: ['/api/external-owners'],
-    staleTime: 15 * 60 * 1000, // 15 minutes
-  });
-
-  const { data: financialTransactions, isLoading: financialLoading } = useQuery<ExternalFinancialTransaction[]>({
-    queryKey: ['/api/external-financial-transactions'],
-    staleTime: 5 * 60 * 1000, // 5 minutes (default)
-  });
-
-  // Calculate statistics
   const today = new Date();
-  const next7Days = addDays(today, 7);
-  const next30Days = addDays(today, 30);
 
-  // Normalize rental contracts (handle both nested and flat structures)
-  // Preserve unit and condominium metadata when present
-  const normalizedContracts = (rentalContractsData ?? []).map(item => {
-    if ('contract' in item) {
-      // Already has nested structure with unit/condominium
-      return item;
-    } else {
-      // Flat structure - look up unit and condominium
-      const unit = units?.find(u => u.id === item.unitId);
-      const condominium = condominiums?.find(c => c.id === unit?.condominiumId);
-      return { contract: item, unit: unit || null, condominium: condominium || null };
-    }
+  const { data: summary, isLoading: summaryLoading } = useQuery<DashboardSummary>({
+    queryKey: ['/api/external-dashboard-summary'],
+    staleTime: 2 * 60 * 1000,
   });
 
-  // Active rentals (status=active AND today between start and end dates)
-  const activeRentals = normalizedContracts.filter(item => {
-    const contract = item.contract;
-    if (contract.status !== 'active') return false;
-    const startDate = new Date(contract.startDate);
-    const endDate = new Date(contract.endDate);
-    return today >= startDate && today <= endDate;
+  const { data: todayPaymentsData } = useQuery<{ data: ExternalPayment[]; total: number }>({
+    queryKey: ['/api/external-payments', { dueToday: true, limit: 10 }],
+    staleTime: 2 * 60 * 1000,
   });
 
-  // Rentals ending soon (within next 30 days)
-  const rentalsEndingSoon = activeRentals.filter(item => {
-    const endDate = new Date(item.contract.endDate);
-    return endDate >= today && endDate <= next30Days;
+  const { data: todayTicketsData } = useQuery<ExternalMaintenanceTicket[]>({
+    queryKey: ['/api/external-tickets', { scheduledToday: true }],
+    staleTime: 2 * 60 * 1000,
   });
 
-  // Completed rentals (past end date, status could be active or completed)
-  const completedRentals = normalizedContracts.filter(item => {
-    const endDate = new Date(item.contract.endDate);
-    return isBefore(endDate, today);
-  });
+  const isLoading = summaryLoading;
 
-  const unitsWithActiveContracts = new Set(activeRentals.map(item => item.contract.unitId));
-
-  const totalCondominiums = condominiums?.length || 0;
-  const totalUnits = units?.length || 0;
-  // Use total units instead of filtering by status='active' since units might not have that field properly set
-  const activeUnits = totalUnits;
-  const occupiedUnits = activeRentals.length; // Count active rentals directly
-  const availableUnits = activeUnits - occupiedUnits;
-  
-  // Payments
-  const pendingPayments = payments ? payments.filter(p => p.status === 'pending').length : 0;
-  const overduePayments = payments ? payments.filter(p => p.status === 'overdue').length : 0;
-  const paymentsNext7Days = payments ? payments.filter(p => {
-    if (p.status !== 'pending') return false;
-    const dueDate = new Date(p.dueDate);
-    return dueDate >= today && dueDate <= next7Days;
-  }).length : 0;
-
-  // Maintenance tickets
-  const openTickets = tickets ? tickets.filter(t => t.status === 'open' || t.status === 'in_progress').length : 0;
-  const scheduledTicketsNext7Days = tickets ? tickets.filter(t => {
-    if (!t.scheduledDate || (t.status !== 'open' && t.status !== 'in_progress')) return false;
-    const scheduledDate = new Date(t.scheduledDate);
-    return scheduledDate >= today && scheduledDate <= next7Days;
-  }).length : 0;
-
-  const totalOwners = owners?.length || 0;
-
-  // Financial calculations for current month
-  const monthStart = startOfMonth(today);
-  const monthEnd = endOfMonth(today);
-  
-  const monthlyIncome = financialTransactions
-    ? financialTransactions
-        .filter(t => {
-          const dueDate = new Date(t.dueDate);
-          return t.direction === 'inflow' && 
-                 t.status === 'completed' &&
-                 dueDate >= monthStart && 
-                 dueDate <= monthEnd;
-        })
-        .reduce((sum, t) => sum + parseFloat(t.netAmount || '0'), 0)
-    : 0;
-
-  const monthlyExpenses = financialTransactions
-    ? financialTransactions
-        .filter(t => {
-          const dueDate = new Date(t.dueDate);
-          return t.direction === 'outflow' && 
-                 t.status === 'completed' &&
-                 dueDate >= monthStart && 
-                 dueDate <= monthEnd;
-        })
-        .reduce((sum, t) => sum + parseFloat(t.netAmount || '0'), 0)
-    : 0;
-
-  const monthlyNetIncome = monthlyIncome - monthlyExpenses;
-
-  // Expected income this month (pending + completed)
-  const expectedMonthlyIncome = financialTransactions
-    ? financialTransactions
-        .filter(t => {
-          const dueDate = new Date(t.dueDate);
-          return t.direction === 'inflow' && 
-                 dueDate >= monthStart && 
-                 dueDate <= monthEnd;
-        })
-        .reduce((sum, t) => sum + parseFloat(t.netAmount || '0'), 0)
-    : 0;
-
-  const isLoading = condosLoading || unitsLoading || contractsLoading || paymentsLoading || ticketsLoading || ownersLoading || financialLoading;
-
-  const stats = {
-    totalCondominiums,
-    totalUnits,
-    activeUnits,
-    occupiedUnits,
-    availableUnits,
-    activeRentals: activeRentals.length,
-    rentalsEndingSoon: rentalsEndingSoon.length,
-    completedRentals: completedRentals.length,
-    pendingPayments,
-    overduePayments,
-    paymentsNext7Days,
-    openTickets,
-    scheduledTicketsNext7Days,
-    totalOwners,
+  const stats = summary || {
+    totalCondominiums: 0,
+    totalUnits: 0,
+    activeRentals: 0,
+    rentalsEndingSoon: 0,
+    completedRentals: 0,
+    pendingPayments: 0,
+    overduePayments: 0,
+    paymentsNext7Days: 0,
+    openTickets: 0,
+    scheduledTicketsNext7Days: 0,
+    totalOwners: 0,
+    monthlyIncome: 0,
+    monthlyExpenses: 0,
+    expectedMonthlyIncome: 0,
+    occupancyRate: 0,
   };
 
-  const occupancyRate = activeUnits > 0 
-    ? Math.round((occupiedUnits / activeUnits) * 100) 
-    : 0;
+  const occupiedUnits = stats.activeRentals;
+  const activeUnits = stats.totalUnits;
+  const occupancyRate = stats.occupancyRate;
+  const monthlyNetIncome = stats.monthlyIncome - stats.monthlyExpenses;
 
-  // Quick access links
   const quickActions = [
     {
       title: language === "es" ? "Rentas Activas" : "Active Rentals",
@@ -227,12 +115,11 @@ export default function ExternalDashboard() {
     },
   ];
 
-  // Today's events (filtered for today only)
-  const todayEvents: any[] = [];
+  const todayEvents: TodayEvent[] = [];
   const todayStart = startOfDay(today);
   const todayEnd = addDays(todayStart, 1);
 
-  // Add payments due today
+  const payments = Array.isArray(todayPaymentsData) ? todayPaymentsData : (todayPaymentsData?.data || []);
   if (payments) {
     payments
       .filter(p => {
@@ -240,16 +127,8 @@ export default function ExternalDashboard() {
         const dueDate = new Date(p.dueDate);
         return dueDate >= todayStart && dueDate < todayEnd;
       })
+      .slice(0, 5)
       .forEach(p => {
-        // Find contract first, then unit from contract
-        const contract = normalizedContracts.find(c => 
-          c.contract.id === p.contractId || c.id === p.contractId
-        );
-        const unit = units?.find(u => u.id === contract?.contract?.unitId || u.id === contract?.unitId);
-        const condo = condominiums?.find(c => c.id === unit?.condominiumId);
-        const tenantName = contract?.contract?.tenantName || contract?.tenantName || '';
-        
-        // Separate rent payments from service payments
         const isRentPayment = p.serviceType === 'rent';
         const serviceTypeLabel = language === "es"
           ? (p.serviceType === 'electricity' ? 'Electricidad' :
@@ -261,20 +140,15 @@ export default function ExternalDashboard() {
         
         todayEvents.push({
           type: isRentPayment ? 'payment' : 'service',
-          title: isRentPayment 
-            ? `${condo?.name || ''} - ${unit?.unitNumber || ''} - ${serviceTypeLabel}${tenantName ? ` (${tenantName})` : ''}`
-            : `${condo?.name || ''} - ${unit?.unitNumber || ''} - ${serviceTypeLabel} (${language === "es" ? "Propietario" : "Owner"})`,
+          title: `${serviceTypeLabel} - ${language === "es" ? "Pago pendiente" : "Pending payment"}`,
           serviceType: p.serviceType,
-          condominium: condo?.name || (language === "es" ? "Sin condominio" : "No condominium"),
-          unitNumber: unit?.unitNumber || '',
-          tenantName: tenantName,
           date: new Date(p.dueDate),
           status: p.status,
         });
       });
   }
 
-  // Add scheduled maintenance for today
+  const tickets = todayTicketsData || [];
   if (tickets) {
     tickets
       .filter(t => {
@@ -282,36 +156,16 @@ export default function ExternalDashboard() {
         const scheduledDate = new Date(t.scheduledDate);
         return scheduledDate >= todayStart && scheduledDate < todayEnd;
       })
+      .slice(0, 5)
       .forEach(t => {
-        const unit = units?.find(u => u.id === t.unitId);
-        const condo = condominiums?.find(c => c.id === unit?.condominiumId);
-        
         todayEvents.push({
           type: 'ticket',
-          title: `${condo?.name || ''} - ${unit?.unitNumber || ''} - ${t.title}`,
-          condominium: condo?.name || (language === "es" ? "Sin condominio" : "No condominium"),
-          unitNumber: unit?.unitNumber || '',
+          title: t.title,
           date: new Date(t.scheduledDate!),
           status: t.status,
         });
       });
   }
-
-  // Group events by condominium
-  const groupedByCondominium = todayEvents.reduce((acc, event) => {
-    const key = event.condominium;
-    if (!acc[key]) {
-      acc[key] = {
-        payments: [],
-        tickets: [],
-      };
-    }
-    
-    if (event.type === 'payment') acc[key].payments.push(event);
-    else if (event.type === 'ticket') acc[key].tickets.push(event);
-    
-    return acc;
-  }, {} as Record<string, {payments: any[], tickets: any[]}>);
 
   const getServiceIcon = (serviceType?: string) => {
     if (!serviceType) return <Receipt className="h-4 w-4" />;
@@ -337,7 +191,6 @@ export default function ExternalDashboard() {
         </p>
       </div>
 
-      {/* Main Stats Row */}
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
         <Card data-testid="card-total-condominiums">
           <CardHeader className="flex flex-row items-center justify-between gap-2 space-y-0 pb-2">
@@ -376,7 +229,7 @@ export default function ExternalDashboard() {
                   {occupancyRate}%
                 </div>
                 <p className="text-xs text-muted-foreground mt-1">
-                  {stats.occupiedUnits}/{stats.activeUnits} {language === "es" ? "ocupadas" : "occupied"}
+                  {occupiedUnits}/{activeUnits} {language === "es" ? "ocupadas" : "occupied"}
                 </p>
               </>
             )}
@@ -447,7 +300,6 @@ export default function ExternalDashboard() {
         </Card>
       </div>
 
-      {/* Quick Actions */}
       <div>
         <h2 className="text-lg font-semibold mb-3">{language === "es" ? "Acceso Rápido" : "Quick Access"}</h2>
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
@@ -472,9 +324,7 @@ export default function ExternalDashboard() {
         </div>
       </div>
 
-      {/* Main Content Grid */}
       <div className="grid gap-4 lg:grid-cols-3">
-        {/* Today's Events */}
         <Card data-testid="card-today-events" className="lg:col-span-2">
           <CardHeader className="pb-3">
             <div className="flex items-center justify-between">
@@ -499,149 +349,213 @@ export default function ExternalDashboard() {
               <div className="space-y-2">
                 <Skeleton className="h-14 w-full" />
                 <Skeleton className="h-14 w-full" />
-                <Skeleton className="h-14 w-full" />
               </div>
-            ) : todayEvents.length > 0 ? (
-              <div className="space-y-1.5">
-                {todayEvents.slice(0, 8).map((event: any, idx: number) => {
-                  // Color based on type
-                  const eventColor = event.type === 'payment' ? 'blue' : event.type === 'service' ? 'yellow' : 'green';
-                  const borderColor = event.type === 'payment' 
-                    ? 'border-blue-200 dark:border-blue-900 bg-blue-50/30 dark:bg-blue-950/10' 
-                    : event.type === 'service'
-                    ? 'border-yellow-200 dark:border-yellow-900 bg-yellow-50/30 dark:bg-yellow-950/10'
-                    : 'border-green-200 dark:border-green-900 bg-green-50/30 dark:bg-green-950/10';
-                  
-                  // Translate status
-                  const getStatusText = (status: string) => {
-                    if (language === "es") {
-                      switch(status) {
-                        case 'pending': return 'Pendiente';
-                        case 'paid': return 'Pagado';
-                        case 'overdue': return 'Vencido';
-                        case 'open': return 'Abierto';
-                        case 'in_progress': return 'En Progreso';
-                        case 'completed': return 'Completado';
-                        default: return status;
-                      }
-                    }
-                    return status;
-                  };
-                  
-                  return (
-                    <div
-                      key={idx}
-                      className={`border rounded-md ${borderColor}`}
-                      data-testid={`event-${idx}`}
-                    >
-                      <div className="p-2.5 hover-elevate cursor-pointer w-full">
-                        <div className="flex items-start gap-2.5">
-                          <div className="mt-1">
-                            {event.type === 'payment' ? (
-                              <div className="h-2 w-2 rounded-full bg-blue-500" />
-                            ) : event.type === 'service' ? (
-                              <div className="h-2 w-2 rounded-full bg-yellow-500" />
-                            ) : (
-                              <div className="h-2 w-2 rounded-full bg-green-500" />
-                            )}
-                          </div>
-                          <div className="flex-1 min-w-0">
-                            <p className="font-medium text-sm">{event.title}</p>
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                  );
-                })}
+            ) : todayEvents.length === 0 ? (
+              <div className="text-center py-8 text-muted-foreground">
+                <Calendar className="h-8 w-8 mx-auto mb-2 opacity-50" />
+                <p className="text-sm">
+                  {language === "es" ? "No hay eventos para hoy" : "No events for today"}
+                </p>
               </div>
             ) : (
-              <div className="flex flex-col items-center justify-center py-8 text-center">
-                <Calendar className="h-10 w-10 text-muted-foreground/40 mb-2" />
-                <p className="text-sm text-muted-foreground" data-testid="text-no-events">
-                  {language === "es" 
-                    ? "No hay eventos para hoy" 
-                    : "No events for today"}
-                </p>
+              <div className="space-y-2">
+                {todayEvents.map((event, idx) => (
+                  <div
+                    key={idx}
+                    className="flex items-center justify-between p-3 rounded-lg bg-muted/50"
+                    data-testid={`today-event-${idx}`}
+                  >
+                    <div className="flex items-center gap-3">
+                      <div className={`p-2 rounded-full ${
+                        event.type === 'payment' ? 'bg-green-100 text-green-600 dark:bg-green-900/30' :
+                        event.type === 'service' ? 'bg-blue-100 text-blue-600 dark:bg-blue-900/30' :
+                        'bg-orange-100 text-orange-600 dark:bg-orange-900/30'
+                      }`}>
+                        {event.type === 'ticket' ? (
+                          <Wrench className="h-4 w-4" />
+                        ) : (
+                          getServiceIcon(event.serviceType)
+                        )}
+                      </div>
+                      <div>
+                        <p className="text-sm font-medium">{event.title}</p>
+                        <p className="text-xs text-muted-foreground">
+                          {format(event.date, "HH:mm", { locale: language === "es" ? es : enUS })}
+                        </p>
+                      </div>
+                    </div>
+                    <Badge variant={event.status === 'pending' ? 'secondary' : 'outline'} className="text-xs">
+                      {event.type === 'payment' || event.type === 'service'
+                        ? (language === "es" ? "Pendiente" : "Pending")
+                        : (event.status === 'in_progress' 
+                            ? (language === "es" ? "En progreso" : "In progress")
+                            : (language === "es" ? "Abierto" : "Open"))}
+                    </Badge>
+                  </div>
+                ))}
               </div>
             )}
           </CardContent>
         </Card>
 
-        {/* Payment Summary */}
-        <Card data-testid="card-payment-summary">
+        <Card data-testid="card-payment-status">
           <CardHeader className="pb-3">
             <CardTitle className="text-base">
               {language === "es" ? "Estado de Pagos" : "Payment Status"}
             </CardTitle>
             <CardDescription className="text-xs">
-              {language === "es" ? "Resumen de cobros" : "Payment overview"}
+              {language === "es" ? "Resumen de cobranzas" : "Collection summary"}
             </CardDescription>
           </CardHeader>
-          <CardContent className="p-3">
-            <div className="space-y-3">
-              <div className="flex items-center justify-between p-2 border rounded-md">
-                <div className="flex items-center gap-2">
-                  <div className="h-2 w-2 rounded-full bg-yellow-500" />
-                  <span className="text-sm">
-                    {language === "es" ? "Pendientes" : "Pending"}
-                  </span>
-                </div>
-                <div className="text-right">
-                  {isLoading ? (
-                    <Skeleton className="h-6 w-12" />
-                  ) : (
-                    <p className="text-lg font-bold" data-testid="text-pending-payments-summary">
-                      {stats.pendingPayments}
-                    </p>
-                  )}
-                </div>
+          <CardContent className="space-y-4">
+            {isLoading ? (
+              <div className="space-y-3">
+                <Skeleton className="h-10 w-full" />
+                <Skeleton className="h-10 w-full" />
               </div>
-
-              {stats.overduePayments > 0 && (
-                <div className="flex items-center justify-between p-2 border rounded-md border-destructive/50 bg-destructive/5">
+            ) : (
+              <>
+                <div className="flex items-center justify-between p-3 rounded-lg bg-yellow-50 dark:bg-yellow-900/20">
                   <div className="flex items-center gap-2">
-                    <AlertCircle className="h-4 w-4 text-destructive" />
-                    <span className="text-sm font-medium text-destructive">
+                    <DollarSign className="h-4 w-4 text-yellow-600" />
+                    <span className="text-sm font-medium">
+                      {language === "es" ? "Pendientes" : "Pending"}
+                    </span>
+                  </div>
+                  <Badge variant="secondary" className="bg-yellow-100 text-yellow-800 dark:bg-yellow-900/50">
+                    {stats.pendingPayments}
+                  </Badge>
+                </div>
+                <div className="flex items-center justify-between p-3 rounded-lg bg-red-50 dark:bg-red-900/20">
+                  <div className="flex items-center gap-2">
+                    <DollarSign className="h-4 w-4 text-red-600" />
+                    <span className="text-sm font-medium">
                       {language === "es" ? "Vencidos" : "Overdue"}
                     </span>
                   </div>
-                  <div className="text-right">
-                    {isLoading ? (
-                      <Skeleton className="h-6 w-12" />
-                    ) : (
-                      <p className="text-lg font-bold text-destructive" data-testid="text-overdue-payments-summary">
-                        {stats.overduePayments}
-                      </p>
-                    )}
-                  </div>
+                  <Badge variant="secondary" className="bg-red-100 text-red-800 dark:bg-red-900/50">
+                    {stats.overduePayments}
+                  </Badge>
                 </div>
-              )}
+                <Link href="/external/accounting">
+                  <Button variant="ghost" size="sm" className="w-full mt-2" data-testid="button-view-payments">
+                    {language === "es" ? "Ver contabilidad" : "View accounting"}
+                    <ArrowRight className="h-4 w-4 ml-1" />
+                  </Button>
+                </Link>
+              </>
+            )}
+          </CardContent>
+        </Card>
+      </div>
 
-              {stats.paymentsNext7Days > 0 && (
-                <div className="flex items-center justify-between p-2 border rounded-md border-blue-200 dark:border-blue-900 bg-blue-50 dark:bg-blue-950/20">
+      <div className="grid gap-4 lg:grid-cols-2">
+        <Card data-testid="card-financial-summary">
+          <CardHeader className="pb-3">
+            <CardTitle className="text-base">
+              {language === "es" ? "Resumen Financiero" : "Financial Summary"}
+            </CardTitle>
+            <CardDescription className="text-xs">
+              {language === "es" ? "Ingresos y gastos del mes" : "Monthly income and expenses"}
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            {isLoading ? (
+              <div className="space-y-3">
+                <Skeleton className="h-12 w-full" />
+                <Skeleton className="h-12 w-full" />
+                <Skeleton className="h-12 w-full" />
+              </div>
+            ) : (
+              <div className="space-y-4">
+                <div className="flex items-center justify-between p-3 rounded-lg bg-green-50 dark:bg-green-900/20">
                   <div className="flex items-center gap-2">
-                    <Calendar className="h-4 w-4 text-blue-600" />
-                    <span className="text-sm">
-                      {language === "es" ? "Esta semana" : "This week"}
-                    </span>
+                    <ArrowUpRight className="h-4 w-4 text-green-600" />
+                    <div>
+                      <p className="text-sm font-medium">{language === "es" ? "Ingresos" : "Income"}</p>
+                      <p className="text-xs text-muted-foreground">
+                        {language === "es" ? "Esperado" : "Expected"}: ${stats.expectedMonthlyIncome.toLocaleString()}
+                      </p>
+                    </div>
                   </div>
-                  <div className="text-right">
-                    <p className="text-lg font-bold text-blue-600">
-                      {stats.paymentsNext7Days}
+                  <span className="text-lg font-bold text-green-600">
+                    ${stats.monthlyIncome.toLocaleString()}
+                  </span>
+                </div>
+                <div className="flex items-center justify-between p-3 rounded-lg bg-red-50 dark:bg-red-900/20">
+                  <div className="flex items-center gap-2">
+                    <ArrowDownRight className="h-4 w-4 text-red-600" />
+                    <p className="text-sm font-medium">{language === "es" ? "Gastos" : "Expenses"}</p>
+                  </div>
+                  <span className="text-lg font-bold text-red-600">
+                    ${stats.monthlyExpenses.toLocaleString()}
+                  </span>
+                </div>
+                <div className="flex items-center justify-between p-3 rounded-lg bg-muted">
+                  <div className="flex items-center gap-2">
+                    {monthlyNetIncome >= 0 ? (
+                      <TrendingUp className="h-4 w-4 text-green-600" />
+                    ) : (
+                      <TrendingDown className="h-4 w-4 text-red-600" />
+                    )}
+                    <p className="text-sm font-medium">{language === "es" ? "Neto" : "Net"}</p>
+                  </div>
+                  <span className={`text-lg font-bold ${monthlyNetIncome >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                    ${monthlyNetIncome.toLocaleString()}
+                  </span>
+                </div>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+
+        <Card data-testid="card-maintenance-summary">
+          <CardHeader className="pb-3">
+            <CardTitle className="text-base">
+              {language === "es" ? "Mantenimiento" : "Maintenance"}
+            </CardTitle>
+            <CardDescription className="text-xs">
+              {language === "es" ? "Estado de tickets" : "Ticket status"}
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            {isLoading ? (
+              <div className="space-y-3">
+                <Skeleton className="h-12 w-full" />
+                <Skeleton className="h-12 w-full" />
+              </div>
+            ) : (
+              <div className="space-y-4">
+                <div className="flex items-center justify-between p-3 rounded-lg bg-orange-50 dark:bg-orange-900/20">
+                  <div className="flex items-center gap-2">
+                    <Wrench className="h-4 w-4 text-orange-600" />
+                    <p className="text-sm font-medium">
+                      {language === "es" ? "Tickets Abiertos" : "Open Tickets"}
                     </p>
                   </div>
+                  <Badge variant="secondary" className="bg-orange-100 text-orange-800 dark:bg-orange-900/50">
+                    {stats.openTickets}
+                  </Badge>
                 </div>
-              )}
-
-              {!isLoading && stats.pendingPayments === 0 && stats.overduePayments === 0 && (
-                <div className="text-center py-6">
-                  <DollarSign className="h-8 w-8 mx-auto text-green-600 mb-2" />
-                  <p className="text-sm font-medium text-green-600" data-testid="text-no-pending-payments">
-                    {language === "es" ? "¡Todos al día!" : "All up to date!"}
-                  </p>
+                <div className="flex items-center justify-between p-3 rounded-lg bg-blue-50 dark:bg-blue-900/20">
+                  <div className="flex items-center gap-2">
+                    <Calendar className="h-4 w-4 text-blue-600" />
+                    <p className="text-sm font-medium">
+                      {language === "es" ? "Programados esta semana" : "Scheduled this week"}
+                    </p>
+                  </div>
+                  <Badge variant="secondary" className="bg-blue-100 text-blue-800 dark:bg-blue-900/50">
+                    {stats.scheduledTicketsNext7Days}
+                  </Badge>
                 </div>
-              )}
-            </div>
+                <Link href="/external/maintenance">
+                  <Button variant="ghost" size="sm" className="w-full mt-2" data-testid="button-view-maintenance">
+                    {language === "es" ? "Ver mantenimiento" : "View maintenance"}
+                    <ArrowRight className="h-4 w-4 ml-1" />
+                  </Button>
+                </Link>
+              </div>
+            )}
           </CardContent>
         </Card>
       </div>

@@ -1265,6 +1265,23 @@ export interface IStorage {
   getExternalCondominium(id: string): Promise<ExternalCondominium | undefined>;
   getExternalCondominiumsByAgency(agencyId: string, filters?: { isActive?: boolean; search?: string; sortField?: string; sortOrder?: 'asc' | 'desc'; limit?: number; offset?: number }): Promise<ExternalCondominium[]>;
   getExternalCondominiumsCountByAgency(agencyId: string, filters?: { isActive?: boolean; search?: string }): Promise<number>;
+  getExternalDashboardSummary(agencyId: string): Promise<{
+    totalCondominiums: number;
+    totalUnits: number;
+    activeRentals: number;
+    rentalsEndingSoon: number;
+    completedRentals: number;
+    pendingPayments: number;
+    overduePayments: number;
+    paymentsNext7Days: number;
+    openTickets: number;
+    scheduledTicketsNext7Days: number;
+    totalOwners: number;
+    monthlyIncome: number;
+    monthlyExpenses: number;
+    expectedMonthlyIncome: number;
+    occupancyRate: number;
+  }>;
   createExternalCondominium(condominium: InsertExternalCondominium): Promise<ExternalCondominium>;
   createCondominiumWithUnits(condominium: InsertExternalCondominium, units: any[], agencyId: string, userId: string): Promise<{ condominium: ExternalCondominium; units: ExternalUnit[] }>;
   addUnitsToCondominium(condominiumId: string, units: any[], agencyId: string, userId: string): Promise<ExternalUnit[]>;
@@ -1273,7 +1290,8 @@ export interface IStorage {
 
   // External Management System - Unit operations
   getExternalUnit(id: string): Promise<ExternalUnit | undefined>;
-  getExternalUnitsByAgency(agencyId: string, filters?: { isActive?: boolean; condominiumId?: string }): Promise<ExternalUnitWithCondominium[]>;
+  getExternalUnitsByAgency(agencyId: string, filters?: { isActive?: boolean; condominiumId?: string; search?: string; sortField?: string; sortOrder?: 'asc' | 'desc'; limit?: number; offset?: number }): Promise<ExternalUnitWithCondominium[]>;
+  getExternalUnitsCountByAgency(agencyId: string, filters?: { isActive?: boolean; condominiumId?: string; search?: string }): Promise<number>;
   getExternalUnitsByCondominium(condominiumId: string): Promise<ExternalUnit[]>;
   createExternalUnit(unit: InsertExternalUnit): Promise<ExternalUnit>;
   updateExternalUnit(id: string, updates: Partial<InsertExternalUnit>): Promise<ExternalUnit>;
@@ -8567,6 +8585,100 @@ export class DatabaseStorage implements IStorage {
     return result[0]?.count || 0;
   }
 
+  async getExternalDashboardSummary(agencyId: string): Promise<{
+    totalCondominiums: number;
+    totalUnits: number;
+    activeRentals: number;
+    rentalsEndingSoon: number;
+    completedRentals: number;
+    pendingPayments: number;
+    overduePayments: number;
+    paymentsNext7Days: number;
+    openTickets: number;
+    scheduledTicketsNext7Days: number;
+    totalOwners: number;
+    monthlyIncome: number;
+    monthlyExpenses: number;
+    expectedMonthlyIncome: number;
+    occupancyRate: number;
+  }> {
+    const today = new Date();
+    const next7Days = new Date(today);
+    next7Days.setDate(next7Days.getDate() + 7);
+    const next30Days = new Date(today);
+    next30Days.setDate(next30Days.getDate() + 30);
+    const monthStart = new Date(today.getFullYear(), today.getMonth(), 1);
+    const monthEnd = new Date(today.getFullYear(), today.getMonth() + 1, 0);
+
+    const [
+      condominiumsCount,
+      unitsCount,
+      ownersCount,
+      contractsStats,
+      paymentsStats,
+      ticketsStats,
+      financialStats
+    ] = await Promise.all([
+      db.select({ count: sql<number>`count(*)::int` })
+        .from(externalCondominiums)
+        .where(eq(externalCondominiums.agencyId, agencyId)),
+      
+      db.select({ count: sql<number>`count(*)::int` })
+        .from(externalUnits)
+        .where(eq(externalUnits.agencyId, agencyId)),
+      
+      db.select({ count: sql<number>`count(distinct ${externalUnitOwners.id})::int` })
+        .from(externalUnitOwners)
+        .innerJoin(externalUnits, eq(externalUnitOwners.unitId, externalUnits.id))
+        .where(and(eq(externalUnits.agencyId, agencyId), eq(externalUnitOwners.isActive, true))),
+      
+      db.select({
+        activeRentals: sql<number>`count(*) filter (where status = 'active' and ${sql.raw(`'${today.toISOString().split('T')[0]}'`)} between start_date and end_date)::int`,
+        rentalsEndingSoon: sql<number>`count(*) filter (where status = 'active' and ${sql.raw(`'${today.toISOString().split('T')[0]}'`)} between start_date and end_date and end_date <= ${sql.raw(`'${next30Days.toISOString().split('T')[0]}'`)})::int`,
+        completedRentals: sql<number>`count(*) filter (where end_date < ${sql.raw(`'${today.toISOString().split('T')[0]}'`)})::int`
+      }).from(externalRentalContracts).where(eq(externalRentalContracts.agencyId, agencyId)),
+      
+      db.select({
+        pending: sql<number>`count(*) filter (where status = 'pending')::int`,
+        overdue: sql<number>`count(*) filter (where status = 'overdue')::int`,
+        next7Days: sql<number>`count(*) filter (where status = 'pending' and due_date >= ${sql.raw(`'${today.toISOString().split('T')[0]}'`)} and due_date <= ${sql.raw(`'${next7Days.toISOString().split('T')[0]}'`)})::int`
+      }).from(externalPayments).where(eq(externalPayments.agencyId, agencyId)),
+      
+      db.select({
+        open: sql<number>`count(*) filter (where status in ('open', 'in_progress'))::int`,
+        scheduledNext7Days: sql<number>`count(*) filter (where status in ('open', 'in_progress') and scheduled_date >= ${sql.raw(`'${today.toISOString().split('T')[0]}'`)} and scheduled_date <= ${sql.raw(`'${next7Days.toISOString().split('T')[0]}'`)})::int`
+      }).from(externalMaintenanceTickets).where(eq(externalMaintenanceTickets.agencyId, agencyId)),
+      
+      db.select({
+        monthlyIncome: sql<number>`coalesce(sum(case when direction = 'inflow' and status in ('posted', 'reconciled') and due_date >= ${sql.raw(`'${monthStart.toISOString().split('T')[0]}'`)} and due_date <= ${sql.raw(`'${monthEnd.toISOString().split('T')[0]}'`)} then net_amount::numeric else 0 end), 0)::float`,
+        monthlyExpenses: sql<number>`coalesce(sum(case when direction = 'outflow' and status in ('posted', 'reconciled') and due_date >= ${sql.raw(`'${monthStart.toISOString().split('T')[0]}'`)} and due_date <= ${sql.raw(`'${monthEnd.toISOString().split('T')[0]}'`)} then net_amount::numeric else 0 end), 0)::float`,
+        expectedMonthlyIncome: sql<number>`coalesce(sum(case when direction = 'inflow' and due_date >= ${sql.raw(`'${monthStart.toISOString().split('T')[0]}'`)} and due_date <= ${sql.raw(`'${monthEnd.toISOString().split('T')[0]}'`)} then net_amount::numeric else 0 end), 0)::float`
+      }).from(externalFinancialTransactions).where(eq(externalFinancialTransactions.agencyId, agencyId))
+    ]);
+
+    const totalUnits = unitsCount[0]?.count || 0;
+    const activeRentals = contractsStats[0]?.activeRentals || 0;
+    const occupancyRate = totalUnits > 0 ? Math.round((activeRentals / totalUnits) * 100) : 0;
+
+    return {
+      totalCondominiums: condominiumsCount[0]?.count || 0,
+      totalUnits,
+      activeRentals,
+      rentalsEndingSoon: contractsStats[0]?.rentalsEndingSoon || 0,
+      completedRentals: contractsStats[0]?.completedRentals || 0,
+      pendingPayments: paymentsStats[0]?.pending || 0,
+      overduePayments: paymentsStats[0]?.overdue || 0,
+      paymentsNext7Days: paymentsStats[0]?.next7Days || 0,
+      openTickets: ticketsStats[0]?.open || 0,
+      scheduledTicketsNext7Days: ticketsStats[0]?.scheduledNext7Days || 0,
+      totalOwners: ownersCount[0]?.count || 0,
+      monthlyIncome: financialStats[0]?.monthlyIncome || 0,
+      monthlyExpenses: financialStats[0]?.monthlyExpenses || 0,
+      expectedMonthlyIncome: financialStats[0]?.expectedMonthlyIncome || 0,
+      occupancyRate
+    };
+  }
+
   async createExternalCondominium(condominium: InsertExternalCondominium): Promise<ExternalCondominium> {
     const [result] = await db.insert(externalCondominiums)
       .values(condominium)
@@ -8672,7 +8784,7 @@ export class DatabaseStorage implements IStorage {
     return result;
   }
 
-  async getExternalUnitsByAgency(agencyId: string, filters?: { isActive?: boolean; condominiumId?: string }): Promise<ExternalUnitWithCondominium[]> {
+  async getExternalUnitsByAgency(agencyId: string, filters?: { isActive?: boolean; condominiumId?: string; search?: string; sortField?: string; sortOrder?: 'asc' | 'desc'; limit?: number; offset?: number }): Promise<ExternalUnitWithCondominium[]> {
     const conditions: any[] = [eq(externalUnits.agencyId, agencyId)];
     
     if (filters?.isActive !== undefined) {
@@ -8681,8 +8793,25 @@ export class DatabaseStorage implements IStorage {
     if (filters?.condominiumId) {
       conditions.push(eq(externalUnits.condominiumId, filters.condominiumId));
     }
+    if (filters?.search && filters.search.trim().length > 0) {
+      const sanitized = filters.search.trim().slice(0, 100);
+      if (sanitized.length > 0) {
+        const escaped = sanitized
+          .replace(/\\/g, '\\\\')
+          .replace(/%/g, '\\%')
+          .replace(/_/g, '\\_');
+        const searchPattern = `%${escaped}%`;
+        const searchCondition = or(
+          sql`${externalUnits.unitNumber} ILIKE ${searchPattern} ESCAPE '\\'`,
+          sql`${externalCondominiums.name} ILIKE ${searchPattern} ESCAPE '\\'`
+        );
+        if (searchCondition) {
+          conditions.push(searchCondition);
+        }
+      }
+    }
 
-    const results = await db.select({
+    let query = db.select({
       id: externalUnits.id,
       agencyId: externalUnits.agencyId,
       condominiumId: externalUnits.condominiumId,
@@ -8699,6 +8828,7 @@ export class DatabaseStorage implements IStorage {
       createdBy: externalUnits.createdBy,
       createdAt: externalUnits.createdAt,
       updatedAt: externalUnits.updatedAt,
+      zone: externalUnits.zone,
       condominium: {
         id: externalCondominiums.id,
         name: externalCondominiums.name,
@@ -8707,10 +8837,74 @@ export class DatabaseStorage implements IStorage {
     })
       .from(externalUnits)
       .leftJoin(externalCondominiums, eq(externalUnits.condominiumId, externalCondominiums.id))
-      .where(and(...conditions))
-      .orderBy(externalUnits.unitNumber);
+      .where(and(...conditions));
     
+    // Apply sorting
+    const sortOrder = filters?.sortOrder || 'asc';
+    const sortFn = sortOrder === 'asc' ? asc : desc;
+    
+    switch (filters?.sortField) {
+      case 'unitNumber':
+        query = query.orderBy(sortFn(externalUnits.unitNumber));
+        break;
+      case 'condominium':
+        query = query.orderBy(sortFn(externalCondominiums.name));
+        break;
+      case 'propertyType':
+        query = query.orderBy(sortFn(externalUnits.propertyType));
+        break;
+      case 'isActive':
+        query = query.orderBy(sortFn(externalUnits.isActive));
+        break;
+      default:
+        query = query.orderBy(asc(externalCondominiums.name), asc(externalUnits.unitNumber));
+    }
+    
+    // Apply pagination
+    if (filters?.limit !== undefined) {
+      query = query.limit(filters.limit);
+    }
+    if (filters?.offset !== undefined) {
+      query = query.offset(filters.offset);
+    }
+    
+    const results = await query;
     return results as ExternalUnitWithCondominium[];
+  }
+
+  async getExternalUnitsCountByAgency(agencyId: string, filters?: { isActive?: boolean; condominiumId?: string; search?: string }): Promise<number> {
+    const conditions: any[] = [eq(externalUnits.agencyId, agencyId)];
+    
+    if (filters?.isActive !== undefined) {
+      conditions.push(eq(externalUnits.isActive, filters.isActive));
+    }
+    if (filters?.condominiumId) {
+      conditions.push(eq(externalUnits.condominiumId, filters.condominiumId));
+    }
+    if (filters?.search && filters.search.trim().length > 0) {
+      const sanitized = filters.search.trim().slice(0, 100);
+      if (sanitized.length > 0) {
+        const escaped = sanitized
+          .replace(/\\/g, '\\\\')
+          .replace(/%/g, '\\%')
+          .replace(/_/g, '\\_');
+        const searchPattern = `%${escaped}%`;
+        const searchCondition = or(
+          sql`${externalUnits.unitNumber} ILIKE ${searchPattern} ESCAPE '\\'`,
+          sql`${externalCondominiums.name} ILIKE ${searchPattern} ESCAPE '\\'`
+        );
+        if (searchCondition) {
+          conditions.push(searchCondition);
+        }
+      }
+    }
+    
+    const result = await db.select({ count: sql<number>`count(*)::int` })
+      .from(externalUnits)
+      .leftJoin(externalCondominiums, eq(externalUnits.condominiumId, externalCondominiums.id))
+      .where(and(...conditions));
+    
+    return result[0]?.count || 0;
   }
 
   async getExternalUnitsByCondominium(condominiumId: string): Promise<ExternalUnit[]> {
