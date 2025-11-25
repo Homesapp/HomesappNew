@@ -422,14 +422,14 @@ export default function ExternalConfiguration() {
     };
 
     const handleConnectGoogleCalendar = () => {
-      // TODO: Implement Google Calendar OAuth flow
-      // This will redirect to Google OAuth consent page and handle the callback
-      // Backend endpoints are ready: needs OAuth redirect URL and token exchange
+      // Google Calendar is connected via Replit Integration
+      // The connection is automatically managed by Replit
+      queryClient.invalidateQueries({ queryKey: [`/api/external-agencies/${agencyId}/integrations`] });
       toast({
-        title: language === "es" ? "Próximamente" : "Coming soon",
+        title: language === "es" ? "Verificando conexión..." : "Checking connection...",
         description: language === "es"
-          ? "La integración de Google Calendar estará disponible próximamente."
-          : "Google Calendar integration will be available soon.",
+          ? "Verificando la conexión con Google Calendar."
+          : "Verifying Google Calendar connection.",
       });
     };
 
@@ -557,47 +557,54 @@ export default function ExternalConfiguration() {
           </CardHeader>
           <CardContent className="space-y-4">
             <div className="flex items-center justify-between p-3 bg-muted rounded-lg">
-              <div className="flex items-center gap-2">
-                {googleCalendarConnected ? (
-                  <CheckCircle className="h-5 w-5 text-green-600" />
-                ) : (
-                  <XCircle className="h-5 w-5 text-gray-400" />
+              <div className="flex flex-col gap-1">
+                <div className="flex items-center gap-2">
+                  {googleCalendarConnected ? (
+                    <CheckCircle className="h-5 w-5 text-green-600" />
+                  ) : (
+                    <XCircle className="h-5 w-5 text-gray-400" />
+                  )}
+                  <span className="font-medium">
+                    {language === "es" ? "Estado:" : "Status:"}{" "}
+                    {googleCalendarConnected 
+                      ? (language === "es" ? "Conectado" : "Connected")
+                      : (language === "es" ? "No conectado" : "Not connected")}
+                  </span>
+                </div>
+                {googleCalendarConnected && integrations?.googleCalendarEmail && (
+                  <span className="text-sm text-muted-foreground ml-7">
+                    {integrations.googleCalendarEmail}
+                  </span>
                 )}
-                <span className="font-medium">
-                  {language === "es" ? "Estado:" : "Status:"}{" "}
-                  {googleCalendarConnected 
-                    ? (language === "es" ? "Conectado" : "Connected")
-                    : (language === "es" ? "No conectado" : "Not connected")}
-                </span>
               </div>
-              {googleCalendarConnected && (
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => disconnectGoogleCalendarMutation.mutate()}
-                  disabled={disconnectGoogleCalendarMutation.isPending}
-                  data-testid="button-disconnect-google-calendar"
-                >
-                  {language === "es" ? "Desconectar" : "Disconnect"}
-                </Button>
-              )}
             </div>
 
             {!googleCalendarConnected && (
-              <Button
-                onClick={handleConnectGoogleCalendar}
-                className="w-full"
-                data-testid="button-connect-google-calendar"
-              >
-                <Calendar className="h-4 w-4 mr-2" />
-                {language === "es" ? "Conectar Google Calendar" : "Connect Google Calendar"}
-              </Button>
+              <div className="space-y-3">
+                <div className="p-3 bg-blue-50 dark:bg-blue-950 border border-blue-200 dark:border-blue-800 rounded-lg">
+                  <p className="text-sm text-blue-800 dark:text-blue-200">
+                    {language === "es" 
+                      ? "Para conectar Google Calendar, utiliza el panel de Integraciones en la barra lateral de Replit y conecta la cuenta de Google Calendar."
+                      : "To connect Google Calendar, use the Integrations panel in the Replit sidebar and connect your Google Calendar account."}
+                  </p>
+                </div>
+                <Button
+                  onClick={handleConnectGoogleCalendar}
+                  variant="outline"
+                  className="w-full"
+                  data-testid="button-connect-google-calendar"
+                >
+                  <Calendar className="h-4 w-4 mr-2" />
+                  {language === "es" ? "Verificar conexión" : "Verify connection"}
+                </Button>
+              </div>
             )}
 
-            {googleCalendarConnected && integrations?.googleCalendarConnectedAt && (
+            {googleCalendarConnected && (
               <p className="text-sm text-muted-foreground">
-                {language === "es" ? "Conectado el" : "Connected on"}{" "}
-                {new Date(integrations.googleCalendarConnectedAt).toLocaleDateString()}
+                {language === "es" 
+                  ? "Google Calendar está conectado y listo para sincronizar eventos."
+                  : "Google Calendar is connected and ready to sync events."}
               </p>
             )}
           </CardContent>

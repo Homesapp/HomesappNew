@@ -8,7 +8,7 @@ import { storage, NotFoundError } from "./storage";
 import { openAIService } from "./services/openai";
 import { setupAuth, isAuthenticated, requireRole, getSession } from "./replitAuth";
 import { requireResourceOwnership } from "./middleware/resourceOwnership";
-import { createGoogleMeetEvent, deleteGoogleMeetEvent } from "./googleCalendar";
+import { createGoogleMeetEvent, deleteGoogleMeetEvent, checkGoogleCalendarConnection, listEvents, createCalendarEvent } from "./googleCalendar";
 import { syncMaintenanceTicketToGoogleCalendar, deleteMaintenanceTicketFromGoogleCalendar } from "./googleCalendarService";
 import { calculateRentalCommissions } from "./commissionCalculator";
 import { sendVerificationEmail, sendLeadVerificationEmail, sendDuplicateLeadNotification, sendOwnerReferralVerificationEmail, sendOwnerReferralApprovedNotification, sendOfferLinkEmail } from "./gmail";
@@ -21197,6 +21197,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       const integration = await storage.getExternalAgencyIntegration(agencyId);
       
+      // Check Replit Google Calendar connection
+      const googleCalendarStatus = await checkGoogleCalendarConnection();
+      
       // Don't return sensitive tokens to frontend, only connection status
       if (integration) {
         res.json({
@@ -21204,19 +21207,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
           googleCalendarAccessToken: undefined,
           googleCalendarRefreshToken: undefined,
           openaiApiKey: undefined,
-          googleCalendarConnected: !!integration.googleCalendarAccessToken,
+          googleCalendarConnected: googleCalendarStatus.connected,
+          googleCalendarEmail: googleCalendarStatus.email,
           openaiConnected: !!(integration.openaiApiKey || integration.openaiUseReplitIntegration),
           openaiUseReplitIntegration: integration.openaiUseReplitIntegration,
           openaiHasCustomKey: !!integration.openaiApiKey,
-          openaiConnected: !!(integration.openaiApiKey || integration.openaiUseReplitIntegration),
         });
       } else {
         res.json({
           agencyId,
-          googleCalendarConnected: false,
+          googleCalendarConnected: googleCalendarStatus.connected,
+          googleCalendarEmail: googleCalendarStatus.email,
           openaiConnected: false,
-          openaiUseReplitIntegration: true,
-          openaiHasCustomKey: false,
           openaiUseReplitIntegration: true,
           openaiHasCustomKey: false,
         });

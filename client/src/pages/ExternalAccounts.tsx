@@ -1881,7 +1881,7 @@ The HomesApp Team`;
         </TabsContent>
 
         {/* Permissions Tab */}
-        <TabsContent value="permissions" className="space-y-6 mt-4">
+        <TabsContent value="permissions" className="mt-4">
           {isLoadingRolePermissions || isLoadingUserPermissions ? (
             <Card>
               <CardContent className="p-6">
@@ -1892,272 +1892,287 @@ The HomesApp Team`;
               </CardContent>
             </Card>
           ) : (
-            <div className="space-y-6">
-              {/* Role Permissions Section */}
-              <Card>
-                <CardHeader className="flex flex-row items-center justify-between gap-4 pb-4">
-                  <div>
-                    <CardTitle className="flex items-center gap-2 text-lg">
-                      <Shield className="h-5 w-5" />
-                      {language === "es" ? "Permisos por Rol" : "Role Permissions"}
-                    </CardTitle>
-                    <CardDescription className="mt-1">
-                      {language === "es" 
-                        ? "Define los permisos predeterminados para cada rol de usuario"
-                        : "Define default permissions for each user role"}
-                    </CardDescription>
-                  </div>
-                  <Button 
-                    onClick={handleSaveRolePermissions}
-                    disabled={!hasRolePermissionsChanges || saveRolePermissionsMutation.isPending}
-                    data-testid="button-save-role-permissions"
-                  >
-                    {saveRolePermissionsMutation.isPending ? (
-                      <>
-                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                        {language === "es" ? "Guardando..." : "Saving..."}
-                      </>
-                    ) : (
-                      <>
-                        <Save className="mr-2 h-4 w-4" />
-                        {language === "es" ? "Guardar Cambios" : "Save Changes"}
-                      </>
-                    )}
-                  </Button>
-                </CardHeader>
-                <CardContent className="p-0">
-                  <ScrollArea className="w-full">
-                    <div className="min-w-[900px]">
-                      {/* Sticky Header */}
-                      <div className="sticky top-0 z-10 bg-muted/80 backdrop-blur-sm border-b">
-                        <div className="grid" style={{ gridTemplateColumns: `200px repeat(${PERMISSION_ROLES.length}, 1fr)` }}>
-                          <div className="px-4 py-3 font-medium text-sm border-r">
-                            {language === "es" ? "Seccion / Accion" : "Section / Action"}
+            <Tabs defaultValue="role-permissions" className="w-full">
+              <TabsList className="mb-4">
+                <TabsTrigger value="role-permissions" className="flex items-center gap-2" data-testid="tab-role-permissions">
+                  <Shield className="h-4 w-4" />
+                  {language === "es" ? "Permisos por Rol" : "Role Permissions"}
+                </TabsTrigger>
+                <TabsTrigger value="user-permissions" className="flex items-center gap-2" data-testid="tab-user-permissions">
+                  <UserIcon className="h-4 w-4" />
+                  {language === "es" ? "Permisos por Usuario" : "User Permissions"}
+                </TabsTrigger>
+              </TabsList>
+
+              {/* Role Permissions Tab */}
+              <TabsContent value="role-permissions">
+                <Card>
+                  <CardHeader className="flex flex-row items-center justify-between gap-4 pb-4">
+                    <div>
+                      <CardTitle className="flex items-center gap-2 text-lg">
+                        <Shield className="h-5 w-5" />
+                        {language === "es" ? "Permisos por Rol" : "Role Permissions"}
+                      </CardTitle>
+                      <CardDescription className="mt-1">
+                        {language === "es" 
+                          ? "Define los permisos predeterminados para cada rol de usuario"
+                          : "Define default permissions for each user role"}
+                      </CardDescription>
+                    </div>
+                    <Button 
+                      onClick={handleSaveRolePermissions}
+                      disabled={!hasRolePermissionsChanges || saveRolePermissionsMutation.isPending}
+                      data-testid="button-save-role-permissions"
+                    >
+                      {saveRolePermissionsMutation.isPending ? (
+                        <>
+                          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                          {language === "es" ? "Guardando..." : "Saving..."}
+                        </>
+                      ) : (
+                        <>
+                          <Save className="mr-2 h-4 w-4" />
+                          {language === "es" ? "Guardar Cambios" : "Save Changes"}
+                        </>
+                      )}
+                    </Button>
+                  </CardHeader>
+                  <CardContent className="p-0">
+                    <ScrollArea className="w-full">
+                      <div className="min-w-[900px]">
+                        {/* Sticky Header */}
+                        <div className="sticky top-0 z-10 bg-muted/80 backdrop-blur-sm border-b">
+                          <div className="grid" style={{ gridTemplateColumns: `200px repeat(${PERMISSION_ROLES.length}, 1fr)` }}>
+                            <div className="px-4 py-3 font-medium text-sm border-r">
+                              {language === "es" ? "Seccion / Accion" : "Section / Action"}
+                            </div>
+                            {PERMISSION_ROLES.map(role => (
+                              <div key={role} className="px-3 py-3 text-center border-r last:border-r-0">
+                                <span className="text-xs font-medium text-muted-foreground">
+                                  {ROLE_LABELS[language][role]}
+                                </span>
+                              </div>
+                            ))}
                           </div>
-                          {PERMISSION_ROLES.map(role => (
-                            <div key={role} className="px-3 py-3 text-center border-r last:border-r-0">
-                              <span className="text-xs font-medium text-muted-foreground">
-                                {ROLE_LABELS[language][role]}
-                              </span>
+                        </div>
+                        
+                        {/* Permission Rows */}
+                        <div className="divide-y">
+                          {Object.entries(PERMISSION_SECTIONS_CONFIG).map(([section, config]) => (
+                            <div key={section}>
+                              {/* Section Header */}
+                              <div className="bg-muted/40 px-4 py-2.5 font-semibold text-sm border-b">
+                                {getSectionLabel(section)}
+                              </div>
+                              {/* Action Rows */}
+                              {config.actions.map((action, actionIndex) => (
+                                <div 
+                                  key={`${section}-${action}`}
+                                  className={`grid hover:bg-muted/30 transition-colors ${actionIndex < config.actions.length - 1 ? 'border-b border-dashed' : ''}`}
+                                  style={{ gridTemplateColumns: `200px repeat(${PERMISSION_ROLES.length}, 1fr)` }}
+                                >
+                                  <div className="px-4 py-2.5 pl-8 text-sm text-muted-foreground border-r flex items-center">
+                                    {getActionLabel(action)}
+                                  </div>
+                                  {PERMISSION_ROLES.map(role => (
+                                    <div key={`${section}-${action}-${role}`} className="px-3 py-2 flex items-center justify-center border-r last:border-r-0">
+                                      <Checkbox
+                                        checked={rolePermissionsState[role]?.[section]?.[action] ?? false}
+                                        onCheckedChange={(checked) => 
+                                          handleRolePermissionChange(role, section, action, !!checked)
+                                        }
+                                        className="h-4 w-4"
+                                        data-testid={`checkbox-role-${role}-${section}-${action}`}
+                                      />
+                                    </div>
+                                  ))}
+                                </div>
+                              ))}
                             </div>
                           ))}
                         </div>
                       </div>
-                      
-                      {/* Permission Rows */}
-                      <div className="divide-y">
-                        {Object.entries(PERMISSION_SECTIONS_CONFIG).map(([section, config]) => (
-                          <div key={section}>
-                            {/* Section Header */}
-                            <div className="bg-muted/40 px-4 py-2.5 font-semibold text-sm border-b">
-                              {getSectionLabel(section)}
-                            </div>
-                            {/* Action Rows */}
-                            {config.actions.map((action, actionIndex) => (
-                              <div 
-                                key={`${section}-${action}`}
-                                className={`grid hover:bg-muted/30 transition-colors ${actionIndex < config.actions.length - 1 ? 'border-b border-dashed' : ''}`}
-                                style={{ gridTemplateColumns: `200px repeat(${PERMISSION_ROLES.length}, 1fr)` }}
-                              >
-                                <div className="px-4 py-2.5 pl-8 text-sm text-muted-foreground border-r flex items-center">
-                                  {getActionLabel(action)}
-                                </div>
-                                {PERMISSION_ROLES.map(role => (
-                                  <div key={`${section}-${action}-${role}`} className="px-3 py-2 flex items-center justify-center border-r last:border-r-0">
-                                    <Checkbox
-                                      checked={rolePermissionsState[role]?.[section]?.[action] ?? false}
-                                      onCheckedChange={(checked) => 
-                                        handleRolePermissionChange(role, section, action, !!checked)
-                                      }
-                                      className="h-4 w-4"
-                                      data-testid={`checkbox-role-${role}-${section}-${action}`}
-                                    />
-                                  </div>
-                                ))}
-                              </div>
-                            ))}
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                    <ScrollBar orientation="horizontal" />
-                  </ScrollArea>
-                </CardContent>
-              </Card>
+                      <ScrollBar orientation="horizontal" />
+                    </ScrollArea>
+                  </CardContent>
+                </Card>
+              </TabsContent>
 
-              {/* User Permissions Override Section */}
-              <Card>
-                <CardHeader className="flex flex-row items-center justify-between gap-4 pb-4">
-                  <div>
-                    <CardTitle className="flex items-center gap-2 text-lg">
-                      <UserIcon className="h-5 w-5" />
-                      {language === "es" ? "Permisos de Usuario" : "User Permissions"}
-                    </CardTitle>
-                    <CardDescription className="mt-1">
-                      {language === "es" 
-                        ? "Configura permisos especificos para usuarios individuales que anulan los permisos del rol"
-                        : "Configure specific permissions for individual users that override role permissions"}
-                    </CardDescription>
-                  </div>
-                  {selectedPermissionsUser && (
-                    <div className="flex gap-2">
-                      <Button
-                        variant="outline"
-                        onClick={() => clearUserPermissionsMutation.mutate(selectedPermissionsUser)}
-                        disabled={clearUserPermissionsMutation.isPending}
-                        data-testid="button-reset-user-permissions"
-                      >
-                        <X className="mr-2 h-4 w-4" />
-                        {language === "es" ? "Restablecer" : "Reset"}
-                      </Button>
-                      <Button 
-                        onClick={handleSaveUserPermissions}
-                        disabled={!hasUserPermissionsChanges || saveUserPermissionsMutation.isPending}
-                        data-testid="button-save-user-permissions"
-                      >
-                        {saveUserPermissionsMutation.isPending ? (
-                          <>
-                            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                            {language === "es" ? "Guardando..." : "Saving..."}
-                          </>
-                        ) : (
-                          <>
-                            <Save className="mr-2 h-4 w-4" />
-                            {language === "es" ? "Guardar" : "Save"}
-                          </>
-                        )}
-                      </Button>
-                    </div>
-                  )}
-                </CardHeader>
-                <CardContent className="p-0">
-                  <div className="p-4 border-b bg-muted/30">
-                    <Select
-                      value={selectedPermissionsUser || ""}
-                      onValueChange={setSelectedPermissionsUser}
-                    >
-                      <SelectTrigger className="w-80" data-testid="select-permissions-user">
-                        <SelectValue placeholder={language === "es" ? "Seleccionar usuario..." : "Select user..."} />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {userPermissionsData?.users.map(user => (
-                          <SelectItem key={user.id} value={user.id}>
-                            {user.firstName} {user.lastName} ({ROLE_LABELS[language][user.role as keyof typeof ROLE_LABELS['es']] || user.role})
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-
-                    {selectedPermissionsUser ? (
-                      <ScrollArea className="w-full">
-                        <div className="min-w-[600px]">
-                          {/* Sticky Header */}
-                          <div className="sticky top-0 z-10 bg-muted/80 backdrop-blur-sm border-b">
-                            <div className="grid" style={{ gridTemplateColumns: '200px 120px 120px' }}>
-                              <div className="px-4 py-3 font-medium text-sm border-r">
-                                {language === "es" ? "Seccion / Accion" : "Section / Action"}
-                              </div>
-                              <div className="px-3 py-3 text-center font-medium text-xs text-muted-foreground border-r">
-                                {language === "es" ? "Rol Default" : "Role Default"}
-                              </div>
-                              <div className="px-3 py-3 text-center font-medium text-xs text-muted-foreground">
-                                {language === "es" ? "Override" : "Override"}
-                              </div>
-                            </div>
-                          </div>
-                          
-                          {/* Permission Rows */}
-                          <div className="divide-y">
-                            {Object.entries(PERMISSION_SECTIONS_CONFIG).map(([section, config]) => {
-                              const selectedUser = userPermissionsData?.users.find(u => u.id === selectedPermissionsUser);
-                              const userRole = selectedUser?.role || "";
-                              
-                              return (
-                                <div key={section}>
-                                  {/* Section Header */}
-                                  <div className="bg-muted/40 px-4 py-2.5 font-semibold text-sm border-b">
-                                    {getSectionLabel(section)}
-                                  </div>
-                                  {/* Action Rows */}
-                                  {config.actions.map((action, actionIndex) => {
-                                    const roleDefault = rolePermissionsState[userRole]?.[section]?.[action] ?? false;
-                                    const userOverride = userPermissionsState[selectedPermissionsUser]?.[section]?.[action];
-                                    const hasOverride = userOverride !== undefined;
-                                    
-                                    return (
-                                      <div 
-                                        key={`user-${section}-${action}`}
-                                        className={`grid hover:bg-muted/30 transition-colors ${actionIndex < config.actions.length - 1 ? 'border-b border-dashed' : ''}`}
-                                        style={{ gridTemplateColumns: '200px 120px 120px' }}
-                                      >
-                                        <div className="px-4 py-2.5 pl-8 text-sm text-muted-foreground border-r flex items-center">
-                                          {getActionLabel(action)}
-                                        </div>
-                                        <div className="px-3 py-2 flex items-center justify-center border-r">
-                                          <Badge variant={roleDefault ? "default" : "secondary"} className="text-xs">
-                                            {roleDefault 
-                                              ? (language === "es" ? "Si" : "Yes")
-                                              : (language === "es" ? "No" : "No")}
-                                          </Badge>
-                                        </div>
-                                        <div className="px-3 py-2 flex items-center justify-center">
-                                          <Select
-                                            value={hasOverride ? (userOverride ? "allow" : "deny") : "inherit"}
-                                            onValueChange={(value) => {
-                                              if (value === "inherit") {
-                                                setUserPermissionsState(prev => {
-                                                  const newState = { ...prev };
-                                                  if (newState[selectedPermissionsUser]?.[section]) {
-                                                    delete newState[selectedPermissionsUser][section][action];
-                                                  }
-                                                  return newState;
-                                                });
-                                                setHasUserPermissionsChanges(true);
-                                              } else {
-                                                handleUserPermissionChange(section, action, value === "allow");
-                                              }
-                                            }}
-                                          >
-                                            <SelectTrigger 
-                                              className="w-24 h-8 text-xs"
-                                              data-testid={`select-user-perm-${section}-${action}`}
-                                            >
-                                              <SelectValue />
-                                            </SelectTrigger>
-                                            <SelectContent>
-                                              <SelectItem value="inherit">
-                                                {language === "es" ? "Heredar" : "Inherit"}
-                                              </SelectItem>
-                                              <SelectItem value="allow">
-                                                {language === "es" ? "Permitir" : "Allow"}
-                                              </SelectItem>
-                                              <SelectItem value="deny">
-                                                {language === "es" ? "Denegar" : "Deny"}
-                                              </SelectItem>
-                                            </SelectContent>
-                                          </Select>
-                                        </div>
-                                      </div>
-                                    );
-                                  })}
-                                </div>
-                              );
-                            })}
-                          </div>
-                        </div>
-                        <ScrollBar orientation="horizontal" />
-                      </ScrollArea>
-                    ) : (
-                      <div className="text-center py-8 text-muted-foreground">
+              {/* User Permissions Tab */}
+              <TabsContent value="user-permissions">
+                <Card>
+                  <CardHeader className="flex flex-row items-center justify-between gap-4 pb-4">
+                    <div>
+                      <CardTitle className="flex items-center gap-2 text-lg">
+                        <UserIcon className="h-5 w-5" />
+                        {language === "es" ? "Permisos de Usuario" : "User Permissions"}
+                      </CardTitle>
+                      <CardDescription className="mt-1">
                         {language === "es" 
-                          ? "Selecciona un usuario para configurar sus permisos individuales"
-                          : "Select a user to configure their individual permissions"}
+                          ? "Configura permisos especificos para usuarios individuales que anulan los permisos del rol"
+                          : "Configure specific permissions for individual users that override role permissions"}
+                      </CardDescription>
+                    </div>
+                    {selectedPermissionsUser && (
+                      <div className="flex gap-2">
+                        <Button
+                          variant="outline"
+                          onClick={() => clearUserPermissionsMutation.mutate(selectedPermissionsUser)}
+                          disabled={clearUserPermissionsMutation.isPending}
+                          data-testid="button-reset-user-permissions"
+                        >
+                          <X className="mr-2 h-4 w-4" />
+                          {language === "es" ? "Restablecer" : "Reset"}
+                        </Button>
+                        <Button 
+                          onClick={handleSaveUserPermissions}
+                          disabled={!hasUserPermissionsChanges || saveUserPermissionsMutation.isPending}
+                          data-testid="button-save-user-permissions"
+                        >
+                          {saveUserPermissionsMutation.isPending ? (
+                            <>
+                              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                              {language === "es" ? "Guardando..." : "Saving..."}
+                            </>
+                          ) : (
+                            <>
+                              <Save className="mr-2 h-4 w-4" />
+                              {language === "es" ? "Guardar" : "Save"}
+                            </>
+                          )}
+                        </Button>
                       </div>
                     )}
-                </CardContent>
-              </Card>
-            </div>
+                  </CardHeader>
+                  <CardContent className="p-0">
+                    <div className="p-4 border-b bg-muted/30">
+                      <Select
+                        value={selectedPermissionsUser || ""}
+                        onValueChange={setSelectedPermissionsUser}
+                      >
+                        <SelectTrigger className="w-80" data-testid="select-permissions-user">
+                          <SelectValue placeholder={language === "es" ? "Seleccionar usuario..." : "Select user..."} />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {userPermissionsData?.users.map(user => (
+                            <SelectItem key={user.id} value={user.id}>
+                              {user.firstName} {user.lastName} ({ROLE_LABELS[language][user.role as keyof typeof ROLE_LABELS['es']] || user.role})
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+
+                      {selectedPermissionsUser ? (
+                        <ScrollArea className="w-full">
+                          <div className="min-w-[600px]">
+                            {/* Sticky Header */}
+                            <div className="sticky top-0 z-10 bg-muted/80 backdrop-blur-sm border-b">
+                              <div className="grid" style={{ gridTemplateColumns: '200px 120px 120px' }}>
+                                <div className="px-4 py-3 font-medium text-sm border-r">
+                                  {language === "es" ? "Seccion / Accion" : "Section / Action"}
+                                </div>
+                                <div className="px-3 py-3 text-center font-medium text-xs text-muted-foreground border-r">
+                                  {language === "es" ? "Rol Default" : "Role Default"}
+                                </div>
+                                <div className="px-3 py-3 text-center font-medium text-xs text-muted-foreground">
+                                  {language === "es" ? "Override" : "Override"}
+                                </div>
+                              </div>
+                            </div>
+                            
+                            {/* Permission Rows */}
+                            <div className="divide-y">
+                              {Object.entries(PERMISSION_SECTIONS_CONFIG).map(([section, config]) => {
+                                const selectedUser = userPermissionsData?.users.find(u => u.id === selectedPermissionsUser);
+                                const userRole = selectedUser?.role || "";
+                                
+                                return (
+                                  <div key={section}>
+                                    {/* Section Header */}
+                                    <div className="bg-muted/40 px-4 py-2.5 font-semibold text-sm border-b">
+                                      {getSectionLabel(section)}
+                                    </div>
+                                    {/* Action Rows */}
+                                    {config.actions.map((action, actionIndex) => {
+                                      const roleDefault = rolePermissionsState[userRole]?.[section]?.[action] ?? false;
+                                      const userOverride = userPermissionsState[selectedPermissionsUser]?.[section]?.[action];
+                                      const hasOverride = userOverride !== undefined;
+                                      
+                                      return (
+                                        <div 
+                                          key={`user-${section}-${action}`}
+                                          className={`grid hover:bg-muted/30 transition-colors ${actionIndex < config.actions.length - 1 ? 'border-b border-dashed' : ''}`}
+                                          style={{ gridTemplateColumns: '200px 120px 120px' }}
+                                        >
+                                          <div className="px-4 py-2.5 pl-8 text-sm text-muted-foreground border-r flex items-center">
+                                            {getActionLabel(action)}
+                                          </div>
+                                          <div className="px-3 py-2 flex items-center justify-center border-r">
+                                            <Badge variant={roleDefault ? "default" : "secondary"} className="text-xs">
+                                              {roleDefault 
+                                                ? (language === "es" ? "Si" : "Yes")
+                                                : (language === "es" ? "No" : "No")}
+                                            </Badge>
+                                          </div>
+                                          <div className="px-3 py-2 flex items-center justify-center">
+                                            <Select
+                                              value={hasOverride ? (userOverride ? "allow" : "deny") : "inherit"}
+                                              onValueChange={(value) => {
+                                                if (value === "inherit") {
+                                                  setUserPermissionsState(prev => {
+                                                    const newState = { ...prev };
+                                                    if (newState[selectedPermissionsUser]?.[section]) {
+                                                      delete newState[selectedPermissionsUser][section][action];
+                                                    }
+                                                    return newState;
+                                                  });
+                                                  setHasUserPermissionsChanges(true);
+                                                } else {
+                                                  handleUserPermissionChange(section, action, value === "allow");
+                                                }
+                                              }}
+                                            >
+                                              <SelectTrigger 
+                                                className="w-24 h-8 text-xs"
+                                                data-testid={`select-user-perm-${section}-${action}`}
+                                              >
+                                                <SelectValue />
+                                              </SelectTrigger>
+                                              <SelectContent>
+                                                <SelectItem value="inherit">
+                                                  {language === "es" ? "Heredar" : "Inherit"}
+                                                </SelectItem>
+                                                <SelectItem value="allow">
+                                                  {language === "es" ? "Permitir" : "Allow"}
+                                                </SelectItem>
+                                                <SelectItem value="deny">
+                                                  {language === "es" ? "Denegar" : "Deny"}
+                                                </SelectItem>
+                                              </SelectContent>
+                                            </Select>
+                                          </div>
+                                        </div>
+                                      );
+                                    })}
+                                  </div>
+                                );
+                              })}
+                            </div>
+                          </div>
+                          <ScrollBar orientation="horizontal" />
+                        </ScrollArea>
+                      ) : (
+                        <div className="text-center py-8 text-muted-foreground">
+                          {language === "es" 
+                            ? "Selecciona un usuario para configurar sus permisos individuales"
+                            : "Select a user to configure their individual permissions"}
+                        </div>
+                      )}
+                  </CardContent>
+                </Card>
+              </TabsContent>
+            </Tabs>
           )}
         </TabsContent>
       </Tabs>
