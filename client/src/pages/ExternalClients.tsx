@@ -95,7 +95,11 @@ import {
   Activity,
   Globe,
   Loader2,
+  Upload,
+  FileSpreadsheet,
+  AlertTriangle,
 } from "lucide-react";
+import * as XLSX from "xlsx";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { useAuth } from "@/hooks/useAuth";
 import { useMobile } from "@/hooks/use-mobile";
@@ -163,6 +167,14 @@ export default function ExternalClients() {
   const [leadSortField, setLeadSortField] = useState<string>("createdAt");
   const [leadSortOrder, setLeadSortOrder] = useState<"asc" | "desc">("desc");
   const [isPublicLinksExpanded, setIsPublicLinksExpanded] = useState(false);
+  
+  // Lead import states
+  const [isImportDialogOpen, setIsImportDialogOpen] = useState(false);
+  const [importFile, setImportFile] = useState<File | null>(null);
+  const [importData, setImportData] = useState<any[]>([]);
+  const [importPreview, setImportPreview] = useState<any[]>([]);
+  const [importStep, setImportStep] = useState<"upload" | "preview" | "importing" | "complete">("upload");
+  const [importResults, setImportResults] = useState<{ imported: number; duplicates: number; errors: any[] } | null>(null);
 
   useLayoutEffect(() => {
     setViewMode(isMobile ? "cards" : "table");
@@ -547,6 +559,241 @@ export default function ExternalClients() {
     },
   });
 
+  // Lead import mutation
+  const importLeadsMutation = useMutation({
+    mutationFn: async (leads: any[]) => {
+      const response = await apiRequest("POST", "/api/external-leads/import", { leads });
+      return response.json();
+    },
+    onSuccess: (data) => {
+      queryClient.invalidateQueries({ queryKey: ["/api/external-leads"] });
+      setImportResults(data);
+      setImportStep("complete");
+      toast({
+        title: language === "es" ? "Importación completada" : "Import completed",
+        description: language === "es" 
+          ? `${data.imported} leads importados, ${data.duplicates} duplicados omitidos`
+          : `${data.imported} leads imported, ${data.duplicates} duplicates skipped`,
+      });
+    },
+    onError: (error: any) => {
+      toast({
+        variant: "destructive",
+        title: language === "es" ? "Error en importación" : "Import error",
+        description: error.message || (language === "es" 
+          ? "No se pudo completar la importación."
+          : "Failed to complete import."),
+      });
+      setImportStep("preview");
+    },
+  });
+
+  // Normalize header for matching (remove accents, lowercase, trim)
+  const normalizeHeader = (header: string): string => {
+    return header
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '') // Remove accents
+      .toLowerCase()
+      .trim()
+      .replace(/\s+/g, ' '); // Normalize spaces
+  };
+
+  // Check if header matches any of the patterns
+  const headerMatches = (header: string, patterns: string[]): boolean => {
+    const normalized = normalizeHeader(header);
+    return patterns.some(p => normalized.includes(normalizeHeader(p)));
+  };
+
+  // Handle Excel/CSV file upload
+  const handleFileUpload = (file: File) => {
+    setImportFile(file);
+    const reader = new FileReader();
+    
+    reader.onload = (e) => {
+      try {
+        const data = e.target?.result;
+        const workbook = XLSX.read(data, { type: 'binary' });
+        const sheetName = workbook.SheetNames[0];
+        const worksheet = workbook.Sheets[sheetName];
+        const jsonData = XLSX.utils.sheet_to_json(worksheet, { header: 1 });
+        
+        if (jsonData.length < 2) {
+          toast({
+            variant: "destructive",
+            title: language === "es" ? "Archivo vacío" : "Empty file",
+            description: language === "es" 
+              ? "El archivo no contiene datos para importar."
+              : "The file contains no data to import.",
+          });
+          return;
+        }
+        
+        // Get headers from first row - keep original for display, normalize for matching
+        const rawHeaders = (jsonData[0] as string[]).map(h => String(h || '').trim());
+        
+        // Map rows to lead objects
+        const rows = jsonData.slice(1).filter((row: any) => 
+          row.some((cell: any) => cell !== null && cell !== undefined && cell !== '')
+        );
+        
+        const mappedLeads = rows.map((row: any, rowIndex: number) => {
+          const lead: any = { _rowIndex: rowIndex + 2 }; // Track row for error reporting (1-indexed + header)
+          
+          // Map headers to fields using flexible matching
+          rawHeaders.forEach((rawHeader, index) => {
+            const value = row[index];
+            if (value === null || value === undefined || value === '') return;
+            
+            // Date fields - support "Fecha registro", "Fecha de Registro", "Registration Date", etc.
+            if (headerMatches(rawHeader, ['fecha registro', 'fecha de registro', 'registration date', 'date registered', 'fecha'])) {
+              lead.originalCreatedAt = value;
+            }
+            // Full name - "Nombre completo", "Full Name", "Nombre Completo", etc.
+            else if (headerMatches(rawHeader, ['nombre completo', 'full name', 'nombre y apellido'])) {
+              lead.fullName = value;
+            }
+            // First name only
+            else if (normalizeHeader(rawHeader) === 'nombre' || headerMatches(rawHeader, ['first name', 'primer nombre'])) {
+              lead.firstName = value;
+            }
+            // Last name
+            else if (headerMatches(rawHeader, ['apellido', 'last name', 'apellidos'])) {
+              lead.lastName = value;
+            }
+            // Phone - "Teléfono", "Telefono", "Celular", "Phone", etc.
+            else if (headerMatches(rawHeader, ['telefono', 'celular', 'phone', 'tel', 'movil', 'cel'])) {
+              lead.phone = value;
+            }
+            // Contract duration - "Duración contrato", "Contract Duration", etc.
+            else if (headerMatches(rawHeader, ['duracion', 'contrato', 'contract duration', 'meses'])) {
+              lead.contractDuration = value;
+            }
+            // Check-in date - "Fecha entrada", "Move-in", "Check in", etc.
+            else if (headerMatches(rawHeader, ['entrada', 'check in', 'move in', 'mudanza', 'ingreso'])) {
+              lead.checkInDateText = value;
+            }
+            // Pets - "Mascotas", "Pets", etc.
+            else if (headerMatches(rawHeader, ['mascota', 'pet', 'animales'])) {
+              lead.hasPets = value;
+            }
+            // Budget - "Presupuesto", "Budget", "Renta", etc.
+            else if (headerMatches(rawHeader, ['presupuesto', 'budget', 'renta mensual', 'costo', 'precio'])) {
+              lead.estimatedRentCostText = value;
+            }
+            // Bedrooms - "Recámaras", "Recamaras", "Bedrooms", "Habitaciones", etc.
+            else if (headerMatches(rawHeader, ['recamara', 'habitacion', 'bedroom', 'cuarto', 'dormitorio'])) {
+              lead.bedroomsText = value;
+            }
+            // Desired property - "Propiedad deseada", "Propiedad específica", "Desired Property", etc.
+            else if (headerMatches(rawHeader, ['propiedad', 'departamento especifico', 'unidad', 'desired property', 'specific'])) {
+              lead.desiredProperty = value;
+            }
+            // Neighborhood - "Zona", "Colonia", "Área", "Neighborhood", etc.
+            else if (headerMatches(rawHeader, ['zona', 'colonia', 'area', 'neighborhood', 'barrio', 'ubicacion'])) {
+              lead.preferredNeighborhood = value;
+            }
+            // Primary seller - "Vendedor principal", "Asesor", "Seller", etc.
+            else if (headerMatches(rawHeader, ['vendedor principal', 'asesor principal', 'seller', 'vendedor'])) {
+              lead.sellerName = value;
+            }
+            // Assistant seller - "Vendedor secundario", "Asistente", etc.
+            else if (headerMatches(rawHeader, ['vendedor secundario', 'asistente', 'segundo vendedor', 'assistant'])) {
+              lead.assistantSellerName = value;
+            }
+            // Notes - "Notas", "Comentarios", "Observaciones", etc.
+            else if (headerMatches(rawHeader, ['nota', 'comentario', 'observacion', 'notes', 'comment'])) {
+              lead.notes = value;
+            }
+            // Status - "Estado", "Status", etc.
+            else if (headerMatches(rawHeader, ['estado', 'status', 'estatus'])) {
+              lead.status = value;
+            }
+            // Email
+            else if (headerMatches(rawHeader, ['email', 'correo', 'e-mail'])) {
+              lead.email = value;
+            }
+          });
+          
+          return lead;
+        });
+
+        // Validate required fields and prepare final data
+        const validLeads: any[] = [];
+        const invalidLeads: { row: number; reason: string }[] = [];
+
+        mappedLeads.forEach((lead) => {
+          const hasName = lead.fullName || lead.firstName || lead.phone;
+          const hasPhone = lead.phone;
+          
+          if (!hasName) {
+            invalidLeads.push({ 
+              row: lead._rowIndex, 
+              reason: language === "es" 
+                ? "Sin nombre ni teléfono" 
+                : "Missing name and phone" 
+            });
+            return;
+          }
+
+          if (!hasPhone) {
+            invalidLeads.push({ 
+              row: lead._rowIndex, 
+              reason: language === "es" 
+                ? "Sin número de teléfono" 
+                : "Missing phone number" 
+            });
+            return;
+          }
+
+          // Remove internal tracking field before sending
+          const { _rowIndex, ...cleanLead } = lead;
+          validLeads.push(cleanLead);
+        });
+
+        if (validLeads.length === 0) {
+          toast({
+            variant: "destructive",
+            title: language === "es" ? "No hay leads válidos" : "No valid leads",
+            description: language === "es" 
+              ? `El archivo contiene ${invalidLeads.length} filas sin los datos mínimos requeridos (nombre y teléfono).`
+              : `The file contains ${invalidLeads.length} rows without minimum required data (name and phone).`,
+          });
+          return;
+        }
+
+        // Show warning if some leads are invalid
+        if (invalidLeads.length > 0) {
+          toast({
+            title: language === "es" ? "Algunos registros omitidos" : "Some records skipped",
+            description: language === "es" 
+              ? `${invalidLeads.length} filas sin datos mínimos serán omitidas.`
+              : `${invalidLeads.length} rows without minimum data will be skipped.`,
+          });
+        }
+        
+        setImportData(validLeads);
+        setImportPreview(validLeads.slice(0, 10)); // Show first 10 for preview
+        setImportStep("preview");
+      } catch (error) {
+        console.error('Error parsing file:', error);
+        toast({
+          variant: "destructive",
+          title: language === "es" ? "Error al leer archivo" : "Error reading file",
+          description: language === "es" 
+            ? "No se pudo leer el archivo. Verifica que sea un Excel o CSV válido."
+            : "Could not read the file. Make sure it's a valid Excel or CSV file.",
+        });
+      }
+    };
+    
+    reader.readAsBinaryString(file);
+  };
+
+  const handleImportConfirm = () => {
+    setImportStep("importing");
+    importLeadsMutation.mutate(importData);
+  };
+
   const handleSort = (field: SortField) => {
     if (sortField === field) {
       setSortOrder(sortOrder === "asc" ? "desc" : "asc");
@@ -757,13 +1004,30 @@ export default function ExternalClients() {
             </Button>
           )}
           {activeTab === "leads" && (
-            <Button 
-              onClick={() => setIsCreateLeadDialogOpen(true)}
-              data-testid="button-create-lead"
-            >
-              <Plus className="mr-2 h-4 w-4" />
-              {language === "es" ? "Nuevo Lead" : "New Lead"}
-            </Button>
+            <div className="flex items-center gap-2">
+              <Button 
+                variant="outline"
+                onClick={() => {
+                  setIsImportDialogOpen(true);
+                  setImportStep("upload");
+                  setImportFile(null);
+                  setImportData([]);
+                  setImportPreview([]);
+                  setImportResults(null);
+                }}
+                data-testid="button-import-leads"
+              >
+                <Upload className="mr-2 h-4 w-4" />
+                {language === "es" ? "Importar" : "Import"}
+              </Button>
+              <Button 
+                onClick={() => setIsCreateLeadDialogOpen(true)}
+                data-testid="button-create-lead"
+              >
+                <Plus className="mr-2 h-4 w-4" />
+                {language === "es" ? "Nuevo Lead" : "New Lead"}
+              </Button>
+            </div>
           )}
         </div>
 
@@ -2778,6 +3042,251 @@ export default function ExternalClients() {
                 ? (language === "es" ? "Eliminando..." : "Deleting...")
                 : (language === "es" ? "Eliminar" : "Delete")}
             </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Lead Import Dialog */}
+      <Dialog open={isImportDialogOpen} onOpenChange={setIsImportDialogOpen}>
+        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <FileSpreadsheet className="h-5 w-5" />
+              {language === "es" ? "Importar Leads desde Excel" : "Import Leads from Excel"}
+            </DialogTitle>
+            <DialogDescription>
+              {language === "es" 
+                ? "Sube un archivo Excel o CSV con tu base de datos de leads existente."
+                : "Upload an Excel or CSV file with your existing leads database."}
+            </DialogDescription>
+          </DialogHeader>
+
+          {importStep === "upload" && (
+            <div className="space-y-6">
+              <div 
+                className="border-2 border-dashed rounded-lg p-8 text-center hover-elevate cursor-pointer"
+                onClick={() => document.getElementById('import-file-input')?.click()}
+                onDragOver={(e) => e.preventDefault()}
+                onDrop={(e) => {
+                  e.preventDefault();
+                  const file = e.dataTransfer.files[0];
+                  if (file) handleFileUpload(file);
+                }}
+              >
+                <input
+                  id="import-file-input"
+                  type="file"
+                  accept=".xlsx,.xls,.csv"
+                  className="hidden"
+                  onChange={(e) => {
+                    const file = e.target.files?.[0];
+                    if (file) handleFileUpload(file);
+                  }}
+                  data-testid="input-import-file"
+                />
+                <Upload className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />
+                <p className="text-lg font-medium mb-2">
+                  {language === "es" ? "Arrastra un archivo aquí o haz clic para seleccionar" : "Drag a file here or click to select"}
+                </p>
+                <p className="text-sm text-muted-foreground">
+                  {language === "es" ? "Formatos soportados: Excel (.xlsx, .xls) y CSV" : "Supported formats: Excel (.xlsx, .xls) and CSV"}
+                </p>
+              </div>
+
+              <div className="bg-muted rounded-lg p-4 space-y-3">
+                <h4 className="font-medium flex items-center gap-2">
+                  <AlertTriangle className="h-4 w-4 text-yellow-500" />
+                  {language === "es" ? "Columnas esperadas" : "Expected columns"}
+                </h4>
+                <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 text-sm text-muted-foreground">
+                  <span>Fecha de Registro</span>
+                  <span>Nombre Completo</span>
+                  <span>Teléfono</span>
+                  <span>Duración Contrato</span>
+                  <span>Fecha de Entrada</span>
+                  <span>Mascotas</span>
+                  <span>Presupuesto</span>
+                  <span>Recámaras</span>
+                  <span>Propiedad Específica</span>
+                  <span>Zona/Colonia</span>
+                  <span>Vendedor Principal</span>
+                  <span>Vendedor Secundario</span>
+                  <span>Notas</span>
+                  <span>Estado</span>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {importStep === "preview" && (
+            <div className="space-y-4">
+              <div className="flex items-center justify-between">
+                <div className="space-y-1">
+                  <p className="font-medium">
+                    {language === "es" 
+                      ? `${importData.length} leads encontrados en el archivo`
+                      : `${importData.length} leads found in the file`}
+                  </p>
+                  <p className="text-sm text-muted-foreground">
+                    {importFile?.name}
+                  </p>
+                </div>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => {
+                    setImportStep("upload");
+                    setImportFile(null);
+                    setImportData([]);
+                    setImportPreview([]);
+                  }}
+                >
+                  {language === "es" ? "Cambiar archivo" : "Change file"}
+                </Button>
+              </div>
+
+              <div className="border rounded-lg overflow-x-auto">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead className="w-12">#</TableHead>
+                      <TableHead>{language === "es" ? "Nombre" : "Name"}</TableHead>
+                      <TableHead>{language === "es" ? "Teléfono" : "Phone"}</TableHead>
+                      <TableHead>{language === "es" ? "Presupuesto" : "Budget"}</TableHead>
+                      <TableHead>{language === "es" ? "Zona" : "Area"}</TableHead>
+                      <TableHead>{language === "es" ? "Estado" : "Status"}</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {importPreview.map((lead, index) => (
+                      <TableRow key={index}>
+                        <TableCell className="text-muted-foreground">{index + 1}</TableCell>
+                        <TableCell>{lead.fullName || `${lead.firstName || ''} ${lead.lastName || ''}`.trim() || '-'}</TableCell>
+                        <TableCell>{lead.phone || '-'}</TableCell>
+                        <TableCell>{lead.estimatedRentCostText || '-'}</TableCell>
+                        <TableCell>{lead.preferredNeighborhood || '-'}</TableCell>
+                        <TableCell>{lead.status || 'nuevo_lead'}</TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </div>
+
+              {importData.length > 10 && (
+                <p className="text-sm text-muted-foreground text-center">
+                  {language === "es" 
+                    ? `Mostrando 10 de ${importData.length} leads`
+                    : `Showing 10 of ${importData.length} leads`}
+                </p>
+              )}
+
+              <div className="bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-lg p-4">
+                <p className="text-sm text-yellow-800 dark:text-yellow-200">
+                  <AlertTriangle className="h-4 w-4 inline mr-2" />
+                  {language === "es" 
+                    ? "Los leads duplicados (mismo teléfono con registro menor a 3 meses) serán omitidos automáticamente."
+                    : "Duplicate leads (same phone with registration less than 3 months ago) will be automatically skipped."}
+                </p>
+              </div>
+            </div>
+          )}
+
+          {importStep === "importing" && (
+            <div className="py-12 text-center">
+              <Loader2 className="h-12 w-12 animate-spin mx-auto mb-4 text-primary" />
+              <p className="text-lg font-medium mb-2">
+                {language === "es" ? "Importando leads..." : "Importing leads..."}
+              </p>
+              <p className="text-sm text-muted-foreground">
+                {language === "es" 
+                  ? `Procesando ${importData.length} registros`
+                  : `Processing ${importData.length} records`}
+              </p>
+            </div>
+          )}
+
+          {importStep === "complete" && importResults && (
+            <div className="space-y-4">
+              <div className="text-center py-6">
+                <CheckCircle2 className="h-16 w-16 mx-auto mb-4 text-green-500" />
+                <h3 className="text-xl font-semibold mb-2">
+                  {language === "es" ? "Importación Completada" : "Import Completed"}
+                </h3>
+              </div>
+
+              <div className="grid grid-cols-3 gap-4">
+                <Card>
+                  <CardContent className="pt-6 text-center">
+                    <p className="text-3xl font-bold text-green-600">{importResults.imported}</p>
+                    <p className="text-sm text-muted-foreground">
+                      {language === "es" ? "Importados" : "Imported"}
+                    </p>
+                  </CardContent>
+                </Card>
+                <Card>
+                  <CardContent className="pt-6 text-center">
+                    <p className="text-3xl font-bold text-yellow-600">{importResults.duplicates}</p>
+                    <p className="text-sm text-muted-foreground">
+                      {language === "es" ? "Duplicados" : "Duplicates"}
+                    </p>
+                  </CardContent>
+                </Card>
+                <Card>
+                  <CardContent className="pt-6 text-center">
+                    <p className="text-3xl font-bold text-red-600">{importResults.errors.length}</p>
+                    <p className="text-sm text-muted-foreground">
+                      {language === "es" ? "Errores" : "Errors"}
+                    </p>
+                  </CardContent>
+                </Card>
+              </div>
+
+              {importResults.errors.length > 0 && (
+                <div className="border rounded-lg p-4 max-h-40 overflow-y-auto">
+                  <h4 className="font-medium mb-2 text-red-600">
+                    {language === "es" ? "Errores encontrados:" : "Errors found:"}
+                  </h4>
+                  <ul className="text-sm space-y-1">
+                    {importResults.errors.slice(0, 10).map((error: any, index: number) => (
+                      <li key={index} className="text-muted-foreground">
+                        {language === "es" ? "Fila" : "Row"} {error.row}: {error.error}
+                      </li>
+                    ))}
+                    {importResults.errors.length > 10 && (
+                      <li className="text-muted-foreground">
+                        ... {language === "es" ? "y" : "and"} {importResults.errors.length - 10} {language === "es" ? "más" : "more"}
+                      </li>
+                    )}
+                  </ul>
+                </div>
+              )}
+            </div>
+          )}
+
+          <DialogFooter>
+            {importStep === "upload" && (
+              <Button variant="outline" onClick={() => setIsImportDialogOpen(false)}>
+                {language === "es" ? "Cancelar" : "Cancel"}
+              </Button>
+            )}
+            {importStep === "preview" && (
+              <>
+                <Button variant="outline" onClick={() => setIsImportDialogOpen(false)}>
+                  {language === "es" ? "Cancelar" : "Cancel"}
+                </Button>
+                <Button onClick={handleImportConfirm} data-testid="button-import-confirm">
+                  <Upload className="mr-2 h-4 w-4" />
+                  {language === "es" 
+                    ? `Importar ${importData.length} leads`
+                    : `Import ${importData.length} leads`}
+                </Button>
+              </>
+            )}
+            {importStep === "complete" && (
+              <Button onClick={() => setIsImportDialogOpen(false)} data-testid="button-import-close">
+                {language === "es" ? "Cerrar" : "Close"}
+              </Button>
+            )}
           </DialogFooter>
         </DialogContent>
       </Dialog>

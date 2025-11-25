@@ -24904,17 +24904,31 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ message: "No leads to import" });
       }
 
-      // Map status from Excel to system status
+      // Map status from Excel to system status - expanded for common variations
       const statusMap: Record<string, string> = {
         'nuevo': 'nuevo_lead',
-        'en proceso': 'en_proceso',
-        'contactado': 'contactado',
-        'cita agendada': 'cita_agendada',
-        'visita realizada': 'visita_realizada',
-        'negociando': 'negociando',
-        'cerrado': 'cerrado',
-        'lead muerto': 'no_interesado',
-        'perdido': 'no_interesado',
+        'nuevo lead': 'nuevo_lead',
+        'nuevo_lead': 'nuevo_lead',
+        'en proceso': 'cita_coordinada',
+        'en_proceso': 'cita_coordinada',
+        'contactado': 'interesado',
+        'interesado': 'interesado',
+        'cita agendada': 'cita_coordinada',
+        'cita coordinada': 'cita_coordinada',
+        'cita_coordinada': 'cita_coordinada',
+        'visita realizada': 'proceso_renta',
+        'negociando': 'oferta_enviada',
+        'oferta enviada': 'oferta_enviada',
+        'oferta_enviada': 'oferta_enviada',
+        'cerrado': 'renta_concretada',
+        'renta concretada': 'renta_concretada',
+        'renta_concretada': 'renta_concretada',
+        'proceso renta': 'proceso_renta',
+        'proceso_renta': 'proceso_renta',
+        'lead muerto': 'muerto',
+        'muerto': 'muerto',
+        'perdido': 'perdido',
+        'no interesado': 'perdido',
         '': 'nuevo_lead',
       };
 
@@ -24924,79 +24938,168 @@ export async function registerRoutes(app: Express): Promise<Server> {
         errors: [] as Array<{ row: number; name: string; error: string }>,
       };
 
+      // Pre-fetch all existing leads for this agency for duplicate detection
+      const existingLeads = await db.select()
+        .from(externalLeads)
+        .where(and(
+          eq(externalLeads.agencyId, agencyId),
+          gte(externalLeads.validUntil, new Date())
+        ));
+
+      // Normalize function for names
+      const normalizeName = (name: string): string => {
+        return name.toLowerCase()
+          .normalize("NFD")
+          .replace(/[\u0300-\u036f]/g, "")
+          .replace(/[^a-z0-9]/g, '');
+      };
+
+      // Normalize phone for comparison
+      const normalizePhone = (phone: string): string => {
+        return phone.toString().replace(/[^\d]/g, '');
+      };
+
       for (let i = 0; i < importData.length; i++) {
         const row = importData[i];
+        const rowNum = i + 2; // Account for header row (1-indexed)
+        
         try {
-          // Parse name into firstName and lastName
-          const fullName = (row.nombre || row.name || '').trim();
-          const nameParts = fullName.split(' ');
-          const firstName = nameParts[0] || 'Sin nombre';
-          const lastName = nameParts.slice(1).join(' ') || '-';
-
-          // Clean phone number
-          let phone = (row.telefono || row.phone || '').toString().replace(/[^\d+]/g, '');
-          if (!phone || phone.length < 4) {
-            phone = '0000';
+          // Parse name - accept both frontend field names (fullName, firstName, lastName)
+          // and legacy field names (nombre, name)
+          let firstName = '';
+          let lastName = '';
+          
+          if (row.fullName) {
+            const nameParts = row.fullName.trim().split(' ');
+            firstName = nameParts[0] || '';
+            lastName = nameParts.slice(1).join(' ') || '';
+          } else if (row.firstName) {
+            firstName = row.firstName.trim();
+            lastName = (row.lastName || '').trim();
+          } else if (row.nombre || row.name) {
+            const fullName = (row.nombre || row.name || '').trim();
+            const nameParts = fullName.split(' ');
+            firstName = nameParts[0] || '';
+            lastName = nameParts.slice(1).join(' ') || '';
           }
 
-          // Parse budget
-          let estimatedRentCost: number | null = null;
-          let estimatedRentCostText = (row.presupuesto || row.budget || '').toString();
-          const budgetMatch = estimatedRentCostText.match(/[\d,]+/);
-          if (budgetMatch) {
-            estimatedRentCost = parseInt(budgetMatch[0].replace(/,/g, ''), 10);
+          if (!firstName) {
+            results.errors.push({
+              row: rowNum,
+              name: 'Unknown',
+              error: 'Missing name (nombre, fullName, or firstName required)',
+            });
+            continue;
           }
 
-          // Parse bedrooms
-          let bedrooms: number | null = null;
-          let bedroomsText = (row.recamaras || row.bedrooms || '').toString();
-          const bedroomsMatch = bedroomsText.match(/^\d+/);
-          if (bedroomsMatch) {
-            bedrooms = parseInt(bedroomsMatch[0], 10);
+          // Clean and validate phone number - REQUIRED
+          const rawPhone = (row.phone || row.telefono || '').toString();
+          const phone = normalizePhone(rawPhone);
+          
+          if (!phone || phone.length < 7) {
+            results.errors.push({
+              row: rowNum,
+              name: `${firstName} ${lastName}`.trim(),
+              error: 'Invalid or missing phone number (minimum 7 digits required)',
+            });
+            continue;
           }
 
-          // Parse original created date
+          const phoneLast4 = phone.slice(-4);
+
+          // Email (optional but used for duplicate detection)
+          const email = (row.email || row.correo || '').toString().trim() || null;
+
+          // Parse original created date - with explicit error if missing
           let originalCreatedAt: Date | null = null;
-          const dateStr = (row.fecha || row.date || '').toString();
+          const dateStr = (row.originalCreatedAt || row.fecha || row.date || '').toString();
+          
           if (dateStr) {
+            // Try multiple date formats
             const datePatterns = [
-              /^(\d{1,2})\/(\d{1,2})\/(\d{4})$/,
-              /^(\d{1,2})\/(\d{1,2})\/(\d{2})$/,
-              /^(\d{1,2})\/(\d{1,2})$/,
+              /^(\d{1,2})\/(\d{1,2})\/(\d{4})$/,   // DD/MM/YYYY
+              /^(\d{1,2})\/(\d{1,2})\/(\d{2})$/,   // DD/MM/YY
+              /^(\d{4})-(\d{2})-(\d{2})/,           // YYYY-MM-DD
+              /^(\d{1,2})-(\d{1,2})-(\d{4})$/,     // DD-MM-YYYY
             ];
+            
             for (const pattern of datePatterns) {
               const match = dateStr.match(pattern);
               if (match) {
-                let day = parseInt(match[1], 10);
-                let month = parseInt(match[2], 10) - 1;
-                let year = match[3] ? (match[3].length === 2 ? 2000 + parseInt(match[3], 10) : parseInt(match[3], 10)) : new Date().getFullYear();
-                originalCreatedAt = new Date(year, month, day);
+                if (pattern.source.startsWith('^(\\d{4})')) {
+                  // YYYY-MM-DD format
+                  originalCreatedAt = new Date(parseInt(match[1], 10), parseInt(match[2], 10) - 1, parseInt(match[3], 10));
+                } else {
+                  // DD/MM/YYYY or DD-MM-YYYY format
+                  let day = parseInt(match[1], 10);
+                  let month = parseInt(match[2], 10) - 1;
+                  let year = match[3] ? (match[3].length === 2 ? 2000 + parseInt(match[3], 10) : parseInt(match[3], 10)) : new Date().getFullYear();
+                  originalCreatedAt = new Date(year, month, day);
+                }
                 break;
               }
             }
+            
+            // Try parsing as Excel serial date number
+            if (!originalCreatedAt && !isNaN(Number(dateStr))) {
+              const excelEpoch = new Date(1899, 11, 30);
+              originalCreatedAt = new Date(excelEpoch.getTime() + Number(dateStr) * 86400000);
+            }
           }
 
-          // Calculate validUntil (3 months from original date or now)
-          const baseDate = originalCreatedAt || new Date();
-          const validUntil = new Date(baseDate);
+          // Warn but don't fail if original date is missing - use current date but log it
+          if (!originalCreatedAt) {
+            originalCreatedAt = new Date();
+            console.warn(`Import row ${rowNum}: Missing original date for ${firstName} ${lastName}, using current date`);
+          }
+
+          // Calculate validUntil (3 months from original date)
+          const validUntil = new Date(originalCreatedAt);
           validUntil.setMonth(validUntil.getMonth() + 3);
 
-          // Check for duplicates
-          const normalizedName = fullName.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9]/g, '');
-          const phoneLast4 = phone.slice(-4);
-          
-          const existingLeads = await db.select()
-            .from(externalLeads)
-            .where(and(
-              eq(externalLeads.agencyId, agencyId),
-              gte(externalLeads.validUntil, new Date())
-            ));
+          // Check if lead has already expired based on original date
+          if (validUntil < new Date()) {
+            // Lead's 3-month window has passed, can be imported fresh
+            validUntil.setTime(new Date().getTime());
+            validUntil.setMonth(validUntil.getMonth() + 3);
+          }
 
-          const isDuplicate = existingLeads.some(lead => {
-            const existingNormalizedName = `\${lead.firstName}\${lead.lastName}`.toLowerCase()
-              .normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9]/g, '');
-            const existingPhoneLast4 = (lead.phone || lead.phoneLast4 || '').slice(-4);
-            return existingNormalizedName === normalizedName && existingPhoneLast4 === phoneLast4;
+          // Duplicate detection - comprehensive approach
+          const normalizedName = normalizeName(`${firstName}${lastName}`);
+          const normalizedPhone = normalizePhone(phone);
+          
+          const isDuplicate = existingLeads.some(existing => {
+            // Primary: Check phone match
+            const existingPhone = normalizePhone(existing.phone || existing.phoneLast4 || '');
+            if (existingPhone.length >= 4 && normalizedPhone.length >= 4) {
+              // Compare last 4 digits
+              if (existingPhone.slice(-4) === phoneLast4) {
+                return true;
+              }
+              // Full phone match
+              if (existingPhone === normalizedPhone || existingPhone.endsWith(normalizedPhone) || normalizedPhone.endsWith(existingPhone)) {
+                return true;
+              }
+            }
+            
+            // Secondary: Email match
+            if (email && existing.email && email.toLowerCase() === existing.email.toLowerCase()) {
+              return true;
+            }
+            
+            // Tertiary: Name match (for brokers with masked phones)
+            const existingNormalizedName = normalizeName(`${existing.firstName}${existing.lastName}`);
+            if (existingNormalizedName === normalizedName && existingNormalizedName.length > 5) {
+              // Additional check: similar original date (within 7 days)
+              if (existing.originalCreatedAt && originalCreatedAt) {
+                const daysDiff = Math.abs(existing.originalCreatedAt.getTime() - originalCreatedAt.getTime()) / (1000 * 60 * 60 * 24);
+                if (daysDiff < 7) {
+                  return true;
+                }
+              }
+            }
+            
+            return false;
           });
 
           if (isDuplicate) {
@@ -25004,11 +25107,30 @@ export async function registerRoutes(app: Express): Promise<Server> {
             continue;
           }
 
+          // Parse additional fields from frontend
+          const estimatedRentCostText = (row.estimatedRentCostText || row.presupuesto || row.budget || '').toString() || null;
+          let estimatedRentCost: number | null = null;
+          if (estimatedRentCostText) {
+            const budgetMatch = estimatedRentCostText.match(/[\d,]+/);
+            if (budgetMatch) {
+              estimatedRentCost = parseInt(budgetMatch[0].replace(/,/g, ''), 10);
+            }
+          }
+
+          const bedroomsText = (row.bedroomsText || row.recamaras || row.bedrooms || '').toString() || null;
+          let bedrooms: number | null = null;
+          if (bedroomsText) {
+            const bedroomsMatch = bedroomsText.match(/^\d+/);
+            if (bedroomsMatch) {
+              bedrooms = parseInt(bedroomsMatch[0], 10);
+            }
+          }
+
           // Map status
-          const rawStatus = (row.estado || row.status || '').toString().toLowerCase().trim();
+          const rawStatus = (row.status || row.estado || '').toString().toLowerCase().trim();
           const status = statusMap[rawStatus] || 'nuevo_lead';
 
-          // Create lead
+          // Create lead with all fields
           const leadData = {
             agencyId,
             registrationType: registrationType as 'broker' | 'seller',
@@ -25016,20 +25138,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
             lastName,
             phone,
             phoneLast4,
-            email: row.email || null,
-            contractDuration: row.duracion || row.contractDuration || null,
-            checkInDateText: row.mudanza || row.checkInDate || null,
-            hasPets: row.mascotas || row.pets || null,
+            email,
+            contractDuration: (row.contractDuration || row.duracion || '').toString() || null,
+            checkInDateText: (row.checkInDateText || row.mudanza || row.checkInDate || '').toString() || null,
+            hasPets: (row.hasPets || row.mascotas || row.pets || '').toString() || null,
             estimatedRentCost,
-            estimatedRentCostText: estimatedRentCostText || null,
+            estimatedRentCostText,
             bedrooms,
-            bedroomsText: bedroomsText || null,
-            desiredUnitType: row.tipo || row.unitType || null,
-            desiredProperty: row.propiedad || row.property || null,
-            desiredNeighborhood: row.zona || row.neighborhood || null,
-            sellerName: row.vendedor || row.seller || null,
-            assistantSellerName: row.vendedorSecundario || row.assistantSeller || null,
-            notes: row.notas || row.notes || null,
+            bedroomsText,
+            desiredUnitType: (row.desiredUnitType || row.tipo || row.unitType || '').toString() || null,
+            desiredProperty: (row.desiredProperty || row.propiedad || row.property || '').toString() || null,
+            preferredNeighborhood: (row.preferredNeighborhood || row.zona || row.neighborhood || '').toString() || null,
+            sellerName: (row.sellerName || row.vendedor || row.seller || '').toString() || null,
+            assistantSellerName: (row.assistantSellerName || row.vendedorSecundario || row.assistantSeller || '').toString() || null,
+            notes: (row.notes || row.notas || '').toString() || null,
             status: status as any,
             source: 'import',
             validUntil,
@@ -25040,17 +25162,25 @@ export async function registerRoutes(app: Express): Promise<Server> {
           await db.insert(externalLeads).values(leadData);
           results.imported++;
 
+          // Add to existing leads for duplicate detection in subsequent rows
+          existingLeads.push({
+            ...leadData,
+            id: 'temp-' + i,
+            createdAt: new Date(),
+            updatedAt: new Date(),
+          } as any);
+
         } catch (rowError: any) {
           results.errors.push({
-            row: i + 1,
-            name: row.nombre || row.name || 'Unknown',
+            row: rowNum,
+            name: (row.fullName || row.firstName || row.nombre || row.name || 'Unknown').toString(),
             error: rowError.message || 'Unknown error',
           });
         }
       }
 
       await createAuditLog(req, "create", "external_lead_import", null, 
-        `Imported \${results.imported} leads (\${results.duplicates} duplicates skipped, \${results.errors.length} errors)`);
+        `Imported ${results.imported} leads (${results.duplicates} duplicates skipped, ${results.errors.length} errors)`);
 
       res.json({
         success: true,
