@@ -97,7 +97,20 @@ import { cn } from "@/lib/utils";
 import { ExternalPaginationControls } from "@/components/external/ExternalPaginationControls";
 import ExternalQuotationsTab from "@/components/ExternalQuotationsTab";
 
-type MaintenanceFormData = z.infer<typeof insertExternalMaintenanceTicketSchema>;
+// Form-specific schema - agencyId added after validation, scheduledDate as string
+const maintenanceFormSchema = z.object({
+  unitId: z.string().min(1, "Unit is required"),
+  title: z.string().min(1, "Title is required"),
+  description: z.string().min(1, "Description is required"),
+  category: z.enum(["plumbing", "electrical", "appliances", "hvac", "general", "emergency", "other"]),
+  priority: z.enum(["low", "medium", "high", "urgent"]),
+  status: z.enum(["open", "in_progress", "resolved", "closed"]).optional(),
+  scheduledDate: z.string().optional(), // ISO string, converted to Date on submit
+  assignedTo: z.string().optional(),
+  notes: z.string().optional(),
+});
+
+type MaintenanceFormData = z.infer<typeof maintenanceFormSchema>;
 
 // Edit-specific schema - only editable fields
 const editMaintenanceTicketSchema = z.object({
@@ -317,7 +330,7 @@ export default function ExternalMaintenance() {
   ) || [];
 
   const form = useForm<MaintenanceFormData>({
-    resolver: zodResolver(insertExternalMaintenanceTicketSchema),
+    resolver: zodResolver(maintenanceFormSchema),
     defaultValues: {
       unitId: "",
       title: "",
@@ -393,10 +406,14 @@ export default function ExternalMaintenance() {
         );
       }
 
-      return await apiRequest('POST', '/api/external-tickets', {
+      // Convert scheduledDate from ISO string to Date for backend
+      const payload = {
         ...data,
         agencyId: selectedUnit.agencyId,
-      });
+        scheduledDate: data.scheduledDate ? new Date(data.scheduledDate) : undefined,
+      };
+
+      return await apiRequest('POST', '/api/external-tickets', payload);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['/api/external-tickets'] });
