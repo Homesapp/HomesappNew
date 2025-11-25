@@ -120,6 +120,8 @@ import { z } from "zod";
 import { cn } from "@/lib/utils";
 import { ExternalPaginationControls } from "@/components/external/ExternalPaginationControls";
 import LeadKanbanView from "@/components/external/LeadKanbanView";
+import LeadCRMTabs from "@/components/external/LeadCRMTabs";
+import ClientCRMTabs from "@/components/external/ClientCRMTabs";
 
 type ClientFormData = z.infer<typeof insertExternalClientSchema>;
 
@@ -2250,6 +2252,16 @@ export default function ExternalClients() {
             </div>
           )}
 
+          {/* CRM Tabs */}
+          {selectedClient && (
+            <div className="border-t pt-4">
+              <ClientCRMTabs 
+                client={selectedClient} 
+                onClientUpdate={() => queryClient.invalidateQueries({ queryKey: ["/api/external-clients"] })}
+              />
+            </div>
+          )}
+
           <DialogFooter className="border-t pt-4">
             <Button
               variant="outline"
@@ -4059,6 +4071,13 @@ export default function ExternalClients() {
                   </div>
                 )}
               </div>
+            </div>
+          )}
+
+          {/* CRM Tabs */}
+          {selectedLead && (
+            <div className="border-t pt-4">
+              <LeadCRMTabs lead={selectedLead} />
             </div>
           )}
 
