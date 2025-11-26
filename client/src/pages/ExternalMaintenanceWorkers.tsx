@@ -73,7 +73,15 @@ const SPECIALTY_LABELS = {
   },
 };
 
-export default function ExternalMaintenanceWorkers() {
+export interface ExternalMaintenanceWorkersProps {
+  initialTab?: "assignments" | "workers";
+  hideHeader?: boolean;
+}
+
+export default function ExternalMaintenanceWorkers({ 
+  initialTab, 
+  hideHeader = false 
+}: ExternalMaintenanceWorkersProps = {}) {
   const { language } = useLanguage();
   const { toast } = useToast();
   const isMobile = useMobile();
@@ -81,7 +89,7 @@ export default function ExternalMaintenanceWorkers() {
   const [deleteAssignmentId, setDeleteAssignmentId] = useState<string | null>(null);
   const [assignmentType, setAssignmentType] = useState<"condominium" | "unit">("condominium");
   const [editingWorkerId, setEditingWorkerId] = useState<string | null>(null);
-  const [activeTab, setActiveTab] = useState<"assignments" | "workers">("assignments");
+  const [activeTab, setActiveTab] = useState<"assignments" | "workers">(initialTab || "assignments");
   const [workersViewMode, setWorkersViewMode] = useState<"cards" | "table">("table");
   const [assignmentsViewMode, setAssignmentsViewMode] = useState<"cards" | "table">("table");
   const [manualViewModeOverride, setManualViewModeOverride] = useState(false);
@@ -158,6 +166,13 @@ export default function ExternalMaintenanceWorkers() {
   useEffect(() => {
     setWorkersPage(1);
   }, [workersSearchTerm, selectedSpecialty]);
+
+  // Sync activeTab when initialTab prop changes (for embedded usage)
+  useEffect(() => {
+    if (initialTab) {
+      setActiveTab(initialTab);
+    }
+  }, [initialTab]);
 
   // Static/semi-static data: agency users for worker selection
   const { data: allUsers, isLoading: loadingWorkers } = useQuery<any[]>({
@@ -574,31 +589,36 @@ export default function ExternalMaintenanceWorkers() {
   };
 
   return (
-    <div className="container mx-auto p-6 space-y-6">
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-        <div>
-          <h1 className="text-3xl font-bold">
-            {language === "es" ? "Trabajadores de Mantenimiento" : "Maintenance Workers"}
-          </h1>
-          <p className="text-muted-foreground mt-2">
-            {language === "es" 
-              ? "Asigna trabajadores de mantenimiento a condominios y unidades"
-              : "Assign maintenance workers to condominiums and units"}
-          </p>
+    <div className={hideHeader ? "space-y-6" : "container mx-auto p-6 space-y-6"}>
+      {!hideHeader && (
+        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+          <div>
+            <h1 className="text-3xl font-bold">
+              {language === "es" ? "Trabajadores de Mantenimiento" : "Maintenance Workers"}
+            </h1>
+            <p className="text-muted-foreground mt-2">
+              {language === "es" 
+                ? "Asigna trabajadores de mantenimiento a condominios y unidades"
+                : "Assign maintenance workers to condominiums and units"}
+            </p>
+          </div>
+          <Button 
+            data-testid="button-create-assignment-header" 
+            className="w-full sm:w-auto"
+            onClick={() => setIsCreateDialogOpen(true)}
+          >
+            <Plus className="mr-2 h-4 w-4" />
+            {language === "es" ? "Nueva Asignación" : "New Assignment"}
+          </Button>
         </div>
-        <Dialog open={isCreateDialogOpen} onOpenChange={(open) => {
+      )}
+      <Dialog open={isCreateDialogOpen} onOpenChange={(open) => {
           setIsCreateDialogOpen(open);
           if (!open) {
             setEditingWorkerId(null);
             form.reset();
           }
         }}>
-          <DialogTrigger asChild>
-            <Button data-testid="button-create-assignment" className="w-full sm:w-auto">
-              <Plus className="mr-2 h-4 w-4" />
-              {language === "es" ? "Nueva Asignación" : "New Assignment"}
-            </Button>
-          </DialogTrigger>
           <DialogContent className="max-w-3xl max-h-[90vh]" data-testid="dialog-create-assignment">
             <DialogHeader>
               <DialogTitle className="flex items-center gap-2">
@@ -969,7 +989,6 @@ export default function ExternalMaintenanceWorkers() {
             </Form>
           </DialogContent>
         </Dialog>
-      </div>
 
       <Tabs defaultValue="assignments" value={activeTab} onValueChange={(value) => setActiveTab(value as "assignments" | "workers")} className="w-full">
         <TabsList>

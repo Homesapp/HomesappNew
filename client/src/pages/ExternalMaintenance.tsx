@@ -96,6 +96,7 @@ import { es } from "date-fns/locale";
 import { cn } from "@/lib/utils";
 import { ExternalPaginationControls } from "@/components/external/ExternalPaginationControls";
 import ExternalQuotationsTab from "@/components/ExternalQuotationsTab";
+import ExternalMaintenanceWorkers from "@/pages/ExternalMaintenanceWorkers";
 
 // Form-specific schema - agencyId added after validation, scheduledDate as string
 const maintenanceFormSchema = z.object({
@@ -843,14 +844,20 @@ export default function ExternalMaintenance() {
         </div>
       </div>
 
-      {/* Tabs for Tickets and Quotations */}
+      {/* Tabs for Tickets, Quotations, Workers and Assignments */}
       <Tabs defaultValue="tickets" className="w-full">
-        <TabsList>
+        <TabsList className="grid grid-cols-4">
           <TabsTrigger value="tickets" data-testid="tab-tickets">
             {language === 'es' ? 'Tickets' : 'Tickets'}
           </TabsTrigger>
           <TabsTrigger value="quotations" data-testid="tab-quotations">
             {language === 'es' ? 'Cotizaciones' : 'Quotations'}
+          </TabsTrigger>
+          <TabsTrigger value="workers" data-testid="tab-workers">
+            {language === 'es' ? 'Trabajadores' : 'Workers'}
+          </TabsTrigger>
+          <TabsTrigger value="assignments" data-testid="tab-assignments">
+            {language === 'es' ? 'Asignaciones' : 'Assignments'}
           </TabsTrigger>
         </TabsList>
 
@@ -2187,6 +2194,14 @@ export default function ExternalMaintenance() {
 
         <TabsContent value="quotations" className="mt-6">
           <ExternalQuotationsTab />
+        </TabsContent>
+
+        <TabsContent value="workers" className="mt-6">
+          <ExternalMaintenanceWorkers initialTab="workers" hideHeader />
+        </TabsContent>
+
+        <TabsContent value="assignments" className="mt-6">
+          <ExternalMaintenanceWorkers initialTab="assignments" hideHeader />
         </TabsContent>
       </Tabs>
     </div>
