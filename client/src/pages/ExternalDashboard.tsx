@@ -1,9 +1,20 @@
 import { useQuery } from "@tanstack/react-query";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Building2, Wrench, TrendingUp, Calendar, FileText, ArrowRight, User } from "lucide-react";
+import { 
+  Building2, 
+  Wrench, 
+  TrendingUp, 
+  Calendar, 
+  FileText, 
+  User, 
+  Users, 
+  Key, 
+  ScrollText, 
+  DollarSign, 
+  UserCircle2 
+} from "lucide-react";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { Link } from "wouter";
 
@@ -57,28 +68,48 @@ export default function ExternalDashboard() {
 
   const quickActions = [
     {
-      title: language === "es" ? "Rentas Activas" : "Active Rentals",
-      description: language === "es" ? "Gestionar contratos de renta" : "Manage rental contracts",
+      title: language === "es" ? "Cuentas" : "Accounts",
+      description: language === "es" ? "Gestión de usuarios" : "User management",
+      icon: Users,
+      href: "/external/accounts",
+      color: "text-indigo-600",
+    },
+    {
+      title: language === "es" ? "Accesos" : "Accesses",
+      description: language === "es" ? "Control de accesos" : "Access control",
+      icon: Key,
+      href: "/external/accesses",
+      color: "text-amber-600",
+    },
+    {
+      title: language === "es" ? "Condominios" : "Condominiums",
+      description: language === "es" ? "Propiedades y unidades" : "Properties and units",
+      icon: Building2,
+      href: "/external/condominiums",
+      color: "text-blue-600",
+      count: stats.totalCondominiums,
+    },
+    {
+      title: language === "es" ? "Contratos" : "Contracts",
+      description: language === "es" ? "Documentos legales" : "Legal documents",
+      icon: ScrollText,
+      href: "/external/contracts",
+      color: "text-cyan-600",
+    },
+    {
+      title: language === "es" ? "Rentas" : "Rentals",
+      description: language === "es" ? "Contratos activos" : "Active contracts",
       icon: FileText,
       href: "/external/rentals",
       color: "text-purple-600",
       count: stats.activeRentals,
     },
     {
-      title: language === "es" ? "Calendario" : "Calendar",
-      description: language === "es" ? "Ver eventos y citas" : "View events and appointments",
-      icon: Calendar,
-      href: "/external/calendar",
-      color: "text-blue-600",
-      count: stats.paymentsNext7Days + stats.scheduledTicketsNext7Days,
-    },
-    {
-      title: language === "es" ? "Propietarios" : "Owners",
-      description: language === "es" ? "Gestionar propietarios" : "Manage owners",
-      icon: User,
-      href: "/external/owners/portfolio",
-      color: "text-green-600",
-      count: stats.totalOwners,
+      title: language === "es" ? "Contabilidad" : "Accounting",
+      description: language === "es" ? "Finanzas y reportes" : "Finances and reports",
+      icon: DollarSign,
+      href: "/external/accounting",
+      color: "text-emerald-600",
     },
     {
       title: language === "es" ? "Mantenimiento" : "Maintenance",
@@ -87,6 +118,29 @@ export default function ExternalDashboard() {
       href: "/external/maintenance",
       color: "text-orange-600",
       count: stats.openTickets,
+    },
+    {
+      title: language === "es" ? "Calendario" : "Calendar",
+      description: language === "es" ? "Eventos y citas" : "Events and appointments",
+      icon: Calendar,
+      href: "/external/calendar",
+      color: "text-rose-600",
+      count: stats.paymentsNext7Days + stats.scheduledTicketsNext7Days,
+    },
+    {
+      title: language === "es" ? "Propietarios" : "Owners",
+      description: language === "es" ? "Portafolio de dueños" : "Owners portfolio",
+      icon: User,
+      href: "/external/owners/portfolio",
+      color: "text-teal-600",
+      count: stats.totalOwners,
+    },
+    {
+      title: language === "es" ? "Clientes" : "Clients",
+      description: language === "es" ? "CRM y seguimiento" : "CRM and tracking",
+      icon: UserCircle2,
+      href: "/external/clients",
+      color: "text-pink-600",
     },
   ];
 
@@ -214,14 +268,14 @@ export default function ExternalDashboard() {
 
       <div>
         <h2 className="text-lg font-semibold mb-3">{language === "es" ? "Acceso Rápido" : "Quick Access"}</h2>
-        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+        <div className="grid gap-4 grid-cols-2 md:grid-cols-3 lg:grid-cols-5">
           {quickActions.map((action, idx) => (
             <Link key={idx} href={action.href}>
-              <Card className="hover-elevate cursor-pointer transition-all" data-testid={`quick-action-${idx}`}>
+              <Card className="hover-elevate cursor-pointer transition-all h-full" data-testid={`quick-action-${idx}`}>
                 <CardContent className="p-4">
                   <div className="flex items-center justify-between mb-2">
                     <action.icon className={`h-5 w-5 ${action.color}`} />
-                    {action.count > 0 && (
+                    {action.count !== undefined && action.count > 0 && (
                       <Badge variant="secondary" className="text-xs">
                         {action.count}
                       </Badge>
@@ -234,108 +288,6 @@ export default function ExternalDashboard() {
             </Link>
           ))}
         </div>
-      </div>
-
-      <div className="grid gap-4 lg:grid-cols-2">
-        <Card data-testid="card-maintenance-summary">
-          <CardHeader className="pb-3">
-            <CardTitle className="text-base">
-              {language === "es" ? "Mantenimiento" : "Maintenance"}
-            </CardTitle>
-            <CardDescription className="text-xs">
-              {language === "es" ? "Estado de tickets" : "Ticket status"}
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            {isLoading ? (
-              <div className="space-y-3">
-                <Skeleton className="h-12 w-full" />
-                <Skeleton className="h-12 w-full" />
-              </div>
-            ) : (
-              <div className="space-y-4">
-                <div className="flex items-center justify-between p-3 rounded-lg bg-orange-50 dark:bg-orange-900/20">
-                  <div className="flex items-center gap-2">
-                    <Wrench className="h-4 w-4 text-orange-600" />
-                    <p className="text-sm font-medium">
-                      {language === "es" ? "Tickets Abiertos" : "Open Tickets"}
-                    </p>
-                  </div>
-                  <Badge variant="secondary" className="bg-orange-100 text-orange-800 dark:bg-orange-900/50">
-                    {stats.openTickets}
-                  </Badge>
-                </div>
-                <div className="flex items-center justify-between p-3 rounded-lg bg-blue-50 dark:bg-blue-900/20">
-                  <div className="flex items-center gap-2">
-                    <Calendar className="h-4 w-4 text-blue-600" />
-                    <p className="text-sm font-medium">
-                      {language === "es" ? "Programados esta semana" : "Scheduled this week"}
-                    </p>
-                  </div>
-                  <Badge variant="secondary" className="bg-blue-100 text-blue-800 dark:bg-blue-900/50">
-                    {stats.scheduledTicketsNext7Days}
-                  </Badge>
-                </div>
-                <Link href="/external/maintenance">
-                  <Button variant="ghost" size="sm" className="w-full mt-2" data-testid="button-view-maintenance">
-                    {language === "es" ? "Ver mantenimiento" : "View maintenance"}
-                    <ArrowRight className="h-4 w-4 ml-1" />
-                  </Button>
-                </Link>
-              </div>
-            )}
-          </CardContent>
-        </Card>
-
-        <Card data-testid="card-rentals-summary">
-          <CardHeader className="pb-3">
-            <CardTitle className="text-base">
-              {language === "es" ? "Rentas" : "Rentals"}
-            </CardTitle>
-            <CardDescription className="text-xs">
-              {language === "es" ? "Estado de contratos" : "Contract status"}
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            {isLoading ? (
-              <div className="space-y-3">
-                <Skeleton className="h-12 w-full" />
-                <Skeleton className="h-12 w-full" />
-              </div>
-            ) : (
-              <div className="space-y-4">
-                <div className="flex items-center justify-between p-3 rounded-lg bg-purple-50 dark:bg-purple-900/20">
-                  <div className="flex items-center gap-2">
-                    <FileText className="h-4 w-4 text-purple-600" />
-                    <p className="text-sm font-medium">
-                      {language === "es" ? "Rentas Activas" : "Active Rentals"}
-                    </p>
-                  </div>
-                  <Badge variant="secondary" className="bg-purple-100 text-purple-800 dark:bg-purple-900/50">
-                    {stats.activeRentals}
-                  </Badge>
-                </div>
-                <div className="flex items-center justify-between p-3 rounded-lg bg-amber-50 dark:bg-amber-900/20">
-                  <div className="flex items-center gap-2">
-                    <Calendar className="h-4 w-4 text-amber-600" />
-                    <p className="text-sm font-medium">
-                      {language === "es" ? "Por vencer pronto" : "Ending soon"}
-                    </p>
-                  </div>
-                  <Badge variant="secondary" className="bg-amber-100 text-amber-800 dark:bg-amber-900/50">
-                    {stats.rentalsEndingSoon}
-                  </Badge>
-                </div>
-                <Link href="/external/rentals">
-                  <Button variant="ghost" size="sm" className="w-full mt-2" data-testid="button-view-rentals">
-                    {language === "es" ? "Ver rentas" : "View rentals"}
-                    <ArrowRight className="h-4 w-4 ml-1" />
-                  </Button>
-                </Link>
-              </div>
-            )}
-          </CardContent>
-        </Card>
       </div>
     </div>
   );
