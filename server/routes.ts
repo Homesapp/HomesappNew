@@ -30857,6 +30857,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // POST /api/external/data/import/:section - Import data from CSV
   app.post("/api/external/data/import/:section", isAuthenticated, requireRole(EXTERNAL_ADMIN_ROLES), async (req: any, res) => {
     try {
+      const Papa = (await import('papaparse')).default;
       const { section } = req.params;
       const { csvData } = req.body;
       const agencyId = await getUserAgencyId(req);
@@ -31026,9 +31027,334 @@ export async function registerRoutes(app: Express): Promise<Server> {
           }
           break;
           
+        case 'units':
+          for (const row of rows) {
+            try {
+              if (!row.unit_number?.trim()) {
+                skipped++;
+                continue;
+              }
+              
+              const unitNumber = row.unit_number.trim();
+              
+              // Resolve condominium by name if provided
+              let condominiumId: string | null = null;
+              if (row.condominium_name?.trim()) {
+                const condo = await db.select().from(externalCondominiums)
+                  .where(and(
+                    eq(externalCondominiums.agencyId, agencyId),
+                    sql`LOWER(${externalCondominiums.name}) = LOWER(${row.condominium_name.trim()})`
+                  ))
+                  .limit(1);
+                if (condo.length > 0) {
+                  condominiumId = condo[0].id;
+                }
+              }
+              
+              // Check for duplicates by unit number + condominium
+              const existingConditions: any[] = [
+                eq(externalUnits.agencyId, agencyId),
+                sql`LOWER(${externalUnits.unitNumber}) = LOWER(${unitNumber})`
+              ];
+              if (condominiumId) {
+                existingConditions.push(eq(externalUnits.condominiumId, condominiumId));
+              }
+              
+              const existing = await db.select().from(externalUnits)
+                .where(and(...existingConditions))
+                .limit(1);
+              
+              if (existing.length > 0) {
+                skipped++;
+                continue;
+              }
+              
+              await db.insert(externalUnits).values({
+                id: crypto.randomUUID(),
+                agencyId,
+                condominiumId,
+                unitNumber,
+                zone: row.zone?.trim() || null,
+                typology: row.typology?.trim() || null,
+                propertyType: row.property_type?.trim() || null,
+                bedrooms: row.bedrooms ? parseInt(row.bedrooms) : null,
+                bathrooms: row.bathrooms ? parseFloat(row.bathrooms) : null,
+                squareMeters: row.square_meters ? parseFloat(row.square_meters) : null,
+                furnished: row.furnished === 'true',
+                monthlyRent: row.monthly_rent ? parseFloat(row.monthly_rent) : null,
+                currency: row.currency?.trim() || 'USD',
+                status: row.status?.trim() || 'available',
+                notes: row.notes?.trim() || null,
+                isActive: row.is_active !== 'false',
+                createdAt: new Date(),
+                updatedAt: new Date(),
+              });
+              imported++;
+            } catch (e: any) {
+              errors.push(`Row "${row.unit_number}": ${e.message}`);
+            }
+          }
+          break;
+          
+        case 'owners':
+          for (const row of rows) {
+            try {
+              if (!row.first_name?.trim() || !row.last_name?.trim()) {
+                skipped++;
+                continue;
+              }
+              
+              const firstName = row.first_name.trim();
+              const lastName = row.last_name.trim();
+              
+              // Check for duplicates by name + email/phone
+              const existingConditions: any[] = [
+                eq(externalOwners.agencyId, agencyId),
+                sql`LOWER(${externalOwners.firstName}) = LOWER(${firstName})`,
+                sql`LOWER(${externalOwners.lastName}) = LOWER(${lastName})`
+              ];
+              
+              const existing = await db.select().from(externalOwners)
+                .where(and(...existingConditions))
+                .limit(1);
+              
+              if (existing.length > 0) {
+                skipped++;
+                continue;
+              }
+              
+              await db.insert(externalOwners).values({
+                id: crypto.randomUUID(),
+                agencyId,
+                firstName,
+                lastName,
+                email: row.email?.trim() || null,
+                phone: row.phone?.trim() || null,
+                address: row.address?.trim() || null,
+                nationality: row.nationality?.trim() || null,
+                notes: row.notes?.trim() || null,
+                isActive: row.is_active !== 'false',
+                createdAt: new Date(),
+                updatedAt: new Date(),
+              });
+              imported++;
+            } catch (e: any) {
+              errors.push(`Row "${row.first_name} ${row.last_name}": ${e.message}`);
+            }
+          }
+          break;
+          
+        case 'contracts':
+          for (const row of rows) {
+            try {
+              if (!row.unit_number?.trim()) {
+                errors.push(`Row missing unit_number`);
+                skipped++;
+                continue;
+              }
+              
+              // Resolve unit by number
+              const unit = await db.select().from(externalUnits)
+                .where(and(
+                  eq(externalUnits.agencyId, agencyId),
+                  sql`LOWER(${externalUnits.unitNumber}) = LOWER(${row.unit_number.trim()})`
+                ))
+                .limit(1);
+              
+              if (unit.length === 0) {
+                errors.push(`Unit "${row.unit_number}" not found`);
+                skipped++;
+                continue;
+              }
+              
+              await db.insert(externalRentalContracts).values({
+                id: crypto.randomUUID(),
+                agencyId,
+                unitId: unit[0].id,
+                contractType: row.contract_type?.trim() || 'fixed',
+                status: row.status?.trim() || 'draft',
+                startDate: row.start_date ? new Date(row.start_date) : null,
+                endDate: row.end_date ? new Date(row.end_date) : null,
+                rentAmount: row.rent_amount ? parseFloat(row.rent_amount) : null,
+                currency: row.currency?.trim() || 'USD',
+                createdAt: new Date(),
+                updatedAt: new Date(),
+              });
+              imported++;
+            } catch (e: any) {
+              errors.push(`Row "${row.unit_number}": ${e.message}`);
+            }
+          }
+          break;
+          
+        case 'maintenance':
+          for (const row of rows) {
+            try {
+              if (!row.title?.trim()) {
+                skipped++;
+                continue;
+              }
+              
+              const title = row.title.trim();
+              
+              // Resolve unit by number if provided
+              let unitId: string | null = null;
+              if (row.unit_number?.trim()) {
+                const unit = await db.select().from(externalUnits)
+                  .where(and(
+                    eq(externalUnits.agencyId, agencyId),
+                    sql`LOWER(${externalUnits.unitNumber}) = LOWER(${row.unit_number.trim()})`
+                  ))
+                  .limit(1);
+                if (unit.length > 0) {
+                  unitId = unit[0].id;
+                }
+              }
+              
+              // Check for duplicates by title
+              const existing = await db.select().from(externalMaintenanceTickets)
+                .where(and(
+                  eq(externalMaintenanceTickets.agencyId, agencyId),
+                  sql`LOWER(${externalMaintenanceTickets.title}) = LOWER(${title})`
+                ))
+                .limit(1);
+              
+              if (existing.length > 0) {
+                skipped++;
+                continue;
+              }
+              
+              await db.insert(externalMaintenanceTickets).values({
+                id: crypto.randomUUID(),
+                agencyId,
+                unitId,
+                title,
+                description: row.description?.trim() || null,
+                category: row.category?.trim() || 'general',
+                priority: row.priority?.trim() || 'medium',
+                status: row.status?.trim() || 'open',
+                reportedBy: row.reported_by?.trim() || null,
+                estimatedCost: row.estimated_cost ? parseFloat(row.estimated_cost) : null,
+                actualCost: row.actual_cost ? parseFloat(row.actual_cost) : null,
+                createdAt: new Date(),
+                updatedAt: new Date(),
+              });
+              imported++;
+            } catch (e: any) {
+              errors.push(`Row "${row.title}": ${e.message}`);
+            }
+          }
+          break;
+          
+        case 'transactions':
+          for (const row of rows) {
+            try {
+              if (!row.type?.trim() || !row.amount) {
+                skipped++;
+                continue;
+              }
+              
+              // Resolve unit by number if provided
+              let unitId: string | null = null;
+              if (row.unit_number?.trim()) {
+                const unit = await db.select().from(externalUnits)
+                  .where(and(
+                    eq(externalUnits.agencyId, agencyId),
+                    sql`LOWER(${externalUnits.unitNumber}) = LOWER(${row.unit_number.trim()})`
+                  ))
+                  .limit(1);
+                if (unit.length > 0) {
+                  unitId = unit[0].id;
+                }
+              }
+              
+              await db.insert(externalFinancialTransactions).values({
+                id: crypto.randomUUID(),
+                agencyId,
+                unitId,
+                type: row.type.trim(),
+                category: row.category?.trim() || 'other',
+                amount: parseFloat(row.amount),
+                currency: row.currency?.trim() || 'USD',
+                status: row.status?.trim() || 'pending',
+                description: row.description?.trim() || null,
+                transactionDate: row.transaction_date ? new Date(row.transaction_date) : new Date(),
+                createdAt: new Date(),
+                updatedAt: new Date(),
+              });
+              imported++;
+            } catch (e: any) {
+              errors.push(`Row with amount ${row.amount}: ${e.message}`);
+            }
+          }
+          break;
+          
+        case 'quotations':
+          for (const row of rows) {
+            try {
+              if (!row.title?.trim()) {
+                skipped++;
+                continue;
+              }
+              
+              const title = row.title.trim();
+              
+              // Resolve unit by number if provided
+              let unitId: string | null = null;
+              if (row.unit_number?.trim()) {
+                const unit = await db.select().from(externalUnits)
+                  .where(and(
+                    eq(externalUnits.agencyId, agencyId),
+                    sql`LOWER(${externalUnits.unitNumber}) = LOWER(${row.unit_number.trim()})`
+                  ))
+                  .limit(1);
+                if (unit.length > 0) {
+                  unitId = unit[0].id;
+                }
+              }
+              
+              // Check for duplicates by quotation number if provided
+              if (row.quotation_number?.trim()) {
+                const existing = await db.select().from(externalQuotations)
+                  .where(and(
+                    eq(externalQuotations.agencyId, agencyId),
+                    sql`LOWER(${externalQuotations.quotationNumber}) = LOWER(${row.quotation_number.trim()})`
+                  ))
+                  .limit(1);
+                
+                if (existing.length > 0) {
+                  skipped++;
+                  continue;
+                }
+              }
+              
+              await db.insert(externalQuotations).values({
+                id: crypto.randomUUID(),
+                agencyId,
+                unitId,
+                title,
+                quotationNumber: row.quotation_number?.trim() || null,
+                clientName: row.client_name?.trim() || null,
+                clientEmail: row.client_email?.trim() || null,
+                description: row.description?.trim() || null,
+                status: row.status?.trim() || 'draft',
+                totalAmount: row.total_amount ? parseFloat(row.total_amount) : 0,
+                adminFee: row.admin_fee ? parseFloat(row.admin_fee) : 0,
+                currency: row.currency?.trim() || 'USD',
+                validUntil: row.valid_until ? new Date(row.valid_until) : null,
+                createdAt: new Date(),
+                updatedAt: new Date(),
+              });
+              imported++;
+            } catch (e: any) {
+              errors.push(`Row "${row.title}": ${e.message}`);
+            }
+          }
+          break;
+          
         default:
           return res.status(400).json({ 
-            message: `Import not supported for section: ${section}. Currently supported: condominiums, clients, leads` 
+            message: `Import not supported for section: ${section}` 
           });
       }
 

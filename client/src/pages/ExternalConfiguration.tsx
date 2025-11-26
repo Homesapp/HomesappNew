@@ -912,14 +912,14 @@ export default function ExternalConfiguration() {
 
     const dataSections = [
       { id: 'condominiums', label: language === 'es' ? 'Condominios' : 'Condominiums', icon: Building2, canImport: true },
-      { id: 'units', label: language === 'es' ? 'Unidades' : 'Units', icon: Home, canImport: false },
-      { id: 'owners', label: language === 'es' ? 'Propietarios' : 'Owners', icon: Users, canImport: false },
+      { id: 'units', label: language === 'es' ? 'Unidades' : 'Units', icon: Home, canImport: true },
+      { id: 'owners', label: language === 'es' ? 'Propietarios' : 'Owners', icon: Users, canImport: true },
       { id: 'clients', label: language === 'es' ? 'Clientes' : 'Clients', icon: Users, canImport: true },
       { id: 'leads', label: language === 'es' ? 'Leads' : 'Leads', icon: Users, canImport: true },
-      { id: 'contracts', label: language === 'es' ? 'Contratos' : 'Contracts', icon: FileText, canImport: false },
-      { id: 'maintenance', label: language === 'es' ? 'Mantenimiento' : 'Maintenance', icon: Settings, canImport: false },
-      { id: 'transactions', label: language === 'es' ? 'Transacciones' : 'Transactions', icon: FileText, canImport: false },
-      { id: 'quotations', label: language === 'es' ? 'Cotizaciones' : 'Quotations', icon: FileText, canImport: false },
+      { id: 'contracts', label: language === 'es' ? 'Contratos' : 'Contracts', icon: FileText, canImport: true },
+      { id: 'maintenance', label: language === 'es' ? 'Mantenimiento' : 'Maintenance', icon: Settings, canImport: true },
+      { id: 'transactions', label: language === 'es' ? 'Transacciones' : 'Transactions', icon: FileText, canImport: true },
+      { id: 'quotations', label: language === 'es' ? 'Cotizaciones' : 'Quotations', icon: FileText, canImport: true },
     ];
 
     const exportMutation = useMutation({
@@ -963,8 +963,14 @@ export default function ExternalConfiguration() {
       },
       onSuccess: (data: any) => {
         queryClient.invalidateQueries({ queryKey: ['/api/external-condominiums'] });
+        queryClient.invalidateQueries({ queryKey: ['/api/external-units'] });
+        queryClient.invalidateQueries({ queryKey: ['/api/external-owners'] });
         queryClient.invalidateQueries({ queryKey: ['/api/external-clients'] });
         queryClient.invalidateQueries({ queryKey: ['/api/external/leads'] });
+        queryClient.invalidateQueries({ queryKey: ['/api/external-rental-contracts'] });
+        queryClient.invalidateQueries({ queryKey: ['/api/external-tickets'] });
+        queryClient.invalidateQueries({ queryKey: ['/api/external/accounting/transactions'] });
+        queryClient.invalidateQueries({ queryKey: ['/api/external-quotations'] });
         toast({
           title: language === 'es' ? 'Importación completada' : 'Import complete',
           description: data.message,
