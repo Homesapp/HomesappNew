@@ -23971,7 +23971,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         estimatedCost: externalMaintenanceTickets.estimatedCost,
         actualCost: externalMaintenanceTickets.actualCost,
         scheduledDate: externalMaintenanceTickets.scheduledDate,
-        completedAt: externalMaintenanceTickets.completedAt,
+        closedAt: externalMaintenanceTickets.closedAt,
         createdAt: externalMaintenanceTickets.createdAt,
       })
         .from(externalMaintenanceTickets)

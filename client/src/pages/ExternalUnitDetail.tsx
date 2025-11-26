@@ -49,7 +49,7 @@ interface MaintenanceHistoryItem {
   estimatedCost: string | null;
   actualCost: string | null;
   scheduledDate: string | null;
-  completedAt: string | null;
+  closedAt: string | null;
   createdAt: string;
 }
 
@@ -1242,8 +1242,8 @@ ${language === "es" ? "ACCESOS" : "ACCESSES"}:
                           <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-muted-foreground">
                             {ticket.category && <span>{ticket.category}</span>}
                             <span>{language === "es" ? "Creado" : "Created"}: {formatDate(ticket.createdAt)}</span>
-                            {ticket.completedAt && (
-                              <span>{language === "es" ? "Completado" : "Completed"}: {formatDate(ticket.completedAt)}</span>
+                            {ticket.closedAt && (
+                              <span>{language === "es" ? "Completado" : "Completed"}: {formatDate(ticket.closedAt)}</span>
                             )}
                             {ticket.actualCost && (
                               <span>{language === "es" ? "Costo" : "Cost"}: ${ticket.actualCost}</span>
