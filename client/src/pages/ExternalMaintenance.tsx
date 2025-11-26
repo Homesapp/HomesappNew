@@ -1,6 +1,6 @@
 import { useState, useEffect, useLayoutEffect } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
-import { Link } from "wouter";
+import { Link, useLocation } from "wouter";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -214,6 +214,7 @@ const categoryLabels: Record<string, { es: string; en: string }> = {
 };
 
 export default function ExternalMaintenance() {
+  const [, setLocation] = useLocation();
   const { language } = useLanguage();
   const { toast } = useToast();
   const { user } = useAuth();
@@ -1626,7 +1627,7 @@ export default function ExternalMaintenance() {
                         key={ticket.id} 
                         data-testid={`row-ticket-${ticket.id}`} 
                         className="hover-elevate cursor-pointer"
-                        onClick={() => window.location.href = `/external/maintenance/${ticket.id}`}
+                        onClick={() => setLocation(`/external/maintenance/${ticket.id}`)}
                       >
                         <TableCell className="px-3 py-3">
                           <span className="truncate max-w-xs">{ticket.title}</span>
