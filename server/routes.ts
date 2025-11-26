@@ -30079,7 +30079,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(403).json({ message: "No agency access" });
       }
 
-      const { direction, category, status, ownerId, contractId, unitId, condominiumId, startDate, endDate, search, sortField, sortOrder, limit, offset } = req.query;
+      const { direction, category, status, ownerId, contractId, unitId, condominiumId, startDate, endDate, search, sortField, sortOrder, limit, offset, zone, typology } = req.query;
 
       // Detect pagination mode: only check limit/offset to avoid breaking legacy consumers that use search/sortField
       const usePagination = (limit !== undefined && limit !== '') || (offset !== undefined && offset !== '');
@@ -30563,6 +30563,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // GET /api/external/data/export/:section - Export data as CSV
   app.get("/api/external/data/export/:section", isAuthenticated, requireRole(EXTERNAL_ADMIN_ROLES), async (req: any, res) => {
     try {
+      const Papa = (await import('papaparse')).default;
       const { section } = req.params;
       const agencyId = await getUserAgencyId(req);
       if (!agencyId) {
