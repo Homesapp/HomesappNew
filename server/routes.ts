@@ -8271,7 +8271,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   // Sidebar Menu Visibility Configuration routes
   // Admin: Get sidebar configuration for a role
-  app.get("/api/admin/sidebar-config/:role", isAuthenticated, requireRole(["master", "admin"]), async (req: any, res) => {
+  app.get("/api/admin/sidebar-config/:role", isAuthenticated, async (req: any, res) => {
     try {
       const { role } = req.params;
       
@@ -8399,7 +8399,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Admin: Get sidebar configuration for a specific user
-  app.get("/api/admin/sidebar-config-user/:userId", isAuthenticated, requireRole(["master", "admin"]), async (req: any, res) => {
+  app.get("/api/admin/sidebar-config-user/:userId", isAuthenticated, async (req: any, res) => {
     try {
       const { userId } = req.params;
       const config = await storage.getSidebarMenuVisibilityByUser(userId);
