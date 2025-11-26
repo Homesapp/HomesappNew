@@ -23195,7 +23195,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       endDate.setHours(23, 59, 59, 999);
       
       // Query tickets for this agency within the biweekly period using reference date
-      // Reference date: for closed/resolved tickets use updated_at, otherwise use created_at
+      // Reference date: for closed/resolved tickets use closed_at, otherwise use scheduled_date or created_at
       let result;
       if (agencyId) {
         result = await db.execute(sql`
@@ -23203,11 +23203,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
             COUNT(*) as total,
             COUNT(*) FILTER (WHERE status IN ('open', 'in_progress')) as open_count,
             COUNT(*) FILTER (WHERE status IN ('resolved', 'closed')) as resolved_count,
-            COALESCE(SUM(CASE WHEN status IN ('resolved', 'closed') AND actual_cost IS NOT NULL AND TRIM(actual_cost) != '' AND actual_cost ~ '^[0-9.]+$' THEN CAST(actual_cost AS DECIMAL) ELSE 0 END), 0) as actual_cost_sum
+            COALESCE(SUM(CASE WHEN status IN ('resolved', 'closed') AND actual_cost IS NOT NULL THEN actual_cost ELSE 0 END), 0) as actual_cost_sum,
+            COALESCE(SUM(CASE WHEN status IN ('resolved', 'closed') THEN COALESCE(total_charge_amount, actual_cost * 1.15, 0) ELSE 0 END), 0) as total_charge_sum,
+            COALESCE(SUM(CASE WHEN status IN ('resolved', 'closed') AND accounting_sync_status = 'synced' THEN COALESCE(total_charge_amount, actual_cost * 1.15, 0) ELSE 0 END), 0) as paid_total_sum
           FROM external_maintenance_tickets
           WHERE agency_id = ${agencyId}
-            AND COALESCE(closed_at, updated_at, created_at) >= ${startDate.toISOString()}::timestamp
-            AND COALESCE(closed_at, updated_at, created_at) <= ${endDate.toISOString()}::timestamp
+            AND COALESCE(closed_at, scheduled_date, created_at) >= ${startDate.toISOString()}::timestamp
+            AND COALESCE(closed_at, scheduled_date, created_at) <= ${endDate.toISOString()}::timestamp
         `);
       } else {
         // Admin/master users see all agencies
@@ -23216,17 +23218,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
             COUNT(*) as total,
             COUNT(*) FILTER (WHERE status IN ('open', 'in_progress')) as open_count,
             COUNT(*) FILTER (WHERE status IN ('resolved', 'closed')) as resolved_count,
-            COALESCE(SUM(CASE WHEN status IN ('resolved', 'closed') AND actual_cost IS NOT NULL AND TRIM(actual_cost) != '' AND actual_cost ~ '^[0-9.]+$' THEN CAST(actual_cost AS DECIMAL) ELSE 0 END), 0) as actual_cost_sum
+            COALESCE(SUM(CASE WHEN status IN ('resolved', 'closed') AND actual_cost IS NOT NULL THEN actual_cost ELSE 0 END), 0) as actual_cost_sum,
+            COALESCE(SUM(CASE WHEN status IN ('resolved', 'closed') THEN COALESCE(total_charge_amount, actual_cost * 1.15, 0) ELSE 0 END), 0) as total_charge_sum,
+            COALESCE(SUM(CASE WHEN status IN ('resolved', 'closed') AND accounting_sync_status = 'synced' THEN COALESCE(total_charge_amount, actual_cost * 1.15, 0) ELSE 0 END), 0) as paid_total_sum
           FROM external_maintenance_tickets
-          WHERE COALESCE(updated_at, created_at) >= ${startDate.toISOString()}::timestamp
-            AND COALESCE(closed_at, updated_at, created_at) <= ${endDate.toISOString()}::timestamp
+          WHERE COALESCE(closed_at, scheduled_date, created_at) >= ${startDate.toISOString()}::timestamp
+            AND COALESCE(closed_at, scheduled_date, created_at) <= ${endDate.toISOString()}::timestamp
         `);
       }
       
       const row = result.rows[0] as any;
       const actualCost = parseFloat(row.actual_cost_sum || '0');
-      const commission = actualCost * 0.15;
-      const totalCharge = actualCost + commission;
+      const totalCharge = parseFloat(row.total_charge_sum || '0');
+      const paidTotal = parseFloat(row.paid_total_sum || '0');
+      const commission = totalCharge - actualCost;
       
       // Get month name in Spanish
       const monthNames = ['enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio', 'julio', 'agosto', 'septiembre', 'octubre', 'noviembre', 'diciembre'];
@@ -23240,8 +23245,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
           startDate: startDate.toISOString(),
           endDate: endDate.toISOString(),
           label: targetPeriod === 1 
-            ? `1ra Quincena ${monthName} ${targetYear}`
-            : `2da Quincena ${monthName} ${targetYear}`
+            ? `1ra Quincena de ${monthName.charAt(0).toUpperCase() + monthName.slice(1)} ${targetYear}`
+            : `2da Quincena de ${monthName.charAt(0).toUpperCase() + monthName.slice(1)} ${targetYear}`
         },
         stats: {
           total: parseInt(row.total || '0'),
@@ -23249,7 +23254,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
           resolved: parseInt(row.resolved_count || '0'),
           actualCost: actualCost,
           commission: commission,
-          totalCharge: totalCharge
+          totalCharge: totalCharge,
+          paidTotal: paidTotal
         }
       });
     } catch (error: any) {

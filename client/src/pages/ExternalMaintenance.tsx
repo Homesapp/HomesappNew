@@ -85,6 +85,7 @@ import {
   FileText,
   MapPin,
   MessageSquare,
+  CreditCard,
 } from "lucide-react";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { useAuth } from "@/hooks/useAuth";
@@ -398,6 +399,7 @@ export default function ExternalMaintenance() {
       actualCost: number;
       commission: number;
       totalCharge: number;
+      paidTotal: number;
     };
   };
 
@@ -927,6 +929,7 @@ export default function ExternalMaintenance() {
     actualCost: 'Costo Real',
     commissions: 'Comisiones (15%)',
     totalCharge: 'Total a Cobrar',
+    paidTotal: 'Total Pagado',
     search: 'Buscar por título, descripción o unidad...',
     filters: 'Filtros',
     today: 'HOY',
@@ -967,6 +970,7 @@ export default function ExternalMaintenance() {
     actualCost: 'Actual Cost',
     commissions: 'Commissions (15%)',
     totalCharge: 'Total Charge',
+    paidTotal: 'Total Paid',
     search: 'Search by title, description or unit...',
     filters: 'Filters',
     today: 'TODAY',
@@ -1066,7 +1070,7 @@ export default function ExternalMaintenance() {
       </div>
 
       {/* Metrics - Biweekly Stats */}
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-6">
+      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-7">
         <Card>
           <CardHeader className="flex flex-row items-center justify-between gap-2 space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">{t.totalJobs}</CardTitle>
@@ -1124,6 +1128,16 @@ export default function ExternalMaintenance() {
           </CardHeader>
           <CardContent>
             <div className="text-lg font-bold text-green-600" data-testid="text-total-charge">{formatCurrency(biweeklyStats?.stats?.totalCharge || 0)}</div>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between gap-2 space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">{t.paidTotal}</CardTitle>
+            <CreditCard className="h-4 w-4 text-purple-600" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-lg font-bold text-purple-600" data-testid="text-paid-total">{formatCurrency(biweeklyStats?.stats?.paidTotal || 0)}</div>
           </CardContent>
         </Card>
       </div>
