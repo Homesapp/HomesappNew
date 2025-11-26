@@ -8,10 +8,11 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
+import { Progress } from "@/components/ui/progress";
 import { Switch } from "@/components/ui/switch";
 import { useToast } from "@/hooks/use-toast";
 import { queryClient, apiRequest } from "@/lib/queryClient";
-import { Settings, FileText, CheckCircle, XCircle, Plus, Edit, Trash2, Building2, Plug, Calendar, Bot, FileSpreadsheet, Upload, Download, Eye, MapPin, Home, List, Users } from "lucide-react";
+import { Settings, FileText, CheckCircle, XCircle, Plus, Edit, Trash2, Building2, Plug, Calendar, Bot, FileSpreadsheet, Upload, Download, Eye, MapPin, Home, List, Users, Loader2, CheckCircle2, AlertCircle } from "lucide-react";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -909,6 +910,18 @@ export default function ExternalConfiguration() {
     const [importSection, setImportSection] = useState<string | null>(null);
     const [importData, setImportData] = useState<string>("");
     const [isImportDialogOpen, setIsImportDialogOpen] = useState(false);
+    const [isProgressDialogOpen, setIsProgressDialogOpen] = useState(false);
+    const [importJobId, setImportJobId] = useState<string | null>(null);
+    const [importProgress, setImportProgress] = useState<{
+      status: 'processing' | 'completed' | 'failed';
+      total: number;
+      processed: number;
+      imported: number;
+      skipped: number;
+      progress: number;
+      message?: string;
+      errors?: string[];
+    } | null>(null);
 
     const dataSections = [
       { id: 'condominiums', label: language === 'es' ? 'Condominios' : 'Condominiums', icon: Building2, canImport: true },
@@ -958,28 +971,90 @@ export default function ExternalConfiguration() {
       },
     });
 
+    // Function to poll import progress
+    const pollImportProgress = async (jobId: string) => {
+      try {
+        const response = await fetch(`/api/external/imports/${jobId}`, {
+          credentials: 'include',
+        });
+        if (!response.ok) {
+          throw new Error('Failed to get import status');
+        }
+        const data = await response.json();
+        setImportProgress(data);
+        
+        if (data.status === 'processing') {
+          // Continue polling
+          setTimeout(() => pollImportProgress(jobId), 500);
+        } else if (data.status === 'completed') {
+          // Import completed
+          queryClient.invalidateQueries({ queryKey: ['/api/external-condominiums'] });
+          queryClient.invalidateQueries({ queryKey: ['/api/external-units'] });
+          queryClient.invalidateQueries({ queryKey: ['/api/external-owners'] });
+          queryClient.invalidateQueries({ queryKey: ['/api/external-clients'] });
+          queryClient.invalidateQueries({ queryKey: ['/api/external/leads'] });
+          queryClient.invalidateQueries({ queryKey: ['/api/external-rental-contracts'] });
+          queryClient.invalidateQueries({ queryKey: ['/api/external-tickets'] });
+          queryClient.invalidateQueries({ queryKey: ['/api/external/accounting/transactions'] });
+          queryClient.invalidateQueries({ queryKey: ['/api/external-quotations'] });
+          queryClient.invalidateQueries({ queryKey: ['/api/external-agency-users'] });
+          toast({
+            title: language === 'es' ? 'Importación completada' : 'Import complete',
+            description: data.message || `${data.imported} ${language === 'es' ? 'registros importados' : 'records imported'}`,
+          });
+        } else if (data.status === 'failed') {
+          toast({
+            title: 'Error',
+            description: data.message || (language === 'es' ? 'Error al importar' : 'Import failed'),
+            variant: 'destructive',
+          });
+        }
+      } catch (error) {
+        console.error('Error polling import progress:', error);
+      }
+    };
+
     const importMutation = useMutation({
       mutationFn: async ({ section, csvData }: { section: string, csvData: string }) => {
         return apiRequest('POST', `/api/external/data/import/${section}`, { csvData });
       },
       onSuccess: (data: any) => {
-        queryClient.invalidateQueries({ queryKey: ['/api/external-condominiums'] });
-        queryClient.invalidateQueries({ queryKey: ['/api/external-units'] });
-        queryClient.invalidateQueries({ queryKey: ['/api/external-owners'] });
-        queryClient.invalidateQueries({ queryKey: ['/api/external-clients'] });
-        queryClient.invalidateQueries({ queryKey: ['/api/external/leads'] });
-        queryClient.invalidateQueries({ queryKey: ['/api/external-rental-contracts'] });
-        queryClient.invalidateQueries({ queryKey: ['/api/external-tickets'] });
-        queryClient.invalidateQueries({ queryKey: ['/api/external/accounting/transactions'] });
-        queryClient.invalidateQueries({ queryKey: ['/api/external-quotations'] });
-        queryClient.invalidateQueries({ queryKey: ['/api/external-agency-users'] });
-        toast({
-          title: language === 'es' ? 'Importación completada' : 'Import complete',
-          description: data.message,
-        });
-        setIsImportDialogOpen(false);
-        setImportData("");
-        setImportSection(null);
+        if (data.jobId) {
+          // New async import with progress tracking
+          setImportJobId(data.jobId);
+          setImportProgress({
+            status: 'processing',
+            total: data.total || 0,
+            processed: 0,
+            imported: 0,
+            skipped: 0,
+            progress: 0,
+          });
+          setIsImportDialogOpen(false);
+          setIsProgressDialogOpen(true);
+          setImportData("");
+          // Start polling for progress
+          pollImportProgress(data.jobId);
+        } else {
+          // Legacy sync response
+          queryClient.invalidateQueries({ queryKey: ['/api/external-condominiums'] });
+          queryClient.invalidateQueries({ queryKey: ['/api/external-units'] });
+          queryClient.invalidateQueries({ queryKey: ['/api/external-owners'] });
+          queryClient.invalidateQueries({ queryKey: ['/api/external-clients'] });
+          queryClient.invalidateQueries({ queryKey: ['/api/external/leads'] });
+          queryClient.invalidateQueries({ queryKey: ['/api/external-rental-contracts'] });
+          queryClient.invalidateQueries({ queryKey: ['/api/external-tickets'] });
+          queryClient.invalidateQueries({ queryKey: ['/api/external/accounting/transactions'] });
+          queryClient.invalidateQueries({ queryKey: ['/api/external-quotations'] });
+          queryClient.invalidateQueries({ queryKey: ['/api/external-agency-users'] });
+          toast({
+            title: language === 'es' ? 'Importación completada' : 'Import complete',
+            description: data.message,
+          });
+          setIsImportDialogOpen(false);
+          setImportData("");
+          setImportSection(null);
+        }
       },
       onError: (error: any) => {
         toast({
@@ -1155,6 +1230,124 @@ export default function ExternalConfiguration() {
                     {language === 'es' ? 'Importar' : 'Import'}
                   </>
                 )}
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+
+        {/* Progress Dialog */}
+        <Dialog open={isProgressDialogOpen} onOpenChange={(open) => {
+          if (!open && importProgress?.status !== 'processing') {
+            setIsProgressDialogOpen(false);
+            setImportProgress(null);
+            setImportJobId(null);
+            setImportSection(null);
+          }
+        }}>
+          <DialogContent className="sm:max-w-md">
+            <DialogHeader>
+              <DialogTitle className="flex items-center gap-2">
+                {importProgress?.status === 'processing' && (
+                  <Loader2 className="h-5 w-5 animate-spin text-primary" />
+                )}
+                {importProgress?.status === 'completed' && (
+                  <CheckCircle2 className="h-5 w-5 text-green-500" />
+                )}
+                {importProgress?.status === 'failed' && (
+                  <AlertCircle className="h-5 w-5 text-destructive" />
+                )}
+                {language === 'es' 
+                  ? (importProgress?.status === 'processing' ? 'Importando...' : 
+                     importProgress?.status === 'completed' ? 'Importación Completada' : 'Error de Importación')
+                  : (importProgress?.status === 'processing' ? 'Importing...' : 
+                     importProgress?.status === 'completed' ? 'Import Complete' : 'Import Failed')}
+              </DialogTitle>
+              <DialogDescription>
+                {importSection && dataSections.find(s => s.id === importSection)?.label}
+              </DialogDescription>
+            </DialogHeader>
+
+            <div className="space-y-4">
+              <Progress value={importProgress?.progress || 0} className="h-3" />
+              
+              <div className="grid grid-cols-2 gap-4 text-sm">
+                <div className="p-3 bg-muted rounded-lg">
+                  <div className="text-muted-foreground">
+                    {language === 'es' ? 'Procesados' : 'Processed'}
+                  </div>
+                  <div className="text-lg font-semibold">
+                    {importProgress?.processed || 0} / {importProgress?.total || 0}
+                  </div>
+                </div>
+                <div className="p-3 bg-muted rounded-lg">
+                  <div className="text-muted-foreground">
+                    {language === 'es' ? 'Progreso' : 'Progress'}
+                  </div>
+                  <div className="text-lg font-semibold">
+                    {importProgress?.progress || 0}%
+                  </div>
+                </div>
+              </div>
+
+              {importProgress?.status !== 'processing' && (
+                <div className="grid grid-cols-2 gap-4 text-sm">
+                  <div className="p-3 bg-green-50 dark:bg-green-950/30 rounded-lg">
+                    <div className="text-green-600 dark:text-green-400">
+                      {language === 'es' ? 'Importados' : 'Imported'}
+                    </div>
+                    <div className="text-lg font-semibold text-green-700 dark:text-green-300">
+                      {importProgress?.imported || 0}
+                    </div>
+                  </div>
+                  <div className="p-3 bg-yellow-50 dark:bg-yellow-950/30 rounded-lg">
+                    <div className="text-yellow-600 dark:text-yellow-400">
+                      {language === 'es' ? 'Omitidos' : 'Skipped'}
+                    </div>
+                    <div className="text-lg font-semibold text-yellow-700 dark:text-yellow-300">
+                      {importProgress?.skipped || 0}
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {importProgress?.message && (
+                <div className="p-3 bg-muted rounded-lg text-sm">
+                  {importProgress.message}
+                </div>
+              )}
+
+              {importProgress?.errors && importProgress.errors.length > 0 && (
+                <div className="p-3 bg-destructive/10 rounded-lg">
+                  <div className="text-sm font-medium text-destructive mb-2">
+                    {language === 'es' ? 'Errores:' : 'Errors:'}
+                  </div>
+                  <ul className="text-xs text-destructive space-y-1 max-h-24 overflow-y-auto">
+                    {importProgress.errors.slice(0, 5).map((error, idx) => (
+                      <li key={idx}>{error}</li>
+                    ))}
+                    {importProgress.errors.length > 5 && (
+                      <li className="text-muted-foreground">
+                        +{importProgress.errors.length - 5} {language === 'es' ? 'más' : 'more'}
+                      </li>
+                    )}
+                  </ul>
+                </div>
+              )}
+            </div>
+
+            <DialogFooter>
+              <Button
+                variant="outline"
+                onClick={() => {
+                  setIsProgressDialogOpen(false);
+                  setImportProgress(null);
+                  setImportJobId(null);
+                  setImportSection(null);
+                }}
+                disabled={importProgress?.status === 'processing'}
+                data-testid="button-close-progress"
+              >
+                {language === 'es' ? 'Cerrar' : 'Close'}
               </Button>
             </DialogFooter>
           </DialogContent>
