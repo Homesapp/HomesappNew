@@ -438,10 +438,38 @@ export default function ExternalCalendar() {
         };
       }) : [];
 
-    return [...dayPayments, ...dayServicePayments, ...dayServices, ...dayTickets, ...dayContracts].sort((a, b) => 
+    // Add financial transactions (accounting) for selected day
+    const dayAccounting = showAccounting ? financialTransactions
+      .filter((t) => t.dueDate && isSameDay(new Date(t.dueDate), selectedDate))
+      .map((t) => {
+        const { condominium, unitNumber } = t.unitId ? getCondominiumInfo(t.unitId) : { condominium: '', unitNumber: '' };
+        const categoryLabel = language === "es"
+          ? (t.category === 'maintenance_charge' ? 'Cargo Mantenimiento' :
+             t.category === 'rent_income' ? 'Ingreso Renta' :
+             t.category === 'service_electricity' ? 'Electricidad' :
+             t.category === 'service_water' ? 'Agua' :
+             t.category === 'service_internet' ? 'Internet' :
+             t.category === 'hoa_fee' ? 'Cuota HOA' :
+             t.category)
+          : t.category;
+        
+        return {
+          type: 'accounting' as const,
+          title: condominium && unitNumber 
+            ? `${condominium} - ${unitNumber} - ${categoryLabel}`
+            : `${categoryLabel} - ${t.description || ''}`,
+          time: '',
+          status: t.status,
+          data: t,
+          condominium,
+          unitNumber,
+        };
+      }) : [];
+
+    return [...dayPayments, ...dayServicePayments, ...dayServices, ...dayTickets, ...dayContracts, ...dayAccounting].sort((a, b) => 
       a.time.localeCompare(b.time)
     );
-  }, [selectedDate, filteredPayments, filteredServices, filteredTickets, filteredContracts, language, units, condominiums, normalizedContracts, showPayments, showServices, showTickets, showContracts]);
+  }, [selectedDate, filteredPayments, filteredServices, filteredTickets, filteredContracts, financialTransactions, language, units, condominiums, normalizedContracts, showPayments, showServices, showTickets, showContracts, showAccounting]);
 
   // Events for today (for TodayView)
   const eventsForToday = useMemo((): EventData[] => {
@@ -555,10 +583,38 @@ export default function ExternalCalendar() {
         };
       }) : [];
 
-    return [...todayPayments, ...todayServicePayments, ...todayServices, ...todayTickets, ...todayContracts].sort((a, b) => 
+    // Add financial transactions (accounting) for today
+    const todayAccounting = showAccounting ? financialTransactions
+      .filter((t) => t.dueDate && isSameDay(new Date(t.dueDate), today))
+      .map((t) => {
+        const { condominium, unitNumber } = t.unitId ? getCondominiumInfo(t.unitId) : { condominium: '', unitNumber: '' };
+        const categoryLabel = language === "es"
+          ? (t.category === 'maintenance_charge' ? 'Cargo Mantenimiento' :
+             t.category === 'rent_income' ? 'Ingreso Renta' :
+             t.category === 'service_electricity' ? 'Electricidad' :
+             t.category === 'service_water' ? 'Agua' :
+             t.category === 'service_internet' ? 'Internet' :
+             t.category === 'hoa_fee' ? 'Cuota HOA' :
+             t.category)
+          : t.category;
+        
+        return {
+          type: 'accounting' as const,
+          title: condominium && unitNumber 
+            ? `${condominium} - ${unitNumber} - ${categoryLabel}`
+            : `${categoryLabel} - ${t.description || ''}`,
+          time: '',
+          status: t.status,
+          data: t,
+          condominium,
+          unitNumber,
+        };
+      }) : [];
+
+    return [...todayPayments, ...todayServicePayments, ...todayServices, ...todayTickets, ...todayContracts, ...todayAccounting].sort((a, b) => 
       a.time.localeCompare(b.time)
     );
-  }, [filteredPayments, filteredServices, filteredTickets, filteredContracts, language, units, normalizedContracts, showPayments, showServices, showTickets, showContracts]);
+  }, [filteredPayments, filteredServices, filteredTickets, filteredContracts, financialTransactions, language, units, normalizedContracts, showPayments, showServices, showTickets, showContracts, showAccounting]);
 
   // All events (for AgendaView)
   const allEvents = useMemo((): EventData[] => {
