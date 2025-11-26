@@ -24615,8 +24615,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
           uo.owner_phone as "ownerPhone",
           uo.ownership_percentage as "ownershipPercentage",
           uo.is_active as "isActive",
-          uo.start_date as "startDate",
-          uo.end_date as "endDate",
+          
+          
           uo.notes,
           uo.created_by as "createdBy",
           uo.created_at as "createdAt",
@@ -24742,8 +24742,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
             ownerPhone: primaryOwner.ownerPhone,
             ownershipPercentage: primaryOwner.ownershipPercentage,
             isActive: primaryOwner.isActive,
-            startDate: primaryOwner.startDate,
-            endDate: primaryOwner.endDate,
             notes: primaryOwner.notes,
             createdBy: primaryOwner.createdBy,
             createdAt: primaryOwner.createdAt,
