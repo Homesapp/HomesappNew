@@ -1,7 +1,6 @@
 import { useState, useMemo, useEffect, lazy, Suspense } from "react";
 import { useLocation } from "wouter";
 import { useQuery, useMutation } from "@tanstack/react-query";
-import ExternalPayments from "./ExternalPayments";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -50,6 +49,7 @@ import {
   Wrench,
   Building2,
   FileText,
+  CircleDollarSign,
 } from "lucide-react";
 import { ExternalPaginationControls } from "@/components/external/ExternalPaginationControls";
 import { useLanguage } from "@/contexts/LanguageContext";
@@ -106,6 +106,14 @@ export default function ExternalAccounting() {
   
   // Tab control
   const [activeTab, setActiveTab] = useState("transactions");
+  
+  // Accounting tab state
+  const [accountingPeriod, setAccountingPeriod] = useState<"daily" | "biweekly" | "monthly">("monthly");
+  const [accountingStartDate, setAccountingStartDate] = useState<string>(format(startOfMonth(new Date()), 'yyyy-MM-dd'));
+  const [accountingEndDate, setAccountingEndDate] = useState<string>(format(endOfMonth(new Date()), 'yyyy-MM-dd'));
+  const [showPaymentDialog, setShowPaymentDialog] = useState(false);
+  const [paymentTransaction, setPaymentTransaction] = useState<ExternalFinancialTransaction | null>(null);
+  const [paymentProofFile, setPaymentProofFile] = useState<File | null>(null);
   
   // Form state for condominium selection
   const [selectedCondominiumId, setSelectedCondominiumId] = useState<string>("");
@@ -935,43 +943,142 @@ export default function ExternalAccounting() {
 
   const activeFilters = [directionFilter, categoryFilter, statusFilter, condominiumFilter, unitFilter].filter(f => f !== "all").length + (dateFilter !== "all" ? 1 : 0);
 
-  // Calculate receivables data using full dataset
-  const receivablesData = useMemo(() => {
-    if (!allTransactions) return { today: [], upcoming: [], overdue: [], totalAmount: 0 };
+  // Calculate accounting data based on selected period
+  const accountingData = useMemo(() => {
+    if (!allTransactions) return { 
+      totalIncome: 0, 
+      totalExpenses: 0, 
+      netProfit: 0, 
+      transactions: [],
+      byCategory: [],
+      payrollItems: [],
+      commissions: []
+    };
     
-    const now = new Date();
-    const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-    const todayEnd = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59);
+    const start = new Date(accountingStartDate);
+    const end = new Date(accountingEndDate);
+    end.setHours(23, 59, 59, 999);
     
-    // Today: all pending transactions (inflow and outflow) due today
-    const today = allTransactions.filter(t => {
-      if (t.status === 'cancelled') return false;
-      const dueDate = t.dueDate ? new Date(t.dueDate) : null;
-      return dueDate && dueDate >= todayStart && dueDate <= todayEnd && t.status === 'pending';
-    }).sort((a, b) => {
-      // Sort by direction (inflow first), then by amount
-      if (a.direction !== b.direction) {
-        return a.direction === 'inflow' ? -1 : 1;
-      }
-      return parseFloat(b.netAmount || '0') - parseFloat(a.netAmount || '0');
+    const filtered = allTransactions.filter(t => {
+      if (!t.dueDate) return false;
+      const dueDate = new Date(t.dueDate);
+      return dueDate >= start && dueDate <= end && t.status !== 'cancelled';
     });
     
-    const pending = allTransactions.filter(t => t.status === 'pending' && t.direction === 'inflow');
+    const totalIncome = filtered
+      .filter(t => t.direction === 'inflow')
+      .reduce((sum, t) => sum + parseFloat(t.netAmount || '0'), 0);
     
-    const upcoming = pending.filter(t => {
-      const dueDate = t.dueDate ? new Date(t.dueDate) : null;
-      return dueDate && dueDate > todayEnd;
-    }).sort((a, b) => new Date(a.dueDate!).getTime() - new Date(b.dueDate!).getTime());
+    const totalExpenses = filtered
+      .filter(t => t.direction === 'outflow')
+      .reduce((sum, t) => sum + parseFloat(t.netAmount || '0'), 0);
     
-    const overdue = pending.filter(t => {
-      const dueDate = t.dueDate ? new Date(t.dueDate) : null;
-      return dueDate && dueDate < todayStart;
-    }).sort((a, b) => new Date(a.dueDate!).getTime() - new Date(b.dueDate!).getTime());
+    const netProfit = totalIncome - totalExpenses;
     
-    const totalAmount = pending.reduce((sum, t) => sum + parseFloat(t.netAmount || '0'), 0);
+    // Group by category
+    const categoryMap = new Map<string, { income: number; expense: number; count: number }>();
+    filtered.forEach(t => {
+      const amount = parseFloat(t.netAmount || '0');
+      const current = categoryMap.get(t.category) || { income: 0, expense: 0, count: 0 };
+      if (t.direction === 'inflow') {
+        current.income += amount;
+      } else {
+        current.expense += amount;
+      }
+      current.count++;
+      categoryMap.set(t.category, current);
+    });
     
-    return { today, upcoming, overdue, totalAmount };
-  }, [allTransactions]);
+    const byCategory = Array.from(categoryMap.entries()).map(([category, data]) => ({
+      category,
+      label: getCategoryLabel(category),
+      ...data
+    }));
+    
+    // Payroll items (maintenance charges from tickets)
+    const payrollItems = filtered.filter(t => 
+      t.category === 'maintenance_charge' && t.direction === 'outflow'
+    );
+    
+    // Commissions (from rent income)
+    const commissions = filtered.filter(t => 
+      t.category === 'rent_income' && t.direction === 'inflow'
+    ).map(t => ({
+      ...t,
+      commission: parseFloat(t.fees || '0')
+    }));
+    
+    return { 
+      totalIncome, 
+      totalExpenses, 
+      netProfit, 
+      transactions: filtered,
+      byCategory,
+      payrollItems,
+      commissions
+    };
+  }, [allTransactions, accountingStartDate, accountingEndDate]);
+
+  // Update accounting period dates
+  const updateAccountingPeriod = (period: "daily" | "biweekly" | "monthly") => {
+    setAccountingPeriod(period);
+    const now = new Date();
+    
+    if (period === "daily") {
+      setAccountingStartDate(format(now, 'yyyy-MM-dd'));
+      setAccountingEndDate(format(now, 'yyyy-MM-dd'));
+    } else if (period === "biweekly") {
+      const dayOfMonth = now.getDate();
+      if (dayOfMonth <= 15) {
+        setAccountingStartDate(format(startOfMonth(now), 'yyyy-MM-dd'));
+        setAccountingEndDate(format(new Date(now.getFullYear(), now.getMonth(), 15), 'yyyy-MM-dd'));
+      } else {
+        setAccountingStartDate(format(new Date(now.getFullYear(), now.getMonth(), 16), 'yyyy-MM-dd'));
+        setAccountingEndDate(format(endOfMonth(now), 'yyyy-MM-dd'));
+      }
+    } else {
+      setAccountingStartDate(format(startOfMonth(now), 'yyyy-MM-dd'));
+      setAccountingEndDate(format(endOfMonth(now), 'yyyy-MM-dd'));
+    }
+  };
+
+  // Handle quick payment
+  const handleQuickPayment = (transaction: ExternalFinancialTransaction) => {
+    setPaymentTransaction(transaction);
+    setShowPaymentDialog(true);
+  };
+
+  // Mark as paid mutation
+  const markAsPaidMutation = useMutation({
+    mutationFn: async ({ id, paidDate, notes }: { id: string; paidDate: string; notes?: string }) => {
+      return apiRequest(`/api/external/accounting/transactions/${id}`, {
+        method: 'PATCH',
+        body: JSON.stringify({ 
+          status: 'paid',
+          paidDate,
+          notes
+        }),
+      });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/external/accounting/transactions'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/external/accounting/transactions-all'] });
+      toast({
+        title: language === 'es' ? 'Pago registrado' : 'Payment recorded',
+        description: language === 'es' ? 'La transacción ha sido marcada como pagada' : 'The transaction has been marked as paid',
+      });
+      setShowPaymentDialog(false);
+      setPaymentTransaction(null);
+      setPaymentProofFile(null);
+    },
+    onError: () => {
+      toast({
+        title: language === 'es' ? 'Error' : 'Error',
+        description: language === 'es' ? 'No se pudo registrar el pago' : 'Could not record payment',
+        variant: 'destructive',
+      });
+    },
+  });
 
   // Calculate report data using full dataset
   const reportData = useMemo(() => {
@@ -1056,8 +1163,7 @@ export default function ExternalAccounting() {
         <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 mb-6">
           <TabsList>
             <TabsTrigger value="transactions" data-testid="tab-transactions">{t.transactionsTab}</TabsTrigger>
-            <TabsTrigger value="receivables" data-testid="tab-receivables">{t.receivablesTab}</TabsTrigger>
-            <TabsTrigger value="payments" data-testid="tab-payments">{t.paymentsTab}</TabsTrigger>
+            <TabsTrigger value="accounting" data-testid="tab-accounting">{language === 'es' ? 'Contabilidad' : 'Accounting'}</TabsTrigger>
             <TabsTrigger value="reports" data-testid="tab-reports">{t.reportsTab}</TabsTrigger>
           </TabsList>
         </div>
@@ -1545,6 +1651,18 @@ export default function ExternalAccounting() {
                         >
                           <Pencil className="h-4 w-4" />
                         </Button>
+                        {transaction.status === 'pending' && (
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => handleQuickPayment(transaction)}
+                            className="text-green-600 hover:text-green-700"
+                            title={language === 'es' ? 'Abonar' : 'Record Payment'}
+                            data-testid={`button-pay-${transaction.id}`}
+                          >
+                            <CircleDollarSign className="h-4 w-4" />
+                          </Button>
+                        )}
                         {transaction.status !== 'cancelled' && (
                           <Button
                             variant="ghost"
@@ -1679,6 +1797,18 @@ export default function ExternalAccounting() {
                             >
                               <Pencil className="h-4 w-4" />
                             </Button>
+                            {transaction.status === 'pending' && (
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                onClick={() => handleQuickPayment(transaction)}
+                                className="text-green-600 hover:text-green-700"
+                                title={language === 'es' ? 'Abonar' : 'Record Payment'}
+                                data-testid={`button-pay-table-${transaction.id}`}
+                              >
+                                <CircleDollarSign className="h-4 w-4" />
+                              </Button>
+                            )}
                             {transaction.status !== 'cancelled' && (
                               <Button
                                 variant="ghost"
@@ -1700,301 +1830,264 @@ export default function ExternalAccounting() {
           )}
         </TabsContent>
 
-        {/* Receivables Tab */}
-        <TabsContent value="receivables" className="space-y-6">
-          <div className="grid gap-6 md:grid-cols-3">
+        {/* Accounting Tab - Financial Cutoffs */}
+        <TabsContent value="accounting" className="space-y-6">
+          {/* Period Selection */}
+          <Card>
+            <CardHeader className="pb-3">
+              <CardTitle className="flex items-center gap-2">
+                <Calendar className="h-5 w-5" />
+                {language === 'es' ? 'Corte Contable' : 'Accounting Cutoff'}
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-4">
+                <div className="flex gap-2">
+                  <Button 
+                    variant={accountingPeriod === "daily" ? "default" : "outline"}
+                    size="sm"
+                    onClick={() => updateAccountingPeriod("daily")}
+                    data-testid="button-period-daily"
+                  >
+                    {language === 'es' ? 'Diario' : 'Daily'}
+                  </Button>
+                  <Button 
+                    variant={accountingPeriod === "biweekly" ? "default" : "outline"}
+                    size="sm"
+                    onClick={() => updateAccountingPeriod("biweekly")}
+                    data-testid="button-period-biweekly"
+                  >
+                    {language === 'es' ? 'Quincenal' : 'Biweekly'}
+                  </Button>
+                  <Button 
+                    variant={accountingPeriod === "monthly" ? "default" : "outline"}
+                    size="sm"
+                    onClick={() => updateAccountingPeriod("monthly")}
+                    data-testid="button-period-monthly"
+                  >
+                    {language === 'es' ? 'Mensual' : 'Monthly'}
+                  </Button>
+                </div>
+                <div className="flex items-center gap-2">
+                  <Input
+                    type="date"
+                    value={accountingStartDate}
+                    onChange={(e) => setAccountingStartDate(e.target.value)}
+                    className="w-40"
+                    data-testid="input-accounting-start-date"
+                  />
+                  <span className="text-muted-foreground">-</span>
+                  <Input
+                    type="date"
+                    value={accountingEndDate}
+                    onChange={(e) => setAccountingEndDate(e.target.value)}
+                    className="w-40"
+                    data-testid="input-accounting-end-date"
+                  />
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Summary Cards */}
+          <div className="grid gap-4 md:grid-cols-3">
             <Card className="hover-elevate">
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">{t.totalReceivables}</CardTitle>
-                <DollarSign className="h-4 w-4 text-orange-600 dark:text-orange-500" />
+                <CardTitle className="text-sm font-medium">
+                  {language === 'es' ? 'Total Ingresos' : 'Total Income'}
+                </CardTitle>
+                <ArrowUpRight className="h-4 w-4 text-green-600" />
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold text-orange-600 dark:text-orange-500" data-testid="text-total-receivables">
-                  {formatCurrency(receivablesData.totalAmount)}
+                <div className="text-2xl font-bold text-green-600" data-testid="text-accounting-income">
+                  {formatCurrency(accountingData.totalIncome)}
                 </div>
-                <p className="text-xs text-muted-foreground mt-2">
-                  {receivablesData.upcoming.length + receivablesData.overdue.length} {language === 'es' ? 'pagos pendientes' : 'pending payments'}
+                <p className="text-xs text-muted-foreground">
+                  {accountingData.transactions.filter(t => t.direction === 'inflow').length} {language === 'es' ? 'transacciones' : 'transactions'}
                 </p>
               </CardContent>
             </Card>
-
+            
             <Card className="hover-elevate">
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">{t.upcomingPayments}</CardTitle>
-                <Clock className="h-4 w-4 text-blue-600 dark:text-blue-500" />
+                <CardTitle className="text-sm font-medium">
+                  {language === 'es' ? 'Total Egresos' : 'Total Expenses'}
+                </CardTitle>
+                <ArrowDownRight className="h-4 w-4 text-red-600" />
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold" data-testid="text-upcoming-count">
-                  {receivablesData.upcoming.length}
+                <div className="text-2xl font-bold text-red-600" data-testid="text-accounting-expenses">
+                  {formatCurrency(accountingData.totalExpenses)}
                 </div>
-                <p className="text-xs text-muted-foreground mt-2">
-                  {formatCurrency(receivablesData.upcoming.reduce((sum, t) => sum + parseFloat(t.netAmount || '0'), 0))}
+                <p className="text-xs text-muted-foreground">
+                  {accountingData.transactions.filter(t => t.direction === 'outflow').length} {language === 'es' ? 'transacciones' : 'transactions'}
                 </p>
               </CardContent>
             </Card>
-
+            
             <Card className="hover-elevate">
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">{t.overduePayments}</CardTitle>
-                <AlertCircle className="h-4 w-4 text-red-600 dark:text-red-500" />
+                <CardTitle className="text-sm font-medium">
+                  {language === 'es' ? 'Balance Neto' : 'Net Balance'}
+                </CardTitle>
+                <DollarSign className={`h-4 w-4 ${accountingData.netProfit >= 0 ? 'text-green-600' : 'text-red-600'}`} />
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold text-red-600 dark:text-red-500" data-testid="text-overdue-count">
-                  {receivablesData.overdue.length}
+                <div className={`text-2xl font-bold ${accountingData.netProfit >= 0 ? 'text-green-600' : 'text-red-600'}`} data-testid="text-accounting-net">
+                  {formatCurrency(accountingData.netProfit)}
                 </div>
-                <p className="text-xs text-muted-foreground mt-2">
-                  {formatCurrency(receivablesData.overdue.reduce((sum, t) => sum + parseFloat(t.netAmount || '0'), 0))}
+                <p className="text-xs text-muted-foreground">
+                  {language === 'es' ? 'Período seleccionado' : 'Selected period'}
                 </p>
               </CardContent>
             </Card>
           </div>
 
-          {/* TODAY Section */}
-          <Card className="border-2 border-primary/20 bg-primary/5">
+          {/* Breakdown by Category */}
+          <Card>
             <CardHeader>
-              <CardTitle className="flex items-center gap-2 text-2xl">
-                <Calendar className="h-6 w-6 text-primary" />
-                {t.todaySection}
+              <CardTitle className="flex items-center gap-2">
+                <FileText className="h-5 w-5" />
+                {language === 'es' ? 'Desglose por Categoría' : 'Breakdown by Category'}
               </CardTitle>
-              <p className="text-sm text-muted-foreground">{t.todayTransactions}</p>
             </CardHeader>
             <CardContent>
-              {receivablesData.today.length > 0 ? (
-                <div className="space-y-3">
-                  {receivablesData.today.map((transaction) => {
-                    const isInflow = transaction.direction === 'inflow';
-                    return (
-                      <Card 
-                        key={transaction.id} 
-                        className={`hover-elevate ${isInflow ? 'border-green-200 dark:border-green-900' : 'border-orange-200 dark:border-orange-900'}`}
-                        data-testid={`card-today-${transaction.id}`}
-                      >
-                        <CardContent className="p-4">
-                          <div className="flex items-center justify-between gap-4">
-                            <div className="flex-1">
-                              <div className="flex items-center gap-2 mb-1">
-                                {getCategoryIcon(transaction.category)}
-                                <span className="font-semibold">{getCategoryLabel(transaction.category)}</span>
-                                <Badge className={isInflow 
-                                  ? 'bg-green-100 text-green-800 dark:bg-green-950 dark:text-green-300'
-                                  : 'bg-orange-100 text-orange-800 dark:bg-orange-950 dark:text-orange-300'
-                                }>
-                                  {isInflow ? t.toCollect : t.toPay}
-                                </Badge>
-                              </div>
-                              <p className="text-sm text-muted-foreground truncate">{transaction.description}</p>
-                              <div className="flex items-center gap-3 mt-2 text-xs text-muted-foreground">
-                                <span className="flex items-center gap-1">
-                                  {transaction.payerRole && <span>{getRoleLabel(transaction.payerRole)} → {getRoleLabel(transaction.payeeRole)}</span>}
-                                </span>
-                                {transaction.unitId && units && (
-                                  <span className="flex items-center gap-1">
-                                    <Home className="h-3 w-3" />
-                                    {units.find(u => u.id === transaction.unitId)?.unitNumber}
-                                  </span>
-                                )}
-                              </div>
-                            </div>
-                            <div className="text-right">
-                              <div className={`text-2xl font-bold ${isInflow ? 'text-green-600 dark:text-green-500' : 'text-orange-600 dark:text-orange-500'}`}>
-                                {formatCurrency(transaction.netAmount)}
-                              </div>
-                              <div className="flex gap-1 mt-2">
-                                <Button
-                                  variant="outline"
-                                  size="sm"
-                                  onClick={() => handleViewDetails(transaction)}
-                                  data-testid={`button-view-today-${transaction.id}`}
-                                >
-                                  <Eye className="h-3 w-3 mr-1" />
-                                  {t.viewDetails}
-                                </Button>
-                                <Button
-                                  variant="outline"
-                                  size="sm"
-                                  onClick={() => handleEdit(transaction)}
-                                  data-testid={`button-edit-today-${transaction.id}`}
-                                >
-                                  <Pencil className="h-3 w-3" />
-                                </Button>
-                              </div>
-                            </div>
-                          </div>
-                        </CardContent>
-                      </Card>
-                    );
-                  })}
-                  
-                  {/* Summary totals for today */}
-                  <div className="grid grid-cols-2 gap-4 mt-4 pt-4 border-t">
-                    <div className="text-center p-3 bg-green-50 dark:bg-green-950/20 rounded-md">
-                      <div className="text-sm text-muted-foreground mb-1">{t.toCollect}</div>
-                      <div className="text-xl font-bold text-green-600 dark:text-green-500">
-                        {formatCurrency(receivablesData.today
-                          .filter(t => t.direction === 'inflow')
-                          .reduce((sum, t) => sum + parseFloat(t.netAmount || '0'), 0)
-                        )}
-                      </div>
-                      <div className="text-xs text-muted-foreground mt-1">
-                        {receivablesData.today.filter(t => t.direction === 'inflow').length} {language === 'es' ? 'transacciones' : 'transactions'}
-                      </div>
-                    </div>
-                    <div className="text-center p-3 bg-orange-50 dark:bg-orange-950/20 rounded-md">
-                      <div className="text-sm text-muted-foreground mb-1">{t.toPay}</div>
-                      <div className="text-xl font-bold text-orange-600 dark:text-orange-500">
-                        {formatCurrency(receivablesData.today
-                          .filter(t => t.direction === 'outflow')
-                          .reduce((sum, t) => sum + parseFloat(t.netAmount || '0'), 0)
-                        )}
-                      </div>
-                      <div className="text-xs text-muted-foreground mt-1">
-                        {receivablesData.today.filter(t => t.direction === 'outflow').length} {language === 'es' ? 'transacciones' : 'transactions'}
-                      </div>
-                    </div>
-                  </div>
-                </div>
+              {accountingData.byCategory.length > 0 ? (
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>{language === 'es' ? 'Categoría' : 'Category'}</TableHead>
+                      <TableHead className="text-right">{language === 'es' ? 'Ingresos' : 'Income'}</TableHead>
+                      <TableHead className="text-right">{language === 'es' ? 'Egresos' : 'Expenses'}</TableHead>
+                      <TableHead className="text-right">{language === 'es' ? 'Transacciones' : 'Transactions'}</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {accountingData.byCategory.map((cat) => (
+                      <TableRow key={cat.category}>
+                        <TableCell className="font-medium">{cat.label}</TableCell>
+                        <TableCell className="text-right text-green-600">
+                          {cat.income > 0 ? formatCurrency(cat.income) : '-'}
+                        </TableCell>
+                        <TableCell className="text-right text-red-600">
+                          {cat.expense > 0 ? formatCurrency(cat.expense) : '-'}
+                        </TableCell>
+                        <TableCell className="text-right">{cat.count}</TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
               ) : (
-                <div className="text-center py-8">
-                  <CheckCircle className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />
-                  <p className="text-muted-foreground">{t.noTodayTransactions}</p>
-                </div>
+                <p className="text-muted-foreground text-center py-4">
+                  {language === 'es' ? 'No hay transacciones en este período' : 'No transactions in this period'}
+                </p>
               )}
             </CardContent>
           </Card>
 
-          {receivablesData.overdue.length > 0 && (
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2 text-red-600 dark:text-red-500">
-                  <AlertCircle className="h-5 w-5" />
-                  {t.overduePayments}
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-3">
-                  {receivablesData.overdue.map((transaction) => {
-                    const daysOverdue = transaction.dueDate ? differenceInDays(new Date(), new Date(transaction.dueDate)) : 0;
-                    return (
-                      <Card key={transaction.id} className="hover-elevate border-red-200 dark:border-red-900" data-testid={`card-overdue-${transaction.id}`}>
-                        <CardContent className="p-4">
-                          <div className="flex items-center justify-between gap-4">
-                            <div className="flex-1">
-                              <div className="flex items-center gap-2 mb-1">
-                                {getCategoryIcon(transaction.category)}
-                                <span className="font-semibold">{getCategoryLabel(transaction.category)}</span>
-                                <Badge variant="destructive" className="text-xs">
-                                  {daysOverdue} {t.daysOverdue}
-                                </Badge>
-                              </div>
-                              <p className="text-sm text-muted-foreground truncate">{transaction.description}</p>
-                              <div className="flex items-center gap-3 mt-2 text-xs text-muted-foreground">
-                                <span className="flex items-center gap-1">
-                                  <Calendar className="h-3 w-3" />
-                                  {formatDate(transaction.dueDate)}
-                                </span>
-                                {transaction.unitId && units && (
-                                  <span>{units.find(u => u.id === transaction.unitId)?.unitNumber}</span>
-                                )}
-                              </div>
-                            </div>
-                            <div className="text-right">
-                              <div className="text-xl font-bold text-red-600 dark:text-red-500">
-                                {formatCurrency(transaction.netAmount)}
-                              </div>
-                              <div className="flex gap-1 mt-2">
-                                <Button
-                                  variant="outline"
-                                  size="sm"
-                                  onClick={() => handleViewDetails(transaction)}
-                                  data-testid={`button-view-overdue-${transaction.id}`}
-                                >
-                                  <Eye className="h-3 w-3 mr-1" />
-                                  {t.viewDetails}
-                                </Button>
-                              </div>
-                            </div>
-                          </div>
-                        </CardContent>
-                      </Card>
-                    );
-                  })}
-                </div>
-              </CardContent>
-            </Card>
-          )}
+          {/* Commissions Section */}
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between">
+              <CardTitle className="flex items-center gap-2">
+                <Receipt className="h-5 w-5" />
+                {language === 'es' ? 'Comisiones de Agencia' : 'Agency Commissions'}
+              </CardTitle>
+              <Button variant="outline" size="sm" data-testid="button-export-commissions">
+                <Download className="h-4 w-4 mr-2" />
+                {language === 'es' ? 'Exportar PDF' : 'Export PDF'}
+              </Button>
+            </CardHeader>
+            <CardContent>
+              {accountingData.commissions.length > 0 ? (
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>{language === 'es' ? 'Descripción' : 'Description'}</TableHead>
+                      <TableHead>{language === 'es' ? 'Fecha' : 'Date'}</TableHead>
+                      <TableHead className="text-right">{language === 'es' ? 'Monto Bruto' : 'Gross Amount'}</TableHead>
+                      <TableHead className="text-right">{language === 'es' ? 'Comisión (15%)' : 'Commission (15%)'}</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {accountingData.commissions.map((comm: any) => (
+                      <TableRow key={comm.id}>
+                        <TableCell className="font-medium">{comm.description || getCategoryLabel(comm.category)}</TableCell>
+                        <TableCell>{comm.dueDate ? format(new Date(comm.dueDate), 'dd/MM/yyyy') : '-'}</TableCell>
+                        <TableCell className="text-right">{formatCurrency(parseFloat(comm.grossAmount || '0'))}</TableCell>
+                        <TableCell className="text-right text-primary font-medium">{formatCurrency(comm.commission)}</TableCell>
+                      </TableRow>
+                    ))}
+                    <TableRow className="border-t-2">
+                      <TableCell colSpan={3} className="font-bold text-right">
+                        {language === 'es' ? 'Total Comisiones:' : 'Total Commissions:'}
+                      </TableCell>
+                      <TableCell className="text-right font-bold text-primary">
+                        {formatCurrency(accountingData.commissions.reduce((sum: number, c: any) => sum + c.commission, 0))}
+                      </TableCell>
+                    </TableRow>
+                  </TableBody>
+                </Table>
+              ) : (
+                <p className="text-muted-foreground text-center py-4">
+                  {language === 'es' ? 'No hay comisiones en este período' : 'No commissions in this period'}
+                </p>
+              )}
+            </CardContent>
+          </Card>
 
-          {receivablesData.overdue.length === 0 && (
-            <Card>
-              <CardContent className="text-center py-8">
-                <CheckCircle className="h-12 w-12 mx-auto mb-4 text-green-600 dark:text-green-500" />
-                <p className="text-muted-foreground">{t.noOverduePayments}</p>
-              </CardContent>
-            </Card>
-          )}
-
-          {receivablesData.upcoming.length > 0 && (
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <Clock className="h-5 w-5" />
-                  {t.upcomingPayments}
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-3">
-                  {receivablesData.upcoming.slice(0, 10).map((transaction) => (
-                    <Card key={transaction.id} className="hover-elevate" data-testid={`card-upcoming-${transaction.id}`}>
-                      <CardContent className="p-4">
-                        <div className="flex items-center justify-between gap-4">
-                          <div className="flex-1">
-                            <div className="flex items-center gap-2 mb-1">
-                              {getCategoryIcon(transaction.category)}
-                              <span className="font-semibold">{getCategoryLabel(transaction.category)}</span>
-                            </div>
-                            <p className="text-sm text-muted-foreground truncate">{transaction.description}</p>
-                            <div className="flex items-center gap-3 mt-2 text-xs text-muted-foreground">
-                              <span className="flex items-center gap-1">
-                                <Calendar className="h-3 w-3" />
-                                {formatDate(transaction.dueDate)}
-                              </span>
-                              {transaction.unitId && units && (
-                                <span>{units.find(u => u.id === transaction.unitId)?.unitNumber}</span>
-                              )}
-                            </div>
-                          </div>
-                          <div className="text-right">
-                            <div className="text-xl font-bold">
-                              {formatCurrency(transaction.netAmount)}
-                            </div>
-                            <div className="flex gap-1 mt-2">
-                              <Button
-                                variant="outline"
-                                size="sm"
-                                onClick={() => handleViewDetails(transaction)}
-                                data-testid={`button-view-upcoming-${transaction.id}`}
-                              >
-                                <Eye className="h-3 w-3 mr-1" />
-                                {t.viewDetails}
-                              </Button>
-                            </div>
-                          </div>
-                        </div>
-                      </CardContent>
-                    </Card>
-                  ))}
-                </div>
-              </CardContent>
-            </Card>
-          )}
-
-          {receivablesData.upcoming.length === 0 && receivablesData.overdue.length === 0 && (
-            <Card>
-              <CardContent className="text-center py-12">
-                <AlertCircle className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />
-                <p className="text-muted-foreground">{t.noUpcomingPayments}</p>
-              </CardContent>
-            </Card>
-          )}
+          {/* Payroll / Maintenance Payments */}
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between">
+              <CardTitle className="flex items-center gap-2">
+                <Wrench className="h-5 w-5" />
+                {language === 'es' ? 'Pagos de Nómina / Mantenimiento' : 'Payroll / Maintenance Payments'}
+              </CardTitle>
+              <Button variant="outline" size="sm" data-testid="button-export-payroll">
+                <Download className="h-4 w-4 mr-2" />
+                {language === 'es' ? 'Exportar PDF' : 'Export PDF'}
+              </Button>
+            </CardHeader>
+            <CardContent>
+              {accountingData.payrollItems.length > 0 ? (
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>{language === 'es' ? 'Descripción' : 'Description'}</TableHead>
+                      <TableHead>{language === 'es' ? 'Fecha' : 'Date'}</TableHead>
+                      <TableHead>{language === 'es' ? 'Estado' : 'Status'}</TableHead>
+                      <TableHead className="text-right">{language === 'es' ? 'Monto' : 'Amount'}</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {accountingData.payrollItems.map((item) => (
+                      <TableRow key={item.id}>
+                        <TableCell className="font-medium">{item.description || getCategoryLabel(item.category)}</TableCell>
+                        <TableCell>{item.dueDate ? format(new Date(item.dueDate), 'dd/MM/yyyy') : '-'}</TableCell>
+                        <TableCell>
+                          <Badge variant={item.status === 'paid' ? 'default' : 'secondary'}>
+                            {getStatusLabel(item.status)}
+                          </Badge>
+                        </TableCell>
+                        <TableCell className="text-right">{formatCurrency(parseFloat(item.netAmount || '0'))}</TableCell>
+                      </TableRow>
+                    ))}
+                    <TableRow className="border-t-2">
+                      <TableCell colSpan={3} className="font-bold text-right">
+                        {language === 'es' ? 'Total Pagos:' : 'Total Payments:'}
+                      </TableCell>
+                      <TableCell className="text-right font-bold">
+                        {formatCurrency(accountingData.payrollItems.reduce((sum, i) => sum + parseFloat(i.netAmount || '0'), 0))}
+                      </TableCell>
+                    </TableRow>
+                  </TableBody>
+                </Table>
+              ) : (
+                <p className="text-muted-foreground text-center py-4">
+                  {language === 'es' ? 'No hay pagos de nómina en este período' : 'No payroll payments in this period'}
+                </p>
+              )}
+            </CardContent>
+          </Card>
         </TabsContent>
 
         {/* Reports Tab */}
@@ -2124,10 +2217,6 @@ export default function ExternalAccounting() {
           </Card>
         </TabsContent>
 
-        {/* Payments Tab */}
-        <TabsContent value="payments" className="space-y-6">
-          <ExternalPayments showHeader={false} />
-        </TabsContent>
       </Tabs>
 
       {/* Create Transaction Dialog */}
@@ -2815,6 +2904,130 @@ export default function ExternalAccounting() {
           <DialogFooter>
             <Button variant="outline" onClick={() => setShowDetailsDialog(false)}>
               {language === 'es' ? 'Cerrar' : 'Close'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Quick Payment Dialog */}
+      <Dialog open={showPaymentDialog} onOpenChange={(open) => {
+        if (!open) {
+          setShowPaymentDialog(false);
+          setPaymentTransaction(null);
+          setPaymentProofFile(null);
+        }
+      }}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <CircleDollarSign className="h-5 w-5 text-green-600" />
+              {language === 'es' ? 'Registrar Pago' : 'Record Payment'}
+            </DialogTitle>
+            <DialogDescription>
+              {language === 'es' 
+                ? 'Marcar esta transacción como pagada' 
+                : 'Mark this transaction as paid'}
+            </DialogDescription>
+          </DialogHeader>
+          
+          {paymentTransaction && (
+            <div className="space-y-4">
+              <div className="bg-muted/50 rounded-lg p-4 space-y-2">
+                <div className="flex justify-between items-center">
+                  <span className="text-sm text-muted-foreground">
+                    {language === 'es' ? 'Monto' : 'Amount'}:
+                  </span>
+                  <span className="font-bold text-lg">
+                    {formatCurrency(parseFloat(paymentTransaction.netAmount || '0'))}
+                  </span>
+                </div>
+                <div className="flex justify-between items-center">
+                  <span className="text-sm text-muted-foreground">
+                    {language === 'es' ? 'Categoría' : 'Category'}:
+                  </span>
+                  <span className="font-medium">
+                    {getCategoryLabel(paymentTransaction.category)}
+                  </span>
+                </div>
+                <div className="flex justify-between items-center">
+                  <span className="text-sm text-muted-foreground">
+                    {language === 'es' ? 'Fecha vencimiento' : 'Due Date'}:
+                  </span>
+                  <span>
+                    {paymentTransaction.dueDate 
+                      ? format(new Date(paymentTransaction.dueDate), 'dd/MM/yyyy')
+                      : '-'}
+                  </span>
+                </div>
+              </div>
+
+              <div className="space-y-2">
+                <Label>{language === 'es' ? 'Fecha de pago' : 'Payment Date'}</Label>
+                <Input
+                  type="date"
+                  defaultValue={format(new Date(), 'yyyy-MM-dd')}
+                  id="payment-date"
+                  data-testid="input-payment-date"
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label>{language === 'es' ? 'Notas (opcional)' : 'Notes (optional)'}</Label>
+                <Textarea
+                  placeholder={language === 'es' ? 'Agregar notas sobre el pago...' : 'Add notes about the payment...'}
+                  id="payment-notes"
+                  data-testid="input-payment-notes"
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label>{language === 'es' ? 'Comprobante (opcional)' : 'Proof (optional)'}</Label>
+                <Input
+                  type="file"
+                  accept="image/*,.pdf"
+                  onChange={(e) => setPaymentProofFile(e.target.files?.[0] || null)}
+                  data-testid="input-payment-proof"
+                />
+                {paymentProofFile && (
+                  <p className="text-xs text-muted-foreground">
+                    {paymentProofFile.name}
+                  </p>
+                )}
+              </div>
+            </div>
+          )}
+
+          <DialogFooter>
+            <Button 
+              variant="outline" 
+              onClick={() => {
+                setShowPaymentDialog(false);
+                setPaymentTransaction(null);
+                setPaymentProofFile(null);
+              }}
+              data-testid="button-cancel-payment"
+            >
+              {language === 'es' ? 'Cancelar' : 'Cancel'}
+            </Button>
+            <Button 
+              onClick={() => {
+                const dateInput = document.getElementById('payment-date') as HTMLInputElement;
+                const notesInput = document.getElementById('payment-notes') as HTMLTextAreaElement;
+                if (paymentTransaction) {
+                  markAsPaidMutation.mutate({
+                    id: String(paymentTransaction.id),
+                    paidDate: dateInput?.value || format(new Date(), 'yyyy-MM-dd'),
+                    notes: notesInput?.value || undefined,
+                  });
+                }
+              }}
+              disabled={markAsPaidMutation.isPending}
+              className="bg-green-600 hover:bg-green-700"
+              data-testid="button-confirm-payment"
+            >
+              {markAsPaidMutation.isPending 
+                ? (language === 'es' ? 'Procesando...' : 'Processing...')
+                : (language === 'es' ? 'Confirmar Pago' : 'Confirm Payment')}
             </Button>
           </DialogFooter>
         </DialogContent>
