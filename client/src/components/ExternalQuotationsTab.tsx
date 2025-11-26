@@ -42,7 +42,7 @@ import {
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import type { ExternalQuotation } from "@shared/schema";
-import { FileText, Plus, Send, Check, X, Ban, Link2, Trash2, Eye, Pencil, Search, Filter, LayoutGrid, Table as TableIcon, Download, Ticket } from "lucide-react";
+import { FileText, Plus, Send, Check, X, Ban, Link2, Trash2, Eye, Pencil, Search, Filter, LayoutGrid, Table as TableIcon, Download, Ticket, FileCheck } from "lucide-react";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { useMobile } from "@/hooks/use-mobile";
 import { useAuth } from "@/hooks/useAuth";
@@ -79,11 +79,12 @@ const quotationFormSchema = z.object({
 
 type QuotationFormData = z.infer<typeof quotationFormSchema>;
 
-const statusConfig = {
+const statusConfig: Record<string, { label: string; color: string; icon: any }> = {
   draft: { label: "Borrador", color: "bg-gray-500", icon: FileText },
   sent: { label: "Enviada", color: "bg-blue-500", icon: Send },
-  accepted: { label: "Aceptada", color: "bg-green-500", icon: Check },
+  approved: { label: "Aprobada", color: "bg-green-500", icon: Check },
   rejected: { label: "Rechazada", color: "bg-red-500", icon: X },
+  converted_to_ticket: { label: "Convertida a Ticket", color: "bg-purple-500", icon: FileCheck },
   cancelled: { label: "Cancelada", color: "bg-gray-600", icon: Ban },
 };
 
