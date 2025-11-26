@@ -23130,7 +23130,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // External Maintenance Tickets Routes
   app.get("/api/external-tickets", isAuthenticated, requireRole(EXTERNAL_ALL_ROLES), async (req: any, res) => {
     try {
-      const { propertyId, assignedTo, status, priority } = req.query;
+      const { propertyId, assignedTo, status, priority, category, condominiumId, dateFilter, search, sortField, sortOrder, page, pageSize } = req.query;
       
       if (propertyId) {
         const tickets = await storage.getExternalMaintenanceTicketsByProperty(propertyId);
@@ -23151,13 +23151,33 @@ export async function registerRoutes(app: Express): Promise<Server> {
         }
       }
       
-      const filters: any = {};
-      if (status) filters.status = status;
-      if (priority) filters.priority = priority;
+      // Use paginated query when page/pageSize provided (from main page)
+      const pageNum = parseInt(page as string) || 1;
+      const pageSizeNum = parseInt(pageSize as string) || 10;
+      const offset = (pageNum - 1) * pageSizeNum;
       
-      const tickets = await storage.getExternalMaintenanceTicketsByAgency(agencyId, filters);
+      const result = await storage.getExternalMaintenanceTicketsPaginated(agencyId, {
+        limit: pageSizeNum,
+        offset,
+        search: search as string,
+        status: status as string,
+        priority: priority as string,
+        category: category as string,
+        condominiumId: condominiumId as string,
+        dateFilter: dateFilter as string,
+        sortField: sortField as string || 'createdAt',
+        sortOrder: (sortOrder as 'asc' | 'desc') || 'desc',
+      });
       
-      res.json(tickets);
+      const totalPages = Math.ceil(result.total / pageSizeNum);
+      
+      res.json({
+        data: result.data,
+        total: result.total,
+        page: pageNum,
+        pageSize: pageSizeNum,
+        totalPages,
+      });
     } catch (error: any) {
       console.error("Error fetching external tickets:", error);
       handleGenericError(res, error);
