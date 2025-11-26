@@ -27,10 +27,10 @@ export function useAdminAuth() {
     },
     retry: false,
     refetchOnWindowFocus: false,
-    // Allow refetch on mount so onboarding changes are picked up
-    refetchOnMount: true,
+    // Don't refetch on every mount - this causes 1s+ delay on every navigation
+    refetchOnMount: false,
     refetchOnReconnect: false,
-    // Remove staleTime: Infinity to allow cache invalidation to work
+    // Cache for 5 minutes - invalidation still works via queryClient.invalidateQueries
     staleTime: 5 * 60 * 1000, // 5 minutes
   });
 
