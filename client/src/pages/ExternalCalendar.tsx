@@ -438,17 +438,45 @@ export default function ExternalCalendar() {
         };
       }) : [];
 
-    // Add financial transactions (accounting) for selected day
+    // Add financial transactions - separate services (yellow) from accounting (pink)
+    const serviceCategories = ['service_electricity', 'service_water', 'service_internet', 'service_gas'];
+    
+    // Service transactions from financial table (yellow)
+    const dayFinancialServices = showServices ? financialTransactions
+      .filter((t) => t.dueDate && isSameDay(new Date(t.dueDate), selectedDate) && serviceCategories.includes(t.category))
+      .map((t) => {
+        const { condominium, unitNumber } = t.unitId ? getCondominiumInfo(t.unitId) : { condominium: '', unitNumber: '' };
+        const categoryLabel = language === "es"
+          ? (t.category === 'service_electricity' ? 'Electricidad' :
+             t.category === 'service_water' ? 'Agua' :
+             t.category === 'service_internet' ? 'Internet' :
+             t.category === 'service_gas' ? 'Gas' :
+             t.category)
+          : t.category;
+        
+        return {
+          type: 'service' as const,
+          title: condominium && unitNumber 
+            ? `${condominium} - ${unitNumber} - ${categoryLabel}`
+            : `${categoryLabel} - ${t.description || ''}`,
+          time: '',
+          status: t.status,
+          serviceType: t.category,
+          data: t,
+          condominium,
+          unitNumber,
+        };
+      }) : [];
+    
+    // Accounting transactions - maintenance charges, rent, HOA (pink)
     const dayAccounting = showAccounting ? financialTransactions
-      .filter((t) => t.dueDate && isSameDay(new Date(t.dueDate), selectedDate))
+      .filter((t) => t.dueDate && isSameDay(new Date(t.dueDate), selectedDate) && !serviceCategories.includes(t.category))
       .map((t) => {
         const { condominium, unitNumber } = t.unitId ? getCondominiumInfo(t.unitId) : { condominium: '', unitNumber: '' };
         const categoryLabel = language === "es"
           ? (t.category === 'maintenance_charge' ? 'Cargo Mantenimiento' :
              t.category === 'rent_income' ? 'Ingreso Renta' :
-             t.category === 'service_electricity' ? 'Electricidad' :
-             t.category === 'service_water' ? 'Agua' :
-             t.category === 'service_internet' ? 'Internet' :
+             t.category === 'rent_payout' ? 'Pago a Propietario' :
              t.category === 'hoa_fee' ? 'Cuota HOA' :
              t.category)
           : t.category;
@@ -466,7 +494,7 @@ export default function ExternalCalendar() {
         };
       }) : [];
 
-    return [...dayPayments, ...dayServicePayments, ...dayServices, ...dayTickets, ...dayContracts, ...dayAccounting].sort((a, b) => 
+    return [...dayPayments, ...dayServicePayments, ...dayServices, ...dayFinancialServices, ...dayTickets, ...dayContracts, ...dayAccounting].sort((a, b) => 
       a.time.localeCompare(b.time)
     );
   }, [selectedDate, filteredPayments, filteredServices, filteredTickets, filteredContracts, financialTransactions, language, units, condominiums, normalizedContracts, showPayments, showServices, showTickets, showContracts, showAccounting]);
@@ -583,17 +611,45 @@ export default function ExternalCalendar() {
         };
       }) : [];
 
-    // Add financial transactions (accounting) for today
+    // Add financial transactions - separate services (yellow) from accounting (pink)
+    const serviceCategories = ['service_electricity', 'service_water', 'service_internet', 'service_gas'];
+    
+    // Service transactions from financial table (yellow)
+    const todayFinancialServices = showServices ? financialTransactions
+      .filter((t) => t.dueDate && isSameDay(new Date(t.dueDate), today) && serviceCategories.includes(t.category))
+      .map((t) => {
+        const { condominium, unitNumber } = t.unitId ? getCondominiumInfo(t.unitId) : { condominium: '', unitNumber: '' };
+        const categoryLabel = language === "es"
+          ? (t.category === 'service_electricity' ? 'Electricidad' :
+             t.category === 'service_water' ? 'Agua' :
+             t.category === 'service_internet' ? 'Internet' :
+             t.category === 'service_gas' ? 'Gas' :
+             t.category)
+          : t.category;
+        
+        return {
+          type: 'service' as const,
+          title: condominium && unitNumber 
+            ? `${condominium} - ${unitNumber} - ${categoryLabel}`
+            : `${categoryLabel} - ${t.description || ''}`,
+          time: '',
+          status: t.status,
+          serviceType: t.category,
+          data: t,
+          condominium,
+          unitNumber,
+        };
+      }) : [];
+    
+    // Accounting transactions - maintenance charges, rent, HOA (pink)
     const todayAccounting = showAccounting ? financialTransactions
-      .filter((t) => t.dueDate && isSameDay(new Date(t.dueDate), today))
+      .filter((t) => t.dueDate && isSameDay(new Date(t.dueDate), today) && !serviceCategories.includes(t.category))
       .map((t) => {
         const { condominium, unitNumber } = t.unitId ? getCondominiumInfo(t.unitId) : { condominium: '', unitNumber: '' };
         const categoryLabel = language === "es"
           ? (t.category === 'maintenance_charge' ? 'Cargo Mantenimiento' :
              t.category === 'rent_income' ? 'Ingreso Renta' :
-             t.category === 'service_electricity' ? 'Electricidad' :
-             t.category === 'service_water' ? 'Agua' :
-             t.category === 'service_internet' ? 'Internet' :
+             t.category === 'rent_payout' ? 'Pago a Propietario' :
              t.category === 'hoa_fee' ? 'Cuota HOA' :
              t.category)
           : t.category;
@@ -611,7 +667,7 @@ export default function ExternalCalendar() {
         };
       }) : [];
 
-    return [...todayPayments, ...todayServicePayments, ...todayServices, ...todayTickets, ...todayContracts, ...todayAccounting].sort((a, b) => 
+    return [...todayPayments, ...todayServicePayments, ...todayServices, ...todayFinancialServices, ...todayTickets, ...todayContracts, ...todayAccounting].sort((a, b) => 
       a.time.localeCompare(b.time)
     );
   }, [filteredPayments, filteredServices, filteredTickets, filteredContracts, financialTransactions, language, units, normalizedContracts, showPayments, showServices, showTickets, showContracts, showAccounting]);
@@ -726,23 +782,48 @@ export default function ExternalCalendar() {
         };
       }) : [];
 
-    // Financial transactions (maintenance charges, rent income, etc.)
+    // Financial transactions - separate services (yellow) from accounting (pink)
+    const serviceCategories = ['service_electricity', 'service_water', 'service_internet', 'service_gas'];
+    
+    // Service transactions from financial table (yellow)
+    const allFinancialServices = showServices && units.length > 0 ? financialTransactions
+      .filter((t) => t.dueDate && serviceCategories.includes(t.category))
+      .map((t) => {
+        const { condominium, unitNumber } = t.unitId ? getCondominiumInfo(t.unitId) : { condominium: '', unitNumber: '' };
+        const categoryLabel = language === "es"
+          ? (t.category === 'service_electricity' ? 'Electricidad' :
+             t.category === 'service_water' ? 'Agua' :
+             t.category === 'service_internet' ? 'Internet' :
+             t.category === 'service_gas' ? 'Gas' :
+             t.category)
+          : t.category;
+        
+        return {
+          type: 'service' as const,
+          title: condominium && unitNumber 
+            ? `${condominium} - ${unitNumber} - ${categoryLabel}`
+            : `${categoryLabel} - ${t.description || ''}`,
+          time: '',
+          status: t.status,
+          serviceType: t.category,
+          data: t,
+          condominium,
+          unitNumber,
+        };
+      }) : [];
+    
+    // Accounting transactions - maintenance charges, rent, HOA (pink)
     const allAccounting = showAccounting && units.length > 0 ? financialTransactions
-      .filter((t) => t.dueDate)
+      .filter((t) => t.dueDate && !serviceCategories.includes(t.category))
       .map((t) => {
         const { condominium, unitNumber } = t.unitId ? getCondominiumInfo(t.unitId) : { condominium: '', unitNumber: '' };
         const categoryLabel = language === "es"
           ? (t.category === 'maintenance_charge' ? 'Cargo Mantenimiento' :
              t.category === 'rent_income' ? 'Ingreso Renta' :
-             t.category === 'service_electricity' ? 'Electricidad' :
-             t.category === 'service_water' ? 'Agua' :
-             t.category === 'service_internet' ? 'Internet' :
+             t.category === 'rent_payout' ? 'Pago a Propietario' :
              t.category === 'hoa_fee' ? 'Cuota HOA' :
              t.category)
           : t.category;
-        const directionLabel = t.direction === 'inflow' 
-          ? (language === "es" ? 'Ingreso' : 'Income')
-          : (language === "es" ? 'Gasto' : 'Expense');
         
         return {
           type: 'accounting' as const,
@@ -757,7 +838,7 @@ export default function ExternalCalendar() {
         };
       }) : [];
 
-    return [...allPayments, ...allServicePayments, ...allServices, ...allTickets, ...allContracts, ...allAccounting];
+    return [...allPayments, ...allServicePayments, ...allServices, ...allFinancialServices, ...allTickets, ...allContracts, ...allAccounting];
   }, [filteredPayments, filteredServices, filteredTickets, filteredContracts, financialTransactions, language, units, normalizedContracts, showPayments, showServices, showTickets, showContracts, showAccounting]);
 
   // Get event modifiers for calendar highlighting
@@ -784,8 +865,9 @@ export default function ExternalCalendar() {
 
   const datesWithAccounting = useMemo(() => {
     if (!showAccounting) return [];
+    const serviceCategories = ['service_electricity', 'service_water', 'service_internet', 'service_gas'];
     return financialTransactions
-      .filter((t) => t.dueDate)
+      .filter((t) => t.dueDate && !serviceCategories.includes(t.category))
       .map((t) => new Date(t.dueDate));
   }, [financialTransactions, showAccounting]);
 
@@ -841,9 +923,22 @@ export default function ExternalCalendar() {
       });
     }
     
+    // Financial transactions - services go to services counter, rest to accounting
+    const serviceCategories = ['service_electricity', 'service_water', 'service_internet', 'service_gas'];
+    
+    if (showServices) {
+      financialTransactions.forEach((t) => {
+        if (t.dueDate && serviceCategories.includes(t.category)) {
+          const dateKey = format(new Date(t.dueDate), 'yyyy-MM-dd');
+          const current = dateMap.get(dateKey) || { payments: 0, services: 0, tickets: 0, contracts: 0, accounting: 0 };
+          dateMap.set(dateKey, { ...current, services: current.services + 1 });
+        }
+      });
+    }
+    
     if (showAccounting) {
       financialTransactions.forEach((t) => {
-        if (t.dueDate) {
+        if (t.dueDate && !serviceCategories.includes(t.category)) {
           const dateKey = format(new Date(t.dueDate), 'yyyy-MM-dd');
           const current = dateMap.get(dateKey) || { payments: 0, services: 0, tickets: 0, contracts: 0, accounting: 0 };
           dateMap.set(dateKey, { ...current, accounting: current.accounting + 1 });
