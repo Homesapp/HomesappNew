@@ -571,7 +571,7 @@ export default function ExternalAccounting() {
     expenses: 'Egresos',
     pending: 'Pendiente',
     reconciled: 'Conciliado',
-    posted: 'Contabilizado',
+    posted: 'Pagado',
     cancelled: 'Cancelado',
     filters: 'Filtros',
     direction: 'Dirección',
@@ -686,7 +686,7 @@ export default function ExternalAccounting() {
     expenses: 'Expenses',
     pending: 'Pending',
     reconciled: 'Reconciled',
-    posted: 'Posted',
+    posted: 'Paid',
     cancelled: 'Cancelled',
     filters: 'Filters',
     direction: 'Direction',
@@ -1054,8 +1054,8 @@ export default function ExternalAccounting() {
       return apiRequest(`/api/external/accounting/transactions/${id}`, {
         method: 'PATCH',
         body: JSON.stringify({ 
-          status: 'paid',
-          paidDate,
+          status: 'posted',
+          paidDate: new Date(paidDate).toISOString(),
           notes
         }),
       });
@@ -1760,7 +1760,7 @@ export default function ExternalAccounting() {
                                   variant="link"
                                   size="sm"
                                   className="h-auto p-0 text-xs justify-start font-normal"
-                                  onClick={() => setLocation(`/external/unidades/${transaction.unitId}`)}
+                                  onClick={() => setLocation(`/external/units/${transaction.unitId}`)}
                                   data-testid={`link-unit-${transaction.id}`}
                                 >
                                   <Home className="h-3 w-3 mr-1 shrink-0" />
