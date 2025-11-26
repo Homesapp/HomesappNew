@@ -22,12 +22,10 @@ export default function ExternalContractProcesses({ searchTerm, statusFilter, vi
   const [selectedContractId, setSelectedContractId] = useState<string | null>(null);
 
   // Fetch contracts from API
-  const { data: contractsData, isLoading } = useQuery({
+  const { data: contractsData, isLoading, refetch } = useQuery({
     queryKey: ['/api/external/contracts'],
-    staleTime: 0,
-    refetchInterval: 10000,
+    staleTime: 30000, // Consider data fresh for 30 seconds
     refetchOnWindowFocus: true, // Refetch when user returns to the tab
-    refetchIntervalInBackground: false, // Pause polling when tab is hidden (80% traffic reduction)
   });
 
   const contractProcesses = contractsData || [];

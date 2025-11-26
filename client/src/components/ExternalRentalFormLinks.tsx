@@ -89,16 +89,14 @@ export default function ExternalRentalFormLinks({ searchTerm, statusFilter, view
     }
   };
 
-  const { data: formTokens, isLoading } = useQuery({
+  const { data: formTokens, isLoading, refetch } = useQuery({
     queryKey: ["/api/external/rental-form-tokens"],
     queryFn: async () => {
       const res = await apiRequest("GET", "/api/external/rental-form-tokens");
       return res.json();
     },
-    staleTime: 0, // Consider data stale immediately
+    staleTime: 30000, // Consider data fresh for 30 seconds
     refetchOnWindowFocus: true, // Refetch when user returns to the tab
-    refetchInterval: 10000, // Auto-refresh every 10 seconds while tab is active
-    refetchIntervalInBackground: false, // Pause polling when tab is hidden (80% traffic reduction)
   });
 
   const regenerateTokenMutation = useMutation({

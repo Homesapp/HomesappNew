@@ -1438,9 +1438,11 @@ export interface IStorage {
 
   // External Management System - Offer Token operations
   getExternalOfferTokensByAgency(agencyId: string): Promise<any[]>;
+  getExternalOfferTokenSummariesByAgency(agencyId: string): Promise<any[]>;
 
   // External Management System - Rental Form Token operations
   getExternalRentalFormTokensByAgency(agencyId: string): Promise<any[]>;
+  getExternalRentalFormTokenSummariesByAgency(agencyId: string): Promise<any[]>;
 
   // External Management System - Financial Transaction operations
   getExternalFinancialTransaction(id: string): Promise<ExternalFinancialTransaction | undefined>;
@@ -10113,6 +10115,86 @@ export class DatabaseStorage implements IStorage {
     }));
   }
 
+  // Optimized: Get all offer token summaries with unit, condo, client, creator
+  // Uses two separate queries for security: one for tokens with units (INNER JOINs), one for tokens without units
+  async getExternalOfferTokenSummariesByAgency(agencyId: string): Promise<any[]> {
+    // Query 1: Tokens WITH units - use INNER JOINs for strict agency filtering via condo
+    const tokensWithUnits = await db
+      .select({
+        id: offerTokens.id,
+        token: offerTokens.token,
+        isUsed: offerTokens.isUsed,
+        expiresAt: offerTokens.expiresAt,
+        createdAt: offerTokens.createdAt,
+        offerData: offerTokens.offerData,
+        externalUnitId: offerTokens.externalUnitId,
+        externalClientId: offerTokens.externalClientId,
+        createdBy: offerTokens.createdBy,
+        unitNumber: externalUnits.unitNumber,
+        condoName: externalCondominiums.name,
+        clientFirstName: externalClients.firstName,
+        clientLastName: externalClients.lastName,
+        creatorFirstName: users.firstName,
+        creatorLastName: users.lastName,
+      })
+      .from(offerTokens)
+      .innerJoin(externalUnits, eq(offerTokens.externalUnitId, externalUnits.id))
+      .innerJoin(externalCondominiums, eq(externalUnits.condominiumId, externalCondominiums.id))
+      .leftJoin(externalClients, eq(offerTokens.externalClientId, externalClients.id))
+      .leftJoin(users, eq(offerTokens.createdBy, users.id))
+      .where(eq(externalCondominiums.agencyId, agencyId));
+
+    // Query 2: Tokens WITHOUT units - filter by creator's agency
+    const tokensWithoutUnits = await db
+      .select({
+        id: offerTokens.id,
+        token: offerTokens.token,
+        isUsed: offerTokens.isUsed,
+        expiresAt: offerTokens.expiresAt,
+        createdAt: offerTokens.createdAt,
+        offerData: offerTokens.offerData,
+        externalUnitId: offerTokens.externalUnitId,
+        externalClientId: offerTokens.externalClientId,
+        createdBy: offerTokens.createdBy,
+        unitNumber: sql<string | null>`NULL`.as('unitNumber'),
+        condoName: sql<string | null>`NULL`.as('condoName'),
+        clientFirstName: externalClients.firstName,
+        clientLastName: externalClients.lastName,
+        creatorFirstName: users.firstName,
+        creatorLastName: users.lastName,
+      })
+      .from(offerTokens)
+      .innerJoin(users, eq(offerTokens.createdBy, users.id))
+      .leftJoin(externalClients, eq(offerTokens.externalClientId, externalClients.id))
+      .where(
+        and(
+          isNull(offerTokens.externalUnitId),
+          eq(users.externalAgencyId, agencyId)
+        )
+      );
+
+    // Combine and sort by createdAt
+    const allResults = [...tokensWithUnits, ...tokensWithoutUnits]
+      .sort((a, b) => new Date(b.createdAt!).getTime() - new Date(a.createdAt!).getTime());
+
+    return allResults.map(r => ({
+      id: r.id,
+      token: r.token,
+      isUsed: r.isUsed,
+      expiresAt: r.expiresAt,
+      createdAt: r.createdAt,
+      offerData: r.offerData,
+      externalUnitId: r.externalUnitId,
+      externalClientId: r.externalClientId,
+      createdBy: r.createdBy,
+      propertyTitle: r.unitNumber 
+        ? (r.condoName ? `${r.condoName} - Unidad ${r.unitNumber}` : `Unidad ${r.unitNumber}`)
+        : 'Sin unidad asignada',
+      clientName: r.clientFirstName ? `${r.clientFirstName} ${r.clientLastName || ''}`.trim() : '',
+      creatorName: r.creatorFirstName ? `${r.creatorFirstName} ${r.creatorLastName || ''}`.trim() : '',
+    }));
+  }
+
   // External Rental Form Token operations
   async getExternalRentalFormTokensByAgency(agencyId: string): Promise<any[]> {
     // Get all rental form tokens that have externalUnitId (external system tokens)
@@ -10133,6 +10215,102 @@ export class DatabaseStorage implements IStorage {
     return tokens.map(t => ({
       ...t.token,
       externalUnit: t.unit,
+    }));
+  }
+
+  // Optimized: Get all rental form token summaries with unit, condo, client, creator
+  // Uses two separate queries for security: one for tokens with units (INNER JOINs), one for tokens without units
+  async getExternalRentalFormTokenSummariesByAgency(agencyId: string): Promise<any[]> {
+    // Query 1: Tokens WITH units - use INNER JOINs for strict agency filtering via condo
+    const tokensWithUnits = await db
+      .select({
+        id: tenantRentalFormTokens.id,
+        token: tenantRentalFormTokens.token,
+        isUsed: tenantRentalFormTokens.isUsed,
+        expiresAt: tenantRentalFormTokens.expiresAt,
+        createdAt: tenantRentalFormTokens.createdAt,
+        formData: tenantRentalFormTokens.formData,
+        recipientType: tenantRentalFormTokens.recipientType,
+        externalUnitId: tenantRentalFormTokens.externalUnitId,
+        externalClientId: tenantRentalFormTokens.externalClientId,
+        externalOwnerId: tenantRentalFormTokens.externalOwnerId,
+        linkedTokenId: tenantRentalFormTokens.linkedTokenId,
+        createdBy: tenantRentalFormTokens.createdBy,
+        unitNumber: externalUnits.unitNumber,
+        condoName: externalCondominiums.name,
+        clientFirstName: externalClients.firstName,
+        clientLastName: externalClients.lastName,
+        ownerFirstName: externalOwners.firstName,
+        ownerLastName: externalOwners.lastName,
+        creatorFirstName: users.firstName,
+        creatorLastName: users.lastName,
+      })
+      .from(tenantRentalFormTokens)
+      .innerJoin(externalUnits, eq(tenantRentalFormTokens.externalUnitId, externalUnits.id))
+      .innerJoin(externalCondominiums, eq(externalUnits.condominiumId, externalCondominiums.id))
+      .leftJoin(externalClients, eq(tenantRentalFormTokens.externalClientId, externalClients.id))
+      .leftJoin(externalOwners, eq(tenantRentalFormTokens.externalOwnerId, externalOwners.id))
+      .leftJoin(users, eq(tenantRentalFormTokens.createdBy, users.id))
+      .where(eq(externalCondominiums.agencyId, agencyId));
+
+    // Query 2: Tokens WITHOUT units - filter by creator's agency
+    const tokensWithoutUnits = await db
+      .select({
+        id: tenantRentalFormTokens.id,
+        token: tenantRentalFormTokens.token,
+        isUsed: tenantRentalFormTokens.isUsed,
+        expiresAt: tenantRentalFormTokens.expiresAt,
+        createdAt: tenantRentalFormTokens.createdAt,
+        formData: tenantRentalFormTokens.formData,
+        recipientType: tenantRentalFormTokens.recipientType,
+        externalUnitId: tenantRentalFormTokens.externalUnitId,
+        externalClientId: tenantRentalFormTokens.externalClientId,
+        externalOwnerId: tenantRentalFormTokens.externalOwnerId,
+        linkedTokenId: tenantRentalFormTokens.linkedTokenId,
+        createdBy: tenantRentalFormTokens.createdBy,
+        unitNumber: sql<string | null>`NULL`.as('unitNumber'),
+        condoName: sql<string | null>`NULL`.as('condoName'),
+        clientFirstName: externalClients.firstName,
+        clientLastName: externalClients.lastName,
+        ownerFirstName: externalOwners.firstName,
+        ownerLastName: externalOwners.lastName,
+        creatorFirstName: users.firstName,
+        creatorLastName: users.lastName,
+      })
+      .from(tenantRentalFormTokens)
+      .innerJoin(users, eq(tenantRentalFormTokens.createdBy, users.id))
+      .leftJoin(externalClients, eq(tenantRentalFormTokens.externalClientId, externalClients.id))
+      .leftJoin(externalOwners, eq(tenantRentalFormTokens.externalOwnerId, externalOwners.id))
+      .where(
+        and(
+          isNull(tenantRentalFormTokens.externalUnitId),
+          eq(users.externalAgencyId, agencyId)
+        )
+      );
+
+    // Combine and sort by createdAt
+    const allResults = [...tokensWithUnits, ...tokensWithoutUnits]
+      .sort((a, b) => new Date(b.createdAt!).getTime() - new Date(a.createdAt!).getTime());
+
+    return allResults.map(r => ({
+      id: r.id,
+      token: r.token,
+      isUsed: r.isUsed,
+      expiresAt: r.expiresAt,
+      createdAt: r.createdAt,
+      formData: r.formData,
+      recipientType: r.recipientType,
+      externalUnitId: r.externalUnitId,
+      externalClientId: r.externalClientId,
+      externalOwnerId: r.externalOwnerId,
+      linkedTokenId: r.linkedTokenId,
+      createdBy: r.createdBy,
+      propertyTitle: r.unitNumber 
+        ? (r.condoName ? `${r.condoName} - Unidad ${r.unitNumber}` : `Unidad ${r.unitNumber}`)
+        : 'Sin unidad asignada',
+      clientName: r.clientFirstName ? `${r.clientFirstName} ${r.clientLastName || ''}`.trim() : 
+                  (r.ownerFirstName ? `${r.ownerFirstName} ${r.ownerLastName || ''}`.trim() : ''),
+      creatorName: r.creatorFirstName ? `${r.creatorFirstName} ${r.creatorLastName || ''}`.trim() : '',
     }));
   }
 

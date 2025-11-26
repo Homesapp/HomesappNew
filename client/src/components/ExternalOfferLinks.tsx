@@ -102,16 +102,14 @@ export default function ExternalOfferLinks({ searchTerm, statusFilter, viewMode 
     }
   };
 
-  const { data: offerTokens, isLoading } = useQuery({
+  const { data: offerTokens, isLoading, refetch } = useQuery({
     queryKey: ["/api/external/offer-tokens"],
     queryFn: async () => {
       const res = await apiRequest("GET", "/api/external/offer-tokens");
       return res.json();
     },
-    staleTime: 0, // Consider data stale immediately
+    staleTime: 30000, // Consider data fresh for 30 seconds
     refetchOnWindowFocus: true, // Refetch when user returns to the tab
-    refetchInterval: 10000, // Auto-refresh every 10 seconds while tab is active
-    refetchIntervalInBackground: false, // Pause polling when tab is hidden (80% traffic reduction)
   });
 
   const regenerateTokenMutation = useMutation({

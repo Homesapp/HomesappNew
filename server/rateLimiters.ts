@@ -57,3 +57,12 @@ export const publicLeadRegistrationLimiter = rateLimit({
   legacyHeaders: false,
   skipSuccessfulRequests: false,
 });
+
+export const tokenRegenerationLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 10, // Max 10 token regenerations per 15 minutes per IP
+  message: { message: 'Demasiadas regeneraciones de token. Por favor, intenta de nuevo en 15 minutos.' },
+  standardHeaders: true,
+  legacyHeaders: false,
+  skipSuccessfulRequests: false,
+});

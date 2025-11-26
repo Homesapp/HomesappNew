@@ -354,21 +354,17 @@ export default function PublicOfferForm() {
   const { data: validationData, isLoading: isValidating, error: validationError } = useQuery({
     queryKey: ["/api/offer-tokens", token, "validate"],
     queryFn: async () => {
-      console.log("[PublicOfferForm] Fetching validation for token:", token);
-      const res = await fetch(`/api/offer-tokens/${token}/validate`, {
+            const res = await fetch(`/api/offer-tokens/${token}/validate`, {
         credentials: "include"
       });
-      console.log("[PublicOfferForm] Response status:", res.status);
-      
+            
       if (!res.ok) {
         const error = await res.json();
-        console.error("[PublicOfferForm] Validation failed:", error);
-        throw new Error(error.message || text.invalidLinkMessage);
+                throw new Error(error.message || text.invalidLinkMessage);
       }
       
       const data = await res.json();
-      console.log("[PublicOfferForm] Validation data:", data);
-      return data;
+            return data;
     },
     enabled: !!token,
     retry: false,

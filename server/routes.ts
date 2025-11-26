@@ -17,7 +17,7 @@ import { getPropertyTitle } from "./propertyHelpers";
 import { setupGoogleAuth } from "./googleAuth";
 import { generateOfferPDF, generateRentalFormPDF, generateOwnerFormPDF, generateQuotationPDF } from "./pdfGenerator";
 import { processChatbotMessage, generatePropertyRecommendations } from "./chatbot";
-import { authLimiter, registrationLimiter, emailVerificationLimiter, chatbotLimiter, propertySubmissionLimiter, publicLeadRegistrationLimiter } from "./rateLimiters";
+import { authLimiter, registrationLimiter, emailVerificationLimiter, chatbotLimiter, propertySubmissionLimiter, publicLeadRegistrationLimiter, tokenRegenerationLimiter } from "./rateLimiters";
 import { encrypt, decrypt } from "./encryption";
 import { 
   sanitizeText, 
@@ -26931,7 +26931,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // External Token Routes (Contracts Section)
   // ==============================
 
-  // GET /api/external/offer-tokens - Get offer tokens for agency
+  // GET /api/external/offer-tokens - Get offer tokens for agency (optimized single query)
   app.get("/api/external/offer-tokens", isAuthenticated, requireRole(EXTERNAL_ALL_ROLES), async (req: any, res) => {
     try {
       const agencyId = await getUserAgencyId(req);
@@ -26939,45 +26939,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(403).json({ message: "No agency access" });
       }
       
-      const tokens = await storage.getExternalOfferTokensByAgency(agencyId);
-      
-      // Enrich with unit, creator, and client info
-      const enrichedTokens = await Promise.all(
-        tokens.map(async (token) => {
-          let unit = null;
-          let creator = null;
-          let client = null;
-          let condo = null;
-          
-          if (token.externalUnitId) {
-            unit = await storage.getExternalUnit(token.externalUnitId);
-            if (unit?.condominiumId) {
-              condo = await storage.getExternalCondominium(unit.condominiumId);
-            }
-          }
-          if (token.createdBy) {
-            creator = await storage.getUser(token.createdBy);
-          }
-          if (token.externalClientId) {
-            client = await storage.getExternalClient(token.externalClientId);
-          }
-          
-          // Map to frontend expected format
-          const propertyTitle = unit ? `${condo?.name || ''} - Unidad ${unit.unitNumber}` : '';
-          const clientName = client ? `${client.firstName} ${client.lastName}` : '';
-          
-          return {
-            ...token,
-            unit,
-            creator,
-            client,
-            propertyTitle,
-            clientName,
-          };
-        })
-      );
-      
-      res.json(enrichedTokens);
+      // Use optimized single-query method that includes all joined data
+      const tokens = await storage.getExternalOfferTokenSummariesByAgency(agencyId);
+      res.json(tokens);
     } catch (error: any) {
       console.error("Error fetching external offer tokens:", error);
       handleGenericError(res, error);
@@ -26985,7 +26949,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // POST /api/offer-tokens/:tokenId/regenerate - Regenerate offer token (delete old active ones, preserve completed)
-  app.post("/api/offer-tokens/:tokenId/regenerate", isAuthenticated, requireRole(EXTERNAL_ALL_ROLES), async (req: any, res) => {
+  app.post("/api/offer-tokens/:tokenId/regenerate", isAuthenticated, tokenRegenerationLimiter, requireRole(EXTERNAL_ALL_ROLES), async (req: any, res) => {
     try {
       const agencyId = await getUserAgencyId(req);
       if (!agencyId) {
@@ -27063,7 +27027,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // GET /api/external/rental-form-tokens - Get rental form tokens for agency
+  // GET /api/external/rental-form-tokens - Get rental form tokens for agency (optimized)
   app.get("/api/external/rental-form-tokens", isAuthenticated, requireRole(EXTERNAL_ALL_ROLES), async (req: any, res) => {
     try {
       const agencyId = await getUserAgencyId(req);
@@ -27071,51 +27035,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(403).json({ message: "No agency access" });
       }
       
-      const tokens = await storage.getExternalRentalFormTokensByAgency(agencyId);
+      // Use optimized single-query method that includes unit, condo, client, owner, creator
+      const tokens = await storage.getExternalRentalFormTokenSummariesByAgency(agencyId);
       
-      // Enrich with unit, creator, client, and owner info
-      const enrichedTokens = await Promise.all(
-        tokens.map(async (token) => {
-          let unit = null;
-          let creator = null;
-          let client = null;
-          let owner = null;
-          let condominium = null;
-          
-          if (token.externalUnitId) {
-            unit = await storage.getExternalUnit(token.externalUnitId);
-            if (unit?.condominiumId) {
-              condominium = await storage.getExternalCondominium(unit.condominiumId);
-            }
-          }
-          if (token.createdBy) {
-            creator = await storage.getUser(token.createdBy);
-          }
-          if (token.externalClientId && token.recipientType === 'tenant') {
-            client = await storage.getExternalClient(token.externalClientId);
-          }
-          if (token.externalUnitOwnerId && token.recipientType === 'owner') {
-            owner = await storage.getExternalUnitOwner(token.externalUnitOwnerId);
-          }
-          
-          // Build display strings for UI
-          const clientName = client 
-            ? `${client.firstName} ${client.lastName}`.trim()
-            : owner?.ownerName || null;
-          
-          const propertyTitle = unit && condominium
-            ? `${condominium.name} - ${unit.unitNumber}`
-            : null;
-          
-          // Get dual form status if this token is part of a rental form group
+      // Only need to get dual form status for tokens with rentalFormGroupId
+      // This is a much smaller loop than before (only tokens with groups)
+      const tokensWithDualStatus = await Promise.all(
+        tokens.map(async (token: any) => {
           let dualFormStatus = null;
-          if (token.rentalFormGroupId) {
-            // Find the companion form in the same group
+          
+          if (token.linkedTokenId) {
+            // Find the companion form by linkedTokenId
             const companionForm = await db.query.tenantRentalFormTokens.findFirst({
-              where: and(
-                eq(tenantRentalFormTokens.rentalFormGroupId, token.rentalFormGroupId),
-                ne(tenantRentalFormTokens.id, token.id)
-              ),
+              where: eq(tenantRentalFormTokens.id, token.linkedTokenId),
             });
             
             if (companionForm) {
@@ -27129,21 +27061,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
           
           return {
             ...token,
-            agencyId, // Include agencyId for ownership verification in PDFs
-            unit,
-            creator,
-            client,
-            owner,
-            clientName,
-            propertyTitle,
-            recipientType: token.recipientType,
-            rentalFormGroupId: token.rentalFormGroupId,
+            agencyId,
             dualFormStatus,
           };
         })
       );
       
-      res.json(enrichedTokens);
+      res.json(tokensWithDualStatus);
     } catch (error: any) {
       console.error("Error fetching external rental form tokens:", error);
       handleGenericError(res, error);
@@ -27539,7 +27463,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // POST /api/rental-form-tokens/:tokenId/regenerate - Regenerate rental form token (delete old active ones, preserve completed)
-  app.post("/api/rental-form-tokens/:tokenId/regenerate", isAuthenticated, requireRole(EXTERNAL_ALL_ROLES), async (req: any, res) => {
+  app.post("/api/rental-form-tokens/:tokenId/regenerate", isAuthenticated, tokenRegenerationLimiter, requireRole(EXTERNAL_ALL_ROLES), async (req: any, res) => {
     try {
       const agencyId = await getUserAgencyId(req);
       if (!agencyId) {
@@ -28067,6 +27991,72 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (error.name === "ZodError") {
         return handleZodError(res, error);
       }
+      handleGenericError(res, error);
+    }
+  });
+
+  // GET /api/external/contracts/overview - Consolidated endpoint for all contract-related data (offers, forms, contracts)
+  // Reduces multiple API calls to a single request for better performance
+  app.get("/api/external/contracts/overview", isAuthenticated, requireRole(EXTERNAL_ALL_ROLES), async (req: any, res) => {
+    try {
+      const agencyId = await getUserAgencyId(req);
+      if (!agencyId) {
+        return res.status(403).json({ message: "No agency access" });
+      }
+      
+      // Fetch all data in parallel for maximum performance
+      const [offers, rentalForms, contractsRaw] = await Promise.all([
+        storage.getExternalOfferTokenSummariesByAgency(agencyId),
+        storage.getExternalRentalFormTokenSummariesByAgency(agencyId),
+        (async () => {
+          // Get contracts with joined data
+          const contracts = await db
+            .select({
+              contract: externalRentalContracts,
+              unit: externalUnits,
+              condominium: externalCondominiums,
+            })
+            .from(externalRentalContracts)
+            .innerJoin(externalUnits, eq(externalRentalContracts.unitId, externalUnits.id))
+            .leftJoin(externalCondominiums, eq(externalUnits.condominiumId, externalCondominiums.id))
+            .where(eq(externalRentalContracts.agencyId, agencyId))
+            .orderBy(desc(externalRentalContracts.createdAt));
+          return contracts;
+        })()
+      ]);
+      
+      // Get dual form status for rental forms with linkedTokenId (smaller loop)
+      const rentalFormsWithDual = await Promise.all(
+        rentalForms.map(async (form: any) => {
+          let dualFormStatus = null;
+          if (form.linkedTokenId) {
+            const companion = await db.query.tenantRentalFormTokens.findFirst({
+              where: eq(tenantRentalFormTokens.id, form.linkedTokenId),
+            });
+            if (companion) {
+              dualFormStatus = {
+                hasDual: true,
+                dualType: companion.recipientType,
+                dualCompleted: companion.isUsed,
+              };
+            }
+          }
+          return { ...form, agencyId, dualFormStatus };
+        })
+      );
+      
+      res.json({
+        offers,
+        rentalForms: rentalFormsWithDual,
+        contracts: contractsRaw,
+        meta: {
+          offersCount: offers.length,
+          rentalFormsCount: rentalFormsWithDual.length,
+          contractsCount: contractsRaw.length,
+        }
+      });
+    } catch (error: any) {
+      console.error("Error fetching contracts overview:", error);
       handleGenericError(res, error);
     }
   });
