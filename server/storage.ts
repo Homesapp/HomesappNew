@@ -11015,8 +11015,8 @@ export class DatabaseStorage implements IStorage {
     // Define valid status transitions
     const validTransitions: Record<string, string[]> = {
       'draft': ['sent', 'cancelled'],
-      'sent': ['accepted', 'rejected', 'cancelled'],
-      'accepted': ['cancelled'],  // Can only cancel accepted quotations
+      'sent': ['approved', 'rejected', 'converted_to_ticket'],
+      'approved': ['converted_to_ticket'],  // Can only cancel accepted quotations
       'rejected': [],  // Terminal state
       'cancelled': [],  // Terminal state
     };
