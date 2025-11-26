@@ -436,6 +436,32 @@ function requireAccountantOrAdmin(req: any, res: any, next: any) {
 // WebSocket clients organized by conversation ID
 const wsClients = new Map<string, Set<WebSocket>>();
 
+// Import job tracking for progress reporting
+interface ImportJob {
+  id: string;
+  section: string;
+  status: 'processing' | 'completed' | 'failed';
+  total: number;
+  processed: number;
+  imported: number;
+  skipped: number;
+  errors: string[];
+  startedAt: Date;
+  finishedAt?: Date;
+  message?: string;
+}
+const importJobs = new Map<string, ImportJob>();
+
+// Clean up old jobs after 1 hour
+setInterval(() => {
+  const oneHourAgo = Date.now() - 60 * 60 * 1000;
+  for (const [jobId, job] of importJobs.entries()) {
+    if (job.finishedAt && job.finishedAt.getTime() < oneHourAgo) {
+      importJobs.delete(jobId);
+    }
+  }
+}, 5 * 60 * 1000);
+
 // Helper function to ensure user exists in database
 async function ensureUserExists(req: any): Promise<any> {
   const userId = req.user.claims.sub;
@@ -30890,6 +30916,36 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // GET /api/external/imports/:jobId - Get import job status
+  app.get("/api/external/imports/:jobId", isAuthenticated, requireRole(EXTERNAL_ADMIN_ROLES), async (req: any, res) => {
+    try {
+      const { jobId } = req.params;
+      const job = importJobs.get(jobId);
+      
+      if (!job) {
+        return res.status(404).json({ message: "Import job not found" });
+      }
+      
+      res.json({
+        id: job.id,
+        section: job.section,
+        status: job.status,
+        total: job.total,
+        processed: job.processed,
+        imported: job.imported,
+        skipped: job.skipped,
+        errors: job.errors.slice(0, 10),
+        startedAt: job.startedAt.toISOString(),
+        finishedAt: job.finishedAt?.toISOString() || null,
+        message: job.message || null,
+        progress: job.total > 0 ? Math.round((job.processed / job.total) * 100) : 0,
+      });
+    } catch (error) {
+      console.error("Error getting import status:", error);
+      handleGenericError(res, error);
+    }
+  });
+
   // POST /api/external/data/import/:section - Import data from CSV
   app.post("/api/external/data/import/:section", isAuthenticated, requireRole(EXTERNAL_ADMIN_ROLES), async (req: any, res) => {
     try {
@@ -30921,9 +30977,36 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       const rows = parseResult.data as any[];
+      
+      // Create import job for progress tracking
+      const jobId = crypto.randomUUID();
+      const job: ImportJob = {
+        id: jobId,
+        section,
+        status: 'processing',
+        total: rows.length,
+        processed: 0,
+        imported: 0,
+        skipped: 0,
+        errors: [],
+        startedAt: new Date(),
+      };
+      importJobs.set(jobId, job);
+      
+      // Return job ID immediately so client can poll for progress
+      res.json({ jobId, total: rows.length, message: "Import started" });
+      
+      // Process rows asynchronously
       let imported = 0;
       let skipped = 0;
       let errors: string[] = [];
+      
+      const updateProgress = () => {
+        job.processed = imported + skipped;
+        job.imported = imported;
+        job.skipped = skipped;
+        job.errors = errors.slice(0, 50);
+      };
 
       switch (section) {
         case 'condominiums':
@@ -31460,19 +31543,23 @@ export async function registerRoutes(app: Express): Promise<Server> {
           });
       }
 
+      // Update job status to completed
+      updateProgress();
+      job.status = 'completed';
+      job.finishedAt = new Date();
+      job.message = `Imported ${imported} records, skipped ${skipped} duplicates${errors.length > 0 ? `, ${errors.length} errors` : ''}`;
+      
       await createAuditLog(req, "import", `external_${section}`, agencyId, 
         `Imported ${imported} ${section} records from CSV (${skipped} skipped, ${errors.length} errors)`);
-
-      res.json({
-        success: true,
-        imported,
-        skipped,
-        errors: errors.slice(0, 10),
-        message: `Imported ${imported} records, skipped ${skipped} duplicates${errors.length > 0 ? `, ${errors.length} errors` : ''}`,
-      });
     } catch (error: any) {
       console.error(`Error importing ${req.params.section}:`, error);
-      handleGenericError(res, error);
+      // Update job status to failed
+      const job = importJobs.get(req.body.jobId || '');
+      if (job) {
+        job.status = 'failed';
+        job.finishedAt = new Date();
+        job.message = error.message || 'Import failed';
+      }
     }
   });
   // ============================================================================
