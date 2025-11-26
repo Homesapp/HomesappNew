@@ -29273,6 +29273,171 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // External Accounting / Financial Transactions Routes
   // ================================================================================
 
+  // GET /api/external/accounting/overview - Consolidated endpoint for all accounting data
+  // Reduces multiple API calls to a single request for better performance
+  app.get("/api/external/accounting/overview", isAuthenticated, requireRole(EXTERNAL_ALL_ROLES), async (req: any, res) => {
+    try {
+      const agencyId = await getUserAgencyId(req);
+      if (!agencyId) {
+        return res.status(403).json({ message: "No agency access" });
+      }
+
+      const { direction, category, status, condominiumId, unitId, startDate, endDate, search, sortField, sortOrder, limit, offset } = req.query;
+
+      // Parse pagination params
+      const limitNum = limit ? parseInt(limit as string, 10) : 20;
+      const offsetNum = offset ? parseInt(offset as string, 10) : 0;
+      const parsedLimit = Number.isFinite(limitNum) ? Math.min(Math.max(1, limitNum), 100) : 20;
+      const parsedOffset = Number.isFinite(offsetNum) ? Math.max(0, offsetNum) : 0;
+
+      // Build filters object
+      const filters: any = {
+        limit: parsedLimit,
+        offset: parsedOffset,
+      };
+      if (direction && direction !== 'all') filters.direction = direction;
+      if (category && category !== 'all') filters.category = category;
+      if (status && status !== 'all') filters.status = status;
+      if (condominiumId && condominiumId !== 'all') filters.condominiumId = condominiumId as string;
+      if (unitId && unitId !== 'all') filters.unitId = unitId as string;
+      if (startDate) filters.startDate = new Date(startDate as string);
+      if (endDate) filters.endDate = new Date(endDate as string);
+      if (search) filters.search = search as string;
+      if (sortField) filters.sortField = sortField as string;
+      if (sortOrder && (sortOrder === 'asc' || sortOrder === 'desc')) filters.sortOrder = sortOrder;
+
+      // Execute all queries in parallel for maximum performance
+      const [transactions, total, condominiums, units] = await Promise.all([
+        // Paginated transactions
+        storage.getExternalFinancialTransactionsByAgency(agencyId, filters),
+        // Total count for pagination
+        storage.getExternalFinancialTransactionsCountByAgency(agencyId, {
+          direction: filters.direction,
+          category: filters.category,
+          status: filters.status,
+          unitId: filters.unitId,
+          condominiumId: filters.condominiumId,
+          startDate: filters.startDate,
+          endDate: filters.endDate,
+          search: filters.search,
+        }),
+        // Filter options - condominiums
+        db.select({
+          id: externalCondominiums.id,
+          name: externalCondominiums.name,
+        })
+        .from(externalCondominiums)
+        .where(eq(externalCondominiums.agencyId, agencyId))
+        .orderBy(asc(externalCondominiums.name)),
+        // Filter options - units
+        db.select({
+          id: externalUnits.id,
+          unitNumber: externalUnits.unitNumber,
+          condominiumId: externalUnits.condominiumId,
+        })
+        .from(externalUnits)
+        .where(eq(externalUnits.agencyId, agencyId))
+        .orderBy(asc(externalUnits.unitNumber)),
+      ]);
+
+      // Calculate analytics from the transactions we already have (avoiding extra queries)
+      const todayStart = new Date();
+      todayStart.setHours(0, 0, 0, 0);
+      const todayEnd = new Date();
+      todayEnd.setHours(23, 59, 59, 999);
+
+      // For analytics, we need aggregates - run optimized queries
+      const baseConditions = [eq(externalFinancialTransactions.agencyId, agencyId)];
+      if (filters.direction) baseConditions.push(eq(externalFinancialTransactions.direction, filters.direction));
+      if (filters.category) baseConditions.push(eq(externalFinancialTransactions.category, filters.category));
+      if (filters.status) baseConditions.push(eq(externalFinancialTransactions.status, filters.status));
+      if (filters.condominiumId) baseConditions.push(eq(externalFinancialTransactions.condominiumId, filters.condominiumId));
+      if (filters.unitId) baseConditions.push(eq(externalFinancialTransactions.unitId, filters.unitId));
+      if (filters.startDate) baseConditions.push(gte(externalFinancialTransactions.dueDate, filters.startDate));
+      if (filters.endDate) baseConditions.push(lte(externalFinancialTransactions.dueDate, filters.endDate));
+
+      // Run all analytics aggregates in parallel
+      const [incomeExpense, receivablesToday, receivablesOverdue, receivablesUpcoming] = await Promise.all([
+        db.select({
+          direction: externalFinancialTransactions.direction,
+          total: sql<string>`COALESCE(SUM(CAST(${externalFinancialTransactions.grossAmount} AS DECIMAL)), 0)`,
+        })
+        .from(externalFinancialTransactions)
+        .where(and(...baseConditions, eq(externalFinancialTransactions.status, 'completed')))
+        .groupBy(externalFinancialTransactions.direction),
+        db.select({
+          count: sql<number>`COUNT(*)::int`,
+          total: sql<string>`COALESCE(SUM(CAST(${externalFinancialTransactions.grossAmount} AS DECIMAL)), 0)`,
+        })
+        .from(externalFinancialTransactions)
+        .where(and(
+          ...baseConditions,
+          eq(externalFinancialTransactions.status, 'pending'),
+          eq(externalFinancialTransactions.direction, 'inflow'),
+          sql`${externalFinancialTransactions.dueDate} >= ${todayStart}`,
+          sql`${externalFinancialTransactions.dueDate} <= ${todayEnd}`
+        )),
+        db.select({
+          count: sql<number>`COUNT(*)::int`,
+          total: sql<string>`COALESCE(SUM(CAST(${externalFinancialTransactions.grossAmount} AS DECIMAL)), 0)`,
+        })
+        .from(externalFinancialTransactions)
+        .where(and(
+          ...baseConditions,
+          eq(externalFinancialTransactions.status, 'pending'),
+          eq(externalFinancialTransactions.direction, 'inflow'),
+          sql`${externalFinancialTransactions.dueDate} < ${todayStart}`
+        )),
+        db.select({
+          count: sql<number>`COUNT(*)::int`,
+          total: sql<string>`COALESCE(SUM(CAST(${externalFinancialTransactions.grossAmount} AS DECIMAL)), 0)`,
+        })
+        .from(externalFinancialTransactions)
+        .where(and(
+          ...baseConditions,
+          eq(externalFinancialTransactions.status, 'pending'),
+          eq(externalFinancialTransactions.direction, 'inflow'),
+          sql`${externalFinancialTransactions.dueDate} > ${todayEnd}`
+        )),
+      ]);
+
+      let totalIncome = 0;
+      let totalExpenses = 0;
+      for (const row of incomeExpense) {
+        const amount = parseFloat(row.total || '0');
+        if (row.direction === 'inflow') totalIncome = amount;
+        else if (row.direction === 'outflow') totalExpenses = amount;
+      }
+
+      res.json({
+        transactions: {
+          data: transactions,
+          total,
+          limit: parsedLimit,
+          offset: parsedOffset,
+          hasMore: parsedOffset + transactions.length < total,
+        },
+        analytics: {
+          totalIncome,
+          totalExpenses,
+          netBalance: totalIncome - totalExpenses,
+          receivables: {
+            today: { count: receivablesToday[0]?.count || 0, total: parseFloat(receivablesToday[0]?.total || '0') },
+            overdue: { count: receivablesOverdue[0]?.count || 0, total: parseFloat(receivablesOverdue[0]?.total || '0') },
+            upcoming: { count: receivablesUpcoming[0]?.count || 0, total: parseFloat(receivablesUpcoming[0]?.total || '0') },
+          },
+        },
+        filters: {
+          condominiums,
+          units,
+        },
+      });
+    } catch (error: any) {
+      console.error("Error fetching accounting overview:", error);
+      handleGenericError(res, error);
+    }
+  });
+
   // GET /api/external/accounting/summary - Get accounting summary for agency
   app.get("/api/external/accounting/summary", isAuthenticated, requireRole(EXTERNAL_ALL_ROLES), async (req: any, res) => {
     try {
