@@ -49,6 +49,7 @@ import {
   Flame,
   Wrench,
   Building2,
+  FileText,
 } from "lucide-react";
 import { ExternalPaginationControls } from "@/components/external/ExternalPaginationControls";
 import { useLanguage } from "@/contexts/LanguageContext";
@@ -2156,9 +2157,12 @@ export default function ExternalAccounting() {
             )} className="space-y-6">
               {/* Información Básica */}
               <div className="space-y-4">
-                <h3 className="text-sm font-semibold text-muted-foreground">
-                  {language === 'es' ? 'Información Básica' : 'Basic Information'}
-                </h3>
+                <div className="flex items-center gap-2 pb-2 border-b">
+                  <FileText className="h-4 w-4 text-primary" />
+                  <h3 className="text-sm font-semibold">
+                    {language === 'es' ? 'Información Básica' : 'Basic Information'}
+                  </h3>
+                </div>
                 <div className="grid grid-cols-2 gap-4">
                   <FormField
                     control={createForm.control}
@@ -2303,9 +2307,12 @@ export default function ExternalAccounting() {
 
               {/* Referencia de Propiedad */}
               <div className="space-y-4">
-                <h3 className="text-sm font-semibold text-muted-foreground">
-                  {language === 'es' ? 'Referencia de Propiedad' : 'Property Reference'}
-                </h3>
+                <div className="flex items-center gap-2 pb-2 border-b">
+                  <Building2 className="h-4 w-4 text-primary" />
+                  <h3 className="text-sm font-semibold">
+                    {language === 'es' ? 'Referencia de Propiedad' : 'Property Reference'}
+                  </h3>
+                </div>
                 <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-2">
                     <label className="text-sm font-medium">
@@ -2418,10 +2425,13 @@ export default function ExternalAccounting() {
 
               {/* Información Financiera */}
               <div className="space-y-4">
-                <div className="flex items-center justify-between">
-                  <h3 className="text-sm font-semibold text-muted-foreground">
-                    {language === 'es' ? 'Información Financiera' : 'Financial Information'}
-                  </h3>
+                <div className="flex items-center justify-between pb-2 border-b">
+                  <div className="flex items-center gap-2">
+                    <DollarSign className="h-4 w-4 text-primary" />
+                    <h3 className="text-sm font-semibold">
+                      {language === 'es' ? 'Información Financiera' : 'Financial Information'}
+                    </h3>
+                  </div>
                   <div className="flex items-center gap-2">
                     <Switch
                       id="apply-auto-fee"

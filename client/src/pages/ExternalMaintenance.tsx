@@ -83,6 +83,8 @@ import {
   Image as ImageIcon,
   Trash2,
   FileText,
+  MapPin,
+  MessageSquare,
 } from "lucide-react";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { useAuth } from "@/hooks/useAuth";
@@ -1742,114 +1744,91 @@ export default function ExternalMaintenance() {
           </DialogHeader>
 
           <Form {...form}>
-            <form onSubmit={handleSubmit} className="space-y-4">
-              <div className="grid gap-4 md:grid-cols-2">
-                <FormField
-                  control={form.control}
-                  name="unitId"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>{t.selectCondominium}</FormLabel>
-                      <Select 
-                        value={formCondominiumId} 
-                        onValueChange={(value) => {
-                          setFormCondominiumId(value);
-                          field.onChange("");
-                        }}
-                      >
-                        <SelectTrigger data-testid="select-form-condominium">
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {condominiums?.map(condo => (
-                            <SelectItem key={condo.id} value={condo.id}>
-                              {condo.name}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
+            <form onSubmit={handleSubmit} className="space-y-6">
+              {/* Section: Ubicación */}
+              <div className="space-y-4">
+                <div className="flex items-center gap-2 pb-2 border-b">
+                  <MapPin className="h-4 w-4 text-primary" />
+                  <h3 className="text-sm font-semibold">
+                    {language === 'es' ? 'Ubicación' : 'Location'}
+                  </h3>
+                </div>
+                <div className="grid gap-4 md:grid-cols-2">
+                  <FormField
+                    control={form.control}
+                    name="unitId"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>{t.selectCondominium}</FormLabel>
+                        <Select 
+                          value={formCondominiumId} 
+                          onValueChange={(value) => {
+                            setFormCondominiumId(value);
+                            field.onChange("");
+                          }}
+                        >
+                          <SelectTrigger data-testid="select-form-condominium">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {condominiums?.map(condo => (
+                              <SelectItem key={condo.id} value={condo.id}>
+                                {condo.name}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
 
-                <FormField
-                  control={form.control}
-                  name="unitId"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>{t.selectUnit}</FormLabel>
-                      <Select 
-                        value={field.value} 
-                        onValueChange={field.onChange}
-                        disabled={!formCondominiumId}
-                      >
-                        <SelectTrigger data-testid="select-form-unit">
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {filteredUnitsForForm.map(unit => (
-                            <SelectItem key={unit.id} value={unit.id}>
-                              {unit.unitNumber}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
+                  <FormField
+                    control={form.control}
+                    name="unitId"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>{t.selectUnit}</FormLabel>
+                        <Select 
+                          value={field.value} 
+                          onValueChange={field.onChange}
+                          disabled={!formCondominiumId}
+                        >
+                          <SelectTrigger data-testid="select-form-unit">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {filteredUnitsForForm.map(unit => (
+                              <SelectItem key={unit.id} value={unit.id}>
+                                {unit.unitNumber}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                </div>
               </div>
 
-              <FormField
-                control={form.control}
-                name="title"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>{t.ticketTitle}</FormLabel>
-                    <FormControl>
-                      <Input {...field} data-testid="input-title" />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-
-              <FormField
-                control={form.control}
-                name="description"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>{t.description}</FormLabel>
-                    <FormControl>
-                      <Textarea {...field} rows={3} data-testid="input-description" />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-
-              <div className="grid gap-4 md:grid-cols-2">
+              {/* Section: Detalles del Ticket */}
+              <div className="space-y-4">
+                <div className="flex items-center gap-2 pb-2 border-b">
+                  <FileText className="h-4 w-4 text-primary" />
+                  <h3 className="text-sm font-semibold">
+                    {language === 'es' ? 'Detalles del Ticket' : 'Ticket Details'}
+                  </h3>
+                </div>
                 <FormField
                   control={form.control}
-                  name="category"
+                  name="title"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>{t.selectCategory}</FormLabel>
-                      <Select value={field.value} onValueChange={field.onChange}>
-                        <SelectTrigger data-testid="select-form-category">
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="plumbing">{categoryLabels.plumbing[language]}</SelectItem>
-                          <SelectItem value="electrical">{categoryLabels.electrical[language]}</SelectItem>
-                          <SelectItem value="appliances">{categoryLabels.appliances[language]}</SelectItem>
-                          <SelectItem value="hvac">{categoryLabels.hvac[language]}</SelectItem>
-                          <SelectItem value="general">{categoryLabels.general[language]}</SelectItem>
-                          <SelectItem value="emergency">{categoryLabels.emergency[language]}</SelectItem>
-                          <SelectItem value="other">{categoryLabels.other[language]}</SelectItem>
-                        </SelectContent>
-                      </Select>
+                      <FormLabel>{t.ticketTitle}</FormLabel>
+                      <FormControl>
+                        <Input {...field} data-testid="input-title" />
+                      </FormControl>
                       <FormMessage />
                     </FormItem>
                   )}
@@ -1857,57 +1836,136 @@ export default function ExternalMaintenance() {
 
                 <FormField
                   control={form.control}
-                  name="priority"
+                  name="description"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>{t.selectPriority}</FormLabel>
-                      <Select value={field.value} onValueChange={field.onChange}>
-                        <SelectTrigger data-testid="select-form-priority">
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="low">{priorityColors.low.label[language]}</SelectItem>
-                          <SelectItem value="medium">{priorityColors.medium.label[language]}</SelectItem>
-                          <SelectItem value="high">{priorityColors.high.label[language]}</SelectItem>
-                          <SelectItem value="urgent">{priorityColors.urgent.label[language]}</SelectItem>
-                        </SelectContent>
-                      </Select>
+                      <FormLabel>{t.description}</FormLabel>
+                      <FormControl>
+                        <Textarea {...field} rows={3} data-testid="input-description" />
+                      </FormControl>
                       <FormMessage />
                     </FormItem>
                   )}
                 />
+
+                <div className="grid gap-4 md:grid-cols-2">
+                  <FormField
+                    control={form.control}
+                    name="category"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>{t.selectCategory}</FormLabel>
+                        <Select value={field.value} onValueChange={field.onChange}>
+                          <SelectTrigger data-testid="select-form-category">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="plumbing">{categoryLabels.plumbing[language]}</SelectItem>
+                            <SelectItem value="electrical">{categoryLabels.electrical[language]}</SelectItem>
+                            <SelectItem value="appliances">{categoryLabels.appliances[language]}</SelectItem>
+                            <SelectItem value="hvac">{categoryLabels.hvac[language]}</SelectItem>
+                            <SelectItem value="general">{categoryLabels.general[language]}</SelectItem>
+                            <SelectItem value="emergency">{categoryLabels.emergency[language]}</SelectItem>
+                            <SelectItem value="other">{categoryLabels.other[language]}</SelectItem>
+                          </SelectContent>
+                        </Select>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+
+                  <FormField
+                    control={form.control}
+                    name="priority"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>{t.selectPriority}</FormLabel>
+                        <Select value={field.value} onValueChange={field.onChange}>
+                          <SelectTrigger data-testid="select-form-priority">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="low">{priorityColors.low.label[language]}</SelectItem>
+                            <SelectItem value="medium">{priorityColors.medium.label[language]}</SelectItem>
+                            <SelectItem value="high">{priorityColors.high.label[language]}</SelectItem>
+                            <SelectItem value="urgent">{priorityColors.urgent.label[language]}</SelectItem>
+                          </SelectContent>
+                        </Select>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                </div>
               </div>
 
-              <FormField
-                control={form.control}
-                name="assignedTo"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>{t.selectWorker}</FormLabel>
-                    <Select 
-                      value={field.value || ""} 
-                      onValueChange={field.onChange}
-                      disabled={!form.watch("unitId")}
-                    >
-                      <SelectTrigger data-testid="select-form-worker">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {getAvailableWorkersForLocation(form.watch("unitId")).map(worker => (
-                          <SelectItem key={worker.id} value={worker.id}>
-                            {`${worker.firstName || ''} ${worker.lastName || ''}`.trim() || worker.email}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
+              {/* Section: Asignación */}
+              <div className="space-y-4">
+                <div className="flex items-center gap-2 pb-2 border-b">
+                  <User className="h-4 w-4 text-primary" />
+                  <h3 className="text-sm font-semibold">
+                    {language === 'es' ? 'Asignación' : 'Assignment'}
+                  </h3>
+                </div>
+                <div className="grid gap-4 md:grid-cols-2">
+                  <FormField
+                    control={form.control}
+                    name="assignedTo"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>{t.selectWorker}</FormLabel>
+                        <Select 
+                          value={field.value || ""} 
+                          onValueChange={field.onChange}
+                          disabled={!form.watch("unitId")}
+                        >
+                          <SelectTrigger data-testid="select-form-worker">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {getAvailableWorkersForLocation(form.watch("unitId")).map(worker => (
+                              <SelectItem key={worker.id} value={worker.id}>
+                                {`${worker.firstName || ''} ${worker.lastName || ''}`.trim() || worker.email}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
 
-              <div className="space-y-2">
-                <div className="flex items-center justify-between">
-                  <label className="text-sm font-medium">{t.scheduleDate}</label>
+                  <FormField
+                    control={form.control}
+                    name="reportedBy"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>
+                          {language === "es" ? "Reportado por" : "Reported by"}
+                        </FormLabel>
+                        <FormControl>
+                          <Input 
+                            {...field} 
+                            value={field.value || ""} 
+                            placeholder={language === "es" ? "Nombre de quien reporta" : "Name of reporter"}
+                            data-testid="input-reported-by" 
+                          />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                </div>
+              </div>
+
+              {/* Section: Programación */}
+              <div className="space-y-4">
+                <div className="flex items-center justify-between pb-2 border-b">
+                  <div className="flex items-center gap-2">
+                    <CalendarIcon className="h-4 w-4 text-primary" />
+                    <h3 className="text-sm font-semibold">
+                      {language === 'es' ? 'Programación' : 'Scheduling'}
+                    </h3>
+                  </div>
                   <p className="text-xs text-muted-foreground">
                     {language === 'es' 
                       ? 'Requerido para aparecer en calendario' 
@@ -1920,11 +1978,9 @@ export default function ExternalMaintenance() {
                       mode="single"
                       selected={schedule.date}
                       onSelect={(date) => {
-                        // Prevent clearing the date - always keep a schedule for calendar visibility
                         if (date) {
                           setSchedule(prev => {
                             const newSchedule = { ...prev, date };
-                            // Sync with React Hook Form for validation and persistence
                             form.setValue('scheduledDate', scheduleToISOString(newSchedule));
                             form.clearErrors('scheduledDate');
                             return newSchedule;
@@ -1944,7 +2000,6 @@ export default function ExternalMaintenance() {
                       onChange={(e) => {
                         setSchedule(prev => {
                           const newSchedule = { ...prev, time: e.target.value };
-                          // Sync with React Hook Form for validation and persistence
                           form.setValue('scheduledDate', scheduleToISOString(newSchedule));
                           form.clearErrors('scheduledDate');
                           return newSchedule;
@@ -1956,29 +2011,14 @@ export default function ExternalMaintenance() {
                 </div>
               </div>
 
-              {/* Additional Information Section */}
-              <div className="grid gap-4 md:grid-cols-2">
-                <FormField
-                  control={form.control}
-                  name="reportedBy"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>
-                        {language === "es" ? "Reportado por" : "Reported by"}
-                      </FormLabel>
-                      <FormControl>
-                        <Input 
-                          {...field} 
-                          value={field.value || ""} 
-                          placeholder={language === "es" ? "Nombre de quien reporta" : "Name of reporter"}
-                          data-testid="input-reported-by" 
-                        />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-
+              {/* Section: Información Financiera */}
+              <div className="space-y-4">
+                <div className="flex items-center gap-2 pb-2 border-b">
+                  <DollarSign className="h-4 w-4 text-primary" />
+                  <h3 className="text-sm font-semibold">
+                    {language === 'es' ? 'Información Financiera' : 'Financial Information'}
+                  </h3>
+                </div>
                 <FormField
                   control={form.control}
                   name="estimatedCost"
@@ -2004,19 +2044,27 @@ export default function ExternalMaintenance() {
                 />
               </div>
 
-              <FormField
-                control={form.control}
-                name="notes"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>{t.notes}</FormLabel>
-                    <FormControl>
-                      <Textarea {...field} value={field.value || ""} rows={2} data-testid="input-notes" />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
+              {/* Section: Notas Adicionales */}
+              <div className="space-y-4">
+                <div className="flex items-center gap-2 pb-2 border-b">
+                  <MessageSquare className="h-4 w-4 text-primary" />
+                  <h3 className="text-sm font-semibold">
+                    {language === 'es' ? 'Notas Adicionales' : 'Additional Notes'}
+                  </h3>
+                </div>
+                <FormField
+                  control={form.control}
+                  name="notes"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormControl>
+                        <Textarea {...field} value={field.value || ""} rows={2} data-testid="input-notes" placeholder={language === 'es' ? 'Agregue cualquier nota o comentario adicional...' : 'Add any additional notes or comments...'} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              </div>
 
               <DialogFooter>
                 <Button 
@@ -2059,56 +2107,24 @@ export default function ExternalMaintenance() {
               if (editingTicket) {
                 updateTicketMutation.mutate({ ticketId: editingTicket.id, data });
               }
-            })} className="space-y-4">
-              <FormField
-                control={editForm.control}
-                name="title"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>{t.ticketTitle}</FormLabel>
-                    <FormControl>
-                      <Input {...field} data-testid="input-edit-title" />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-
-              <FormField
-                control={editForm.control}
-                name="description"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>{t.description}</FormLabel>
-                    <FormControl>
-                      <Textarea {...field} rows={3} data-testid="input-edit-description" />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-
-              <div className="grid gap-4 md:grid-cols-2">
+            })} className="space-y-6">
+              {/* Section: Detalles del Ticket */}
+              <div className="space-y-4">
+                <div className="flex items-center gap-2 pb-2 border-b">
+                  <FileText className="h-4 w-4 text-primary" />
+                  <h3 className="text-sm font-semibold">
+                    {language === 'es' ? 'Detalles del Ticket' : 'Ticket Details'}
+                  </h3>
+                </div>
                 <FormField
                   control={editForm.control}
-                  name="category"
+                  name="title"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>{t.category}</FormLabel>
-                      <Select onValueChange={field.onChange} value={field.value}>
-                        <FormControl>
-                          <SelectTrigger data-testid="select-edit-category">
-                            <SelectValue />
-                          </SelectTrigger>
-                        </FormControl>
-                        <SelectContent>
-                          {Object.entries(categoryLabels).map(([key, labels]) => (
-                            <SelectItem key={key} value={key}>
-                              {labels[language]}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
+                      <FormLabel>{t.ticketTitle}</FormLabel>
+                      <FormControl>
+                        <Input {...field} data-testid="input-edit-title" />
+                      </FormControl>
                       <FormMessage />
                     </FormItem>
                   )}
@@ -2116,32 +2132,79 @@ export default function ExternalMaintenance() {
 
                 <FormField
                   control={editForm.control}
-                  name="priority"
+                  name="description"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>{t.priority}</FormLabel>
-                      <Select onValueChange={field.onChange} value={field.value}>
-                        <FormControl>
-                          <SelectTrigger data-testid="select-edit-priority">
-                            <SelectValue />
-                          </SelectTrigger>
-                        </FormControl>
-                        <SelectContent>
-                          {Object.entries(priorityColors).map(([key, config]) => (
-                            <SelectItem key={key} value={key}>
-                              {config.label[language]}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
+                      <FormLabel>{t.description}</FormLabel>
+                      <FormControl>
+                        <Textarea {...field} rows={3} data-testid="input-edit-description" />
+                      </FormControl>
                       <FormMessage />
                     </FormItem>
                   )}
                 />
+
+                <div className="grid gap-4 md:grid-cols-2">
+                  <FormField
+                    control={editForm.control}
+                    name="category"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>{t.category}</FormLabel>
+                        <Select onValueChange={field.onChange} value={field.value}>
+                          <FormControl>
+                            <SelectTrigger data-testid="select-edit-category">
+                              <SelectValue />
+                            </SelectTrigger>
+                          </FormControl>
+                          <SelectContent>
+                            {Object.entries(categoryLabels).map(([key, labels]) => (
+                              <SelectItem key={key} value={key}>
+                                {labels[language]}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+
+                  <FormField
+                    control={editForm.control}
+                    name="priority"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>{t.priority}</FormLabel>
+                        <Select onValueChange={field.onChange} value={field.value}>
+                          <FormControl>
+                            <SelectTrigger data-testid="select-edit-priority">
+                              <SelectValue />
+                            </SelectTrigger>
+                          </FormControl>
+                          <SelectContent>
+                            {Object.entries(priorityColors).map(([key, config]) => (
+                              <SelectItem key={key} value={key}>
+                                {config.label[language]}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                </div>
               </div>
 
-              {/* Costs and Reporter Section */}
-              <div className="grid gap-4 md:grid-cols-3">
+              {/* Section: Asignación e Información */}
+              <div className="space-y-4">
+                <div className="flex items-center gap-2 pb-2 border-b">
+                  <User className="h-4 w-4 text-primary" />
+                  <h3 className="text-sm font-semibold">
+                    {language === 'es' ? 'Asignación e Información' : 'Assignment & Information'}
+                  </h3>
+                </div>
                 <FormField
                   control={editForm.control}
                   name="reportedBy"
@@ -2162,49 +2225,82 @@ export default function ExternalMaintenance() {
                     </FormItem>
                   )}
                 />
+              </div>
 
+              {/* Section: Información Financiera */}
+              <div className="space-y-4">
+                <div className="flex items-center gap-2 pb-2 border-b">
+                  <DollarSign className="h-4 w-4 text-primary" />
+                  <h3 className="text-sm font-semibold">
+                    {language === 'es' ? 'Información Financiera' : 'Financial Information'}
+                  </h3>
+                </div>
+                <div className="grid gap-4 md:grid-cols-2">
+                  <FormField
+                    control={editForm.control}
+                    name="estimatedCost"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>
+                          {language === "es" ? "Costo Estimado (MXN)" : "Estimated Cost (MXN)"}
+                        </FormLabel>
+                        <FormControl>
+                          <Input 
+                            {...field} 
+                            type="number"
+                            step="0.01"
+                            min="0"
+                            value={field.value || ""} 
+                            placeholder="0.00"
+                            data-testid="input-edit-estimated-cost" 
+                          />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+
+                  <FormField
+                    control={editForm.control}
+                    name="actualCost"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>
+                          {language === "es" ? "Costo Real (MXN)" : "Actual Cost (MXN)"}
+                        </FormLabel>
+                        <FormControl>
+                          <Input 
+                            {...field} 
+                            type="number"
+                            step="0.01"
+                            min="0"
+                            value={field.value || ""} 
+                            placeholder="0.00"
+                            data-testid="input-edit-actual-cost" 
+                          />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                </div>
+              </div>
+
+              {/* Section: Notas Adicionales */}
+              <div className="space-y-4">
+                <div className="flex items-center gap-2 pb-2 border-b">
+                  <MessageSquare className="h-4 w-4 text-primary" />
+                  <h3 className="text-sm font-semibold">
+                    {language === 'es' ? 'Notas Adicionales' : 'Additional Notes'}
+                  </h3>
+                </div>
                 <FormField
                   control={editForm.control}
-                  name="estimatedCost"
+                  name="notes"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>
-                        {language === "es" ? "Costo Estimado" : "Estimated Cost"}
-                      </FormLabel>
                       <FormControl>
-                        <Input 
-                          {...field} 
-                          type="number"
-                          step="0.01"
-                          min="0"
-                          value={field.value || ""} 
-                          placeholder="0.00"
-                          data-testid="input-edit-estimated-cost" 
-                        />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-
-                <FormField
-                  control={editForm.control}
-                  name="actualCost"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>
-                        {language === "es" ? "Costo Real" : "Actual Cost"}
-                      </FormLabel>
-                      <FormControl>
-                        <Input 
-                          {...field} 
-                          type="number"
-                          step="0.01"
-                          min="0"
-                          value={field.value || ""} 
-                          placeholder="0.00"
-                          data-testid="input-edit-actual-cost" 
-                        />
+                        <Textarea {...field} value={field.value || ""} rows={2} data-testid="input-edit-notes" placeholder={language === 'es' ? 'Agregue cualquier nota o comentario adicional...' : 'Add any additional notes or comments...'} />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
@@ -2212,26 +2308,15 @@ export default function ExternalMaintenance() {
                 />
               </div>
 
-              <FormField
-                control={editForm.control}
-                name="notes"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>{t.notes}</FormLabel>
-                    <FormControl>
-                      <Textarea {...field} value={field.value || ""} rows={2} data-testid="input-edit-notes" />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-
-              {/* Photos Section */}
-              <div className="space-y-3 border-t pt-4">
-                <div className="flex flex-col sm:flex-row items-start sm:items-center gap-2 sm:gap-3">
-                  <label className="text-sm font-medium">
+              {/* Section: Fotos */}
+              <div className="space-y-4">
+                <div className="flex items-center gap-2 pb-2 border-b">
+                  <ImageIcon className="h-4 w-4 text-primary" />
+                  <h3 className="text-sm font-semibold">
                     {language === 'es' ? 'Fotos' : 'Photos'}
-                  </label>
+                  </h3>
+                </div>
+                <div className="flex flex-col sm:flex-row items-start sm:items-center gap-2 sm:gap-3">
                   <div className="flex items-center gap-2 ml-auto">
                     <Select value={selectedPhotoPhase} onValueChange={(value: any) => setSelectedPhotoPhase(value)}>
                       <SelectTrigger className="w-[140px]" data-testid="select-photo-phase">
