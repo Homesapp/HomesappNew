@@ -23174,6 +23174,29 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+
+  // External Dashboard Summary
+  app.get("/api/external-dashboard-summary", isAuthenticated, requireRole(EXTERNAL_ALL_ROLES), async (req: any, res) => {
+    try {
+      let agencyId = req.query.agencyId;
+      if (!agencyId) {
+        agencyId = await getUserAgencyId(req);
+        if (!agencyId) {
+          return res.status(400).json({ message: "User is not assigned to any agency" });
+        }
+      }
+      
+      // Verify ownership
+      const hasAccess = await verifyExternalAgencyOwnership(req, res, agencyId);
+      if (!hasAccess) return;
+      
+      const summary = await storage.getExternalDashboardSummary(agencyId);
+      res.json(summary);
+    } catch (error: any) {
+      console.error("Error fetching dashboard summary:", error);
+      handleGenericError(res, error);
+    }
+  });
   // External Condominiums Routes
   app.get("/api/external-condominiums", isAuthenticated, requireRole(EXTERNAL_ALL_ROLES), async (req: any, res) => {
     try {
