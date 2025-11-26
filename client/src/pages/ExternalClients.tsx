@@ -104,6 +104,7 @@ import {
   FileSpreadsheet,
   AlertTriangle,
   Save,
+  ArrowLeftCircle,
 } from "lucide-react";
 import * as XLSX from "xlsx";
 import { useLanguage } from "@/contexts/LanguageContext";
@@ -162,6 +163,7 @@ export default function ExternalClients() {
   const [isCreateLeadDialogOpen, setIsCreateLeadDialogOpen] = useState(false);
   const [isEditLeadDialogOpen, setIsEditLeadDialogOpen] = useState(false);
   const [isDeleteLeadDialogOpen, setIsDeleteLeadDialogOpen] = useState(false);
+  const [isConvertToLeadDialogOpen, setIsConvertToLeadDialogOpen] = useState(false);
   const [isLeadDetailOpen, setIsLeadDetailOpen] = useState(false);
   const [selectedLead, setSelectedLead] = useState<ExternalLead | null>(null);
   const [isReassignDialogOpen, setIsReassignDialogOpen] = useState(false);
@@ -704,6 +706,41 @@ export default function ExternalClients() {
         description: error.message || (language === "es" 
           ? "No se pudo convertir el lead a cliente."
           : "Failed to convert lead to client."),
+      });
+    },
+  });
+
+  // Convert client back to lead mutation
+  const convertClientToLeadMutation = useMutation({
+    mutationFn: async ({ clientId, reason }: { clientId: string; reason: string }) => {
+      const response = await apiRequest("POST", `/api/external-clients/${clientId}/convert-to-lead`, { reason });
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.message || (language === "es" 
+          ? "Error al reconvertir cliente a lead"
+          : "Error converting client to lead"));
+      }
+      return response.json();
+    },
+    onSuccess: (data) => {
+      queryClient.invalidateQueries({ queryKey: ["/api/external-clients"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/external-leads"] });
+      toast({
+        title: language === "es" ? "Cliente reconvertido" : "Client converted",
+        description: language === "es" 
+          ? "El cliente ha sido reconvertido a lead exitosamente."
+          : "Client has been converted back to lead successfully.",
+      });
+      setIsClientDetailOpen(false);
+      setSelectedClient(null);
+    },
+    onError: (error: any) => {
+      toast({
+        variant: "destructive",
+        title: language === "es" ? "Error" : "Error",
+        description: error.message || (language === "es" 
+          ? "No se pudo reconvertir el cliente a lead."
+          : "Failed to convert client to lead."),
       });
     },
   });
@@ -2262,7 +2299,7 @@ export default function ExternalClients() {
             </div>
           )}
 
-          <DialogFooter className="border-t pt-4">
+          <DialogFooter className="border-t pt-4 gap-2 flex-wrap">
             <Button
               variant="outline"
               onClick={() => setIsClientDetailOpen(false)}
@@ -2270,6 +2307,16 @@ export default function ExternalClients() {
             >
               {language === "es" ? "Cerrar" : "Close"}
             </Button>
+            {selectedClient && selectedClient.status === "active" && !selectedClient.convertedBackToLeadId && (
+              <Button
+                variant="outline"
+                onClick={() => setIsConvertToLeadDialogOpen(true)}
+                data-testid="button-convert-to-lead"
+              >
+                <ArrowLeftCircle className="h-4 w-4 mr-2" />
+                {language === "es" ? "Reconvertir a Lead" : "Convert to Lead"}
+              </Button>
+            )}
             <Button
               onClick={() => {
                 setIsClientDetailOpen(false);
@@ -2281,6 +2328,48 @@ export default function ExternalClients() {
             >
               <Pencil className="h-4 w-4 mr-2" />
               {language === "es" ? "Editar" : "Edit"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Convert Client to Lead Confirmation Dialog */}
+      <Dialog open={isConvertToLeadDialogOpen} onOpenChange={setIsConvertToLeadDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>
+              {language === "es" ? "Reconvertir a Lead" : "Convert to Lead"}
+            </DialogTitle>
+            <DialogDescription>
+              {language === "es" 
+                ? `¿Está seguro de que desea reconvertir a ${selectedClient?.firstName} ${selectedClient?.lastName} en un nuevo lead? El cliente será archivado y se creará un nuevo lead con su información.`
+                : `Are you sure you want to convert ${selectedClient?.firstName} ${selectedClient?.lastName} back to a lead? The client will be archived and a new lead will be created.`}
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter className="gap-2 sm:gap-0">
+            <Button
+              variant="outline"
+              onClick={() => setIsConvertToLeadDialogOpen(false)}
+              data-testid="button-convert-cancel"
+            >
+              {language === "es" ? "Cancelar" : "Cancel"}
+            </Button>
+            <Button
+              onClick={() => {
+                if (selectedClient) {
+                  convertClientToLeadMutation.mutate({ 
+                    clientId: selectedClient.id, 
+                    reason: "manual" 
+                  });
+                  setIsConvertToLeadDialogOpen(false);
+                }
+              }}
+              disabled={convertClientToLeadMutation.isPending}
+              data-testid="button-convert-confirm"
+            >
+              {convertClientToLeadMutation.isPending 
+                ? (language === "es" ? "Convirtiendo..." : "Converting...")
+                : (language === "es" ? "Reconvertir" : "Convert")}
             </Button>
           </DialogFooter>
         </DialogContent>

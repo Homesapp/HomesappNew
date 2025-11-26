@@ -21766,16 +21766,67 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.patch("/api/external-contracts/:id/status", isAuthenticated, requireRole(EXTERNAL_MAINTENANCE_ROLES), async (req: any, res) => {
     try {
       const { id } = req.params;
-      const { status } = req.body;
+      const { status, autoConvertToLead } = req.body;
       
       if (!status) {
         return res.status(400).json({ message: "Status is required" });
       }
       
+      // Get the contract before updating to check for client
+      const existingContract = await storage.getExternalRentalContractById(id);
+      
       const contract = await storage.updateExternalContractStatus(id, status);
       
       await createAuditLog(req, "update", "external_contract", id, `Changed contract status to ${status}`);
-      res.json(contract);
+      
+      // Auto-convert client to lead when rental ends (status = completed)
+      let convertedLead = null;
+      if (status === 'completed' && existingContract?.clientId && autoConvertToLead !== false) {
+        try {
+          const client = await storage.getExternalClient(existingContract.clientId);
+          
+          // Only convert if client exists, is active, and hasn't been converted already
+          if (client && client.status === 'active' && !client.convertedBackToLeadId) {
+            const agencyId = existingContract.agencyId;
+            
+            // Create new lead from client data
+            const leadData = {
+              agencyId,
+              registrationType: 'seller' as const,
+              firstName: client.firstName,
+              lastName: client.lastName,
+              email: client.email || undefined,
+              phone: client.phone || undefined,
+              status: 'nuevo_lead' as const,
+              source: 'reconversion_cliente_rental_ended',
+              notes: `Reconvertido automáticamente al finalizar renta. Contrato: ${id}. Cliente original ID: ${client.id}`,
+              bedroomsText: client.bedroomsPreference?.toString() || undefined,
+              createdBy: req.user.id,
+            };
+
+            convertedLead = await storage.createExternalLead(leadData);
+
+            // Update client to mark as converted back
+            await storage.updateExternalClient(client.id, {
+              status: 'archived',
+              convertedBackToLeadId: convertedLead.id,
+              convertedBackToLeadAt: new Date(),
+              convertedBackReason: 'rental_ended',
+            });
+
+            await createAuditLog(req, "create", "external_lead", convertedLead.id, `Auto-reconverted from client ${client.id} when rental ended`);
+            await createAuditLog(req, "update", "external_client", client.id, `Auto-converted back to lead ${convertedLead.id} when rental ended`);
+          }
+        } catch (conversionError: any) {
+          console.error("Error auto-converting client to lead:", conversionError);
+          // Don't fail the main request if conversion fails
+        }
+      }
+      
+      res.json({ 
+        ...contract,
+        convertedLead: convertedLead ? { id: convertedLead.id, message: "Cliente reconvertido a lead automáticamente" } : null
+      });
     } catch (error: any) {
       console.error("Error updating external contract status:", error);
       handleGenericError(res, error);
@@ -24957,6 +25008,70 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.status(204).send();
     } catch (error: any) {
       console.error("Error deleting external client:", error);
+      handleGenericError(res, error);
+    }
+  });
+
+  // POST /api/external-clients/:id/convert-to-lead - Convert client back to lead
+  app.post("/api/external-clients/:id/convert-to-lead", isAuthenticated, requireRole(EXTERNAL_ADMIN_ROLES), async (req: any, res) => {
+    try {
+      const { id } = req.params;
+      const { reason } = req.body; // manual, rental_ended, etc.
+      const agencyId = await getUserAgencyId(req);
+      
+      if (!agencyId) {
+        return res.status(403).json({ message: "User is not assigned to any agency" });
+      }
+
+      const client = await storage.getExternalClient(id);
+      if (!client) {
+        return res.status(404).json({ message: "Client not found" });
+      }
+
+      // Verify agency ownership
+      if (client.agencyId !== agencyId) {
+        return res.status(403).json({ message: "No access to this client" });
+      }
+
+      // Check if already converted
+      if (client.convertedBackToLeadId) {
+        return res.status(400).json({ message: "Este cliente ya fue reconvertido a lead" });
+      }
+
+      // Create new lead from client data
+      const leadData = {
+        agencyId,
+        registrationType: 'seller' as const,
+        firstName: client.firstName,
+        lastName: client.lastName,
+        email: client.email || undefined,
+        phone: client.phone || undefined,
+        status: 'nuevo_lead' as const,
+        source: `reconversion_cliente_${reason || 'manual'}`,
+        notes: `Reconvertido desde cliente: ${client.firstName} ${client.lastName}. Razón: ${reason || 'manual'}. Cliente original ID: ${client.id}`,
+        bedroomsText: client.bedroomsPreference?.toString() || undefined,
+        createdBy: req.user.id,
+      };
+
+      const newLead = await storage.createExternalLead(leadData);
+
+      // Update client to mark as converted back
+      await storage.updateExternalClient(id, {
+        status: 'archived',
+        convertedBackToLeadId: newLead.id,
+        convertedBackToLeadAt: new Date(),
+        convertedBackReason: reason || 'manual',
+      });
+
+      await createAuditLog(req, "create", "external_lead", newLead.id, `Reconverted from client ${client.id}`);
+      await createAuditLog(req, "update", "external_client", id, `Converted back to lead ${newLead.id}`);
+      
+      res.status(201).json({ 
+        lead: newLead,
+        message: "Cliente reconvertido a lead exitosamente" 
+      });
+    } catch (error: any) {
+      console.error("Error converting client to lead:", error);
       handleGenericError(res, error);
     }
   });

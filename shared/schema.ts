@@ -5877,6 +5877,11 @@ export const externalClients = pgTable("external_clients", {
   source: varchar("source", { length: 100 }), // referral, website, agent, social_media, lead_conversion, etc
   sourceLeadId: varchar("source_lead_id"), // ID del lead si el cliente fue convertido de un lead
   
+  // Reconversión a Lead (cuando termina renta o manualmente)
+  convertedBackToLeadId: varchar("converted_back_to_lead_id"), // ID del nuevo lead creado cuando se reconvierte
+  convertedBackToLeadAt: timestamp("converted_back_to_lead_at"), // Fecha de reconversión a lead
+  convertedBackReason: varchar("converted_back_reason", { length: 100 }), // rental_ended, manual, etc
+  
   // Blacklist Management
   blacklistStatus: varchar("blacklist_status", { length: 50 }).default("none"), // none, warned, blacklisted
   blacklistReason: text("blacklist_reason"),
@@ -5902,6 +5907,7 @@ export const externalClients = pgTable("external_clients", {
   index("idx_external_clients_status").on(table.status),
   index("idx_external_clients_verified").on(table.isVerified),
   index("idx_external_clients_source_lead").on(table.sourceLeadId),
+  index("idx_external_clients_converted_back").on(table.convertedBackToLeadId),
   index("idx_external_clients_blacklist").on(table.blacklistStatus),
 ]);
 
