@@ -9,7 +9,6 @@ import { Separator } from "@/components/ui/separator";
 import { Skeleton } from "@/components/ui/skeleton";
 import { ExternalPaginationControls } from "@/components/external/ExternalPaginationControls";
 
-// Lazy load heavy components
 const RentalWizard = lazy(() => import("@/components/RentalWizard"));
 import {
   Table,
@@ -27,13 +26,6 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
 import { useMobile } from "@/hooks/use-mobile";
 import { Input } from "@/components/ui/input";
@@ -44,33 +36,25 @@ import {
 } from "@/components/ui/popover";
 import { 
   Home, 
-  User, 
-  Calendar, 
-  DollarSign, 
+  User,
+  Calendar,
+  DollarSign,
   FileText, 
   Building2,
   AlertCircle,
   CheckCircle2,
   Clock,
   Ban,
+  PawPrint,
   LayoutGrid,
   Table as TableIcon,
   XCircle,
-  ChevronUp,
-  ChevronDown,
-  PawPrint,
-  Zap,
-  Droplet,
-  Wifi,
-  Flame,
-  Wrench,
   Search,
   Filter
 } from "lucide-react";
 import { format } from "date-fns";
 import { es, enUS } from "date-fns/locale";
 import { useLanguage } from "@/contexts/LanguageContext";
-import { cn } from "@/lib/utils";
 import type { ExternalRentalContract, ExternalUnit, ExternalCondominium } from "@shared/schema";
 
 interface RentalWithDetails {
@@ -88,6 +72,20 @@ interface RentalWithDetails {
   nextPaymentService?: string | null;
 }
 
+interface RentalsOverviewResponse {
+  contracts: RentalWithDetails[];
+  filters: {
+    condominiums: Array<{ id: string; name: string }>;
+    units: Array<{ id: string; unitNumber: string; condominiumId: string }>;
+  };
+  statistics: {
+    total: number;
+    active: number;
+    completed: number;
+    pending: number;
+  };
+}
+
 export default function ExternalRentals() {
   const { language } = useLanguage();
   const { toast } = useToast();
@@ -103,39 +101,37 @@ export default function ExternalRentals() {
   const [contractToCancel, setContractToCancel] = useState<string | null>(null);
   const [selectUnitDialogOpen, setSelectUnitDialogOpen] = useState(false);
   const [wizardOpen, setWizardOpen] = useState(false);
-  const [serviceIndices, setServiceIndices] = useState<Record<string, number>>({});
   const [searchTerm, setSearchTerm] = useState<string>("");
   const [isFiltersOpen, setIsFiltersOpen] = useState(false);
   
-  // Pagination state (max 3 rows x 3 cols = 9 cards per page)
   const [currentPage, setCurrentPage] = useState(1);
-  const [itemsPerPage, setItemsPerPage] = useState(10); // Default for table
+  const [itemsPerPage, setItemsPerPage] = useState(10);
 
-  // Fetch rentals - uses default 5 min cache (reasonable for contracts)
-  const { data: rentals, isLoading, isError, error, refetch } = useQuery<RentalWithDetails[]>({
-    queryKey: statusFilter 
-      ? [`/api/external-rental-contracts?status=${statusFilter}`]
-      : ["/api/external-rental-contracts"],
-  });
-
-  // Get condominiums for filter dropdown - static data, longer cache
-  const { data: condominiums } = useQuery<Array<{ id: string; name: string }>>({
-    queryKey: ["/api/external-condominiums-for-filters"],
-    staleTime: 15 * 60 * 1000, // 15 minutes (rarely changes)
-  });
-
-  // Get units for filter dropdown - uses default 5 min cache
-  const { data: units } = useQuery<Array<{ id: string; unitNumber: string; condominiumId: string }>>({
-    queryKey: ["/api/external-units-for-filters", condominiumFilter],
+  // OPTIMIZED: Single consolidated query for all rentals data (contracts, filters, stats)
+  const { data: overviewData, isLoading, isError, error, refetch } = useQuery<RentalsOverviewResponse>({
+    queryKey: ["/api/external/rentals/overview", statusFilter],
     queryFn: async () => {
-      const url = condominiumFilter 
-        ? `/api/external-units-for-filters?condominiumId=${condominiumFilter}`
-        : "/api/external-units-for-filters";
+      const url = statusFilter 
+        ? `/api/external/rentals/overview?status=${statusFilter}`
+        : "/api/external/rentals/overview";
       const response = await fetch(url, { credentials: "include" });
-      if (!response.ok) throw new Error("Failed to fetch units");
+      if (!response.ok) throw new Error("Failed to fetch rentals overview");
       return response.json();
     },
+    staleTime: 30 * 1000, // 30 seconds cache
   });
+
+  // Extract data from consolidated response
+  const rentals = overviewData?.contracts || [];
+  const condominiums = overviewData?.filters.condominiums || [];
+  const stats = overviewData?.statistics || { total: 0, active: 0, completed: 0, pending: 0 };
+  
+  // Filter units by selected condominium
+  const units = useMemo(() => {
+    const allUnits = overviewData?.filters.units || [];
+    if (!condominiumFilter) return allUnits;
+    return allUnits.filter(u => u.condominiumId === condominiumFilter);
+  }, [overviewData?.filters.units, condominiumFilter]);
 
   // Get available units - fresh data for selection, only when dialog open
   const { data: availableUnitsResponse } = useQuery<{ data: ExternalUnit[], total: number }>({
@@ -146,21 +142,9 @@ export default function ExternalRentals() {
       return response.json();
     },
     enabled: selectUnitDialogOpen,
-    staleTime: 0, // Always fetch fresh when dialog opens
+    staleTime: 0,
   });
   const availableUnits = availableUnitsResponse?.data;
-
-  // Fetch all payments - uses default 5 min cache
-  const { data: payments = [] } = useQuery<Array<{
-    id: string;
-    contractId: string;
-    serviceType: string;
-    status: 'pending' | 'paid' | 'overdue' | 'cancelled';
-    dueDate: string;
-    amount: string;
-  }>>({
-    queryKey: ["/api/external-payments"],
-  });
 
   // Auto-switch view mode on genuine breakpoint transitions (only if no manual override)
   useEffect(() => {
@@ -202,7 +186,7 @@ export default function ExternalRentals() {
       return await apiRequest("PATCH", `/api/external-rental-contracts/${contractId}/cancel`, {});
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/external-rental-contracts"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/external/rentals/overview"] });
       setCancelDialogOpen(false);
       setContractToCancel(null);
       toast({
@@ -291,72 +275,6 @@ export default function ExternalRentals() {
     setIsFiltersOpen(false);
   };
 
-  // Helper to get the most recent payment status for a service
-  const getNextPaymentStatus = (contractId: string, serviceType: string, dayOfMonth: number): 'paid' | 'pending' | 'overdue' | null => {
-    if (!payments || payments.length === 0) return null;
-    
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    
-    // Find all payments for this contract and service
-    const servicePayments = payments
-      .filter(p => p.contractId === contractId && p.serviceType === serviceType)
-      .sort((a, b) => new Date(b.dueDate).getTime() - new Date(a.dueDate).getTime()); // Sort by most recent first
-    
-    if (servicePayments.length === 0) {
-      return 'pending';
-    }
-    
-    // Get the most recent payment
-    const mostRecentPayment = servicePayments[0];
-    const mostRecentDueDate = new Date(mostRecentPayment.dueDate);
-    mostRecentDueDate.setHours(0, 0, 0, 0);
-    
-    // If the most recent payment is paid, show it as paid
-    if (mostRecentPayment.status === 'paid') {
-      return 'paid';
-    }
-    
-    // If the most recent payment is pending and past due, it's overdue
-    if (mostRecentPayment.status === 'pending' && today > mostRecentDueDate) {
-      return 'overdue';
-    }
-    
-    // If cancelled, treat as overdue
-    if (mostRecentPayment.status === 'cancelled') {
-      return 'overdue';
-    }
-    
-    // Otherwise return its current status
-    return mostRecentPayment.status;
-  };
-
-  const getServiceLabel = (serviceType: string) => {
-    const labels: Record<string, { es: string; en: string }> = {
-      rent: { es: "Renta", en: "Rent" },
-      electricity: { es: "Electricidad", en: "Electricity" },
-      water: { es: "Agua", en: "Water" },
-      internet: { es: "Internet", en: "Internet" },
-      gas: { es: "Gas", en: "Gas" },
-      maintenance: { es: "Mantenimiento", en: "Maintenance" },
-      other: { es: "Otro", en: "Other" },
-    };
-    return labels[serviceType]?.[language] || serviceType;
-  };
-
-  const getServiceIcon = (serviceType: string) => {
-    const iconClass = "h-4 w-4";
-    switch (serviceType) {
-      case "rent": return <Home className={iconClass} />;
-      case "electricity": return <Zap className={iconClass} />;
-      case "water": return <Droplet className={iconClass} />;
-      case "internet": return <Wifi className={iconClass} />;
-      case "gas": return <Flame className={iconClass} />;
-      case "maintenance": return <Wrench className={iconClass} />;
-      default: return <DollarSign className={iconClass} />;
-    }
-  };
-
   const getStatusColor = (status: string) => {
     switch (status) {
       case "active": return "bg-green-500/10 text-green-600 dark:text-green-400";
@@ -386,18 +304,6 @@ export default function ExternalRentals() {
     };
     return labels[status]?.[language] || status;
   };
-
-  // Calculate statistics - memoized to avoid recalculation on every render
-  const stats = useMemo(() => {
-    if (!rentals) return { total: 0, active: 0, completed: 0, suspended: 0 };
-    
-    return {
-      total: rentals.length,
-      active: rentals.filter(r => r.contract.status === "active").length,
-      completed: rentals.filter(r => r.contract.status === "completed").length,
-      suspended: rentals.filter(r => r.contract.status === "suspended").length,
-    };
-  }, [rentals]);
 
   return (
     <div className="container mx-auto p-6 space-y-6">
@@ -707,39 +613,7 @@ export default function ExternalRentals() {
           {viewMode === "cards" ? (
             <>
             <div className="grid gap-4 grid-cols-1 lg:grid-cols-2 xl:grid-cols-3">
-              {paginatedRentals.map(({ contract, unit, condominium, activeServices, nextPaymentDue, nextPaymentAmount, nextPaymentService }) => {
-              // Sort services so rent always appears first
-              const sortedServices = activeServices ? [...activeServices].sort((a, b) => {
-                if (a.serviceType === 'rent') return -1;
-                if (b.serviceType === 'rent') return 1;
-                if (a.serviceType === 'electricity' && b.serviceType !== 'rent') return -1;
-                if (b.serviceType === 'electricity' && a.serviceType !== 'rent') return 1;
-                return 0;
-              }) : [];
-              
-              // Pagination for services
-              const serviceStartIndex = serviceIndices[contract.id] || 0;
-              const servicesPerPage = 3;
-              const totalServices = sortedServices.length;
-              const displayedServices = sortedServices.slice(serviceStartIndex, serviceStartIndex + servicesPerPage);
-              const canScrollLeft = serviceStartIndex > 0;
-              const canScrollRight = serviceStartIndex + servicesPerPage < totalServices;
-              
-              const handleScrollLeft = () => {
-                setServiceIndices(prev => ({
-                  ...prev,
-                  [contract.id]: Math.max(0, serviceStartIndex - 1)
-                }));
-              };
-              
-              const handleScrollRight = () => {
-                setServiceIndices(prev => ({
-                  ...prev,
-                  [contract.id]: Math.min(totalServices - servicesPerPage, serviceStartIndex + 1)
-                }));
-              };
-              
-              return (
+              {paginatedRentals.map(({ contract, unit, condominium, nextPaymentDue, nextPaymentAmount }) => (
               <Card key={contract.id} className="hover-elevate" data-testid={`card-rental-${contract.id}`}>
                 <CardHeader>
                   <div className="flex items-start justify-between gap-2">
@@ -756,11 +630,7 @@ export default function ExternalRentals() {
                           {contract.tenantName}
                         </span>
                         {contract.hasPet && (
-                          <PawPrint 
-                            className="h-4 w-4 text-amber-600 dark:text-amber-500 flex-shrink-0" 
-                            data-testid={`icon-pet-${contract.id}`}
-                            title={contract.petName || (language === "es" ? "Tiene mascota" : "Has pet")}
-                          />
+                          <PawPrint className="h-4 w-4 text-amber-600 dark:text-amber-500 flex-shrink-0" data-testid={`icon-pet-${contract.id}`} />
                         )}
                       </CardDescription>
                     </div>
@@ -826,81 +696,17 @@ export default function ExternalRentals() {
                     </div>
                   </div>
 
-                  {/* Services with Payment Dates */}
-                  {sortedServices && sortedServices.length > 0 && (
+                  {/* Next Payment Info (from backend) */}
+                  {nextPaymentDue && (
                     <>
                       <Separator />
-                      <div className="space-y-2">
-                        <div className="flex items-center justify-between">
-                          <p className="text-xs text-muted-foreground">
-                            {language === "es" ? "Servicios y próximas fechas de pago:" : "Services and next payment dates:"}
-                          </p>
-                          {totalServices > servicesPerPage && (
-                            <div className="flex gap-1">
-                              <Button
-                                variant="ghost"
-                                size="icon"
-                                className="h-6 w-6"
-                                onClick={handleScrollLeft}
-                                disabled={!canScrollLeft}
-                                data-testid={`button-services-left-${contract.id}`}
-                              >
-                                <ChevronUp className="h-3 w-3 rotate-[-90deg]" />
-                              </Button>
-                              <Button
-                                variant="ghost"
-                                size="icon"
-                                className="h-6 w-6"
-                                onClick={handleScrollRight}
-                                disabled={!canScrollRight}
-                                data-testid={`button-services-right-${contract.id}`}
-                              >
-                                <ChevronDown className="h-3 w-3 rotate-[-90deg]" />
-                              </Button>
-                            </div>
-                          )}
-                        </div>
-                        <div className="flex gap-2 overflow-hidden">
-                          {displayedServices.map((service, idx) => {
-                            const parsedAmount = service.amount ? parseFloat(service.amount) : NaN;
-                            const hasValidAmount = Number.isFinite(parsedAmount) && parsedAmount > 0;
-                            const paymentStatus = getNextPaymentStatus(contract.id, service.serviceType, service.dayOfMonth);
-                            
-                            // Determine background colors based on payment status
-                            // Paid = green, Pending/Overdue = red (unpaid obligations)
-                            const statusColors = paymentStatus === 'paid' 
-                              ? 'bg-green-500/10 border-green-500/20 text-green-700 dark:text-green-300'
-                              : (paymentStatus === 'pending' || paymentStatus === 'overdue')
-                              ? 'bg-red-500/10 border-red-500/20 text-red-700 dark:text-red-300'
-                              : 'bg-muted border-muted-foreground/20 text-muted-foreground';
-                            
-                            return (
-                              <div 
-                                key={serviceStartIndex + idx}
-                                className={cn(
-                                  "flex flex-col items-center justify-center gap-1 p-2 border rounded-md flex-1 min-w-[90px] transition-colors",
-                                  statusColors
-                                )}
-                                data-testid={`service-item-${contract.id}-${serviceStartIndex + idx}`}
-                              >
-                                <div className="flex items-center gap-1">
-                                  {getServiceIcon(service.serviceType)}
-                                  <span className="text-xs font-medium">
-                                    {getServiceLabel(service.serviceType)}
-                                  </span>
-                                </div>
-                                {hasValidAmount && (
-                                  <span className="text-xs font-bold">
-                                    ${parsedAmount.toLocaleString()}
-                                  </span>
-                                )}
-                                <span className="text-xs opacity-70">
-                                  {language === "es" ? "Día" : "Day"} {service.dayOfMonth}
-                                </span>
-                              </div>
-                            );
-                          })}
-                        </div>
+                      <div className="flex items-center justify-between text-sm">
+                        <span className="text-muted-foreground">
+                          {language === "es" ? "Próximo pago:" : "Next payment:"}
+                        </span>
+                        <span className="font-semibold">
+                          ${nextPaymentAmount ? parseFloat(nextPaymentAmount).toLocaleString() : '0'} - {format(new Date(nextPaymentDue), "dd/MM/yyyy")}
+                        </span>
                       </div>
                     </>
                   )}
@@ -952,8 +758,7 @@ export default function ExternalRentals() {
                   </div>
                 </CardContent>
               </Card>
-              );
-              })}
+              ))}
             </div>
             
             {filteredRentals.length > 0 && (

@@ -183,6 +183,7 @@ export default function RentalWizard({ open, onOpenChange }: RentalWizardProps) 
       return response.json();
     },
     onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/external/rentals/overview"] });
       queryClient.invalidateQueries({ queryKey: ["/api/external-rental-contracts"] });
       queryClient.invalidateQueries({ queryKey: ["/api/external-units"] });
       toast({

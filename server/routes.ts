@@ -27607,6 +27607,151 @@ export async function registerRoutes(app: Express): Promise<Server> {
       handleGenericError(res, error);
     }
   });
+  // GET /api/external/rentals/overview - Consolidated endpoint for Active Rentals section
+  // Returns contracts with details, filter metadata, and statistics in ONE request
+  app.get("/api/external/rentals/overview", isAuthenticated, requireRole(EXTERNAL_ALL_ROLES), async (req: any, res) => {
+    try {
+      const agencyId = await getUserAgencyId(req);
+      if (!agencyId) {
+        return res.status(403).json({ message: "No agency access" });
+      }
+      
+      const { status } = req.query;
+      
+      // Build conditions for contracts
+      const contractConditions = [eq(externalRentalContracts.agencyId, agencyId)];
+      if (status && status !== 'all') {
+        contractConditions.push(eq(externalRentalContracts.status, status as any));
+      }
+      
+      // Query 1: Get rental contracts with unit and condominium (single JOIN query)
+      const contractsWithDetails = await db.select({
+        contract: externalRentalContracts,
+        unit: externalUnits,
+        condominium: externalCondominiums,
+      })
+        .from(externalRentalContracts)
+        .leftJoin(externalUnits, eq(externalRentalContracts.unitId, externalUnits.id))
+        .leftJoin(externalCondominiums, eq(externalUnits.condominiumId, externalCondominiums.id))
+        .where(and(...contractConditions))
+        .orderBy(desc(externalRentalContracts.createdAt));
+      
+      // Query 2: Get filter metadata (condominiums for this agency)
+      const condominiumsData = await db.select({
+        id: externalCondominiums.id,
+        name: externalCondominiums.name,
+      })
+        .from(externalCondominiums)
+        .where(eq(externalCondominiums.agencyId, agencyId))
+        .orderBy(asc(externalCondominiums.name));
+      
+      // Query 3: Get units for filters (grouped by condo)
+      const unitsData = await db.select({
+        id: externalUnits.id,
+        unitNumber: externalUnits.unitNumber,
+        condominiumId: externalUnits.condominiumId,
+      })
+        .from(externalUnits)
+        .where(eq(externalUnits.agencyId, agencyId))
+        .orderBy(asc(externalUnits.unitNumber));
+      
+      // Query 4: Get statistics from ALL contracts (not filtered)
+      const allContractsForStats = await db.select({ status: externalRentalContracts.status })
+        .from(externalRentalContracts)
+        .where(eq(externalRentalContracts.agencyId, agencyId));
+      
+      const stats = {
+        total: allContractsForStats.length,
+        active: allContractsForStats.filter(c => c.status === 'active').length,
+        completed: allContractsForStats.filter(c => c.status === 'completed').length,
+        pending: allContractsForStats.filter(c => c.status === 'pending_validation').length,
+      };
+      
+      // If no contracts, return early with empty data but include filters
+      if (contractsWithDetails.length === 0) {
+        return res.json({
+          contracts: [],
+          filters: {
+            condominiums: condominiumsData,
+            units: unitsData,
+          },
+          statistics: stats,
+        });
+      }
+      
+      // Query 5: Bulk fetch active schedules for all contracts
+      const contractIds = contractsWithDetails.map(c => c.contract.id);
+      const allSchedules = await db.select()
+        .from(externalPaymentSchedules)
+        .where(
+          and(
+            inArray(externalPaymentSchedules.contractId, contractIds),
+            eq(externalPaymentSchedules.isActive, true)
+          )
+        );
+      
+      // Query 6: Bulk fetch next upcoming payment for all contracts
+      const allNextPayments = await db.select()
+        .from(externalPayments)
+        .where(
+          and(
+            inArray(externalPayments.contractId, contractIds),
+            eq(externalPayments.status, 'pending'),
+            sql`${externalPayments.dueDate} >= CURRENT_DATE`
+          )
+        )
+        .orderBy(asc(externalPayments.dueDate));
+      
+      // Group schedules by contract ID
+      const schedulesByContract = allSchedules.reduce((acc, schedule) => {
+        if (!acc[schedule.contractId]) {
+          acc[schedule.contractId] = [];
+        }
+        acc[schedule.contractId].push(schedule);
+        return acc;
+      }, {} as Record<string, typeof allSchedules>);
+      
+      // Get first payment per contract ID
+      const nextPaymentByContract = allNextPayments.reduce((acc, payment) => {
+        if (!acc[payment.contractId]) {
+          acc[payment.contractId] = payment;
+        }
+        return acc;
+      }, {} as Record<string, typeof allNextPayments[0]>);
+      
+      // Combine contracts with their services and payment info
+      const enhancedContracts = contractsWithDetails.map((item) => {
+        const schedules = schedulesByContract[item.contract.id] || [];
+        const nextPayment = nextPaymentByContract[item.contract.id];
+        
+        return {
+          ...item,
+          activeServices: schedules.map(s => ({
+            serviceType: s.serviceType,
+            amount: s.amount,
+            currency: s.currency,
+            dayOfMonth: s.dayOfMonth,
+          })),
+          nextPaymentDue: nextPayment?.dueDate || null,
+          nextPaymentAmount: nextPayment?.amount || null,
+          nextPaymentService: nextPayment?.serviceType || null,
+        };
+      });
+      
+      res.json({
+        contracts: enhancedContracts,
+        filters: {
+          condominiums: condominiumsData,
+          units: unitsData,
+        },
+        statistics: stats,
+      });
+    } catch (error: any) {
+      console.error("Error fetching rentals overview:", error);
+      handleGenericError(res, error);
+    }
+  });
+
 
   // External Rental Contracts Routes
   // Get all rental contracts for user's agency with unit and condominium info
