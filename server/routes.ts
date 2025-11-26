@@ -25897,7 +25897,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (newSellerId?.startsWith('agency_')) {
         // Reassigning to agency (no specific seller)
         updateData = {
-          assignedSellerId: null,
+          
           sellerId: null,
           sellerName: newSellerName || null,
         };
@@ -25908,7 +25908,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           return res.status(400).json({ message: "Invalid seller" });
         }
         updateData = {
-          assignedSellerId: newSellerId,
+          
           sellerId: newSellerId,
           sellerName: `${seller[0].firstName} ${seller[0].lastName}`,
         };
@@ -26679,7 +26679,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         desiredNeighborhood: desiredNeighborhood || null,
         interestedCondominiumId: interestedCondominiumId || null,
         interestedUnitId: interestedUnitId || null,
-        assignedSellerId: sellerId || null,
+        sellerId: sellerId || null,
         sellerName: sellerName || null,
         registrationType: "seller",
         status: "nuevo_lead",
