@@ -77,6 +77,11 @@ export default function ExternalCondominiums() {
   const [condoSearchText, setCondoSearchText] = useState("");
   const debouncedCondoSearchText = useDebounce(condoSearchText, 400);
   const [condoFiltersExpanded, setCondoFiltersExpanded] = useState(false);
+  const [condoZoneFilter, setCondoZoneFilter] = useState<string>("all");
+  
+  // Unit zone and typology filters
+  const [unitZoneFilter, setUnitZoneFilter] = useState<string>("all");
+  const [unitTypologyFilter, setUnitTypologyFilter] = useState<string>("all");
   
   // Condominium pagination state (default to 10 for table view)
   const [condoCurrentPage, setCondoCurrentPage] = useState(1);
@@ -174,9 +179,21 @@ export default function ExternalCondominiums() {
     cacheTime: 60 * 60 * 1000, // 1 hour
   });
 
+  // Zones configuration for filters
+  const { data: zones, isLoading: zonesLoading } = useQuery<{ id: string; name: string; isActive: boolean }[]>({
+    queryKey: ['/api/external/config/zones'],
+    staleTime: 30 * 60 * 1000,
+  });
+
+  // Property types configuration for filters
+  const { data: propertyTypes, isLoading: propertyTypesLoading } = useQuery<{ id: string; name: string; isActive: boolean }[]>({
+    queryKey: ['/api/external/config/property-types'],
+    staleTime: 30 * 60 * 1000,
+  });
+
   // Units with full backend pagination - data, filtering, sorting all handled by server
   const { data: unitsResponse, isLoading: unitsLoading, isFetching: unitsFetching } = useQuery<{ data: ExternalUnit[], total: number }>({
-    queryKey: ['/api/external-units', unitsPage, unitsPerPage, debouncedUnitSearchText, selectedCondoFilter, unitStatusFilter, unitsSortColumn, unitsSortDirection],
+    queryKey: ['/api/external-units', unitsPage, unitsPerPage, debouncedUnitSearchText, selectedCondoFilter, unitStatusFilter, unitZoneFilter, unitTypologyFilter, unitsSortColumn, unitsSortDirection],
     queryFn: async () => {
       const params = new URLSearchParams();
       params.append('limit', unitsPerPage.toString());
@@ -184,6 +201,8 @@ export default function ExternalCondominiums() {
       if (debouncedUnitSearchText) params.append('search', debouncedUnitSearchText);
       if (selectedCondoFilter !== 'all') params.append('condominiumId', selectedCondoFilter);
       if (unitStatusFilter !== 'all') params.append('isActive', unitStatusFilter === 'active' ? 'true' : 'false');
+      if (unitZoneFilter !== 'all') params.append('zone', unitZoneFilter);
+      if (unitTypologyFilter !== 'all') params.append('typology', unitTypologyFilter);
       if (unitsSortColumn) {
         params.append('sortField', unitsSortColumn);
         params.append('sortOrder', unitsSortDirection);
@@ -725,6 +744,7 @@ export default function ExternalCondominiums() {
 
   const clearCondoFilters = () => {
     setCondoSearchText("");
+    setCondoZoneFilter("all");
     setCondoCurrentPage(1);
   };
 
@@ -733,6 +753,8 @@ export default function ExternalCondominiums() {
     setSelectedCondoFilter("all");
     setRentalStatusFilter("all");
     setUnitStatusFilter("all");
+    setUnitZoneFilter("all");
+    setUnitTypologyFilter("all");
     setUnitsPage(1);
   };
 
@@ -918,6 +940,42 @@ export default function ExternalCondominiums() {
                     </PopoverTrigger>
                     <PopoverContent className="w-96 max-h-[600px] overflow-y-auto" align="end">
                       <div className="space-y-4">
+                        <div className="space-y-2">
+                          <h4 className="font-medium text-sm">
+                            {language === 'es' ? 'Filtrar por' : 'Filter by'}
+                          </h4>
+
+                          {/* Zona/Colonia Filter */}
+                          <div className="space-y-2">
+                            <label className="text-sm text-muted-foreground">
+                              {language === "es" ? "Zona / Colonia" : "Zone / Neighborhood"}
+                            </label>
+                            <div className="flex gap-2 flex-wrap">
+                              <Button
+                                variant={condoZoneFilter === "all" ? "default" : "outline"}
+                                size="sm"
+                                onClick={() => setCondoZoneFilter("all")}
+                                data-testid="button-filter-condo-zone-all"
+                              >
+                                {language === "es" ? "Todas" : "All"}
+                              </Button>
+                              {zonesLoading ? (
+                                <span className="text-sm text-muted-foreground">{language === "es" ? "Cargando..." : "Loading..."}</span>
+                              ) : zones?.filter(z => z.isActive).map(zone => (
+                                <Button
+                                  key={zone.id}
+                                  variant={condoZoneFilter === zone.name ? "default" : "outline"}
+                                  size="sm"
+                                  onClick={() => setCondoZoneFilter(zone.name)}
+                                  data-testid={`button-filter-condo-zone-${zone.id}`}
+                                >
+                                  {zone.name}
+                                </Button>
+                              ))}
+                            </div>
+                          </div>
+                        </div>
+
                         <Button variant="outline" className="w-full" onClick={clearCondoFilters}>
                           <XCircle className="mr-2 h-4 w-4" />
                           {language === "es" ? "Limpiar Filtros" : "Clear Filters"}
@@ -1054,6 +1112,64 @@ export default function ExternalCondominiums() {
                             >
                               {language === "es" ? "Suspendidas" : "Suspended"}
                             </Button>
+                          </div>
+                        </div>
+
+                        {/* Zona/Colonia Filter */}
+                        <div className="space-y-2">
+                          <label className="text-sm text-muted-foreground">
+                            {language === "es" ? "Zona / Colonia" : "Zone / Neighborhood"}
+                          </label>
+                          <div className="flex gap-2 flex-wrap">
+                            <Button
+                              variant={unitZoneFilter === "all" ? "default" : "outline"}
+                              size="sm"
+                              onClick={() => setUnitZoneFilter("all")}
+                              data-testid="button-filter-unit-zone-all"
+                            >
+                              {language === "es" ? "Todas" : "All"}
+                            </Button>
+                            {zonesLoading ? (
+                              <span className="text-sm text-muted-foreground">{language === "es" ? "Cargando..." : "Loading..."}</span>
+                            ) : zones?.filter(z => z.isActive).map(zone => (
+                              <Button
+                                key={zone.id}
+                                variant={unitZoneFilter === zone.name ? "default" : "outline"}
+                                size="sm"
+                                onClick={() => setUnitZoneFilter(zone.name)}
+                                data-testid={`button-filter-unit-zone-${zone.id}`}
+                              >
+                                {zone.name}
+                              </Button>
+                            ))}
+                          </div>
+                        </div>
+
+                        {/* Tipología Filter */}
+                        <div className="space-y-2">
+                          <label className="text-sm text-muted-foreground">
+                            {language === "es" ? "Tipología" : "Typology"}
+                          </label>
+                          <div className="flex gap-2 flex-wrap">
+                            <Button
+                              variant={unitTypologyFilter === "all" ? "default" : "outline"}
+                              size="sm"
+                              onClick={() => setUnitTypologyFilter("all")}
+                              data-testid="button-filter-unit-typology-all"
+                            >
+                              {language === "es" ? "Todas" : "All"}
+                            </Button>
+                            {typologyOptions.map(opt => (
+                              <Button
+                                key={opt.value}
+                                variant={unitTypologyFilter === opt.value ? "default" : "outline"}
+                                size="sm"
+                                onClick={() => setUnitTypologyFilter(opt.value)}
+                                data-testid={`button-filter-unit-typology-${opt.value}`}
+                              >
+                                {language === 'es' ? opt.labelEs : opt.label}
+                              </Button>
+                            ))}
                           </div>
                         </div>
 
@@ -1700,6 +1816,17 @@ export default function ExternalCondominiums() {
                       </TableHead>
                       <TableHead 
                         className="h-10 px-3 cursor-pointer hover:bg-muted/50"
+                        onClick={() => handleCondosSort('zone')}
+                        data-testid="th-condo-zone"
+                      >
+                        <div className="flex items-center gap-1">
+                          {language === "es" ? "Zona / Colonia" : "Zone"}
+                          <ArrowUpDown className="h-3 w-3" />
+                          {getCondosSortIcon('zone') && <span className="text-xs">{getCondosSortIcon('zone')}</span>}
+                        </div>
+                      </TableHead>
+                      <TableHead 
+                        className="h-10 px-3 cursor-pointer hover:bg-muted/50"
                         onClick={() => handleCondosSort('totalUnits')}
                         data-testid="th-condo-total-units"
                       >
@@ -1763,6 +1890,9 @@ export default function ExternalCondominiums() {
                           </TableCell>
                           <TableCell data-testid={`cell-address-${condo.id}`}>
                             {condo.address || '-'}
+                          </TableCell>
+                          <TableCell data-testid={`cell-zone-${condo.id}`}>
+                            {condo.zone || '-'}
                           </TableCell>
                           <TableCell data-testid={`cell-total-${condo.id}`}>
                             {condo.totalUnits || 0}

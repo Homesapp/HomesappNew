@@ -1313,8 +1313,8 @@ export interface IStorage {
 
   // External Management System - Condominium operations
   getExternalCondominium(id: string): Promise<ExternalCondominium | undefined>;
-  getExternalCondominiumsByAgency(agencyId: string, filters?: { isActive?: boolean; search?: string; sortField?: string; sortOrder?: 'asc' | 'desc'; limit?: number; offset?: number }): Promise<ExternalCondominium[]>;
-  getExternalCondominiumsCountByAgency(agencyId: string, filters?: { isActive?: boolean; search?: string }): Promise<number>;
+  getExternalCondominiumsByAgency(agencyId: string, filters?: { isActive?: boolean; search?: string; zone?: string; sortField?: string; sortOrder?: 'asc' | 'desc'; limit?: number; offset?: number }): Promise<ExternalCondominium[]>;
+  getExternalCondominiumsCountByAgency(agencyId: string, filters?: { isActive?: boolean; search?: string; zone?: string }): Promise<number>;
   getExternalDashboardSummary(agencyId: string): Promise<{
     totalCondominiums: number;
     totalUnits: number;
@@ -1340,8 +1340,8 @@ export interface IStorage {
 
   // External Management System - Unit operations
   getExternalUnit(id: string): Promise<ExternalUnit | undefined>;
-  getExternalUnitsByAgency(agencyId: string, filters?: { isActive?: boolean; condominiumId?: string; search?: string; sortField?: string; sortOrder?: 'asc' | 'desc'; limit?: number; offset?: number }): Promise<ExternalUnitWithCondominium[]>;
-  getExternalUnitsCountByAgency(agencyId: string, filters?: { isActive?: boolean; condominiumId?: string; search?: string }): Promise<number>;
+  getExternalUnitsByAgency(agencyId: string, filters?: { isActive?: boolean; condominiumId?: string; search?: string; zone?: string; typology?: string; sortField?: string; sortOrder?: 'asc' | 'desc'; limit?: number; offset?: number }): Promise<ExternalUnitWithCondominium[]>;
+  getExternalUnitsCountByAgency(agencyId: string, filters?: { isActive?: boolean; condominiumId?: string; search?: string; zone?: string; typology?: string }): Promise<number>;
   getExternalUnitsByCondominium(condominiumId: string): Promise<ExternalUnit[]>;
   createExternalUnit(unit: InsertExternalUnit): Promise<ExternalUnit>;
   updateExternalUnit(id: string, updates: Partial<InsertExternalUnit>): Promise<ExternalUnit>;
@@ -8772,8 +8772,6 @@ export class DatabaseStorage implements IStorage {
   // External Condominium operations
   async getExternalCondominium(id: string): Promise<ExternalCondominium | undefined> {
     const [result] = await db.select()
-      .from(externalCondominiums)
-      .where(eq(externalCondominiums.id, id));
     return result;
   }
 
@@ -8811,6 +8809,11 @@ export class DatabaseStorage implements IStorage {
           conditions.push(searchCondition);
         }
       }
+    }
+    
+    // Filter by zone if provided
+    if (filters?.zone && filters.zone.trim().length > 0) {
+      conditions.push(eq(externalCondominiums.zone, filters.zone.trim()));
     }
     
     let query = db.select()
@@ -8854,7 +8857,7 @@ export class DatabaseStorage implements IStorage {
   
   async getExternalCondominiumsCountByAgency(
     agencyId: string,
-    filters?: { isActive?: boolean; search?: string }
+    filters?: { isActive?: boolean; search?: string; zone?: string }
   ): Promise<number> {
     const conditions = [eq(externalCondominiums.agencyId, agencyId)];
     
@@ -8886,6 +8889,10 @@ export class DatabaseStorage implements IStorage {
           conditions.push(searchCondition);
         }
       }
+    }
+    // Filter by zone if provided
+    if (filters?.zone && filters.zone.trim().length > 0) {
+      conditions.push(eq(externalCondominiums.zone, filters.zone.trim()));
     }
     
     const result = await db.select({ count: sql<number>`count(*)::int` })
@@ -9040,9 +9047,7 @@ export class DatabaseStorage implements IStorage {
   ): Promise<ExternalUnit[]> {
     return await db.transaction(async (tx) => {
       // Verify the condominium exists and belongs to the agency
-      const [condominium] = await tx.select()
-        .from(externalCondominiums)
-        .where(
+      const [condominium] = await tx.select().from(externalCondominiums).where(
           and(
             eq(externalCondominiums.id, condominiumId),
             eq(externalCondominiums.agencyId, agencyId)
@@ -9094,7 +9099,7 @@ export class DatabaseStorage implements IStorage {
     return result;
   }
 
-  async getExternalUnitsByAgency(agencyId: string, filters?: { isActive?: boolean; condominiumId?: string; search?: string; sortField?: string; sortOrder?: 'asc' | 'desc'; limit?: number; offset?: number }): Promise<ExternalUnitWithCondominium[]> {
+  async getExternalUnitsByAgency(agencyId: string, filters?: { isActive?: boolean; condominiumId?: string; search?: string; zone?: string; typology?: string; sortField?: string; sortOrder?: 'asc' | 'desc'; limit?: number; offset?: number }): Promise<ExternalUnitWithCondominium[]> {
     const conditions: any[] = [eq(externalUnits.agencyId, agencyId)];
     
     if (filters?.isActive !== undefined) {
@@ -9121,6 +9126,14 @@ export class DatabaseStorage implements IStorage {
       }
     }
 
+    // Filter by zone if provided
+    if (filters?.zone && filters.zone.trim().length > 0) {
+      conditions.push(eq(externalUnits.zone, filters.zone.trim()));
+    }
+    // Filter by typology if provided
+    if (filters?.typology && filters.typology.trim().length > 0) {
+      conditions.push(eq(externalUnits.typology, filters.typology.trim()));
+    }
     let query = db.select({
       id: externalUnits.id,
       agencyId: externalUnits.agencyId,
@@ -9182,7 +9195,7 @@ export class DatabaseStorage implements IStorage {
     return results as ExternalUnitWithCondominium[];
   }
 
-  async getExternalUnitsCountByAgency(agencyId: string, filters?: { isActive?: boolean; condominiumId?: string; search?: string }): Promise<number> {
+  async getExternalUnitsCountByAgency(agencyId: string, filters?: { isActive?: boolean; condominiumId?: string; search?: string; zone?: string; typology?: string }): Promise<number> {
     const conditions: any[] = [eq(externalUnits.agencyId, agencyId)];
     
     if (filters?.isActive !== undefined) {
@@ -9207,6 +9220,12 @@ export class DatabaseStorage implements IStorage {
           conditions.push(searchCondition);
         }
       }
+    }
+    if (filters?.zone) {
+      conditions.push(eq(externalUnits.zone, filters.zone));
+    }
+    if (filters?.typology) {
+      conditions.push(eq(externalUnits.typology, filters.typology));
     }
     
     const result = await db.select({ count: sql<number>`count(*)::int` })

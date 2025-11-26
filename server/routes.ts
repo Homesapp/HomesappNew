@@ -23708,7 +23708,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // External Condominiums Routes
   app.get("/api/external-condominiums", isAuthenticated, requireRole(EXTERNAL_ALL_ROLES), async (req: any, res) => {
     try {
-      const { isActive, search, sortField, sortOrder, limit, offset } = req.query;
+      const { isActive, search, zone, sortField, sortOrder, limit, offset } = req.query;
       
       // Get agency ID from authenticated user (admin/master can pass agencyId to view other agencies)
       let agencyId = req.query.agencyId;
@@ -23733,6 +23733,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const filters: any = {};
       if (isActive !== undefined) filters.isActive = isActive === 'true';
       if (search) filters.search = search as string;
+      if (zone) filters.zone = zone as string;
       if (sortField) filters.sortField = sortField as string;
       if (sortOrder && (sortOrder === 'asc' || sortOrder === 'desc')) filters.sortOrder = sortOrder;
       filters.limit = parsedLimit;
@@ -23979,7 +23980,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // External Units Routes
   app.get("/api/external-units", isAuthenticated, requireRole(EXTERNAL_ALL_ROLES), async (req: any, res) => {
     try {
-      const { condominiumId, isActive, search, sortField, sortOrder, limit, offset } = req.query;
+      const { condominiumId, isActive, search, zone, typology, sortField, sortOrder, limit, offset } = req.query;
       
       // Get agency ID from authenticated user (admin/master can pass agencyId to view other agencies)
       let agencyId = req.query.agencyId;
@@ -24004,6 +24005,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (isActive !== undefined) filters.isActive = isActive === 'true';
       if (condominiumId) filters.condominiumId = condominiumId;
       if (search) filters.search = search as string;
+      if (zone) filters.zone = zone as string;
+      if (typology) filters.typology = typology as string;
       if (sortField) filters.sortField = sortField as string;
       if (sortOrder && (sortOrder === 'asc' || sortOrder === 'desc')) filters.sortOrder = sortOrder;
       filters.limit = parsedLimit;
@@ -29915,6 +29918,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (startDate) filters.startDate = new Date(startDate as string);
       if (endDate) filters.endDate = new Date(endDate as string);
       if (search) filters.search = search as string;
+      if (zone) filters.zone = zone as string;
+      if (typology) filters.typology = typology as string;
       if (sortField) filters.sortField = sortField as string;
       if (sortOrder && (sortOrder === 'asc' || sortOrder === 'desc')) filters.sortOrder = sortOrder;
 
@@ -30098,6 +30103,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         const parsedOffset = Number.isFinite(offsetNum) ? Math.max(0, offsetNum) : 0;
 
         if (search) filters.search = search as string;
+      if (zone) filters.zone = zone as string;
+      if (typology) filters.typology = typology as string;
         if (sortField) filters.sortField = sortField as string;
         if (sortOrder && (sortOrder === 'asc' || sortOrder === 'desc')) filters.sortOrder = sortOrder;
         filters.limit = parsedLimit;
@@ -30134,6 +30141,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         // Preserve historical behavior: existing filters only, NO sortField/sortOrder
         // Storage will use default ordering (desc by dueDate)
         if (search) filters.search = search as string;
+      if (zone) filters.zone = zone as string;
+      if (typology) filters.typology = typology as string;
         // DO NOT pass sortField/sortOrder/limit/offset - legacy callers expect default behavior
         const transactions = await storage.getExternalFinancialTransactionsByAgency(agencyId, filters);
         res.json(transactions);
