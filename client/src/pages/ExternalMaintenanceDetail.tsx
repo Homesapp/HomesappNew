@@ -129,33 +129,49 @@ export default function ExternalMaintenanceDetail() {
   // Check if user can modify maintenance tickets (admin/maintenance manager roles)
   const canModifyTicket = user?.role && ['master', 'admin', 'external_agency_admin', 'external_agency_maintenance'].includes(user.role);
 
-  const { data: ticket, isLoading: ticketLoading } = useQuery<ExternalMaintenanceTicket>({
+  // Main ticket data - with extended info from backend
+  const { data: ticket, isLoading: ticketLoading } = useQuery<ExternalMaintenanceTicket & { 
+    unitNumber?: string; 
+    condominiumName?: string;
+    assignedToName?: string;
+    createdByName?: string;
+  }>({
     queryKey: ['/api/external-tickets', id],
     enabled: !!id,
+    staleTime: 30000, // Cache for 30 seconds
   });
 
   const { data: updates, isLoading: updatesLoading } = useQuery<ExternalMaintenanceUpdate[]>({
     queryKey: ['/api/external-tickets', id, 'updates'],
     enabled: !!id,
+    staleTime: 30000,
   });
 
   const { data: photos, isLoading: photosLoading } = useQuery<ExternalMaintenancePhoto[]>({
     queryKey: ['/api/external-tickets', id, 'photos'],
     enabled: !!id,
+    staleTime: 30000,
   });
 
-  // Lightweight units for dropdowns
+  // Only load filter data when editing is active - lazy load
+  const [needsFilterData, setNeedsFilterData] = useState(false);
+  
   const { data: units } = useQuery<{ id: string; unitNumber: string; condominiumId: string }[]>({
     queryKey: ['/api/external-units-for-filters'],
+    enabled: needsFilterData,
+    staleTime: 300000, // Cache for 5 minutes
   });
 
-  // Lightweight condominiums for dropdowns (only id+name)
   const { data: condominiums } = useQuery<{ id: string; name: string }[]>({
     queryKey: ['/api/external-condominiums-for-filters'],
+    enabled: needsFilterData,
+    staleTime: 300000,
   });
 
   const { data: agencyUsers } = useQuery<any[]>({
     queryKey: ['/api/external-agency-users'],
+    enabled: needsFilterData || showUpdateDialog,
+    staleTime: 300000,
   });
 
   const form = useForm<UpdateFormData>({
@@ -234,17 +250,43 @@ export default function ExternalMaintenanceDetail() {
   });
 
   const getUnitInfo = (unitId: string) => {
-    const unit = units?.find(u => u.id === unitId);
-    if (!unit) return null;
-    const condo = condominiums?.find(c => c.id === unit.condominiumId);
-    return { unit, condo };
+    // First try to use extended data from ticket
+    if (ticket?.unitNumber || ticket?.condominiumName) {
+      return { 
+        unit: { unitNumber: ticket.unitNumber },
+        condo: { name: ticket.condominiumName }
+      };
+    }
+    // Fall back to filter data if available
+    if (needsFilterData && units && condominiums) {
+      const unit = units.find(u => u.id === unitId);
+      if (!unit) return null;
+      const condo = condominiums.find(c => c.id === unit.condominiumId);
+      return { unit, condo };
+    }
+    return null;
   };
 
-  const getUserName = (userId: string | null | undefined) => {
+  const getUserName = (userId: string | null | undefined, fieldType?: 'assigned' | 'created') => {
+    // First try to use extended data from ticket
+    if (fieldType === 'assigned' && ticket?.assignedToName) {
+      return ticket.assignedToName;
+    }
+    if (fieldType === 'created' && ticket?.createdByName) {
+      return ticket.createdByName;
+    }
+    // Fall back to filter data if available
     if (!userId) return null;
-    const user = agencyUsers?.find(u => u.id === userId);
-    if (!user) return null;
-    return `${user.firstName || ''} ${user.lastName || ''}`.trim() || user.email;
+    const foundUser = agencyUsers?.find(u => u.id === userId);
+    if (!foundUser) return null;
+    return `${foundUser.firstName || ''} ${foundUser.lastName || ''}`.trim() || foundUser.email;
+  };
+  
+  // Calculate base cost (without 15% admin fee)
+  const getBaseCost = (estimatedCost: string | number | null | undefined) => {
+    if (!estimatedCost) return null;
+    const total = typeof estimatedCost === 'string' ? parseFloat(estimatedCost) : estimatedCost;
+    return total / 1.15; // Remove 15% admin fee to get base cost
   };
 
   const formatCurrency = (amount: string | number | null | undefined) => {
