@@ -24588,15 +24588,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
 
-  // GET /api/external/portfolio-summary - Optimized endpoint for owner portfolio page
+// GET /api/external/portfolio-summary - Optimized endpoint for owner portfolio page
   app.get("/api/external/portfolio-summary", isAuthenticated, requireRole(EXTERNAL_ALL_ROLES), async (req: any, res) => {
     try {
       const agencyId = await getUserAgencyId(req);
+      
       if (!agencyId) {
-        return res.status(403).json({ message: "No agency access" });
+        return res.status(403).json({ message: "User is not assigned to any agency" });
       }
 
-      const { condominiumId, minUnits, search, limit = '100', offset = '0' } = req.query;
+      const { limit = "100", offset = "0", search, minUnits, condominiumId, isActive } = req.query;
       const limitNum = Math.min(parseInt(limit as string, 10) || 100, 500);
       const offsetNum = parseInt(offset as string, 10) || 0;
 
@@ -24604,83 +24605,78 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const yearStart = new Date(currentYear, 0, 1);
       const yearEnd = new Date(currentYear + 1, 0, 1);
 
-      const ownersWithUnits = await db.select({
-        id: externalUnitOwners.id,
-        unitId: externalUnitOwners.unitId,
-        ownerName: externalUnitOwners.ownerName,
-        ownerEmail: externalUnitOwners.ownerEmail,
-        ownerPhone: externalUnitOwners.ownerPhone,
-        ownershipPercentage: externalUnitOwners.ownershipPercentage,
-        isActive: externalUnitOwners.isActive,
-        notes: externalUnitOwners.notes,
-        createdBy: externalUnitOwners.createdBy,
-        createdAt: externalUnitOwners.createdAt,
-        updatedAt: externalUnitOwners.updatedAt,
-        unitNumber: externalUnits.unitNumber,
-        condominiumId: externalUnits.condominiumId,
-        typology: externalUnits.unitType,
-        condominiumName: externalCondominiums.name,
-      })
-        .from(externalUnitOwners)
-        .innerJoin(externalUnits, eq(externalUnitOwners.unitId, externalUnits.id))
-        .leftJoin(externalCondominiums, eq(externalUnits.condominiumId, externalCondominiums.id))
-        .where(eq(externalUnits.agencyId, agencyId))
-        .orderBy(desc(externalUnitOwners.isActive), desc(externalUnitOwners.createdAt));
+      // Use raw SQL to avoid Drizzle ORM issues with complex joins
+      const ownersResult = await db.execute(sql`
+        SELECT 
+          uo.id,
+          uo.unit_id as "unitId",
+          uo.owner_name as "ownerName",
+          uo.owner_email as "ownerEmail",
+          uo.owner_phone as "ownerPhone",
+          uo.ownership_percentage as "ownershipPercentage",
+          uo.is_active as "isActive",
+          uo.start_date as "startDate",
+          uo.end_date as "endDate",
+          uo.notes,
+          uo.created_by as "createdBy",
+          uo.created_at as "createdAt",
+          uo.updated_at as "updatedAt",
+          u.unit_number as "unitNumber",
+          u.condominium_id as "condominiumId",
+          u.unit_type as "typology",
+          c.name as "condominiumName"
+        FROM external_unit_owners uo
+        INNER JOIN external_units u ON uo.unit_id = u.id
+        LEFT JOIN external_condominiums c ON u.condominium_id = c.id
+        WHERE u.agency_id = ${agencyId}
+        ORDER BY uo.is_active DESC, uo.created_at DESC
+      `);
+
+      const ownersWithUnits = ownersResult.rows as any[];
 
       if (ownersWithUnits.length === 0) {
         return res.json({ data: [], total: 0, page: Math.floor(offsetNum / limitNum) + 1, pageSize: limitNum });
       }
 
-      const allContracts = await db.select({
-        id: externalRentalContracts.id,
-        unitId: externalRentalContracts.unitId,
-        startDate: externalRentalContracts.startDate,
-        endDate: externalRentalContracts.endDate,
-        status: externalRentalContracts.status,
-      })
-        .from(externalRentalContracts)
-        .where(eq(externalRentalContracts.agencyId, agencyId));
+      // Get contracts using raw SQL
+      const contractsResult = await db.execute(sql`
+        SELECT id, unit_id as "unitId", start_date as "startDate", end_date as "endDate", status
+        FROM external_rental_contracts
+        WHERE agency_id = ${agencyId}
+      `);
+      const allContracts = contractsResult.rows as any[];
 
-      // Fetch financial summary with fallback for empty data
-      let financialSummary: { ownerId: string | null; unitId: string | null; direction: string; payeeRole: string; payerRole: string; totalAmount: string }[] = [];
-      try {
-        const rawTransactions = await db.select({
-          ownerId: externalFinancialTransactions.ownerId,
-          unitId: externalFinancialTransactions.unitId,
-          direction: externalFinancialTransactions.direction,
-          payeeRole: externalFinancialTransactions.payeeRole,
-          payerRole: externalFinancialTransactions.payerRole,
-          grossAmount: externalFinancialTransactions.grossAmount,
-        })
-          .from(externalFinancialTransactions)
-          .where(eq(externalFinancialTransactions.agencyId, agencyId));
-        
-        // Aggregate in JavaScript to avoid Drizzle SQL expression issues
-        const summaryMap = new Map<string, { ownerId: string | null; unitId: string | null; direction: string; payeeRole: string; payerRole: string; totalAmount: number }>();
-        for (const tx of rawTransactions) {
-          const key = `${tx.ownerId || 'null'}_${tx.unitId || 'null'}_${tx.direction}_${tx.payeeRole}_${tx.payerRole}`;
-          if (!summaryMap.has(key)) {
-            summaryMap.set(key, {
-              ownerId: tx.ownerId,
-              unitId: tx.unitId,
-              direction: tx.direction,
-              payeeRole: tx.payeeRole,
-              payerRole: tx.payerRole,
-              totalAmount: 0,
-            });
-          }
-          summaryMap.get(key)!.totalAmount += parseFloat(tx.grossAmount || '0');
+      // Get financial transactions using raw SQL
+      const transactionsResult = await db.execute(sql`
+        SELECT owner_id as "ownerId", unit_id as "unitId", direction, payee_role as "payeeRole", payer_role as "payerRole", gross_amount as "grossAmount"
+        FROM external_financial_transactions
+        WHERE agency_id = ${agencyId}
+      `);
+      const rawTransactions = transactionsResult.rows as any[];
+
+      // Aggregate financial data in JavaScript
+      const summaryMap = new Map<string, { ownerId: string | null; unitId: string | null; direction: string; payeeRole: string; payerRole: string; totalAmount: number }>();
+      for (const tx of rawTransactions) {
+        const key = `${tx.ownerId || 'null'}_${tx.unitId || 'null'}_${tx.direction}_${tx.payeeRole}_${tx.payerRole}`;
+        if (!summaryMap.has(key)) {
+          summaryMap.set(key, {
+            ownerId: tx.ownerId,
+            unitId: tx.unitId,
+            direction: tx.direction,
+            payeeRole: tx.payeeRole,
+            payerRole: tx.payerRole,
+            totalAmount: 0,
+          });
         }
-        financialSummary = Array.from(summaryMap.values()).map(s => ({
-          ...s,
-          totalAmount: s.totalAmount.toFixed(2),
-        }));
-      } catch (summaryError) {
-        console.error("Error fetching financial summary, using empty fallback:", summaryError);
-        financialSummary = [];
+        summaryMap.get(key)!.totalAmount += parseFloat(tx.grossAmount || '0');
       }
+      const financialSummary = Array.from(summaryMap.values()).map(s => ({
+        ...s,
+        totalAmount: s.totalAmount.toFixed(2),
+      }));
 
-      const ownerGroups = new Map<string, typeof ownersWithUnits>();
+      // Group owners by name and email
+      const ownerGroups = new Map<string, any[]>();
       ownersWithUnits.forEach(owner => {
         const key = `${owner.ownerName.toLowerCase()}_${owner.ownerEmail?.toLowerCase() || ''}`;
         if (!ownerGroups.has(key)) {
@@ -24697,55 +24693,45 @@ export async function registerRoutes(app: Express): Promise<Server> {
           new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
         )[0];
 
-        const ownerUnitIds = ownerInstances.map(o => o.unitId);
-        const ownerInstanceIds = ownerInstances.map(o => o.id);
-
         let totalIncome = 0;
         let totalExpenses = 0;
-        financialSummary.forEach((fs) => {
-          const matchesOwner = ownerInstanceIds.includes(fs.ownerId || '') || ownerUnitIds.includes(fs.unitId || '');
-          if (matchesOwner) {
-            if (fs.direction === 'inflow' && fs.payeeRole === 'owner') {
-              totalIncome += parseFloat(fs.totalAmount);
-            }
-            if (fs.direction === 'outflow' && fs.payerRole === 'owner') {
-              totalExpenses += parseFloat(fs.totalAmount);
-            }
-          }
-        });
+        let activeContracts = 0;
+        let totalOccupiedDays = 0;
+        const typologies = new Set<string>();
+        const condominiumNames = new Set<string>();
+        const unitNumbers: string[] = [];
 
-        const activeContracts = allContracts.filter(c => 
-          ownerUnitIds.includes(c.unitId) && c.status === 'active'
-        ).length;
+        ownerInstances.forEach(oi => {
+          if (oi.typology) typologies.add(oi.typology);
+          if (oi.condominiumName) condominiumNames.add(oi.condominiumName);
+          if (oi.unitNumber) unitNumbers.push(oi.unitNumber);
 
-        let totalOccupancyDays = 0;
-        ownerInstances.forEach(ownerUnit => {
-          const unitContracts = allContracts.filter(c => c.unitId === ownerUnit.unitId);
-          let unitOccupiedDays = 0;
-          
+          const unitContracts = allContracts.filter(c => c.unitId === oi.unitId);
+          activeContracts += unitContracts.filter(c => c.status === "active").length;
+
           unitContracts.forEach(contract => {
-            const contractStart = new Date(contract.startDate);
-            const contractEnd = contract.endDate ? new Date(contract.endDate) : yearEnd;
-            
-            const periodStart = contractStart > yearStart ? contractStart : yearStart;
-            const periodEnd = contractEnd < yearEnd ? contractEnd : yearEnd;
-            
-            if (periodStart < periodEnd) {
-              const days = Math.floor((periodEnd.getTime() - periodStart.getTime()) / (1000 * 60 * 60 * 24));
-              unitOccupiedDays += Math.max(0, days);
+            if (contract.status === "active" || contract.status === "completed") {
+              const contractStart = new Date(Math.max(new Date(contract.startDate).getTime(), yearStart.getTime()));
+              const contractEnd = new Date(Math.min(new Date(contract.endDate).getTime(), yearEnd.getTime()));
+              if (contractEnd > contractStart) {
+                totalOccupiedDays += Math.ceil((contractEnd.getTime() - contractStart.getTime()) / (1000 * 60 * 60 * 24));
+              }
             }
           });
-          
-          totalOccupancyDays += Math.min(unitOccupiedDays, totalYearDays);
-        });
-        
-        const occupancyRate = ownerInstances.length > 0 
-          ? (totalOccupancyDays / (ownerInstances.length * totalYearDays)) * 100 
-          : 0;
 
-        const typologies = [...new Set(ownerInstances.map(u => u.typology || '-'))];
-        const condominiumNames = [...new Set(ownerInstances.map(u => u.condominiumName || '-'))];
-        const unitNumbers = ownerInstances.map(u => u.unitNumber);
+          const unitFinancials = financialSummary.filter(fs => fs.unitId === oi.unitId);
+          unitFinancials.forEach(uf => {
+            if (uf.direction === "income" && uf.payeeRole === "owner") {
+              totalIncome += parseFloat(uf.totalAmount);
+            } else if (uf.direction === "expense" && uf.payerRole === "owner") {
+              totalExpenses += parseFloat(uf.totalAmount);
+            }
+          });
+        });
+
+        const occupancyRate = ownerInstances.length > 0 && totalYearDays > 0
+          ? (totalOccupiedDays / (ownerInstances.length * totalYearDays)) * 100
+          : 0;
 
         portfolios.push({
           owner: {
@@ -24774,8 +24760,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
           balance: totalIncome - totalExpenses,
           activeContracts,
           occupancyRate: Math.round(occupancyRate * 100) / 100,
-          typologies,
-          condominiums: condominiumNames,
+          typologies: Array.from(typologies),
+          condominiums: Array.from(condominiumNames),
           unitNumbers,
         });
       });
@@ -24804,14 +24790,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
         );
       }
 
-      filteredPortfolios.sort((a, b) => a.owner.ownerName.localeCompare(b.owner.ownerName));
+      if (isActive !== undefined) {
+        const activeFilter = isActive === 'true';
+        filteredPortfolios = filteredPortfolios.filter(p => p.owner.isActive === activeFilter);
+      }
 
-      const total = filteredPortfolios.length;
       const paginatedPortfolios = filteredPortfolios.slice(offsetNum, offsetNum + limitNum);
 
       res.json({
         data: paginatedPortfolios,
-        total,
+        total: filteredPortfolios.length,
         page: Math.floor(offsetNum / limitNum) + 1,
         pageSize: limitNum,
       });
@@ -24820,6 +24808,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       handleGenericError(res, error);
     }
   });
+
 
   // External Unit Owners Routes
   app.get("/api/external-unit-owners/by-unit/:unitId", isAuthenticated, requireRole(EXTERNAL_ALL_ROLES), async (req: any, res) => {
@@ -31973,7 +31962,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(403).json({ message: "User is not assigned to any agency" });
       }
 
-      if (!status || !['draft', 'sent', 'accepted', 'rejected', 'cancelled'].includes(status)) {
+      if (!status || !['draft', 'sent', 'approved', 'rejected', 'converted_to_ticket'].includes(status)) {
         return res.status(400).json({ message: "Invalid status" });
       }
 
@@ -32118,7 +32107,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ message: "Quotation not found" });
       }
 
-      if (quotation.status !== "accepted") {
+      if (quotation.status !== "approved") {
         return res.status(400).json({ message: "Solo se pueden convertir cotizaciones aceptadas" });
       }
 
