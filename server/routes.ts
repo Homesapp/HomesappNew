@@ -23926,6 +23926,112 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // GET /api/external-units/:id/overview - Consolidated endpoint for Unit Detail page
+  // Returns unit data, condominium, rental history, maintenance history, and available condos
+  app.get("/api/external-units/:id/overview", isAuthenticated, requireRole(EXTERNAL_ALL_ROLES), async (req: any, res) => {
+    try {
+      const { id } = req.params;
+      const agencyId = await getUserAgencyId(req);
+      if (!agencyId) {
+        return res.status(403).json({ message: "No agency access" });
+      }
+      
+      // Query 1: Get unit
+      const unit = await storage.getExternalUnit(id);
+      if (!unit) {
+        return res.status(404).json({ message: "Unit not found" });
+      }
+      
+      // Verify ownership via fail-closed pattern
+      if (unit.agencyId !== agencyId) {
+        return res.status(403).json({ message: "Access denied" });
+      }
+      
+      // Query 2: Get condominium (if assigned)
+      let condominium = null;
+      if (unit.condominiumId) {
+        condominium = await storage.getExternalCondominium(unit.condominiumId);
+      }
+      
+      // Query 3: Get rental contracts history (all statuses)
+      const rentalContracts = await db.select()
+        .from(externalRentalContracts)
+        .where(eq(externalRentalContracts.unitId, id))
+        .orderBy(desc(externalRentalContracts.createdAt))
+        .limit(20);
+      
+      // Query 4: Get maintenance tickets for this unit
+      const maintenanceTickets = await db.select({
+        id: externalMaintenanceTickets.id,
+        title: externalMaintenanceTickets.title,
+        category: externalMaintenanceTickets.category,
+        priority: externalMaintenanceTickets.priority,
+        status: externalMaintenanceTickets.status,
+        reportedBy: externalMaintenanceTickets.reportedBy,
+        estimatedCost: externalMaintenanceTickets.estimatedCost,
+        actualCost: externalMaintenanceTickets.actualCost,
+        scheduledDate: externalMaintenanceTickets.scheduledDate,
+        completedAt: externalMaintenanceTickets.completedAt,
+        createdAt: externalMaintenanceTickets.createdAt,
+      })
+        .from(externalMaintenanceTickets)
+        .where(
+          and(
+            eq(externalMaintenanceTickets.unitId, id),
+            eq(externalMaintenanceTickets.agencyId, agencyId)
+          )
+        )
+        .orderBy(desc(externalMaintenanceTickets.createdAt))
+        .limit(20);
+      
+      // Query 5: Get available condominiums for reassignment
+      const availableCondominiums = await db.select({
+        id: externalCondominiums.id,
+        name: externalCondominiums.name,
+        address: externalCondominiums.address,
+      })
+        .from(externalCondominiums)
+        .where(
+          and(
+            eq(externalCondominiums.agencyId, agencyId),
+            eq(externalCondominiums.isActive, true)
+          )
+        )
+        .orderBy(asc(externalCondominiums.name));
+      
+      // Query 6: Get showings related to this unit via leads
+      const unitShowings = await db.select({
+        id: externalLeadShowings.id,
+        leadId: externalLeadShowings.leadId,
+        scheduledAt: externalLeadShowings.scheduledAt,
+        outcome: externalLeadShowings.outcome,
+        feedback: externalLeadShowings.feedback,
+        createdAt: externalLeadShowings.createdAt,
+      })
+        .from(externalLeadShowings)
+        .where(
+          and(
+            eq(externalLeadShowings.unitId, id),
+            eq(externalLeadShowings.agencyId, agencyId)
+          )
+        )
+        .orderBy(desc(externalLeadShowings.scheduledAt))
+        .limit(20);
+      
+      res.json({
+        unit,
+        condominium,
+        rentalHistory: rentalContracts,
+        maintenanceHistory: maintenanceTickets,
+        showingsHistory: unitShowings,
+        availableCondominiums,
+      });
+    } catch (error: any) {
+      console.error("Error fetching unit overview:", error);
+      handleGenericError(res, error);
+    }
+  });
+
   app.get("/api/external-units/:id", isAuthenticated, requireRole(EXTERNAL_ALL_ROLES), async (req: any, res) => {
     try {
       const { id } = req.params;
