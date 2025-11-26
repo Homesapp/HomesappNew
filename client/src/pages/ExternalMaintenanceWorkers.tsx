@@ -1003,21 +1003,45 @@ export default function ExternalMaintenanceWorkers({
           </TabsList>
         )}
 
-        {/* Search and Filters - Visible in all tabs */}
-        <Card className={hideHeader ? "" : "mt-6"}>
+        {/* Header section with title + button - Like Quotations structure */}
+        {activeTab === "assignments" && (
+          <div className={`flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 ${hideHeader ? "" : "mt-6"}`}>
+            <div>
+              <h2 className="text-xl font-semibold">{language === "es" ? "Asignaciones Actuales" : "Current Assignments"}</h2>
+              <p className="text-sm text-muted-foreground">
+                {language === "es" 
+                  ? "Lista de trabajadores asignados a condominios y unidades"
+                  : "List of workers assigned to condominiums and units"}
+              </p>
+            </div>
+            <Button 
+              data-testid="button-create-assignment-header" 
+              className="w-full sm:w-auto"
+              onClick={() => setIsCreateDialogOpen(true)}
+            >
+              <Plus className="mr-2 h-4 w-4" />
+              {language === "es" ? "Nueva Asignación" : "New Assignment"}
+            </Button>
+          </div>
+        )}
+
+        {activeTab === "workers" && (
+          <div className={`flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 ${hideHeader ? "" : "mt-6"}`}>
+            <div>
+              <h2 className="text-xl font-semibold">{language === "es" ? "Trabajadores Disponibles" : "Available Workers"}</h2>
+              <p className="text-sm text-muted-foreground">
+                {language === "es" 
+                  ? "Lista de trabajadores de mantenimiento de tu agencia"
+                  : "List of your agency's maintenance workers"}
+              </p>
+            </div>
+          </div>
+        )}
+
+        {/* Search and Filters */}
+        <Card className="mt-4">
           <CardContent className="py-4">
             <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
-              {/* New Assignment Button - Only in embedded mode for assignments tab */}
-              {hideHeader && activeTab === "assignments" && (
-                <Button 
-                  data-testid="button-create-assignment-embedded" 
-                  className="w-full sm:w-auto"
-                  onClick={() => setIsCreateDialogOpen(true)}
-                >
-                  <Plus className="mr-2 h-4 w-4" />
-                  {language === "es" ? "Nueva Asignación" : "New Assignment"}
-                </Button>
-              )}
               {/* Search Input */}
               <div className="relative flex-1">
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
@@ -1135,17 +1159,8 @@ export default function ExternalMaintenanceWorkers({
           </CardContent>
         </Card>
 
-        <TabsContent value="assignments" className="mt-6">
+        <TabsContent value="assignments" className="mt-4">
           <div className="space-y-4">
-            <div>
-              <h2 className="text-lg font-semibold">{language === "es" ? "Asignaciones Actuales" : "Current Assignments"}</h2>
-              <p className="text-sm text-muted-foreground">
-                {language === "es" 
-                  ? "Lista de trabajadores asignados a condominios y unidades"
-                  : "List of workers assigned to condominiums and units"}
-              </p>
-            </div>
-            
             {loadingAssignments ? (
                 <div className="space-y-2">
                   <Skeleton className="h-10 w-full" />
@@ -1391,17 +1406,8 @@ export default function ExternalMaintenanceWorkers({
           </div>
         </TabsContent>
 
-        <TabsContent value="workers" className="mt-6">
+        <TabsContent value="workers" className="mt-4">
           <div className="space-y-4">
-            <div>
-              <h2 className="text-lg font-semibold">{language === "es" ? "Trabajadores Disponibles" : "Available Workers"}</h2>
-              <p className="text-sm text-muted-foreground">
-                {language === "es" 
-                  ? "Lista de trabajadores de mantenimiento de tu agencia"
-                  : "List of your agency's maintenance workers"}
-              </p>
-            </div>
-            
             {loadingWorkers ? (
                 <div className="space-y-2">
                   <Skeleton className="h-10 w-full" />
