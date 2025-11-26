@@ -437,10 +437,11 @@ export default function ExternalAccounting() {
   }, [grossAmount, applyAutoFee, createForm]);
   
   // Calculate net amount whenever gross or fees change
+  // Net = Gross + Fees (the total amount including administrative fee)
   useEffect(() => {
     const gross = parseFloat(grossAmount || "0") || 0;
     const fee = parseFloat(fees || "0") || 0;
-    const net = (gross - fee).toFixed(2);
+    const net = (gross + fee).toFixed(2);
     createForm.setValue("netAmount", net);
   }, [grossAmount, fees, createForm]);
 
