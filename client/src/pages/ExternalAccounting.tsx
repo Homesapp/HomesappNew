@@ -19,6 +19,8 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Separator } from "@/components/ui/separator";
+import { Switch } from "@/components/ui/switch";
+import { Label } from "@/components/ui/label";
 import { 
   DollarSign, 
   TrendingUp, 
@@ -106,6 +108,9 @@ export default function ExternalAccounting() {
   
   // Form state for condominium selection
   const [selectedCondominiumId, setSelectedCondominiumId] = useState<string>("");
+  
+  // Auto-fee calculation toggle (15% administrative fee)
+  const [applyAutoFee, setApplyAutoFee] = useState(true);
 
   // Calculate date range based on dateFilter
   const getDateRange = () => {
@@ -402,6 +407,16 @@ export default function ExternalAccounting() {
   const grossAmount = createForm.watch("grossAmount");
   const fees = createForm.watch("fees");
   
+  // Auto-calculate 15% fee when toggle is enabled and gross amount changes
+  useEffect(() => {
+    if (applyAutoFee) {
+      const gross = parseFloat(grossAmount || "0") || 0;
+      const autoFee = (gross * 0.15).toFixed(2);
+      createForm.setValue("fees", autoFee);
+    }
+  }, [grossAmount, applyAutoFee, createForm]);
+  
+  // Calculate net amount whenever gross or fees change
   useEffect(() => {
     const gross = parseFloat(grossAmount || "0") || 0;
     const fee = parseFloat(fees || "0") || 0;
@@ -560,6 +575,8 @@ export default function ExternalAccounting() {
     performedDate: 'Fecha Realizada',
     grossAmount: 'Monto Bruto',
     fees: 'Comisiones',
+    applyAutoFee: 'Aplicar 15% automático',
+    autoFeeDescription: 'Cargo administrativo del 15%',
     netAmount: 'Monto Neto',
     payerRole: 'Pagador',
     payeeRole: 'Beneficiario',
@@ -673,6 +690,8 @@ export default function ExternalAccounting() {
     performedDate: 'Performed Date',
     grossAmount: 'Gross Amount',
     fees: 'Fees',
+    applyAutoFee: 'Apply 15% automatically',
+    autoFeeDescription: '15% administrative fee',
     netAmount: 'Net Amount',
     payerRole: 'Payer',
     payeeRole: 'Payee',
@@ -2109,7 +2128,22 @@ export default function ExternalAccounting() {
             </DialogDescription>
           </DialogHeader>
           <Form {...createForm}>
-            <form onSubmit={createForm.handleSubmit((data) => createMutation.mutate(data))} className="space-y-6">
+            <form onSubmit={createForm.handleSubmit(
+              (data) => {
+                console.log("Form data submitted:", data);
+                createMutation.mutate(data);
+              },
+              (errors) => {
+                console.error("Form validation errors:", errors);
+                toast({
+                  title: language === 'es' ? 'Error de validación' : 'Validation Error',
+                  description: language === 'es' 
+                    ? 'Por favor revisa todos los campos obligatorios' 
+                    : 'Please check all required fields',
+                  variant: "destructive",
+                });
+              }
+            )} className="space-y-6">
               {/* Información Básica */}
               <div className="space-y-4">
                 <h3 className="text-sm font-semibold text-muted-foreground">
@@ -2334,9 +2368,22 @@ export default function ExternalAccounting() {
 
               {/* Información Financiera */}
               <div className="space-y-4">
-                <h3 className="text-sm font-semibold text-muted-foreground">
-                  {language === 'es' ? 'Información Financiera' : 'Financial Information'}
-                </h3>
+                <div className="flex items-center justify-between">
+                  <h3 className="text-sm font-semibold text-muted-foreground">
+                    {language === 'es' ? 'Información Financiera' : 'Financial Information'}
+                  </h3>
+                  <div className="flex items-center gap-2">
+                    <Switch
+                      id="apply-auto-fee"
+                      checked={applyAutoFee}
+                      onCheckedChange={setApplyAutoFee}
+                      data-testid="switch-auto-fee"
+                    />
+                    <Label htmlFor="apply-auto-fee" className="text-sm cursor-pointer">
+                      {t.applyAutoFee}
+                    </Label>
+                  </div>
+                </div>
                 <div className="grid grid-cols-3 gap-4">
                   <FormField
                     control={createForm.control}
@@ -2357,9 +2404,21 @@ export default function ExternalAccounting() {
                     name="fees"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>{t.fees}</FormLabel>
+                        <FormLabel className="flex items-center gap-1">
+                          {t.fees}
+                          {applyAutoFee && (
+                            <span className="text-xs text-muted-foreground">(15%)</span>
+                          )}
+                        </FormLabel>
                         <FormControl>
-                          <Input type="number" step="0.01" {...field} data-testid="input-create-fees" />
+                          <Input 
+                            type="number" 
+                            step="0.01" 
+                            {...field} 
+                            disabled={applyAutoFee}
+                            className={applyAutoFee ? "bg-muted" : ""}
+                            data-testid="input-create-fees" 
+                          />
                         </FormControl>
                         <FormMessage />
                       </FormItem>
@@ -2373,7 +2432,14 @@ export default function ExternalAccounting() {
                       <FormItem>
                         <FormLabel>{t.netAmount}</FormLabel>
                         <FormControl>
-                          <Input type="number" step="0.01" {...field} data-testid="input-create-net-amount" />
+                          <Input 
+                            type="number" 
+                            step="0.01" 
+                            {...field} 
+                            readOnly
+                            className="bg-muted"
+                            data-testid="input-create-net-amount" 
+                          />
                         </FormControl>
                         <FormMessage />
                       </FormItem>

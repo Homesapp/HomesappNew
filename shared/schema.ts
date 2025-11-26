@@ -6778,10 +6778,14 @@ export const insertExternalFinancialTransactionSchema = createInsertSchema(exter
   id: true,
   createdAt: true,
   updatedAt: true,
+  agencyId: true,  // Server adds this
+  createdBy: true, // Server adds this
 }).extend({
   dueDate: z.coerce.date(),
   performedDate: z.coerce.date().optional().nullable(),
   reconciledDate: z.coerce.date().optional().nullable(),
+  agencyId: z.string().optional(),  // Optional for client, server will add
+  createdBy: z.string().optional(), // Optional for client, server will add
 });
 
 export const updateExternalFinancialTransactionSchema = insertExternalFinancialTransactionSchema.partial().omit({
