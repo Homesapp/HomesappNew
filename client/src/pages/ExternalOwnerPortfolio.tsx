@@ -181,51 +181,53 @@ export default function ExternalOwnerPortfolio() {
     setPage(1);
   }, [viewMode]);
 
-  // Static/semi-static data: owners list (primary data source)
-  const { 
-    data: owners, 
-    isLoading: ownersLoading, 
-    isFetching: ownersFetching,
-    isError: ownersError,
-    error: ownersErrorDetails,
-  } = useQuery<ExternalUnitOwner[]>({
-    queryKey: ['/api/external-owners'],
-    staleTime: 15 * 60 * 1000, // 15 minutes (rarely changes)
+  // Portfolio summary with server-side aggregation (main data source)
+  const {
+    data: portfolioResponse,
+    isLoading: portfoliosLoading,
+    isFetching: portfoliosFetching,
+    isError: portfoliosError,
+    error: portfoliosErrorDetails,
+  } = useQuery<{
+    data: OwnerPortfolio[];
+    total: number;
+    page: number;
+    pageSize: number;
+  }>({
+    queryKey: ['/api/external/portfolio-summary', selectedCondominium, minUnits],
+    queryFn: async () => {
+      const params = new URLSearchParams();
+      if (selectedCondominium) params.set('condominiumId', selectedCondominium);
+      if (minUnits > 0) params.set('minUnits', String(minUnits));
+      params.set('limit', '500');
+      const res = await fetch(`/api/external/portfolio-summary?${params.toString()}`);
+      if (!res.ok) throw new Error('Failed to fetch portfolios');
+      return res.json();
+    },
+    staleTime: 5 * 60 * 1000,
     retry: 2,
   });
 
-  // Lightweight units for dropdowns (optional - UI can work without this)
-  const { 
-    data: units, 
-    isLoading: unitsLoading,
-    isError: unitsError,
-  } = useQuery<LightweightUnit[]>({
-    queryKey: ['/api/external-units-for-filters'],
-    staleTime: 15 * 60 * 1000, // 15 minutes (rarely changes)
-    retry: 1,
-  });
-
-  // Lightweight condominiums for dropdowns (optional - UI can work without this)
+  // Lightweight condominiums for dropdowns
   const { 
     data: condominiums,
     isLoading: condominiumsLoading,
   } = useQuery<{ id: string; name: string }[]>({
     queryKey: ['/api/external-condominiums-for-filters'],
-    staleTime: 15 * 60 * 1000, // 15 minutes (rarely changes)
+    staleTime: 15 * 60 * 1000,
     retry: 1,
   });
 
-  // Frequently changing data: rental contracts (optional for occupancy calc)
-  const { data: contracts } = useQuery<ExternalRentalContract[]>({
-    queryKey: ['/api/external-rental-contracts'],
+  // Lightweight units for dropdowns (still needed for create owner form)
+  const { 
+    data: units, 
+    isLoading: unitsLoading,
+  } = useQuery<LightweightUnit[]>({
+    queryKey: ['/api/external-units-for-filters'],
+    staleTime: 15 * 60 * 1000,
     retry: 1,
   });
 
-  // Frequently changing data: financial transactions (optional for financials)
-  const { data: transactions } = useQuery<ExternalFinancialTransaction[]>({
-    queryKey: ['/api/external-financial-transactions'],
-    retry: 1,
-  });
 
   // Owner form
   const form = useForm<OwnerFormValues>({
@@ -244,7 +246,7 @@ export default function ExternalOwnerPortfolio() {
       return await apiRequest("POST", "/api/external-unit-owners", data);
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['/api/external-owners'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/external/portfolio-summary'] });
       toast({
         title: language === 'es' ? "Propietario creado" : "Owner created",
         description: language === 'es' 
@@ -278,27 +280,26 @@ export default function ExternalOwnerPortfolio() {
     mutationFn: async (data: OwnerFormValues & { originalKey: string }) => {
       const { originalKey, ...updateData } = data;
       
-      // Find all owner records with the same grouping key
-      const ownersToUpdate = owners?.filter(o => {
-        const key = `${o.ownerName.toLowerCase()}_${o.ownerEmail?.toLowerCase() || ''}`;
+      // Find the portfolio with the matching grouping key
+      const matchingPortfolio = (portfolioResponse?.data || []).find(p => {
+        const key = `${p.owner.ownerName.toLowerCase()}_${p.owner.ownerEmail?.toLowerCase() || ''}`;
         return key === originalKey;
-      }) || [];
-
-      // Update all matching records
-      const updatePromises = ownersToUpdate.map(owner =>
-        apiRequest("PATCH", `/api/external-unit-owners/${owner.id}`, {
-          ownerName: updateData.ownerName,
-          ownerEmail: updateData.ownerEmail,
-          ownerPhone: updateData.ownerPhone,
-          // Keep the original unitId for each record
-          unitId: owner.unitId,
-        })
-      );
-
-      return await Promise.all(updatePromises);
+      });
+      
+      if (!matchingPortfolio) {
+        throw new Error('Owner not found');
+      }
+      
+      // Update the owner record
+      return await apiRequest("PATCH", `/api/external-unit-owners/${matchingPortfolio.owner.id}`, {
+        ownerName: updateData.ownerName,
+        ownerEmail: updateData.ownerEmail,
+        ownerPhone: updateData.ownerPhone,
+        unitId: matchingPortfolio.owner.unitId,
+      });
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['/api/external-owners'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/external/portfolio-summary'] });
       toast({
         title: language === 'es' ? "Propietario actualizado" : "Owner updated",
         description: language === 'es' 
@@ -383,121 +384,11 @@ export default function ExternalOwnerPortfolio() {
   // Check if any filters are active
   const hasActiveFilters = minUnits > 0 || minOccupancy > 0 || selectedCondominium !== null || selectedUnit !== null;
 
-  // Build owner portfolios
+  // Build owner portfolios from server-aggregated data
   const portfolios = useMemo(() => {
-    // Only require owners - other data is optional for basic display
-    if (!owners || owners.length === 0) return [];
+    return portfolioResponse?.data ?? [];
+  }, [portfolioResponse]);
 
-    // Safe references with empty array defaults
-    const safeUnits = units ?? [];
-    const safeCondominiums = condominiums ?? [];
-    
-    // Normalize contracts (unwrap nested structure if present)
-    const normalizedContracts = (contracts ?? []).map((c: any) => 
-      'contract' in c ? c.contract : c
-    );
-
-    // Default to empty array if transactions unavailable
-    const safeTransactions = transactions ?? [];
-
-    // Group owners by unique owner (same name + email = same person)
-    const ownerGroups = new Map<string, ExternalUnitOwner[]>();
-    owners.forEach(owner => {
-      const key = `${owner.ownerName.toLowerCase()}_${owner.ownerEmail?.toLowerCase() || ''}`;
-      if (!ownerGroups.has(key)) {
-        ownerGroups.set(key, []);
-      }
-      ownerGroups.get(key)!.push(owner);
-    });
-
-    // Build portfolio for each unique owner
-    const result: OwnerPortfolio[] = [];
-    ownerGroups.forEach((ownerInstances, _key) => {
-      // Use the most recent owner instance as the primary one
-      const primaryOwner = ownerInstances.sort((a, b) => 
-        new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
-      )[0];
-
-      // Get all unit IDs for this owner
-      const ownerUnitIds = ownerInstances.map(o => o.unitId);
-      const ownerUnits = safeUnits.filter(u => ownerUnitIds.includes(u.id));
-
-      // Calculate financials (default to 0 if no transaction data)
-      const ownerTransactions = safeTransactions.filter((t: any) => 
-        ownerInstances.some(o => o.id === t.ownerId) ||
-        ownerUnitIds.includes(t.unitId || '')
-      );
-
-      const totalIncome = ownerTransactions
-        .filter((t: any) => t.direction === 'inflow' && t.payeeRole === 'owner')
-        .reduce((sum: number, t: any) => sum + parseFloat(t.grossAmount || '0'), 0);
-
-      const totalExpenses = ownerTransactions
-        .filter((t: any) => t.direction === 'outflow' && t.payerRole === 'owner')
-        .reduce((sum: number, t: any) => sum + parseFloat(t.grossAmount || '0'), 0);
-
-      // Active contracts
-      const activeContracts = normalizedContracts.filter((c: any) => 
-        ownerUnitIds.includes(c.unitId) && c.status === 'active'
-      ).length;
-
-      // Occupancy rate: Calculate time-based occupancy from Jan 1 to Jan 1
-      const currentYear = new Date().getFullYear();
-      const yearStart = new Date(currentYear, 0, 1); // January 1
-      const yearEnd = new Date(currentYear + 1, 0, 1); // January 1 next year
-      const totalYearDays = Math.ceil((yearEnd.getTime() - yearStart.getTime()) / (1000 * 60 * 60 * 24));
-      
-      let totalOccupancyDays = 0;
-      ownerUnits.forEach(unit => {
-        const unitContracts = normalizedContracts.filter((c: any) => c.unitId === unit.id);
-        let unitOccupiedDays = 0;
-        
-        unitContracts.forEach((contract: any) => {
-          const contractStart = new Date(contract.startDate);
-          const contractEnd = contract.endDate ? new Date(contract.endDate) : yearEnd;
-          
-          // Only count days within the current year period
-          const periodStart = contractStart > yearStart ? contractStart : yearStart;
-          const periodEnd = contractEnd < yearEnd ? contractEnd : yearEnd;
-          
-          if (periodStart < periodEnd) {
-            const days = Math.floor((periodEnd.getTime() - periodStart.getTime()) / (1000 * 60 * 60 * 24));
-            unitOccupiedDays += Math.max(0, days);
-          }
-        });
-        
-        // Cap at total days (in case of overlapping contracts)
-        totalOccupancyDays += Math.min(unitOccupiedDays, totalYearDays);
-      });
-      
-      const occupancyRate = ownerUnits.length > 0 
-        ? (totalOccupancyDays / (ownerUnits.length * totalYearDays)) * 100 
-        : 0;
-
-      // Extract unique typologies, condominiums, and unit numbers
-      const typologies = [...new Set(ownerUnits.map(u => u.typology || '-'))];
-      const condominiumNames = [...new Set(ownerUnits.map(u => {
-        const condo = safeCondominiums.find(c => c.id === u.condominiumId);
-        return condo?.name || '-';
-      }))];
-      const unitNumbers = ownerUnits.map(u => u.unitNumber);
-
-      result.push({
-        owner: primaryOwner,
-        units: ownerUnits,
-        totalIncome,
-        totalExpenses,
-        balance: totalIncome - totalExpenses,
-        activeContracts,
-        occupancyRate,
-        typologies,
-        condominiums: condominiumNames,
-        unitNumbers,
-      });
-    });
-
-    return result;
-  }, [owners, units, condominiums, contracts, transactions]);
 
   // Filter and sort portfolios
   const filteredPortfolios = useMemo(() => {
@@ -943,7 +834,7 @@ export default function ExternalOwnerPortfolio() {
       </Card>
 
       {/* Owners Table */}
-      {ownersError ? (
+      {portfoliosError ? (
         <Card>
           <CardContent className="py-12 text-center">
             <AlertCircle className="mx-auto h-12 w-12 text-destructive mb-4" />
@@ -958,14 +849,14 @@ export default function ExternalOwnerPortfolio() {
             <Button 
               variant="outline" 
               className="mt-4"
-              onClick={() => queryClient.invalidateQueries({ queryKey: ['/api/external-owners'] })}
+              onClick={() => queryClient.invalidateQueries({ queryKey: ['/api/external/portfolio-summary'] })}
               data-testid="button-retry-owners"
             >
               {language === 'es' ? 'Reintentar' : 'Retry'}
             </Button>
           </CardContent>
         </Card>
-      ) : ownersLoading ? (
+      ) : portfoliosLoading ? (
         <div className="space-y-4">
           <Skeleton className="h-8 w-full" />
           <Skeleton className="h-8 w-full" />
@@ -1156,7 +1047,7 @@ export default function ExternalOwnerPortfolio() {
                       </TableRow>
                     </TableHeader>
                     <TableBody>
-                      {ownersFetching && !ownersLoading ? (
+                      {portfoliosFetching && !portfoliosLoading ? (
                         <TableRow>
                           <TableCell colSpan={7} className="h-[300px] p-0">
                             <TableLoading minHeight="300px" />
@@ -1385,7 +1276,7 @@ export default function ExternalOwnerPortfolio() {
                           </TableHeader>
                           <TableBody>
                             {paginatedUnits.map(unit => {
-                              const isRented = contracts?.some(c => c.unitId === unit.id && c.status === 'active');
+                              const isRented = (unit as any).rentalStatus === 'rented' || false;
                               return (
                                 <TableRow key={unit.id} data-testid={`row-unit-${unit.id}`}>
                                   <TableCell className="font-medium">

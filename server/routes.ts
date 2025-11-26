@@ -214,6 +214,7 @@ import {
   externalPayments,
   externalPaymentSchedules,
   externalMaintenanceTickets,
+  externalFinancialTransactions,
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, and, inArray, desc, asc, sql, ne, isNull, isNotNull } from "drizzle-orm";
@@ -24300,6 +24301,221 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+
+  // GET /api/external/portfolio-summary - Optimized endpoint for owner portfolio page
+  app.get("/api/external/portfolio-summary", isAuthenticated, requireRole(EXTERNAL_ALL_ROLES), async (req: any, res) => {
+    try {
+      const agencyId = await getUserAgencyId(req);
+      if (!agencyId) {
+        return res.status(403).json({ message: "No agency access" });
+      }
+
+      const { condominiumId, minUnits, search, limit = '100', offset = '0' } = req.query;
+      const limitNum = Math.min(parseInt(limit as string, 10) || 100, 500);
+      const offsetNum = parseInt(offset as string, 10) || 0;
+
+      const currentYear = new Date().getFullYear();
+      const yearStart = new Date(currentYear, 0, 1);
+      const yearEnd = new Date(currentYear + 1, 0, 1);
+
+      const ownersWithUnits = await db.select({
+        id: externalUnitOwners.id,
+        unitId: externalUnitOwners.unitId,
+        ownerName: externalUnitOwners.ownerName,
+        ownerEmail: externalUnitOwners.ownerEmail,
+        ownerPhone: externalUnitOwners.ownerPhone,
+        ownershipPercentage: externalUnitOwners.ownershipPercentage,
+        isActive: externalUnitOwners.isActive,
+        startDate: externalUnitOwners.startDate,
+        endDate: externalUnitOwners.endDate,
+        notes: externalUnitOwners.notes,
+        createdBy: externalUnitOwners.createdBy,
+        createdAt: externalUnitOwners.createdAt,
+        updatedAt: externalUnitOwners.updatedAt,
+        unitNumber: externalUnits.unitNumber,
+        condominiumId: externalUnits.condominiumId,
+        typology: externalUnits.unitType,
+        condominiumName: externalCondominiums.name,
+      })
+        .from(externalUnitOwners)
+        .innerJoin(externalUnits, eq(externalUnitOwners.unitId, externalUnits.id))
+        .leftJoin(externalCondominiums, eq(externalUnits.condominiumId, externalCondominiums.id))
+        .where(eq(externalUnits.agencyId, agencyId))
+        .orderBy(desc(externalUnitOwners.isActive), desc(externalUnitOwners.createdAt));
+
+      if (ownersWithUnits.length === 0) {
+        return res.json({ data: [], total: 0, page: Math.floor(offsetNum / limitNum) + 1, pageSize: limitNum });
+      }
+
+      const allContracts = await db.select({
+        id: externalRentalContracts.id,
+        unitId: externalRentalContracts.unitId,
+        startDate: externalRentalContracts.startDate,
+        endDate: externalRentalContracts.endDate,
+        status: externalRentalContracts.status,
+      })
+        .from(externalRentalContracts)
+        .where(eq(externalRentalContracts.agencyId, agencyId));
+
+      const financialSummary = await db.select({
+        ownerId: externalFinancialTransactions.ownerId,
+        unitId: externalFinancialTransactions.unitId,
+        direction: externalFinancialTransactions.direction,
+        payeeRole: externalFinancialTransactions.payeeRole,
+        payerRole: externalFinancialTransactions.payerRole,
+        totalAmount: sql<string>`COALESCE(SUM(CAST(${externalFinancialTransactions.grossAmount} AS DECIMAL(12,2))), 0)`,
+      })
+        .from(externalFinancialTransactions)
+        .where(eq(externalFinancialTransactions.agencyId, agencyId))
+        .groupBy(
+          externalFinancialTransactions.ownerId,
+          externalFinancialTransactions.unitId,
+          externalFinancialTransactions.direction,
+          externalFinancialTransactions.payeeRole,
+          externalFinancialTransactions.payerRole
+        );
+
+      const ownerGroups = new Map<string, typeof ownersWithUnits>();
+      ownersWithUnits.forEach(owner => {
+        const key = `${owner.ownerName.toLowerCase()}_${owner.ownerEmail?.toLowerCase() || ''}`;
+        if (!ownerGroups.has(key)) {
+          ownerGroups.set(key, []);
+        }
+        ownerGroups.get(key)!.push(owner);
+      });
+
+      const totalYearDays = Math.ceil((yearEnd.getTime() - yearStart.getTime()) / (1000 * 60 * 60 * 24));
+      const portfolios: any[] = [];
+
+      ownerGroups.forEach((ownerInstances, _key) => {
+        const primaryOwner = ownerInstances.sort((a, b) => 
+          new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+        )[0];
+
+        const ownerUnitIds = ownerInstances.map(o => o.unitId);
+        const ownerInstanceIds = ownerInstances.map(o => o.id);
+
+        let totalIncome = 0;
+        let totalExpenses = 0;
+        financialSummary.forEach((fs) => {
+          const matchesOwner = ownerInstanceIds.includes(fs.ownerId || '') || ownerUnitIds.includes(fs.unitId || '');
+          if (matchesOwner) {
+            if (fs.direction === 'inflow' && fs.payeeRole === 'owner') {
+              totalIncome += parseFloat(fs.totalAmount);
+            }
+            if (fs.direction === 'outflow' && fs.payerRole === 'owner') {
+              totalExpenses += parseFloat(fs.totalAmount);
+            }
+          }
+        });
+
+        const activeContracts = allContracts.filter(c => 
+          ownerUnitIds.includes(c.unitId) && c.status === 'active'
+        ).length;
+
+        let totalOccupancyDays = 0;
+        ownerInstances.forEach(ownerUnit => {
+          const unitContracts = allContracts.filter(c => c.unitId === ownerUnit.unitId);
+          let unitOccupiedDays = 0;
+          
+          unitContracts.forEach(contract => {
+            const contractStart = new Date(contract.startDate);
+            const contractEnd = contract.endDate ? new Date(contract.endDate) : yearEnd;
+            
+            const periodStart = contractStart > yearStart ? contractStart : yearStart;
+            const periodEnd = contractEnd < yearEnd ? contractEnd : yearEnd;
+            
+            if (periodStart < periodEnd) {
+              const days = Math.floor((periodEnd.getTime() - periodStart.getTime()) / (1000 * 60 * 60 * 24));
+              unitOccupiedDays += Math.max(0, days);
+            }
+          });
+          
+          totalOccupancyDays += Math.min(unitOccupiedDays, totalYearDays);
+        });
+        
+        const occupancyRate = ownerInstances.length > 0 
+          ? (totalOccupancyDays / (ownerInstances.length * totalYearDays)) * 100 
+          : 0;
+
+        const typologies = [...new Set(ownerInstances.map(u => u.typology || '-'))];
+        const condominiumNames = [...new Set(ownerInstances.map(u => u.condominiumName || '-'))];
+        const unitNumbers = ownerInstances.map(u => u.unitNumber);
+
+        portfolios.push({
+          owner: {
+            id: primaryOwner.id,
+            unitId: primaryOwner.unitId,
+            ownerName: primaryOwner.ownerName,
+            ownerEmail: primaryOwner.ownerEmail,
+            ownerPhone: primaryOwner.ownerPhone,
+            ownershipPercentage: primaryOwner.ownershipPercentage,
+            isActive: primaryOwner.isActive,
+            startDate: primaryOwner.startDate,
+            endDate: primaryOwner.endDate,
+            notes: primaryOwner.notes,
+            createdBy: primaryOwner.createdBy,
+            createdAt: primaryOwner.createdAt,
+            updatedAt: primaryOwner.updatedAt,
+          },
+          units: ownerInstances.map(u => ({
+            id: u.unitId,
+            unitNumber: u.unitNumber,
+            condominiumId: u.condominiumId,
+            typology: u.typology,
+          })),
+          totalIncome,
+          totalExpenses,
+          balance: totalIncome - totalExpenses,
+          activeContracts,
+          occupancyRate: Math.round(occupancyRate * 100) / 100,
+          typologies,
+          condominiums: condominiumNames,
+          unitNumbers,
+        });
+      });
+
+      let filteredPortfolios = portfolios;
+
+      if (search) {
+        const searchLower = (search as string).toLowerCase();
+        filteredPortfolios = filteredPortfolios.filter(p =>
+          p.owner.ownerName.toLowerCase().includes(searchLower) ||
+          p.owner.ownerEmail?.toLowerCase().includes(searchLower) ||
+          p.owner.ownerPhone?.includes(search as string)
+        );
+      }
+
+      if (minUnits) {
+        const minUnitsNum = parseInt(minUnits as string, 10);
+        if (!isNaN(minUnitsNum) && minUnitsNum > 0) {
+          filteredPortfolios = filteredPortfolios.filter(p => p.units.length >= minUnitsNum);
+        }
+      }
+
+      if (condominiumId) {
+        filteredPortfolios = filteredPortfolios.filter(p =>
+          p.units.some((u: any) => u.condominiumId === condominiumId)
+        );
+      }
+
+      filteredPortfolios.sort((a, b) => a.owner.ownerName.localeCompare(b.owner.ownerName));
+
+      const total = filteredPortfolios.length;
+      const paginatedPortfolios = filteredPortfolios.slice(offsetNum, offsetNum + limitNum);
+
+      res.json({
+        data: paginatedPortfolios,
+        total,
+        page: Math.floor(offsetNum / limitNum) + 1,
+        pageSize: limitNum,
+      });
+    } catch (error: any) {
+      console.error("Error fetching portfolio summary:", error);
+      handleGenericError(res, error);
+    }
+  });
+
   // External Unit Owners Routes
   app.get("/api/external-unit-owners/by-unit/:unitId", isAuthenticated, requireRole(EXTERNAL_ALL_ROLES), async (req: any, res) => {
     try {
@@ -25561,7 +25777,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
             ));
 
           const isDuplicate = existingLeads.some(lead => {
-            const existingNormalizedName = `\${lead.firstName}\${lead.lastName}`.toLowerCase()
+            const existingNormalizedName = `${lead.firstName}${lead.lastName}`.toLowerCase()
               .normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9]/g, '');
             const existingPhoneLast4 = (lead.phone || lead.phoneLast4 || '').slice(-4);
             return existingNormalizedName === normalizedName && existingPhoneLast4 === phoneLast4;
@@ -25618,7 +25834,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       await createAuditLog(req, "create", "external_lead_import", null, 
-        `Imported \${results.imported} leads (\${results.duplicates} duplicates skipped, \${results.errors.length} errors)`);
+        `Imported ${results.imported} leads (${results.duplicates} duplicates skipped, ${results.errors.length} errors)`);
 
       res.json({
         success: true,

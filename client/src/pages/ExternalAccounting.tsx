@@ -1,4 +1,5 @@
 import { useState, useMemo, useEffect, lazy, Suspense } from "react";
+import { useLocation } from "wouter";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import ExternalPayments from "./ExternalPayments";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -65,6 +66,7 @@ import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, Responsive
 type TransactionFormData = z.infer<typeof insertExternalFinancialTransactionSchema>;
 
 export default function ExternalAccounting() {
+  const [, setLocation] = useLocation();
   const { language } = useLanguage();
   const { toast } = useToast();
 
@@ -528,6 +530,7 @@ export default function ExternalAccounting() {
     status: 'Estado',
     condominium: 'Condominio',
     unit: 'Unidad',
+    assignment: 'Asignación',
     all: 'Todos',
     inflow: 'Ingresos',
     outflow: 'Egresos',
@@ -640,6 +643,7 @@ export default function ExternalAccounting() {
     status: 'Status',
     condominium: 'Condominium',
     unit: 'Unit',
+    assignment: 'Assignment',
     all: 'All',
     inflow: 'Income',
     outflow: 'Expenses',
@@ -1541,6 +1545,9 @@ export default function ExternalAccounting() {
                         {t.description}
                       </TableHead>
                       <TableHead className="text-sm">
+                        {t.assignment}
+                      </TableHead>
+                      <TableHead className="text-sm">
                         {t.payerRole}
                       </TableHead>
                       <TableHead className="text-sm">
@@ -1570,6 +1577,38 @@ export default function ExternalAccounting() {
                           </div>
                         </TableCell>
                         <TableCell className="max-w-xs truncate text-sm px-3 py-3">{transaction.description}</TableCell>
+                        <TableCell className="text-sm px-3 py-3">
+                          {transaction.condominiumId || transaction.unitId ? (
+                            <div className="flex flex-col gap-1">
+                              {transaction.condominiumId && condominiums && (
+                                <Button
+                                  variant="link"
+                                  size="sm"
+                                  className="h-auto p-0 text-xs justify-start font-normal"
+                                  onClick={() => setLocation(`/external/condominios/${transaction.condominiumId}`)}
+                                  data-testid={`link-condo-${transaction.id}`}
+                                >
+                                  <Building2 className="h-3 w-3 mr-1 shrink-0" />
+                                  <span className="truncate">{condominiums.find(c => c.id === transaction.condominiumId)?.name || '-'}</span>
+                                </Button>
+                              )}
+                              {transaction.unitId && units && (
+                                <Button
+                                  variant="link"
+                                  size="sm"
+                                  className="h-auto p-0 text-xs justify-start font-normal"
+                                  onClick={() => setLocation(`/external/unidades/${transaction.unitId}`)}
+                                  data-testid={`link-unit-${transaction.id}`}
+                                >
+                                  <Home className="h-3 w-3 mr-1 shrink-0" />
+                                  <span>{units.find(u => u.id === transaction.unitId)?.unitNumber || '-'}</span>
+                                </Button>
+                              )}
+                            </div>
+                          ) : (
+                            <span className="text-muted-foreground">-</span>
+                          )}
+                        </TableCell>
                         <TableCell className="text-sm px-3 py-3"><Badge variant="outline">{getRoleLabel(transaction.payerRole)}</Badge></TableCell>
                         <TableCell className="text-sm px-3 py-3"><Badge variant="outline">{getRoleLabel(transaction.payeeRole)}</Badge></TableCell>
                         <TableCell className="text-sm px-3 py-3">
