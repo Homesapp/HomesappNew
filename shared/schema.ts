@@ -6080,13 +6080,13 @@ export const insertExternalLeadSchema = baseExternalLeadSchema.refine((data) => 
   if (data.registrationType === 'broker') {
     return data.phoneLast4 && data.phoneLast4.length === 4;
   }
-  // Seller validation: must provide full phone and email
+  // Seller validation: must provide full phone (email is optional)
   if (data.registrationType === 'seller') {
-    return data.phone && data.phone.length > 0 && data.email && data.email.length > 0;
+    return data.phone && data.phone.length > 0;
   }
   return true;
 }, {
-  message: "Broker must provide last 4 digits of phone. Seller must provide full phone and email.",
+  message: "Broker must provide last 4 digits of phone. Seller must provide full phone.",
 });
 
 export const updateExternalLeadSchema = baseExternalLeadSchema.partial().refine((data) => {

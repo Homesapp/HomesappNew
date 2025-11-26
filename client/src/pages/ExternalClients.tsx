@@ -3076,7 +3076,7 @@ export default function ExternalClients() {
                         <FormItem>
                           <FormLabel className="flex items-center gap-2">
                             <Mail className="h-3.5 w-3.5 text-muted-foreground" />
-                            {language === "es" ? "Email *" : "Email *"}
+                            {language === "es" ? "Email" : "Email"}
                           </FormLabel>
                           <FormControl>
                             <Input {...field} value={field.value || ""} type="email" placeholder="correo@ejemplo.com" data-testid="input-create-lead-email" />
