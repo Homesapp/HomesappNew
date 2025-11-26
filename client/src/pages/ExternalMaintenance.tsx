@@ -297,6 +297,22 @@ export default function ExternalMaintenance() {
     }
   };
   
+  // Helper to get Spanish month name
+  const getSpanishMonthName = (month: number): string => {
+    const monthNames = [
+      'Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio',
+      'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'
+    ];
+    return monthNames[month - 1] || '';
+  };
+  
+  // Generate biweekly period label with month and year
+  const getBiweeklyPeriodLabel = (): string => {
+    const periodText = periodIndex === 1 ? '1ra' : '2da';
+    const monthName = getSpanishMonthName(periodMonth);
+    return `${periodText} Quincena de ${monthName} ${periodYear}`;
+  };
+  
   // Auto-switch view mode on genuine breakpoint transitions
   useEffect(() => {
     if (isMobile !== prevIsMobile) {
@@ -920,7 +936,7 @@ export default function ExternalMaintenance() {
   };
 
   const t = language === 'es' ? {
-    title: 'Mantenimiento',
+    title: 'Servicios',
     subtitle: 'Gestiona tickets de mantenimiento y servicios',
     newTicket: 'Nuevo Ticket',
     totalJobs: 'Total Trabajos',
@@ -961,7 +977,7 @@ export default function ExternalMaintenance() {
     create: 'Crear Ticket',
     creating: 'Creando...',
   } : {
-    title: 'Maintenance',
+    title: 'Services',
     subtitle: 'Manage maintenance tickets and services',
     newTicket: 'New Ticket',
     totalJobs: 'Total Jobs',
@@ -1017,13 +1033,13 @@ export default function ExternalMaintenance() {
       <Tabs defaultValue="tickets" className="w-full">
         <TabsList className="grid grid-cols-4">
           <TabsTrigger value="tickets" data-testid="tab-tickets">
-            {language === 'es' ? 'Tickets' : 'Tickets'}
+            {language === 'es' ? 'Mantenimiento' : 'Maintenance'}
+          </TabsTrigger>
+          <TabsTrigger value="cleaning" data-testid="tab-cleaning">
+            {language === 'es' ? 'Limpieza' : 'Cleaning'}
           </TabsTrigger>
           <TabsTrigger value="quotations" data-testid="tab-quotations">
             {language === 'es' ? 'Cotizaciones' : 'Quotations'}
-          </TabsTrigger>
-          <TabsTrigger value="workers" data-testid="tab-workers">
-            {language === 'es' ? 'Trabajadores' : 'Workers'}
           </TabsTrigger>
           <TabsTrigger value="assignments" data-testid="tab-assignments">
             {language === 'es' ? 'Asignaciones' : 'Assignments'}
@@ -1056,7 +1072,7 @@ export default function ExternalMaintenance() {
         <div className="flex items-center gap-2 text-sm px-3 py-1 bg-muted rounded-md">
           <CalendarIcon className="h-4 w-4" />
           <span className="font-medium">
-            {biweeklyStats?.period?.label || `${periodIndex === 1 ? '1ra' : '2da'} Quincena`}
+            {getBiweeklyPeriodLabel()}
           </span>
         </div>
         <Button
@@ -2657,8 +2673,19 @@ export default function ExternalMaintenance() {
           <ExternalQuotationsTab />
         </TabsContent>
 
-        <TabsContent value="workers" className="mt-6">
-          <ExternalMaintenanceWorkers initialTab="workers" hideHeader />
+        <TabsContent value="cleaning" className="mt-6">
+          <Card>
+            <CardHeader>
+              <CardTitle>{language === 'es' ? 'Servicios de Limpieza' : 'Cleaning Services'}</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <p className="text-muted-foreground">
+                {language === 'es' 
+                  ? 'Gestiona los servicios de limpieza para tus propiedades aquí.' 
+                  : 'Manage cleaning services for your properties here.'}
+              </p>
+            </CardContent>
+          </Card>
         </TabsContent>
 
         <TabsContent value="assignments" className="mt-6">
