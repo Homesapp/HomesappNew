@@ -24261,27 +24261,37 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ message: "No agency assigned to user" });
       }
 
-      // Get all units for this agency - already filtered by agency
-      const units = await storage.getExternalUnitsByAgency(agencyId);
-      
-      // Verify ownership for each unit (extra security layer)
-      for (const unit of units) {
-        const hasAccess = await verifyExternalAgencyOwnership(req, res, unit.agencyId);
-        if (!hasAccess) return;
-      }
-      
-      // Get all owners for all units
-      const ownersPromises = units.map(unit => storage.getExternalUnitOwnersByUnit(unit.id));
-      const ownersArrays = await Promise.all(ownersPromises);
-      
-      // Flatten and add unit info to each owner
-      const owners = ownersArrays.flat().map((owner) => {
-        const ownerUnit = units.find(u => u.id === owner.unitId);
-        return {
-          ...owner,
-          unit: ownerUnit
-        };
-      });
+      // Optimized: Single query to get all owners with their units for the agency
+      const owners = await db.select({
+        id: externalUnitOwners.id,
+        unitId: externalUnitOwners.unitId,
+        ownerName: externalUnitOwners.ownerName,
+        ownerEmail: externalUnitOwners.ownerEmail,
+        ownerPhone: externalUnitOwners.ownerPhone,
+        ownershipPercentage: externalUnitOwners.ownershipPercentage,
+        isActive: externalUnitOwners.isActive,
+        startDate: externalUnitOwners.startDate,
+        endDate: externalUnitOwners.endDate,
+        notes: externalUnitOwners.notes,
+        createdBy: externalUnitOwners.createdBy,
+        createdAt: externalUnitOwners.createdAt,
+        updatedAt: externalUnitOwners.updatedAt,
+        // Unit fields
+        unit: {
+          id: externalUnits.id,
+          unitNumber: externalUnits.unitNumber,
+          condominiumId: externalUnits.condominiumId,
+          rentalStatus: externalUnits.rentalStatus,
+          bedroomCount: externalUnits.bedroomCount,
+          bathroomCount: externalUnits.bathroomCount,
+          unitType: externalUnits.unitType,
+          agencyId: externalUnits.agencyId,
+        }
+      })
+      .from(externalUnitOwners)
+      .innerJoin(externalUnits, eq(externalUnitOwners.unitId, externalUnits.id))
+      .where(eq(externalUnits.agencyId, agencyId))
+      .orderBy(desc(externalUnitOwners.isActive), desc(externalUnitOwners.createdAt));
       
       res.json(owners);
     } catch (error: any) {
