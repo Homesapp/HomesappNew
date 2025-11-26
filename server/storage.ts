@@ -8772,6 +8772,8 @@ export class DatabaseStorage implements IStorage {
   // External Condominium operations
   async getExternalCondominium(id: string): Promise<ExternalCondominium | undefined> {
     const [result] = await db.select()
+      .from(externalCondominiums)
+      .where(eq(externalCondominiums.id, id));
     return result;
   }
 
