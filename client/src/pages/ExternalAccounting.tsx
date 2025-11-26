@@ -399,11 +399,25 @@ export default function ExternalAccounting() {
     resolver: zodResolver(insertExternalFinancialTransactionSchema.partial()),
   });
 
+  const grossAmount = createForm.watch("grossAmount");
+  const fees = createForm.watch("fees");
+  
+  useEffect(() => {
+    const gross = parseFloat(grossAmount || "0") || 0;
+    const fee = parseFloat(fees || "0") || 0;
+    const net = (gross - fee).toFixed(2);
+    createForm.setValue("netAmount", net);
+  }, [grossAmount, fees, createForm]);
+
   const createMutation = useMutation({
     mutationFn: async (data: TransactionFormData) => {
+      const payload = {
+        ...data,
+        condominiumId: selectedCondominiumId || undefined,
+      };
       return await apiRequest('/api/external/accounting/transactions', {
         method: 'POST',
-        body: JSON.stringify(data),
+        body: JSON.stringify(payload),
       });
     },
     onSuccess: () => {
