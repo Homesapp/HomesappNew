@@ -1440,6 +1440,18 @@ export default function ExternalClients() {
                           <Pencil className="h-4 w-4 mr-2" />
                           {language === "es" ? "Editar" : "Edit"}
                         </DropdownMenuItem>
+                        {client.status === "active" && !client.convertedBackToLeadId && (
+                          <DropdownMenuItem 
+                            onClick={() => {
+                              setSelectedClient(client);
+                              setIsConvertToLeadDialogOpen(true);
+                            }}
+                            data-testid={`button-convert-to-lead-${client.id}`}
+                          >
+                            <ArrowLeftCircle className="h-4 w-4 mr-2" />
+                            {language === "es" ? "Reconvertir a Lead" : "Convert to Lead"}
+                          </DropdownMenuItem>
+                        )}
                         <DropdownMenuItem 
                           onClick={() => handleDelete(client)}
                           className="text-destructive"
@@ -1626,6 +1638,19 @@ export default function ExternalClients() {
                                 <Pencil className="h-4 w-4 mr-2" />
                                 {language === "es" ? "Editar" : "Edit"}
                               </DropdownMenuItem>
+                              {client.status === "active" && !client.convertedBackToLeadId && (
+                                <DropdownMenuItem 
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    setSelectedClient(client);
+                                    setIsConvertToLeadDialogOpen(true);
+                                  }}
+                                  data-testid={`button-convert-to-lead-${client.id}`}
+                                >
+                                  <ArrowLeftCircle className="h-4 w-4 mr-2" />
+                                  {language === "es" ? "Reconvertir a Lead" : "Convert to Lead"}
+                                </DropdownMenuItem>
+                              )}
                               <DropdownMenuItem 
                                 onClick={() => handleDelete(client)}
                                 className="text-destructive"
