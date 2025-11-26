@@ -1283,7 +1283,7 @@ export interface IStorage {
     limit: number;
     offset: number;
     search?: string;
-    status?: string;
+    status?: string | string[];
     priority?: string;
     category?: string;
     condominiumId?: string;
@@ -8485,7 +8485,7 @@ export class DatabaseStorage implements IStorage {
     limit: number;
     offset: number;
     search?: string;
-    status?: string;
+    status?: string | string[];
     priority?: string;
     category?: string;
     condominiumId?: string;
@@ -8499,7 +8499,11 @@ export class DatabaseStorage implements IStorage {
     const conditions: SQL[] = [eq(externalMaintenanceTickets.agencyId, agencyId)];
     
     if (status && status !== 'all') {
-      conditions.push(eq(externalMaintenanceTickets.status, status as any));
+      if (Array.isArray(status)) {
+        conditions.push(inArray(externalMaintenanceTickets.status, status as any[]));
+      } else {
+        conditions.push(eq(externalMaintenanceTickets.status, status as any));
+      }
     }
     if (priority && priority !== 'all') {
       conditions.push(eq(externalMaintenanceTickets.priority, priority as any));
