@@ -104,6 +104,7 @@ import { cn } from "@/lib/utils";
 import { ExternalPaginationControls } from "@/components/external/ExternalPaginationControls";
 import ExternalQuotationsTab from "@/components/ExternalQuotationsTab";
 import ExternalMaintenanceWorkers from "@/pages/ExternalMaintenanceWorkers";
+import { ExternalCleaningTab } from "@/components/ExternalCleaningTab";
 
 // Form-specific schema - agencyId added after validation, scheduledDate as string
 const maintenanceFormSchema = z.object({
@@ -2674,18 +2675,7 @@ export default function ExternalMaintenance() {
         </TabsContent>
 
         <TabsContent value="cleaning" className="mt-6">
-          <Card>
-            <CardHeader>
-              <CardTitle>{language === 'es' ? 'Servicios de Limpieza' : 'Cleaning Services'}</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <p className="text-muted-foreground">
-                {language === 'es' 
-                  ? 'Gestiona los servicios de limpieza para tus propiedades aquí.' 
-                  : 'Manage cleaning services for your properties here.'}
-              </p>
-            </CardContent>
-          </Card>
+          <ExternalCleaningTab language={language} />
         </TabsContent>
 
         <TabsContent value="assignments" className="mt-6">

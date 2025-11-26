@@ -290,6 +290,7 @@ export const tenantMaintenanceTypeEnum = pgEnum("tenant_maintenance_type", [
   "hvac",            // Aire acondicionado/calefacción
   "general",         // General
   "emergency",       // Emergencia
+  "cleaning",        // Limpieza
   "other",           // Otro
 ]);
 

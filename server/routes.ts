@@ -22768,7 +22768,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // External Maintenance Tickets Routes
   app.get("/api/external-tickets", isAuthenticated, requireRole(EXTERNAL_ALL_ROLES), async (req: any, res) => {
     try {
-      const { propertyId, assignedTo, status, priority } = req.query;
+      const { propertyId, assignedTo, status, priority, page, pageSize, search, category, condominiumId, dateFilter, sortField, sortOrder } = req.query;
       
       if (propertyId) {
         const tickets = await storage.getExternalMaintenanceTicketsByProperty(propertyId);
@@ -22792,8 +22792,42 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const filters: any = {};
       if (status) filters.status = status;
       if (priority) filters.priority = priority;
+      if (category) filters.category = category;
+      if (condominiumId) filters.condominiumId = condominiumId;
+      if (search) filters.search = search;
+      if (dateFilter) filters.dateFilter = dateFilter;
       
-      const tickets = await storage.getExternalMaintenanceTicketsByAgency(agencyId, filters);
+      let tickets = await storage.getExternalMaintenanceTicketsByAgency(agencyId, filters);
+      
+      // Sort tickets
+      const field = sortField || 'createdAt';
+      const order = sortOrder || 'desc';
+      tickets = tickets.sort((a, b) => {
+        const aVal = field === 'created' ? a.createdAt : a[field];
+        const bVal = field === 'created' ? b.createdAt : b[field];
+        if (order === 'asc') {
+          return aVal > bVal ? 1 : -1;
+        }
+        return aVal < bVal ? 1 : -1;
+      });
+      
+      // If pagination params provided, return paginated response
+      if (page && pageSize) {
+        const pageNum = parseInt(page) || 1;
+        const pageSizeNum = parseInt(pageSize) || 10;
+        const total = tickets.length;
+        const totalPages = Math.ceil(total / pageSizeNum);
+        const start = (pageNum - 1) * pageSizeNum;
+        const paginatedTickets = tickets.slice(start, start + pageSizeNum);
+        
+        return res.json({
+          data: paginatedTickets,
+          total,
+          page: pageNum,
+          pageSize: pageSizeNum,
+          totalPages
+        });
+      }
       
       res.json(tickets);
     } catch (error: any) {
