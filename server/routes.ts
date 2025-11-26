@@ -22206,9 +22206,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       
       // Get agency ID from authenticated user (admin/master can pass agencyId to view other agencies)
-      let agencyId = req.query.agencyId;
+      // Always use authenticated user's agency for security
+      const agencyId = await getUserAgencyId(req);
       if (!agencyId) {
-        agencyId = await getUserAgencyId(req);
         if (!agencyId) {
           return res.status(400).json({ message: "User is not assigned to any agency" });
         }
@@ -22412,9 +22412,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       
       // Get agency ID from authenticated user (admin/master can pass agencyId to view other agencies)
-      let agencyId = req.query.agencyId;
+      // Always use authenticated user's agency for security
+      const agencyId = await getUserAgencyId(req);
       if (!agencyId) {
-        agencyId = await getUserAgencyId(req);
         if (!agencyId) {
           return res.status(400).json({ message: "User is not assigned to any agency" });
         }
@@ -22766,9 +22766,115 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // External Maintenance Tickets Routes
+  
+  // Helper function to calculate biweekly date range
+  function getBiweeklyDateRange(year: number, month: number, period: number): { startDate: Date; endDate: Date } {
+    if (period === 1) {
+      // First biweekly: 1st to 15th
+      const startDate = new Date(year, month - 1, 1, 0, 0, 0, 0);
+      const endDate = new Date(year, month - 1, 15, 23, 59, 59, 999);
+      return { startDate, endDate };
+    } else {
+      // Second biweekly: 16th to end of month
+      const startDate = new Date(year, month - 1, 16, 0, 0, 0, 0);
+      const lastDay = new Date(year, month, 0).getDate();
+      const endDate = new Date(year, month - 1, lastDay, 23, 59, 59, 999);
+      return { startDate, endDate };
+    }
+  }
+  
+  // Biweekly statistics endpoint
+  app.get("/api/external-tickets/stats/biweekly", isAuthenticated, requireRole(EXTERNAL_ALL_ROLES), async (req: any, res) => {
+    try {
+      const { year, month, period, category } = req.query;
+      
+      // Always use authenticated user's agency for security
+      const agencyId = await getUserAgencyId(req);
+      if (!agencyId) {
+        if (!agencyId) {
+          return res.status(400).json({ message: "User is not assigned to any agency" });
+        }
+      }
+      
+      const yearNum = parseInt(year) || new Date().getFullYear();
+      const monthNum = parseInt(month) || new Date().getMonth() + 1;
+      const periodNum = parseInt(period) || (new Date().getDate() <= 15 ? 1 : 2);
+      
+      const { startDate, endDate } = getBiweeklyDateRange(yearNum, monthNum, periodNum);
+      
+      // Get all tickets for the agency
+      const filters: any = {};
+      if (category) filters.category = category;
+      
+      let allTickets = await storage.getExternalMaintenanceTicketsByAgency(agencyId, filters);
+      
+      // Filter tickets by date range (using createdAt)
+      const filteredTickets = allTickets.filter(ticket => {
+        const ticketDate = new Date(ticket.createdAt);
+        return ticketDate >= startDate && ticketDate <= endDate;
+      });
+      
+      // Calculate statistics
+      const total = filteredTickets.length;
+      const open = filteredTickets.filter(t => t.status === 'open' || t.status === 'in_progress').length;
+      const resolved = filteredTickets.filter(t => t.status === 'resolved' || t.status === 'closed').length;
+      
+      // Calculate costs from actual closed/resolved tickets
+      let actualCost = 0;
+      filteredTickets.forEach(ticket => {
+        if (ticket.actualCost) {
+          const cost = parseFloat(ticket.actualCost);
+          if (!isNaN(cost)) actualCost += cost;
+        }
+      });
+      
+      const commissionRate = 0.15;
+      const commission = actualCost * commissionRate;
+      const totalCharge = actualCost + commission;
+      
+      // Calculate paid total (tickets with status resolved/closed)
+      let paidTotal = 0;
+      filteredTickets.filter(t => t.status === 'resolved' || t.status === 'closed').forEach(ticket => {
+        if (ticket.actualCost) {
+          const cost = parseFloat(ticket.actualCost);
+          if (!isNaN(cost)) paidTotal += cost * (1 + commissionRate);
+        }
+      });
+      
+      // Generate period label
+      const monthNames = ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio',
+        'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'];
+      const periodText = periodNum === 1 ? '1ra' : '2da';
+      const label = `${periodText} Quincena de ${monthNames[monthNum - 1]} ${yearNum}`;
+      
+      res.json({
+        period: {
+          year: yearNum,
+          month: monthNum,
+          biweekly: periodNum,
+          startDate: startDate.toISOString(),
+          endDate: endDate.toISOString(),
+          label
+        },
+        stats: {
+          total,
+          open,
+          resolved,
+          actualCost,
+          commission,
+          totalCharge,
+          paidTotal
+        }
+      });
+    } catch (error: any) {
+      console.error("Error fetching biweekly stats:", error);
+      handleGenericError(res, error);
+    }
+  });
+  
   app.get("/api/external-tickets", isAuthenticated, requireRole(EXTERNAL_ALL_ROLES), async (req: any, res) => {
     try {
-      const { propertyId, assignedTo, status, priority, page, pageSize, search, category, condominiumId, dateFilter, sortField, sortOrder } = req.query;
+      const { propertyId, assignedTo, status, priority, page, pageSize, search, category, condominiumId, dateFilter, sortField, sortOrder, periodYear, periodMonth, periodIndex } = req.query;
       
       if (propertyId) {
         const tickets = await storage.getExternalMaintenanceTicketsByProperty(propertyId);
@@ -22781,9 +22887,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       
       // Get agency ID from authenticated user (admin/master can pass agencyId to view other agencies)
-      let agencyId = req.query.agencyId;
+      // Always use authenticated user's agency for security
+      const agencyId = await getUserAgencyId(req);
       if (!agencyId) {
-        agencyId = await getUserAgencyId(req);
         if (!agencyId) {
           return res.status(400).json({ message: "User is not assigned to any agency" });
         }
@@ -22798,6 +22904,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (dateFilter) filters.dateFilter = dateFilter;
       
       let tickets = await storage.getExternalMaintenanceTicketsByAgency(agencyId, filters);
+      
+      // Apply biweekly period filter if provided
+      if (periodYear && periodMonth && periodIndex) {
+        const yearNum = parseInt(periodYear);
+        const monthNum = parseInt(periodMonth);
+        const periodNum = parseInt(periodIndex);
+        const { startDate, endDate } = getBiweeklyDateRange(yearNum, monthNum, periodNum);
+        
+        tickets = tickets.filter(ticket => {
+          const ticketDate = new Date(ticket.createdAt);
+          return ticketDate >= startDate && ticketDate <= endDate;
+        });
+      }
       
       // Sort tickets
       const field = sortField || 'createdAt';
@@ -22835,6 +22954,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       handleGenericError(res, error);
     }
   });
+
 
   app.get("/api/external-tickets/:id", isAuthenticated, requireRole(EXTERNAL_ALL_ROLES), async (req: any, res) => {
     try {
@@ -23212,9 +23332,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // External Dashboard Summary
   app.get("/api/external-dashboard-summary", isAuthenticated, requireRole(EXTERNAL_ALL_ROLES), async (req: any, res) => {
     try {
-      let agencyId = req.query.agencyId;
+      // Always use authenticated user's agency for security
+      const agencyId = await getUserAgencyId(req);
       if (!agencyId) {
-        agencyId = await getUserAgencyId(req);
         if (!agencyId) {
           return res.status(400).json({ message: "User is not assigned to any agency" });
         }
@@ -23237,9 +23357,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const { isActive, search, sortField, sortOrder, limit, offset } = req.query;
       
       // Get agency ID from authenticated user (admin/master can pass agencyId to view other agencies)
-      let agencyId = req.query.agencyId;
+      // Always use authenticated user's agency for security
+      const agencyId = await getUserAgencyId(req);
       if (!agencyId) {
-        agencyId = await getUserAgencyId(req);
         if (!agencyId) {
           return res.status(400).json({ message: "User is not assigned to any agency" });
         }
@@ -23500,9 +23620,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const { condominiumId, isActive } = req.query;
       
       // Get agency ID from authenticated user (admin/master can pass agencyId to view other agencies)
-      let agencyId = req.query.agencyId;
+      // Always use authenticated user's agency for security
+      const agencyId = await getUserAgencyId(req);
       if (!agencyId) {
-        agencyId = await getUserAgencyId(req);
         if (!agencyId) {
           return res.status(400).json({ message: "User is not assigned to any agency" });
         }

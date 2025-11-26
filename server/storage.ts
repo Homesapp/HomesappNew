@@ -1278,7 +1278,7 @@ export interface IStorage {
 
   // External Management System - Maintenance Ticket operations
   getExternalMaintenanceTicket(id: string): Promise<ExternalMaintenanceTicket | undefined>;
-  getExternalMaintenanceTicketsByAgency(agencyId: string, filters?: { status?: string; priority?: string }): Promise<ExternalMaintenanceTicket[]>;
+  getExternalMaintenanceTicketsByAgency(agencyId: string, filters?: { status?: string; priority?: string; category?: string; search?: string }): Promise<ExternalMaintenanceTicket[]>;
   getExternalMaintenanceTicketsPaginated(agencyId: string, options: {
     limit: number;
     offset: number;
@@ -8466,13 +8466,24 @@ export class DatabaseStorage implements IStorage {
     return ticket;
   }
 
-  async getExternalMaintenanceTicketsByAgency(agencyId: string, filters?: { status?: string; priority?: string }): Promise<ExternalMaintenanceTicket[]> {
+  async getExternalMaintenanceTicketsByAgency(agencyId: string, filters?: { status?: string; priority?: string; category?: string; search?: string }): Promise<ExternalMaintenanceTicket[]> {
     const conditions = [eq(externalMaintenanceTickets.agencyId, agencyId)];
     if (filters?.status) {
       conditions.push(eq(externalMaintenanceTickets.status, filters.status as any));
     }
     if (filters?.priority) {
       conditions.push(eq(externalMaintenanceTickets.priority, filters.priority as any));
+    }
+    if (filters?.category) {
+      conditions.push(eq(externalMaintenanceTickets.category, filters.category as any));
+    }
+    if (filters?.search) {
+      conditions.push(
+        or(
+          ilike(externalMaintenanceTickets.title, `%${filters.search}%`),
+          ilike(externalMaintenanceTickets.description, `%${filters.search}%`)
+        ) as any
+      );
     }
     
     return await db.select()

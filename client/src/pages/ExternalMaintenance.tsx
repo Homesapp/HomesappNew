@@ -349,10 +349,18 @@ export default function ExternalMaintenance() {
     totalPages: number;
   };
 
+  // Reset to page 1 when biweekly period changes
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [periodYear, periodMonth, periodIndex]);
+
   // Build query params for the URL
   const ticketsQueryParams = new URLSearchParams();
   ticketsQueryParams.set('page', String(currentPage));
   ticketsQueryParams.set('pageSize', String(itemsPerPage));
+  ticketsQueryParams.set('periodYear', String(periodYear));
+  ticketsQueryParams.set('periodMonth', String(periodMonth));
+  ticketsQueryParams.set('periodIndex', String(periodIndex));
   if (debouncedSearch) ticketsQueryParams.set('search', debouncedSearch);
   if (statusFilter !== 'all') ticketsQueryParams.set('status', statusFilter);
   if (priorityFilter !== 'all') ticketsQueryParams.set('priority', priorityFilter);

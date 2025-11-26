@@ -195,10 +195,17 @@ export function ExternalCleaningTab({ language }: ExternalCleaningTabProps) {
     setCurrentPage(1);
   }, [statusFilter, priorityFilter, condominiumFilter]);
 
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [periodYear, periodMonth, periodIndex]);
+
   const ticketsQueryParams = new URLSearchParams();
   ticketsQueryParams.set('page', String(currentPage));
   ticketsQueryParams.set('pageSize', String(itemsPerPage));
   ticketsQueryParams.set('category', 'cleaning');
+  ticketsQueryParams.set('periodYear', String(periodYear));
+  ticketsQueryParams.set('periodMonth', String(periodMonth));
+  ticketsQueryParams.set('periodIndex', String(periodIndex));
   if (debouncedSearch) ticketsQueryParams.set('search', debouncedSearch);
   if (statusFilter !== 'all') ticketsQueryParams.set('status', statusFilter);
   if (priorityFilter !== 'all') ticketsQueryParams.set('priority', priorityFilter);
@@ -629,40 +636,72 @@ export function ExternalCleaningTab({ language }: ExternalCleaningTabProps) {
           </CardContent>
         </Card>
       ) : viewMode === 'table' ? (
-        <div className="rounded-md border">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>{t.cleaningTitle}</TableHead>
-                <TableHead>{t.unit}</TableHead>
-                <TableHead>{t.status}</TableHead>
-                <TableHead>{t.priority}</TableHead>
-                <TableHead>{t.created}</TableHead>
-                <TableHead className="text-right">{t.actions}</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {tickets.map((ticket) => (
-                <TableRow key={ticket.id} data-testid={`row-cleaning-${ticket.id}`}>
-                  <TableCell className="font-medium">{ticket.title}</TableCell>
-                  <TableCell>{ticket.unit?.name || '-'}</TableCell>
-                  <TableCell>{getStatusBadge(ticket.status)}</TableCell>
-                  <TableCell>{getPriorityBadge(ticket.priority)}</TableCell>
-                  <TableCell>
-                    {format(new Date(ticket.createdAt), 'dd/MM/yyyy', { locale: language === 'es' ? es : enUS })}
-                  </TableCell>
-                  <TableCell className="text-right">
-                    <Link href={`/external/maintenance/${ticket.id}`}>
-                      <Button variant="ghost" size="icon" data-testid={`button-view-cleaning-${ticket.id}`}>
-                        <Eye className="h-4 w-4" />
-                      </Button>
-                    </Link>
-                  </TableCell>
+        <Card>
+          <div className="overflow-x-auto">
+            <Table className="text-sm">
+              <TableHeader>
+                <TableRow>
+                  <TableHead className="h-10 px-3">{t.status}</TableHead>
+                  <TableHead className="h-10 px-3">{t.priority}</TableHead>
+                  <TableHead className="h-10 px-3">{t.unit}</TableHead>
+                  <TableHead className="h-10 px-3">{t.cleaningTitle}</TableHead>
+                  <TableHead className="h-10 px-3 text-right">{language === 'es' ? 'Costo Real' : 'Actual Cost'}</TableHead>
+                  <TableHead className="h-10 px-3 text-right">{language === 'es' ? 'Comisión' : 'Commission'}</TableHead>
+                  <TableHead className="h-10 px-3 text-right">{language === 'es' ? 'Total' : 'Total'}</TableHead>
+                  <TableHead className="h-10 px-3">{language === 'es' ? 'Última Act.' : 'Last Update'}</TableHead>
+                  <TableHead className="h-10 px-3 text-right">{t.actions}</TableHead>
                 </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        </div>
+              </TableHeader>
+              <TableBody>
+                {tickets.map((ticket) => (
+                  <TableRow 
+                    key={ticket.id} 
+                    data-testid={`row-cleaning-${ticket.id}`}
+                    className="hover-elevate cursor-pointer"
+                    onClick={() => window.location.href = `/external/maintenance/${ticket.id}`}
+                  >
+                    <TableCell className="px-3 py-3">
+                      {getStatusBadge(ticket.status)}
+                    </TableCell>
+                    <TableCell className="px-3 py-3">
+                      {getPriorityBadge(ticket.priority)}
+                    </TableCell>
+                    <TableCell className="px-3 py-3">
+                      <div className="flex flex-col">
+                        <span>{ticket.unit?.name || '-'}</span>
+                        <span className="text-xs text-muted-foreground">{ticket.condominium?.name}</span>
+                      </div>
+                    </TableCell>
+                    <TableCell className="px-3 py-3">
+                      <span className="truncate max-w-xs">{ticket.title}</span>
+                    </TableCell>
+                    <TableCell className="px-3 py-3 text-right">
+                      {ticket.actualCost ? formatCurrency(parseFloat(ticket.actualCost)) : '-'}
+                    </TableCell>
+                    <TableCell className="px-3 py-3 text-right">
+                      {ticket.actualCost ? formatCurrency(parseFloat(ticket.actualCost) * 0.15) : '-'}
+                    </TableCell>
+                    <TableCell className="px-3 py-3 text-right font-medium">
+                      {ticket.actualCost ? formatCurrency(parseFloat(ticket.actualCost) * 1.15) : '-'}
+                    </TableCell>
+                    <TableCell className="px-3 py-3">
+                      <span className="text-muted-foreground">
+                        {format(new Date(ticket.createdAt), 'dd MMM yyyy HH:mm', { locale: language === 'es' ? es : enUS })}
+                      </span>
+                    </TableCell>
+                    <TableCell className="px-3 py-3 text-right" onClick={(e) => e.stopPropagation()}>
+                      <Link href={`/external/maintenance/${ticket.id}`}>
+                        <Button variant="ghost" size="icon" data-testid={`button-view-cleaning-${ticket.id}`}>
+                          <Eye className="h-4 w-4" />
+                        </Button>
+                      </Link>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </div>
+        </Card>
       ) : (
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
           {tickets.map((ticket) => (
