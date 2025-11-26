@@ -990,20 +990,34 @@ export default function ExternalMaintenanceWorkers({
           </DialogContent>
         </Dialog>
 
-      <Tabs defaultValue="assignments" value={activeTab} onValueChange={(value) => setActiveTab(value as "assignments" | "workers")} className="w-full">
-        <TabsList>
-          <TabsTrigger value="assignments" data-testid="tab-assignments">
-            {language === "es" ? "Asignaciones" : "Assignments"}
-          </TabsTrigger>
-          <TabsTrigger value="workers" data-testid="tab-workers">
-            {language === "es" ? "Trabajadores" : "Workers"}
-          </TabsTrigger>
-        </TabsList>
+      <Tabs defaultValue={initialTab || "assignments"} value={activeTab} onValueChange={(value) => setActiveTab(value as "assignments" | "workers")} className="w-full">
+        {/* Only show internal tabs when NOT embedded */}
+        {!hideHeader && (
+          <TabsList>
+            <TabsTrigger value="assignments" data-testid="tab-assignments">
+              {language === "es" ? "Asignaciones" : "Assignments"}
+            </TabsTrigger>
+            <TabsTrigger value="workers" data-testid="tab-workers">
+              {language === "es" ? "Trabajadores" : "Workers"}
+            </TabsTrigger>
+          </TabsList>
+        )}
 
         {/* Search and Filters - Visible in all tabs */}
-        <Card className="mt-6">
+        <Card className={hideHeader ? "" : "mt-6"}>
           <CardContent className="py-4">
             <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
+              {/* New Assignment Button - Only in embedded mode for assignments tab */}
+              {hideHeader && activeTab === "assignments" && (
+                <Button 
+                  data-testid="button-create-assignment-embedded" 
+                  className="w-full sm:w-auto"
+                  onClick={() => setIsCreateDialogOpen(true)}
+                >
+                  <Plus className="mr-2 h-4 w-4" />
+                  {language === "es" ? "Nueva Asignación" : "New Assignment"}
+                </Button>
+              )}
               {/* Search Input */}
               <div className="relative flex-1">
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
