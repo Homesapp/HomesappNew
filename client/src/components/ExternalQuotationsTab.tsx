@@ -1137,14 +1137,16 @@ export default function ExternalQuotations() {
                         </Button>
                         {quotation.status === "approved" && !quotation.convertedTicketId && (
                           <Button
-                            variant="ghost"
-                            size="icon"
+                            variant="default"
+                            size="sm"
                             onClick={() => convertToTicketMutation.mutate(quotation.id)}
                             data-testid={`button-convert-ticket-${quotation.id}`}
                             title="Convertir a Ticket"
                             disabled={convertToTicketMutation.isPending}
+                            className="bg-orange-500 hover:bg-orange-600 text-white"
                           >
-                            <Ticket className={`h-4 w-4 text-orange-500 ${convertToTicketMutation.isPending ? 'animate-pulse' : ''}`} />
+                            <Ticket className={`h-4 w-4 mr-1 ${convertToTicketMutation.isPending ? 'animate-pulse' : ''}`} />
+                            Crear Ticket
                           </Button>
                         )}
                         <Button
