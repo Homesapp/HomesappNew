@@ -229,7 +229,12 @@ import { eq, and, inArray, desc, asc, sql, ne, isNull, isNotNull } from "drizzle
 async function verifyExternalAgencyOwnership(req: any, res: any, agencyId: string): Promise<boolean> {
   try {
     // Admin and master users can access all agencies
-    const userRole = req.user?.role || req.session?.adminUser?.role;
+    let userRole = req.user?.role || req.session?.adminUser?.role;
+      // Get role from database if not in session
+      if (!userRole && userId) {
+        const dbUser = await storage.getUser(userId);
+        userRole = dbUser?.role;
+      }
     if (userRole === "master" || userRole === "admin") {
       return true;
     }
@@ -22894,7 +22899,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       
       // Verify ownership: master/admin can access all, others must match agency
-      const userRole = req.user?.role || req.session?.adminUser?.role;
+      let userRole = req.user?.role || req.session?.adminUser?.role;
+      // Get role from database if not in session
+      if (!userRole && userId) {
+        const dbUser = await storage.getUser(userId);
+        userRole = dbUser?.role;
+      }
       const isMasterOrAdmin = userRole === "master" || userRole === "admin";
       
       if (!isMasterOrAdmin) {
@@ -22959,7 +22969,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       
       // Verify ownership: master/admin can access all, others must match agency
-      const userRole = req.user?.role || req.session?.adminUser?.role;
+      let userRole = req.user?.role || req.session?.adminUser?.role;
+      // Get role from database if not in session
+      if (!userRole && userId) {
+        const dbUser = await storage.getUser(userId);
+        userRole = dbUser?.role;
+      }
       const isMasterOrAdmin = userRole === "master" || userRole === "admin";
       
       if (!isMasterOrAdmin) {
@@ -23250,7 +23265,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.patch("/api/external-tickets/:id", isAuthenticated, requireRole(EXTERNAL_MAINTENANCE_ROLES), async (req: any, res) => {
     try {
       const { id } = req.params;
-      const userRole = req.user?.role || req.session?.adminUser?.role;
+      let userRole = req.user?.role || req.session?.adminUser?.role;
+      // Get role from database if not in session
+      if (!userRole && userId) {
+        const dbUser = await storage.getUser(userId);
+        userRole = dbUser?.role;
+      }
       
       // Only admins and maintenance managers can modify tickets directly
       // Regular users should use POST /updates and POST /photos endpoints
@@ -23289,7 +23309,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const { id } = req.params;
       const { status, resolvedDate, completionNotes } = req.body;
       const userId = req.user?.claims?.sub || req.user?.id;
-      const userRole = req.user?.role || req.session?.adminUser?.role;
+      let userRole = req.user?.role || req.session?.adminUser?.role;
+      // Get role from database if not in session
+      if (!userRole && userId) {
+        const dbUser = await storage.getUser(userId);
+        userRole = dbUser?.role;
+      }
       
       if (!status) {
         return res.status(400).json({ message: "Status is required" });
@@ -23391,7 +23416,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
       } = req.body;
       
       const userId = req.user?.claims?.sub || req.user?.id;
-      const userRole = req.user?.role || req.session?.adminUser?.role;
+      let userRole = req.user?.role || req.session?.adminUser?.role;
+      // Get role from database if not in session
+      if (!userRole && userId) {
+        const dbUser = await storage.getUser(userId);
+        userRole = dbUser?.role;
+      }
       
       // Verify ticket exists
       const ticket = await storage.getExternalMaintenanceTicket(id);
