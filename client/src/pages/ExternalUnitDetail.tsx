@@ -813,7 +813,8 @@ ${language === "es" ? "ACCESOS" : "ACCESSES"}:
                 </Label>
                 <p className="text-sm font-medium mt-1" data-testid="text-unit-number">{unit.unitNumber}</p>
               </div>
-              {unit.propertyType && (
+              {/* Show propertyType only if typology is not set (avoid redundancy) */}
+              {unit.propertyType && !unit.typology && (
                 <div>
                   <Label className="text-xs text-muted-foreground">
                     {language === "es" ? "Tipo" : "Type"}
