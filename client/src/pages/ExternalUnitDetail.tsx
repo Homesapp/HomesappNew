@@ -34,6 +34,8 @@ import type {
 } from "@shared/schema";
 import { insertExternalUnitOwnerSchema, insertExternalUnitAccessControlSchema, insertExternalRentalContractSchema } from "@shared/schema";
 import { formatFloor, floorOptions } from "@/lib/unitHelpers";
+import { UnitImageGallery } from "@/components/external/UnitImageGallery";
+import { UnitAmenitiesSelector } from "@/components/external/UnitAmenitiesSelector";
 
 type OwnerFormData = z.infer<typeof insertExternalUnitOwnerSchema>;
 type AccessControlFormData = z.infer<typeof insertExternalUnitAccessControlSchema>;
@@ -106,8 +108,25 @@ const unitEditSchema = z.object({
   address: z.string().nullable(),
   googleMapsUrl: z.string().nullable(),
   virtualTourUrl: z.string().nullable(),
+  latitude: z.union([z.string(), z.number()]).transform(val => val === "" ? null : String(val)).nullable(),
+  longitude: z.union([z.string(), z.number()]).transform(val => val === "" ? null : String(val)).nullable(),
   petFriendly: z.boolean().default(false),
   publishToMain: z.boolean().default(false),
+  primaryImages: z.array(z.string()).default([]),
+  secondaryImages: z.array(z.string()).default([]),
+  videos: z.array(z.string()).default([]),
+  amenities: z.array(z.string()).default([]),
+  includedServices: z.object({
+    water: z.boolean().optional(),
+    electricity: z.boolean().optional(),
+    internet: z.boolean().optional(),
+    gas: z.boolean().optional(),
+  }).nullable(),
+  accessInfo: z.object({
+    lockboxCode: z.string().optional(),
+    contactPerson: z.string().optional(),
+    contactPhone: z.string().optional(),
+  }).nullable(),
 });
 
 type UnitEditFormData = z.infer<typeof unitEditSchema>;
@@ -498,8 +517,16 @@ export default function ExternalUnitDetail() {
       address: unit.address ?? null,
       googleMapsUrl: unit.googleMapsUrl ?? null,
       virtualTourUrl: unit.virtualTourUrl ?? null,
+      latitude: unit.latitude ?? null,
+      longitude: unit.longitude ?? null,
       petFriendly: unit.petFriendly ?? false,
       publishToMain: unit.publishToMain ?? false,
+      primaryImages: unit.primaryImages ?? [],
+      secondaryImages: unit.secondaryImages ?? [],
+      videos: unit.videos ?? [],
+      amenities: unit.amenities ?? [],
+      includedServices: unit.includedServices as any ?? null,
+      accessInfo: unit.accessInfo as any ?? null,
     });
     setShowUnitEditDialog(true);
   };
@@ -616,11 +643,25 @@ export default function ExternalUnitDetail() {
   const copyUnitInfo = async () => {
     if (!unit || !condominium) return;
     
-    const info = `${language === "es" ? "INFORMACIÓN DE UNIDAD" : "UNIT INFORMATION"}
+    let info = `${language === "es" ? "INFORMACIÓN DE UNIDAD" : "UNIT INFORMATION"}
 
 ${language === "es" ? "Condominio" : "Condominium"}: ${condominium.name}
 ${language === "es" ? "Unidad" : "Unit"}: ${unit.unitNumber}
-${unit.zone ? `${language === "es" ? "Zona" : "Zone"}: ${unit.zone}\n` : ""}${unit.city ? `${language === "es" ? "Ciudad" : "City"}: ${unit.city}\n` : ""}${unit.bedrooms ? `${language === "es" ? "Recámaras" : "Bedrooms"}: ${unit.bedrooms}\n` : ""}${unit.bathrooms ? `${language === "es" ? "Baños" : "Bathrooms"}: ${unit.bathrooms}\n` : ""}${unit.area ? `${language === "es" ? "Área" : "Area"}: ${unit.area} m²\n` : ""}${unit.airbnbPhotosLink ? `${language === "es" ? "Link Fotos Airbnb" : "Airbnb Photos Link"}: ${unit.airbnbPhotosLink}` : ""}`;
+`;
+    
+    if (unit.title) info += `${language === "es" ? "Título" : "Title"}: ${unit.title}\n`;
+    if (unit.zone) info += `${language === "es" ? "Zona" : "Zone"}: ${unit.zone}\n`;
+    if (unit.city) info += `${language === "es" ? "Ciudad" : "City"}: ${unit.city}\n`;
+    if (unit.address) info += `${language === "es" ? "Dirección" : "Address"}: ${unit.address}\n`;
+    if (unit.bedrooms) info += `${language === "es" ? "Recámaras" : "Bedrooms"}: ${unit.bedrooms}\n`;
+    if (unit.bathrooms) info += `${language === "es" ? "Baños" : "Bathrooms"}: ${unit.bathrooms}\n`;
+    if (unit.area) info += `${language === "es" ? "Área" : "Area"}: ${unit.area} m²\n`;
+    if (unit.price) info += `${language === "es" ? "Precio Mensual" : "Monthly Price"}: $${Number(unit.price).toLocaleString()} ${unit.currency || "MXN"}\n`;
+    if (unit.petFriendly) info += `${language === "es" ? "Acepta Mascotas" : "Pet Friendly"}: ✓\n`;
+    if (unit.description) info += `\n${language === "es" ? "Descripción" : "Description"}:\n${unit.description}\n`;
+    if (unit.airbnbPhotosLink) info += `\n${language === "es" ? "Link Fotos Airbnb" : "Airbnb Photos Link"}: ${unit.airbnbPhotosLink}\n`;
+    if (unit.virtualTourUrl) info += `${language === "es" ? "Tour Virtual" : "Virtual Tour"}: ${unit.virtualTourUrl}\n`;
+    if (unit.googleMapsUrl) info += `${language === "es" ? "Google Maps" : "Google Maps"}: ${unit.googleMapsUrl}\n`;
 
     try {
       await navigator.clipboard.writeText(info);
@@ -947,6 +988,104 @@ ${language === "es" ? "ACCESOS" : "ACCESSES"}:
                 <p className="text-sm mt-1 text-muted-foreground" data-testid="text-notes">{unit.notes}</p>
               </div>
             )}
+
+            {/* Marketing & Pricing Section */}
+            {(unit.title || unit.description || unit.price || unit.address) && (
+              <>
+                <Separator className="my-4" />
+                <div className="space-y-3">
+                  <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+                    {language === "es" ? "Información de Marketing" : "Marketing Information"}
+                  </p>
+                  
+                  {unit.title && (
+                    <div>
+                      <Label className="text-xs text-muted-foreground">
+                        {language === "es" ? "Título del Listado" : "Listing Title"}
+                      </Label>
+                      <p className="text-sm font-medium mt-1" data-testid="text-title">{unit.title}</p>
+                    </div>
+                  )}
+                  
+                  {unit.description && (
+                    <div>
+                      <Label className="text-xs text-muted-foreground">
+                        {language === "es" ? "Descripción" : "Description"}
+                      </Label>
+                      <p className="text-sm mt-1 text-muted-foreground" data-testid="text-description">{unit.description}</p>
+                    </div>
+                  )}
+                  
+                  {unit.price && (
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <Label className="text-xs text-muted-foreground">
+                          {language === "es" ? "Precio Mensual" : "Monthly Price"}
+                        </Label>
+                        <p className="text-sm font-medium mt-1" data-testid="text-price">
+                          ${Number(unit.price).toLocaleString()} {unit.currency || "MXN"}
+                        </p>
+                      </div>
+                    </div>
+                  )}
+                  
+                  {unit.address && (
+                    <div>
+                      <Label className="text-xs text-muted-foreground">
+                        {language === "es" ? "Dirección" : "Address"}
+                      </Label>
+                      <p className="text-sm mt-1 flex items-center gap-1" data-testid="text-address">
+                        <MapPin className="h-3 w-3 text-muted-foreground shrink-0" />
+                        {unit.address}
+                      </p>
+                    </div>
+                  )}
+
+                  {unit.googleMapsUrl && (
+                    <div>
+                      <a 
+                        href={unit.googleMapsUrl} 
+                        target="_blank" 
+                        rel="noopener noreferrer" 
+                        className="text-sm text-primary hover:underline inline-flex items-center gap-1" 
+                        data-testid="link-google-maps"
+                      >
+                        <MapPin className="h-3 w-3" />
+                        {language === "es" ? "Ver en Google Maps →" : "View on Google Maps →"}
+                      </a>
+                    </div>
+                  )}
+
+                  {unit.virtualTourUrl && (
+                    <div>
+                      <a 
+                        href={unit.virtualTourUrl} 
+                        target="_blank" 
+                        rel="noopener noreferrer" 
+                        className="text-sm text-primary hover:underline inline-flex items-center gap-1" 
+                        data-testid="link-virtual-tour"
+                      >
+                        <Eye className="h-3 w-3" />
+                        {language === "es" ? "Tour Virtual 360° →" : "Virtual Tour 360° →"}
+                      </a>
+                    </div>
+                  )}
+
+                  <div className="flex flex-wrap gap-2 mt-2">
+                    {unit.petFriendly && (
+                      <Badge variant="outline" data-testid="badge-pet-friendly">
+                        🐕 {language === "es" ? "Acepta Mascotas" : "Pet Friendly"}
+                      </Badge>
+                    )}
+                    {unit.publishToMain && (
+                      <Badge variant="default" className="bg-blue-600 dark:bg-blue-700" data-testid="badge-publish-main">
+                        {language === "es" ? "Publicar en HomesApp" : "Publish to HomesApp"}
+                      </Badge>
+                    )}
+                  </div>
+                </div>
+              </>
+            )}
           </CardContent>
         </Card>
 
@@ -1045,6 +1184,40 @@ ${language === "es" ? "ACCESOS" : "ACCESSES"}:
                 ))}
               </div>
             )}
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Image Gallery and Amenities Section */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <UnitImageGallery
+          primaryImages={unit.primaryImages || []}
+          secondaryImages={unit.secondaryImages || []}
+          videos={unit.videos || []}
+          language={language}
+          readOnly={!user}
+          onUpdate={(data) => {
+            updateUnitMutation.mutate({
+              unitNumber: unit.unitNumber,
+              ...data,
+            });
+          }}
+        />
+        
+        <Card data-testid="card-amenities">
+          <CardHeader className="pb-3">
+            <CardTitle className="flex items-center gap-2 text-base">
+              <Home className="h-4 w-4" />
+              {language === "es" ? "Amenidades" : "Amenities"}
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <UnitAmenitiesSelector
+              amenities={unit.amenities || []}
+              language={language}
+              readOnly={true}
+              onChange={() => {}}
+            />
           </CardContent>
         </Card>
       </div>
@@ -1752,10 +1925,142 @@ ${language === "es" ? "ACCESOS" : "ACCESSES"}:
                 )}
               />
 
+              <div className="grid grid-cols-2 gap-4">
+                <FormField
+                  control={unitEditForm.control}
+                  name="latitude"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>{language === "es" ? "Latitud" : "Latitude"}</FormLabel>
+                      <FormControl>
+                        <Input 
+                          {...field} 
+                          type="number"
+                          step="0.0000001"
+                          value={field.value ?? ""} 
+                          onChange={e => field.onChange(e.target.value)}
+                          placeholder="20.2120000"
+                          data-testid="input-edit-latitude" 
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={unitEditForm.control}
+                  name="longitude"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>{language === "es" ? "Longitud" : "Longitude"}</FormLabel>
+                      <FormControl>
+                        <Input 
+                          {...field} 
+                          type="number"
+                          step="0.0000001"
+                          value={field.value ?? ""} 
+                          onChange={e => field.onChange(e.target.value)}
+                          placeholder="-87.4290000"
+                          data-testid="input-edit-longitude" 
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              </div>
+
+              <Separator className="my-4" />
+              <h4 className="text-sm font-medium text-muted-foreground mb-3">
+                {language === "es" ? "Servicios Incluidos" : "Included Services"}
+              </h4>
+
+              <div className="grid grid-cols-2 gap-3">
+                <FormField
+                  control={unitEditForm.control}
+                  name="includedServices.water"
+                  render={({ field }) => (
+                    <FormItem className="flex flex-row items-center space-x-3 space-y-0">
+                      <FormControl>
+                        <Switch
+                          checked={field.value || false}
+                          onCheckedChange={field.onChange}
+                          data-testid="switch-edit-water"
+                        />
+                      </FormControl>
+                      <FormLabel className="font-normal">{language === "es" ? "Agua" : "Water"}</FormLabel>
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={unitEditForm.control}
+                  name="includedServices.electricity"
+                  render={({ field }) => (
+                    <FormItem className="flex flex-row items-center space-x-3 space-y-0">
+                      <FormControl>
+                        <Switch
+                          checked={field.value || false}
+                          onCheckedChange={field.onChange}
+                          data-testid="switch-edit-electricity"
+                        />
+                      </FormControl>
+                      <FormLabel className="font-normal">{language === "es" ? "Electricidad" : "Electricity"}</FormLabel>
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={unitEditForm.control}
+                  name="includedServices.internet"
+                  render={({ field }) => (
+                    <FormItem className="flex flex-row items-center space-x-3 space-y-0">
+                      <FormControl>
+                        <Switch
+                          checked={field.value || false}
+                          onCheckedChange={field.onChange}
+                          data-testid="switch-edit-internet"
+                        />
+                      </FormControl>
+                      <FormLabel className="font-normal">{language === "es" ? "Internet" : "Internet"}</FormLabel>
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={unitEditForm.control}
+                  name="includedServices.gas"
+                  render={({ field }) => (
+                    <FormItem className="flex flex-row items-center space-x-3 space-y-0">
+                      <FormControl>
+                        <Switch
+                          checked={field.value || false}
+                          onCheckedChange={field.onChange}
+                          data-testid="switch-edit-gas"
+                        />
+                      </FormControl>
+                      <FormLabel className="font-normal">{language === "es" ? "Gas" : "Gas"}</FormLabel>
+                    </FormItem>
+                  )}
+                />
+              </div>
+
               <Separator className="my-4" />
               <h4 className="text-sm font-medium text-muted-foreground mb-3">
                 {language === "es" ? "Características y Estado" : "Features and Status"}
               </h4>
+
+              <FormField
+                control={unitEditForm.control}
+                name="amenities"
+                render={({ field }) => (
+                  <FormItem>
+                    <UnitAmenitiesSelector
+                      amenities={field.value || []}
+                      language={language}
+                      onChange={field.onChange}
+                    />
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
 
               <FormField
                 control={unitEditForm.control}
