@@ -21477,28 +21477,25 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // External Rental Contracts Routes
-  app.get("/api/external-contracts", isAuthenticated, requireRole(EXTERNAL_ALL_ROLES), async (req: any, res) => {
+  // Get all rental contracts for user's agency with unit and condominium info
+  app.get("/api/external-rental-contracts", isAuthenticated, requireRole(EXTERNAL_ALL_ROLES), async (req: any, res) => {
     try {
-      const { agencyId, propertyId, status } = req.query;
-      
-      if (propertyId) {
-        const contracts = await storage.getExternalRentalContractsByProperty(propertyId);
-        return res.json(contracts);
-      }
-      
+      const agencyId = await getUserAgencyId(req);
       if (!agencyId) {
-        return res.status(400).json({ message: "Agency ID or Property ID is required" });
+        return res.status(403).json({ message: "No agency access" });
       }
       
-      const filters = status ? { status } : undefined;
-      const contracts = await storage.getExternalRentalContractsByAgency(agencyId, filters);
+      const contracts = await db.select()
+        .from(externalRentalContracts)
+        .where(eq(externalRentalContracts.agencyId, agencyId));
       
       res.json(contracts);
     } catch (error: any) {
-      console.error("Error fetching external contracts:", error);
+      console.error("Error fetching rental contracts:", error);
       handleGenericError(res, error);
     }
   });
+
 
   app.get("/api/external-contracts/:id", isAuthenticated, requireRole(EXTERNAL_ALL_ROLES), async (req: any, res) => {
     try {
@@ -26274,11 +26271,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // External Rental Contracts Routes
-  // Get all rental contracts for user's agency with unit and condominium info
-  app.get("/api/external-rental-contracts", isAuthenticated, requireRole(EXTERNAL_ALL_ROLES), async (req: any, res) => {
-
-  // Consolidated rentals overview endpoint - returns contracts, stats, and filters in one call
   app.get("/api/external/rentals/overview", isAuthenticated, requireRole(EXTERNAL_ALL_ROLES), async (req: any, res) => {
     try {
       const agencyId = await getUserAgencyId(req);
