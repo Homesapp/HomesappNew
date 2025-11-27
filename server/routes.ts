@@ -23732,15 +23732,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // External Units Routes
   app.get("/api/external-units", isAuthenticated, requireRole(EXTERNAL_ALL_ROLES), async (req: any, res) => {
     try {
-      const { condominiumId, isActive } = req.query;
+      const { condominiumId, isActive, search, zone, typology, limit, offset, sortField, sortOrder } = req.query;
       
-      // Get agency ID from authenticated user (admin/master can pass agencyId to view other agencies)
-      // Always use authenticated user's agency for security
+      // Get agency ID from authenticated user
       const agencyId = await getUserAgencyId(req);
       if (!agencyId) {
-        if (!agencyId) {
-          return res.status(400).json({ message: "User is not assigned to any agency" });
-        }
+        return res.status(400).json({ message: "User is not assigned to any agency" });
       }
       
       // Verify ownership
@@ -23749,9 +23746,30 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       const filters: any = {};
       if (isActive !== undefined) filters.isActive = isActive === 'true';
-      if (condominiumId) filters.condominiumId = condominiumId;
+      if (condominiumId && condominiumId !== 'all') filters.condominiumId = condominiumId;
       
-      const units = await storage.getExternalUnitsByAgency(agencyId, filters);
+      let units = await storage.getExternalUnitsByAgency(agencyId, filters);
+      
+      // Apply search filter
+      if (search) {
+        const searchLower = search.toLowerCase();
+        units = units.filter(u => 
+          u.unitNumber?.toLowerCase().includes(searchLower) ||
+          u.name?.toLowerCase().includes(searchLower) ||
+          u.ownerName?.toLowerCase().includes(searchLower) ||
+          u.description?.toLowerCase().includes(searchLower)
+        );
+      }
+      
+      // Apply zone filter
+      if (zone && zone !== 'all') {
+        units = units.filter(u => u.zone === zone);
+      }
+      
+      // Apply typology filter
+      if (typology && typology !== 'all') {
+        units = units.filter(u => u.typology === typology);
+      }
       
       // Get all active contracts for this agency to determine which units are rented
       const activeContracts = await storage.getExternalRentalContractsByAgency(agencyId);
@@ -23762,13 +23780,30 @@ export async function registerRoutes(app: Express): Promise<Server> {
       );
       
       // Add currentContractId and status field to each unit
-      const unitsWithContractInfo = units.map(unit => ({
+      let unitsWithContractInfo = units.map(unit => ({
         ...unit,
         status: unit.isActive ? 'active' : 'inactive',
         currentContractId: activeContractsByUnit.get(unit.id) || null,
       }));
       
-      res.json(unitsWithContractInfo);
+      // Apply sorting
+      if (sortField) {
+        unitsWithContractInfo.sort((a: any, b: any) => {
+          const aVal = a[sortField] || '';
+          const bVal = b[sortField] || '';
+          const comparison = String(aVal).localeCompare(String(bVal));
+          return sortOrder === 'desc' ? -comparison : comparison;
+        });
+      }
+      
+      const total = unitsWithContractInfo.length;
+      
+      // Apply pagination
+      const limitNum = parseInt(limit) || 50;
+      const offsetNum = parseInt(offset) || 0;
+      const paginatedUnits = unitsWithContractInfo.slice(offsetNum, offsetNum + limitNum);
+      
+      res.json({ data: paginatedUnits, total });
     } catch (error: any) {
       console.error("Error fetching external units:", error);
       handleGenericError(res, error);
