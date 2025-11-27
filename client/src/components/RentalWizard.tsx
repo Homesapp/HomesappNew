@@ -125,26 +125,17 @@ export default function RentalWizard({ open, onOpenChange }: RentalWizardProps) 
   }>>([]);
   const [condominiumSearch, setCondominiumSearch] = useState("");
 
-  const { data: condominiumsResponse, isLoading: condominiumsLoading } = useQuery<{ data: ExternalCondominium[], total: number }>({
-    queryKey: ["/api/external-condominiums", "for-rental-wizard"],
-    queryFn: async () => {
-      const response = await fetch("/api/external-condominiums?limit=1000", { credentials: "include" });
-      if (!response.ok) throw new Error("Failed to fetch condominiums");
-      return response.json();
-    },
+  const { data: condominiums, isLoading: condominiumsLoading } = useQuery<{ id: string; name: string }[]>({
+    queryKey: ["/api/external-condominiums-for-filters"],
     staleTime: 5 * 60 * 1000, // Consider data fresh for 5 minutes
   });
-  const condominiums = condominiumsResponse?.data;
 
   // Filter condominiums based on search
   const filteredCondominiums = useMemo(() => {
     if (!condominiums) return [];
     if (!condominiumSearch.trim()) return condominiums;
     const searchLower = condominiumSearch.toLowerCase().trim();
-    return condominiums.filter(c => 
-      c.name.toLowerCase().includes(searchLower) ||
-      (c.address && c.address.toLowerCase().includes(searchLower))
-    );
+    return condominiums.filter(c => c.name.toLowerCase().includes(searchLower));
   }, [condominiums, condominiumSearch]);
 
   const { data: unitsResponse, isLoading: unitsLoading } = useQuery<{ data: UnitWithDetails[], total: number }>({
@@ -504,8 +495,8 @@ export default function RentalWizard({ open, onOpenChange }: RentalWizardProps) 
                     {language === "es" ? "No se encontraron condominios" : "No condominiums found"}
                   </p>
                 ) : (
-                  <div className="max-h-[400px] overflow-y-auto pr-1">
-                    <div className="grid gap-3 md:grid-cols-2">
+                  <div className="max-h-[350px] overflow-y-auto pr-1">
+                    <div className="grid gap-2 grid-cols-2 md:grid-cols-3">
                       {filteredCondominiums.map((condo) => (
                         <Card
                           key={condo.id}
@@ -515,21 +506,14 @@ export default function RentalWizard({ open, onOpenChange }: RentalWizardProps) 
                           onClick={() => setSelectedCondominiumId(condo.id)}
                           data-testid={`condo-option-${condo.id}`}
                         >
-                          <CardContent className="p-4">
-                            <div className="flex items-start justify-between">
-                              <div className="flex-1 min-w-0">
-                                <div className="flex items-center gap-2 mb-1">
-                                  <Building2 className="h-4 w-4 text-muted-foreground flex-shrink-0" />
-                                  <p className="font-semibold truncate">{condo.name}</p>
-                                </div>
-                                {condo.address && (
-                                  <p className="text-sm text-muted-foreground truncate">
-                                    {condo.address}
-                                  </p>
-                                )}
+                          <CardContent className="p-3">
+                            <div className="flex items-center justify-between gap-2">
+                              <div className="flex items-center gap-2 min-w-0 flex-1">
+                                <Building2 className="h-4 w-4 text-muted-foreground flex-shrink-0" />
+                                <p className="font-medium truncate text-sm">{condo.name}</p>
                               </div>
                               {selectedCondominiumId === condo.id && (
-                                <Check className="h-5 w-5 text-primary flex-shrink-0" />
+                                <Check className="h-4 w-4 text-primary flex-shrink-0" />
                               )}
                             </div>
                           </CardContent>
