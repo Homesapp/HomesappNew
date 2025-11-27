@@ -72,7 +72,6 @@ import { format, startOfWeek, endOfWeek, eachDayOfInterval, isSameDay, addWeeks,
 import { es, enUS } from "date-fns/locale";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Calendar } from "@/components/ui/calendar";
-import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
 import { cn } from "@/lib/utils";
 import { ChevronsUpDown } from "lucide-react";
 
@@ -182,6 +181,8 @@ export default function ExternalAppointments() {
   const [appointmentToDelete, setAppointmentToDelete] = useState<ExternalAppointment | null>(null);
   const [condoComboOpen, setCondoComboOpen] = useState(false);
   const [tourCondoComboOpen, setTourCondoComboOpen] = useState<number | null>(null);
+  const [condoSearchTerm, setCondoSearchTerm] = useState("");
+  const [tourCondoSearchTerm, setTourCondoSearchTerm] = useState("");
 
   const [formData, setFormData] = useState({
     clientSource: "client" as "client" | "lead" | "manual",
@@ -251,6 +252,20 @@ export default function ExternalAppointments() {
     if (!formData.condominiumId) return [];
     return units.filter(u => u.condominiumId === formData.condominiumId);
   }, [units, formData.condominiumId]);
+
+  const filteredCondominiums = useMemo(() => {
+    if (!condoSearchTerm) return condominiums;
+    return condominiums.filter(c => 
+      c.name.toLowerCase().includes(condoSearchTerm.toLowerCase())
+    );
+  }, [condominiums, condoSearchTerm]);
+
+  const filteredTourCondominiums = useMemo(() => {
+    if (!tourCondoSearchTerm) return condominiums;
+    return condominiums.filter(c => 
+      c.name.toLowerCase().includes(tourCondoSearchTerm.toLowerCase())
+    );
+  }, [condominiums, tourCondoSearchTerm]);
 
   const getUnitsForCondominium = (condominiumId: string) => {
     return units.filter(u => u.condominiumId === condominiumId);
@@ -1160,21 +1175,33 @@ export default function ExternalAppointments() {
                         </Button>
                       </PopoverTrigger>
                       <PopoverContent className="w-[300px] p-0 z-[100]" align="start">
-                        <Command filter={(value, search) => {
-                          if (value.toLowerCase().includes(search.toLowerCase())) return 1;
-                          return 0;
-                        }}>
-                          <CommandInput placeholder={language === "es" ? "Buscar condominio..." : "Search condominium..."} />
-                          <CommandList>
-                            <CommandEmpty>{language === "es" ? "No se encontraron condominios" : "No condominiums found"}</CommandEmpty>
-                            <CommandGroup>
-                              {condominiums.map(condo => (
-                                <CommandItem
+                        <div className="flex flex-col">
+                          <div className="flex items-center border-b px-3">
+                            <Search className="mr-2 h-4 w-4 shrink-0 opacity-50" />
+                            <Input
+                              placeholder={language === "es" ? "Buscar condominio..." : "Search condominium..."}
+                              value={condoSearchTerm}
+                              onChange={(e) => setCondoSearchTerm(e.target.value)}
+                              className="h-10 border-0 focus-visible:ring-0 focus-visible:ring-offset-0"
+                            />
+                          </div>
+                          <div className="max-h-[200px] overflow-y-auto p-1">
+                            {filteredCondominiums.length === 0 ? (
+                              <div className="py-6 text-center text-sm text-muted-foreground">
+                                {language === "es" ? "No se encontraron condominios" : "No condominiums found"}
+                              </div>
+                            ) : (
+                              filteredCondominiums.map(condo => (
+                                <div
                                   key={condo.id}
-                                  value={condo.name}
-                                  onSelect={() => {
+                                  className={cn(
+                                    "relative flex cursor-pointer select-none items-center rounded-sm px-2 py-1.5 text-sm outline-none hover:bg-accent hover:text-accent-foreground",
+                                    formData.condominiumId === condo.id && "bg-accent"
+                                  )}
+                                  onClick={() => {
                                     setFormData(prev => ({ ...prev, condominiumId: condo.id, unitId: "" }));
                                     setCondoComboOpen(false);
+                                    setCondoSearchTerm("");
                                   }}
                                 >
                                   <Building className="mr-2 h-4 w-4 text-muted-foreground" />
@@ -1182,11 +1209,11 @@ export default function ExternalAppointments() {
                                   {formData.condominiumId === condo.id && (
                                     <Check className="ml-auto h-4 w-4" />
                                   )}
-                                </CommandItem>
-                              ))}
-                            </CommandGroup>
-                          </CommandList>
-                        </Command>
+                                </div>
+                              ))
+                            )}
+                          </div>
+                        </div>
                       </PopoverContent>
                     </Popover>
                   </div>
@@ -1265,32 +1292,44 @@ export default function ExternalAppointments() {
                             </Button>
                           </PopoverTrigger>
                           <PopoverContent className="w-[250px] p-0 z-[100]" align="start">
-                            <Command filter={(value, search) => {
-                              if (value.toLowerCase().includes(search.toLowerCase())) return 1;
-                              return 0;
-                            }}>
-                              <CommandInput placeholder={language === "es" ? "Buscar..." : "Search..."} className="h-9" />
-                              <CommandList>
-                                <CommandEmpty>{language === "es" ? "No encontrado" : "Not found"}</CommandEmpty>
-                                <CommandGroup>
-                                  {condominiums.map(condo => (
-                                    <CommandItem
+                            <div className="flex flex-col">
+                              <div className="flex items-center border-b px-3">
+                                <Search className="mr-2 h-4 w-4 shrink-0 opacity-50" />
+                                <Input
+                                  placeholder={language === "es" ? "Buscar..." : "Search..."}
+                                  value={tourCondoSearchTerm}
+                                  onChange={(e) => setTourCondoSearchTerm(e.target.value)}
+                                  className="h-9 border-0 focus-visible:ring-0 focus-visible:ring-offset-0"
+                                />
+                              </div>
+                              <div className="max-h-[200px] overflow-y-auto p-1">
+                                {filteredTourCondominiums.length === 0 ? (
+                                  <div className="py-4 text-center text-sm text-muted-foreground">
+                                    {language === "es" ? "No encontrado" : "Not found"}
+                                  </div>
+                                ) : (
+                                  filteredTourCondominiums.map(condo => (
+                                    <div
                                       key={condo.id}
-                                      value={condo.name}
-                                      onSelect={() => {
+                                      className={cn(
+                                        "relative flex cursor-pointer select-none items-center rounded-sm px-2 py-1.5 text-sm outline-none hover:bg-accent hover:text-accent-foreground",
+                                        stop.condominiumId === condo.id && "bg-accent"
+                                      )}
+                                      onClick={() => {
                                         handleTourStopChange(index, "condominiumId", condo.id);
                                         setTourCondoComboOpen(null);
+                                        setTourCondoSearchTerm("");
                                       }}
                                     >
                                       {condo.name}
                                       {stop.condominiumId === condo.id && (
                                         <Check className="ml-auto h-4 w-4" />
                                       )}
-                                    </CommandItem>
-                                  ))}
-                                </CommandGroup>
-                              </CommandList>
-                            </Command>
+                                    </div>
+                                  ))
+                                )}
+                              </div>
+                            </div>
                           </PopoverContent>
                         </Popover>
                         <Select 
