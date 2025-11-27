@@ -8,15 +8,16 @@ import { storage, NotFoundError } from "./storage";
 import { openAIService } from "./services/openai";
 import { setupAuth, isAuthenticated, requireRole, getSession } from "./replitAuth";
 import { requireResourceOwnership } from "./middleware/resourceOwnership";
-import { createGoogleMeetEvent, deleteGoogleMeetEvent } from "./googleCalendar";
+import { createGoogleMeetEvent, deleteGoogleMeetEvent, checkGoogleCalendarConnection, listEvents, createCalendarEvent } from "./googleCalendar";
 import { syncMaintenanceTicketToGoogleCalendar, deleteMaintenanceTicketFromGoogleCalendar } from "./googleCalendarService";
 import { calculateRentalCommissions } from "./commissionCalculator";
 import { sendVerificationEmail, sendLeadVerificationEmail, sendDuplicateLeadNotification, sendOwnerReferralVerificationEmail, sendOwnerReferralApprovedNotification, sendOfferLinkEmail } from "./gmail";
+import { readUnitsFromSheet, getSpreadsheetInfo } from "./googleSheets";
 import { getPropertyTitle } from "./propertyHelpers";
 import { setupGoogleAuth } from "./googleAuth";
 import { generateOfferPDF, generateRentalFormPDF, generateOwnerFormPDF, generateQuotationPDF } from "./pdfGenerator";
 import { processChatbotMessage, generatePropertyRecommendations } from "./chatbot";
-import { authLimiter, registrationLimiter, emailVerificationLimiter, chatbotLimiter, propertySubmissionLimiter } from "./rateLimiters";
+import { authLimiter, registrationLimiter, emailVerificationLimiter, chatbotLimiter, propertySubmissionLimiter, publicLeadRegistrationLimiter, tokenRegenerationLimiter } from "./rateLimiters";
 import { encrypt, decrypt } from "./encryption";
 import { 
   sanitizeText, 
@@ -151,10 +152,17 @@ import {
   insertExternalClientDocumentSchema,
   insertExternalClientIncidentSchema,
   updateExternalClientIncidentSchema,
+  externalClients,
   externalLeads,
+  externalLeadShowings,
   insertExternalLeadSchema,
   updateExternalLeadSchema,
   insertExternalLeadRegistrationTokenSchema,
+  insertExternalLeadActivitySchema,
+  insertExternalLeadShowingSchema,
+  updateExternalLeadShowingSchema,
+  insertExternalClientActivitySchema,
+  insertExternalClientPropertyHistorySchema,
   createLeadRegistrationLinkSchema,
   insertExternalPropertySchema,
   insertExternalRentalContractSchema,
@@ -187,6 +195,13 @@ import {
   updateExternalQuotationSchema,
   updateExternalFinancialTransactionSchema,
   insertExternalTermsAndConditionsSchema,
+  insertExternalRolePermissionSchema,
+  insertExternalUserPermissionSchema,
+  EXTERNAL_PERMISSION_SECTIONS,
+  EXTERNAL_PERMISSION_ACTIONS,
+  DEFAULT_ROLE_PERMISSIONS,
+  PERMISSION_SECTION_LABELS,
+  PERMISSION_ACTION_LABELS,
   updateExternalTermsAndConditionsSchema,
   externalAgencies,
   externalCondominiums,
@@ -201,6 +216,11 @@ import {
   externalPayments,
   externalPaymentSchedules,
   externalMaintenanceTickets,
+  externalFinancialTransactions,
+  externalAgencyZones,
+  insertExternalAgencyZoneSchema,
+  externalAgencyPropertyTypes,
+  insertExternalAgencyPropertyTypeSchema,
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, and, inArray, desc, asc, sql, ne, isNull, isNotNull } from "drizzle-orm";
@@ -208,14 +228,20 @@ import { eq, and, inArray, desc, asc, sql, ne, isNull, isNotNull } from "drizzle
 // Helper function to verify external agency ownership
 async function verifyExternalAgencyOwnership(req: any, res: any, agencyId: string): Promise<boolean> {
   try {
+    // Get user ID from authentication first
+    const userId = req.user?.claims?.sub || req.user?.id;
+    
     // Admin and master users can access all agencies
-    const userRole = req.user?.role || req.session?.adminUser?.role;
+    let userRole = req.user?.role || req.session?.adminUser?.role;
+    // Get role from database if not in session
+    if (!userRole && userId) {
+      const dbUser = await storage.getUser(userId);
+      userRole = dbUser?.role;
+    }
     if (userRole === "master" || userRole === "admin") {
       return true;
     }
 
-    // Get user ID from authentication
-    const userId = req.user?.claims?.sub || req.user?.id;
     if (!userId) {
       res.status(401).json({ message: "Unauthorized: User ID not found" });
       return false;
@@ -250,10 +276,23 @@ async function verifyExternalAgencyOwnership(req: any, res: any, agencyId: strin
 // Helper function to get user's agency ID
 async function getUserAgencyId(req: any): Promise<string | null> {
   try {
-    // Admin and master users don't have an agency
-    const userRole = req.user?.role || req.session?.adminUser?.role;
+    // Admin and master users dont have an agency
+    const userRole = req.user?.cachedRole || req.user?.role || req.session?.adminUser?.role;
     if (userRole === "master" || userRole === "admin") {
       return null;
+    }
+
+    // Try to use cached agencyId from isAuthenticated middleware first
+    if (req.user?.cachedAgencyId) {
+      return req.user.cachedAgencyId;
+    }
+
+    // Check session cache (with TTL validation - 5 min)
+    const CACHE_TTL_MS = 5 * 60 * 1000;
+    const now = Date.now();
+    const cacheValid = req.session?.cachedUser?.externalAgencyId && req.session.cachedUser.cachedAt && (now - req.session.cachedUser.cachedAt) < CACHE_TTL_MS;
+    if (cacheValid) {
+      return req.session.cachedUser.externalAgencyId;
     }
 
     // Get user ID from authentication
@@ -262,7 +301,7 @@ async function getUserAgencyId(req: any): Promise<string | null> {
       return null;
     }
 
-    // Get the user's external agency ID directly from user record
+    // Fallback: Get the users external agency ID from DB (should rarely happen now)
     const user = await storage.getUser(userId);
     return user?.externalAgencyId || null;
   } catch (error) {
@@ -403,6 +442,32 @@ function requireAccountantOrAdmin(req: any, res: any, next: any) {
 
 // WebSocket clients organized by conversation ID
 const wsClients = new Map<string, Set<WebSocket>>();
+
+// Import job tracking for progress reporting
+interface ImportJob {
+  id: string;
+  section: string;
+  status: 'processing' | 'completed' | 'failed';
+  total: number;
+  processed: number;
+  imported: number;
+  skipped: number;
+  errors: string[];
+  startedAt: Date;
+  finishedAt?: Date;
+  message?: string;
+}
+const importJobs = new Map<string, ImportJob>();
+
+// Clean up old jobs after 1 hour
+setInterval(() => {
+  const oneHourAgo = Date.now() - 60 * 60 * 1000;
+  for (const [jobId, job] of importJobs.entries()) {
+    if (job.finishedAt && job.finishedAt.getTime() < oneHourAgo) {
+      importJobs.delete(jobId);
+    }
+  }
+}, 5 * 60 * 1000);
 
 // Helper function to ensure user exists in database
 async function ensureUserExists(req: any): Promise<any> {
@@ -3718,6 +3783,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const { condominiumId } = req.params;
       
+      // Basic UUID validation to prevent injection
+      const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+      if (!uuidRegex.test(condominiumId)) {
+        return res.json([]);
+      }
       const units = await db
         .select()
         .from(condominiumUnits)
@@ -3754,6 +3824,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       const { condominiumId } = req.params;
       const { unitNumber } = req.body;
+      // Basic UUID validation to prevent injection
+      const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+      if (!uuidRegex.test(condominiumId)) {
+        return res.json([]);
+      }
 
       if (!unitNumber || unitNumber.trim() === "") {
         return res.status(400).json({ message: "El número de unidad es requerido" });
@@ -14768,6 +14843,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const { token } = req.params;
       const { documentType } = req.body; // 'idDocument', 'constitutiveAct', 'propertyDocuments', 'serviceReceipts', 'noDebtProof', etc.
+      console.log("[Owner Upload] Token:", token);
+      console.log("[Owner Upload] documentType:", documentType);
+      console.log("[Owner Upload] Files received:", req.files?.length || 0);
       
       // Validate token exists
       const [rentalFormToken] = await db
@@ -21158,6 +21236,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       const integration = await storage.getExternalAgencyIntegration(agencyId);
       
+      // Check Replit Google Calendar connection
+      const googleCalendarStatus = await checkGoogleCalendarConnection();
+      
       // Don't return sensitive tokens to frontend, only connection status
       if (integration) {
         res.json({
@@ -21165,19 +21246,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
           googleCalendarAccessToken: undefined,
           googleCalendarRefreshToken: undefined,
           openaiApiKey: undefined,
-          googleCalendarConnected: !!integration.googleCalendarAccessToken,
+          googleCalendarConnected: googleCalendarStatus.connected,
+          googleCalendarEmail: googleCalendarStatus.email,
           openaiConnected: !!(integration.openaiApiKey || integration.openaiUseReplitIntegration),
           openaiUseReplitIntegration: integration.openaiUseReplitIntegration,
           openaiHasCustomKey: !!integration.openaiApiKey,
-          openaiConnected: !!(integration.openaiApiKey || integration.openaiUseReplitIntegration),
         });
       } else {
         res.json({
           agencyId,
-          googleCalendarConnected: false,
+          googleCalendarConnected: googleCalendarStatus.connected,
+          googleCalendarEmail: googleCalendarStatus.email,
           openaiConnected: false,
-          openaiUseReplitIntegration: true,
-          openaiHasCustomKey: false,
           openaiUseReplitIntegration: true,
           openaiHasCustomKey: false,
         });
@@ -21239,6 +21319,191 @@ export async function registerRoutes(app: Express): Promise<Server> {
       handleGenericError(res, error);
     }
   });
+  // ==============================
+  // External Permission Management Routes
+  // ==============================
+
+  // GET /api/external/permissions/roles - Get all role permissions for agency
+  app.get("/api/external/permissions/roles", isAuthenticated, requireRole(EXTERNAL_ADMIN_ROLES), async (req: any, res) => {
+    try {
+      const agencyId = await getUserAgencyId(req);
+      if (!agencyId) {
+        return res.status(403).json({ message: "User is not assigned to any agency" });
+      }
+
+      const permissions = await storage.getExternalRolePermissions(agencyId);
+      
+      // Return both saved permissions and default structure
+      res.json({
+        permissions,
+        defaults: DEFAULT_ROLE_PERMISSIONS,
+        sections: EXTERNAL_PERMISSION_SECTIONS,
+        actions: EXTERNAL_PERMISSION_ACTIONS,
+        sectionLabels: PERMISSION_SECTION_LABELS,
+        actionLabels: PERMISSION_ACTION_LABELS,
+      });
+    } catch (error: any) {
+      console.error("Error fetching role permissions:", error);
+      handleGenericError(res, error);
+    }
+  });
+
+  // PATCH /api/external/permissions/roles - Update role permissions (bulk upsert)
+  app.patch("/api/external/permissions/roles", isAuthenticated, requireRole(EXTERNAL_ADMIN_ROLES), async (req: any, res) => {
+    try {
+      const agencyId = await getUserAgencyId(req);
+      if (!agencyId) {
+        return res.status(403).json({ message: "User is not assigned to any agency" });
+      }
+
+      const { permissions } = req.body;
+      if (!Array.isArray(permissions)) {
+        return res.status(400).json({ message: "permissions must be an array" });
+      }
+
+      // Validate and prepare permissions
+      const validatedPermissions = permissions.map((p: any) => {
+        const validated = insertExternalRolePermissionSchema.parse({
+          agencyId,
+          role: p.role,
+          section: p.section,
+          action: p.action,
+          allowed: p.allowed,
+        });
+        return validated;
+      });
+
+      const results = await storage.bulkUpsertExternalRolePermissions(validatedPermissions);
+      
+      await createAuditLog(req, "update", "external_role_permissions", agencyId, `Updated ${results.length} role permissions`);
+      
+      res.json(results);
+    } catch (error: any) {
+      console.error("Error updating role permissions:", error);
+      handleGenericError(res, error);
+    }
+  });
+
+  // GET /api/external/permissions/users - Get all user permission overrides for agency
+  app.get("/api/external/permissions/users", isAuthenticated, requireRole(EXTERNAL_ADMIN_ROLES), async (req: any, res) => {
+    try {
+      const agencyId = await getUserAgencyId(req);
+      if (!agencyId) {
+        return res.status(403).json({ message: "User is not assigned to any agency" });
+      }
+
+      const permissions = await storage.getExternalUserPermissions(agencyId);
+      const agencyUsers = await storage.getUsersByAgency(agencyId);
+      
+      res.json({
+        permissions,
+        users: agencyUsers.map(u => ({
+          id: u.id,
+          firstName: u.firstName,
+          lastName: u.lastName,
+          email: u.email,
+          role: u.role,
+        })),
+        sections: EXTERNAL_PERMISSION_SECTIONS,
+        actions: EXTERNAL_PERMISSION_ACTIONS,
+        sectionLabels: PERMISSION_SECTION_LABELS,
+        actionLabels: PERMISSION_ACTION_LABELS,
+      });
+    } catch (error: any) {
+      console.error("Error fetching user permissions:", error);
+      handleGenericError(res, error);
+    }
+  });
+
+  // GET /api/external/permissions/users/:userId - Get specific user's permission overrides
+  app.get("/api/external/permissions/users/:userId", isAuthenticated, requireRole(EXTERNAL_ADMIN_ROLES), async (req: any, res) => {
+    try {
+      const agencyId = await getUserAgencyId(req);
+      if (!agencyId) {
+        return res.status(403).json({ message: "User is not assigned to any agency" });
+      }
+
+      const { userId } = req.params;
+      const permissions = await storage.getExternalUserPermissionsByUser(agencyId, userId);
+      
+      res.json(permissions);
+    } catch (error: any) {
+      console.error("Error fetching user permissions:", error);
+      handleGenericError(res, error);
+    }
+  });
+
+  // PATCH /api/external/permissions/users/:userId - Update specific user's permission overrides
+  app.patch("/api/external/permissions/users/:userId", isAuthenticated, requireRole(EXTERNAL_ADMIN_ROLES), async (req: any, res) => {
+    try {
+      const agencyId = await getUserAgencyId(req);
+      if (!agencyId) {
+        return res.status(403).json({ message: "User is not assigned to any agency" });
+      }
+
+      const { userId } = req.params;
+      const { permissions } = req.body;
+      
+      if (!Array.isArray(permissions)) {
+        return res.status(400).json({ message: "permissions must be an array" });
+      }
+
+      // Validate user belongs to agency
+      const user = await storage.getUser(userId);
+      if (!user || user.externalAgencyId !== agencyId) {
+        return res.status(404).json({ message: "User not found in agency" });
+      }
+
+      // Validate and prepare permissions
+      const validatedPermissions = permissions.map((p: any) => {
+        const validated = insertExternalUserPermissionSchema.parse({
+          agencyId,
+          userId,
+          section: p.section,
+          action: p.action,
+          allowed: p.allowed,
+        });
+        return validated;
+      });
+
+      const results = await storage.bulkUpsertExternalUserPermissions(validatedPermissions);
+      
+      await createAuditLog(req, "update", "external_user_permissions", userId, `Updated ${results.length} user permissions`);
+      
+      res.json(results);
+    } catch (error: any) {
+      console.error("Error updating user permissions:", error);
+      handleGenericError(res, error);
+    }
+  });
+
+  // DELETE /api/external/permissions/users/:userId - Clear all permission overrides for a user
+  app.delete("/api/external/permissions/users/:userId", isAuthenticated, requireRole(EXTERNAL_ADMIN_ROLES), async (req: any, res) => {
+    try {
+      const agencyId = await getUserAgencyId(req);
+      if (!agencyId) {
+        return res.status(403).json({ message: "User is not assigned to any agency" });
+      }
+
+      const { userId } = req.params;
+      
+      // Validate user belongs to agency
+      const user = await storage.getUser(userId);
+      if (!user || user.externalAgencyId !== agencyId) {
+        return res.status(404).json({ message: "User not found in agency" });
+      }
+
+      await storage.deleteAllExternalUserPermissions(agencyId, userId);
+      
+      await createAuditLog(req, "delete", "external_user_permissions", userId, "Cleared all user permission overrides");
+      
+      res.status(204).send();
+    } catch (error: any) {
+      console.error("Error clearing user permissions:", error);
+      handleGenericError(res, error);
+    }
+  });
+
   // ==============================
   // External Agency User Management Routes
   // ==============================
@@ -21540,16 +21805,78 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.patch("/api/external-contracts/:id/status", isAuthenticated, requireRole(EXTERNAL_MAINTENANCE_ROLES), async (req: any, res) => {
     try {
       const { id } = req.params;
-      const { status } = req.body;
+      const { status, autoConvertToLead } = req.body;
       
       if (!status) {
         return res.status(400).json({ message: "Status is required" });
       }
       
+      // Get the contract before updating to check for client
+      const existingContract = await storage.getExternalRentalContractById(id);
+      
       const contract = await storage.updateExternalContractStatus(id, status);
       
       await createAuditLog(req, "update", "external_contract", id, `Changed contract status to ${status}`);
-      res.json(contract);
+      
+      // Auto-convert client to lead when rental ends (status = completed)
+      let convertedLead = null;
+      if (status === 'completed' && existingContract?.clientId && autoConvertToLead !== false) {
+        try {
+          const client = await storage.getExternalClient(existingContract.clientId);
+          
+          // Only convert if client exists, is active, and hasn't been converted already
+          if (client && client.status === 'active' && !client.convertedBackToLeadId) {
+            const agencyId = existingContract.agencyId;
+            
+            // Get agency name for seller assignment
+            const agencyResult = await db.select({
+              name: externalAgencies.name,
+            })
+            .from(externalAgencies)
+            .where(eq(externalAgencies.id, agencyId))
+            .limit(1);
+            
+            const agencyName = agencyResult[0]?.name || 'Agencia';
+            
+            // Create new lead from client data
+            const leadData = {
+              agencyId,
+              registrationType: 'seller' as const,
+              firstName: client.firstName,
+              lastName: client.lastName,
+              email: client.email || undefined,
+              phone: client.phone || undefined,
+              status: 'nuevo_lead' as const,
+              source: 'reconversion_cliente_rental_ended',
+              notes: `Reconvertido automáticamente al finalizar renta. Contrato: ${id}. Cliente original ID: ${client.id}`,
+              bedroomsText: client.bedroomsPreference?.toString() || undefined,
+              sellerName: agencyName, // Assign agency as the seller
+              createdBy: req.user.id,
+            };
+
+            convertedLead = await storage.createExternalLead(leadData);
+
+            // Update client to mark as converted back
+            await storage.updateExternalClient(client.id, {
+              status: 'archived',
+              convertedBackToLeadId: convertedLead.id,
+              convertedBackToLeadAt: new Date(),
+              convertedBackReason: 'rental_ended',
+            });
+
+            await createAuditLog(req, "create", "external_lead", convertedLead.id, `Auto-reconverted from client ${client.id} when rental ended`);
+            await createAuditLog(req, "update", "external_client", client.id, `Auto-converted back to lead ${convertedLead.id} when rental ended`);
+          }
+        } catch (conversionError: any) {
+          console.error("Error auto-converting client to lead:", conversionError);
+          // Don't fail the main request if conversion fails
+        }
+      }
+      
+      res.json({ 
+        ...contract,
+        convertedLead: convertedLead ? { id: convertedLead.id, message: "Cliente reconvertido a lead automáticamente" } : null
+      });
     } catch (error: any) {
       console.error("Error updating external contract status:", error);
       handleGenericError(res, error);
@@ -21578,7 +21905,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       // Get all users with external agency roles that belong to this agency
-      const externalRoles = ["external_agency_admin", "external_agency_accounting", "external_agency_maintenance", "external_agency_staff"];
+      const externalRoles = ["external_agency_admin", "external_agency_accounting", "external_agency_maintenance", "external_agency_staff", "external_agency_seller"];
       const externalUsers = await db
         .select({
           id: users.id,
@@ -21589,12 +21916,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
           role: users.role,
           status: users.status,
           maintenanceSpecialty: users.maintenanceSpecialty,
+          isSuspended: users.isSuspended,
           createdAt: users.createdAt,
         })
         .from(users)
         .where(and(
           inArray(users.role, externalRoles),
-          eq(users.assignedToUser, agencyId)
+          eq(users.externalAgencyId, agencyId)
         ))
         .orderBy(users.createdAt);
 
@@ -21618,7 +21946,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         firstName: z.string().min(1, "First name required"),
         lastName: z.string().min(1, "Last name required"),
         phone: z.string().optional(),
-        role: z.enum(["external_agency_admin", "external_agency_accounting", "external_agency_maintenance", "external_agency_staff"]),
+        role: z.enum(["external_agency_admin", "external_agency_accounting", "external_agency_maintenance", "external_agency_staff", "external_agency_seller"]),
         maintenanceSpecialty: z.enum(["encargado_mantenimiento", "mantenimiento_general", "electrico", "plomero", "refrigeracion", "carpintero", "pintor", "jardinero", "albanil", "limpieza"]).optional(),
       });
 
@@ -21647,7 +21975,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         status: "approved",
         emailVerified: true, // Auto-verify external agency users
         requirePasswordChange: true, // Force password change on first login
-        assignedToUser: agencyId, // Link user to agency via assignedToUser field
+        externalAgencyId: agencyId, // Link user to agency via externalAgencyId field
         maintenanceSpecialty: validatedData.maintenanceSpecialty || null,
       });
 
@@ -21688,7 +22016,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         firstName: z.string().min(1, "First name required").optional(),
         lastName: z.string().min(1, "Last name required").optional(),
         phone: z.string().optional().nullable(),
-        role: z.enum(["external_agency_admin", "external_agency_accounting", "external_agency_maintenance", "external_agency_staff"]).optional(),
+        role: z.enum(["external_agency_admin", "external_agency_accounting", "external_agency_maintenance", "external_agency_staff", "external_agency_seller"]).optional(),
         maintenanceSpecialty: z.enum(["encargado_mantenimiento", "mantenimiento_general", "electrico", "plomero", "refrigeracion", "carpintero", "pintor", "jardinero", "albanil", "limpieza"]).optional().nullable(),
       });
 
@@ -21796,6 +22124,73 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+
+  // Suspend external agency user
+  app.post("/api/external-agency-users/:id/suspend", isAuthenticated, requireRole(EXTERNAL_ADMIN_ROLES), async (req: any, res) => {
+    try {
+      const { id } = req.params;
+      const agencyId = await getUserAgencyId(req);
+      if (!agencyId) {
+        return res.status(400).json({ message: "No agency assigned to user" });
+      }
+
+      const user = await storage.getUser(id);
+      if (!user || user.externalAgencyId !== agencyId) {
+        return res.status(403).json({ message: "Unauthorized to suspend this user" });
+      }
+
+      const adminId = req.user?.claims?.sub || req.user?.id;
+      if (id === adminId) {
+        return res.status(400).json({ message: "No puedes suspender tu propia cuenta" });
+      }
+
+      await db
+        .update(users)
+        .set({
+          isSuspended: true,
+          suspendedAt: new Date(),
+          suspendedById: adminId,
+        })
+        .where(eq(users.id, id));
+
+      await createAuditLog(req, "update", "user", id, `Suspended external agency user ${user.firstName} ${user.lastName}`);
+      res.json({ message: "Usuario suspendido exitosamente" });
+    } catch (error: any) {
+      console.error("Error suspending external agency user:", error);
+      handleGenericError(res, error);
+    }
+  });
+
+  // Unsuspend/Reactivate external agency user
+  app.post("/api/external-agency-users/:id/unsuspend", isAuthenticated, requireRole(EXTERNAL_ADMIN_ROLES), async (req: any, res) => {
+    try {
+      const { id } = req.params;
+      const agencyId = await getUserAgencyId(req);
+      if (!agencyId) {
+        return res.status(400).json({ message: "No agency assigned to user" });
+      }
+
+      const user = await storage.getUser(id);
+      if (!user || user.externalAgencyId !== agencyId) {
+        return res.status(403).json({ message: "Unauthorized to reactivate this user" });
+      }
+
+      await db
+        .update(users)
+        .set({
+          isSuspended: false,
+          suspendedAt: null,
+          suspendedById: null,
+        })
+        .where(eq(users.id, id));
+
+      await createAuditLog(req, "update", "user", id, `Reactivated external agency user ${user.firstName} ${user.lastName}`);
+      res.json({ message: "Usuario reactivado exitosamente" });
+    } catch (error: any) {
+      console.error("Error reactivating external agency user:", error);
+      handleGenericError(res, error);
+    }
+  });
   // External Worker Assignments Routes
   app.get("/api/external-worker-assignments", isAuthenticated, requireRole(EXTERNAL_ADMIN_ROLES), async (req: any, res) => {
     try {
@@ -22370,6 +22765,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           if (existingPayment.length === 0 && dueDateNormalized >= earliestDate) {
             const [payment] = await db.insert(externalPayments).values({
               id: crypto.randomUUID(),
+                registrationType: row.registration_type?.trim() || 'seller',
               agencyId: schedule.agencyId,
               contractId: schedule.contractId,
               scheduleId: schedule.id,
@@ -22504,7 +22900,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       
       // Verify ownership: master/admin can access all, others must match agency
-      const userRole = req.user?.role || req.session?.adminUser?.role;
+      let userRole = req.user?.role || req.session?.adminUser?.role;
+      // Get role from database if not in session
+      if (!userRole && userId) {
+        const dbUser = await storage.getUser(userId);
+        userRole = dbUser?.role;
+      }
       const isMasterOrAdmin = userRole === "master" || userRole === "admin";
       
       if (!isMasterOrAdmin) {
@@ -22569,7 +22970,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       
       // Verify ownership: master/admin can access all, others must match agency
-      const userRole = req.user?.role || req.session?.adminUser?.role;
+      let userRole = req.user?.role || req.session?.adminUser?.role;
+      // Get role from database if not in session
+      if (!userRole && userId) {
+        const dbUser = await storage.getUser(userId);
+        userRole = dbUser?.role;
+      }
       const isMasterOrAdmin = userRole === "master" || userRole === "admin";
       
       if (!isMasterOrAdmin) {
@@ -22766,9 +23172,101 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // External Maintenance Tickets Routes
+  // External Maintenance Tickets Statistics by Biweekly Period
+  app.get("/api/external-tickets/stats/biweekly", isAuthenticated, requireRole(EXTERNAL_ALL_ROLES), async (req: any, res) => {
+    try {
+      const { year, month, period } = req.query; // period: 1 (1-15) or 2 (16-end)
+      const agencyId = await getUserAgencyId(req);
+      
+      const now = new Date();
+      const targetYear = year ? parseInt(year as string) : now.getFullYear();
+      const targetMonth = month ? parseInt(month as string) : now.getMonth() + 1; // 1-based
+      const targetPeriod = period ? parseInt(period as string) : (now.getDate() <= 15 ? 1 : 2);
+      
+      // Calculate date range for the biweekly period
+      const startDay = targetPeriod === 1 ? 1 : 16;
+      const lastDayOfMonth = new Date(targetYear, targetMonth, 0).getDate();
+      const endDay = targetPeriod === 1 ? 15 : lastDayOfMonth;
+      
+      const startDate = new Date(targetYear, targetMonth - 1, startDay);
+      startDate.setHours(0, 0, 0, 0);
+      
+      const endDate = new Date(targetYear, targetMonth - 1, endDay);
+      endDate.setHours(23, 59, 59, 999);
+      
+      // Query tickets for this agency within the biweekly period using reference date
+      // Reference date: for closed/resolved tickets use closed_at, otherwise use scheduled_date or created_at
+      let result;
+      if (agencyId) {
+        result = await db.execute(sql`
+          SELECT 
+            COUNT(*) as total,
+            COUNT(*) FILTER (WHERE status IN ('open', 'in_progress')) as open_count,
+            COUNT(*) FILTER (WHERE status IN ('resolved', 'closed')) as resolved_count,
+            COALESCE(SUM(CASE WHEN status IN ('resolved', 'closed') AND actual_cost IS NOT NULL THEN actual_cost ELSE 0 END), 0) as actual_cost_sum,
+            COALESCE(SUM(CASE WHEN status IN ('resolved', 'closed') THEN COALESCE(total_charge_amount, actual_cost * 1.15, 0) ELSE 0 END), 0) as total_charge_sum,
+            COALESCE(SUM(CASE WHEN status IN ('resolved', 'closed') AND accounting_sync_status = 'synced' THEN COALESCE(total_charge_amount, actual_cost * 1.15, 0) ELSE 0 END), 0) as paid_total_sum
+          FROM external_maintenance_tickets
+          WHERE agency_id = ${agencyId}
+            AND COALESCE(closed_at, scheduled_date, created_at) >= ${startDate.toISOString()}::timestamp
+            AND COALESCE(closed_at, scheduled_date, created_at) <= ${endDate.toISOString()}::timestamp
+        `);
+      } else {
+        // Admin/master users see all agencies
+        result = await db.execute(sql`
+          SELECT 
+            COUNT(*) as total,
+            COUNT(*) FILTER (WHERE status IN ('open', 'in_progress')) as open_count,
+            COUNT(*) FILTER (WHERE status IN ('resolved', 'closed')) as resolved_count,
+            COALESCE(SUM(CASE WHEN status IN ('resolved', 'closed') AND actual_cost IS NOT NULL THEN actual_cost ELSE 0 END), 0) as actual_cost_sum,
+            COALESCE(SUM(CASE WHEN status IN ('resolved', 'closed') THEN COALESCE(total_charge_amount, actual_cost * 1.15, 0) ELSE 0 END), 0) as total_charge_sum,
+            COALESCE(SUM(CASE WHEN status IN ('resolved', 'closed') AND accounting_sync_status = 'synced' THEN COALESCE(total_charge_amount, actual_cost * 1.15, 0) ELSE 0 END), 0) as paid_total_sum
+          FROM external_maintenance_tickets
+          WHERE COALESCE(closed_at, scheduled_date, created_at) >= ${startDate.toISOString()}::timestamp
+            AND COALESCE(closed_at, scheduled_date, created_at) <= ${endDate.toISOString()}::timestamp
+        `);
+      }
+      
+      const row = result.rows[0] as any;
+      const actualCost = parseFloat(row.actual_cost_sum || '0');
+      const totalCharge = parseFloat(row.total_charge_sum || '0');
+      const paidTotal = parseFloat(row.paid_total_sum || '0');
+      const commission = totalCharge - actualCost;
+      
+      // Get month name in Spanish
+      const monthNames = ['enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio', 'julio', 'agosto', 'septiembre', 'octubre', 'noviembre', 'diciembre'];
+      const monthName = monthNames[targetMonth - 1];
+      
+      res.json({
+        period: {
+          year: targetYear,
+          month: targetMonth,
+          biweekly: targetPeriod,
+          startDate: startDate.toISOString(),
+          endDate: endDate.toISOString(),
+          label: targetPeriod === 1 
+            ? `1ra Quincena de ${monthName.charAt(0).toUpperCase() + monthName.slice(1)} ${targetYear}`
+            : `2da Quincena de ${monthName.charAt(0).toUpperCase() + monthName.slice(1)} ${targetYear}`
+        },
+        stats: {
+          total: parseInt(row.total || '0'),
+          open: parseInt(row.open_count || '0'),
+          resolved: parseInt(row.resolved_count || '0'),
+          actualCost: actualCost,
+          commission: commission,
+          totalCharge: totalCharge,
+          paidTotal: paidTotal
+        }
+      });
+    } catch (error: any) {
+      console.error("Error fetching biweekly stats:", error);
+      handleGenericError(res, error);
+    }
+  });
+
   app.get("/api/external-tickets", isAuthenticated, requireRole(EXTERNAL_ALL_ROLES), async (req: any, res) => {
     try {
-      const { propertyId, assignedTo, status, priority } = req.query;
+      const { propertyId, assignedTo, status, priority, category, condominiumId, dateFilter, search, sortField, sortOrder, page, pageSize } = req.query;
       
       if (propertyId) {
         const tickets = await storage.getExternalMaintenanceTicketsByProperty(propertyId);
@@ -22789,13 +23287,33 @@ export async function registerRoutes(app: Express): Promise<Server> {
         }
       }
       
-      const filters: any = {};
-      if (status) filters.status = status;
-      if (priority) filters.priority = priority;
+      // Use paginated query when page/pageSize provided (from main page)
+      const pageNum = parseInt(page as string) || 1;
+      const pageSizeNum = parseInt(pageSize as string) || 10;
+      const offset = (pageNum - 1) * pageSizeNum;
       
-      const tickets = await storage.getExternalMaintenanceTicketsByAgency(agencyId, filters);
+      const result = await storage.getExternalMaintenanceTicketsPaginated(agencyId, {
+        limit: pageSizeNum,
+        offset,
+        search: search as string,
+        status: status as string,
+        priority: priority as string,
+        category: category as string,
+        condominiumId: condominiumId as string,
+        dateFilter: dateFilter as string,
+        sortField: sortField as string || 'createdAt',
+        sortOrder: (sortOrder as 'asc' | 'desc') || 'desc',
+      });
       
-      res.json(tickets);
+      const totalPages = Math.ceil(result.total / pageSizeNum);
+      
+      res.json({
+        data: result.data,
+        total: result.total,
+        page: pageNum,
+        pageSize: pageSizeNum,
+        totalPages,
+      });
     } catch (error: any) {
       console.error("Error fetching external tickets:", error);
       handleGenericError(res, error);
@@ -22805,11 +23323,77 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get("/api/external-tickets/:id", isAuthenticated, requireRole(EXTERNAL_ALL_ROLES), async (req: any, res) => {
     try {
       const { id } = req.params;
-      const ticket = await storage.getExternalMaintenanceTicket(id);
       
-      if (!ticket) {
+      // Fetch enriched ticket with joined data in a single query
+      const enrichedResult = await db.execute(sql`
+        SELECT 
+          t.*,
+          u.unit_number as "unitNumber",
+          c.name as "condominiumName",
+          COALESCE(NULLIF(TRIM(COALESCE(assigned_user.first_name, '') || ' ' || COALESCE(assigned_user.last_name, '')), ''), assigned_user.email) as "assignedToName",
+          COALESCE(NULLIF(TRIM(COALESCE(created_user.first_name, '') || ' ' || COALESCE(created_user.last_name, '')), ''), created_user.email) as "createdByName",
+          CASE WHEN t.quotation_id IS NOT NULL THEN true ELSE false END as "feeApplied",
+          0.15 as "feeRate"
+        FROM external_maintenance_tickets t
+        LEFT JOIN external_units u ON t.unit_id = u.id
+        LEFT JOIN external_condominiums c ON u.condominium_id = c.id
+        LEFT JOIN users assigned_user ON t.assigned_to = assigned_user.id
+        LEFT JOIN users created_user ON t.created_by = created_user.id
+        WHERE t.id = ${id}
+      `);
+      
+      if (!enrichedResult.rows || enrichedResult.rows.length === 0) {
         return res.status(404).json({ message: "Ticket not found" });
       }
+      
+      const row = enrichedResult.rows[0] as any;
+      
+      // Convert snake_case to camelCase and compute base cost
+      const ticket = {
+        id: row.id,
+        unitId: row.unit_id,
+        title: row.title,
+        description: row.description,
+        category: row.category,
+        priority: row.priority,
+        status: row.status,
+        reportedBy: row.reported_by,
+        assignedTo: row.assigned_to,
+        scheduledDate: row.scheduled_date,
+        resolvedDate: row.resolved_date,
+        estimatedCost: row.estimated_cost,
+        actualCost: row.actual_cost,
+        notes: row.notes,
+        createdBy: row.created_by,
+        createdAt: row.created_at,
+        updatedAt: row.updated_at,
+        agencyId: row.agency_id,
+        quotationId: row.quotation_id,
+        quotedTotal: row.quoted_total,
+        quotedAdminFee: row.quoted_admin_fee,
+        quotedServices: row.quoted_services,
+        closureWorkNotes: row.closure_work_notes,
+        invoiceDate: row.invoice_date,
+        finalChargeAmount: row.final_charge_amount,
+        applyAdminFee: row.apply_admin_fee,
+        adminFeeAmount: row.admin_fee_amount,
+        totalChargeAmount: row.total_charge_amount,
+        afterWorkPhotos: row.after_work_photos,
+        accountingTransactionId: row.accounting_transaction_id,
+        accountingSyncStatus: row.accounting_sync_status,
+        // Enriched fields
+        unitNumber: row.unitNumber,
+        condominiumName: row.condominiumName,
+        assignedToName: row.assignedToName,
+        createdByName: row.createdByName,
+        feeApplied: row.feeApplied,
+        feeRate: parseFloat(row.feeRate),
+        sourceQuotationId: row.quotation_id,
+        // Computed base cost (if fee was applied via quotation, divide by 1.15 to get original)
+        baseCost: row.feeApplied && row.estimated_cost 
+          ? (parseFloat(row.estimated_cost) / 1.15).toFixed(2) 
+          : row.estimated_cost,
+      };
       
       res.json(ticket);
     } catch (error: any) {
@@ -22817,7 +23401,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       handleGenericError(res, error);
     }
   });
-
   app.post("/api/external-tickets", isAuthenticated, requireRole(EXTERNAL_MAINTENANCE_ROLES), async (req: any, res) => {
     try {
       const validatedData = insertExternalMaintenanceTicketSchema.parse(req.body);
@@ -22840,7 +23423,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.patch("/api/external-tickets/:id", isAuthenticated, requireRole(EXTERNAL_MAINTENANCE_ROLES), async (req: any, res) => {
     try {
       const { id } = req.params;
-      const userRole = req.user?.role || req.session?.adminUser?.role;
+      let userRole = req.user?.role || req.session?.adminUser?.role;
+      // Get role from database if not in session
+      if (!userRole && userId) {
+        const dbUser = await storage.getUser(userId);
+        userRole = dbUser?.role;
+      }
       
       // Only admins and maintenance managers can modify tickets directly
       // Regular users should use POST /updates and POST /photos endpoints
@@ -22879,7 +23467,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const { id } = req.params;
       const { status, resolvedDate, completionNotes } = req.body;
       const userId = req.user?.claims?.sub || req.user?.id;
-      const userRole = req.user?.role || req.session?.adminUser?.role;
+      let userRole = req.user?.role || req.session?.adminUser?.role;
+      // Get role from database if not in session
+      if (!userRole && userId) {
+        const dbUser = await storage.getUser(userId);
+        userRole = dbUser?.role;
+      }
       
       if (!status) {
         return res.status(400).json({ message: "Status is required" });
@@ -22928,7 +23521,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (status === 'closed' && updatedTicket.actualCost && parseFloat(updatedTicket.actualCost) > 0) {
         try {
           // Get owner information from the unit
-          const unitOwners = await storage.getExternalUnitOwners(ticket.unitId);
+          const unitOwners = await storage.getExternalUnitOwnersByUnit(ticket.unitId);
           const primaryOwner = unitOwners.find(o => o.ownershipPercentage && parseFloat(o.ownershipPercentage) > 0) || unitOwners[0];
           
           // Create financial transaction for maintenance expense
@@ -22966,6 +23559,137 @@ export async function registerRoutes(app: Express): Promise<Server> {
       handleGenericError(res, error);
     }
   });
+
+  // POST /api/external-tickets/:id/close-with-report - Close ticket with full closure report
+  app.post("/api/external-tickets/:id/close-with-report", isAuthenticated, requireRole(EXTERNAL_MAINTENANCE_ROLES), async (req: any, res) => {
+    try {
+      const { id } = req.params;
+      const { 
+        closureWorkNotes,
+        invoiceDate,
+        finalChargeAmount,
+        applyAdminFee = true,
+        afterWorkPhotos = [],
+        completionNotes
+      } = req.body;
+      
+      const userId = req.user?.claims?.sub || req.user?.id;
+      let userRole = req.user?.role || req.session?.adminUser?.role;
+      // Get role from database if not in session
+      if (!userRole && userId) {
+        const dbUser = await storage.getUser(userId);
+        userRole = dbUser?.role;
+      }
+      
+      // Verify ticket exists
+      const ticket = await storage.getExternalMaintenanceTicket(id);
+      if (!ticket) {
+        return res.status(404).json({ message: "Ticket not found" });
+      }
+      
+      // Get unit for agency verification
+      const unit = await storage.getExternalUnit(ticket.unitId);
+      if (!unit) {
+        return res.status(404).json({ message: "Unit not found" });
+      }
+      
+      const hasAccess = await verifyExternalAgencyOwnership(req, res, unit.agencyId);
+      if (!hasAccess) return;
+      
+      // Only admin and maintenance managers can close tickets
+      if (!storage.canModifyMaintenanceTicket(userRole)) {
+        return res.status(403).json({ 
+          message: "Only administrators and maintenance managers can close tickets" 
+        });
+      }
+      
+      // Calculate administrative fee (15%)
+      const chargeAmount = parseFloat(finalChargeAmount || '0');
+      const adminFeeAmount = applyAdminFee ? (chargeAmount * 0.15) : 0;
+      const totalChargeAmount = chargeAmount + adminFeeAmount;
+      
+      // Prepare closure data
+      const closureData: any = {
+        status: 'closed',
+        closedBy: userId,
+        closedAt: new Date(),
+        resolvedDate: new Date(),
+        closureWorkNotes: closureWorkNotes || completionNotes,
+        completionNotes: completionNotes,
+        invoiceDate: invoiceDate ? new Date(invoiceDate) : new Date(),
+        finalChargeAmount: chargeAmount.toFixed(2),
+        applyAdminFee: applyAdminFee,
+        adminFeeAmount: adminFeeAmount.toFixed(2),
+        totalChargeAmount: totalChargeAmount.toFixed(2),
+        afterWorkPhotos: afterWorkPhotos,
+        actualCost: chargeAmount.toFixed(2),
+        accountingSyncStatus: 'pending'
+      };
+      
+      // Update ticket with closure data
+      const updatedTicket = await storage.updateExternalMaintenanceTicket(id, closureData);
+      
+      // Create financial transaction for the charge
+      let transactionId = null;
+      if (totalChargeAmount > 0) {
+        try {
+          // Get owner information from the unit
+          const unitOwners = await storage.getExternalUnitOwnersByUnit(ticket.unitId);
+          const primaryOwner = unitOwners.find(o => o.ownershipPercentage && parseFloat(o.ownershipPercentage) > 0) || unitOwners[0];
+          
+          // Create financial transaction - charge to owner
+          const transaction = await storage.createExternalFinancialTransaction({
+            agencyId: unit.agencyId,
+            direction: 'inflow',
+            category: 'maintenance_charge',
+            status: 'pending',
+            grossAmount: totalChargeAmount.toFixed(2),
+            fees: adminFeeAmount.toFixed(2),
+            netAmount: chargeAmount.toFixed(2),
+            currency: 'MXN',
+            dueDate: invoiceDate ? new Date(invoiceDate) : new Date(),
+            payerRole: 'owner',
+            payeeRole: 'agency',
+            ownerId: primaryOwner?.id || null,
+            contractId: updatedTicket.contractId || null,
+            unitId: updatedTicket.unitId,
+            maintenanceTicketId: updatedTicket.id,
+            description: `Cargo por mantenimiento: ${updatedTicket.title}`,
+            notes: closureWorkNotes || completionNotes || undefined,
+          });
+          
+          transactionId = transaction.id;
+          
+          // Update ticket with transaction reference
+          await storage.updateExternalMaintenanceTicket(id, {
+            accountingTransactionId: transaction.id,
+            accountingSyncStatus: 'synced'
+          });
+          
+          console.log(`Created accounting transaction ${transaction.id} for ticket closure ${id} - Total: ${totalChargeAmount}`);
+        } catch (finError) {
+          console.error('Failed to create financial transaction for ticket closure:', finError);
+          await storage.updateExternalMaintenanceTicket(id, {
+            accountingSyncStatus: 'error'
+          });
+        }
+      }
+      
+      await createAuditLog(req, "update", "external_ticket", id, `Closed ticket with report - Charge: ${totalChargeAmount} MXN`);
+      
+      // Get updated ticket with all changes
+      const finalTicket = await storage.getExternalMaintenanceTicket(id);
+      res.json({ 
+        ticket: finalTicket,
+        transactionId,
+        message: transactionId ? 'Ticket closed and sent to accounting' : 'Ticket closed'
+      });
+    } catch (error: any) {
+      console.error("Error closing ticket with report:", error);
+      handleGenericError(res, error);
+    }
+  });
+
 
   app.patch("/api/external-tickets/:id/assign", isAuthenticated, requireRole(EXTERNAL_ADMIN_ROLES), async (req: any, res) => {
     try {
@@ -23174,10 +23898,33 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+
+  // External Dashboard Summary - optimized endpoint for dashboard statistics
+  app.get("/api/external-dashboard-summary", isAuthenticated, requireRole(EXTERNAL_ALL_ROLES), async (req: any, res) => {
+    try {
+      let agencyId = req.query.agencyId;
+      if (!agencyId) {
+        agencyId = await getUserAgencyId(req);
+        if (!agencyId) {
+          return res.status(400).json({ message: "User is not assigned to any agency" });
+        }
+      }
+      
+      // Verify ownership
+      const hasAccess = await verifyExternalAgencyOwnership(req, res, agencyId);
+      if (!hasAccess) return;
+      
+      const summary = await storage.getExternalDashboardSummary(agencyId);
+      res.json(summary);
+    } catch (error: any) {
+      console.error("Error fetching dashboard summary:", error);
+      handleGenericError(res, error);
+    }
+  });
   // External Condominiums Routes
   app.get("/api/external-condominiums", isAuthenticated, requireRole(EXTERNAL_ALL_ROLES), async (req: any, res) => {
     try {
-      const { isActive, search, sortField, sortOrder, limit, offset } = req.query;
+      const { isActive, search, zone, sortField, sortOrder, limit, offset } = req.query;
       
       // Get agency ID from authenticated user (admin/master can pass agencyId to view other agencies)
       let agencyId = req.query.agencyId;
@@ -23192,54 +23939,40 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const hasAccess = await verifyExternalAgencyOwnership(req, res, agencyId);
       if (!hasAccess) return; // Response already sent by helper
       
-      // Detect if pagination is requested (for backward compatibility)
-      // Only check limit/offset to avoid breaking legacy consumers that use search/sortField
-      const usePagination = (limit !== undefined && limit !== '') || (offset !== undefined && offset !== '');
+      // Always use pagination for performance - defaults: limit=50, offset=0
+      const limitNum = limit ? parseInt(limit as string, 10) : 50;
+      const offsetNum = offset ? parseInt(offset as string, 10) : 0;
+      const parsedLimit = Number.isFinite(limitNum) ? Math.min(Math.max(1, limitNum), 100) : 50;
+      const parsedOffset = Number.isFinite(offsetNum) ? Math.max(0, offsetNum) : 0;
       
-      if (usePagination) {
-        // Parse and validate pagination parameters
-        const limitNum = limit ? parseInt(limit as string, 10) : 50;
-        const offsetNum = offset ? parseInt(offset as string, 10) : 0;
-        const parsedLimit = Number.isFinite(limitNum) ? Math.min(Math.max(1, limitNum), 100) : 50;
-        const parsedOffset = Number.isFinite(offsetNum) ? Math.max(0, offsetNum) : 0;
-        
-        // Build filters
-        const filters: any = {};
-        if (isActive !== undefined) filters.isActive = isActive === 'true';
-        if (search) filters.search = search as string;
-        if (sortField) filters.sortField = sortField as string;
-        if (sortOrder && (sortOrder === 'asc' || sortOrder === 'desc')) filters.sortOrder = sortOrder;
-        filters.limit = parsedLimit;
-        filters.offset = parsedOffset;
-        
-        // Execute data fetch and count in parallel
-        const [condominiums, total] = await Promise.all([
-          storage.getExternalCondominiumsByAgency(agencyId, filters),
-          storage.getExternalCondominiumsCountByAgency(agencyId, {
-            isActive: filters.isActive,
-            search: filters.search,
-          }),
-        ]);
-        
-        res.json({
-          data: condominiums,
-          total,
-          limit: parsedLimit,
-          offset: parsedOffset,
-          hasMore: parsedOffset + condominiums.length < total,
-        });
-      } else {
-        // Legacy mode: return simple array (NO pagination - full dataset)
-        // Preserve historical behavior: only isActive and search, NO sortField/sortOrder
-        // Storage will use default alphabetical ordering
-        const filters: any = {};
-        if (isActive !== undefined) filters.isActive = isActive === 'true';
-        if (search) filters.search = search as string;
-        // DO NOT pass sortField/sortOrder/limit/offset - legacy callers expect default behavior
-        
-        const condominiums = await storage.getExternalCondominiumsByAgency(agencyId, filters);
-        res.json(condominiums);
-      }
+      // Build filters
+      const filters: any = {};
+      if (isActive !== undefined) filters.isActive = isActive === 'true';
+      if (search) filters.search = search as string;
+      if (zone) filters.zone = zone as string;
+      if (sortField) filters.sortField = sortField as string;
+      if (sortOrder && (sortOrder === 'asc' || sortOrder === 'desc')) filters.sortOrder = sortOrder;
+      filters.limit = parsedLimit;
+      filters.offset = parsedOffset;
+      
+      // Execute data fetch and count in parallel
+      const [condominiums, total] = await Promise.all([
+        storage.getExternalCondominiumsByAgency(agencyId, filters),
+        storage.getExternalCondominiumsCountByAgency(agencyId, {
+          isActive: filters.isActive,
+          search: filters.search,
+          sellerId: filters.sellerId,
+          expiringDays: filters.expiringDays,
+        }),
+      ]);
+      
+      res.json({
+        data: condominiums,
+        total,
+        limit: parsedLimit,
+        offset: parsedOffset,
+        hasMore: parsedOffset + condominiums.length < total,
+      });
     } catch (error: any) {
       console.error("Error fetching external condominiums:", error);
       handleGenericError(res, error);
@@ -23262,6 +23995,30 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.json(condominium);
     } catch (error: any) {
       console.error("Error fetching external condominium:", error);
+      handleGenericError(res, error);
+    }
+  });
+
+  // GET units for a specific external condominium
+  app.get("/api/external-condominiums/:id/units", isAuthenticated, requireRole(EXTERNAL_ALL_ROLES), async (req: any, res) => {
+    try {
+      const { id } = req.params;
+      const condominium = await storage.getExternalCondominium(id);
+      
+      if (!condominium) {
+        return res.status(404).json({ message: "Condominium not found" });
+      }
+      
+      // Verify ownership
+      const hasAccess = await verifyExternalAgencyOwnership(req, res, condominium.agencyId);
+      if (!hasAccess) return;
+      
+      // Fetch units for this condominium
+      const units = await storage.getExternalUnitsByCondominium(id);
+      console.log(`[Units for Condo] Fetched ${units.length} units for condominium ${id}`);
+      res.json(units.map(u => ({ id: u.id, unitNumber: u.unitNumber, type: u.typology || u.propertyType })));
+    } catch (error: any) {
+      console.error("Error fetching condominium units:", error);
       handleGenericError(res, error);
     }
   });
@@ -23440,7 +24197,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // External Units Routes
   app.get("/api/external-units", isAuthenticated, requireRole(EXTERNAL_ALL_ROLES), async (req: any, res) => {
     try {
-      const { condominiumId, isActive } = req.query;
+      const { condominiumId, isActive, search, zone, typology, sortField, sortOrder, limit, offset } = req.query;
       
       // Get agency ID from authenticated user (admin/master can pass agencyId to view other agencies)
       let agencyId = req.query.agencyId;
@@ -23455,11 +24212,34 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const hasAccess = await verifyExternalAgencyOwnership(req, res, agencyId);
       if (!hasAccess) return;
       
+      // Always use pagination for performance - defaults: limit=50, offset=0
+      const limitNum = limit ? parseInt(limit as string, 10) : 50;
+      const offsetNum = offset ? parseInt(offset as string, 10) : 0;
+      const parsedLimit = Number.isFinite(limitNum) ? Math.min(Math.max(1, limitNum), 100) : 50;
+      const parsedOffset = Number.isFinite(offsetNum) ? Math.max(0, offsetNum) : 0;
+      
       const filters: any = {};
       if (isActive !== undefined) filters.isActive = isActive === 'true';
       if (condominiumId) filters.condominiumId = condominiumId;
+      if (search) filters.search = search as string;
+      if (zone) filters.zone = zone as string;
+      if (typology) filters.typology = typology as string;
+      if (sortField) filters.sortField = sortField as string;
+      if (sortOrder && (sortOrder === 'asc' || sortOrder === 'desc')) filters.sortOrder = sortOrder;
+      filters.limit = parsedLimit;
+      filters.offset = parsedOffset;
       
-      const units = await storage.getExternalUnitsByAgency(agencyId, filters);
+      // Execute data fetch and count in parallel
+      const [units, total] = await Promise.all([
+        storage.getExternalUnitsByAgency(agencyId, filters),
+        storage.getExternalUnitsCountByAgency(agencyId, {
+          isActive: filters.isActive,
+          condominiumId: filters.condominiumId,
+          search: filters.search,
+          sellerId: filters.sellerId,
+          expiringDays: filters.expiringDays,
+        }),
+      ]);
       
       // Get all active contracts for this agency to determine which units are rented
       const activeContracts = await storage.getExternalRentalContractsByAgency(agencyId);
@@ -23476,7 +24256,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
         currentContractId: activeContractsByUnit.get(unit.id) || null,
       }));
       
-      res.json(unitsWithContractInfo);
+      res.json({
+        data: unitsWithContractInfo,
+        total,
+        limit: parsedLimit,
+        offset: parsedOffset,
+        hasMore: parsedOffset + units.length < total,
+      });
     } catch (error: any) {
       console.error("Error fetching external units:", error);
       handleGenericError(res, error);
@@ -23487,6 +24273,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const { condominiumId } = req.params;
       
+      // Basic UUID validation to prevent injection
+      const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+      if (!uuidRegex.test(condominiumId)) {
+        return res.json([]);
+      }
       // Verify condominium exists and get its agency
       const condominium = await storage.getExternalCondominium(condominiumId);
       if (!condominium) {
@@ -23502,6 +24293,112 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.json(units);
     } catch (error: any) {
       console.error("Error fetching units by condominium:", error);
+      handleGenericError(res, error);
+    }
+  });
+
+  // GET /api/external-units/:id/overview - Consolidated endpoint for Unit Detail page
+  // Returns unit data, condominium, rental history, maintenance history, and available condos
+  app.get("/api/external-units/:id/overview", isAuthenticated, requireRole(EXTERNAL_ALL_ROLES), async (req: any, res) => {
+    try {
+      const { id } = req.params;
+      const agencyId = await getUserAgencyId(req);
+      if (!agencyId) {
+        return res.status(403).json({ message: "No agency access" });
+      }
+      
+      // Query 1: Get unit
+      const unit = await storage.getExternalUnit(id);
+      if (!unit) {
+        return res.status(404).json({ message: "Unit not found" });
+      }
+      
+      // Verify ownership via fail-closed pattern
+      if (unit.agencyId !== agencyId) {
+        return res.status(403).json({ message: "Access denied" });
+      }
+      
+      // Query 2: Get condominium (if assigned)
+      let condominium = null;
+      if (unit.condominiumId) {
+        condominium = await storage.getExternalCondominium(unit.condominiumId);
+      }
+      
+      // Query 3: Get rental contracts history (all statuses)
+      const rentalContracts = await db.select()
+        .from(externalRentalContracts)
+        .where(eq(externalRentalContracts.unitId, id))
+        .orderBy(desc(externalRentalContracts.createdAt))
+        .limit(20);
+      
+      // Query 4: Get maintenance tickets for this unit
+      const maintenanceTickets = await db.select({
+        id: externalMaintenanceTickets.id,
+        title: externalMaintenanceTickets.title,
+        category: externalMaintenanceTickets.category,
+        priority: externalMaintenanceTickets.priority,
+        status: externalMaintenanceTickets.status,
+        reportedBy: externalMaintenanceTickets.reportedBy,
+        estimatedCost: externalMaintenanceTickets.estimatedCost,
+        actualCost: externalMaintenanceTickets.actualCost,
+        scheduledDate: externalMaintenanceTickets.scheduledDate,
+        closedAt: externalMaintenanceTickets.closedAt,
+        createdAt: externalMaintenanceTickets.createdAt,
+      })
+        .from(externalMaintenanceTickets)
+        .where(
+          and(
+            eq(externalMaintenanceTickets.unitId, id),
+            eq(externalMaintenanceTickets.agencyId, agencyId)
+          )
+        )
+        .orderBy(desc(externalMaintenanceTickets.createdAt))
+        .limit(20);
+      
+      // Query 5: Get available condominiums for reassignment
+      const availableCondominiums = await db.select({
+        id: externalCondominiums.id,
+        name: externalCondominiums.name,
+        address: externalCondominiums.address,
+      })
+        .from(externalCondominiums)
+        .where(
+          and(
+            eq(externalCondominiums.agencyId, agencyId),
+            eq(externalCondominiums.isActive, true)
+          )
+        )
+        .orderBy(asc(externalCondominiums.name));
+      
+      // Query 6: Get showings related to this unit via leads
+      const unitShowings = await db.select({
+        id: externalLeadShowings.id,
+        leadId: externalLeadShowings.leadId,
+        scheduledAt: externalLeadShowings.scheduledAt,
+        outcome: externalLeadShowings.outcome,
+        leadFeedback: externalLeadShowings.leadFeedback,
+        createdAt: externalLeadShowings.createdAt,
+      })
+        .from(externalLeadShowings)
+        .where(
+          and(
+            eq(externalLeadShowings.unitId, id),
+            eq(externalLeadShowings.agencyId, agencyId)
+          )
+        )
+        .orderBy(desc(externalLeadShowings.scheduledAt))
+        .limit(20);
+      
+      res.json({
+        unit,
+        condominium,
+        rentalHistory: rentalContracts,
+        maintenanceHistory: maintenanceTickets,
+        showingsHistory: unitShowings,
+        availableCondominiums,
+      });
+    } catch (error: any) {
+      console.error("Error fetching unit overview:", error);
       handleGenericError(res, error);
     }
   });
@@ -23615,6 +24512,156 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Google Sheets import endpoint for external units
+  app.post("/api/external-agencies/:agencyId/import-units-from-sheets", isAuthenticated, requireRole(['master', 'admin', 'external_agency_admin']), async (req: any, res) => {
+    try {
+      const { agencyId } = req.params;
+      const { spreadsheetId, sheetRange, condominiumId } = req.body;
+
+      if (!spreadsheetId) {
+        return res.status(400).json({ message: "Se requiere el ID de la hoja de cálculo (spreadsheetId)" });
+      }
+
+      if (!condominiumId) {
+        return res.status(400).json({ message: "Se requiere seleccionar un condominio" });
+      }
+
+      // Verify ownership
+      const hasAccess = await verifyExternalAgencyOwnership(req, res, agencyId);
+      if (!hasAccess) return;
+
+      // Verify condominium belongs to agency
+      const condominium = await storage.getExternalCondominium(condominiumId);
+      if (!condominium || condominium.agencyId !== agencyId) {
+        return res.status(400).json({ message: "El condominio no pertenece a esta agencia" });
+      }
+
+      // Read data from Google Sheets
+      const range = sheetRange || 'Sheet1!A2:M';
+      const rows = await readUnitsFromSheet(spreadsheetId, range);
+
+      if (rows.length === 0) {
+        return res.status(400).json({ message: "No se encontraron datos en la hoja de cálculo" });
+      }
+
+      const results = {
+        imported: 0,
+        skipped: 0,
+        errors: [] as string[],
+      };
+
+      for (const row of rows) {
+        try {
+          if (!row.unitNumber) {
+            results.skipped++;
+            continue;
+          }
+
+          // Check if unit already exists
+          const existingUnits = await storage.getExternalUnitsByAgency(agencyId);
+          const existingUnit = existingUnits.find(u => 
+            u.unitNumber === row.unitNumber && u.condominiumId === condominiumId
+          );
+
+          if (existingUnit) {
+            results.skipped++;
+            continue;
+          }
+
+          // Create new unit
+          await storage.createExternalUnit({
+            agencyId,
+            condominiumId,
+            unitNumber: row.unitNumber,
+            rentPurpose: (row.rentPurpose as 'long_term' | 'vacation' | 'both') || 'long_term',
+            floorNumber: row.floorNumber ? parseInt(row.floorNumber) : undefined,
+            bedrooms: row.bedrooms ? parseInt(row.bedrooms) : undefined,
+            bathrooms: row.bathrooms ? parseFloat(row.bathrooms) : undefined,
+            size: row.size ? parseFloat(row.size) : undefined,
+            rentAmount: row.rentAmount || undefined,
+            depositAmount: row.depositAmount || undefined,
+            notes: row.notes || undefined,
+            isActive: true,
+            createdBy: req.user.id,
+          });
+
+          results.imported++;
+        } catch (err: any) {
+          results.errors.push(`Error en fila ${row.unitNumber}: ${err.message}`);
+        }
+      }
+
+      await createAuditLog(req, "import", "external_units", agencyId, `Imported ${results.imported} units from Google Sheets`);
+
+      res.json({
+        message: `Importación completada: ${results.imported} unidades importadas, ${results.skipped} omitidas`,
+        ...results,
+      });
+    } catch (error: any) {
+      console.error("Error importing units from Google Sheets:", error);
+      if (error.message?.includes('Google Sheet not connected')) {
+        return res.status(400).json({ message: "Google Sheets no está conectado. Por favor, configura la conexión primero." });
+      }
+      handleGenericError(res, error);
+    }
+  });
+
+  // Get Google Sheets info (for preview)
+  app.get("/api/external-agencies/:agencyId/sheets-info", isAuthenticated, requireRole(['master', 'admin', 'external_agency_admin']), async (req: any, res) => {
+    try {
+      const { agencyId } = req.params;
+      const { spreadsheetId } = req.query;
+
+      if (!spreadsheetId) {
+        return res.status(400).json({ message: "Se requiere el ID de la hoja de cálculo" });
+      }
+
+      // Verify ownership
+      const hasAccess = await verifyExternalAgencyOwnership(req, res, agencyId);
+      if (!hasAccess) return;
+
+      const info = await getSpreadsheetInfo(spreadsheetId as string);
+      res.json(info);
+    } catch (error: any) {
+      console.error("Error getting spreadsheet info:", error);
+      if (error.message?.includes('Google Sheet not connected')) {
+        return res.status(400).json({ message: "Google Sheets no está conectado. Por favor, configura la conexión primero." });
+      }
+      handleGenericError(res, error);
+    }
+  });
+
+  // Preview Google Sheets data before import
+  app.get("/api/external-agencies/:agencyId/preview-sheets-data", isAuthenticated, requireRole(['master', 'admin', 'external_agency_admin']), async (req: any, res) => {
+    try {
+      const { agencyId } = req.params;
+      const { spreadsheetId, sheetRange } = req.query;
+
+      if (!spreadsheetId) {
+        return res.status(400).json({ message: "Se requiere el ID de la hoja de cálculo" });
+      }
+
+      // Verify ownership
+      const hasAccess = await verifyExternalAgencyOwnership(req, res, agencyId);
+      if (!hasAccess) return;
+
+      const range = (sheetRange as string) || 'Sheet1!A2:M';
+      const rows = await readUnitsFromSheet(spreadsheetId as string, range);
+
+      res.json({
+        totalRows: rows.length,
+        preview: rows.slice(0, 10), // First 10 rows for preview
+        columns: ['unitNumber', 'condominiumName', 'rentPurpose', 'floorNumber', 'bedrooms', 'bathrooms', 'size', 'rentAmount', 'depositAmount', 'ownerName', 'ownerEmail', 'ownerPhone', 'notes'],
+      });
+    } catch (error: any) {
+      console.error("Error previewing spreadsheet data:", error);
+      if (error.message?.includes('Google Sheet not connected')) {
+        return res.status(400).json({ message: "Google Sheets no está conectado. Por favor, configura la conexión primero." });
+      }
+      handleGenericError(res, error);
+    }
+  });
+
   // Toggle unit active status (suspend/activate)
   app.patch("/api/external-units/:id/toggle-status", isAuthenticated, requireRole(EXTERNAL_ADMIN_ROLES), async (req: any, res) => {
     try {
@@ -23692,27 +24739,34 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ message: "No agency assigned to user" });
       }
 
-      // Get all units for this agency - already filtered by agency
-      const units = await storage.getExternalUnitsByAgency(agencyId);
-      
-      // Verify ownership for each unit (extra security layer)
-      for (const unit of units) {
-        const hasAccess = await verifyExternalAgencyOwnership(req, res, unit.agencyId);
-        if (!hasAccess) return;
-      }
-      
-      // Get all owners for all units
-      const ownersPromises = units.map(unit => storage.getExternalUnitOwnersByUnit(unit.id));
-      const ownersArrays = await Promise.all(ownersPromises);
-      
-      // Flatten and add unit info to each owner
-      const owners = ownersArrays.flat().map((owner) => {
-        const ownerUnit = units.find(u => u.id === owner.unitId);
-        return {
-          ...owner,
-          unit: ownerUnit
-        };
-      });
+      // Optimized: Single query to get all owners with their units for the agency
+      const owners = await db.select({
+        id: externalUnitOwners.id,
+        unitId: externalUnitOwners.unitId,
+        ownerName: externalUnitOwners.ownerName,
+        ownerEmail: externalUnitOwners.ownerEmail,
+        ownerPhone: externalUnitOwners.ownerPhone,
+        ownershipPercentage: externalUnitOwners.ownershipPercentage,
+        isActive: externalUnitOwners.isActive,
+        createdBy: externalUnitOwners.createdBy,
+        createdAt: externalUnitOwners.createdAt,
+        updatedAt: externalUnitOwners.updatedAt,
+        // Unit fields
+        unit: {
+          id: externalUnits.id,
+          unitNumber: externalUnits.unitNumber,
+          condominiumId: externalUnits.condominiumId,
+          rentalStatus: externalUnits.rentalStatus,
+          bedroomCount: externalUnits.bedroomCount,
+          bathroomCount: externalUnits.bathroomCount,
+          unitType: externalUnits.unitType,
+          agencyId: externalUnits.agencyId,
+        }
+      })
+      .from(externalUnitOwners)
+      .innerJoin(externalUnits, eq(externalUnitOwners.unitId, externalUnits.id))
+      .where(eq(externalUnits.agencyId, agencyId))
+      .orderBy(desc(externalUnitOwners.isActive), desc(externalUnitOwners.createdAt));
       
       res.json(owners);
     } catch (error: any) {
@@ -23720,6 +24774,227 @@ export async function registerRoutes(app: Express): Promise<Server> {
       handleGenericError(res, error);
     }
   });
+
+
+// GET /api/external/portfolio-summary - Optimized endpoint for owner portfolio page
+  app.get("/api/external/portfolio-summary", isAuthenticated, requireRole(EXTERNAL_ALL_ROLES), async (req: any, res) => {
+    try {
+      const agencyId = await getUserAgencyId(req);
+      
+      if (!agencyId) {
+        return res.status(403).json({ message: "User is not assigned to any agency" });
+      }
+
+      const { limit = "100", offset = "0", search, minUnits, condominiumId, isActive } = req.query;
+      const limitNum = Math.min(parseInt(limit as string, 10) || 100, 500);
+      const offsetNum = parseInt(offset as string, 10) || 0;
+
+      const currentYear = new Date().getFullYear();
+      const yearStart = new Date(currentYear, 0, 1);
+      const yearEnd = new Date(currentYear + 1, 0, 1);
+
+      // Use raw SQL to avoid Drizzle ORM issues with complex joins
+      const ownersResult = await db.execute(sql`
+        SELECT 
+          uo.id,
+          uo.unit_id as "unitId",
+          uo.owner_name as "ownerName",
+          uo.owner_email as "ownerEmail",
+          uo.owner_phone as "ownerPhone",
+          uo.ownership_percentage as "ownershipPercentage",
+          uo.is_active as "isActive",
+          
+          
+          uo.notes,
+          uo.created_by as "createdBy",
+          uo.created_at as "createdAt",
+          uo.updated_at as "updatedAt",
+          u.unit_number as "unitNumber",
+          u.condominium_id as "condominiumId",
+          u.typology as "typology",
+          c.name as "condominiumName"
+        FROM external_unit_owners uo
+        INNER JOIN external_units u ON uo.unit_id = u.id
+        LEFT JOIN external_condominiums c ON u.condominium_id = c.id
+        WHERE u.agency_id = ${agencyId}
+        ORDER BY uo.is_active DESC, uo.created_at DESC
+      `);
+
+      const ownersWithUnits = ownersResult.rows as any[];
+
+      if (ownersWithUnits.length === 0) {
+        return res.json({ data: [], total: 0, page: Math.floor(offsetNum / limitNum) + 1, pageSize: limitNum });
+      }
+
+      // Get contracts using raw SQL
+      const contractsResult = await db.execute(sql`
+        SELECT id, unit_id as "unitId", start_date as "startDate", end_date as "endDate", status
+        FROM external_rental_contracts
+        WHERE agency_id = ${agencyId}
+      `);
+      const allContracts = contractsResult.rows as any[];
+
+      // Get financial transactions using raw SQL
+      const transactionsResult = await db.execute(sql`
+        SELECT owner_id as "ownerId", unit_id as "unitId", direction, payee_role as "payeeRole", payer_role as "payerRole", gross_amount as "grossAmount"
+        FROM external_financial_transactions
+        WHERE agency_id = ${agencyId}
+      `);
+      const rawTransactions = transactionsResult.rows as any[];
+
+      // Aggregate financial data in JavaScript
+      const summaryMap = new Map<string, { ownerId: string | null; unitId: string | null; direction: string; payeeRole: string; payerRole: string; totalAmount: number }>();
+      for (const tx of rawTransactions) {
+        const key = `${tx.ownerId || 'null'}_${tx.unitId || 'null'}_${tx.direction}_${tx.payeeRole}_${tx.payerRole}`;
+        if (!summaryMap.has(key)) {
+          summaryMap.set(key, {
+            ownerId: tx.ownerId,
+            unitId: tx.unitId,
+            direction: tx.direction,
+            payeeRole: tx.payeeRole,
+            payerRole: tx.payerRole,
+            totalAmount: 0,
+          });
+        }
+        summaryMap.get(key)!.totalAmount += parseFloat(tx.grossAmount || '0');
+      }
+      const financialSummary = Array.from(summaryMap.values()).map(s => ({
+        ...s,
+        totalAmount: s.totalAmount.toFixed(2),
+      }));
+
+      // Group owners by name and email
+      const ownerGroups = new Map<string, any[]>();
+      ownersWithUnits.forEach(owner => {
+        const key = `${owner.ownerName.toLowerCase()}_${owner.ownerEmail?.toLowerCase() || ''}`;
+        if (!ownerGroups.has(key)) {
+          ownerGroups.set(key, []);
+        }
+        ownerGroups.get(key)!.push(owner);
+      });
+
+      const totalYearDays = Math.ceil((yearEnd.getTime() - yearStart.getTime()) / (1000 * 60 * 60 * 24));
+      const portfolios: any[] = [];
+
+      ownerGroups.forEach((ownerInstances, _key) => {
+        const primaryOwner = ownerInstances.sort((a, b) => 
+          new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+        )[0];
+
+        let totalIncome = 0;
+        let totalExpenses = 0;
+        let activeContracts = 0;
+        let totalOccupiedDays = 0;
+        const typologies = new Set<string>();
+        const condominiumNames = new Set<string>();
+        const unitNumbers: string[] = [];
+
+        ownerInstances.forEach(oi => {
+          if (oi.typology) typologies.add(oi.typology);
+          if (oi.condominiumName) condominiumNames.add(oi.condominiumName);
+          if (oi.unitNumber) unitNumbers.push(oi.unitNumber);
+
+          const unitContracts = allContracts.filter(c => c.unitId === oi.unitId);
+          activeContracts += unitContracts.filter(c => c.status === "active").length;
+
+          unitContracts.forEach(contract => {
+            if (contract.status === "active" || contract.status === "completed") {
+              const contractStart = new Date(Math.max(new Date(contract.startDate).getTime(), yearStart.getTime()));
+              const contractEnd = new Date(Math.min(new Date(contract.endDate).getTime(), yearEnd.getTime()));
+              if (contractEnd > contractStart) {
+                totalOccupiedDays += Math.ceil((contractEnd.getTime() - contractStart.getTime()) / (1000 * 60 * 60 * 24));
+              }
+            }
+          });
+
+          const unitFinancials = financialSummary.filter(fs => fs.unitId === oi.unitId);
+          unitFinancials.forEach(uf => {
+            if (uf.direction === "income" && uf.payeeRole === "owner") {
+              totalIncome += parseFloat(uf.totalAmount);
+            } else if (uf.direction === "expense" && uf.payerRole === "owner") {
+              totalExpenses += parseFloat(uf.totalAmount);
+            }
+          });
+        });
+
+        const occupancyRate = ownerInstances.length > 0 && totalYearDays > 0
+          ? (totalOccupiedDays / (ownerInstances.length * totalYearDays)) * 100
+          : 0;
+
+        portfolios.push({
+          owner: {
+            id: primaryOwner.id,
+            unitId: primaryOwner.unitId,
+            ownerName: primaryOwner.ownerName,
+            ownerEmail: primaryOwner.ownerEmail,
+            ownerPhone: primaryOwner.ownerPhone,
+            ownershipPercentage: primaryOwner.ownershipPercentage,
+            isActive: primaryOwner.isActive,
+            notes: primaryOwner.notes,
+            createdBy: primaryOwner.createdBy,
+            createdAt: primaryOwner.createdAt,
+            updatedAt: primaryOwner.updatedAt,
+          },
+          units: ownerInstances.map(u => ({
+            id: u.unitId,
+            unitNumber: u.unitNumber,
+            condominiumId: u.condominiumId,
+            typology: u.typology,
+          })),
+          totalIncome,
+          totalExpenses,
+          balance: totalIncome - totalExpenses,
+          activeContracts,
+          occupancyRate: Math.round(occupancyRate * 100) / 100,
+          typologies: Array.from(typologies),
+          condominiums: Array.from(condominiumNames),
+          unitNumbers,
+        });
+      });
+
+      let filteredPortfolios = portfolios;
+
+      if (search) {
+        const searchLower = (search as string).toLowerCase();
+        filteredPortfolios = filteredPortfolios.filter(p =>
+          p.owner.ownerName.toLowerCase().includes(searchLower) ||
+          p.owner.ownerEmail?.toLowerCase().includes(searchLower) ||
+          p.owner.ownerPhone?.includes(search as string)
+        );
+      }
+
+      if (minUnits) {
+        const minUnitsNum = parseInt(minUnits as string, 10);
+        if (!isNaN(minUnitsNum) && minUnitsNum > 0) {
+          filteredPortfolios = filteredPortfolios.filter(p => p.units.length >= minUnitsNum);
+        }
+      }
+
+      if (condominiumId) {
+        filteredPortfolios = filteredPortfolios.filter(p =>
+          p.units.some((u: any) => u.condominiumId === condominiumId)
+        );
+      }
+
+      if (isActive !== undefined) {
+        const activeFilter = isActive === 'true';
+        filteredPortfolios = filteredPortfolios.filter(p => p.owner.isActive === activeFilter);
+      }
+
+      const paginatedPortfolios = filteredPortfolios.slice(offsetNum, offsetNum + limitNum);
+
+      res.json({
+        data: paginatedPortfolios,
+        total: filteredPortfolios.length,
+        page: Math.floor(offsetNum / limitNum) + 1,
+        pageSize: limitNum,
+      });
+    } catch (error: any) {
+      console.error("Error fetching portfolio summary:", error);
+      handleGenericError(res, error);
+    }
+  });
+
 
   // External Unit Owners Routes
   app.get("/api/external-unit-owners/by-unit/:unitId", isAuthenticated, requireRole(EXTERNAL_ALL_ROLES), async (req: any, res) => {
@@ -24323,6 +25598,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
           status: filters.status,
           isVerified: filters.isVerified,
           search: filters.search,
+          sellerId: filters.sellerId,
+          expiringDays: filters.expiringDays,
         }),
       ]);
       
@@ -24452,7 +25729,133 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // POST /api/external-clients/:id/convert-to-lead - Convert client back to lead
+  app.post("/api/external-clients/:id/convert-to-lead", isAuthenticated, requireRole(EXTERNAL_ADMIN_ROLES), async (req: any, res) => {
+    try {
+      const { id } = req.params;
+      const { reason } = req.body; // manual, rental_ended, etc.
+      const agencyId = await getUserAgencyId(req);
+      
+      if (!agencyId) {
+        return res.status(403).json({ message: "User is not assigned to any agency" });
+      }
+
+      const client = await storage.getExternalClient(id);
+      if (!client) {
+        return res.status(404).json({ message: "Client not found" });
+      }
+
+      // Verify agency ownership
+      if (client.agencyId !== agencyId) {
+        return res.status(403).json({ message: "No access to this client" });
+      }
+
+      // Check if already converted
+      if (client.convertedBackToLeadId) {
+        return res.status(400).json({ message: "Este cliente ya fue reconvertido a lead" });
+      }
+
+      // Get agency name for seller assignment
+      const agencyResult = await db.select({
+        name: externalAgencies.name,
+      })
+      .from(externalAgencies)
+      .where(eq(externalAgencies.id, agencyId))
+      .limit(1);
+      
+      const agencyName = agencyResult[0]?.name || 'Agencia';
+
+      // Create new lead from client data
+      const leadData = {
+        agencyId,
+        registrationType: 'seller' as const,
+        firstName: client.firstName,
+        lastName: client.lastName,
+        email: client.email || undefined,
+        phone: client.phone || undefined,
+        status: 'nuevo_lead' as const,
+        source: `reconversion_cliente_${reason || 'manual'}`,
+        notes: `Reconvertido desde cliente: ${client.firstName} ${client.lastName}. Razón: ${reason || 'manual'}. Cliente original ID: ${client.id}`,
+        bedroomsText: client.bedroomsPreference?.toString() || undefined,
+        sellerName: agencyName, // Assign agency as the seller
+        createdBy: req.user.id,
+      };
+
+      const newLead = await storage.createExternalLead(leadData);
+
+      // Update client to mark as converted back
+      await storage.updateExternalClient(id, {
+        status: 'archived',
+        convertedBackToLeadId: newLead.id,
+        convertedBackToLeadAt: new Date(),
+        convertedBackReason: reason || 'manual',
+      });
+
+      await createAuditLog(req, "create", "external_lead", newLead.id, `Reconverted from client ${client.id}`);
+      await createAuditLog(req, "update", "external_client", id, `Converted back to lead ${newLead.id}`);
+      
+      res.status(201).json({ 
+        lead: newLead,
+        message: "Cliente reconvertido a lead exitosamente" 
+      });
+    } catch (error: any) {
+      console.error("Error converting client to lead:", error);
+      handleGenericError(res, error);
+    }
+  });
+
   // ==============================
+  // GET /api/external-sellers - Get sellers for agency (for lead assignment dropdown)
+  app.get("/api/external-sellers", isAuthenticated, requireRole([...EXTERNAL_ADMIN_ROLES, 'external_agency_seller']), async (req: any, res) => {
+    try {
+      const agencyId = await getUserAgencyId(req);
+      
+      if (!agencyId) {
+        return res.status(403).json({ message: "No agency access" });
+      }
+      
+      // Get agency info to include as first seller option
+      const agency = await db.select({
+        id: externalAgencies.id,
+        name: externalAgencies.name,
+      })
+      .from(externalAgencies)
+      .where(eq(externalAgencies.id, agencyId))
+      .limit(1);
+      
+      // Get all sellers for this agency
+      const sellers = await db.select({
+        id: users.id,
+        firstName: users.firstName,
+        lastName: users.lastName,
+        email: users.email,
+      })
+      .from(users)
+      .where(and(
+        eq(users.externalAgencyId, agencyId),
+        eq(users.role, 'external_agency_seller'),
+        eq(users.isSuspended, false)
+      ))
+      .orderBy(users.firstName);
+      
+      // Include agency as first option (using agency ID prefixed with 'agency_')
+      const agencyAsSeller = agency[0] ? {
+        id: `agency_${agency[0].id}`,
+        firstName: agency[0].name,
+        lastName: '',
+        email: '',
+        isAgency: true
+      } : null;
+      
+      const result = agencyAsSeller ? [agencyAsSeller, ...sellers] : sellers;
+      
+      res.json(result);
+    } catch (error: any) {
+      console.error("Error fetching external sellers:", error);
+      handleGenericError(res, error);
+    }
+  });
+
   // External Leads Routes
   // ==============================
 
@@ -24464,7 +25867,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(403).json({ message: "No agency access" });
       }
       
-      const { status, registrationType, search, sortField, sortOrder, limit = '50', offset = '0' } = req.query;
+      const { status, registrationType, sellerId, expiringDays, search, sortField, sortOrder, limit = '50', offset = '0' } = req.query;
       
       const limitNum = Math.max(1, Math.min(parseInt(limit as string, 10) || 50, 1000));
       const offsetNum = Math.max(0, parseInt(offset as string, 10) || 0);
@@ -24472,6 +25875,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const filters = {
         status: status as string | undefined,
         registrationType: registrationType as string | undefined,
+        sellerId: sellerId as string | undefined,
+        expiringDays: expiringDays ? parseInt(expiringDays as string, 10) : undefined,
         search: search as string | undefined,
         sortField: sortField as string | undefined,
         sortOrder: (sortOrder === 'asc' || sortOrder === 'desc') ? sortOrder : 'desc' as 'asc' | 'desc',
@@ -24485,6 +25890,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
           status: filters.status,
           registrationType: filters.registrationType,
           search: filters.search,
+          sellerId: filters.sellerId,
+          expiringDays: filters.expiringDays,
         }),
       ]);
       
@@ -24524,38 +25931,87 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // POST /api/external-leads - Create new lead
   app.post("/api/external-leads", isAuthenticated, requireRole([...EXTERNAL_ADMIN_ROLES, 'external_agency_seller']), async (req: any, res) => {
     try {
-      const agencyId = await getUserAgencyId(req);
-      if (!agencyId) {
-        return res.status(403).json({ message: "No agency access" });
+      const userRole = req.user?.role;
+      let agencyId = await getUserAgencyId(req);
+      
+      // Master/admin users can specify agencyId in the body
+      if ((userRole === 'master' || userRole === 'admin') && req.body.agencyId) {
+        agencyId = req.body.agencyId;
       }
       
-      const validatedData = insertExternalLeadSchema.parse(req.body);
+      if (!agencyId) {
+        return res.status(403).json({ message: "No agency access. Master/Admin users must specify agencyId." });
+      }
       
-      // Check for duplicates before creating
+      // Transform checkInDate from ISO string to Date before validation
+      const requestData = {
+        ...req.body,
+        checkInDate: req.body.checkInDate ? new Date(req.body.checkInDate) : undefined,
+      };
+      
+      // Handle agency as seller - agency IDs start with 'agency_'
+      // When agency is selected, store agency name in sellerName and clear sellerId
+      if (requestData.sellerId && requestData.sellerId.startsWith('agency_')) {
+        const realAgencyId = requestData.sellerId.replace('agency_', '');
+        const agency = await db.select({ name: externalAgencies.name })
+          .from(externalAgencies)
+          .where(eq(externalAgencies.id, realAgencyId))
+          .limit(1);
+        
+        if (agency.length > 0) {
+          requestData.sellerName = agency[0].name;
+        }
+        delete requestData.sellerId; // Clear invalid sellerId
+      }
+      
+      const validatedData = insertExternalLeadSchema.parse(requestData);
+      
+      // Check for duplicates before creating (with 3-month expiry logic)
       // For broker type, use phoneLast4; for seller type, extract from phone
       const phoneToCheck = validatedData.registrationType === 'broker' 
         ? validatedData.phoneLast4 
         : validatedData.phone;
         
-      const duplicate = await storage.checkExternalLeadDuplicate(
+      const duplicateResult = await storage.checkExternalLeadDuplicateWithExpiry(
         agencyId,
         validatedData.firstName,
         validatedData.lastName,
         phoneToCheck
       );
       
-      if (duplicate) {
+      // If duplicate found and NOT expired (still within 3-month window), reject
+      if (duplicateResult && !duplicateResult.isExpired) {
+        const { lead: existingLead, daysRemaining, sellerName } = duplicateResult;
+        
+        // Calculate weeks and days remaining
+        const weeksRemaining = Math.floor(daysRemaining / 7);
+        const extraDays = daysRemaining % 7;
+        let timeRemainingText = '';
+        if (weeksRemaining > 0) {
+          timeRemainingText = `${weeksRemaining} semana${weeksRemaining > 1 ? 's' : ''}`;
+          if (extraDays > 0) {
+            timeRemainingText += ` y ${extraDays} día${extraDays > 1 ? 's' : ''}`;
+          }
+        } else {
+          timeRemainingText = `${daysRemaining} día${daysRemaining > 1 ? 's' : ''}`;
+        }
+        
         return res.status(409).json({ 
-          message: "Duplicate lead detected",
-          detail: `A lead with the name ${duplicate.firstName} ${duplicate.lastName} and matching phone number last 4 digits already exists in your agency.`,
+          message: "Lead ya registrado",
+          detail: sellerName 
+            ? `Este lead ya está registrado por ${sellerName}. Podrá ser registrado nuevamente en ${timeRemainingText}.`
+            : `Este lead ya está registrado. Podrá ser registrado nuevamente en ${timeRemainingText}.`,
           duplicate: {
-            id: duplicate.id,
-            firstName: duplicate.firstName,
-            lastName: duplicate.lastName,
-            registrationType: duplicate.registrationType,
-            phoneLast4: duplicate.phoneLast4,
-            phone: duplicate.phone,
-            email: duplicate.email,
+            id: existingLead.id,
+            firstName: existingLead.firstName,
+            lastName: existingLead.lastName,
+            registrationType: existingLead.registrationType,
+            phoneLast4: existingLead.phoneLast4,
+            phone: existingLead.phone,
+            email: existingLead.email,
+            sellerName,
+            daysRemaining,
+            timeRemainingText,
           }
         });
       }
@@ -24587,13 +26043,107 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const hasAccess = await verifyExternalAgencyOwnership(req, res, existing.agencyId);
       if (!hasAccess) return;
       
-      const validatedData = updateExternalLeadSchema.parse(req.body);
+      // Transform date strings to Date objects before validation
+      const bodyWithDates = { ...req.body };
+      if (bodyWithDates.checkInDate && typeof bodyWithDates.checkInDate === 'string') {
+        bodyWithDates.checkInDate = new Date(bodyWithDates.checkInDate);
+      }
+      if (bodyWithDates.checkOutDate && typeof bodyWithDates.checkOutDate === 'string') {
+        bodyWithDates.checkOutDate = new Date(bodyWithDates.checkOutDate);
+      }
+      
+      const validatedData = updateExternalLeadSchema.parse(bodyWithDates);
+      // Track status change for history
+      const oldStatus = existing.status;
+      const newStatus = validatedData.status;
+      
       const lead = await storage.updateExternalLead(id, validatedData);
+      
+      // Log status change to history if status changed
+      if (newStatus && oldStatus !== newStatus) {
+        await storage.createExternalLeadStatusHistory({
+          leadId: id,
+          agencyId: existing.agencyId,
+          fromStatus: oldStatus,
+          toStatus: newStatus,
+          changedBy: req.user.id,
+        });
+        
+        // Create activity entry for the status change
+        await storage.createExternalLeadActivity({
+          leadId: id,
+          agencyId: existing.agencyId,
+          activityType: "status_change",
+          title: `Cambio de estado: ${oldStatus} → ${newStatus}`,
+          createdBy: req.user.id,
+        });
+      }
       
       await createAuditLog(req, "update", "external_lead", id, "Updated lead");
       res.json(lead);
     } catch (error: any) {
       console.error("Error updating external lead:", error);
+      handleGenericError(res, error);
+    }
+  });
+
+
+  // POST /api/external-leads/:id/reassign - Reassign lead to different seller
+  app.post("/api/external-leads/:id/reassign", isAuthenticated, requireRole(EXTERNAL_ADMIN_ROLES), async (req: any, res) => {
+    try {
+      const { id } = req.params;
+      const { newSellerId, newSellerName } = req.body;
+      const agencyId = await getUserAgencyId(req);
+      
+      if (!agencyId) {
+        return res.status(403).json({ message: "No agency access" });
+      }
+      
+      // Verify lead belongs to this agency
+      const existingLead = await storage.getExternalLead(id);
+      if (!existingLead || existingLead.agencyId !== agencyId) {
+        return res.status(404).json({ message: "Lead not found" });
+      }
+      
+      // Determine if reassigning to agency or to a seller
+      let updateData: any = {};
+      
+      if (newSellerId?.startsWith('agency_')) {
+        // Reassigning to agency (no specific seller)
+        updateData = {
+          
+          sellerId: null,
+          sellerName: newSellerName || null,
+        };
+      } else if (newSellerId) {
+        // Reassigning to a specific seller
+        const seller = await db.select().from(users).where(eq(users.id, newSellerId)).limit(1);
+        if (!seller[0] || seller[0].externalAgencyId !== agencyId) {
+          return res.status(400).json({ message: "Invalid seller" });
+        }
+        updateData = {
+          
+          sellerId: newSellerId,
+          sellerName: `${seller[0].firstName} ${seller[0].lastName}`,
+        };
+      } else {
+        return res.status(400).json({ message: "New seller ID is required" });
+      }
+      
+      const updatedLead = await storage.updateExternalLead(id, updateData);
+      
+      // Log the reassignment
+      await storage.createAuditLog({
+        userId: req.user.id,
+        action: "update",
+        entityType: "external_lead",
+        entityId: id,
+        details: `Lead reasignado a ${newSellerName || 'nuevo vendedor'}`,
+      });
+      
+      res.json(updatedLead);
+    } catch (error: any) {
+      console.error("Error reassigning lead:", error);
       handleGenericError(res, error);
     }
   });
@@ -24622,6 +26172,186 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // External Lead Registration Links Endpoints
+
+  // POST /api/external-leads/import - Bulk import leads from CSV/Excel
+  app.post("/api/external-leads/import", isAuthenticated, requireRole(EXTERNAL_ADMIN_ROLES), async (req: any, res) => {
+    try {
+      const userId = req.user?.claims?.sub || req.user?.id;
+      if (!userId) {
+        return res.status(401).json({ message: "Unauthorized: User ID not found" });
+      }
+
+      const agencyId = await getUserAgencyId(req);
+      if (!agencyId) {
+        return res.status(403).json({ message: "User not associated with any agency" });
+      }
+
+      const { leads: importData, registrationType = 'seller' } = req.body;
+      
+      if (!Array.isArray(importData) || importData.length === 0) {
+        return res.status(400).json({ message: "No leads to import" });
+      }
+
+      // Map status from Excel to system status
+      const statusMap: Record<string, string> = {
+        'nuevo': 'nuevo_lead',
+        'en proceso': 'en_proceso',
+        'contactado': 'contactado',
+        'cita agendada': 'cita_agendada',
+        'visita realizada': 'visita_realizada',
+        'negociando': 'negociando',
+        'cerrado': 'cerrado',
+        'lead muerto': 'no_interesado',
+        'perdido': 'no_interesado',
+        '': 'nuevo_lead',
+      };
+
+      const results = {
+        imported: 0,
+        duplicates: 0,
+        errors: [] as Array<{ row: number; name: string; error: string }>,
+      };
+
+      for (let i = 0; i < importData.length; i++) {
+        const row = importData[i];
+        try {
+          // Parse name into firstName and lastName
+          const fullName = (row.nombre || row.name || '').trim();
+          const nameParts = fullName.split(' ');
+          const firstName = nameParts[0] || 'Sin nombre';
+          const lastName = nameParts.slice(1).join(' ') || '-';
+
+          // Clean phone number
+          let phone = (row.telefono || row.phone || '').toString().replace(/[^\d+]/g, '');
+          if (!phone || phone.length < 4) {
+            phone = '0000';
+          }
+
+          // Parse budget
+          let estimatedRentCost: number | null = null;
+          let estimatedRentCostText = (row.presupuesto || row.budget || '').toString();
+          const budgetMatch = estimatedRentCostText.match(/[\d,]+/);
+          if (budgetMatch) {
+            estimatedRentCost = parseInt(budgetMatch[0].replace(/,/g, ''), 10);
+          }
+
+          // Parse bedrooms
+          let bedrooms: number | null = null;
+          let bedroomsText = (row.recamaras || row.bedrooms || '').toString();
+          const bedroomsMatch = bedroomsText.match(/^\d+/);
+          if (bedroomsMatch) {
+            bedrooms = parseInt(bedroomsMatch[0], 10);
+          }
+
+          // Parse original created date
+          let originalCreatedAt: Date | null = null;
+          const dateStr = (row.fecha || row.date || '').toString();
+          if (dateStr) {
+            const datePatterns = [
+              /^(\d{1,2})\/(\d{1,2})\/(\d{4})$/,
+              /^(\d{1,2})\/(\d{1,2})\/(\d{2})$/,
+              /^(\d{1,2})\/(\d{1,2})$/,
+            ];
+            for (const pattern of datePatterns) {
+              const match = dateStr.match(pattern);
+              if (match) {
+                let day = parseInt(match[1], 10);
+                let month = parseInt(match[2], 10) - 1;
+                let year = match[3] ? (match[3].length === 2 ? 2000 + parseInt(match[3], 10) : parseInt(match[3], 10)) : new Date().getFullYear();
+                originalCreatedAt = new Date(year, month, day);
+                break;
+              }
+            }
+          }
+
+          // Calculate validUntil (3 months from original date or now)
+          const baseDate = originalCreatedAt || new Date();
+          const validUntil = new Date(baseDate);
+          validUntil.setMonth(validUntil.getMonth() + 3);
+
+          // Check for duplicates
+          const normalizedName = fullName.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9]/g, '');
+          const phoneLast4 = phone.slice(-4);
+          
+          const existingLeads = await db.select()
+            .from(externalLeads)
+            .where(and(
+              eq(externalLeads.agencyId, agencyId),
+              gte(externalLeads.validUntil, new Date())
+            ));
+
+          const isDuplicate = existingLeads.some(lead => {
+            const existingNormalizedName = `${lead.firstName}${lead.lastName}`.toLowerCase()
+              .normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9]/g, '');
+            const existingPhoneLast4 = (lead.phone || lead.phoneLast4 || '').slice(-4);
+            return existingNormalizedName === normalizedName && existingPhoneLast4 === phoneLast4;
+          });
+
+          if (isDuplicate) {
+            results.duplicates++;
+            continue;
+          }
+
+          // Map status
+          const rawStatus = (row.estado || row.status || '').toString().toLowerCase().trim();
+          const status = statusMap[rawStatus] || 'nuevo_lead';
+
+          // Create lead
+          const leadData = {
+            agencyId,
+            registrationType: registrationType as 'broker' | 'seller',
+            firstName,
+            lastName,
+            phone,
+            phoneLast4,
+            email: row.email || null,
+            contractDuration: row.duracion || row.contractDuration || null,
+            checkInDateText: row.mudanza || row.checkInDate || null,
+            hasPets: row.mascotas || row.pets || null,
+            estimatedRentCost,
+            estimatedRentCostText: estimatedRentCostText || null,
+            bedrooms,
+            bedroomsText: bedroomsText || null,
+            desiredUnitType: row.tipo || row.unitType || null,
+            desiredProperty: row.propiedad || row.property || null,
+            desiredNeighborhood: row.zona || row.neighborhood || null,
+            sellerName: row.vendedor || row.seller || null,
+            assistantSellerName: row.vendedorSecundario || row.assistantSeller || null,
+            notes: row.notas || row.notes || null,
+            status: status as any,
+            source: 'import',
+            validUntil,
+            originalCreatedAt,
+            createdBy: userId,
+          };
+
+          await db.insert(externalLeads).values(leadData);
+          results.imported++;
+
+        } catch (rowError: any) {
+          results.errors.push({
+            row: i + 1,
+            name: row.nombre || row.name || 'Unknown',
+            error: rowError.message || 'Unknown error',
+          });
+        }
+      }
+
+      await createAuditLog(req, "create", "external_lead_import", null, 
+        `Imported ${results.imported} leads (${results.duplicates} duplicates skipped, ${results.errors.length} errors)`);
+
+      res.json({
+        success: true,
+        imported: results.imported,
+        duplicates: results.duplicates,
+        errors: results.errors,
+        total: importData.length,
+      });
+    } catch (error: any) {
+      console.error("Error importing external leads:", error);
+      handleGenericError(res, error);
+    }
+  });
   // POST /api/external-lead-registration-links - Create registration link
   app.post("/api/external-lead-registration-links", isAuthenticated, requireRole(EXTERNAL_ADMIN_ROLES), async (req: any, res) => {
     try {
@@ -24755,9 +26485,346 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // ========================================
+  // CRM ROUTES - Lead & Client Activity Tracking
+  // ========================================
+
+  // GET /api/external-leads/:id/activities - Get all activities for a lead
+  app.get("/api/external-leads/:id/activities", isAuthenticated, requireRole([...EXTERNAL_ADMIN_ROLES, 'external_agency_seller']), async (req: any, res) => {
+    try {
+      const { id } = req.params;
+      const lead = await storage.getExternalLead(id);
+      
+      if (!lead) {
+        return res.status(404).json({ message: "Lead not found" });
+      }
+      
+      const hasAccess = await verifyExternalAgencyOwnership(req, res, lead.agencyId);
+      if (!hasAccess) return;
+      
+      const activities = await storage.getExternalLeadActivities(id);
+      res.json(activities);
+    } catch (error: any) {
+      console.error("Error fetching lead activities:", error);
+      handleGenericError(res, error);
+    }
+  });
+
+  // POST /api/external-leads/:id/activities - Create activity for a lead
+  app.post("/api/external-leads/:id/activities", isAuthenticated, requireRole([...EXTERNAL_ADMIN_ROLES, 'external_agency_seller']), async (req: any, res) => {
+    try {
+      const { id } = req.params;
+      const lead = await storage.getExternalLead(id);
+      
+      if (!lead) {
+        return res.status(404).json({ message: "Lead not found" });
+      }
+      
+      const hasAccess = await verifyExternalAgencyOwnership(req, res, lead.agencyId);
+      if (!hasAccess) return;
+      
+      const validatedData = insertExternalLeadActivitySchema.omit({ leadId: true, agencyId: true, createdBy: true }).parse(req.body);
+      const activity = await storage.createExternalLeadActivity({
+        ...validatedData,
+        leadId: id,
+        agencyId: lead.agencyId,
+        createdBy: req.user.id,
+      });
+      // Update lead's lastContactDate
+      await storage.updateExternalLead(id, { lastContactDate: new Date() });
+      
+      await createAuditLog(req, "create", "external_lead_activity", activity.id, "Created lead activity");
+      res.status(201).json(activity);
+    } catch (error: any) {
+      console.error("Error creating lead activity:", error);
+      handleGenericError(res, error);
+    }
+  });
+
+  // GET /api/external-leads/:id/status-history - Get status history for a lead
+  app.get("/api/external-leads/:id/status-history", isAuthenticated, requireRole([...EXTERNAL_ADMIN_ROLES, 'external_agency_seller']), async (req: any, res) => {
+    try {
+      const { id } = req.params;
+      const lead = await storage.getExternalLead(id);
+      
+      if (!lead) {
+        return res.status(404).json({ message: "Lead not found" });
+      }
+      
+      const hasAccess = await verifyExternalAgencyOwnership(req, res, lead.agencyId);
+      if (!hasAccess) return;
+      
+      const history = await storage.getExternalLeadStatusHistory(id);
+      res.json(history);
+    } catch (error: any) {
+      console.error("Error fetching lead status history:", error);
+      handleGenericError(res, error);
+    }
+  });
+
+  // GET /api/external-leads/:id/showings - Get all showings for a lead
+  app.get("/api/external-leads/:id/showings", isAuthenticated, requireRole([...EXTERNAL_ADMIN_ROLES, 'external_agency_seller']), async (req: any, res) => {
+    try {
+      const { id } = req.params;
+      const lead = await storage.getExternalLead(id);
+      
+      if (!lead) {
+        return res.status(404).json({ message: "Lead not found" });
+      }
+      
+      const hasAccess = await verifyExternalAgencyOwnership(req, res, lead.agencyId);
+      if (!hasAccess) return;
+      
+      const showings = await storage.getExternalLeadShowings(id);
+      res.json(showings);
+    } catch (error: any) {
+      console.error("Error fetching lead showings:", error);
+      handleGenericError(res, error);
+    }
+  });
+
+  // POST /api/external-leads/:id/showings - Create showing for a lead
+  app.post("/api/external-leads/:id/showings", isAuthenticated, requireRole([...EXTERNAL_ADMIN_ROLES, 'external_agency_seller']), async (req: any, res) => {
+    try {
+      const { id } = req.params;
+      const lead = await storage.getExternalLead(id);
+      
+      if (!lead) {
+        return res.status(404).json({ message: "Lead not found" });
+      }
+      
+      const hasAccess = await verifyExternalAgencyOwnership(req, res, lead.agencyId);
+      if (!hasAccess) return;
+      
+      const validatedShowing = insertExternalLeadShowingSchema.omit({ leadId: true, agencyId: true, createdBy: true }).parse(req.body);
+      const showing = await storage.createExternalLeadShowing({
+        ...validatedShowing,
+        leadId: id,
+        agencyId: lead.agencyId,
+        createdBy: req.user.id,
+      });
+      
+      // Create activity entry for the showing
+      await storage.createExternalLeadActivity({
+        leadId: id,
+        agencyId: lead.agencyId,
+        activityType: 'showing',
+        title: `Recorrido programado: ${showing.propertyName || 'Propiedad'}`,
+        description: `Recorrido programado para ${new Date(showing.scheduledAt).toLocaleDateString('es-MX')}`,
+        scheduledAt: showing.scheduledAt,
+        createdBy: req.user.id,
+      });
+      
+      await createAuditLog(req, "create", "external_lead_showing", showing.id, "Created lead showing");
+      res.status(201).json(showing);
+    } catch (error: any) {
+      console.error("Error creating lead showing:", error);
+      handleGenericError(res, error);
+    }
+  });
+
+  // PATCH /api/external-lead-showings/:id - Update showing
+  app.patch("/api/external-lead-showings/:id", isAuthenticated, requireRole([...EXTERNAL_ADMIN_ROLES, 'external_agency_seller']), async (req: any, res) => {
+    try {
+      const { id } = req.params;
+      const showing = await storage.getExternalLeadShowing(id);
+      
+      if (!showing) {
+        return res.status(404).json({ message: "Showing not found" });
+      }
+      
+      const hasAccess = await verifyExternalAgencyOwnership(req, res, showing.agencyId);
+      if (!hasAccess) return;
+      
+      const updated = await storage.updateExternalLeadShowing(id, req.body);
+      
+      await createAuditLog(req, "update", "external_lead_showing", id, "Updated lead showing");
+      res.json(updated);
+    } catch (error: any) {
+      console.error("Error updating lead showing:", error);
+      handleGenericError(res, error);
+    }
+  });
+
+  // DELETE /api/external-lead-showings/:id - Delete showing
+  app.delete("/api/external-lead-showings/:id", isAuthenticated, requireRole(EXTERNAL_ADMIN_ROLES), async (req: any, res) => {
+    try {
+      const { id } = req.params;
+      const showing = await storage.getExternalLeadShowing(id);
+      
+      if (!showing) {
+        return res.status(404).json({ message: "Showing not found" });
+      }
+      
+      const hasAccess = await verifyExternalAgencyOwnership(req, res, showing.agencyId);
+      if (!hasAccess) return;
+      
+      await storage.deleteExternalLeadShowing(id);
+      
+      await createAuditLog(req, "delete", "external_lead_showing", id, "Deleted lead showing");
+      res.status(204).send();
+    } catch (error: any) {
+      console.error("Error deleting lead showing:", error);
+      handleGenericError(res, error);
+    }
+  });
+
+  // GET /api/external-clients/:id/activities - Get all activities for a client
+  app.get("/api/external-clients/:id/activities", isAuthenticated, requireRole([...EXTERNAL_ADMIN_ROLES, 'external_agency_seller']), async (req: any, res) => {
+    try {
+      const { id } = req.params;
+      const client = await storage.getExternalClient(id);
+      
+      if (!client) {
+        return res.status(404).json({ message: "Client not found" });
+      }
+      
+      const hasAccess = await verifyExternalAgencyOwnership(req, res, client.agencyId);
+      if (!hasAccess) return;
+      
+      const activities = await storage.getExternalClientActivities(id);
+      res.json(activities);
+    } catch (error: any) {
+      console.error("Error fetching client activities:", error);
+      handleGenericError(res, error);
+    }
+  });
+
+  // POST /api/external-clients/:id/activities - Create activity for a client
+  app.post("/api/external-clients/:id/activities", isAuthenticated, requireRole([...EXTERNAL_ADMIN_ROLES, 'external_agency_seller']), async (req: any, res) => {
+    try {
+      const { id } = req.params;
+      const client = await storage.getExternalClient(id);
+      
+      if (!client) {
+        return res.status(404).json({ message: "Client not found" });
+      }
+      
+      const hasAccess = await verifyExternalAgencyOwnership(req, res, client.agencyId);
+      if (!hasAccess) return;
+      
+      const validatedActivity = insertExternalClientActivitySchema.omit({ clientId: true, agencyId: true, createdBy: true }).parse(req.body);
+      const activity = await storage.createExternalClientActivity({
+        ...validatedActivity,
+        clientId: id,
+        agencyId: client.agencyId,
+        createdBy: req.user.id,
+      });
+      
+      // Update client's lastContactDate
+      await storage.updateExternalClient(id, { lastContactDate: new Date() });
+      
+      await createAuditLog(req, "create", "external_client_activity", activity.id, "Created client activity");
+      res.status(201).json(activity);
+    } catch (error: any) {
+      console.error("Error creating client activity:", error);
+      handleGenericError(res, error);
+    }
+  });
+
+  // GET /api/external-clients/:id/property-history - Get property history for a client
+  app.get("/api/external-clients/:id/property-history", isAuthenticated, requireRole([...EXTERNAL_ADMIN_ROLES, 'external_agency_seller']), async (req: any, res) => {
+    try {
+      const { id } = req.params;
+      const client = await storage.getExternalClient(id);
+      
+      if (!client) {
+        return res.status(404).json({ message: "Client not found" });
+      }
+      
+      const hasAccess = await verifyExternalAgencyOwnership(req, res, client.agencyId);
+      if (!hasAccess) return;
+      
+      const history = await storage.getExternalClientPropertyHistory(id);
+      res.json(history);
+    } catch (error: any) {
+      console.error("Error fetching client property history:", error);
+      handleGenericError(res, error);
+    }
+  });
+
+  // POST /api/external-clients/:id/property-history - Add property history entry
+  app.post("/api/external-clients/:id/property-history", isAuthenticated, requireRole(EXTERNAL_ADMIN_ROLES), async (req: any, res) => {
+    try {
+      const { id } = req.params;
+      const client = await storage.getExternalClient(id);
+      
+      if (!client) {
+        return res.status(404).json({ message: "Client not found" });
+      }
+      
+      const hasAccess = await verifyExternalAgencyOwnership(req, res, client.agencyId);
+      if (!hasAccess) return;
+      
+      const validatedHistory = insertExternalClientPropertyHistorySchema.omit({ clientId: true, agencyId: true, createdBy: true }).parse(req.body);
+      const history = await storage.createExternalClientPropertyHistory({
+        ...validatedHistory,
+        clientId: id,
+        agencyId: client.agencyId,
+        createdBy: req.user.id,
+      });
+      
+      await createAuditLog(req, "create", "external_client_property_history", history.id, "Created client property history");
+      res.status(201).json(history);
+    } catch (error: any) {
+      console.error("Error creating client property history:", error);
+      handleGenericError(res, error);
+    }
+  });
+
+  // PATCH /api/external-clients/:id/blacklist - Update client blacklist status
+  app.patch("/api/external-clients/:id/blacklist", isAuthenticated, requireRole(EXTERNAL_ADMIN_ROLES), async (req: any, res) => {
+    try {
+      const { id } = req.params;
+      const client = await storage.getExternalClient(id);
+      
+      if (!client) {
+        return res.status(404).json({ message: "Client not found" });
+      }
+      
+      const hasAccess = await verifyExternalAgencyOwnership(req, res, client.agencyId);
+      if (!hasAccess) return;
+      
+      const { blacklistStatus, blacklistReason } = req.body;
+      
+      const updates: any = {
+        blacklistStatus,
+        blacklistReason,
+      };
+      
+      if (blacklistStatus === 'blacklisted') {
+        updates.blacklistedAt = new Date();
+        updates.blacklistedBy = req.user.id;
+      } else if (blacklistStatus === 'none') {
+        updates.blacklistedAt = null;
+        updates.blacklistedBy = null;
+        updates.blacklistReason = null;
+      }
+      
+      const updated = await storage.updateExternalClient(id, updates);
+      
+      // Log activity for blacklist change
+      await storage.createExternalClientActivity({
+        clientId: id,
+        agencyId: client.agencyId,
+        activityType: 'note',
+        title: `Estado de blacklist cambiado a: ${blacklistStatus}`,
+        description: blacklistReason || undefined,
+        createdBy: req.user.id,
+      });
+      
+      await createAuditLog(req, "update", "external_client", id, `Updated blacklist status to ${blacklistStatus}`);
+      res.json(updated);
+    } catch (error: any) {
+      console.error("Error updating client blacklist:", error);
+      handleGenericError(res, error);
+    }
+  });
+
+
   // Public simplified lead registration endpoints (no tokens required)
   // POST /api/public/leads/vendedor - Public vendedor registration
-  app.post("/api/public/leads/vendedor", async (req, res) => {
+  app.post("/api/public/leads/vendedor", publicLeadRegistrationLimiter, async (req, res) => {
     try {
       const { 
         firstName, 
@@ -24771,31 +26838,50 @@ export async function registerRoutes(app: Express): Promise<Server> {
         bedrooms,
         desiredUnitType,
         desiredNeighborhood,
+        interestedCondominiumId,
+        interestedUnitId,
+        sellerId,
         sellerName,
         source, 
         notes 
       } = req.body;
       
-      // Basic validation
-      if (!firstName || !lastName || !email || !phone) {
-        return res.status(400).json({ message: "Faltan campos requeridos" });
+      // Basic validation - email is optional
+      if (!firstName || !lastName || !phone) {
+        return res.status(400).json({ message: "Faltan campos requeridos (nombre, apellido, teléfono)" });
       }
       
       // For now, we'll assign to first available external agency
-      // In production, this could be based on domain, query param, or other logic
-      const agencies = await storage.getAllExternalAgencies();
+      const agencies = await storage.getExternalAgencies();
       if (!agencies || agencies.length === 0) {
         return res.status(500).json({ message: "No hay agencias disponibles" });
       }
       
       const agencyId = agencies[0].id;
       
+      // Check for duplicate lead with 3-month expiry
+      const phoneLast4 = phone.slice(-4);
+      const duplicateCheck = await storage.checkExternalLeadDuplicateWithExpiry(
+        agencyId, firstName, lastName, phoneLast4
+      );
+      
+      if (duplicateCheck && !duplicateCheck.isExpired) {
+        return res.status(409).json({
+          message: `Este lead ya fue registrado por ${duplicateCheck.sellerName || "otro vendedor"}. Quedan ${duplicateCheck.daysRemaining} días para que expire.`,
+          detail: `Este lead ya fue registrado por ${duplicateCheck.sellerName || "otro vendedor"}. Quedan ${duplicateCheck.daysRemaining} días para que expire.`,
+          duplicate: {
+            sellerName: duplicateCheck.sellerName,
+            daysRemaining: duplicateCheck.daysRemaining
+          }
+        });
+      }
+      
       // Create lead
       const lead = await storage.createExternalLead({
         agencyId,
         firstName,
         lastName,
-        email,
+        email: email || null,
         phone,
         phoneLast4: phone.slice(-4),
         contractDuration: contractDuration || null,
@@ -24805,6 +26891,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
         bedrooms: bedrooms ? parseInt(bedrooms) : null,
         desiredUnitType: desiredUnitType || null,
         desiredNeighborhood: desiredNeighborhood || null,
+        interestedCondominiumId: interestedCondominiumId || null,
+        interestedUnitId: interestedUnitId || null,
+        sellerId: sellerId || null,
         sellerName: sellerName || null,
         registrationType: "seller",
         status: "nuevo_lead",
@@ -24813,14 +26902,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
       });
       
       res.status(201).json({ success: true, leadId: lead.id });
-    } catch (error: any) {
+    } catch (error) {
       console.error("Error creating vendedor lead:", error);
       handleGenericError(res, error);
     }
   });
 
   // POST /api/public/leads/broker - Public broker registration
-  app.post("/api/public/leads/broker", async (req, res) => {
+  app.post("/api/public/leads/broker", publicLeadRegistrationLimiter, async (req, res) => {
     try {
       const { 
         firstName, 
@@ -24837,7 +26926,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
         desiredNeighborhood,
         sellerName,
         source, 
-        notes 
+        notes,
+        interestedCondominiumId,
+        interestedUnitId
       } = req.body;
       
       // Basic validation
@@ -24846,13 +26937,29 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       
       // For now, we'll assign to first available external agency
-      const agencies = await storage.getAllExternalAgencies();
+      const agencies = await storage.getExternalAgencies();
       if (!agencies || agencies.length === 0) {
         return res.status(500).json({ message: "No hay agencias disponibles" });
       }
       
       const agencyId = agencies[0].id;
       
+      
+      // Check for duplicate lead with 3-month expiry
+      const duplicateCheck = await storage.checkExternalLeadDuplicateWithExpiry(
+        agencyId, firstName, lastName, phoneLast4
+      );
+      
+      if (duplicateCheck && !duplicateCheck.isExpired) {
+        return res.status(409).json({
+          message: `Este lead ya fue registrado por ${duplicateCheck.sellerName || "otro vendedor"}. Quedan ${duplicateCheck.daysRemaining} días para que expire.`,
+          detail: `Este lead ya fue registrado por ${duplicateCheck.sellerName || "otro vendedor"}. Quedan ${duplicateCheck.daysRemaining} días para que expire.`,
+          duplicate: {
+            sellerName: duplicateCheck.sellerName,
+            daysRemaining: duplicateCheck.daysRemaining
+          }
+        });
+      }
       // Create lead
       const lead = await storage.createExternalLead({
         agencyId,
@@ -24872,6 +26979,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         registrationType: "broker",
         status: "nuevo_lead",
         source: source || "public_web_broker",
+        interestedCondominiumId: interestedCondominiumId || null,
+        interestedUnitId: interestedUnitId || null,
         notes,
       });
       
@@ -24882,6 +26991,102 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // GET /api/public/agency - Get public agency info (name, logo)
+  app.get("/api/public/agency", async (req, res) => {
+    try {
+      const agencies = await storage.getExternalAgencies({ isActive: true });
+      if (!agencies || agencies.length === 0) {
+        return res.json({ name: "", logoUrl: "" });
+      }
+      const agency = agencies[0];
+      res.json({
+        id: agency.id,
+        name: agency.name,
+        logoUrl: agency.agencyLogoUrl || ""
+      });
+    } catch (error: any) {
+      console.error("Error fetching public agency:", error);
+      res.json({ name: "", logoUrl: "" });
+    }
+  });
+
+  // GET /api/public/sellers - Get public list of sellers for lead registration dropdown
+  app.get("/api/public/sellers", async (req, res) => {
+    try {
+      const agencies = await storage.getExternalAgencies({ isActive: true });
+      if (!agencies || agencies.length === 0) {
+        return res.json([]);
+      }
+      const agencyId = agencies[0].id;
+      
+      // Get all sellers for this agency directly from database
+      const sellers = await db.select({
+        id: users.id,
+        firstName: users.firstName,
+        lastName: users.lastName,
+      })
+      .from(users)
+      .where(and(
+        eq(users.externalAgencyId, agencyId),
+        eq(users.role, 'external_agency_seller'),
+        eq(users.status, 'approved')
+      ))
+      .orderBy(users.firstName);
+      
+      const publicSellers = sellers.map(s => ({
+        id: s.id,
+        fullName: `${s.firstName} ${s.lastName}`
+      }));
+      res.json(publicSellers);
+    } catch (error: any) {
+      console.error("Error fetching public sellers:", error);
+      res.json([]);
+    }
+  });
+
+
+  // GET /api/public/condominiums - Public list of condominiums for lead registration
+  app.get("/api/public/condominiums", async (req, res) => {
+    try {
+      const agencies = await storage.getExternalAgencies();
+      if (!agencies || agencies.length === 0) {
+        return res.json([]);
+      }
+      const agencyId = agencies[0].id;
+      const condominiums = await storage.getExternalCondominiumsByAgency(agencyId);
+      const publicCondos = condominiums.map(c => ({
+        id: c.id,
+        name: c.name,
+        neighborhood: c.neighborhood
+      }));
+      res.json(publicCondos);
+    } catch (error: any) {
+      console.error("Error fetching public condominiums:", error);
+      handleGenericError(res, error);
+    }
+  });
+
+  // GET /api/public/condominiums/:condominiumId/units - Public list of units
+  app.get("/api/public/condominiums/:condominiumId/units", async (req, res) => {
+    try {
+      const { condominiumId } = req.params;
+      // Basic UUID validation to prevent injection
+      const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+      if (!uuidRegex.test(condominiumId)) {
+        return res.json([]);
+      }
+      const units = await storage.getExternalUnitsByCondominium(condominiumId);
+      const publicUnits = units.map(u => ({
+        id: u.id,
+        unitNumber: u.unitNumber,
+        type: u.type
+      }));
+      res.json(publicUnits);
+    } catch (error: any) {
+      console.error("Error fetching public units:", error);
+      handleGenericError(res, error);
+    }
+  });
   // GET /api/public/external/terms-and-conditions/active - Public endpoint to get active terms
   app.get("/api/public/external/terms-and-conditions/active", async (req, res) => {
     try {
@@ -25230,7 +27435,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // External Token Routes (Contracts Section)
   // ==============================
 
-  // GET /api/external/offer-tokens - Get offer tokens for agency
+  // GET /api/external/offer-tokens - Get offer tokens for agency (optimized single query)
   app.get("/api/external/offer-tokens", isAuthenticated, requireRole(EXTERNAL_ALL_ROLES), async (req: any, res) => {
     try {
       const agencyId = await getUserAgencyId(req);
@@ -25238,45 +27443,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(403).json({ message: "No agency access" });
       }
       
-      const tokens = await storage.getExternalOfferTokensByAgency(agencyId);
-      
-      // Enrich with unit, creator, and client info
-      const enrichedTokens = await Promise.all(
-        tokens.map(async (token) => {
-          let unit = null;
-          let creator = null;
-          let client = null;
-          let condo = null;
-          
-          if (token.externalUnitId) {
-            unit = await storage.getExternalUnit(token.externalUnitId);
-            if (unit?.condominiumId) {
-              condo = await storage.getExternalCondominium(unit.condominiumId);
-            }
-          }
-          if (token.createdBy) {
-            creator = await storage.getUser(token.createdBy);
-          }
-          if (token.externalClientId) {
-            client = await storage.getExternalClient(token.externalClientId);
-          }
-          
-          // Map to frontend expected format
-          const propertyTitle = unit ? `${condo?.name || ''} - Unidad ${unit.unitNumber}` : '';
-          const clientName = client ? `${client.firstName} ${client.lastName}` : '';
-          
-          return {
-            ...token,
-            unit,
-            creator,
-            client,
-            propertyTitle,
-            clientName,
-          };
-        })
-      );
-      
-      res.json(enrichedTokens);
+      // Use optimized single-query method that includes all joined data
+      const tokens = await storage.getExternalOfferTokenSummariesByAgency(agencyId);
+      res.json(tokens);
     } catch (error: any) {
       console.error("Error fetching external offer tokens:", error);
       handleGenericError(res, error);
@@ -25284,7 +27453,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // POST /api/offer-tokens/:tokenId/regenerate - Regenerate offer token (delete old active ones, preserve completed)
-  app.post("/api/offer-tokens/:tokenId/regenerate", isAuthenticated, requireRole(EXTERNAL_ALL_ROLES), async (req: any, res) => {
+  app.post("/api/offer-tokens/:tokenId/regenerate", isAuthenticated, tokenRegenerationLimiter, requireRole(EXTERNAL_ALL_ROLES), async (req: any, res) => {
     try {
       const agencyId = await getUserAgencyId(req);
       if (!agencyId) {
@@ -25362,7 +27531,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // GET /api/external/rental-form-tokens - Get rental form tokens for agency
+  // GET /api/external/rental-form-tokens - Get rental form tokens for agency (optimized)
   app.get("/api/external/rental-form-tokens", isAuthenticated, requireRole(EXTERNAL_ALL_ROLES), async (req: any, res) => {
     try {
       const agencyId = await getUserAgencyId(req);
@@ -25370,51 +27539,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(403).json({ message: "No agency access" });
       }
       
-      const tokens = await storage.getExternalRentalFormTokensByAgency(agencyId);
+      // Use optimized single-query method that includes unit, condo, client, owner, creator
+      const tokens = await storage.getExternalRentalFormTokenSummariesByAgency(agencyId);
       
-      // Enrich with unit, creator, client, and owner info
-      const enrichedTokens = await Promise.all(
-        tokens.map(async (token) => {
-          let unit = null;
-          let creator = null;
-          let client = null;
-          let owner = null;
-          let condominium = null;
-          
-          if (token.externalUnitId) {
-            unit = await storage.getExternalUnit(token.externalUnitId);
-            if (unit?.condominiumId) {
-              condominium = await storage.getExternalCondominium(unit.condominiumId);
-            }
-          }
-          if (token.createdBy) {
-            creator = await storage.getUser(token.createdBy);
-          }
-          if (token.externalClientId && token.recipientType === 'tenant') {
-            client = await storage.getExternalClient(token.externalClientId);
-          }
-          if (token.externalUnitOwnerId && token.recipientType === 'owner') {
-            owner = await storage.getExternalUnitOwner(token.externalUnitOwnerId);
-          }
-          
-          // Build display strings for UI
-          const clientName = client 
-            ? `${client.firstName} ${client.lastName}`.trim()
-            : owner?.ownerName || null;
-          
-          const propertyTitle = unit && condominium
-            ? `${condominium.name} - ${unit.unitNumber}`
-            : null;
-          
-          // Get dual form status if this token is part of a rental form group
+      // Only need to get dual form status for tokens with rentalFormGroupId
+      // This is a much smaller loop than before (only tokens with groups)
+      const tokensWithDualStatus = await Promise.all(
+        tokens.map(async (token: any) => {
           let dualFormStatus = null;
-          if (token.rentalFormGroupId) {
-            // Find the companion form in the same group
+          
+          if (token.linkedTokenId) {
+            // Find the companion form by linkedTokenId
             const companionForm = await db.query.tenantRentalFormTokens.findFirst({
-              where: and(
-                eq(tenantRentalFormTokens.rentalFormGroupId, token.rentalFormGroupId),
-                ne(tenantRentalFormTokens.id, token.id)
-              ),
+              where: eq(tenantRentalFormTokens.id, token.linkedTokenId),
             });
             
             if (companionForm) {
@@ -25428,27 +27565,85 @@ export async function registerRoutes(app: Express): Promise<Server> {
           
           return {
             ...token,
-            agencyId, // Include agencyId for ownership verification in PDFs
-            unit,
-            creator,
-            client,
-            owner,
-            clientName,
-            propertyTitle,
-            recipientType: token.recipientType,
-            rentalFormGroupId: token.rentalFormGroupId,
+            agencyId,
             dualFormStatus,
           };
         })
       );
       
-      res.json(enrichedTokens);
+      res.json(tokensWithDualStatus);
     } catch (error: any) {
       console.error("Error fetching external rental form tokens:", error);
       handleGenericError(res, error);
     }
   });
 
+
+  // Helper function to resolve unit context from rental form token
+  async function resolveExternalUnitContext(token: any, agencyId: string) {
+    // Validate token is completed - check appropriate data field based on recipientType
+    if (token.recipientType === 'tenant') {
+      if (!token.isUsed || !token.tenantData) {
+        throw { status: 400, message: "El formulario de inquilino aún no ha sido completado" };
+      }
+    } else if (token.recipientType === 'owner') {
+      if (!token.isUsed || !token.ownerData) {
+        throw { status: 400, message: "El formulario de propietario aún no ha sido completado" };
+      }
+    } else {
+      throw { status: 400, message: "Tipo de formulario inválido" };
+    }
+
+    let unit;
+    
+    // Resolve unit based on token type
+    if (token.externalUnitId) {
+      // Tenant token - direct unit reference
+      unit = await storage.getExternalUnit(token.externalUnitId);
+      if (!unit) {
+        throw { status: 404, message: "Unidad no encontrada" };
+      }
+      if (unit.agencyId !== agencyId) {
+        throw { status: 403, message: "Unauthorized" };
+      }
+    } else if (token.externalUnitOwnerId) {
+      // Owner token - get unit from owner record
+      const owner = await storage.getExternalUnitOwner(token.externalUnitOwnerId);
+      if (!owner) {
+        throw { status: 404, message: "Propietario no encontrado" };
+      }
+      
+      // SECURITY: Validate that owner belongs to the correct agency
+      // First get the unit to check agency
+      unit = await storage.getExternalUnit(owner.unitId);
+      if (!unit) {
+        throw { status: 404, message: "Unidad no encontrada" };
+      }
+      if (unit.agencyId !== agencyId) {
+        throw { status: 403, message: "Unauthorized - agency mismatch" };
+      }
+    } else {
+      throw { status: 400, message: "Este token no es del sistema externo" };
+    }
+
+    // Get condominium info
+    const condo = unit.condominiumId ? await storage.getExternalCondominium(unit.condominiumId) : null;
+    const propertyTitle = `${condo?.name || ''} - Unidad ${unit.unitNumber}`;
+
+    return {
+      unit,
+      condo,
+      propertyTitle,
+      propertyForPDF: {
+        id: unit.id,
+        title: propertyTitle,
+        address: condo?.address || '',
+        city: condo?.city || 'Tulum',
+        state: condo?.state || 'Quintana Roo',
+        country: condo?.country || 'México',
+      }
+    };
+  }
   // GET /api/external/rental-forms/:id/pdf - Generate PDF for rental form
   app.get("/api/external/rental-forms/:id/pdf", isAuthenticated, requireRole(EXTERNAL_ALL_ROLES), async (req: any, res) => {
     try {
@@ -25470,46 +27665,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ message: "Formulario de renta no encontrado" });
       }
 
-      // Verify token belongs to user's agency
-      if (rentalFormToken.externalUnitId) {
-        const unit = await storage.getExternalUnit(rentalFormToken.externalUnitId);
-        if (!unit || unit.agencyId !== agencyId) {
-          return res.status(403).json({ message: "Unauthorized" });
-        }
-      } else if (rentalFormToken.externalUnitOwnerId) {
-        // For owner forms, verify via owner's agency
-        const owner = await storage.getExternalUnitOwner(rentalFormToken.externalUnitOwnerId);
-        if (!owner || owner.agencyId !== agencyId) {
-          return res.status(403).json({ message: "Unauthorized" });
-        }
-      } else {
-        return res.status(400).json({ message: "Este token no es del sistema externo" });
-      }
 
-      if (!rentalFormToken.isUsed || !rentalFormToken.tenantData) {
-        return res.status(400).json({ message: "El formulario aún no ha sido completado" });
-      }
+      // Resolve unit context using helper function
+      const { propertyForPDF } = await resolveExternalUnitContext(rentalFormToken, agencyId);
 
       // Get agency info for branding
       const agency = await storage.getExternalAgency(agencyId);
       const agencyName = agency?.name || '';
       const templateStyle = (agency?.pdfTemplateStyle as 'professional' | 'modern' | 'elegant') || 'professional';
       const agencyLogoUrl = agency?.agencyLogoUrl || null;
-
-      // Get unit info
-      const unit = await storage.getExternalUnit(rentalFormToken.externalUnitId);
-      const condo = unit?.condominiumId ? await storage.getExternalCondominium(unit.condominiumId) : null;
-      const propertyTitle = `${condo?.name || ''} - Unidad ${unit.unitNumber}`;
-
-      // Create a property-like object for PDF generation
-      const propertyForPDF = {
-        id: unit.id,
-        title: propertyTitle,
-        address: condo?.address || '',
-        city: condo?.city || 'Tulum',
-        state: condo?.state || 'Quintana Roo',
-        country: condo?.country || 'México',
-      };
 
       // Generate appropriate PDF based on recipient type
       let pdfBuffer;
@@ -25524,8 +27688,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.setHeader('Content-Type', 'application/pdf');
       res.setHeader('Content-Disposition', `attachment; filename="formulario-${rentalFormToken.recipientType}-${rentalFormToken.id}.pdf"`);
       res.send(pdfBuffer);
-    } catch (error) {
+    } catch (error: any) {
       console.error("Error generating rental form PDF:", error);
+      if (error.status) {
+        return res.status(error.status).json({ message: error.message });
+      }
       res.status(500).json({ message: "Error al generar PDF" });
     }
   });
@@ -25800,7 +27967,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // POST /api/rental-form-tokens/:tokenId/regenerate - Regenerate rental form token (delete old active ones, preserve completed)
-  app.post("/api/rental-form-tokens/:tokenId/regenerate", isAuthenticated, requireRole(EXTERNAL_ALL_ROLES), async (req: any, res) => {
+  app.post("/api/rental-form-tokens/:tokenId/regenerate", isAuthenticated, tokenRegenerationLimiter, requireRole(EXTERNAL_ALL_ROLES), async (req: any, res) => {
     try {
       const agencyId = await getUserAgencyId(req);
       if (!agencyId) {
@@ -25944,6 +28111,151 @@ export async function registerRoutes(app: Express): Promise<Server> {
       handleGenericError(res, error);
     }
   });
+  // GET /api/external/rentals/overview - Consolidated endpoint for Active Rentals section
+  // Returns contracts with details, filter metadata, and statistics in ONE request
+  app.get("/api/external/rentals/overview", isAuthenticated, requireRole(EXTERNAL_ALL_ROLES), async (req: any, res) => {
+    try {
+      const agencyId = await getUserAgencyId(req);
+      if (!agencyId) {
+        return res.status(403).json({ message: "No agency access" });
+      }
+      
+      const { status } = req.query;
+      
+      // Build conditions for contracts
+      const contractConditions = [eq(externalRentalContracts.agencyId, agencyId)];
+      if (status && status !== 'all') {
+        contractConditions.push(eq(externalRentalContracts.status, status as any));
+      }
+      
+      // Query 1: Get rental contracts with unit and condominium (single JOIN query)
+      const contractsWithDetails = await db.select({
+        contract: externalRentalContracts,
+        unit: externalUnits,
+        condominium: externalCondominiums,
+      })
+        .from(externalRentalContracts)
+        .leftJoin(externalUnits, eq(externalRentalContracts.unitId, externalUnits.id))
+        .leftJoin(externalCondominiums, eq(externalUnits.condominiumId, externalCondominiums.id))
+        .where(and(...contractConditions))
+        .orderBy(desc(externalRentalContracts.createdAt));
+      
+      // Query 2: Get filter metadata (condominiums for this agency)
+      const condominiumsData = await db.select({
+        id: externalCondominiums.id,
+        name: externalCondominiums.name,
+      })
+        .from(externalCondominiums)
+        .where(eq(externalCondominiums.agencyId, agencyId))
+        .orderBy(asc(externalCondominiums.name));
+      
+      // Query 3: Get units for filters (grouped by condo)
+      const unitsData = await db.select({
+        id: externalUnits.id,
+        unitNumber: externalUnits.unitNumber,
+        condominiumId: externalUnits.condominiumId,
+      })
+        .from(externalUnits)
+        .where(eq(externalUnits.agencyId, agencyId))
+        .orderBy(asc(externalUnits.unitNumber));
+      
+      // Query 4: Get statistics from ALL contracts (not filtered)
+      const allContractsForStats = await db.select({ status: externalRentalContracts.status })
+        .from(externalRentalContracts)
+        .where(eq(externalRentalContracts.agencyId, agencyId));
+      
+      const stats = {
+        total: allContractsForStats.length,
+        active: allContractsForStats.filter(c => c.status === 'active').length,
+        completed: allContractsForStats.filter(c => c.status === 'completed').length,
+        pending: allContractsForStats.filter(c => c.status === 'pending_validation').length,
+      };
+      
+      // If no contracts, return early with empty data but include filters
+      if (contractsWithDetails.length === 0) {
+        return res.json({
+          contracts: [],
+          filters: {
+            condominiums: condominiumsData,
+            units: unitsData,
+          },
+          statistics: stats,
+        });
+      }
+      
+      // Query 5: Bulk fetch active schedules for all contracts
+      const contractIds = contractsWithDetails.map(c => c.contract.id);
+      const allSchedules = await db.select()
+        .from(externalPaymentSchedules)
+        .where(
+          and(
+            inArray(externalPaymentSchedules.contractId, contractIds),
+            eq(externalPaymentSchedules.isActive, true)
+          )
+        );
+      
+      // Query 6: Bulk fetch next upcoming payment for all contracts
+      const allNextPayments = await db.select()
+        .from(externalPayments)
+        .where(
+          and(
+            inArray(externalPayments.contractId, contractIds),
+            eq(externalPayments.status, 'pending'),
+            sql`${externalPayments.dueDate} >= CURRENT_DATE`
+          )
+        )
+        .orderBy(asc(externalPayments.dueDate));
+      
+      // Group schedules by contract ID
+      const schedulesByContract = allSchedules.reduce((acc, schedule) => {
+        if (!acc[schedule.contractId]) {
+          acc[schedule.contractId] = [];
+        }
+        acc[schedule.contractId].push(schedule);
+        return acc;
+      }, {} as Record<string, typeof allSchedules>);
+      
+      // Get first payment per contract ID
+      const nextPaymentByContract = allNextPayments.reduce((acc, payment) => {
+        if (!acc[payment.contractId]) {
+          acc[payment.contractId] = payment;
+        }
+        return acc;
+      }, {} as Record<string, typeof allNextPayments[0]>);
+      
+      // Combine contracts with their services and payment info
+      const enhancedContracts = contractsWithDetails.map((item) => {
+        const schedules = schedulesByContract[item.contract.id] || [];
+        const nextPayment = nextPaymentByContract[item.contract.id];
+        
+        return {
+          ...item,
+          activeServices: schedules.map(s => ({
+            serviceType: s.serviceType,
+            amount: s.amount,
+            currency: s.currency,
+            dayOfMonth: s.dayOfMonth,
+          })),
+          nextPaymentDue: nextPayment?.dueDate || null,
+          nextPaymentAmount: nextPayment?.amount || null,
+          nextPaymentService: nextPayment?.serviceType || null,
+        };
+      });
+      
+      res.json({
+        contracts: enhancedContracts,
+        filters: {
+          condominiums: condominiumsData,
+          units: unitsData,
+        },
+        statistics: stats,
+      });
+    } catch (error: any) {
+      console.error("Error fetching rentals overview:", error);
+      handleGenericError(res, error);
+    }
+  });
+
 
   // External Rental Contracts Routes
   // Get all rental contracts for user's agency with unit and condominium info
@@ -26328,6 +28640,72 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (error.name === "ZodError") {
         return handleZodError(res, error);
       }
+      handleGenericError(res, error);
+    }
+  });
+
+  // GET /api/external/contracts/overview - Consolidated endpoint for all contract-related data (offers, forms, contracts)
+  // Reduces multiple API calls to a single request for better performance
+  app.get("/api/external/contracts/overview", isAuthenticated, requireRole(EXTERNAL_ALL_ROLES), async (req: any, res) => {
+    try {
+      const agencyId = await getUserAgencyId(req);
+      if (!agencyId) {
+        return res.status(403).json({ message: "No agency access" });
+      }
+      
+      // Fetch all data in parallel for maximum performance
+      const [offers, rentalForms, contractsRaw] = await Promise.all([
+        storage.getExternalOfferTokenSummariesByAgency(agencyId),
+        storage.getExternalRentalFormTokenSummariesByAgency(agencyId),
+        (async () => {
+          // Get contracts with joined data
+          const contracts = await db
+            .select({
+              contract: externalRentalContracts,
+              unit: externalUnits,
+              condominium: externalCondominiums,
+            })
+            .from(externalRentalContracts)
+            .innerJoin(externalUnits, eq(externalRentalContracts.unitId, externalUnits.id))
+            .leftJoin(externalCondominiums, eq(externalUnits.condominiumId, externalCondominiums.id))
+            .where(eq(externalRentalContracts.agencyId, agencyId))
+            .orderBy(desc(externalRentalContracts.createdAt));
+          return contracts;
+        })()
+      ]);
+      
+      // Get dual form status for rental forms with linkedTokenId (smaller loop)
+      const rentalFormsWithDual = await Promise.all(
+        rentalForms.map(async (form: any) => {
+          let dualFormStatus = null;
+          if (form.linkedTokenId) {
+            const companion = await db.query.tenantRentalFormTokens.findFirst({
+              where: eq(tenantRentalFormTokens.id, form.linkedTokenId),
+            });
+            if (companion) {
+              dualFormStatus = {
+                hasDual: true,
+                dualType: companion.recipientType,
+                dualCompleted: companion.isUsed,
+              };
+            }
+          }
+          return { ...form, agencyId, dualFormStatus };
+        })
+      );
+      
+      res.json({
+        offers,
+        rentalForms: rentalFormsWithDual,
+        contracts: contractsRaw,
+        meta: {
+          offersCount: offers.length,
+          rentalFormsCount: rentalFormsWithDual.length,
+          contractsCount: contractsRaw.length,
+        }
+      });
+    } catch (error: any) {
+      console.error("Error fetching contracts overview:", error);
       handleGenericError(res, error);
     }
   });
@@ -26844,6 +29222,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           
           await tx.insert(externalPayments).values({
             id: crypto.randomUUID(),
+                registrationType: row.registration_type?.trim() || 'seller',
             agencyId: unit.agencyId,
             contractId: contract.id,
             scheduleId: schedule.id,
@@ -27614,11 +29993,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
           lastName: users.lastName,
           phone: users.phone,
           maintenanceSpecialty: users.maintenanceSpecialty,
+          isSuspended: users.isSuspended,
         })
         .from(users)
         .where(and(
           eq(users.role, "external_agency_maintenance"),
-          eq(users.assignedToUser, agencyId)
+          eq(users.externalAgencyId, agencyId)
         ))
         .orderBy(users.firstName);
 
@@ -27749,6 +30129,173 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // External Accounting / Financial Transactions Routes
   // ================================================================================
 
+  // GET /api/external/accounting/overview - Consolidated endpoint for all accounting data
+  // Reduces multiple API calls to a single request for better performance
+  app.get("/api/external/accounting/overview", isAuthenticated, requireRole(EXTERNAL_ALL_ROLES), async (req: any, res) => {
+    try {
+      const agencyId = await getUserAgencyId(req);
+      if (!agencyId) {
+        return res.status(403).json({ message: "No agency access" });
+      }
+
+      const { direction, category, status, condominiumId, unitId, startDate, endDate, search, sortField, sortOrder, limit, offset } = req.query;
+
+      // Parse pagination params
+      const limitNum = limit ? parseInt(limit as string, 10) : 20;
+      const offsetNum = offset ? parseInt(offset as string, 10) : 0;
+      const parsedLimit = Number.isFinite(limitNum) ? Math.min(Math.max(1, limitNum), 100) : 20;
+      const parsedOffset = Number.isFinite(offsetNum) ? Math.max(0, offsetNum) : 0;
+
+      // Build filters object
+      const filters: any = {
+        limit: parsedLimit,
+        offset: parsedOffset,
+      };
+      if (direction && direction !== 'all') filters.direction = direction;
+      if (category && category !== 'all') filters.category = category;
+      if (status && status !== 'all') filters.status = status;
+      if (condominiumId && condominiumId !== 'all') filters.condominiumId = condominiumId as string;
+      if (unitId && unitId !== 'all') filters.unitId = unitId as string;
+      if (startDate) filters.startDate = new Date(startDate as string);
+      if (endDate) filters.endDate = new Date(endDate as string);
+      if (search) filters.search = search as string;
+      if (zone) filters.zone = zone as string;
+      if (typology) filters.typology = typology as string;
+      if (sortField) filters.sortField = sortField as string;
+      if (sortOrder && (sortOrder === 'asc' || sortOrder === 'desc')) filters.sortOrder = sortOrder;
+
+      // Execute all queries in parallel for maximum performance
+      const [transactions, total, condominiums, units] = await Promise.all([
+        // Paginated transactions
+        storage.getExternalFinancialTransactionsByAgency(agencyId, filters),
+        // Total count for pagination
+        storage.getExternalFinancialTransactionsCountByAgency(agencyId, {
+          direction: filters.direction,
+          category: filters.category,
+          status: filters.status,
+          unitId: filters.unitId,
+          condominiumId: filters.condominiumId,
+          startDate: filters.startDate,
+          endDate: filters.endDate,
+          search: filters.search,
+        }),
+        // Filter options - condominiums
+        db.select({
+          id: externalCondominiums.id,
+          name: externalCondominiums.name,
+        })
+        .from(externalCondominiums)
+        .where(eq(externalCondominiums.agencyId, agencyId))
+        .orderBy(asc(externalCondominiums.name)),
+        // Filter options - units
+        db.select({
+          id: externalUnits.id,
+          unitNumber: externalUnits.unitNumber,
+          condominiumId: externalUnits.condominiumId,
+        })
+        .from(externalUnits)
+        .where(eq(externalUnits.agencyId, agencyId))
+        .orderBy(asc(externalUnits.unitNumber)),
+      ]);
+
+      // Calculate analytics from the transactions we already have (avoiding extra queries)
+      const todayStart = new Date();
+      todayStart.setHours(0, 0, 0, 0);
+      const todayEnd = new Date();
+      todayEnd.setHours(23, 59, 59, 999);
+
+      // For analytics, we need aggregates - run optimized queries
+      const baseConditions = [eq(externalFinancialTransactions.agencyId, agencyId)];
+      if (filters.direction) baseConditions.push(eq(externalFinancialTransactions.direction, filters.direction));
+      if (filters.category) baseConditions.push(eq(externalFinancialTransactions.category, filters.category));
+      if (filters.status) baseConditions.push(eq(externalFinancialTransactions.status, filters.status));
+      if (filters.condominiumId) baseConditions.push(eq(externalFinancialTransactions.condominiumId, filters.condominiumId));
+      if (filters.unitId) baseConditions.push(eq(externalFinancialTransactions.unitId, filters.unitId));
+      if (filters.startDate) baseConditions.push(gte(externalFinancialTransactions.dueDate, filters.startDate));
+      if (filters.endDate) baseConditions.push(lte(externalFinancialTransactions.dueDate, filters.endDate));
+
+      // Run all analytics aggregates in parallel
+      const [incomeExpense, receivablesToday, receivablesOverdue, receivablesUpcoming] = await Promise.all([
+        db.select({
+          direction: externalFinancialTransactions.direction,
+          total: sql<string>`COALESCE(SUM(CAST(${externalFinancialTransactions.grossAmount} AS DECIMAL)), 0)`,
+        })
+        .from(externalFinancialTransactions)
+        .where(and(...baseConditions, eq(externalFinancialTransactions.status, 'completed')))
+        .groupBy(externalFinancialTransactions.direction),
+        db.select({
+          count: sql<number>`COUNT(*)::int`,
+          total: sql<string>`COALESCE(SUM(CAST(${externalFinancialTransactions.grossAmount} AS DECIMAL)), 0)`,
+        })
+        .from(externalFinancialTransactions)
+        .where(and(
+          ...baseConditions,
+          eq(externalFinancialTransactions.status, 'pending'),
+          eq(externalFinancialTransactions.direction, 'inflow'),
+          sql`${externalFinancialTransactions.dueDate} >= ${todayStart}`,
+          sql`${externalFinancialTransactions.dueDate} <= ${todayEnd}`
+        )),
+        db.select({
+          count: sql<number>`COUNT(*)::int`,
+          total: sql<string>`COALESCE(SUM(CAST(${externalFinancialTransactions.grossAmount} AS DECIMAL)), 0)`,
+        })
+        .from(externalFinancialTransactions)
+        .where(and(
+          ...baseConditions,
+          eq(externalFinancialTransactions.status, 'pending'),
+          eq(externalFinancialTransactions.direction, 'inflow'),
+          sql`${externalFinancialTransactions.dueDate} < ${todayStart}`
+        )),
+        db.select({
+          count: sql<number>`COUNT(*)::int`,
+          total: sql<string>`COALESCE(SUM(CAST(${externalFinancialTransactions.grossAmount} AS DECIMAL)), 0)`,
+        })
+        .from(externalFinancialTransactions)
+        .where(and(
+          ...baseConditions,
+          eq(externalFinancialTransactions.status, 'pending'),
+          eq(externalFinancialTransactions.direction, 'inflow'),
+          sql`${externalFinancialTransactions.dueDate} > ${todayEnd}`
+        )),
+      ]);
+
+      let totalIncome = 0;
+      let totalExpenses = 0;
+      for (const row of incomeExpense) {
+        const amount = parseFloat(row.total || '0');
+        if (row.direction === 'inflow') totalIncome = amount;
+        else if (row.direction === 'outflow') totalExpenses = amount;
+      }
+
+      res.json({
+        transactions: {
+          data: transactions,
+          total,
+          limit: parsedLimit,
+          offset: parsedOffset,
+          hasMore: parsedOffset + transactions.length < total,
+        },
+        analytics: {
+          totalIncome,
+          totalExpenses,
+          netBalance: totalIncome - totalExpenses,
+          receivables: {
+            today: { count: receivablesToday[0]?.count || 0, total: parseFloat(receivablesToday[0]?.total || '0') },
+            overdue: { count: receivablesOverdue[0]?.count || 0, total: parseFloat(receivablesOverdue[0]?.total || '0') },
+            upcoming: { count: receivablesUpcoming[0]?.count || 0, total: parseFloat(receivablesUpcoming[0]?.total || '0') },
+          },
+        },
+        filters: {
+          condominiums,
+          units,
+        },
+      });
+    } catch (error: any) {
+      console.error("Error fetching accounting overview:", error);
+      handleGenericError(res, error);
+    }
+  });
+
   // GET /api/external/accounting/summary - Get accounting summary for agency
   app.get("/api/external/accounting/summary", isAuthenticated, requireRole(EXTERNAL_ALL_ROLES), async (req: any, res) => {
     try {
@@ -27773,7 +30320,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(403).json({ message: "No agency access" });
       }
 
-      const { direction, category, status, ownerId, contractId, unitId, condominiumId, startDate, endDate, search, sortField, sortOrder, limit, offset } = req.query;
+      const { direction, category, status, ownerId, contractId, unitId, condominiumId, startDate, endDate, search, sortField, sortOrder, limit, offset, zone, typology } = req.query;
 
       // Detect pagination mode: only check limit/offset to avoid breaking legacy consumers that use search/sortField
       const usePagination = (limit !== undefined && limit !== '') || (offset !== undefined && offset !== '');
@@ -27797,6 +30344,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         const parsedOffset = Number.isFinite(offsetNum) ? Math.max(0, offsetNum) : 0;
 
         if (search) filters.search = search as string;
+      if (zone) filters.zone = zone as string;
+      if (typology) filters.typology = typology as string;
         if (sortField) filters.sortField = sortField as string;
         if (sortOrder && (sortOrder === 'asc' || sortOrder === 'desc')) filters.sortOrder = sortOrder;
         filters.limit = parsedLimit;
@@ -27816,6 +30365,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
             startDate: filters.startDate,
             endDate: filters.endDate,
             search: filters.search,
+          sellerId: filters.sellerId,
+          expiringDays: filters.expiringDays,
           }),
         ]);
 
@@ -27831,6 +30382,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         // Preserve historical behavior: existing filters only, NO sortField/sortOrder
         // Storage will use default ordering (desc by dueDate)
         if (search) filters.search = search as string;
+      if (zone) filters.zone = zone as string;
+      if (typology) filters.typology = typology as string;
         // DO NOT pass sortField/sortOrder/limit/offset - legacy callers expect default behavior
         const transactions = await storage.getExternalFinancialTransactionsByAgency(agencyId, filters);
         res.json(transactions);
@@ -28242,10 +30795,1237 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // ============================================================================
-  // EXTERNAL MANAGEMENT SYSTEM - QUOTATIONS ROUTES
+
+
+  // ============================================================================
+  // EXTERNAL MANAGEMENT SYSTEM - CSV EXPORT/IMPORT ROUTES
   // ============================================================================
 
-  // GET /api/external/quotations - List all quotations for agency
+  // GET /api/external/data/export/:section - Export data as CSV
+  app.get("/api/external/data/export/:section", isAuthenticated, requireRole(EXTERNAL_ADMIN_ROLES), async (req: any, res) => {
+    try {
+      const Papa = (await import('papaparse')).default;
+      const { section } = req.params;
+      const agencyId = await getUserAgencyId(req);
+      if (!agencyId) {
+        return res.status(403).json({ message: "Agency ID not found" });
+      }
+
+      let data: any[] = [];
+      let filename = '';
+      
+      switch (section) {
+        case 'condominiums':
+          const condos = await db.select().from(externalCondominiums).where(eq(externalCondominiums.agencyId, agencyId));
+          data = condos.map(c => ({
+            id: c.id,
+            name: c.name,
+            description: c.description || '',
+            address: c.address || '',
+            zone: c.zone || '',
+            total_units: c.totalUnits || 0,
+            is_active: c.isActive ? 'true' : 'false',
+            created_at: c.createdAt?.toISOString() || '',
+          }));
+          filename = 'condominiums.csv';
+          break;
+          
+        case 'units':
+          const units = await db.select({
+            id: externalUnits.id,
+            unitNumber: externalUnits.unitNumber,
+            condominiumId: externalUnits.condominiumId,
+            condominiumName: externalCondominiums.name,
+            zone: externalUnits.zone,
+            typology: externalUnits.typology,
+            propertyType: externalUnits.propertyType,
+            bedrooms: externalUnits.bedrooms,
+            bathrooms: externalUnits.bathrooms,
+            area: externalUnits.area,
+            city: externalUnits.city,
+            isActive: externalUnits.isActive,
+            createdAt: externalUnits.createdAt,
+          })
+          .from(externalUnits)
+          .leftJoin(externalCondominiums, eq(externalUnits.condominiumId, externalCondominiums.id))
+          .where(eq(externalUnits.agencyId, agencyId));
+          
+          data = units.map(u => ({
+            id: u.id,
+            unit_number: u.unitNumber,
+            condominium_id: u.condominiumId || '',
+            condominium_name: u.condominiumName || '',
+            zone: u.zone || '',
+            city: u.city || '',
+            typology: u.typology || '',
+            property_type: u.propertyType || '',
+            bedrooms: u.bedrooms || 0,
+            bathrooms: u.bathrooms || 0,
+            area: u.area || 0,
+            is_active: u.isActive ? 'true' : 'false',
+            created_at: u.createdAt?.toISOString() || '',
+          }));
+          filename = 'units.csv';
+          break;
+          
+        case 'owners':
+          const owners = await db.select({
+            id: externalUnitOwners.id,
+            unitId: externalUnitOwners.unitId,
+            unitNumber: externalUnits.unitNumber,
+            ownerName: externalUnitOwners.ownerName,
+            ownerEmail: externalUnitOwners.ownerEmail,
+            ownerPhone: externalUnitOwners.ownerPhone,
+            ownershipPercentage: externalUnitOwners.ownershipPercentage,
+            isActive: externalUnitOwners.isActive,
+            notes: externalUnitOwners.notes,
+            createdAt: externalUnitOwners.createdAt,
+          })
+          .from(externalUnitOwners)
+          .leftJoin(externalUnits, eq(externalUnitOwners.unitId, externalUnits.id))
+          .where(eq(externalUnits.agencyId, agencyId));
+          
+          data = owners.map(o => ({
+            id: o.id,
+            unit_id: o.unitId || '',
+            unit_number: o.unitNumber || '',
+            owner_name: o.ownerName,
+            email: o.ownerEmail || '',
+            phone: o.ownerPhone || '',
+            ownership_percentage: o.ownershipPercentage || '100.00',
+            is_active: o.isActive ? 'true' : 'false',
+            notes: o.notes || '',
+            created_at: o.createdAt?.toISOString() || '',
+          }));
+          filename = 'owners.csv';
+          break;
+          
+        case 'clients':
+          const clients = await db.select().from(externalClients).where(eq(externalClients.agencyId, agencyId));
+          data = clients.map(c => ({
+            id: c.id,
+            first_name: c.firstName,
+            last_name: c.lastName,
+            email: c.email || '',
+            phone: c.phone || '',
+            nationality: c.nationality || '',
+            client_type: c.clientType || '',
+            status: c.status || 'active',
+            notes: c.notes || '',
+            created_at: c.createdAt?.toISOString() || '',
+          }));
+          filename = 'clients.csv';
+          break;
+          
+        case 'leads':
+          const leads = await db.select().from(externalLeads).where(eq(externalLeads.agencyId, agencyId));
+          data = leads.map(l => ({
+            id: l.id,
+            first_name: l.firstName,
+            last_name: l.lastName,
+            email: l.email || '',
+            phone: l.phone || '',
+            registration_type: l.registrationType || 'seller',
+            lead_type: l.leadType || '',
+            status: l.status || '',
+            source: l.source || '',
+            assigned_to: l.assignedTo || '',
+            property_interest: l.propertyInterest || '',
+            budget_min: l.budgetMin || '',
+            budget_max: l.budgetMax || '',
+            notes: l.notes || '',
+            created_at: l.createdAt?.toISOString() || '',
+          }));
+          filename = 'leads.csv';
+          break;
+          
+        case 'contracts':
+          const contracts = await db.select({
+            id: externalRentalContracts.id,
+            unitId: externalRentalContracts.unitId,
+            unitNumber: externalUnits.unitNumber,
+            contractType: externalRentalContracts.contractType,
+            status: externalRentalContracts.status,
+            startDate: externalRentalContracts.startDate,
+            endDate: externalRentalContracts.endDate,
+            rentAmount: externalRentalContracts.rentAmount,
+            currency: externalRentalContracts.currency,
+            createdAt: externalRentalContracts.createdAt,
+          })
+          .from(externalRentalContracts)
+          .leftJoin(externalUnits, eq(externalRentalContracts.unitId, externalUnits.id))
+          .where(eq(externalRentalContracts.agencyId, agencyId));
+          
+          data = contracts.map(c => ({
+            id: c.id,
+            unit_id: c.unitId || '',
+            unit_number: c.unitNumber || '',
+            contract_type: c.contractType || '',
+            status: c.status || '',
+            start_date: c.startDate?.toISOString().split('T')[0] || '',
+            end_date: c.endDate?.toISOString().split('T')[0] || '',
+            rent_amount: c.rentAmount || 0,
+            currency: c.currency || 'USD',
+            created_at: c.createdAt?.toISOString() || '',
+          }));
+          filename = 'contracts.csv';
+          break;
+          
+        case 'maintenance':
+          const tickets = await db.select({
+            id: externalMaintenanceTickets.id,
+            unitId: externalMaintenanceTickets.unitId,
+            unitNumber: externalUnits.unitNumber,
+            title: externalMaintenanceTickets.title,
+            description: externalMaintenanceTickets.description,
+            category: externalMaintenanceTickets.category,
+            priority: externalMaintenanceTickets.priority,
+            status: externalMaintenanceTickets.status,
+            createdAt: externalMaintenanceTickets.createdAt,
+            resolvedAt: externalMaintenanceTickets.resolvedAt,
+          })
+          .from(externalMaintenanceTickets)
+          .leftJoin(externalUnits, eq(externalMaintenanceTickets.unitId, externalUnits.id))
+          .where(eq(externalMaintenanceTickets.agencyId, agencyId));
+          
+          data = tickets.map(t => ({
+            id: t.id,
+            unit_id: t.unitId || '',
+            unit_number: t.unitNumber || '',
+            title: t.title,
+            description: t.description || '',
+            category: t.category || '',
+            priority: t.priority || '',
+            status: t.status || '',
+            created_at: t.createdAt?.toISOString() || '',
+            resolved_at: t.resolvedAt?.toISOString() || '',
+          }));
+          filename = 'maintenance_tickets.csv';
+          break;
+          
+        case 'transactions':
+          const transactions = await db.select({
+            id: externalFinancialTransactions.id,
+            unitId: externalFinancialTransactions.unitId,
+            unitNumber: externalUnits.unitNumber,
+            type: externalFinancialTransactions.type,
+            category: externalFinancialTransactions.category,
+            amount: externalFinancialTransactions.amount,
+            currency: externalFinancialTransactions.currency,
+            status: externalFinancialTransactions.status,
+            description: externalFinancialTransactions.description,
+            date: externalFinancialTransactions.transactionDate,
+            createdAt: externalFinancialTransactions.createdAt,
+          })
+          .from(externalFinancialTransactions)
+          .leftJoin(externalUnits, eq(externalFinancialTransactions.unitId, externalUnits.id))
+          .where(eq(externalFinancialTransactions.agencyId, agencyId));
+          
+          data = transactions.map(t => ({
+            id: t.id,
+            unit_id: t.unitId || '',
+            unit_number: t.unitNumber || '',
+            type: t.type || '',
+            category: t.category || '',
+            amount: t.amount || 0,
+            currency: t.currency || 'USD',
+            status: t.status || '',
+            description: t.description || '',
+            transaction_date: t.date?.toISOString().split('T')[0] || '',
+            created_at: t.createdAt?.toISOString() || '',
+          }));
+          filename = 'transactions.csv';
+          break;
+          
+        case 'quotations':
+          const quotations = await db.select({
+            id: externalQuotations.id,
+            unitId: externalQuotations.unitId,
+            unitNumber: externalUnits.unitNumber,
+            clientName: externalQuotations.clientName,
+            clientEmail: externalQuotations.clientEmail,
+            status: externalQuotations.status,
+            totalAmount: externalQuotations.totalAmount,
+            adminFee: externalQuotations.adminFee,
+            currency: externalQuotations.currency,
+            validUntil: externalQuotations.validUntil,
+            createdAt: externalQuotations.createdAt,
+          })
+          .from(externalQuotations)
+          .leftJoin(externalUnits, eq(externalQuotations.unitId, externalUnits.id))
+          .where(eq(externalQuotations.agencyId, agencyId));
+          
+          data = quotations.map(q => ({
+            id: q.id,
+            unit_id: q.unitId || '',
+            unit_number: q.unitNumber || '',
+            client_name: q.clientName || '',
+            client_email: q.clientEmail || '',
+            status: q.status || '',
+            total_amount: q.totalAmount || 0,
+            admin_fee: q.adminFee || 0,
+            currency: q.currency || 'USD',
+            valid_until: q.validUntil?.toISOString().split('T')[0] || '',
+            created_at: q.createdAt?.toISOString() || '',
+          }));
+          filename = 'quotations.csv';
+          break;
+          
+        case 'accounts':
+          const externalRoles = ["external_agency_admin", "external_agency_accounting", "external_agency_maintenance", "external_agency_staff", "external_agency_seller"];
+          const agencyUsers = await db
+            .select({
+              id: users.id,
+              email: users.email,
+              firstName: users.firstName,
+              lastName: users.lastName,
+              phone: users.phone,
+              role: users.role,
+              status: users.status,
+              maintenanceSpecialty: users.maintenanceSpecialty,
+              isSuspended: users.isSuspended,
+              createdAt: users.createdAt,
+            })
+            .from(users)
+            .where(and(
+              inArray(users.role, externalRoles),
+              eq(users.externalAgencyId, agencyId)
+            ));
+          
+          data = agencyUsers.map(u => ({
+            id: u.id,
+            email: u.email || '',
+            first_name: u.firstName || '',
+            last_name: u.lastName || '',
+            phone: u.phone || '',
+            role: u.role || '',
+            status: u.status || 'active',
+            maintenance_specialty: u.maintenanceSpecialty || '',
+            is_suspended: u.isSuspended ? 'true' : 'false',
+            created_at: u.createdAt?.toISOString() || '',
+          }));
+          filename = 'accounts.csv';
+          break;
+          
+        default:
+          return res.status(400).json({ message: `Unknown section: ${section}` });
+      }
+
+      if (data.length === 0) {
+        return res.status(200).json({ message: 'No data to export', csv: '', filename });
+      }
+
+      // Generate CSV using papaparse
+      const csv = Papa.unparse(data, {
+        header: true,
+        quotes: true,
+      });
+
+      await createAuditLog(req, "export", `external_${section}`, agencyId, `Exported ${data.length} ${section} records to CSV`);
+
+      res.setHeader('Content-Type', 'text/csv');
+      res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+      res.send(csv);
+    } catch (error: any) {
+      console.error(`Error exporting ${req.params.section}:`, error);
+      handleGenericError(res, error);
+    }
+  });
+
+  // GET /api/external/imports/:jobId - Get import job status
+  app.get("/api/external/imports/:jobId", isAuthenticated, requireRole(EXTERNAL_ADMIN_ROLES), async (req: any, res) => {
+    try {
+      const { jobId } = req.params;
+      const job = importJobs.get(jobId);
+      
+      if (!job) {
+        return res.status(404).json({ message: "Import job not found" });
+      }
+      
+      res.json({
+        id: job.id,
+        section: job.section,
+        status: job.status,
+        total: job.total,
+        processed: job.processed,
+        imported: job.imported,
+        skipped: job.skipped,
+        errors: job.errors.slice(0, 10),
+        startedAt: job.startedAt.toISOString(),
+        finishedAt: job.finishedAt?.toISOString() || null,
+        message: job.message || null,
+        progress: job.total > 0 ? Math.round((job.processed / job.total) * 100) : 0,
+      });
+    } catch (error) {
+      console.error("Error getting import status:", error);
+      handleGenericError(res, error);
+    }
+  });
+
+  // POST /api/external/data/import/:section - Import data from CSV
+  app.post("/api/external/data/import/:section", isAuthenticated, requireRole(EXTERNAL_ADMIN_ROLES), async (req: any, res) => {
+    try {
+      const Papa = (await import('papaparse')).default;
+      const { section } = req.params;
+      const { csvData } = req.body;
+      const agencyId = await getUserAgencyId(req);
+      
+      if (!agencyId) {
+        return res.status(403).json({ message: "Agency ID not found" });
+      }
+      
+      if (!csvData || typeof csvData !== 'string') {
+        return res.status(400).json({ message: "CSV data is required" });
+      }
+
+      // Parse CSV
+      const parseResult = Papa.parse(csvData, {
+        header: true,
+        skipEmptyLines: true,
+        transformHeader: (h: string) => h.trim().toLowerCase().replace(/\s+/g, '_'),
+      });
+
+      if (parseResult.errors.length > 0) {
+        return res.status(400).json({ 
+          message: "CSV parsing errors", 
+          errors: parseResult.errors.slice(0, 5) 
+        });
+      }
+
+      const rows = parseResult.data as any[];
+      
+      // Create import job for progress tracking
+      const jobId = crypto.randomUUID();
+      const job: ImportJob = {
+        id: jobId,
+        section,
+        status: 'processing',
+        total: rows.length,
+        processed: 0,
+        imported: 0,
+        skipped: 0,
+        errors: [],
+        startedAt: new Date(),
+      };
+      importJobs.set(jobId, job);
+      
+      // Return job ID immediately so client can poll for progress
+      res.json({ jobId, total: rows.length, message: "Import started" });
+      
+      // Process rows asynchronously
+      let imported = 0;
+      let skipped = 0;
+      let errors: string[] = [];
+      
+      const updateProgress = () => {
+        job.processed = imported + skipped;
+        job.imported = imported;
+        job.skipped = skipped;
+        job.errors = errors.slice(0, 50);
+      };
+
+      switch (section) {
+        case 'condominiums':
+          for (const row of rows) {
+            try {
+              if (!row.name?.trim()) {
+                skipped++;
+                continue;
+              }
+              
+              // Check if exists by name
+              const existing = await db.select().from(externalCondominiums)
+                .where(and(
+                  eq(externalCondominiums.agencyId, agencyId),
+                  sql`LOWER(${externalCondominiums.name}) = LOWER(${row.name.trim()})`
+                ))
+                .limit(1);
+              
+              if (existing.length > 0) {
+                skipped++;
+                continue;
+              }
+              
+              await db.insert(externalCondominiums).values({
+                id: crypto.randomUUID(),
+                registrationType: row.registration_type?.trim() || 'seller',
+                agencyId,
+                name: row.name.trim(),
+                description: row.description?.trim() || null,
+                address: row.address?.trim() || null,
+                zone: row.zone?.trim() || null,
+                totalUnits: parseInt(row.total_units) || 0,
+                isActive: row.is_active !== 'false',
+                createdAt: new Date(),
+                updatedAt: new Date(),
+              });
+              imported++;
+            } catch (e: any) {
+              errors.push(`Row "${row.name}": ${e.message}`);
+            }
+          }
+          break;
+          
+        case 'clients':
+          for (const row of rows) {
+            try {
+              if (!row.first_name?.trim() || !row.last_name?.trim()) {
+                skipped++;
+                continue;
+              }
+              
+              // Check for duplicates by name + phone/email
+              const existingConditions: any[] = [eq(externalClients.agencyId, agencyId)];
+              
+              const firstName = row.first_name.trim();
+              const lastName = row.last_name.trim();
+              
+              existingConditions.push(sql`LOWER(${externalClients.firstName}) = LOWER(${firstName})`);
+              existingConditions.push(sql`LOWER(${externalClients.lastName}) = LOWER(${lastName})`);
+              
+              const existing = await db.select().from(externalClients)
+                .where(and(...existingConditions))
+                .limit(1);
+              
+              if (existing.length > 0) {
+                skipped++;
+                continue;
+              }
+              
+              await db.insert(externalClients).values({
+                id: crypto.randomUUID(),
+                registrationType: row.registration_type?.trim() || 'seller',
+                agencyId,
+                firstName,
+                lastName,
+                email: row.email?.trim() || null,
+                phone: row.phone?.trim() || null,
+                nationality: row.nationality?.trim() || null,
+                clientType: row.client_type?.trim() || 'tenant',
+                status: row.status?.trim() || 'active',
+                notes: row.notes?.trim() || null,
+                createdAt: new Date(),
+                updatedAt: new Date(),
+              });
+              imported++;
+            } catch (e: any) {
+              errors.push(`Row "${row.first_name} ${row.last_name}": ${e.message}`);
+            }
+          }
+          break;
+          
+        case 'leads':
+          for (const row of rows) {
+            try {
+              if (!row.first_name?.trim() || !row.last_name?.trim()) {
+                skipped++;
+                continue;
+              }
+              
+              const firstName = row.first_name.trim();
+              const lastName = row.last_name.trim();
+              
+              // Check for duplicates
+              const existing = await db.select().from(externalLeads)
+                .where(and(
+                  eq(externalLeads.agencyId, agencyId),
+                  sql`LOWER(${externalLeads.firstName}) = LOWER(${firstName})`,
+                  sql`LOWER(${externalLeads.lastName}) = LOWER(${lastName})`
+                ))
+                .limit(1);
+              
+              if (existing.length > 0) {
+                skipped++;
+                continue;
+              }
+              
+              await db.insert(externalLeads).values({
+                id: crypto.randomUUID(),
+                registrationType: row.registration_type?.trim() || 'seller',
+                agencyId,
+                firstName,
+                lastName,
+                email: row.email?.trim() || null,
+                phone: row.phone?.trim() || null,
+                leadType: row.lead_type?.trim() || 'buyer',
+                status: row.status?.trim() || 'new',
+                source: row.source?.trim() || 'csv_import',
+                assignedTo: row.assigned_to?.trim() || null,
+                propertyInterest: row.property_interest?.trim() || null,
+                budgetMin: row.budget_min ? parseFloat(row.budget_min) : null,
+                budgetMax: row.budget_max ? parseFloat(row.budget_max) : null,
+                notes: row.notes?.trim() || null,
+                createdAt: new Date(),
+                updatedAt: new Date(),
+              });
+              imported++;
+            } catch (e: any) {
+              errors.push(`Row "${row.first_name} ${row.last_name}": ${e.message}`);
+            }
+          }
+          break;
+          
+        case 'units':
+          for (const row of rows) {
+            try {
+              if (!row.unit_number?.trim()) {
+                skipped++;
+                continue;
+              }
+              
+              const unitNumber = row.unit_number.trim();
+              
+              // Resolve condominium by name if provided
+              let condominiumId: string | null = null;
+              if (row.condominium_name?.trim()) {
+                const condo = await db.select().from(externalCondominiums)
+                  .where(and(
+                    eq(externalCondominiums.agencyId, agencyId),
+                    sql`LOWER(${externalCondominiums.name}) = LOWER(${row.condominium_name.trim()})`
+                  ))
+                  .limit(1);
+                if (condo.length > 0) {
+                  condominiumId = condo[0].id;
+                }
+              }
+              
+              // Check for duplicates by unit number + condominium
+              const existingConditions: any[] = [
+                eq(externalUnits.agencyId, agencyId),
+                sql`LOWER(${externalUnits.unitNumber}) = LOWER(${unitNumber})`
+              ];
+              if (condominiumId) {
+                existingConditions.push(eq(externalUnits.condominiumId, condominiumId));
+              }
+              
+              const existing = await db.select().from(externalUnits)
+                .where(and(...existingConditions))
+                .limit(1);
+              
+              if (existing.length > 0) {
+                skipped++;
+                continue;
+              }
+              
+              await db.insert(externalUnits).values({
+                id: crypto.randomUUID(),
+                registrationType: row.registration_type?.trim() || 'seller',
+                agencyId,
+                condominiumId,
+                unitNumber,
+                zone: row.zone?.trim() || null,
+                typology: row.typology?.trim() || null,
+                propertyType: row.property_type?.trim() || null,
+                bedrooms: row.bedrooms ? parseInt(row.bedrooms) : null,
+                bathrooms: row.bathrooms ? parseFloat(row.bathrooms) : null,
+                squareMeters: row.square_meters ? parseFloat(row.square_meters) : null,
+                furnished: row.furnished === 'true',
+                monthlyRent: row.monthly_rent ? parseFloat(row.monthly_rent) : null,
+                currency: row.currency?.trim() || 'USD',
+                status: row.status?.trim() || 'available',
+                notes: row.notes?.trim() || null,
+                isActive: row.is_active !== 'false',
+                createdAt: new Date(),
+                updatedAt: new Date(),
+              });
+              imported++;
+            } catch (e: any) {
+              errors.push(`Row "${row.unit_number}": ${e.message}`);
+            }
+          }
+          break;
+          
+        case 'owners':
+          for (const row of rows) {
+            try {
+              if (!row.owner_name?.trim() || !row.unit_number?.trim()) {
+                skipped++;
+                continue;
+              }
+              
+              const ownerName = row.owner_name.trim();
+              const unitNumber = row.unit_number.trim();
+              
+              // Find unit by number
+              const unit = await db.select().from(externalUnits)
+                .where(and(
+                  eq(externalUnits.agencyId, agencyId),
+                  sql`LOWER(${externalUnits.unitNumber}) = LOWER(${unitNumber})`
+                ))
+                .limit(1);
+              
+              if (unit.length === 0) {
+                errors.push(`Unit "${unitNumber}" not found for owner "${ownerName}"`);
+                skipped++;
+                continue;
+              }
+              
+              // Check for duplicates by owner name + unit
+              const existing = await db.select().from(externalUnitOwners)
+                .where(and(
+                  eq(externalUnitOwners.unitId, unit[0].id),
+                  sql`LOWER(${externalUnitOwners.ownerName}) = LOWER(${ownerName})`
+                ))
+                .limit(1);
+              
+              if (existing.length > 0) {
+                skipped++;
+                continue;
+              }
+              
+              await db.insert(externalUnitOwners).values({
+                id: crypto.randomUUID(),
+                registrationType: row.registration_type?.trim() || 'seller',
+                unitId: unit[0].id,
+                ownerName,
+                ownerEmail: row.email?.trim() || null,
+                ownerPhone: row.phone?.trim() || null,
+                ownershipPercentage: row.ownership_percentage?.trim() || "100.00",
+                isActive: row.is_active !== 'false',
+                notes: row.notes?.trim() || null,
+                createdAt: new Date(),
+                updatedAt: new Date(),
+              });
+              imported++;
+            } catch (e: any) {
+              errors.push(`Row "${row.owner_name}": ${e.message}`);
+            }
+          }
+          break;
+          
+        case 'contracts':
+          for (const row of rows) {
+            try {
+              if (!row.unit_number?.trim()) {
+                errors.push(`Row missing unit_number`);
+                skipped++;
+                continue;
+              }
+              
+              // Resolve unit by number
+              const unit = await db.select().from(externalUnits)
+                .where(and(
+                  eq(externalUnits.agencyId, agencyId),
+                  sql`LOWER(${externalUnits.unitNumber}) = LOWER(${row.unit_number.trim()})`
+                ))
+                .limit(1);
+              
+              if (unit.length === 0) {
+                errors.push(`Unit "${row.unit_number}" not found`);
+                skipped++;
+                continue;
+              }
+              
+              await db.insert(externalRentalContracts).values({
+                id: crypto.randomUUID(),
+                registrationType: row.registration_type?.trim() || 'seller',
+                agencyId,
+                unitId: unit[0].id,
+                contractType: row.contract_type?.trim() || 'fixed',
+                status: row.status?.trim() || 'draft',
+                startDate: row.start_date ? new Date(row.start_date) : null,
+                endDate: row.end_date ? new Date(row.end_date) : null,
+                rentAmount: row.rent_amount ? parseFloat(row.rent_amount) : null,
+                currency: row.currency?.trim() || 'USD',
+                createdAt: new Date(),
+                updatedAt: new Date(),
+              });
+              imported++;
+            } catch (e: any) {
+              errors.push(`Row "${row.unit_number}": ${e.message}`);
+            }
+          }
+          break;
+          
+        case 'maintenance':
+          for (const row of rows) {
+            try {
+              if (!row.title?.trim()) {
+                skipped++;
+                continue;
+              }
+              
+              const title = row.title.trim();
+              
+              // Resolve unit by number if provided
+              let unitId: string | null = null;
+              if (row.unit_number?.trim()) {
+                const unit = await db.select().from(externalUnits)
+                  .where(and(
+                    eq(externalUnits.agencyId, agencyId),
+                    sql`LOWER(${externalUnits.unitNumber}) = LOWER(${row.unit_number.trim()})`
+                  ))
+                  .limit(1);
+                if (unit.length > 0) {
+                  unitId = unit[0].id;
+                }
+              }
+              
+              // Check for duplicates by title
+              const existing = await db.select().from(externalMaintenanceTickets)
+                .where(and(
+                  eq(externalMaintenanceTickets.agencyId, agencyId),
+                  sql`LOWER(${externalMaintenanceTickets.title}) = LOWER(${title})`
+                ))
+                .limit(1);
+              
+              if (existing.length > 0) {
+                skipped++;
+                continue;
+              }
+              
+              await db.insert(externalMaintenanceTickets).values({
+                id: crypto.randomUUID(),
+                registrationType: row.registration_type?.trim() || 'seller',
+                agencyId,
+                unitId,
+                title,
+                description: row.description?.trim() || null,
+                category: row.category?.trim() || 'general',
+                priority: row.priority?.trim() || 'medium',
+                status: row.status?.trim() || 'open',
+                reportedBy: row.reported_by?.trim() || null,
+                estimatedCost: row.estimated_cost ? parseFloat(row.estimated_cost) : null,
+                actualCost: row.actual_cost ? parseFloat(row.actual_cost) : null,
+                createdAt: new Date(),
+                updatedAt: new Date(),
+              });
+              imported++;
+            } catch (e: any) {
+              errors.push(`Row "${row.title}": ${e.message}`);
+            }
+          }
+          break;
+          
+        case 'transactions':
+          for (const row of rows) {
+            try {
+              if (!row.type?.trim() || !row.amount) {
+                skipped++;
+                continue;
+              }
+              
+              // Resolve unit by number if provided
+              let unitId: string | null = null;
+              if (row.unit_number?.trim()) {
+                const unit = await db.select().from(externalUnits)
+                  .where(and(
+                    eq(externalUnits.agencyId, agencyId),
+                    sql`LOWER(${externalUnits.unitNumber}) = LOWER(${row.unit_number.trim()})`
+                  ))
+                  .limit(1);
+                if (unit.length > 0) {
+                  unitId = unit[0].id;
+                }
+              }
+              
+              await db.insert(externalFinancialTransactions).values({
+                id: crypto.randomUUID(),
+                registrationType: row.registration_type?.trim() || 'seller',
+                agencyId,
+                unitId,
+                type: row.type.trim(),
+                category: row.category?.trim() || 'other',
+                amount: parseFloat(row.amount),
+                currency: row.currency?.trim() || 'USD',
+                status: row.status?.trim() || 'pending',
+                description: row.description?.trim() || null,
+                transactionDate: row.transaction_date ? new Date(row.transaction_date) : new Date(),
+                createdAt: new Date(),
+                updatedAt: new Date(),
+              });
+              imported++;
+            } catch (e: any) {
+              errors.push(`Row with amount ${row.amount}: ${e.message}`);
+            }
+          }
+          break;
+          
+        case 'quotations':
+          for (const row of rows) {
+            try {
+              if (!row.title?.trim()) {
+                skipped++;
+                continue;
+              }
+              
+              const title = row.title.trim();
+              
+              // Resolve unit by number if provided
+              let unitId: string | null = null;
+              if (row.unit_number?.trim()) {
+                const unit = await db.select().from(externalUnits)
+                  .where(and(
+                    eq(externalUnits.agencyId, agencyId),
+                    sql`LOWER(${externalUnits.unitNumber}) = LOWER(${row.unit_number.trim()})`
+                  ))
+                  .limit(1);
+                if (unit.length > 0) {
+                  unitId = unit[0].id;
+                }
+              }
+              
+              // Check for duplicates by quotation number if provided
+              if (row.quotation_number?.trim()) {
+                const existing = await db.select().from(externalQuotations)
+                  .where(and(
+                    eq(externalQuotations.agencyId, agencyId),
+                    sql`LOWER(${externalQuotations.quotationNumber}) = LOWER(${row.quotation_number.trim()})`
+                  ))
+                  .limit(1);
+                
+                if (existing.length > 0) {
+                  skipped++;
+                  continue;
+                }
+              }
+              
+              await db.insert(externalQuotations).values({
+                id: crypto.randomUUID(),
+                registrationType: row.registration_type?.trim() || 'seller',
+                agencyId,
+                unitId,
+                title,
+                quotationNumber: row.quotation_number?.trim() || null,
+                clientName: row.client_name?.trim() || null,
+                clientEmail: row.client_email?.trim() || null,
+                description: row.description?.trim() || null,
+                status: row.status?.trim() || 'draft',
+                totalAmount: row.total_amount ? parseFloat(row.total_amount) : 0,
+                adminFee: row.admin_fee ? parseFloat(row.admin_fee) : 0,
+                currency: row.currency?.trim() || 'USD',
+                validUntil: row.valid_until ? new Date(row.valid_until) : null,
+                createdAt: new Date(),
+                updatedAt: new Date(),
+              });
+              imported++;
+            } catch (e: any) {
+              errors.push(`Row "${row.title}": ${e.message}`);
+            }
+          }
+          break;
+          
+        case 'accounts':
+          const bcrypt = (await import('bcryptjs')).default;
+          for (const row of rows) {
+            try {
+              if (!row.email?.trim()) {
+                skipped++;
+                continue;
+              }
+              
+              const email = row.email.trim().toLowerCase();
+              
+              // Check if user already exists
+              const existingUser = await db.select().from(users)
+                .where(eq(users.email, email))
+                .limit(1);
+              
+              if (existingUser.length > 0) {
+                skipped++;
+                continue;
+              }
+              
+              // Validate role
+              const validRoles = ["external_agency_admin", "external_agency_accounting", "external_agency_maintenance", "external_agency_staff", "external_agency_seller"];
+              const role = row.role?.trim() || 'external_agency_staff';
+              if (!validRoles.includes(role)) {
+                errors.push(`Invalid role "${role}" for user "${email}"`);
+                skipped++;
+                continue;
+              }
+              
+              // Generate random password
+              const tempPassword = crypto.randomBytes(8).toString('hex');
+              const hashedPassword = await bcrypt.hash(tempPassword, 10);
+              
+              await db.insert(users).values({
+                id: crypto.randomUUID(),
+                registrationType: row.registration_type?.trim() || 'seller',
+                email,
+                password: hashedPassword,
+                firstName: row.first_name?.trim() || null,
+                lastName: row.last_name?.trim() || null,
+                phone: row.phone?.trim() || null,
+                role,
+                status: row.status?.trim() || 'active',
+                maintenanceSpecialty: row.maintenance_specialty?.trim() || null,
+                externalAgencyId: agencyId,
+                isActive: true,
+                isSuspended: false,
+                createdAt: new Date(),
+                updatedAt: new Date(),
+              });
+              imported++;
+            } catch (e: any) {
+              errors.push(`Row "${row.email}": ${e.message}`);
+            }
+          }
+          break;
+          
+        default:
+          return res.status(400).json({ 
+            message: `Import not supported for section: ${section}` 
+          });
+      }
+
+      // Update job status to completed
+      updateProgress();
+      job.status = 'completed';
+      job.finishedAt = new Date();
+      job.message = `Imported ${imported} records, skipped ${skipped} duplicates${errors.length > 0 ? `, ${errors.length} errors` : ''}`;
+      
+      await createAuditLog(req, "import", `external_${section}`, agencyId, 
+        `Imported ${imported} ${section} records from CSV (${skipped} skipped, ${errors.length} errors)`);
+    } catch (error: any) {
+      console.error(`Error importing ${req.params.section}:`, error);
+      // Update job status to failed
+      const job = importJobs.get(req.body.jobId || '');
+      if (job) {
+        job.status = 'failed';
+        job.finishedAt = new Date();
+        job.message = error.message || 'Import failed';
+      }
+    }
+  });
+  // ============================================================================
+  // EXTERNAL MANAGEMENT SYSTEM - CONFIGURABLE ZONES ROUTES
+  // ============================================================================
+
+  // GET /api/external/config/zones - List all zones for agency
+  app.get("/api/external/config/zones", isAuthenticated, requireRole(EXTERNAL_ALL_ROLES), async (req: any, res) => {
+    try {
+      const agencyId = await getUserAgencyId(req);
+      if (!agencyId) {
+        return res.status(403).json({ message: "Agency ID not found" });
+      }
+
+      const zones = await db.select()
+        .from(externalAgencyZones)
+        .where(eq(externalAgencyZones.agencyId, agencyId))
+        .orderBy(asc(externalAgencyZones.sortOrder), asc(externalAgencyZones.name));
+
+      res.json(zones);
+    } catch (error: any) {
+      console.error("Error listing zones:", error);
+      handleGenericError(res, error);
+    }
+  });
+
+  // POST /api/external/config/zones - Create new zone
+  app.post("/api/external/config/zones", isAuthenticated, requireRole(EXTERNAL_ADMIN_ROLES), async (req: any, res) => {
+    try {
+      const agencyId = await getUserAgencyId(req);
+      if (!agencyId) {
+        return res.status(403).json({ message: "Agency ID not found" });
+      }
+
+      const validated = insertExternalAgencyZoneSchema.parse({
+        ...req.body,
+        agencyId,
+      });
+
+      const [zone] = await db.insert(externalAgencyZones)
+        .values(validated)
+        .returning();
+
+      await createAuditLog(req, "create", "external_agency_zone", zone.id, `Created zone: ${zone.name}`);
+      res.status(201).json(zone);
+    } catch (error: any) {
+      console.error("Error creating zone:", error);
+      if (error.code === "23505") {
+        return res.status(409).json({ message: "A zone with this name already exists for your agency" });
+      }
+      handleGenericError(res, error);
+    }
+  });
+
+  // PATCH /api/external/config/zones/:id - Update zone
+  app.patch("/api/external/config/zones/:id", isAuthenticated, requireRole(EXTERNAL_ADMIN_ROLES), async (req: any, res) => {
+    try {
+      const { id } = req.params;
+      const agencyId = await getUserAgencyId(req);
+      if (!agencyId) {
+        return res.status(403).json({ message: "Agency ID not found" });
+      }
+
+      const [existing] = await db.select()
+        .from(externalAgencyZones)
+        .where(and(eq(externalAgencyZones.id, id), eq(externalAgencyZones.agencyId, agencyId)));
+
+      if (!existing) {
+        return res.status(404).json({ message: "Zone not found" });
+      }
+
+      const { name, isActive, sortOrder } = req.body;
+      const updates: any = {};
+      if (name !== undefined) updates.name = name;
+      if (isActive !== undefined) updates.isActive = isActive;
+      if (sortOrder !== undefined) updates.sortOrder = sortOrder;
+
+      const [updated] = await db.update(externalAgencyZones)
+        .set(updates)
+        .where(eq(externalAgencyZones.id, id))
+        .returning();
+
+      await createAuditLog(req, "update", "external_agency_zone", id, `Updated zone: ${updated.name}`);
+      res.json(updated);
+    } catch (error: any) {
+      console.error("Error updating zone:", error);
+      if (error.code === "23505") {
+        return res.status(409).json({ message: "A zone with this name already exists for your agency" });
+      }
+      handleGenericError(res, error);
+    }
+  });
+
+  // DELETE /api/external/config/zones/:id - Delete zone
+  app.delete("/api/external/config/zones/:id", isAuthenticated, requireRole(EXTERNAL_ADMIN_ROLES), async (req: any, res) => {
+    try {
+      const { id } = req.params;
+      const agencyId = await getUserAgencyId(req);
+      if (!agencyId) {
+        return res.status(403).json({ message: "Agency ID not found" });
+      }
+
+      const [existing] = await db.select()
+        .from(externalAgencyZones)
+        .where(and(eq(externalAgencyZones.id, id), eq(externalAgencyZones.agencyId, agencyId)));
+
+      if (!existing) {
+        return res.status(404).json({ message: "Zone not found" });
+      }
+
+      await db.delete(externalAgencyZones).where(eq(externalAgencyZones.id, id));
+
+      await createAuditLog(req, "delete", "external_agency_zone", id, `Deleted zone: ${existing.name}`);
+      res.status(204).send();
+    } catch (error: any) {
+      console.error("Error deleting zone:", error);
+      handleGenericError(res, error);
+    }
+  });
+
+  // ============================================================================
+  // EXTERNAL MANAGEMENT SYSTEM - CONFIGURABLE PROPERTY TYPES ROUTES
+  // ============================================================================
+
+  // GET /api/external/config/property-types - List all property types for agency
+  app.get("/api/external/config/property-types", isAuthenticated, requireRole(EXTERNAL_ALL_ROLES), async (req: any, res) => {
+    try {
+      const agencyId = await getUserAgencyId(req);
+      if (!agencyId) {
+        return res.status(403).json({ message: "Agency ID not found" });
+      }
+
+      const propertyTypes = await db.select()
+        .from(externalAgencyPropertyTypes)
+        .where(eq(externalAgencyPropertyTypes.agencyId, agencyId))
+        .orderBy(asc(externalAgencyPropertyTypes.sortOrder), asc(externalAgencyPropertyTypes.name));
+
+      res.json(propertyTypes);
+    } catch (error: any) {
+      console.error("Error listing property types:", error);
+      handleGenericError(res, error);
+    }
+  });
+
+  // POST /api/external/config/property-types - Create new property type
+  app.post("/api/external/config/property-types", isAuthenticated, requireRole(EXTERNAL_ADMIN_ROLES), async (req: any, res) => {
+    try {
+      const agencyId = await getUserAgencyId(req);
+      if (!agencyId) {
+        return res.status(403).json({ message: "Agency ID not found" });
+      }
+
+      const validated = insertExternalAgencyPropertyTypeSchema.parse({
+        ...req.body,
+        agencyId,
+      });
+
+      const [propertyType] = await db.insert(externalAgencyPropertyTypes)
+        .values(validated)
+        .returning();
+
+      await createAuditLog(req, "create", "external_agency_property_type", propertyType.id, `Created property type: ${propertyType.name}`);
+      res.status(201).json(propertyType);
+    } catch (error: any) {
+      console.error("Error creating property type:", error);
+      if (error.code === "23505") {
+        return res.status(409).json({ message: "A property type with this name already exists for your agency" });
+      }
+      handleGenericError(res, error);
+    }
+  });
+
+  // PATCH /api/external/config/property-types/:id - Update property type
+  app.patch("/api/external/config/property-types/:id", isAuthenticated, requireRole(EXTERNAL_ADMIN_ROLES), async (req: any, res) => {
+    try {
+      const { id } = req.params;
+      const agencyId = await getUserAgencyId(req);
+      if (!agencyId) {
+        return res.status(403).json({ message: "Agency ID not found" });
+      }
+
+      const [existing] = await db.select()
+        .from(externalAgencyPropertyTypes)
+        .where(and(eq(externalAgencyPropertyTypes.id, id), eq(externalAgencyPropertyTypes.agencyId, agencyId)));
+
+      if (!existing) {
+        return res.status(404).json({ message: "Property type not found" });
+      }
+
+      const { name, isActive, sortOrder } = req.body;
+      const updates: any = {};
+      if (name !== undefined) updates.name = name;
+      if (isActive !== undefined) updates.isActive = isActive;
+      if (sortOrder !== undefined) updates.sortOrder = sortOrder;
+
+      const [updated] = await db.update(externalAgencyPropertyTypes)
+        .set(updates)
+        .where(eq(externalAgencyPropertyTypes.id, id))
+        .returning();
+
+      await createAuditLog(req, "update", "external_agency_property_type", id, `Updated property type: ${updated.name}`);
+      res.json(updated);
+    } catch (error: any) {
+      console.error("Error updating property type:", error);
+      if (error.code === "23505") {
+        return res.status(409).json({ message: "A property type with this name already exists for your agency" });
+      }
+      handleGenericError(res, error);
+    }
+  });
+
+  // DELETE /api/external/config/property-types/:id - Delete property type
+  app.delete("/api/external/config/property-types/:id", isAuthenticated, requireRole(EXTERNAL_ADMIN_ROLES), async (req: any, res) => {
+    try {
+      const { id } = req.params;
+      const agencyId = await getUserAgencyId(req);
+      if (!agencyId) {
+        return res.status(403).json({ message: "Agency ID not found" });
+      }
+
+      const [existing] = await db.select()
+        .from(externalAgencyPropertyTypes)
+        .where(and(eq(externalAgencyPropertyTypes.id, id), eq(externalAgencyPropertyTypes.agencyId, agencyId)));
+
+      if (!existing) {
+        return res.status(404).json({ message: "Property type not found" });
+      }
+
+      await db.delete(externalAgencyPropertyTypes).where(eq(externalAgencyPropertyTypes.id, id));
+
+      await createAuditLog(req, "delete", "external_agency_property_type", id, `Deleted property type: ${existing.name}`);
+      res.status(204).send();
+    } catch (error: any) {
+      console.error("Error deleting property type:", error);
+      handleGenericError(res, error);
+    }
+  });
+  // EXTERNAL MANAGEMENT SYSTEM - QUOTATIONS ROUTES
+
+  // ============================================================================
   app.get("/api/external/quotations", isAuthenticated, requireRole(EXTERNAL_ALL_ROLES), async (req: any, res) => {
     try {
       const agencyId = await getUserAgencyId(req);
@@ -28368,7 +32148,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(403).json({ message: "User is not assigned to any agency" });
       }
 
-      if (!status || !['draft', 'sent', 'accepted', 'rejected', 'cancelled'].includes(status)) {
+      if (!status || !['draft', 'sent', 'approved', 'rejected', 'converted_to_ticket'].includes(status)) {
         return res.status(400).json({ message: "Invalid status" });
       }
 
@@ -28491,6 +32271,77 @@ export async function registerRoutes(app: Express): Promise<Server> {
       await createAuditLog(req, "view", "external_quotation", id, "Generated PDF for quotation");
     } catch (error: any) {
       console.error("Error generating quotation PDF:", error);
+      if (error instanceof NotFoundError) {
+        return res.status(404).json({ message: error.message });
+      }
+      handleGenericError(res, error);
+    }
+  });
+
+  // POST /api/external/quotations/:id/convert-to-ticket - Convert accepted quotation to maintenance ticket
+  app.post("/api/external/quotations/:id/convert-to-ticket", isAuthenticated, requireRole(EXTERNAL_ADMIN_ROLES), async (req: any, res) => {
+    try {
+      const { id } = req.params;
+      const agencyId = await getUserAgencyId(req);
+      
+      if (!agencyId) {
+        return res.status(403).json({ message: "User is not assigned to any agency" });
+      }
+
+      const quotation = await storage.getExternalQuotationById(id, agencyId);
+      if (!quotation) {
+        return res.status(404).json({ message: "Quotation not found" });
+      }
+
+      if (quotation.status !== "approved") {
+        return res.status(400).json({ message: "Solo se pueden convertir cotizaciones aceptadas" });
+      }
+
+      if ((quotation as any).convertedTicketId) {
+        return res.status(400).json({ message: "Esta cotización ya fue convertida a ticket" });
+      }
+
+      const services = typeof quotation.services === 'string' 
+        ? JSON.parse(quotation.services) 
+        : quotation.services;
+      
+      const servicesDescription = services.map((s: any) => 
+        `- ${s.name}: ${s.quantity} x ${s.unitPrice} = ${s.subtotal}`
+      ).join('\n');
+
+      const ticketData = {
+        title: quotation.title,
+        description: quotation.description || quotation.title,
+        category: 'general' as const,
+        priority: 'medium' as const,
+        status: 'open' as const,
+        agencyId,
+        propertyId: quotation.propertyId || null,
+        unitId: quotation.unitId || null,
+        estimatedCost: quotation.total,
+        quotedTotal: quotation.total,
+        quotedAdminFee: quotation.adminFee,
+        quotedServices: services,
+        quotationId: quotation.id,
+        notes: `Creado desde cotización: ${quotation.quotationNumber}\n\nServicios:\n${servicesDescription}\n\n${(quotation as any).solutionDescription ? `Solución propuesta:\n${(quotation as any).solutionDescription}\n\n` : ''}Notas: ${quotation.notes || 'N/A'}`,
+        createdBy: req.user.id,
+      };
+
+      const ticket = await storage.createExternalMaintenanceTicket(ticketData);
+
+      await storage.updateExternalQuotation(id, agencyId, { 
+        convertedTicketId: ticket.id,
+        status: 'converted_to_ticket' 
+      });
+
+      await createAuditLog(req, "create", "external_maintenance_ticket", ticket.id, `Converted from quotation ${quotation.quotationNumber}`);
+      
+      res.status(201).json({ 
+        ticket,
+        message: "Cotización convertida a ticket exitosamente" 
+      });
+    } catch (error: any) {
+      console.error("Error converting quotation to ticket:", error);
       if (error instanceof NotFoundError) {
         return res.status(404).json({ message: error.message });
       }

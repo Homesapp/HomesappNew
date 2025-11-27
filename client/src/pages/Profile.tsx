@@ -15,13 +15,6 @@ import { formatDistanceToNow } from "date-fns";
 import { es, enUS } from "date-fns/locale";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { Separator } from "@/components/ui/separator";
-
-const EXTERNAL_AGENCY_ROLES = [
-  "external_agency_admin",
-  "external_agency_accounting", 
-  "external_agency_maintenance",
-  "external_agency_staff"
-];
 import {
   AlertDialog,
   AlertDialogAction,
@@ -243,25 +236,20 @@ export default function Profile() {
   });
 
   const recentConversations = conversations.slice(0, 5);
-  
-  const isExternalAgencyUser = user?.role && EXTERNAL_AGENCY_ROLES.includes(user.role);
-  const showConversationsTab = !isExternalAgencyUser;
 
   return (
     <div className="container mx-auto p-6 max-w-4xl">
       <h1 className="text-3xl font-bold mb-6">{t("profile.title")}</h1>
 
       <Tabs defaultValue="personal" className="space-y-6">
-        <TabsList className={showConversationsTab ? "grid w-full grid-cols-2" : "grid w-full grid-cols-1"}>
+        <TabsList className="grid w-full grid-cols-2">
           <TabsTrigger value="personal" data-testid="tab-personal">
             {t("profile.personalInfo")}
           </TabsTrigger>
-          {showConversationsTab && (
-            <TabsTrigger value="chat" data-testid="tab-chat">
-              <MessageCircle className="h-4 w-4 mr-2" />
-              {t("profile.conversations")}
-            </TabsTrigger>
-          )}
+          <TabsTrigger value="chat" data-testid="tab-chat">
+            <MessageCircle className="h-4 w-4 mr-2" />
+            {t("profile.conversations")}
+          </TabsTrigger>
         </TabsList>
 
         <TabsContent value="personal">
@@ -459,76 +447,74 @@ export default function Profile() {
           </Form>
         </TabsContent>
 
-        {showConversationsTab && (
-          <TabsContent value="chat">
-            <Card>
-              <CardHeader>
-                <CardTitle>{t("profile.recentConversations")}</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                {recentConversations.length === 0 ? (
-                  <div className="text-center py-12 text-muted-foreground">
-                    <MessageCircle className="h-12 w-12 mx-auto mb-4 opacity-50" />
-                    <p>{t("profile.noConversations")}</p>
-                  </div>
-                ) : (
-                  <div className="space-y-3">
-                    {recentConversations.map((conversation) => (
-                      <Card
-                        key={conversation.id}
-                        className="hover-elevate cursor-pointer"
-                        onClick={() => setLocation("/chat")}
-                        data-testid={`conversation-${conversation.id}`}
-                      >
-                        <CardContent className="pt-4">
-                          <div className="flex items-start justify-between gap-3">
-                            <div className="flex items-start gap-3 flex-1">
-                              <Avatar className="h-10 w-10">
-                                <AvatarFallback>
-                                  {conversation.isBot ? "🤖" : "👤"}
-                                </AvatarFallback>
-                              </Avatar>
-                              <div className="flex-1 min-w-0">
-                                <div className="flex items-center gap-2 flex-wrap">
-                                  <h4 className="font-semibold text-sm">
-                                    {conversation.title}
-                                  </h4>
-                                  {conversation.isBot && (
-                                    <Badge variant="secondary" className="text-xs">
-                                      {t("profile.bot")}
-                                    </Badge>
-                                  )}
-                                </div>
-                                {conversation.lastMessageAt && (
-                                  <p className="text-xs text-muted-foreground mt-1">
-                                    {formatDistanceToNow(new Date(conversation.lastMessageAt), {
-                                      addSuffix: true,
-                                      locale: dateLocale,
-                                    })}
-                                  </p>
+        <TabsContent value="chat">
+          <Card>
+            <CardHeader>
+              <CardTitle>{t("profile.recentConversations")}</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              {recentConversations.length === 0 ? (
+                <div className="text-center py-12 text-muted-foreground">
+                  <MessageCircle className="h-12 w-12 mx-auto mb-4 opacity-50" />
+                  <p>{t("profile.noConversations")}</p>
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  {recentConversations.map((conversation) => (
+                    <Card
+                      key={conversation.id}
+                      className="hover-elevate cursor-pointer"
+                      onClick={() => setLocation("/chat")}
+                      data-testid={`conversation-${conversation.id}`}
+                    >
+                      <CardContent className="pt-4">
+                        <div className="flex items-start justify-between gap-3">
+                          <div className="flex items-start gap-3 flex-1">
+                            <Avatar className="h-10 w-10">
+                              <AvatarFallback>
+                                {conversation.isBot ? "🤖" : "👤"}
+                              </AvatarFallback>
+                            </Avatar>
+                            <div className="flex-1 min-w-0">
+                              <div className="flex items-center gap-2 flex-wrap">
+                                <h4 className="font-semibold text-sm">
+                                  {conversation.title}
+                                </h4>
+                                {conversation.isBot && (
+                                  <Badge variant="secondary" className="text-xs">
+                                    {t("profile.bot")}
+                                  </Badge>
                                 )}
                               </div>
+                              {conversation.lastMessageAt && (
+                                <p className="text-xs text-muted-foreground mt-1">
+                                  {formatDistanceToNow(new Date(conversation.lastMessageAt), {
+                                    addSuffix: true,
+                                    locale: dateLocale,
+                                  })}
+                                </p>
+                              )}
                             </div>
                           </div>
-                        </CardContent>
-                      </Card>
-                    ))}
-                  </div>
-                )}
-                
-                <div className="flex justify-center pt-4">
-                  <Button
-                    variant="outline"
-                    onClick={() => setLocation("/chat")}
-                    data-testid="button-view-all-chats"
-                  >
-                    {t("profile.viewAllChats")}
-                  </Button>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  ))}
                 </div>
-              </CardContent>
-            </Card>
-          </TabsContent>
-        )}
+              )}
+              
+              <div className="flex justify-center pt-4">
+                <Button
+                  variant="outline"
+                  onClick={() => setLocation("/chat")}
+                  data-testid="button-view-all-chats"
+                >
+                  {t("profile.viewAllChats")}
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
       </Tabs>
     </div>
   );
