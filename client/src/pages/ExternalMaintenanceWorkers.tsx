@@ -658,7 +658,7 @@ export default function ExternalMaintenanceWorkers({
                           </SelectTrigger>
                         </FormControl>
                         <SelectContent>
-                          {(editingWorkerId ? workers : workersWithoutAssignments)?.map((worker) => (
+                          {workers?.map((worker) => (
                             <SelectItem key={worker.id} value={worker.id}>
                               {worker.firstName} {worker.lastName}
                               {worker.maintenanceSpecialty && ` (${SPECIALTY_LABELS[language][worker.maintenanceSpecialty as keyof typeof SPECIALTY_LABELS['es']]})`}
@@ -1246,44 +1246,42 @@ export default function ExternalMaintenanceWorkers({
                                 </div>
                               </CardHeader>
                               <CardContent className="space-y-3 flex-1 flex flex-col">
-                                {/* Assignments List */}
+                                {/* Assignments Summary */}
                                 <div className="space-y-2 flex-1">
                                   <h4 className="text-sm font-medium text-muted-foreground">
-                                    {workerAssignments.some((a: any) => a.isGlobal)
-                                      ? (language === "es" ? "Asignado a todos los condominios:" : "Assigned to all condominiums:")
-                                      : (language === "es" ? "Asignaciones:" : "Assignments:")}
+                                    {language === "es" ? "Asignaciones:" : "Assignments:"}
                                   </h4>
-                                  <ScrollArea className="max-h-[200px]">
-                                    <div className="flex flex-wrap gap-2 pr-4">
-                                      {workerAssignments.map((assignment: any) => (
-                                        <div key={assignment.id} className="flex items-center gap-1">
-                                          {assignment.condominiumId && (
-                                            <Badge 
-                                              variant={assignment.isGlobal ? "secondary" : "outline"} 
-                                              className={`flex items-center gap-1 ${assignment.isGlobal ? 'bg-green-100 dark:bg-green-900/30' : ''}`}
-                                              data-testid={`badge-condo-${assignment.id}`}
-                                            >
-                                              <Building2 className="h-3 w-3 flex-shrink-0" />
-                                              <span className="break-words">{getCondominiumName(assignment.condominiumId)}</span>
-                                            </Badge>
-                                          )}
-                                          {assignment.unitId && (
-                                            <Badge variant="outline" className="flex items-center gap-1" data-testid={`badge-unit-${assignment.id}`}>
-                                              <Home className="h-3 w-3 flex-shrink-0" />
-                                              <span className="break-words">{getUnitName(assignment.unitId)}</span>
-                                            </Badge>
-                                          )}
-                                        </div>
-                                      ))}
-                                    </div>
-                                  </ScrollArea>
-                                </div>
-                                
-                                {/* Assignment Count */}
-                                <div className="text-sm text-muted-foreground pt-2 border-t">
-                                  <span className="font-medium">
-                                    {workerAssignments.length} {language === "es" ? "asignaciones" : "assignments"}
-                                  </span>
+                                  {(() => {
+                                    const condoCount = workerAssignments.filter((a: any) => a.condominiumId && !a.unitId).length;
+                                    const unitCount = workerAssignments.filter((a: any) => a.unitId).length;
+                                    const isGlobal = workerAssignments.some((a: any) => a.isGlobal);
+                                    
+                                    return (
+                                      <div className="flex flex-wrap gap-2">
+                                        {isGlobal ? (
+                                          <Badge variant="secondary" className="flex items-center gap-1 bg-green-100 dark:bg-green-900/30">
+                                            <Building2 className="h-3 w-3 flex-shrink-0" />
+                                            {language === "es" ? "Todos los condominios" : "All condominiums"}
+                                          </Badge>
+                                        ) : (
+                                          <>
+                                            {condoCount > 0 && (
+                                              <Badge variant="outline" className="flex items-center gap-1">
+                                                <Building2 className="h-3 w-3 flex-shrink-0" />
+                                                {condoCount} {language === "es" ? "condominios" : "condos"}
+                                              </Badge>
+                                            )}
+                                            {unitCount > 0 && (
+                                              <Badge variant="outline" className="flex items-center gap-1">
+                                                <Home className="h-3 w-3 flex-shrink-0" />
+                                                {unitCount} {language === "es" ? "unidades" : "units"}
+                                              </Badge>
+                                            )}
+                                          </>
+                                        )}
+                                      </div>
+                                    );
+                                  })()}
                                 </div>
                                 
                                 {/* Actions */}
@@ -1391,24 +1389,37 @@ export default function ExternalMaintenanceWorkers({
                                   ) : '-'}
                                 </TableCell>
                                 <TableCell className="px-3 py-3">
-                                  <div className="flex flex-wrap gap-2">
-                                    {workerAssignments.map((assignment) => (
-                                      <div key={assignment.id} className="flex items-center gap-1">
-                                        {assignment.condominiumId && (
-                                          <Badge variant="outline" className="flex items-center gap-1 text-sm">
+                                  {(() => {
+                                    const condoCount = workerAssignments.filter((a: any) => a.condominiumId && !a.unitId).length;
+                                    const unitCount = workerAssignments.filter((a: any) => a.unitId).length;
+                                    const isGlobal = workerAssignments.some((a: any) => a.isGlobal);
+                                    
+                                    return (
+                                      <div className="flex flex-wrap gap-2">
+                                        {isGlobal ? (
+                                          <Badge variant="secondary" className="flex items-center gap-1 text-sm bg-green-100 dark:bg-green-900/30">
                                             <Building2 className="h-3 w-3" />
-                                            {getCondominiumName(assignment.condominiumId)}
+                                            {language === "es" ? "Todos los condominios" : "All condominiums"}
                                           </Badge>
-                                        )}
-                                        {assignment.unitId && (
-                                          <Badge variant="outline" className="flex items-center gap-1 text-sm">
-                                            <Home className="h-3 w-3" />
-                                            {getUnitName(assignment.unitId)}
-                                          </Badge>
+                                        ) : (
+                                          <>
+                                            {condoCount > 0 && (
+                                              <Badge variant="outline" className="flex items-center gap-1 text-sm">
+                                                <Building2 className="h-3 w-3" />
+                                                {condoCount} {language === "es" ? "condominios" : "condos"}
+                                              </Badge>
+                                            )}
+                                            {unitCount > 0 && (
+                                              <Badge variant="outline" className="flex items-center gap-1 text-sm">
+                                                <Home className="h-3 w-3" />
+                                                {unitCount} {language === "es" ? "unidades" : "units"}
+                                              </Badge>
+                                            )}
+                                          </>
                                         )}
                                       </div>
-                                    ))}
-                                  </div>
+                                    );
+                                  })()}
                                 </TableCell>
                                 <TableCell className="px-3 py-3 text-right">
                                 <div className="flex justify-end gap-2">
