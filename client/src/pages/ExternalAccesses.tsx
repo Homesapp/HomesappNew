@@ -13,7 +13,7 @@ import { useMobile } from "@/hooks/use-mobile";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { Eye, EyeOff, Search, Copy, Check, Mail, Filter, Plus, LayoutGrid, LayoutList, ChevronDown, ChevronUp, ArrowUpDown, ArrowUp, ArrowDown, XCircle, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight } from "lucide-react";
 import { ExternalPaginationControls } from "@/components/external/ExternalPaginationControls";
-import { useState, useMemo, useEffect, useLayoutEffect, lazy, Suspense } from "react";
+import { useState, useMemo, useEffect, useLayoutEffect } from "react";
 import { Link } from "wouter";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import type { User, ExternalCondominium, InsertExternalUnitAccessControl } from "@shared/schema";
@@ -100,9 +100,10 @@ export default function ExternalAccesses() {
     }
   }, [isMobile, prevIsMobile, manualViewModeOverride]);
 
-  // Real-time data: access control codes (frequently updated)
+  // Access control codes (updates when new codes are added)
   const { data: accesses, isLoading } = useQuery<AccessControl[]>({
     queryKey: ['/api/external-all-access-controls'],
+    staleTime: 2 * 60 * 1000, // 2 minutes cache (reduces unnecessary refetches)
   });
 
   // Lightweight condominiums for dropdowns (only id+name)
@@ -123,6 +124,13 @@ export default function ExternalAccesses() {
     select: (users) => users?.filter(u => u.role === 'external_agency_maintenance') || [],
     staleTime: 15 * 60 * 1000, // 15 minutes (rarely changes)
   });
+
+  // Pre-computed condominium lookup map for O(1) access in unit dropdown
+  const condominiumMap = useMemo(() => {
+    const map = new Map<string, string>();
+    condominiums?.forEach(c => map.set(c.id, c.name));
+    return map;
+  }, [condominiums]);
 
   const form = useForm<z.infer<typeof accessFormSchema>>({
     resolver: zodResolver(accessFormSchema),
@@ -375,24 +383,12 @@ ${access.description ? `${language === "es" ? "Descripción" : "Description"}: $
   const tableEndIndex = tableStartIndex + itemsPerPage;
   const paginatedTableAccesses = sortedAccesses.slice(tableStartIndex, tableEndIndex);
 
-  // Pre-render page clamping for table using useLayoutEffect
+  // Page clamping for table (useLayoutEffect for flicker-free UI)
   useLayoutEffect(() => {
-    if (tablePage > tableTotalPages) {
-      setTablePage(tableTotalPages);
-    }
-  }, [tablePage, tableTotalPages]);
-
-  // Clamp table page when data changes
-  useEffect(() => {
     if (tablePage > tableTotalPages && tableTotalPages > 0) {
       setTablePage(tableTotalPages);
     }
-  }, [sortedAccesses.length, itemsPerPage]);
-
-  // Reset table page when filters change
-  useEffect(() => {
-    setTablePage(1);
-  }, [selectedCondominium, selectedUnit, selectedAccessType, searchTerm]);
+  }, [tablePage, tableTotalPages, sortedAccesses.length, itemsPerPage]);
 
   // Group accesses by unit for cards view
   const groupedAccesses = useMemo(() => {
@@ -425,30 +421,12 @@ ${access.description ? `${language === "es" ? "Descripción" : "Description"}: $
   const cardsEndIndex = cardsStartIndex + itemsPerPage;
   const paginatedGroupedAccesses = groupedAccesses.slice(cardsStartIndex, cardsEndIndex);
 
-  // Pre-render page clamping for cards using useLayoutEffect
+  // Page clamping for cards (useLayoutEffect for flicker-free UI)
   useLayoutEffect(() => {
-    if (cardsPage > cardsTotalPages) {
-      setCardsPage(cardsTotalPages);
-    }
-  }, [cardsPage, cardsTotalPages]);
-
-  // Clamp cards page when data changes
-  useEffect(() => {
     if (cardsPage > cardsTotalPages && cardsTotalPages > 0) {
       setCardsPage(cardsTotalPages);
     }
-  }, [groupedAccesses.length, itemsPerPage]);
-
-  // Reset cards page when filters change
-  useEffect(() => {
-    setCardsPage(1);
-  }, [selectedCondominium, selectedUnit, selectedAccessType, searchTerm]);
-
-  // Reset both page states when items per page changes
-  useEffect(() => {
-    setTablePage(1);
-    setCardsPage(1);
-  }, [itemsPerPage]);
+  }, [cardsPage, cardsTotalPages, groupedAccesses.length, itemsPerPage]);
 
   // Handle sort column click
   const handleSort = (column: string) => {
@@ -589,14 +567,11 @@ ${access.description ? `${language === "es" ? "Descripción" : "Description"}: $
                             </SelectTrigger>
                           </FormControl>
                           <SelectContent>
-                            {units?.map((unit) => {
-                              const condo = condominiums?.find(c => c.id === unit.condominiumId);
-                              return (
-                                <SelectItem key={unit.id} value={unit.id}>
-                                  {condo?.name} - {unit.unitNumber}
-                                </SelectItem>
-                              );
-                            })}
+                            {units?.map((unit) => (
+                              <SelectItem key={unit.id} value={unit.id}>
+                                {condominiumMap.get(unit.condominiumId)} - {unit.unitNumber}
+                              </SelectItem>
+                            ))}
                           </SelectContent>
                         </Select>
                         <FormMessage />
