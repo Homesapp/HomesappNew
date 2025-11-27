@@ -62,7 +62,13 @@ import {
   UserPlus,
   Video,
   FileText,
-  CheckCircle2
+  CheckCircle2,
+  Key,
+  Wifi,
+  Lock,
+  Car,
+  UserCheck,
+  Info
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
@@ -146,6 +152,16 @@ type AgencyUser = {
   lastName: string | null;
   email: string;
   role: string;
+};
+
+type UnitAccessControl = {
+  id: string;
+  unitId: string;
+  accessType: "door_code" | "wifi" | "contact" | "lockbox" | "key_location" | "parking" | "other";
+  accessValue: string;
+  accessName: string | null;
+  notes: string | null;
+  isActive: boolean;
 };
 
 const statusColors: Record<string, string> = {
@@ -248,6 +264,37 @@ export default function ExternalAppointments() {
   const { data: condoUnits = [] } = useQuery<{ id: string; unitNumber: string; type: string }[]>({
     queryKey: ["/api/external-condominiums", formData.condominiumId, "units"],
     enabled: !!formData.condominiumId,
+  });
+
+  const selectedUnitIds = useMemo(() => {
+    if (!selectedAppointment) return [];
+    if (selectedAppointment.mode === "tour" && selectedAppointment.tourStops?.length) {
+      return selectedAppointment.tourStops.map(s => s.unitId);
+    }
+    return selectedAppointment.unitId ? [selectedAppointment.unitId] : [];
+  }, [selectedAppointment]);
+
+  const { data: selectedUnitAccessControls = {} } = useQuery<Record<string, UnitAccessControl[]>>({
+    queryKey: ["/api/external-unit-access-controls/batch", selectedUnitIds],
+    queryFn: async () => {
+      if (selectedUnitIds.length === 0) return {};
+      const results: Record<string, UnitAccessControl[]> = {};
+      await Promise.all(selectedUnitIds.map(async (unitId) => {
+        try {
+          const response = await fetch(`/api/external-unit-access-controls/by-unit/${unitId}?isActive=true`, {
+            credentials: 'include'
+          });
+          if (response.ok) {
+            results[unitId] = await response.json();
+          }
+        } catch (error) {
+          console.error(`Error fetching access controls for unit ${unitId}:`, error);
+          results[unitId] = [];
+        }
+      }));
+      return results;
+    },
+    enabled: selectedUnitIds.length > 0 && !!selectedAppointment,
   });
 
   const salespersons = useMemo(() => {
@@ -501,6 +548,31 @@ export default function ExternalAppointments() {
     if (!unitId) return language === "es" ? "Sin unidad" : "No unit";
     const unit = units.find(u => u.id === unitId);
     return unit ? (unit.unitNumber ? `${unit.name} - ${unit.unitNumber}` : unit.name) : unitId;
+  };
+
+  const getUnitInfo = (unitId: string | null) => {
+    if (!unitId) return null;
+    const unit = units.find(u => u.id === unitId);
+    if (!unit) return null;
+    const condo = unit.condominiumId ? allCondominiums.find(c => c.id === unit.condominiumId) : null;
+    return {
+      unitNumber: unit.unitNumber,
+      name: unit.name,
+      condominiumName: condo?.name || null,
+    };
+  };
+
+  const getAccessTypeLabel = (type: UnitAccessControl["accessType"]) => {
+    const labels: Record<string, { es: string; en: string }> = {
+      door_code: { es: "Código de puerta", en: "Door Code" },
+      wifi: { es: "WiFi", en: "WiFi" },
+      contact: { es: "Contacto", en: "Contact" },
+      lockbox: { es: "Caja de llaves", en: "Lockbox" },
+      key_location: { es: "Ubicación de llave", en: "Key Location" },
+      parking: { es: "Estacionamiento", en: "Parking" },
+      other: { es: "Otro", en: "Other" },
+    };
+    return labels[type]?.[language] || type;
   };
 
   const navigatePrev = () => {
@@ -1456,9 +1528,9 @@ export default function ExternalAppointments() {
       {/* Detail Dialog */}
       <Dialog open={!!selectedAppointment} onOpenChange={(open) => !open && setSelectedAppointment(null)}>
         {selectedAppointment && (
-          <DialogContent className="max-w-md">
+          <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
             <DialogHeader>
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-2 flex-wrap">
                 <Badge className={statusColors[selectedAppointment.status]}>
                   {statusLabels[selectedAppointment.status][language]}
                 </Badge>
@@ -1470,57 +1542,156 @@ export default function ExternalAppointments() {
             </DialogHeader>
 
             <div className="space-y-4">
-              <div className="flex items-center gap-2 text-sm">
-                <CalendarIcon className="h-4 w-4 text-muted-foreground" />
-                <span>{format(new Date(selectedAppointment.date), "PPP", { locale })}</span>
+              <div className="grid grid-cols-2 gap-3 text-sm">
+                <div className="flex items-center gap-2">
+                  <CalendarIcon className="h-4 w-4 text-muted-foreground flex-shrink-0" />
+                  <span>{format(new Date(selectedAppointment.date), "PPP", { locale })}</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <Clock className="h-4 w-4 text-muted-foreground flex-shrink-0" />
+                  <span>
+                    {format(new Date(selectedAppointment.date), "HH:mm", { locale })}
+                    {selectedAppointment.endTime && ` - ${format(new Date(selectedAppointment.endTime), "HH:mm", { locale })}`}
+                  </span>
+                </div>
               </div>
-              <div className="flex items-center gap-2 text-sm">
-                <Clock className="h-4 w-4 text-muted-foreground" />
-                <span>
-                  {format(new Date(selectedAppointment.date), "HH:mm", { locale })}
-                  {selectedAppointment.endTime && ` - ${format(new Date(selectedAppointment.endTime), "HH:mm", { locale })}`}
-                </span>
-              </div>
-              {selectedAppointment.clientEmail && (
-                <div className="flex items-center gap-2 text-sm">
-                  <Mail className="h-4 w-4 text-muted-foreground" />
-                  <span>{selectedAppointment.clientEmail}</span>
+
+              {(selectedAppointment.clientEmail || selectedAppointment.clientPhone) && (
+                <div className="grid grid-cols-2 gap-3 text-sm">
+                  {selectedAppointment.clientEmail && (
+                    <div className="flex items-center gap-2">
+                      <Mail className="h-4 w-4 text-muted-foreground flex-shrink-0" />
+                      <span className="truncate">{selectedAppointment.clientEmail}</span>
+                    </div>
+                  )}
+                  {selectedAppointment.clientPhone && (
+                    <div className="flex items-center gap-2">
+                      <Phone className="h-4 w-4 text-muted-foreground flex-shrink-0" />
+                      <span>{selectedAppointment.clientPhone}</span>
+                    </div>
+                  )}
                 </div>
               )}
-              {selectedAppointment.clientPhone && (
-                <div className="flex items-center gap-2 text-sm">
-                  <Phone className="h-4 w-4 text-muted-foreground" />
-                  <span>{selectedAppointment.clientPhone}</span>
-                </div>
+
+              {selectedAppointment.mode === "individual" && selectedAppointment.unitId && (
+                <>
+                  <div className="border-t pt-4">
+                    <Label className="text-muted-foreground flex items-center gap-2 mb-2">
+                      <Building2 className="h-4 w-4" />
+                      {language === "es" ? "Propiedad" : "Property"}
+                    </Label>
+                    {(() => {
+                      const unitInfo = getUnitInfo(selectedAppointment.unitId);
+                      return unitInfo ? (
+                        <div className="bg-muted rounded-lg p-3 space-y-2">
+                          {unitInfo.condominiumName && (
+                            <div className="flex items-center gap-2 text-sm">
+                              <Building className="h-4 w-4 text-muted-foreground" />
+                              <span className="font-medium">{unitInfo.condominiumName}</span>
+                            </div>
+                          )}
+                          <div className="flex items-center gap-2 text-sm">
+                            <Home className="h-4 w-4 text-muted-foreground" />
+                            <span>{unitInfo.unitNumber || unitInfo.name}</span>
+                          </div>
+                        </div>
+                      ) : (
+                        <div className="text-sm text-muted-foreground">
+                          {selectedAppointment.unitId}
+                        </div>
+                      );
+                    })()}
+                  </div>
+
+                  {selectedUnitAccessControls[selectedAppointment.unitId]?.length > 0 && (
+                    <div className="border-t pt-4">
+                      <Label className="text-muted-foreground flex items-center gap-2 mb-2">
+                        <Key className="h-4 w-4" />
+                        {language === "es" ? "Credenciales de Acceso" : "Access Credentials"}
+                      </Label>
+                      <div className="bg-muted rounded-lg p-3 space-y-2">
+                        {selectedUnitAccessControls[selectedAppointment.unitId].map((control) => (
+                          <div key={control.id} className="flex items-start gap-2 text-sm">
+                            {control.accessType === "wifi" && <Wifi className="h-4 w-4 text-blue-500 mt-0.5" />}
+                            {control.accessType === "door_code" && <Lock className="h-4 w-4 text-green-500 mt-0.5" />}
+                            {control.accessType === "lockbox" && <Key className="h-4 w-4 text-orange-500 mt-0.5" />}
+                            {control.accessType === "contact" && <UserCheck className="h-4 w-4 text-purple-500 mt-0.5" />}
+                            {control.accessType === "parking" && <Car className="h-4 w-4 text-gray-500 mt-0.5" />}
+                            {(control.accessType === "key_location" || control.accessType === "other") && <Info className="h-4 w-4 text-muted-foreground mt-0.5" />}
+                            <div className="flex-1">
+                              <div className="font-medium">{getAccessTypeLabel(control.accessType)}</div>
+                              <div className="text-muted-foreground">
+                                {control.accessName && <span className="mr-2">{control.accessName}:</span>}
+                                <span className="font-mono bg-background px-1 rounded">{control.accessValue}</span>
+                              </div>
+                              {control.notes && (
+                                <div className="text-xs text-muted-foreground mt-1">{control.notes}</div>
+                              )}
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </>
               )}
-              {selectedAppointment.unitId && (
-                <div className="flex items-center gap-2 text-sm">
-                  <Building2 className="h-4 w-4 text-muted-foreground" />
-                  <span>{getUnitName(selectedAppointment.unitId)}</span>
-                </div>
-              )}
+
               {selectedAppointment.notes && (
-                <div className="text-sm">
+                <div className="border-t pt-4">
                   <Label className="text-muted-foreground">{language === "es" ? "Notas" : "Notes"}</Label>
-                  <p className="mt-1">{selectedAppointment.notes}</p>
+                  <p className="mt-1 text-sm">{selectedAppointment.notes}</p>
                 </div>
               )}
 
               {selectedAppointment.tourStops && selectedAppointment.tourStops.length > 0 && (
-                <div>
-                  <Label className="text-muted-foreground">
+                <div className="border-t pt-4">
+                  <Label className="text-muted-foreground flex items-center gap-2 mb-2">
+                    <MapPin className="h-4 w-4" />
                     {language === "es" ? "Propiedades del tour" : "Tour properties"}
                   </Label>
-                  <div className="mt-2 space-y-2">
-                    {selectedAppointment.tourStops.map((stop, i) => (
-                      <div key={stop.id} className="flex items-center gap-2 text-sm p-2 bg-muted rounded">
-                        <Badge variant="outline">{i + 1}</Badge>
-                        <span>{getUnitName(stop.unitId)}</span>
-                        <span className="text-muted-foreground">
-                          {format(new Date(stop.scheduledTime), "HH:mm")}
-                        </span>
-                      </div>
-                    ))}
+                  <div className="space-y-3">
+                    {selectedAppointment.tourStops.map((stop, i) => {
+                      const unitInfo = getUnitInfo(stop.unitId);
+                      const accessControls = selectedUnitAccessControls[stop.unitId] || [];
+                      return (
+                        <div key={stop.id} className="bg-muted rounded-lg p-3">
+                          <div className="flex items-center gap-2 mb-2">
+                            <Badge variant="outline" className="flex-shrink-0">{i + 1}</Badge>
+                            <span className="font-medium text-sm">{format(new Date(stop.scheduledTime), "HH:mm")}</span>
+                          </div>
+                          {unitInfo && (
+                            <div className="space-y-1 text-sm pl-6">
+                              {unitInfo.condominiumName && (
+                                <div className="flex items-center gap-2">
+                                  <Building className="h-3 w-3 text-muted-foreground" />
+                                  <span>{unitInfo.condominiumName}</span>
+                                </div>
+                              )}
+                              <div className="flex items-center gap-2">
+                                <Home className="h-3 w-3 text-muted-foreground" />
+                                <span>{unitInfo.unitNumber || unitInfo.name}</span>
+                              </div>
+                            </div>
+                          )}
+                          {accessControls.length > 0 && (
+                            <div className="mt-2 pt-2 border-t border-border/50 pl-6 space-y-1">
+                              {accessControls.map((control) => (
+                                <div key={control.id} className="flex items-center gap-2 text-xs">
+                                  {control.accessType === "wifi" && <Wifi className="h-3 w-3 text-blue-500" />}
+                                  {control.accessType === "door_code" && <Lock className="h-3 w-3 text-green-500" />}
+                                  {control.accessType === "lockbox" && <Key className="h-3 w-3 text-orange-500" />}
+                                  {control.accessType === "contact" && <UserCheck className="h-3 w-3 text-purple-500" />}
+                                  {control.accessType === "parking" && <Car className="h-3 w-3 text-gray-500" />}
+                                  {(control.accessType === "key_location" || control.accessType === "other") && <Info className="h-3 w-3 text-muted-foreground" />}
+                                  <span className="text-muted-foreground">{getAccessTypeLabel(control.accessType)}:</span>
+                                  <span className="font-mono bg-background px-1 rounded">{control.accessValue}</span>
+                                </div>
+                              ))}
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })}
                   </div>
                 </div>
               )}
