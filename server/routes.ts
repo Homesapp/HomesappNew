@@ -26275,6 +26275,66 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // External Rental Contracts Routes
   // Get all rental contracts for user's agency with unit and condominium info
   app.get("/api/external-rental-contracts", isAuthenticated, requireRole(EXTERNAL_ALL_ROLES), async (req: any, res) => {
+
+  // Consolidated rentals overview endpoint - returns contracts, stats, and filters in one call
+  app.get("/api/external/rentals/overview", isAuthenticated, requireRole(EXTERNAL_ALL_ROLES), async (req: any, res) => {
+    try {
+      const agencyId = await getUserAgencyId(req);
+      if (!agencyId) {
+        return res.status(403).json({ message: "No agency access" });
+      }
+      
+      const { status } = req.query;
+      
+      // Get all rental contracts for agency
+      let allContracts = await db.select({
+        contract: externalRentalContracts,
+        unit: externalUnits,
+        condominium: externalCondominiums,
+      })
+        .from(externalRentalContracts)
+        .leftJoin(externalUnits, eq(externalRentalContracts.unitId, externalUnits.id))
+        .leftJoin(externalCondominiums, eq(externalUnits.condominiumId, externalCondominiums.id))
+        .where(eq(externalRentalContracts.agencyId, agencyId))
+        .orderBy(desc(externalRentalContracts.createdAt));
+      
+      // Calculate stats
+      const stats = {
+        total: allContracts.length,
+        active: allContracts.filter(c => c.contract.status === 'active').length,
+        completed: allContracts.filter(c => c.contract.status === 'completed').length,
+        pending: allContracts.filter(c => c.contract.status === 'pending').length,
+      };
+      
+      // Filter by status if provided
+      let filteredContracts = allContracts;
+      if (status && status !== 'all') {
+        filteredContracts = allContracts.filter(c => c.contract.status === status);
+      }
+      
+      // Format contracts with unit and condominium info
+      const contracts = filteredContracts.map(c => ({
+        ...c.contract,
+        unit: c.unit ? {
+          id: c.unit.id,
+          unitNumber: c.unit.unitNumber,
+          name: c.unit.name,
+        } : null,
+        condominium: c.condominium ? {
+          id: c.condominium.id,
+          name: c.condominium.name,
+        } : null,
+      }));
+      
+      res.json({
+        contracts,
+        stats,
+      });
+    } catch (error: any) {
+      console.error("Error fetching rentals overview:", error);
+      handleGenericError(res, error);
+    }
+  });
     try {
       const agencyId = await getUserAgencyId(req);
       if (!agencyId) {
