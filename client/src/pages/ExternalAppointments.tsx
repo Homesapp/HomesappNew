@@ -1077,7 +1077,7 @@ export default function ExternalAppointments() {
                       {format(formData.date, "d MMM yyyy", { locale })}
                     </Button>
                   </PopoverTrigger>
-                  <PopoverContent className="w-auto p-0" align="start">
+                  <PopoverContent className="w-auto p-0 z-[100]" align="start" sideOffset={5}>
                     <Calendar
                       mode="single"
                       selected={formData.date}
