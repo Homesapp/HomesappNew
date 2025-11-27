@@ -311,8 +311,9 @@ export default function ExternalMaintenanceWorkers({
 
   const deleteMutation = useMutation({
     mutationFn: async (workerId: string) => {
-      // Delete all assignments for this worker
-      const workerAssignments = assignments?.filter(a => a.userId === workerId) || [];
+      // Delete all non-global (real) assignments for this worker
+      // Virtual assignments (isGlobal: true) cannot be deleted - they are auto-generated for maintenance managers
+      const workerAssignments = assignments?.filter((a: any) => a.userId === workerId && !a.isGlobal) || [];
       const deletePromises = workerAssignments.map(assignment =>
         apiRequest("DELETE", `/api/external-worker-assignments/${assignment.id}`, {})
       );
@@ -340,9 +341,10 @@ export default function ExternalMaintenanceWorkers({
   });
 
   const onSubmit = async (data: CreateAssignmentForm) => {
-    // If editing, first delete all existing assignments for this worker
+    // If editing, first delete all existing non-global assignments for this worker
+    // Virtual assignments (isGlobal: true) cannot be deleted - they are auto-generated for maintenance managers
     if (editingWorkerId) {
-      const workerAssignments = assignments?.filter(a => a.userId === editingWorkerId) || [];
+      const workerAssignments = assignments?.filter((a: any) => a.userId === editingWorkerId && !a.isGlobal) || [];
       
       // Get unique assignment IDs to avoid duplicates
       const uniqueAssignmentIds = [...new Set(workerAssignments.map(a => a.id))];
@@ -1204,25 +1206,38 @@ export default function ExternalMaintenanceWorkers({
                                     {worker.firstName} {worker.lastName}
                                   </span>
                                 </CardTitle>
-                                {worker.maintenanceSpecialty && (
-                                  <Badge variant="secondary" className="flex-shrink-0 self-start" data-testid={`badge-assignment-specialty-${worker.id}`}>
-                                    <Wrench className="h-3 w-3 mr-1 flex-shrink-0" />
-                                    {SPECIALTY_LABELS[language][worker.maintenanceSpecialty as keyof typeof SPECIALTY_LABELS['es']]}
-                                  </Badge>
-                                )}
+                                <div className="flex flex-wrap gap-2">
+                                  {worker.maintenanceSpecialty && (
+                                    <Badge variant="secondary" className="flex-shrink-0" data-testid={`badge-assignment-specialty-${worker.id}`}>
+                                      <Wrench className="h-3 w-3 mr-1 flex-shrink-0" />
+                                      {SPECIALTY_LABELS[language][worker.maintenanceSpecialty as keyof typeof SPECIALTY_LABELS['es']]}
+                                    </Badge>
+                                  )}
+                                  {workerAssignments.some((a: any) => a.isGlobal) && (
+                                    <Badge variant="default" className="bg-green-600 flex-shrink-0" data-testid={`badge-global-access-${worker.id}`}>
+                                      {language === "es" ? "Acceso Global" : "Global Access"}
+                                    </Badge>
+                                  )}
+                                </div>
                               </CardHeader>
                               <CardContent className="space-y-3 flex-1 flex flex-col">
                                 {/* Assignments List */}
                                 <div className="space-y-2 flex-1">
                                   <h4 className="text-sm font-medium text-muted-foreground">
-                                    {language === "es" ? "Asignaciones:" : "Assignments:"}
+                                    {workerAssignments.some((a: any) => a.isGlobal)
+                                      ? (language === "es" ? "Asignado a todos los condominios:" : "Assigned to all condominiums:")
+                                      : (language === "es" ? "Asignaciones:" : "Assignments:")}
                                   </h4>
                                   <ScrollArea className="max-h-[200px]">
                                     <div className="flex flex-wrap gap-2 pr-4">
-                                      {workerAssignments.map((assignment) => (
+                                      {workerAssignments.map((assignment: any) => (
                                         <div key={assignment.id} className="flex items-center gap-1">
                                           {assignment.condominiumId && (
-                                            <Badge variant="outline" className="flex items-center gap-1" data-testid={`badge-condo-${assignment.id}`}>
+                                            <Badge 
+                                              variant={assignment.isGlobal ? "secondary" : "outline"} 
+                                              className={`flex items-center gap-1 ${assignment.isGlobal ? 'bg-green-100 dark:bg-green-900/30' : ''}`}
+                                              data-testid={`badge-condo-${assignment.id}`}
+                                            >
                                               <Building2 className="h-3 w-3 flex-shrink-0" />
                                               <span className="break-words">{getCondominiumName(assignment.condominiumId)}</span>
                                             </Badge>
@@ -1262,8 +1277,10 @@ export default function ExternalMaintenanceWorkers({
                                     variant="outline"
                                     size="sm"
                                     className="flex-1"
+                                    disabled={!workerAssignments.some((a: any) => !a.isGlobal)}
                                     onClick={() => {
-                                      if (workerAssignments.length > 0) {
+                                      const deletableAssignments = workerAssignments.filter((a: any) => !a.isGlobal);
+                                      if (deletableAssignments.length > 0) {
                                         setDeleteAssignmentId(worker.id);
                                       }
                                     }}
@@ -1381,9 +1398,10 @@ export default function ExternalMaintenanceWorkers({
                                   <Button
                                     variant="outline"
                                     size="icon"
+                                    disabled={!workerAssignments.some((a: any) => !a.isGlobal)}
                                     onClick={() => {
-                                      // Delete all assignments for this worker
-                                      if (workerAssignments.length > 0) {
+                                      const deletableAssignments = workerAssignments.filter((a: any) => !a.isGlobal);
+                                      if (deletableAssignments.length > 0) {
                                         setDeleteAssignmentId(worker.id);
                                       }
                                     }}

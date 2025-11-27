@@ -22215,7 +22215,54 @@ export async function registerRoutes(app: Express): Promise<Server> {
         .from(externalWorkerAssignments)
         .where(eq(externalWorkerAssignments.agencyId, agencyId));
 
-      res.json(assignments);
+      // Get maintenance managers (encargado_mantenimiento) who have global access
+      const maintenanceManagers = await db
+        .select({
+          id: users.id,
+        })
+        .from(users)
+        .where(and(
+          eq(users.assignedToUser, agencyId),
+          eq(users.maintenanceSpecialty, 'encargado_mantenimiento')
+        ));
+
+      // Get all condominiums for this agency
+      const allCondominiums = await db
+        .select({ id: externalCondominiums.id })
+        .from(externalCondominiums)
+        .where(eq(externalCondominiums.agencyId, agencyId));
+
+      // Generate virtual assignments for maintenance managers (they have access to all condos)
+      const virtualAssignments: any[] = [];
+      for (const manager of maintenanceManagers) {
+        // Check if manager already has manual assignments - if so, skip virtual ones for those condos
+        const existingCondoIds = new Set(
+          assignments.filter(a => a.userId === manager.id && a.condominiumId).map(a => a.condominiumId)
+        );
+        
+        for (const condo of allCondominiums) {
+          // Only add virtual assignment if no manual assignment exists for this condo
+          if (!existingCondoIds.has(condo.id)) {
+            virtualAssignments.push({
+              id: `virtual-${manager.id}-${condo.id}`,
+              agencyId,
+              userId: manager.id,
+              condominiumId: condo.id,
+              unitId: null,
+              createdAt: new Date(),
+              isGlobal: true, // Flag to indicate this is an automatic global assignment
+            });
+          }
+        }
+      }
+
+      // Combine real assignments (marked with isGlobal: false) with virtual ones
+      const combinedAssignments = [
+        ...assignments.map(a => ({ ...a, isGlobal: false })),
+        ...virtualAssignments,
+      ];
+
+      res.json(combinedAssignments);
     } catch (error: any) {
       console.error("Error fetching worker assignments:", error);
       handleGenericError(res, error);
