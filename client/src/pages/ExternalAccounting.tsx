@@ -2158,7 +2158,7 @@ export default function ExternalAccounting() {
           </Card>
 
           {/* Summary Cards */}
-          <div className="grid gap-4 md:grid-cols-4">
+          <div className="grid gap-4 md:grid-cols-3">
             <Card className="hover-elevate">
               <CardHeader className="flex flex-row items-center justify-between gap-1 space-y-0 pb-2">
                 <CardTitle className="text-sm font-medium">{language === 'es' ? 'Trabajadores' : 'Workers'}</CardTitle>
@@ -2175,15 +2175,6 @@ export default function ExternalAccounting() {
               </CardHeader>
               <CardContent>
                 <div className="text-lg font-bold" data-testid="text-maint-actual-cost">{formatCurrency(maintenancePaymentsData?.summary?.totalActualCost || 0)}</div>
-              </CardContent>
-            </Card>
-            <Card className="hover-elevate">
-              <CardHeader className="flex flex-row items-center justify-between gap-1 space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">{language === 'es' ? 'Comisión' : 'Commission'}</CardTitle>
-                <Receipt className="h-4 w-4 text-blue-600" />
-              </CardHeader>
-              <CardContent>
-                <div className="text-lg font-bold text-blue-600" data-testid="text-maint-commission">{formatCurrency(maintenancePaymentsData?.summary?.totalAdminFee || 0)}</div>
               </CardContent>
             </Card>
             <Card className="hover-elevate">
@@ -2211,9 +2202,34 @@ export default function ExternalAccounting() {
                     </CardHeader>
                     <CardContent className="space-y-2">
                       <div className="flex justify-between"><span className="text-muted-foreground">{language === 'es' ? 'Costo:' : 'Cost:'}</span><span className="font-medium">{formatCurrency(payment.totalActualCost)}</span></div>
-                      <div className="flex justify-between"><span className="text-muted-foreground">{language === 'es' ? 'Comisión:' : 'Commission:'}</span><span className="font-medium text-blue-600">{formatCurrency(payment.totalAdminFee)}</span></div>
                       <Separator />
                       <div className="flex justify-between"><span className="font-medium">{language === 'es' ? 'Total:' : 'Total:'}</span><span className="font-bold text-green-600">{formatCurrency(payment.totalCharge)}</span></div>
+                      <div className="flex justify-between items-center pt-2">
+                        <span className="text-muted-foreground">{language === 'es' ? 'Estado:' : 'Status:'}</span>
+                        <Badge 
+                          variant={payment.tickets?.some((t: any) => t.workerPaymentStatus === 'paid') ? 'default' : 'outline'}
+                          className={payment.tickets?.every((t: any) => t.workerPaymentStatus === 'paid') ? 'bg-green-600' : payment.tickets?.some((t: any) => t.workerPaymentStatus === 'paid') ? 'bg-yellow-500' : ''}
+                        >
+                          {payment.tickets?.every((t: any) => t.workerPaymentStatus === 'paid') 
+                            ? (language === 'es' ? 'Pagado' : 'Paid')
+                            : payment.tickets?.some((t: any) => t.workerPaymentStatus === 'paid')
+                              ? (language === 'es' ? 'Parcial' : 'Partial')
+                              : (language === 'es' ? 'Pendiente' : 'Pending')}
+                        </Badge>
+                      </div>
+                      <div className="flex justify-between items-center">
+                        <span className="text-muted-foreground">{language === 'es' ? 'Cobrado:' : 'Collected:'}</span>
+                        <Badge 
+                          variant={payment.tickets?.some((t: any) => t.agencyCollectedStatus === 'collected') ? 'default' : 'outline'}
+                          className={payment.tickets?.every((t: any) => t.agencyCollectedStatus === 'collected') ? 'bg-blue-600' : payment.tickets?.some((t: any) => t.agencyCollectedStatus === 'collected') ? 'bg-yellow-500' : ''}
+                        >
+                          {payment.tickets?.every((t: any) => t.agencyCollectedStatus === 'collected') 
+                            ? (language === 'es' ? 'Cobrado' : 'Collected')
+                            : payment.tickets?.some((t: any) => t.agencyCollectedStatus === 'collected')
+                              ? (language === 'es' ? 'Parcial' : 'Partial')
+                              : (language === 'es' ? 'Pendiente' : 'Pending')}
+                        </Badge>
+                      </div>
                     </CardContent>
                   </Card>
                 ))}
@@ -2226,8 +2242,9 @@ export default function ExternalAccounting() {
                       <TableHead>{language === 'es' ? 'Trabajador' : 'Worker'}</TableHead>
                       <TableHead className="text-center">{language === 'es' ? 'Tickets' : 'Tickets'}</TableHead>
                       <TableHead className="text-right">{language === 'es' ? 'Costo' : 'Cost'}</TableHead>
-                      <TableHead className="text-right">{language === 'es' ? 'Comisión' : 'Commission'}</TableHead>
                       <TableHead className="text-right">{language === 'es' ? 'Total' : 'Total'}</TableHead>
+                      <TableHead className="text-center">{language === 'es' ? 'Estado' : 'Status'}</TableHead>
+                      <TableHead className="text-center">{language === 'es' ? 'Cobrado' : 'Collected'}</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
@@ -2236,8 +2253,31 @@ export default function ExternalAccounting() {
                         <TableCell className="font-medium">{payment.workerName}</TableCell>
                         <TableCell className="text-center">{payment.ticketCount}</TableCell>
                         <TableCell className="text-right">{formatCurrency(payment.totalActualCost)}</TableCell>
-                        <TableCell className="text-right text-blue-600">{formatCurrency(payment.totalAdminFee)}</TableCell>
                         <TableCell className="text-right font-bold text-green-600">{formatCurrency(payment.totalCharge)}</TableCell>
+                        <TableCell className="text-center">
+                          <Badge 
+                            variant={payment.tickets?.some((t: any) => t.workerPaymentStatus === 'paid') ? 'default' : 'outline'}
+                            className={payment.tickets?.every((t: any) => t.workerPaymentStatus === 'paid') ? 'bg-green-600 hover:bg-green-700' : payment.tickets?.some((t: any) => t.workerPaymentStatus === 'paid') ? 'bg-yellow-500 hover:bg-yellow-600' : ''}
+                          >
+                            {payment.tickets?.every((t: any) => t.workerPaymentStatus === 'paid') 
+                              ? (language === 'es' ? 'Pagado' : 'Paid')
+                              : payment.tickets?.some((t: any) => t.workerPaymentStatus === 'paid')
+                                ? (language === 'es' ? 'Parcial' : 'Partial')
+                                : (language === 'es' ? 'Pendiente' : 'Pending')}
+                          </Badge>
+                        </TableCell>
+                        <TableCell className="text-center">
+                          <Badge 
+                            variant={payment.tickets?.some((t: any) => t.agencyCollectedStatus === 'collected') ? 'default' : 'outline'}
+                            className={payment.tickets?.every((t: any) => t.agencyCollectedStatus === 'collected') ? 'bg-blue-600 hover:bg-blue-700' : payment.tickets?.some((t: any) => t.agencyCollectedStatus === 'collected') ? 'bg-yellow-500 hover:bg-yellow-600' : ''}
+                          >
+                            {payment.tickets?.every((t: any) => t.agencyCollectedStatus === 'collected') 
+                              ? (language === 'es' ? 'Cobrado' : 'Collected')
+                              : payment.tickets?.some((t: any) => t.agencyCollectedStatus === 'collected')
+                                ? (language === 'es' ? 'Parcial' : 'Partial')
+                                : (language === 'es' ? 'Pendiente' : 'Pending')}
+                          </Badge>
+                        </TableCell>
                       </TableRow>
                     ))}
                   </TableBody>
@@ -2361,7 +2401,7 @@ export default function ExternalAccounting() {
           </Card>
 
           {/* Summary Cards */}
-          <div className="grid gap-4 md:grid-cols-4">
+          <div className="grid gap-4 md:grid-cols-3">
             <Card className="hover-elevate">
               <CardHeader className="flex flex-row items-center justify-between gap-1 space-y-0 pb-2">
                 <CardTitle className="text-sm font-medium">{language === 'es' ? 'Trabajadores' : 'Workers'}</CardTitle>
@@ -2378,15 +2418,6 @@ export default function ExternalAccounting() {
               </CardHeader>
               <CardContent>
                 <div className="text-lg font-bold" data-testid="text-clean-actual-cost">{formatCurrency(cleaningPaymentsData?.summary?.totalActualCost || 0)}</div>
-              </CardContent>
-            </Card>
-            <Card className="hover-elevate">
-              <CardHeader className="flex flex-row items-center justify-between gap-1 space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">{language === 'es' ? 'Comisión' : 'Commission'}</CardTitle>
-                <Receipt className="h-4 w-4 text-blue-600" />
-              </CardHeader>
-              <CardContent>
-                <div className="text-lg font-bold text-blue-600" data-testid="text-clean-commission">{formatCurrency(cleaningPaymentsData?.summary?.totalAdminFee || 0)}</div>
               </CardContent>
             </Card>
             <Card className="hover-elevate">
@@ -2414,9 +2445,34 @@ export default function ExternalAccounting() {
                     </CardHeader>
                     <CardContent className="space-y-2">
                       <div className="flex justify-between"><span className="text-muted-foreground">{language === 'es' ? 'Costo:' : 'Cost:'}</span><span className="font-medium">{formatCurrency(payment.totalActualCost)}</span></div>
-                      <div className="flex justify-between"><span className="text-muted-foreground">{language === 'es' ? 'Comisión:' : 'Commission:'}</span><span className="font-medium text-blue-600">{formatCurrency(payment.totalAdminFee)}</span></div>
                       <Separator />
                       <div className="flex justify-between"><span className="font-medium">{language === 'es' ? 'Total:' : 'Total:'}</span><span className="font-bold text-green-600">{formatCurrency(payment.totalCharge)}</span></div>
+                      <div className="flex justify-between items-center pt-2">
+                        <span className="text-muted-foreground">{language === 'es' ? 'Estado:' : 'Status:'}</span>
+                        <Badge 
+                          variant={payment.tickets?.some((t: any) => t.workerPaymentStatus === 'paid') ? 'default' : 'outline'}
+                          className={payment.tickets?.every((t: any) => t.workerPaymentStatus === 'paid') ? 'bg-green-600' : payment.tickets?.some((t: any) => t.workerPaymentStatus === 'paid') ? 'bg-yellow-500' : ''}
+                        >
+                          {payment.tickets?.every((t: any) => t.workerPaymentStatus === 'paid') 
+                            ? (language === 'es' ? 'Pagado' : 'Paid')
+                            : payment.tickets?.some((t: any) => t.workerPaymentStatus === 'paid')
+                              ? (language === 'es' ? 'Parcial' : 'Partial')
+                              : (language === 'es' ? 'Pendiente' : 'Pending')}
+                        </Badge>
+                      </div>
+                      <div className="flex justify-between items-center">
+                        <span className="text-muted-foreground">{language === 'es' ? 'Cobrado:' : 'Collected:'}</span>
+                        <Badge 
+                          variant={payment.tickets?.some((t: any) => t.agencyCollectedStatus === 'collected') ? 'default' : 'outline'}
+                          className={payment.tickets?.every((t: any) => t.agencyCollectedStatus === 'collected') ? 'bg-blue-600' : payment.tickets?.some((t: any) => t.agencyCollectedStatus === 'collected') ? 'bg-yellow-500' : ''}
+                        >
+                          {payment.tickets?.every((t: any) => t.agencyCollectedStatus === 'collected') 
+                            ? (language === 'es' ? 'Cobrado' : 'Collected')
+                            : payment.tickets?.some((t: any) => t.agencyCollectedStatus === 'collected')
+                              ? (language === 'es' ? 'Parcial' : 'Partial')
+                              : (language === 'es' ? 'Pendiente' : 'Pending')}
+                        </Badge>
+                      </div>
                     </CardContent>
                   </Card>
                 ))}
@@ -2429,8 +2485,9 @@ export default function ExternalAccounting() {
                       <TableHead>{language === 'es' ? 'Trabajador' : 'Worker'}</TableHead>
                       <TableHead className="text-center">{language === 'es' ? 'Servicios' : 'Services'}</TableHead>
                       <TableHead className="text-right">{language === 'es' ? 'Costo' : 'Cost'}</TableHead>
-                      <TableHead className="text-right">{language === 'es' ? 'Comisión' : 'Commission'}</TableHead>
                       <TableHead className="text-right">{language === 'es' ? 'Total' : 'Total'}</TableHead>
+                      <TableHead className="text-center">{language === 'es' ? 'Estado' : 'Status'}</TableHead>
+                      <TableHead className="text-center">{language === 'es' ? 'Cobrado' : 'Collected'}</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
@@ -2439,8 +2496,31 @@ export default function ExternalAccounting() {
                         <TableCell className="font-medium">{payment.workerName}</TableCell>
                         <TableCell className="text-center">{payment.ticketCount}</TableCell>
                         <TableCell className="text-right">{formatCurrency(payment.totalActualCost)}</TableCell>
-                        <TableCell className="text-right text-blue-600">{formatCurrency(payment.totalAdminFee)}</TableCell>
                         <TableCell className="text-right font-bold text-green-600">{formatCurrency(payment.totalCharge)}</TableCell>
+                        <TableCell className="text-center">
+                          <Badge 
+                            variant={payment.tickets?.some((t: any) => t.workerPaymentStatus === 'paid') ? 'default' : 'outline'}
+                            className={payment.tickets?.every((t: any) => t.workerPaymentStatus === 'paid') ? 'bg-green-600 hover:bg-green-700' : payment.tickets?.some((t: any) => t.workerPaymentStatus === 'paid') ? 'bg-yellow-500 hover:bg-yellow-600' : ''}
+                          >
+                            {payment.tickets?.every((t: any) => t.workerPaymentStatus === 'paid') 
+                              ? (language === 'es' ? 'Pagado' : 'Paid')
+                              : payment.tickets?.some((t: any) => t.workerPaymentStatus === 'paid')
+                                ? (language === 'es' ? 'Parcial' : 'Partial')
+                                : (language === 'es' ? 'Pendiente' : 'Pending')}
+                          </Badge>
+                        </TableCell>
+                        <TableCell className="text-center">
+                          <Badge 
+                            variant={payment.tickets?.some((t: any) => t.agencyCollectedStatus === 'collected') ? 'default' : 'outline'}
+                            className={payment.tickets?.every((t: any) => t.agencyCollectedStatus === 'collected') ? 'bg-blue-600 hover:bg-blue-700' : payment.tickets?.some((t: any) => t.agencyCollectedStatus === 'collected') ? 'bg-yellow-500 hover:bg-yellow-600' : ''}
+                          >
+                            {payment.tickets?.every((t: any) => t.agencyCollectedStatus === 'collected') 
+                              ? (language === 'es' ? 'Cobrado' : 'Collected')
+                              : payment.tickets?.some((t: any) => t.agencyCollectedStatus === 'collected')
+                                ? (language === 'es' ? 'Parcial' : 'Partial')
+                                : (language === 'es' ? 'Pendiente' : 'Pending')}
+                          </Badge>
+                        </TableCell>
                       </TableRow>
                     ))}
                   </TableBody>

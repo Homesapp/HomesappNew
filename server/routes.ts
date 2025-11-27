@@ -30777,6 +30777,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
         totalChargeAmount: externalMaintenanceTickets.totalChargeAmount,
         closedAt: externalMaintenanceTickets.closedAt,
         unitId: externalMaintenanceTickets.unitId,
+        workerPaymentStatus: externalMaintenanceTickets.workerPaymentStatus,
+        workerPaymentDate: externalMaintenanceTickets.workerPaymentDate,
+        agencyCollectedStatus: externalMaintenanceTickets.agencyCollectedStatus,
+        agencyCollectedDate: externalMaintenanceTickets.agencyCollectedDate,
+        accountingTransactionId: externalMaintenanceTickets.accountingTransactionId,
       })
       .from(externalMaintenanceTickets)
       .where(and(...conditions));
@@ -30828,6 +30833,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
           adminFee,
           totalCharge,
           closedAt: ticket.closedAt,
+          workerPaymentStatus: ticket.workerPaymentStatus || "pending",
+          agencyCollectedStatus: ticket.agencyCollectedStatus || "pending",
+          workerPaymentDate: ticket.workerPaymentDate,
+          agencyCollectedDate: ticket.agencyCollectedDate,
+          accountingTransactionId: ticket.accountingTransactionId,
         });
         payment.totalActualCost += actualCost;
         payment.totalAdminFee += adminFee;
@@ -30860,6 +30870,57 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+
+  // PATCH /api/external/maintenance/tickets/:id/payment-status - Mark ticket worker payment and agency collection status
+  app.patch("/api/external/maintenance/tickets/:id/payment-status", isAuthenticated, requireRole(EXTERNAL_ALL_ROLES), async (req: any, res) => {
+    try {
+      const agencyId = await getUserAgencyId(req);
+      if (!agencyId) {
+        return res.status(403).json({ message: "User is not assigned to any agency" });
+      }
+
+      const ticketId = req.params.id;
+      const { workerPaymentStatus, agencyCollectedStatus } = req.body;
+
+      // Verify ticket belongs to agency
+      const [ticket] = await db.select()
+        .from(externalMaintenanceTickets)
+        .where(and(
+          eq(externalMaintenanceTickets.id, ticketId),
+          eq(externalMaintenanceTickets.agencyId, agencyId)
+        ));
+
+      if (!ticket) {
+        return res.status(404).json({ message: "Ticket not found" });
+      }
+
+      const updateData: any = { updatedAt: new Date() };
+      
+      if (workerPaymentStatus !== undefined) {
+        updateData.workerPaymentStatus = workerPaymentStatus;
+        if (workerPaymentStatus === 'paid') {
+          updateData.workerPaymentDate = new Date();
+        }
+      }
+      
+      if (agencyCollectedStatus !== undefined) {
+        updateData.agencyCollectedStatus = agencyCollectedStatus;
+        if (agencyCollectedStatus === 'collected') {
+          updateData.agencyCollectedDate = new Date();
+        }
+      }
+
+      const [updated] = await db.update(externalMaintenanceTickets)
+        .set(updateData)
+        .where(eq(externalMaintenanceTickets.id, ticketId))
+        .returning();
+
+      res.json(updated);
+    } catch (error: any) {
+      console.error("Error updating ticket payment status:", error);
+      handleGenericError(res, error);
+    }
+  });
   // GET /api/external/accounting/commissions - Get agency commissions for biweekly period
   app.get("/api/external/accounting/commissions", isAuthenticated, requireRole(EXTERNAL_ALL_ROLES), async (req: any, res) => {
     try {
