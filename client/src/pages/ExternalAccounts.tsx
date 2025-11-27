@@ -13,7 +13,7 @@ import { useLanguage } from "@/contexts/LanguageContext";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { Plus, Trash2, RotateCw, Copy, Check, Pencil, LayoutGrid, LayoutList, Mail, Phone, User as UserIcon, ArrowUpDown, ChevronUp, ChevronDown, Search, Filter, Ban, UserCheck, Shield, Users, Save, X, Loader2 } from "lucide-react";
+import { Plus, Trash2, RotateCw, Copy, Check, Pencil, LayoutGrid, LayoutList, Mail, Phone, User as UserIcon, ArrowUpDown, ChevronUp, ChevronDown, Search, Filter, Ban, UserCheck, Shield, Users, Save, X, Loader2, Key, AlertTriangle } from "lucide-react";
 import { useState, useLayoutEffect, useEffect, useMemo, useCallback } from "react";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { z } from "zod";
@@ -159,6 +159,9 @@ export default function ExternalAccounts() {
   const [tempUserRole, setTempUserRole] = useState<string | null>(null);
   const [copiedId, setCopiedId] = useState<string | null>(null);
   const [showWelcomeModal, setShowWelcomeModal] = useState(false);
+  const [showResetPasswordDialog, setShowResetPasswordDialog] = useState(false);
+  const [resetPasswordUserName, setResetPasswordUserName] = useState<string>("");
+  const [resetPasswordEmail, setResetPasswordEmail] = useState<string>("");
   
   // View mode with SSR-safe auto-detection
   const [viewMode, setViewMode] = useState<'table' | 'cards'>('table');
@@ -590,17 +593,15 @@ export default function ExternalAccounts() {
   });
 
   const resetPasswordMutation = useMutation({
-    mutationFn: async (userId: string) => {
-      return await apiRequest("PATCH", `/api/external-agency-users/${userId}/reset-password`, {});
+    mutationFn: async (data: { userId: string; userName: string; userEmail: string }) => {
+      const response = await apiRequest("PATCH", `/api/external-agency-users/${data.userId}/reset-password`, {});
+      return { ...response, userName: data.userName, userEmail: data.userEmail };
     },
     onSuccess: (response: any) => {
       setTempPassword(response.tempPassword);
-      toast({
-        title: language === "es" ? "Contraseña reseteada" : "Password reset",
-        description: language === "es" 
-          ? "Se ha generado una nueva contraseña temporal"
-          : "A new temporary password has been generated",
-      });
+      setResetPasswordUserName(response.userName);
+      setResetPasswordEmail(response.userEmail);
+      setShowResetPasswordDialog(true);
     },
     onError: () => {
       toast({
@@ -1487,7 +1488,11 @@ The HomesApp Team`;
                           <Button
                             variant="outline"
                             size="icon"
-                            onClick={() => resetPasswordMutation.mutate(user.id)}
+                            onClick={() => resetPasswordMutation.mutate({
+                              userId: user.id,
+                              userName: `${user.firstName} ${user.lastName}`,
+                              userEmail: user.email
+                            })}
                             disabled={resetPasswordMutation.isPending}
                             data-testid={`button-reset-password-${user.id}`}
                           >
@@ -1606,7 +1611,11 @@ The HomesApp Team`;
                     <Button
                       variant="ghost"
                       size="icon"
-                      onClick={() => resetPasswordMutation.mutate(user.id)}
+                      onClick={() => resetPasswordMutation.mutate({
+                        userId: user.id,
+                        userName: `${user.firstName} ${user.lastName}`,
+                        userEmail: user.email
+                      })}
                       disabled={resetPasswordMutation.isPending}
                       data-testid={`button-reset-card-${user.id}`}
                     >
@@ -2176,6 +2185,112 @@ The HomesApp Team`;
           )}
         </TabsContent>
       </Tabs>
+
+      {/* Reset Password Dialog */}
+      <Dialog open={showResetPasswordDialog} onOpenChange={setShowResetPasswordDialog}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Key className="h-5 w-5" />
+              {language === "es" ? "Nueva Contraseña Temporal" : "New Temporary Password"}
+            </DialogTitle>
+            <DialogDescription>
+              {language === "es" 
+                ? `Se ha generado una nueva contraseña para ${resetPasswordUserName}. Copia esta información y envíala al usuario.`
+                : `A new password has been generated for ${resetPasswordUserName}. Copy this information and send it to the user.`}
+            </DialogDescription>
+          </DialogHeader>
+          
+          <div className="space-y-4">
+            <div className="p-3 rounded-lg border bg-muted/30">
+              <p className="text-xs text-muted-foreground mb-1 flex items-center gap-1">
+                <Mail className="h-3 w-3" />
+                {language === "es" ? "Correo electrónico" : "Email"}
+              </p>
+              <div className="flex items-center gap-2">
+                <code className="text-sm font-mono flex-1 truncate">{resetPasswordEmail}</code>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="h-7 w-7 p-0 shrink-0"
+                  onClick={() => {
+                    navigator.clipboard.writeText(resetPasswordEmail);
+                    setCopiedId('reset-email');
+                    setTimeout(() => setCopiedId(null), 2000);
+                  }}
+                  data-testid="button-copy-reset-email"
+                >
+                  {copiedId === 'reset-email' ? <Check className="h-3.5 w-3.5 text-green-600" /> : <Copy className="h-3.5 w-3.5" />}
+                </Button>
+              </div>
+            </div>
+            
+            <div className="p-3 rounded-lg border bg-muted/30">
+              <p className="text-xs text-muted-foreground mb-1 flex items-center gap-1">
+                <Key className="h-3 w-3" />
+                {language === "es" ? "Contraseña temporal" : "Temporary password"}
+              </p>
+              <div className="flex items-center gap-2">
+                <code className="text-sm font-mono flex-1 bg-yellow-100 dark:bg-yellow-900/30 px-2 py-1 rounded">{tempPassword}</code>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="h-7 w-7 p-0 shrink-0"
+                  onClick={() => {
+                    if (tempPassword) {
+                      navigator.clipboard.writeText(tempPassword);
+                      setCopiedId('reset-password');
+                      setTimeout(() => setCopiedId(null), 2000);
+                    }
+                  }}
+                  data-testid="button-copy-reset-password"
+                >
+                  {copiedId === 'reset-password' ? <Check className="h-3.5 w-3.5 text-green-600" /> : <Copy className="h-3.5 w-3.5" />}
+                </Button>
+              </div>
+            </div>
+            
+            <div className="p-3 rounded-lg border border-amber-200 bg-amber-50 dark:border-amber-800 dark:bg-amber-900/20">
+              <p className="text-xs text-amber-700 dark:text-amber-400 flex items-center gap-1">
+                <AlertTriangle className="h-3 w-3" />
+                {language === "es" 
+                  ? "El usuario deberá cambiar esta contraseña la próxima vez que inicie sesión."
+                  : "The user will need to change this password the next time they log in."}
+              </p>
+            </div>
+          </div>
+
+          <DialogFooter className="sm:justify-between gap-2">
+            <Button
+              variant="outline"
+              onClick={() => {
+                const message = language === "es"
+                  ? `Hola ${resetPasswordUserName},\n\nTu contraseña ha sido reseteada.\n\nCorreo: ${resetPasswordEmail}\nContraseña temporal: ${tempPassword}\n\nPor favor, cambia tu contraseña después de iniciar sesión.`
+                  : `Hello ${resetPasswordUserName},\n\nYour password has been reset.\n\nEmail: ${resetPasswordEmail}\nTemporary password: ${tempPassword}\n\nPlease change your password after logging in.`;
+                navigator.clipboard.writeText(message);
+                setCopiedId('reset-full');
+                setTimeout(() => setCopiedId(null), 2000);
+              }}
+              data-testid="button-copy-full-reset-message"
+            >
+              {copiedId === 'reset-full' ? (
+                <>
+                  <Check className="h-4 w-4 mr-2 text-green-600" />
+                  {language === "es" ? "Copiado" : "Copied"}
+                </>
+              ) : (
+                <>
+                  <Copy className="h-4 w-4 mr-2" />
+                  {language === "es" ? "Copiar todo" : "Copy all"}
+                </>
+              )}
+            </Button>
+            <Button onClick={() => setShowResetPasswordDialog(false)} data-testid="button-close-reset-dialog">
+              {language === "es" ? "Cerrar" : "Close"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

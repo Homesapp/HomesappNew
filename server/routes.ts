@@ -21618,7 +21618,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         firstName: z.string().min(1, "First name required"),
         lastName: z.string().min(1, "Last name required"),
         phone: z.string().optional(),
-        role: z.enum(["external_agency_admin", "external_agency_accounting", "external_agency_maintenance", "external_agency_staff"]),
+        role: z.enum(["external_agency_admin", "external_agency_accounting", "external_agency_maintenance", "external_agency_staff", "external_agency_seller"]),
         maintenanceSpecialty: z.enum(["encargado_mantenimiento", "mantenimiento_general", "electrico", "plomero", "refrigeracion", "carpintero", "pintor", "jardinero", "albanil", "limpieza"]).optional(),
       });
 
@@ -21688,7 +21688,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         firstName: z.string().min(1, "First name required").optional(),
         lastName: z.string().min(1, "Last name required").optional(),
         phone: z.string().optional().nullable(),
-        role: z.enum(["external_agency_admin", "external_agency_accounting", "external_agency_maintenance", "external_agency_staff"]).optional(),
+        role: z.enum(["external_agency_admin", "external_agency_accounting", "external_agency_maintenance", "external_agency_staff", "external_agency_seller"]).optional(),
         maintenanceSpecialty: z.enum(["encargado_mantenimiento", "mantenimiento_general", "electrico", "plomero", "refrigeracion", "carpintero", "pintor", "jardinero", "albanil", "limpieza"]).optional().nullable(),
       });
 
