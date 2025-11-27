@@ -644,6 +644,16 @@ export default function ExternalMaintenanceWorkers({
                       : "Assign a maintenance worker to a specific condominium or unit")}
               </DialogDescription>
             </DialogHeader>
+            
+            <div className="bg-blue-50 dark:bg-blue-950/30 border border-blue-200 dark:border-blue-800 rounded-md p-3 text-sm">
+              <p className="text-blue-800 dark:text-blue-200">
+                <strong>{language === "es" ? "Nota:" : "Note:"}</strong>{" "}
+                {language === "es" 
+                  ? "Los trabajadores con rol 'Encargado de Mantenimiento General' tienen acceso automático a todos los condominios y unidades. No requieren asignaciones manuales."
+                  : "Workers with 'General Maintenance Manager' role have automatic access to all condominiums and units. They don't require manual assignments."}
+              </p>
+            </div>
+            
             <Form {...form}>
               <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
                 <FormField
@@ -663,7 +673,7 @@ export default function ExternalMaintenanceWorkers({
                           </SelectTrigger>
                         </FormControl>
                         <SelectContent>
-                          {workers?.map((worker) => (
+                          {workers?.filter(w => w.maintenanceSpecialty !== 'encargado_mantenimiento').map((worker) => (
                             <SelectItem key={worker.id} value={worker.id}>
                               {worker.firstName} {worker.lastName}
                               {worker.maintenanceSpecialty && ` (${SPECIALTY_LABELS[language][worker.maintenanceSpecialty as keyof typeof SPECIALTY_LABELS['es']]})`}
