@@ -59,11 +59,13 @@ import {
   Building2,
   User,
   CheckCircle,
+  CreditCard,
 } from "lucide-react";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { useToast } from "@/hooks/use-toast";
 import { queryClient, apiRequest } from "@/lib/queryClient";
 import type { ExternalClient } from "@shared/schema";
+import PresentationCardsTab from "./PresentationCardsTab";
 
 interface ClientCRMTabsProps {
   client: ExternalClient;
@@ -246,8 +248,12 @@ export default function ClientCRMTabs({ client, onClientUpdate }: ClientCRMTabsP
 
   return (
     <div className="mt-4">
-      <Tabs defaultValue="activities" className="w-full">
-        <TabsList className="w-full grid grid-cols-3 mb-4">
+      <Tabs defaultValue="cards" className="w-full">
+        <TabsList className="w-full grid grid-cols-4 mb-4">
+          <TabsTrigger value="cards" className="flex items-center gap-2" data-testid="tab-client-cards">
+            <CreditCard className="h-4 w-4" />
+            <span className="hidden sm:inline">{language === "es" ? "Tarjetas" : "Cards"}</span>
+          </TabsTrigger>
           <TabsTrigger value="activities" className="flex items-center gap-2" data-testid="tab-client-activities">
             <Activity className="h-4 w-4" />
             <span className="hidden sm:inline">{language === "es" ? "Actividades" : "Activities"}</span>
@@ -261,6 +267,13 @@ export default function ClientCRMTabs({ client, onClientUpdate }: ClientCRMTabsP
             <span className="hidden sm:inline">{language === "es" ? "Estado" : "Status"}</span>
           </TabsTrigger>
         </TabsList>
+
+        <TabsContent value="cards" className="space-y-4">
+          <PresentationCardsTab 
+            clientId={client.id} 
+            personName={`${client.firstName} ${client.lastName}`}
+          />
+        </TabsContent>
 
         <TabsContent value="activities" className="space-y-4">
           <div className="flex justify-between items-center">

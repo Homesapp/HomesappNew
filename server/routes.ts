@@ -28681,6 +28681,423 @@ export async function registerRoutes(app: Express): Promise<Server> {
       handleGenericError(res, error);
     }
   });
+  // ==============================
+  // External Presentation Cards Routes
+  // ==============================
+
+  // GET /api/external/presentation-cards - Get all presentation cards for agency
+  app.get("/api/external/presentation-cards", isAuthenticated, requireRole(EXTERNAL_ALL_ROLES), async (req: any, res) => {
+    try {
+      const agencyId = await getUserAgencyId(req);
+      if (!agencyId) {
+        return res.status(403).json({ message: "No agency access" });
+      }
+      
+      const { status, leadId, clientId } = req.query;
+      const filters: { status?: string; leadId?: string; clientId?: string } = {};
+      if (status) filters.status = status;
+      if (leadId) filters.leadId = leadId;
+      if (clientId) filters.clientId = clientId;
+      
+      const cards = await storage.getExternalPresentationCardsByAgency(agencyId, filters);
+      res.json(cards);
+    } catch (error: any) {
+      console.error("Error fetching presentation cards:", error);
+      handleGenericError(res, error);
+    }
+  });
+
+  // GET /api/external/presentation-cards/lead/:leadId - Get presentation cards for lead
+  app.get("/api/external/presentation-cards/lead/:leadId", isAuthenticated, requireRole(EXTERNAL_ALL_ROLES), async (req: any, res) => {
+    try {
+      const { leadId } = req.params;
+      const lead = await storage.getExternalLead(leadId);
+      if (!lead) {
+        return res.status(404).json({ message: "Lead not found" });
+      }
+      
+      const hasAccess = await verifyExternalAgencyOwnership(req, res, lead.agencyId);
+      if (!hasAccess) return;
+      
+      const cards = await storage.getExternalPresentationCardsByLead(leadId);
+      res.json(cards);
+    } catch (error: any) {
+      console.error("Error fetching lead presentation cards:", error);
+      handleGenericError(res, error);
+    }
+  });
+
+  // GET /api/external/presentation-cards/client/:clientId - Get presentation cards for client
+  app.get("/api/external/presentation-cards/client/:clientId", isAuthenticated, requireRole(EXTERNAL_ALL_ROLES), async (req: any, res) => {
+    try {
+      const { clientId } = req.params;
+      const client = await storage.getExternalClient(clientId);
+      if (!client) {
+        return res.status(404).json({ message: "Client not found" });
+      }
+      
+      const hasAccess = await verifyExternalAgencyOwnership(req, res, client.agencyId);
+      if (!hasAccess) return;
+      
+      const cards = await storage.getExternalPresentationCardsByClient(clientId);
+      res.json(cards);
+    } catch (error: any) {
+      console.error("Error fetching client presentation cards:", error);
+      handleGenericError(res, error);
+    }
+  });
+
+  // GET /api/external/presentation-cards/:id - Get single presentation card
+  app.get("/api/external/presentation-cards/:id", isAuthenticated, requireRole(EXTERNAL_ALL_ROLES), async (req: any, res) => {
+    try {
+      const { id } = req.params;
+      const card = await storage.getExternalPresentationCard(id);
+      
+      if (!card) {
+        return res.status(404).json({ message: "Presentation card not found" });
+      }
+      
+      const hasAccess = await verifyExternalAgencyOwnership(req, res, card.agencyId);
+      if (!hasAccess) return;
+      
+      res.json(card);
+    } catch (error: any) {
+      console.error("Error fetching presentation card:", error);
+      handleGenericError(res, error);
+    }
+  });
+
+  // POST /api/external/presentation-cards - Create presentation card
+  app.post("/api/external/presentation-cards", isAuthenticated, requireRole(EXTERNAL_ADMIN_ROLES), async (req: any, res) => {
+    try {
+      const agencyId = await getUserAgencyId(req);
+      if (!agencyId) {
+        return res.status(403).json({ message: "No agency access" });
+      }
+      
+      const cardData = { ...req.body, agencyId, createdBy: req.user.id };
+      
+      if (cardData.leadId) {
+        const lead = await storage.getExternalLead(cardData.leadId);
+        if (!lead || lead.agencyId !== agencyId) {
+          return res.status(404).json({ message: "Lead not found" });
+        }
+      }
+      if (cardData.clientId) {
+        const client = await storage.getExternalClient(cardData.clientId);
+        if (!client || client.agencyId !== agencyId) {
+          return res.status(404).json({ message: "Client not found" });
+        }
+      }
+      
+      const card = await storage.createExternalPresentationCard(cardData);
+      await createAuditLog(req, "create", "external_presentation_card", card.id, "Created presentation card");
+      
+      res.status(201).json(card);
+    } catch (error: any) {
+      console.error("Error creating presentation card:", error);
+      handleGenericError(res, error);
+    }
+  });
+
+  // PATCH /api/external/presentation-cards/:id - Update presentation card
+  app.patch("/api/external/presentation-cards/:id", isAuthenticated, requireRole(EXTERNAL_ADMIN_ROLES), async (req: any, res) => {
+    try {
+      const { id } = req.params;
+      const agencyId = await getUserAgencyId(req);
+      if (!agencyId) {
+        return res.status(403).json({ message: "No agency access" });
+      }
+      
+      const card = await storage.getExternalPresentationCard(id);
+      
+      if (!card) {
+        return res.status(404).json({ message: "Presentation card not found" });
+      }
+      
+      const hasAccess = await verifyExternalAgencyOwnership(req, res, card.agencyId);
+      if (!hasAccess) return;
+      
+      // Validate leadId/clientId if being changed to prevent cross-tenant tampering
+      const { leadId, clientId, ...otherUpdates } = req.body;
+      
+      if (leadId !== undefined && leadId !== card.leadId) {
+        if (leadId) {
+          const lead = await storage.getExternalLead(leadId);
+          if (!lead || lead.agencyId !== agencyId) {
+            return res.status(403).json({ message: "Cannot link to lead from another agency" });
+          }
+        }
+      }
+      
+      if (clientId !== undefined && clientId !== card.clientId) {
+        if (clientId) {
+          const client = await storage.getExternalClient(clientId);
+          if (!client || client.agencyId !== agencyId) {
+            return res.status(403).json({ message: "Cannot link to client from another agency" });
+          }
+        }
+      }
+      
+      const updated = await storage.updateExternalPresentationCard(id, req.body);
+      await createAuditLog(req, "update", "external_presentation_card", id, "Updated presentation card");
+      
+      res.json(updated);
+    } catch (error: any) {
+      console.error("Error updating presentation card:", error);
+      handleGenericError(res, error);
+    }
+  });
+
+  // DELETE /api/external/presentation-cards/:id - Delete presentation card
+  app.delete("/api/external/presentation-cards/:id", isAuthenticated, requireRole(EXTERNAL_ADMIN_ROLES), async (req: any, res) => {
+    try {
+      const { id } = req.params;
+      const card = await storage.getExternalPresentationCard(id);
+      
+      if (!card) {
+        return res.status(404).json({ message: "Presentation card not found" });
+      }
+      
+      const hasAccess = await verifyExternalAgencyOwnership(req, res, card.agencyId);
+      if (!hasAccess) return;
+      
+      await storage.deleteExternalPresentationCard(id);
+      await createAuditLog(req, "delete", "external_presentation_card", id, "Deleted presentation card");
+      
+      res.status(204).send();
+    } catch (error: any) {
+      console.error("Error deleting presentation card:", error);
+      handleGenericError(res, error);
+    }
+  });
+
+  // ==============================
+  // External Property Showings Routes
+  // ==============================
+
+  // GET /api/external/property-showings - Get all showings for agency
+  app.get("/api/external/property-showings", isAuthenticated, requireRole(EXTERNAL_ALL_ROLES), async (req: any, res) => {
+    try {
+      const agencyId = await getUserAgencyId(req);
+      if (!agencyId) {
+        return res.status(403).json({ message: "No agency access" });
+      }
+      
+      const { outcome, startDate, endDate, leadId, clientId } = req.query;
+      const filters: { outcome?: string; startDate?: Date; endDate?: Date; leadId?: string; clientId?: string } = {};
+      if (outcome) filters.outcome = outcome;
+      if (startDate) filters.startDate = new Date(startDate);
+      if (endDate) filters.endDate = new Date(endDate);
+      if (leadId) filters.leadId = leadId;
+      if (clientId) filters.clientId = clientId;
+      
+      const showings = await storage.getExternalPropertyShowingsByAgency(agencyId, filters);
+      res.json(showings);
+    } catch (error: any) {
+      console.error("Error fetching property showings:", error);
+      handleGenericError(res, error);
+    }
+  });
+
+  // GET /api/external/property-showings/card/:cardId - Get showings for a presentation card
+  app.get("/api/external/property-showings/card/:cardId", isAuthenticated, requireRole(EXTERNAL_ALL_ROLES), async (req: any, res) => {
+    try {
+      const { cardId } = req.params;
+      const card = await storage.getExternalPresentationCard(cardId);
+      if (!card) {
+        return res.status(404).json({ message: "Presentation card not found" });
+      }
+      
+      const hasAccess = await verifyExternalAgencyOwnership(req, res, card.agencyId);
+      if (!hasAccess) return;
+      
+      const showings = await storage.getExternalPropertyShowingsByCard(cardId);
+      res.json(showings);
+    } catch (error: any) {
+      console.error("Error fetching card showings:", error);
+      handleGenericError(res, error);
+    }
+  });
+
+  // GET /api/external/property-showings/unit/:unitId - Get showings for a unit
+  app.get("/api/external/property-showings/unit/:unitId", isAuthenticated, requireRole(EXTERNAL_ALL_ROLES), async (req: any, res) => {
+    try {
+      const { unitId } = req.params;
+      const unit = await storage.getExternalUnit(unitId);
+      if (!unit) {
+        return res.status(404).json({ message: "Unit not found" });
+      }
+      
+      const hasAccess = await verifyExternalAgencyOwnership(req, res, unit.agencyId);
+      if (!hasAccess) return;
+      
+      const showings = await storage.getExternalPropertyShowingsByUnit(unitId);
+      res.json(showings);
+    } catch (error: any) {
+      console.error("Error fetching unit showings:", error);
+      handleGenericError(res, error);
+    }
+  });
+
+  // GET /api/external/property-showings/:id - Get single showing
+  app.get("/api/external/property-showings/:id", isAuthenticated, requireRole(EXTERNAL_ALL_ROLES), async (req: any, res) => {
+    try {
+      const { id } = req.params;
+      const showing = await storage.getExternalPropertyShowing(id);
+      
+      if (!showing) {
+        return res.status(404).json({ message: "Property showing not found" });
+      }
+      
+      const hasAccess = await verifyExternalAgencyOwnership(req, res, showing.agencyId);
+      if (!hasAccess) return;
+      
+      res.json(showing);
+    } catch (error: any) {
+      console.error("Error fetching property showing:", error);
+      handleGenericError(res, error);
+    }
+  });
+
+  // POST /api/external/property-showings - Create property showing
+  app.post("/api/external/property-showings", isAuthenticated, requireRole(EXTERNAL_ADMIN_ROLES), async (req: any, res) => {
+    try {
+      const agencyId = await getUserAgencyId(req);
+      if (!agencyId) {
+        return res.status(403).json({ message: "No agency access" });
+      }
+      
+      const showingData = { ...req.body, agencyId, recordedBy: req.user.id };
+      
+      const unit = await storage.getExternalUnit(showingData.unitId);
+      if (!unit || unit.agencyId !== agencyId) {
+        return res.status(404).json({ message: "Unit not found" });
+      }
+      
+      // Validate leadId/clientId ownership to prevent cross-tenant tampering
+      if (showingData.leadId) {
+        const lead = await storage.getExternalLead(showingData.leadId);
+        if (!lead || lead.agencyId !== agencyId) {
+          return res.status(403).json({ message: "Cannot link to lead from another agency" });
+        }
+      }
+      
+      if (showingData.clientId) {
+        const client = await storage.getExternalClient(showingData.clientId);
+        if (!client || client.agencyId !== agencyId) {
+          return res.status(403).json({ message: "Cannot link to client from another agency" });
+        }
+      }
+      
+      if (showingData.presentationCardId) {
+        const card = await storage.getExternalPresentationCard(showingData.presentationCardId);
+        if (!card || card.agencyId !== agencyId) {
+          return res.status(403).json({ message: "Cannot link to presentation card from another agency" });
+        }
+        await storage.incrementPresentationCardUsage(showingData.presentationCardId);
+      }
+      
+      const showing = await storage.createExternalPropertyShowing(showingData);
+      await createAuditLog(req, "create", "external_property_showing", showing.id, "Created property showing record");
+      
+      res.status(201).json(showing);
+    } catch (error: any) {
+      console.error("Error creating property showing:", error);
+      handleGenericError(res, error);
+    }
+  });
+  // PATCH /api/external/property-showings/:id - Update property showing
+  app.patch("/api/external/property-showings/:id", isAuthenticated, requireRole(EXTERNAL_ADMIN_ROLES), async (req: any, res) => {
+    try {
+      const { id } = req.params;
+      const agencyId = await getUserAgencyId(req);
+      if (!agencyId) {
+        return res.status(403).json({ message: "No agency access" });
+      }
+      
+      const showing = await storage.getExternalPropertyShowing(id);
+      
+      if (!showing) {
+        return res.status(404).json({ message: "Property showing not found" });
+      }
+      
+      const hasAccess = await verifyExternalAgencyOwnership(req, res, showing.agencyId);
+      if (!hasAccess) return;
+      
+      // Validate leadId/clientId/presentationCardId if being changed to prevent cross-tenant tampering
+      const { leadId, clientId, presentationCardId, unitId, ...otherUpdates } = req.body;
+      
+      if (leadId !== undefined && leadId !== showing.leadId) {
+        if (leadId) {
+          const lead = await storage.getExternalLead(leadId);
+          if (!lead || lead.agencyId !== agencyId) {
+            return res.status(403).json({ message: "Cannot link to lead from another agency" });
+          }
+        }
+      }
+      
+      if (clientId !== undefined && clientId !== showing.clientId) {
+        if (clientId) {
+          const client = await storage.getExternalClient(clientId);
+          if (!client || client.agencyId !== agencyId) {
+            return res.status(403).json({ message: "Cannot link to client from another agency" });
+          }
+        }
+      }
+      
+      if (presentationCardId !== undefined && presentationCardId !== showing.presentationCardId) {
+        if (presentationCardId) {
+          const card = await storage.getExternalPresentationCard(presentationCardId);
+          if (!card || card.agencyId !== agencyId) {
+            return res.status(403).json({ message: "Cannot link to presentation card from another agency" });
+          }
+        }
+      }
+      
+      if (unitId !== undefined && unitId !== showing.unitId) {
+        if (unitId) {
+          const unit = await storage.getExternalUnit(unitId);
+          if (!unit || unit.agencyId !== agencyId) {
+            return res.status(403).json({ message: "Cannot link to unit from another agency" });
+          }
+        }
+      }
+      
+      const updated = await storage.updateExternalPropertyShowing(id, req.body);
+      await createAuditLog(req, "update", "external_property_showing", id, "Updated property showing record");
+      
+      res.json(updated);
+    } catch (error: any) {
+      console.error("Error updating property showing:", error);
+      handleGenericError(res, error);
+    }
+  });
+
+  // DELETE /api/external/property-showings/:id - Delete property showing
+  app.delete("/api/external/property-showings/:id", isAuthenticated, requireRole(EXTERNAL_ADMIN_ROLES), async (req: any, res) => {
+    try {
+      const { id } = req.params;
+      const showing = await storage.getExternalPropertyShowing(id);
+      
+      if (!showing) {
+        return res.status(404).json({ message: "Property showing not found" });
+      }
+      
+      const hasAccess = await verifyExternalAgencyOwnership(req, res, showing.agencyId);
+      if (!hasAccess) return;
+      
+      await storage.deleteExternalPropertyShowing(id);
+      await createAuditLog(req, "delete", "external_property_showing", id, "Deleted property showing record");
+      
+      res.status(204).send();
+    } catch (error: any) {
+      console.error("Error deleting property showing:", error);
+      handleGenericError(res, error);
+    }
+  });
+
+
 
   // ==============================
   // External Token Routes (Contracts Section)

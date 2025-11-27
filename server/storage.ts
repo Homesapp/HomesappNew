@@ -416,6 +416,13 @@ import {
   externalAppointmentUnits,
   type ExternalAppointmentUnit,
   type InsertExternalAppointmentUnit,
+  externalPresentationCards,
+  type ExternalPresentationCard,
+  type InsertExternalPresentationCard,
+  type UpdateExternalPresentationCard,
+  externalPropertyShowings,
+  type ExternalPropertyShowing,
+  type InsertExternalPropertyShowing,
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, and, or, gte, lte, ilike, asc, desc, sql, isNull, isNotNull, count, inArray, SQL, between, not, notInArray } from "drizzle-orm";
@@ -1468,6 +1475,27 @@ export interface IStorage {
   createExternalClientIncident(incident: InsertExternalClientIncident): Promise<ExternalClientIncident>;
   updateExternalClientIncident(id: string, updates: UpdateExternalClientIncident): Promise<ExternalClientIncident>;
   deleteExternalClientIncident(id: string): Promise<void>;
+
+  // External Presentation Cards - Search profiles for leads/clients
+  getExternalPresentationCard(id: string): Promise<ExternalPresentationCard | undefined>;
+  getExternalPresentationCardsByLead(leadId: string): Promise<ExternalPresentationCard[]>;
+  getExternalPresentationCardsByClient(clientId: string): Promise<ExternalPresentationCard[]>;
+  getExternalPresentationCardsByAgency(agencyId: string, filters?: { status?: string; leadId?: string; clientId?: string }): Promise<ExternalPresentationCard[]>;
+  createExternalPresentationCard(card: InsertExternalPresentationCard & { agencyId: string; createdBy?: string }): Promise<ExternalPresentationCard>;
+  updateExternalPresentationCard(id: string, updates: UpdateExternalPresentationCard): Promise<ExternalPresentationCard>;
+  deleteExternalPresentationCard(id: string): Promise<void>;
+  incrementPresentationCardUsage(id: string): Promise<void>;
+
+  // External Property Showings - Track property visits
+  getExternalPropertyShowing(id: string): Promise<ExternalPropertyShowing | undefined>;
+  getExternalPropertyShowingsByCard(cardId: string): Promise<ExternalPropertyShowing[]>;
+  getExternalPropertyShowingsByLead(leadId: string): Promise<ExternalPropertyShowing[]>;
+  getExternalPropertyShowingsByClient(clientId: string): Promise<ExternalPropertyShowing[]>;
+  getExternalPropertyShowingsByUnit(unitId: string): Promise<ExternalPropertyShowing[]>;
+  getExternalPropertyShowingsByAgency(agencyId: string, filters?: { outcome?: string; startDate?: Date; endDate?: Date; leadId?: string; clientId?: string }): Promise<ExternalPropertyShowing[]>;
+  createExternalPropertyShowing(showing: InsertExternalPropertyShowing & { agencyId: string; recordedBy?: string }): Promise<ExternalPropertyShowing>;
+  updateExternalPropertyShowing(id: string, updates: Partial<InsertExternalPropertyShowing>): Promise<ExternalPropertyShowing>;
+  deleteExternalPropertyShowing(id: string): Promise<void>;
 
   // CRM - Lead Activities
   getExternalLeadActivities(leadId: string): Promise<ExternalLeadActivity[]>;
@@ -10321,6 +10349,181 @@ export class DatabaseStorage implements IStorage {
   async deleteExternalClientIncident(id: string): Promise<void> {
     await db.delete(externalClientIncidents)
       .where(eq(externalClientIncidents.id, id));
+  }
+
+  // External Presentation Cards - Search profiles for leads/clients
+  async getExternalPresentationCard(id: string): Promise<ExternalPresentationCard | undefined> {
+    const [card] = await db.select()
+      .from(externalPresentationCards)
+      .where(eq(externalPresentationCards.id, id))
+      .limit(1);
+    return card;
+  }
+
+  async getExternalPresentationCardsByLead(leadId: string): Promise<ExternalPresentationCard[]> {
+    return await db.select()
+      .from(externalPresentationCards)
+      .where(eq(externalPresentationCards.leadId, leadId))
+      .orderBy(desc(externalPresentationCards.createdAt));
+  }
+
+  async getExternalPresentationCardsByClient(clientId: string): Promise<ExternalPresentationCard[]> {
+    return await db.select()
+      .from(externalPresentationCards)
+      .where(eq(externalPresentationCards.clientId, clientId))
+      .orderBy(desc(externalPresentationCards.createdAt));
+  }
+
+  async getExternalPresentationCardsByAgency(agencyId: string, filters?: { status?: string; leadId?: string; clientId?: string }): Promise<ExternalPresentationCard[]> {
+    const conditions: SQL[] = [eq(externalPresentationCards.agencyId, agencyId)];
+    
+    if (filters?.status) {
+      conditions.push(eq(externalPresentationCards.status, filters.status as any));
+    }
+    if (filters?.leadId) {
+      conditions.push(eq(externalPresentationCards.leadId, filters.leadId));
+    }
+    if (filters?.clientId) {
+      conditions.push(eq(externalPresentationCards.clientId, filters.clientId));
+    }
+
+    return await db.select()
+      .from(externalPresentationCards)
+      .where(and(...conditions))
+      .orderBy(desc(externalPresentationCards.createdAt));
+  }
+
+  async createExternalPresentationCard(card: InsertExternalPresentationCard & { agencyId: string; createdBy?: string }): Promise<ExternalPresentationCard> {
+    // Get next card number for this lead/client
+    let cardNumber = 1;
+    if (card.leadId) {
+      const existingCards = await db.select({ cardNumber: externalPresentationCards.cardNumber })
+        .from(externalPresentationCards)
+        .where(eq(externalPresentationCards.leadId, card.leadId))
+        .orderBy(desc(externalPresentationCards.cardNumber))
+        .limit(1);
+      if (existingCards.length > 0) {
+        cardNumber = existingCards[0].cardNumber + 1;
+      }
+    } else if (card.clientId) {
+      const existingCards = await db.select({ cardNumber: externalPresentationCards.cardNumber })
+        .from(externalPresentationCards)
+        .where(eq(externalPresentationCards.clientId, card.clientId))
+        .orderBy(desc(externalPresentationCards.cardNumber))
+        .limit(1);
+      if (existingCards.length > 0) {
+        cardNumber = existingCards[0].cardNumber + 1;
+      }
+    }
+
+    const [created] = await db.insert(externalPresentationCards)
+      .values({ ...card, cardNumber })
+      .returning();
+    return created;
+  }
+
+  async updateExternalPresentationCard(id: string, updates: UpdateExternalPresentationCard): Promise<ExternalPresentationCard> {
+    const [updated] = await db.update(externalPresentationCards)
+      .set({ ...updates, updatedAt: new Date() })
+      .where(eq(externalPresentationCards.id, id))
+      .returning();
+    return updated;
+  }
+
+  async deleteExternalPresentationCard(id: string): Promise<void> {
+    await db.delete(externalPresentationCards)
+      .where(eq(externalPresentationCards.id, id));
+  }
+
+  async incrementPresentationCardUsage(id: string): Promise<void> {
+    await db.update(externalPresentationCards)
+      .set({ 
+        usageCount: sql`${externalPresentationCards.usageCount} + 1`,
+        updatedAt: new Date()
+      })
+      .where(eq(externalPresentationCards.id, id));
+  }
+
+  // External Property Showings - Track property visits
+  async getExternalPropertyShowing(id: string): Promise<ExternalPropertyShowing | undefined> {
+    const [showing] = await db.select()
+      .from(externalPropertyShowings)
+      .where(eq(externalPropertyShowings.id, id))
+      .limit(1);
+    return showing;
+  }
+
+  async getExternalPropertyShowingsByCard(cardId: string): Promise<ExternalPropertyShowing[]> {
+    return await db.select()
+      .from(externalPropertyShowings)
+      .where(eq(externalPropertyShowings.presentationCardId, cardId))
+      .orderBy(desc(externalPropertyShowings.shownAt));
+  }
+
+  async getExternalPropertyShowingsByLead(leadId: string): Promise<ExternalPropertyShowing[]> {
+    return await db.select()
+      .from(externalPropertyShowings)
+      .where(eq(externalPropertyShowings.leadId, leadId))
+      .orderBy(desc(externalPropertyShowings.shownAt));
+  }
+
+  async getExternalPropertyShowingsByClient(clientId: string): Promise<ExternalPropertyShowing[]> {
+    return await db.select()
+      .from(externalPropertyShowings)
+      .where(eq(externalPropertyShowings.clientId, clientId))
+      .orderBy(desc(externalPropertyShowings.shownAt));
+  }
+
+  async getExternalPropertyShowingsByUnit(unitId: string): Promise<ExternalPropertyShowing[]> {
+    return await db.select()
+      .from(externalPropertyShowings)
+      .where(eq(externalPropertyShowings.unitId, unitId))
+      .orderBy(desc(externalPropertyShowings.shownAt));
+  }
+
+  async getExternalPropertyShowingsByAgency(agencyId: string, filters?: { outcome?: string; startDate?: Date; endDate?: Date; leadId?: string; clientId?: string }): Promise<ExternalPropertyShowing[]> {
+    const conditions: SQL[] = [eq(externalPropertyShowings.agencyId, agencyId)];
+    
+    if (filters?.outcome) {
+      conditions.push(eq(externalPropertyShowings.outcome, filters.outcome as any));
+    }
+    if (filters?.startDate) {
+      conditions.push(gte(externalPropertyShowings.shownAt, filters.startDate));
+    }
+    if (filters?.endDate) {
+      conditions.push(lte(externalPropertyShowings.shownAt, filters.endDate));
+    }
+    if (filters?.leadId) {
+      conditions.push(eq(externalPropertyShowings.leadId, filters.leadId));
+    }
+    if (filters?.clientId) {
+      conditions.push(eq(externalPropertyShowings.clientId, filters.clientId));
+    }
+
+    return await db.select()
+      .from(externalPropertyShowings)
+      .where(and(...conditions))
+      .orderBy(desc(externalPropertyShowings.shownAt));
+  }
+
+  async createExternalPropertyShowing(showing: InsertExternalPropertyShowing & { agencyId: string; recordedBy?: string }): Promise<ExternalPropertyShowing> {
+    const [created] = await db.insert(externalPropertyShowings)
+      .values(showing)
+      .returning();
+    return created;
+  }
+
+  async updateExternalPropertyShowing(id: string, updates: Partial<InsertExternalPropertyShowing>): Promise<ExternalPropertyShowing> {
+    const [updated] = await db.update(externalPropertyShowings)
+      .set({ ...updates, updatedAt: new Date() })
+      .where(eq(externalPropertyShowings.id, id))
+      .returning();
+    return updated;
+  }
+
+  async deleteExternalPropertyShowing(id: string): Promise<void> {
+    await db.delete(externalPropertyShowings)
+      .where(eq(externalPropertyShowings.id, id));
   }
 
   // CRM - Lead Activities
