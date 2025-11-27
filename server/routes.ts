@@ -21696,7 +21696,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       // Verify user belongs to this agency
       const user = await storage.getUser(id);
-      if (!user || user.assignedToUser !== agencyId) {
+      if (!user || user.externalAgencyId !== agencyId) {
         return res.status(403).json({ message: "Unauthorized to update this user" });
       }
 
@@ -21749,7 +21749,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       // Verify user belongs to this agency
       const user = await storage.getUser(id);
-      if (!user || user.assignedToUser !== agencyId) {
+      if (!user || user.externalAgencyId !== agencyId) {
         return res.status(403).json({ message: "Unauthorized to reset password for this user" });
       }
 
@@ -21782,7 +21782,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       // Verify user belongs to this agency
       const user = await storage.getUser(id);
-      if (!user || user.assignedToUser !== agencyId) {
+      if (!user || user.externalAgencyId !== agencyId) {
         return res.status(403).json({ message: "Unauthorized to delete this user" });
       }
 
