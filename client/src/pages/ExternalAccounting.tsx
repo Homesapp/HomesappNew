@@ -25,7 +25,8 @@ import {
   TrendingUp, 
   TrendingDown, 
   Clock, 
-  CheckCircle, 
+  CheckCircle,
+  CheckCircle2, 
   AlertCircle,
   ArrowUpRight,
   ArrowDownRight,
@@ -465,6 +466,60 @@ export default function ExternalAccounting() {
       }
       
       return response.json();
+    },
+    staleTime: 2 * 60 * 1000,
+  });
+
+  // Paid maintenance transactions query - get paid transactions for maintenance_charge category
+  const { data: paidMaintenanceTransactions, isLoading: paidMaintenanceLoading } = useQuery<ExternalFinancialTransaction[]>({
+    queryKey: ['/api/external/accounting/paid-maintenance', paymentPeriodYear, paymentPeriodMonth, paymentPeriodIndex, paymentCondoFilter],
+    queryFn: async () => {
+      const startDay = paymentPeriodIndex === 1 ? 1 : 16;
+      const endDay = paymentPeriodIndex === 1 ? 15 : new Date(paymentPeriodYear, paymentPeriodMonth, 0).getDate();
+      const startDate = `${paymentPeriodYear}-${String(paymentPeriodMonth).padStart(2, '0')}-${String(startDay).padStart(2, '0')}`;
+      const endDate = `${paymentPeriodYear}-${String(paymentPeriodMonth).padStart(2, '0')}-${String(endDay).padStart(2, '0')}`;
+      
+      const params = new URLSearchParams();
+      params.append('startDate', startDate);
+      params.append('endDate', endDate);
+      params.append('status', 'posted');
+      params.append('category', 'maintenance_charge');
+      if (paymentCondoFilter !== 'all') params.append('condominiumId', paymentCondoFilter);
+      
+      const response = await fetch(`/api/external/accounting/transactions?${params.toString()}`, {
+        credentials: 'include',
+      });
+      
+      if (!response.ok) return [];
+      const data = await response.json();
+      return data.data || data || [];
+    },
+    staleTime: 2 * 60 * 1000,
+  });
+
+  // Paid service transactions query (for cleaning tab - uses service_other category)
+  const { data: paidCleaningTransactions, isLoading: paidCleaningLoading } = useQuery<ExternalFinancialTransaction[]>({
+    queryKey: ['/api/external/accounting/paid-cleaning', paymentPeriodYear, paymentPeriodMonth, paymentPeriodIndex, paymentCondoFilter],
+    queryFn: async () => {
+      const startDay = paymentPeriodIndex === 1 ? 1 : 16;
+      const endDay = paymentPeriodIndex === 1 ? 15 : new Date(paymentPeriodYear, paymentPeriodMonth, 0).getDate();
+      const startDate = `${paymentPeriodYear}-${String(paymentPeriodMonth).padStart(2, '0')}-${String(startDay).padStart(2, '0')}`;
+      const endDate = `${paymentPeriodYear}-${String(paymentPeriodMonth).padStart(2, '0')}-${String(endDay).padStart(2, '0')}`;
+      
+      const params = new URLSearchParams();
+      params.append('startDate', startDate);
+      params.append('endDate', endDate);
+      params.append('status', 'posted');
+      params.append('category', 'service_other');
+      if (paymentCondoFilter !== 'all') params.append('condominiumId', paymentCondoFilter);
+      
+      const response = await fetch(`/api/external/accounting/transactions?${params.toString()}`, {
+        credentials: 'include',
+      });
+      
+      if (!response.ok) return [];
+      const data = await response.json();
+      return data.data || data || [];
     },
     staleTime: 2 * 60 * 1000,
   });
@@ -2190,7 +2245,46 @@ export default function ExternalAccounting() {
               </Card>
             )
           ) : (
-            <Card><CardContent className="py-8 text-center text-muted-foreground">{language === 'es' ? 'No hay pagos de mantenimiento en esta quincena' : 'No maintenance payments in this period'}</CardContent></Card>
+            <Card><CardContent className="py-8 text-center text-muted-foreground">{language === 'es' ? 'No hay pagos pendientes de mantenimiento en esta quincena' : 'No pending maintenance payments in this period'}</CardContent></Card>
+          )}
+
+          {/* Paid Maintenance Transactions Section */}
+          {paidMaintenanceLoading ? (
+            <Card><CardContent className="py-4"><Skeleton className="h-20 w-full" /></CardContent></Card>
+          ) : paidMaintenanceTransactions && paidMaintenanceTransactions.length > 0 && (
+            <>
+              <div className="flex items-center gap-2 mt-6">
+                <CheckCircle2 className="h-5 w-5 text-green-600" />
+                <h3 className="text-lg font-semibold">{language === 'es' ? 'Transacciones Pagadas' : 'Paid Transactions'}</h3>
+                <Badge variant="secondary">{paidMaintenanceTransactions.length}</Badge>
+              </div>
+              <Card>
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>{language === 'es' ? 'Descripción' : 'Description'}</TableHead>
+                      <TableHead>{language === 'es' ? 'Beneficiario' : 'Beneficiary'}</TableHead>
+                      <TableHead>{language === 'es' ? 'Fecha Pago' : 'Payment Date'}</TableHead>
+                      <TableHead className="text-right">{language === 'es' ? 'Monto' : 'Amount'}</TableHead>
+                      <TableHead className="text-center">{language === 'es' ? 'Estado' : 'Status'}</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {paidMaintenanceTransactions.map((tx) => (
+                      <TableRow key={tx.id}>
+                        <TableCell className="font-medium">{tx.description}</TableCell>
+                        <TableCell>{tx.beneficiaryName || '-'}</TableCell>
+                        <TableCell>{tx.performedDate ? format(new Date(tx.performedDate), 'dd/MM/yyyy') : '-'}</TableCell>
+                        <TableCell className="text-right font-medium">{formatCurrency(parseFloat(tx.netAmount || '0'))}</TableCell>
+                        <TableCell className="text-center">
+                          <Badge className="bg-green-600 hover:bg-green-700">{language === 'es' ? 'Pagado' : 'Paid'}</Badge>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </Card>
+            </>
           )}
         </TabsContent>
 
@@ -2354,7 +2448,46 @@ export default function ExternalAccounting() {
               </Card>
             )
           ) : (
-            <Card><CardContent className="py-8 text-center text-muted-foreground">{language === 'es' ? 'No hay pagos de limpieza en esta quincena' : 'No cleaning payments in this period'}</CardContent></Card>
+            <Card><CardContent className="py-8 text-center text-muted-foreground">{language === 'es' ? 'No hay pagos pendientes de limpieza en esta quincena' : 'No pending cleaning payments in this period'}</CardContent></Card>
+          )}
+
+          {/* Paid Cleaning Transactions Section */}
+          {paidCleaningLoading ? (
+            <Card><CardContent className="py-4"><Skeleton className="h-20 w-full" /></CardContent></Card>
+          ) : paidCleaningTransactions && paidCleaningTransactions.length > 0 && (
+            <>
+              <div className="flex items-center gap-2 mt-6">
+                <CheckCircle2 className="h-5 w-5 text-green-600" />
+                <h3 className="text-lg font-semibold">{language === 'es' ? 'Transacciones Pagadas' : 'Paid Transactions'}</h3>
+                <Badge variant="secondary">{paidCleaningTransactions.length}</Badge>
+              </div>
+              <Card>
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>{language === 'es' ? 'Descripción' : 'Description'}</TableHead>
+                      <TableHead>{language === 'es' ? 'Beneficiario' : 'Beneficiary'}</TableHead>
+                      <TableHead>{language === 'es' ? 'Fecha Pago' : 'Payment Date'}</TableHead>
+                      <TableHead className="text-right">{language === 'es' ? 'Monto' : 'Amount'}</TableHead>
+                      <TableHead className="text-center">{language === 'es' ? 'Estado' : 'Status'}</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {paidCleaningTransactions.map((tx) => (
+                      <TableRow key={tx.id}>
+                        <TableCell className="font-medium">{tx.description}</TableCell>
+                        <TableCell>{tx.beneficiaryName || '-'}</TableCell>
+                        <TableCell>{tx.performedDate ? format(new Date(tx.performedDate), 'dd/MM/yyyy') : '-'}</TableCell>
+                        <TableCell className="text-right font-medium">{formatCurrency(parseFloat(tx.netAmount || '0'))}</TableCell>
+                        <TableCell className="text-center">
+                          <Badge className="bg-green-600 hover:bg-green-700">{language === 'es' ? 'Pagado' : 'Paid'}</Badge>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </Card>
+            </>
           )}
         </TabsContent>
 
