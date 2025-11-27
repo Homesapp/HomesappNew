@@ -21578,7 +21578,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       // Get all users with external agency roles that belong to this agency
-      const externalRoles = ["external_agency_admin", "external_agency_accounting", "external_agency_maintenance", "external_agency_staff"];
+      const externalRoles = ["external_agency_admin", "external_agency_accounting", "external_agency_maintenance", "external_agency_staff", "external_agency_seller"];
       const externalUsers = await db
         .select({
           id: users.id,
@@ -21594,7 +21594,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         .from(users)
         .where(and(
           inArray(users.role, externalRoles),
-          eq(users.assignedToUser, agencyId)
+          eq(users.externalAgencyId, agencyId)
         ))
         .orderBy(users.createdAt);
 
@@ -27795,7 +27795,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         .from(users)
         .where(and(
           eq(users.role, "external_agency_maintenance"),
-          eq(users.assignedToUser, agencyId)
+          eq(users.externalAgencyId, agencyId)
         ))
         .orderBy(users.firstName);
 
