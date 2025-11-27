@@ -5373,14 +5373,25 @@ export const insertExternalUserPermissionSchema = createInsertSchema(externalUse
 
 export type InsertExternalUserPermission = z.infer<typeof insertExternalUserPermissionSchema>;
 export type ExternalUserPermission = typeof externalUserPermissions.$inferSelect;
-
+// Appointment Feedback Outcome Enum - Outcomes for completed appointments
 // External Appointment Status Enum
 export const externalAppointmentStatusEnum = pgEnum("external_appointment_status", [
   "pending",
-  "confirmed", 
+  "confirmed",
   "completed",
   "cancelled",
   "no_show",
+]);
+
+export const appointmentFeedbackOutcomeEnum = pgEnum("appointment_feedback_outcome", [
+  "liked",           // El cliente mostro interes en la propiedad
+  "disliked",        // Al cliente no le gusto la propiedad
+  "no_show",         // El cliente no se presento
+  "will_make_offer", // El cliente va a presentar oferta
+  "rescheduled",     // La cita fue reagendada
+  "needs_followup",  // Requiere seguimiento
+  "not_qualified",   // Cliente no calificado
+  "other",           // Otro resultado
 ]);
 
 // External Appointments - Citas para agencias externas
@@ -5432,7 +5443,12 @@ export const externalAppointments = pgTable("external_appointments", {
   completedAt: timestamp("completed_at"),
   cancelledAt: timestamp("cancelled_at"),
   cancellationReason: text("cancellation_reason"),
-  createdAt: timestamp("created_at").defaultNow().notNull(),
+  // Feedback after appointment completion
+  feedbackOutcome: appointmentFeedbackOutcomeEnum("feedback_outcome"), // Resultado predefinido
+  feedbackNotes: text("feedback_notes"), // Notas del conserje sobre la cita
+  feedbackRatingDelta: integer("feedback_rating_delta"), // Cambio de rating aplicado al cliente
+  feedbackSubmittedAt: timestamp("feedback_submitted_at"), // Cuando se envio el feedback
+  feedbackSubmittedBy: varchar("feedback_submitted_by").references(() => users.id), // Quien envio el feedback
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
 }, (table) => [
   index("idx_external_appointments_agency").on(table.agencyId),
@@ -6089,6 +6105,8 @@ export const externalClients = pgTable("external_clients", {
   lastContactDate: timestamp("last_contact_date"),
   
   // Metadata
+  // Rating
+  cumulativeRating: integer("cumulative_rating").default(0), // Puntos de rating acumulados
   createdBy: varchar("created_by").references(() => users.id),
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
@@ -6380,6 +6398,9 @@ export const externalLeads = pgTable("external_leads", {
   // Metadata
   createdBy: varchar("created_by").references(() => users.id),
   originalCreatedAt: timestamp("original_created_at"), // Fecha original del registro (para importaciones)
+  // Rating
+  cumulativeRating: integer("cumulative_rating").default(0), // Puntos de rating acumulados
+
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
 }, (table) => [
@@ -7668,3 +7689,59 @@ export const externalAppointmentUnitsRelations = relations(externalAppointmentUn
     references: [externalUnits.id],
   }),
 }));
+
+// =================================
+// CLIENT RATINGS - Track client rating history
+// =================================
+export const externalClientRatings = pgTable("external_client_ratings", {
+  id: varchar("id").primaryKey().$defaultFn(() => crypto.randomUUID()),
+  agencyId: varchar("agency_id").notNull().references(() => externalAgencies.id, { onDelete: "cascade" }),
+  clientId: varchar("client_id").references(() => externalClients.id, { onDelete: "cascade" }),
+  leadId: varchar("lead_id").references(() => externalLeads.id, { onDelete: "cascade" }),
+  appointmentId: varchar("appointment_id").references(() => externalAppointments.id, { onDelete: "set null" }),
+  ratingDelta: integer("rating_delta").notNull(), // +/- points based on outcome
+  reason: varchar("reason", { length: 100 }).notNull(), // e.g., "liked", "no_show", etc.
+  notes: text("notes"), // Additional context
+  createdBy: varchar("created_by").references(() => users.id),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+}, (table) => [
+  index("idx_client_ratings_agency").on(table.agencyId),
+  index("idx_client_ratings_client").on(table.clientId),
+  index("idx_client_ratings_lead").on(table.leadId),
+]);
+
+export const insertExternalClientRatingSchema = createInsertSchema(externalClientRatings).omit({
+  id: true, createdAt: true,
+});
+export type InsertExternalClientRating = z.infer<typeof insertExternalClientRatingSchema>;
+export type ExternalClientRating = typeof externalClientRatings.$inferSelect;
+
+// =================================
+// PROPERTY RATINGS - Reviews and ratings for properties
+// =================================
+export const externalPropertyRatings = pgTable("external_property_ratings", {
+  id: varchar("id").primaryKey().$defaultFn(() => crypto.randomUUID()),
+  agencyId: varchar("agency_id").notNull().references(() => externalAgencies.id, { onDelete: "cascade" }),
+  propertyId: varchar("property_id").references(() => externalProperties.id, { onDelete: "cascade" }),
+  unitId: varchar("unit_id").references(() => externalUnits.id, { onDelete: "cascade" }),
+  appointmentId: varchar("appointment_id").references(() => externalAppointments.id, { onDelete: "set null" }),
+  clientId: varchar("client_id").references(() => externalClients.id, { onDelete: "set null" }),
+  leadId: varchar("lead_id").references(() => externalLeads.id, { onDelete: "set null" }),
+  rating: integer("rating").notNull(), // 1-5 stars
+  review: text("review"), // Written feedback
+  wouldRecommend: boolean("would_recommend"),
+  visitDate: timestamp("visit_date"),
+  createdBy: varchar("created_by").references(() => users.id),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+}, (table) => [
+  index("idx_property_ratings_agency").on(table.agencyId),
+  index("idx_property_ratings_property").on(table.propertyId),
+  index("idx_property_ratings_unit").on(table.unitId),
+]);
+
+export const insertExternalPropertyRatingSchema = createInsertSchema(externalPropertyRatings).omit({
+  id: true, createdAt: true, updatedAt: true,
+});
+export type InsertExternalPropertyRating = z.infer<typeof insertExternalPropertyRatingSchema>;
+export type ExternalPropertyRating = typeof externalPropertyRatings.$inferSelect;

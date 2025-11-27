@@ -60,6 +60,7 @@ import {
   User,
   CheckCircle,
   CreditCard,
+  Star,
 } from "lucide-react";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { useToast } from "@/hooks/use-toast";
@@ -244,6 +245,21 @@ export default function ClientCRMTabs({ client, onClientUpdate }: ClientCRMTabsP
         {language === "es" ? "Sin Problemas" : "No Issues"}
       </Badge>
     );
+
+  const getRatingBadge = () => {
+    const rating = (client as any).cumulativeRating || 0;
+    if (rating === 0) return null;
+    const isPositive = rating > 0;
+    return (
+      <Badge 
+        variant="outline" 
+        className={`flex items-center gap-1 ${isPositive ? "border-yellow-500 text-yellow-600" : "border-red-500 text-red-600"}`}
+      >
+        <Star className="h-3 w-3" />
+        {rating > 0 ? `+${rating}` : rating}
+      </Badge>
+    );
+  };
   };
 
   return (
@@ -399,6 +415,7 @@ export default function ClientCRMTabs({ client, onClientUpdate }: ClientCRMTabsP
               <div className="flex items-center justify-between">
                 <span className="text-sm font-medium">{language === "es" ? "Estado Actual:" : "Current Status:"}</span>
                 {getBlacklistBadge()}
+                {getRatingBadge()}
               </div>
 
               {(client as any).blacklistReason && (

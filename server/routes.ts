@@ -22437,11 +22437,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ message: "Appointment not found" });
       }
 
-      const { tourStops, ...updateData } = req.body;
+      const { tourStops, ...rawUpdateData } = req.body;
 
       // Validate tour stops if provided (max 3)
       if (tourStops && tourStops.length > 3) {
         return res.status(400).json({ message: "Tours can have a maximum of 3 properties" });
+      }
+
+      // Filter out undefined values and only include valid updatable fields to prevent NOT NULL violations
+      const allowedFields = ['clientId', 'leadId', 'presentationCardId', 'clientName', 'clientEmail', 'clientPhone', 'mode', 'type', 'date', 'unitId', 'notes', 'salespersonId', 'conciergeId', 'status', 'completedAt', 'tourStops', 'feedbackOutcome', 'feedbackNotes', 'feedbackRatingDelta', 'feedbackSubmittedAt', 'feedbackSubmittedBy'];
+      const updateData: Record<string, any> = {};
+      for (const field of allowedFields) {
+        if (rawUpdateData[field] !== undefined) {
+          updateData[field] = rawUpdateData[field];
+        }
       }
 
       const updated = await storage.updateExternalAppointment(id, updateData);
@@ -22520,6 +22529,135 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.json(updated);
     } catch (error: any) {
       console.error("Error updating appointment status:", error);
+      handleGenericError(res, error);
+    }
+  });
+
+  // PATCH /api/external-appointments/:id/feedback - Submit appointment feedback
+  app.patch("/api/external-appointments/:id/feedback", isAuthenticated, requireRole(EXTERNAL_APPOINTMENT_MANAGE_ROLES), async (req: any, res) => {
+    try {
+      const { id } = req.params;
+      const { outcome, notes, ratingDelta } = req.body;
+      const userId = req.user?.id || req.session?.user?.id;
+
+      const agencyId = await getUserAgencyId(req);
+      if (!agencyId) {
+        return res.status(403).json({ message: "No agency assigned" });
+      }
+
+      const appointment = await storage.getExternalAppointmentByAgency(id, agencyId);
+      if (!appointment) {
+        return res.status(404).json({ message: "Appointment not found" });
+      }
+
+
+      // Allow feedback for pending/confirmed appointments - this will also mark them as completed
+      if (appointment.status === "cancelled") {
+        return res.status(400).json({ message: "Cannot submit feedback for cancelled appointments" });
+      }
+
+      // First mark as completed if not already
+      if (appointment.status !== "completed") {
+        await storage.updateExternalAppointment(id, { 
+          status: "completed",
+          completedAt: new Date().toISOString(),
+        });
+      }
+
+      const updated = await storage.submitAppointmentFeedback(id, {
+        outcome,
+        notes,
+        ratingDelta,
+        submittedBy: userId,
+      });
+
+      // Create client rating entry if ratingDelta is provided
+      if (ratingDelta && (appointment.clientId || appointment.leadId)) {
+        await storage.createClientRating({
+          agencyId,
+          clientId: appointment.clientId || null,
+          leadId: appointment.leadId || null,
+          appointmentId: id,
+          ratingDelta,
+          reason: outcome,
+          notes,
+          createdBy: userId,
+        });
+
+        // Update cumulative rating on client or lead
+        if (appointment.clientId) {
+          const newRating = await storage.getClientCumulativeRating(appointment.clientId, null);
+          await storage.updateExternalClient(appointment.clientId, { cumulativeRating: newRating });
+        } else if (appointment.leadId) {
+          const newRating = await storage.getClientCumulativeRating(null, appointment.leadId);
+          await storage.updateExternalLead(appointment.leadId, { cumulativeRating: newRating });
+        }
+      }
+
+      await createAuditLog(req, "update", "external_appointment", id, `Submitted feedback: ${outcome}`);
+
+      res.json(updated);
+    } catch (error: any) {
+      console.error("Error submitting appointment feedback:", error);
+      handleGenericError(res, error);
+    }
+  });
+
+  // GET /api/external/property-ratings - Get property ratings
+  app.get("/api/external/property-ratings", isAuthenticated, requireRole(EXTERNAL_APPOINTMENT_VIEW_ROLES), async (req: any, res) => {
+    try {
+      const { propertyId, unitId } = req.query;
+      const ratings = await storage.getPropertyRatings(propertyId, unitId);
+      res.json(ratings);
+    } catch (error: any) {
+      console.error("Error getting property ratings:", error);
+      handleGenericError(res, error);
+    }
+  });
+
+  // POST /api/external/property-ratings - Create property rating
+  app.post("/api/external/property-ratings", isAuthenticated, requireRole(EXTERNAL_APPOINTMENT_MANAGE_ROLES), async (req: any, res) => {
+    try {
+      const agencyId = await getUserAgencyId(req);
+      if (!agencyId) {
+        return res.status(403).json({ message: "No agency assigned" });
+      }
+
+      const userId = req.user?.id || req.session?.user?.id;
+      const rating = await storage.createPropertyRating({
+        ...req.body,
+        agencyId,
+        createdBy: userId,
+      });
+
+      await createAuditLog(req, "create", "property_rating", rating.id, "Created property rating");
+      res.json(rating);
+    } catch (error: any) {
+      console.error("Error creating property rating:", error);
+      handleGenericError(res, error);
+    }
+  });
+
+  // GET /api/external/property-ratings/average - Get average rating for property
+  app.get("/api/external/property-ratings/average", isAuthenticated, requireRole(EXTERNAL_APPOINTMENT_VIEW_ROLES), async (req: any, res) => {
+    try {
+      const { propertyId, unitId } = req.query;
+      const result = await storage.getPropertyAverageRating(propertyId, unitId);
+      res.json(result);
+    } catch (error: any) {
+      console.error("Error getting property average rating:", error);
+      handleGenericError(res, error);
+    }
+  });
+
+  // GET /api/external/client-ratings - Get client rating history
+  app.get("/api/external/client-ratings", isAuthenticated, requireRole(EXTERNAL_APPOINTMENT_VIEW_ROLES), async (req: any, res) => {
+    try {
+      const { clientId, leadId } = req.query;
+      const ratings = await storage.getClientRatings(clientId || null, leadId || null);
+      res.json(ratings);
+    } catch (error: any) {
+      console.error("Error getting client ratings:", error);
       handleGenericError(res, error);
     }
   });

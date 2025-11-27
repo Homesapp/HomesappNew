@@ -414,6 +414,13 @@ import {
   type ExternalAppointment,
   type InsertExternalAppointment,
   externalAppointmentUnits,
+  externalClientRatings,
+  type ExternalClientRating,
+  type InsertExternalClientRating,
+  externalPropertyRatings,
+  type ExternalPropertyRating,
+  type InsertExternalPropertyRating,
+  appointmentFeedbackOutcomeEnum,
   type ExternalAppointmentUnit,
   type InsertExternalAppointmentUnit,
   externalPresentationCards,
@@ -1274,6 +1281,18 @@ export interface IStorage {
   }): Promise<ExternalAppointment>;
   assignExternalAppointmentConcierge(id: string, conciergeId: string): Promise<ExternalAppointment>;
   deleteExternalAppointment(id: string): Promise<void>;
+  submitAppointmentFeedback(id: string, feedback: { outcome: string; notes?: string; ratingDelta?: number; submittedBy: string }): Promise<ExternalAppointment>;
+
+  // Client Rating operations
+  getClientRatings(clientId: string | null, leadId: string | null): Promise<ExternalClientRating[]>;
+  createClientRating(rating: InsertExternalClientRating): Promise<ExternalClientRating>;
+  getClientCumulativeRating(clientId: string | null, leadId: string | null): Promise<number>;
+
+  // Property Rating operations
+  getPropertyRatings(propertyId?: string, unitId?: string): Promise<ExternalPropertyRating[]>;
+  createPropertyRating(rating: InsertExternalPropertyRating): Promise<ExternalPropertyRating>;
+  getPropertyAverageRating(propertyId?: string, unitId?: string): Promise<{ average: number; count: number }>;
+
 
   // External Appointment Units (Tour stops) operations
   getExternalAppointmentUnit(id: string): Promise<ExternalAppointmentUnit | undefined>;
@@ -8192,6 +8211,77 @@ export class DatabaseStorage implements IStorage {
       .where(eq(externalAppointments.id, id))
       .returning();
     return result;
+  }
+
+  async submitAppointmentFeedback(id: string, feedback: { outcome: string; notes?: string; ratingDelta?: number; submittedBy: string }): Promise<ExternalAppointment> {
+    const [result] = await db.update(externalAppointments)
+      .set({
+        feedbackOutcome: feedback.outcome as any,
+        feedbackNotes: feedback.notes || null,
+        feedbackRatingDelta: feedback.ratingDelta || null,
+        feedbackSubmittedAt: new Date(),
+        feedbackSubmittedBy: feedback.submittedBy,
+        updatedAt: new Date(),
+      })
+      .where(eq(externalAppointments.id, id))
+      .returning();
+    return result;
+  }
+
+  async getClientRatings(clientId: string | null, leadId: string | null): Promise<ExternalClientRating[]> {
+    if (clientId) {
+      return await db.select().from(externalClientRatings).where(eq(externalClientRatings.clientId, clientId)).orderBy(desc(externalClientRatings.createdAt));
+    }
+    if (leadId) {
+      return await db.select().from(externalClientRatings).where(eq(externalClientRatings.leadId, leadId)).orderBy(desc(externalClientRatings.createdAt));
+    }
+    return [];
+  }
+
+  async createClientRating(rating: InsertExternalClientRating): Promise<ExternalClientRating> {
+    const [result] = await db.insert(externalClientRatings).values(rating).returning();
+    return result;
+  }
+
+  async getClientCumulativeRating(clientId: string | null, leadId: string | null): Promise<number> {
+    let query;
+    if (clientId) {
+      query = db.select({ total: sql<number>`COALESCE(SUM(rating_delta), 0)` }).from(externalClientRatings).where(eq(externalClientRatings.clientId, clientId));
+    } else if (leadId) {
+      query = db.select({ total: sql<number>`COALESCE(SUM(rating_delta), 0)` }).from(externalClientRatings).where(eq(externalClientRatings.leadId, leadId));
+    } else {
+      return 0;
+    }
+    const [result] = await query;
+    return result?.total || 0;
+  }
+
+  async getPropertyRatings(propertyId?: string, unitId?: string): Promise<ExternalPropertyRating[]> {
+    if (unitId) {
+      return await db.select().from(externalPropertyRatings).where(eq(externalPropertyRatings.unitId, unitId)).orderBy(desc(externalPropertyRatings.createdAt));
+    }
+    if (propertyId) {
+      return await db.select().from(externalPropertyRatings).where(eq(externalPropertyRatings.propertyId, propertyId)).orderBy(desc(externalPropertyRatings.createdAt));
+    }
+    return [];
+  }
+
+  async createPropertyRating(rating: InsertExternalPropertyRating): Promise<ExternalPropertyRating> {
+    const [result] = await db.insert(externalPropertyRatings).values(rating).returning();
+    return result;
+  }
+
+  async getPropertyAverageRating(propertyId?: string, unitId?: string): Promise<{ average: number; count: number }> {
+    let query;
+    if (unitId) {
+      query = db.select({ avg: sql<number>`COALESCE(AVG(rating), 0)`, count: sql<number>`COUNT(*)` }).from(externalPropertyRatings).where(eq(externalPropertyRatings.unitId, unitId));
+    } else if (propertyId) {
+      query = db.select({ avg: sql<number>`COALESCE(AVG(rating), 0)`, count: sql<number>`COUNT(*)` }).from(externalPropertyRatings).where(eq(externalPropertyRatings.propertyId, propertyId));
+    } else {
+      return { average: 0, count: 0 };
+    }
+    const [result] = await query;
+    return { average: result?.avg || 0, count: result?.count || 0 };
   }
 
   async deleteExternalAppointment(id: string): Promise<void> {

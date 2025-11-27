@@ -114,6 +114,11 @@ type ExternalAppointment = {
   createdAt: string;
   updatedAt: string;
   tourStops?: TourStop[];
+  feedbackOutcome?: string | null;
+  feedbackNotes?: string | null;
+  feedbackRatingDelta?: number | null;
+  feedbackSubmittedAt?: string | null;
+  feedbackSubmittedBy?: string | null;
 };
 
 type PresentationCard = {
@@ -229,6 +234,13 @@ export default function ExternalAppointments() {
   const [selectedAppointment, setSelectedAppointment] = useState<ExternalAppointment | null>(null);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [appointmentToDelete, setAppointmentToDelete] = useState<ExternalAppointment | null>(null);
+  const [feedbackDialogOpen, setFeedbackDialogOpen] = useState(false);
+  const [appointmentForFeedback, setAppointmentForFeedback] = useState<ExternalAppointment | null>(null);
+  const [feedbackData, setFeedbackData] = useState({
+    outcome: "" as string,
+    ratingDelta: 0,
+    notes: "",
+  });
   const [condoComboOpen, setCondoComboOpen] = useState(false);
   const [tourCondoComboOpen, setTourCondoComboOpen] = useState<number | null>(null);
   const [condoSearchTerm, setCondoSearchTerm] = useState("");
@@ -493,6 +505,27 @@ export default function ExternalAppointments() {
     onError: () => {
       toast({
         title: language === "es" ? "Error" : "Error",
+        variant: "destructive",
+      });
+    },
+  });
+
+  const submitFeedbackMutation = useMutation({
+    mutationFn: async ({ id, outcome, notes, ratingDelta }: { id: string; outcome: string; notes: string; ratingDelta: number }) => {
+      return await apiRequest("PATCH", `/api/external-appointments/${id}/feedback`, { outcome, notes, ratingDelta });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/external-appointments"] });
+      toast({
+        title: language === "es" ? "Feedback guardado" : "Feedback saved",
+      });
+      setFeedbackDialogOpen(false);
+      setAppointmentForFeedback(null);
+      setFeedbackData({ outcome: "", notes: "", ratingDelta: 0 });
+    },
+    onError: () => {
+      toast({
+        title: language === "es" ? "Error al guardar feedback" : "Error saving feedback",
         variant: "destructive",
       });
     },
@@ -1892,6 +1925,36 @@ export default function ExternalAppointments() {
                       <p className="text-sm bg-muted/50 p-3 rounded-lg">{selectedAppointment.notes}</p>
                     </div>
                   )}
+
+                  {/* Feedback Section */}
+                  {selectedAppointment.status === "completed" && selectedAppointment.feedbackOutcome && (
+                    <div>
+                      <h4 className="text-sm font-medium text-muted-foreground mb-3 flex items-center gap-2">
+                        <MessageCircle className="h-4 w-4" />
+                        {language === "es" ? "Feedback de la cita" : "Appointment Feedback"}
+                      </h4>
+                      <div className="bg-muted/50 rounded-lg p-4 space-y-2">
+                        <div className="flex items-center gap-2">
+                          <Badge variant="outline">
+                            {({
+                              liked: language === "es" ? "Le gustó" : "Liked",
+                              disliked: language === "es" ? "No le gustó" : "Disliked",
+                              will_make_offer: language === "es" ? "Hará oferta" : "Will make offer",
+                              needs_followup: language === "es" ? "Necesita seguimiento" : "Needs follow-up",
+                              rescheduled: language === "es" ? "Reagendada" : "Rescheduled",
+                              no_show: language === "es" ? "No se presentó" : "No show",
+                              not_qualified: language === "es" ? "No calificado" : "Not qualified",
+                              other: language === "es" ? "Otro" : "Other",
+                            }[selectedAppointment.feedbackOutcome] || selectedAppointment.feedbackOutcome)}
+                          </Badge>
+                        </div>
+                        {selectedAppointment.feedbackNotes && (
+                          <p className="text-sm text-muted-foreground">{selectedAppointment.feedbackNotes}</p>
+                        )}
+                      </div>
+                    </div>
+                  )}
+
                 </div>
 
                 <div className="space-y-4">
@@ -2035,13 +2098,14 @@ export default function ExternalAppointments() {
                   <Button 
                     variant="outline"
                     onClick={() => {
-                      updateStatusMutation.mutate({ id: selectedAppointment.id, status: "completed" });
+                      setAppointmentForFeedback(selectedAppointment);
+                      setFeedbackDialogOpen(true);
                       setSelectedAppointment(null);
                     }}
                     data-testid="button-complete"
                   >
                     <Check className="h-4 w-4 mr-2" />
-                    {language === "es" ? "Completar" : "Complete"}
+                    {language === "es" ? "Completar con feedback" : "Complete with feedback"}
                   </Button>
                   <Button 
                     variant="outline"
@@ -2110,6 +2174,129 @@ export default function ExternalAppointments() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* Feedback Modal */}
+      <Dialog open={feedbackDialogOpen} onOpenChange={setFeedbackDialogOpen}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>
+              {language === "es" ? "Feedback de la cita" : "Appointment Feedback"}
+            </DialogTitle>
+            <DialogDescription>
+              {language === "es" 
+                ? "Registra el resultado y notas de esta cita" 
+                : "Record the outcome and notes for this appointment"}
+            </DialogDescription>
+          </DialogHeader>
+          
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <Label>{language === "es" ? "Resultado" : "Outcome"}</Label>
+              <div className="grid grid-cols-2 gap-2">
+                {[
+                  { value: "liked", label: language === "es" ? "Le gustó" : "Liked", icon: "👍" },
+                  { value: "disliked", label: language === "es" ? "No le gustó" : "Disliked", icon: "👎" },
+                  { value: "will_make_offer", label: language === "es" ? "Hará oferta" : "Will make offer", icon: "💰" },
+                  { value: "needs_followup", label: language === "es" ? "Necesita seguimiento" : "Needs follow-up", icon: "📞" },
+                  { value: "rescheduled", label: language === "es" ? "Reagendada" : "Rescheduled", icon: "📅" },
+                  { value: "no_show", label: language === "es" ? "No se presentó" : "No show", icon: "❌" },
+                  { value: "not_qualified", label: language === "es" ? "No calificado" : "Not qualified", icon: "⚠️" },
+                  { value: "other", label: language === "es" ? "Otro" : "Other", icon: "📝" },
+                ].map((option) => (
+                  <Button
+                    key={option.value}
+                    type="button"
+                    variant={feedbackData.outcome === option.value ? "default" : "outline"}
+                    className="justify-start h-auto py-2 px-3"
+                    onClick={() => setFeedbackData(prev => ({ ...prev, outcome: option.value }))}
+                    data-testid={`button-feedback-${option.value}`}
+                  >
+                    <span className="mr-2">{option.icon}</span>
+                    <span className="text-sm">{option.label}</span>
+                  </Button>
+                ))}
+              </div>
+            </div>
+
+            <div className="space-y-2">
+              <Label>{language === "es" ? "Ajuste de rating del cliente" : "Client rating adjustment"}</Label>
+              <div className="flex gap-2">
+                {[
+                  { value: 1, label: "+1", color: "text-green-600" },
+                  { value: 0, label: "0", color: "text-muted-foreground" },
+                  { value: -1, label: "-1", color: "text-red-600" },
+                ].map((option) => (
+                  <Button
+                    key={option.value}
+                    type="button"
+                    variant={feedbackData.ratingDelta === option.value ? "default" : "outline"}
+                    className="flex-1"
+                    onClick={() => setFeedbackData(prev => ({ ...prev, ratingDelta: option.value }))}
+                    data-testid={`button-rating-${option.value > 0 ? 'plus' : option.value < 0 ? 'minus' : 'neutral'}`}
+                  >
+                    <span className={feedbackData.ratingDelta === option.value ? "" : option.color}>
+                      {option.label}
+                    </span>
+                  </Button>
+                ))}
+              </div>
+              <p className="text-xs text-muted-foreground">
+                {language === "es" 
+                  ? "Ajusta el puntaje del cliente basado en su comportamiento durante la cita"
+                  : "Adjust client score based on their behavior during the appointment"}
+              </p>
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="feedback-notes">
+                {language === "es" ? "Notas del concierge" : "Concierge notes"}
+              </Label>
+              <Textarea
+                id="feedback-notes"
+                placeholder={language === "es" 
+                  ? "Detalles sobre la visita, interés del cliente, próximos pasos..." 
+                  : "Details about the visit, client interest, next steps..."}
+                value={feedbackData.notes}
+                onChange={(e) => setFeedbackData(prev => ({ ...prev, notes: e.target.value }))}
+                rows={4}
+                data-testid="textarea-feedback-notes"
+              />
+            </div>
+          </div>
+
+          <DialogFooter>
+            <Button 
+              variant="outline" 
+              onClick={() => {
+                setFeedbackDialogOpen(false);
+                setAppointmentForFeedback(null);
+                setFeedbackData({ outcome: "", notes: "", ratingDelta: 0 });
+              }}
+              data-testid="button-cancel-feedback"
+            >
+              {language === "es" ? "Cancelar" : "Cancel"}
+            </Button>
+            <Button
+              onClick={() => {
+                if (appointmentForFeedback && feedbackData.outcome) {
+                  submitFeedbackMutation.mutate({
+                    id: appointmentForFeedback.id,
+                    outcome: feedbackData.outcome,
+                    ratingDelta: feedbackData.ratingDelta,
+                    notes: feedbackData.notes,
+                  });
+                }
+              }}
+              disabled={!feedbackData.outcome || submitFeedbackMutation.isPending}
+              data-testid="button-submit-feedback"
+            >
+              {submitFeedbackMutation.isPending 
+                ? (language === "es" ? "Guardando..." : "Saving...")
+                : (language === "es" ? "Guardar feedback" : "Save feedback")}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
