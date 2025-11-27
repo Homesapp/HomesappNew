@@ -11,7 +11,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { useToast } from "@/hooks/use-toast";
 import { useMobile } from "@/hooks/use-mobile";
 import { useLanguage } from "@/contexts/LanguageContext";
-import { Eye, EyeOff, Search, Copy, Check, Mail, Filter, Plus, LayoutGrid, LayoutList, ChevronDown, ChevronUp, ArrowUpDown, ArrowUp, ArrowDown, XCircle, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight } from "lucide-react";
+import { Eye, EyeOff, Search, Copy, Check, Mail, Filter, Plus, LayoutGrid, LayoutList, ChevronDown, ChevronUp, ArrowUpDown, ArrowUp, ArrowDown, XCircle, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, Building2, Lock, Settings2, Loader2, Key } from "lucide-react";
 import { ExternalPaginationControls } from "@/components/external/ExternalPaginationControls";
 import { useState, useMemo, useEffect, useLayoutEffect } from "react";
 import { Link } from "wouter";
@@ -72,6 +72,7 @@ export default function ExternalAccesses() {
   const [prevIsMobile, setPrevIsMobile] = useState(isMobile);
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
   const [isFiltersOpen, setIsFiltersOpen] = useState(false);
+  const [formCondominiumId, setFormCondominiumId] = useState<string>("");
   
   // New filter states
   const [selectedCondominium, setSelectedCondominium] = useState<string>("all");
@@ -132,6 +133,12 @@ export default function ExternalAccesses() {
     return map;
   }, [condominiums]);
 
+  // Filtered units for form based on selected condominium
+  const formFilteredUnits = useMemo(() => {
+    if (!formCondominiumId || !units) return [];
+    return units.filter(u => u.condominiumId === formCondominiumId);
+  }, [formCondominiumId, units]);
+
   const form = useForm<z.infer<typeof accessFormSchema>>({
     resolver: zodResolver(accessFormSchema),
     defaultValues: {
@@ -151,6 +158,7 @@ export default function ExternalAccesses() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['/api/external-all-access-controls'] });
       setIsAddDialogOpen(false);
+      setFormCondominiumId("");
       form.reset();
       toast({
         title: language === "es" ? "Acceso creado" : "Access created",
@@ -546,7 +554,13 @@ ${access.description ? `${language === "es" ? "Descripción" : "Description"}: $
           </p>
         </div>
 
-        <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
+        <Dialog open={isAddDialogOpen} onOpenChange={(open) => {
+          setIsAddDialogOpen(open);
+          if (!open) {
+            setFormCondominiumId("");
+            form.reset();
+          }
+        }}>
           <DialogTrigger asChild>
             <Button data-testid="button-add-access" className="w-full sm:w-auto">
               <Plus className="mr-2 h-4 w-4" />
@@ -554,171 +568,235 @@ ${access.description ? `${language === "es" ? "Descripción" : "Description"}: $
             </Button>
           </DialogTrigger>
           <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
-            <DialogHeader>
-              <DialogTitle>
-                {language === "es" ? "Crear Código de Acceso" : "Create Access Code"}
-              </DialogTitle>
-              <DialogDescription>
-                {language === "es"
-                  ? "Registra un nuevo código de acceso para una unidad"
-                  : "Register a new access code for a unit"}
-              </DialogDescription>
+            <DialogHeader className="pb-4 border-b">
+              <div className="flex items-center gap-3">
+                <div className="h-10 w-10 rounded-lg bg-primary/10 flex items-center justify-center">
+                  <Key className="h-5 w-5 text-primary" />
+                </div>
+                <div>
+                  <DialogTitle className="text-xl">
+                    {language === "es" ? "Nuevo Código de Acceso" : "New Access Code"}
+                  </DialogTitle>
+                  <DialogDescription className="mt-1">
+                    {language === "es"
+                      ? "Registra un nuevo código de acceso para una unidad"
+                      : "Register a new access code for a unit"}
+                  </DialogDescription>
+                </div>
+              </div>
             </DialogHeader>
 
             <Form {...form}>
-              <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <FormField
-                    control={form.control}
-                    name="unitId"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>{language === "es" ? "Unidad" : "Unit"} *</FormLabel>
-                        <Select onValueChange={field.onChange} value={field.value}>
+              <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6 pt-4">
+                {/* Section: Property Selection */}
+                <div className="space-y-4">
+                  <div className="flex items-center gap-2 text-sm font-medium text-muted-foreground">
+                    <Building2 className="h-4 w-4" />
+                    {language === "es" ? "Ubicación" : "Location"}
+                  </div>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    {/* Condominium Selector */}
+                    <div className="space-y-2">
+                      <label className="text-sm font-medium">
+                        {language === "es" ? "Condominio" : "Condominium"} *
+                      </label>
+                      <Select 
+                        value={formCondominiumId} 
+                        onValueChange={(value) => {
+                          setFormCondominiumId(value);
+                          form.setValue("unitId", "");
+                        }}
+                      >
+                        <SelectTrigger data-testid="select-form-condominium">
+                          <SelectValue placeholder={language === "es" ? "Selecciona un condominio" : "Select a condominium"} />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {condominiums?.map((condo) => (
+                            <SelectItem key={condo.id} value={condo.id}>
+                              {condo.name}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+
+                    {/* Unit Selector */}
+                    <FormField
+                      control={form.control}
+                      name="unitId"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>{language === "es" ? "Unidad" : "Unit"} *</FormLabel>
+                          <Select 
+                            onValueChange={field.onChange} 
+                            value={field.value}
+                            disabled={!formCondominiumId}
+                          >
+                            <FormControl>
+                              <SelectTrigger data-testid="select-form-unit">
+                                <SelectValue placeholder={
+                                  !formCondominiumId 
+                                    ? (language === "es" ? "Primero selecciona condominio" : "First select condominium")
+                                    : (language === "es" ? "Selecciona una unidad" : "Select a unit")
+                                } />
+                              </SelectTrigger>
+                            </FormControl>
+                            <SelectContent>
+                              {formFilteredUnits.map((unit) => (
+                                <SelectItem key={unit.id} value={unit.id}>
+                                  {unit.unitNumber}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                  </div>
+                </div>
+
+                {/* Section: Access Information */}
+                <div className="space-y-4">
+                  <div className="flex items-center gap-2 text-sm font-medium text-muted-foreground">
+                    <Lock className="h-4 w-4" />
+                    {language === "es" ? "Información de Acceso" : "Access Information"}
+                  </div>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <FormField
+                      control={form.control}
+                      name="accessType"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>{language === "es" ? "Tipo de Acceso" : "Access Type"} *</FormLabel>
+                          <Select onValueChange={field.onChange} value={field.value}>
+                            <FormControl>
+                              <SelectTrigger data-testid="select-form-access-type">
+                                <SelectValue />
+                              </SelectTrigger>
+                            </FormControl>
+                            <SelectContent>
+                              <SelectItem value="door_code">{getAccessTypeLabel("door_code")}</SelectItem>
+                              <SelectItem value="wifi">{getAccessTypeLabel("wifi")}</SelectItem>
+                              <SelectItem value="gate">{getAccessTypeLabel("gate")}</SelectItem>
+                              <SelectItem value="parking">{getAccessTypeLabel("parking")}</SelectItem>
+                              <SelectItem value="elevator">{getAccessTypeLabel("elevator")}</SelectItem>
+                              <SelectItem value="pool">{getAccessTypeLabel("pool")}</SelectItem>
+                              <SelectItem value="gym">{getAccessTypeLabel("gym")}</SelectItem>
+                              <SelectItem value="other">{getAccessTypeLabel("other")}</SelectItem>
+                            </SelectContent>
+                          </Select>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+
+                    <FormField
+                      control={form.control}
+                      name="accessCode"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>{language === "es" ? "Código/Contraseña" : "Code/Password"}</FormLabel>
                           <FormControl>
-                            <SelectTrigger data-testid="select-form-unit">
-                              <SelectValue placeholder={language === "es" ? "Selecciona una unidad" : "Select a unit"} />
-                            </SelectTrigger>
+                            <div className="relative">
+                              <Input
+                                placeholder={language === "es" ? "Ingresa el código" : "Enter code"}
+                                {...field}
+                                data-testid="input-form-code"
+                                className="pr-10"
+                              />
+                              <Key className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                            </div>
                           </FormControl>
-                          <SelectContent>
-                            {units?.map((unit) => (
-                              <SelectItem key={unit.id} value={unit.id}>
-                                {condominiumMap.get(unit.condominiumId)} - {unit.unitNumber}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                  </div>
 
                   <FormField
                     control={form.control}
-                    name="accessType"
+                    name="description"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>{language === "es" ? "Tipo de Acceso" : "Access Type"} *</FormLabel>
-                        <Select onValueChange={field.onChange} value={field.value}>
-                          <FormControl>
-                            <SelectTrigger data-testid="select-form-access-type">
-                              <SelectValue />
-                            </SelectTrigger>
-                          </FormControl>
-                          <SelectContent>
-                            <SelectItem value="door_code">{getAccessTypeLabel("door_code")}</SelectItem>
-                            <SelectItem value="wifi">{getAccessTypeLabel("wifi")}</SelectItem>
-                            <SelectItem value="gate">{getAccessTypeLabel("gate")}</SelectItem>
-                            <SelectItem value="parking">{getAccessTypeLabel("parking")}</SelectItem>
-                            <SelectItem value="elevator">{getAccessTypeLabel("elevator")}</SelectItem>
-                            <SelectItem value="pool">{getAccessTypeLabel("pool")}</SelectItem>
-                            <SelectItem value="gym">{getAccessTypeLabel("gym")}</SelectItem>
-                            <SelectItem value="other">{getAccessTypeLabel("other")}</SelectItem>
-                          </SelectContent>
-                        </Select>
+                        <FormLabel>{language === "es" ? "Descripción" : "Description"}</FormLabel>
+                        <FormControl>
+                          <Textarea
+                            placeholder={language === "es" ? "Notas adicionales sobre este acceso..." : "Additional notes about this access..."}
+                            {...field}
+                            data-testid="input-form-description"
+                            rows={2}
+                            className="resize-none"
+                          />
+                        </FormControl>
                         <FormMessage />
                       </FormItem>
                     )}
                   />
                 </div>
 
-                <FormField
-                  control={form.control}
-                  name="accessCode"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>{language === "es" ? "Código/Contraseña" : "Code/Password"}</FormLabel>
-                      <FormControl>
-                        <Input
-                          placeholder={language === "es" ? "Ingresa el código" : "Enter code"}
-                          {...field}
-                          data-testid="input-form-code"
-                        />
-                      </FormControl>
-                      <FormDescription>
-                        {language === "es" 
-                          ? "El código de acceso o contraseña" 
-                          : "The access code or password"}
-                      </FormDescription>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
+                {/* Section: Settings */}
+                <div className="space-y-4">
+                  <div className="flex items-center gap-2 text-sm font-medium text-muted-foreground">
+                    <Settings2 className="h-4 w-4" />
+                    {language === "es" ? "Configuración" : "Settings"}
+                  </div>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <FormField
+                      control={form.control}
+                      name="isActive"
+                      render={({ field }) => (
+                        <FormItem className="flex flex-row items-center justify-between rounded-lg border p-4 bg-muted/30">
+                          <div className="space-y-0.5">
+                            <FormLabel className="text-sm font-medium">
+                              {language === "es" ? "Activo" : "Active"}
+                            </FormLabel>
+                            <FormDescription className="text-xs">
+                              {language === "es" 
+                                ? "El código está habilitado" 
+                                : "Code is enabled"}
+                            </FormDescription>
+                          </div>
+                          <FormControl>
+                            <Switch
+                              checked={field.value}
+                              onCheckedChange={field.onChange}
+                              data-testid="switch-form-active"
+                            />
+                          </FormControl>
+                        </FormItem>
+                      )}
+                    />
 
-                <FormField
-                  control={form.control}
-                  name="description"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>{language === "es" ? "Descripción" : "Description"}</FormLabel>
-                      <FormControl>
-                        <Textarea
-                          placeholder={language === "es" ? "Detalles adicionales..." : "Additional details..."}
-                          {...field}
-                          data-testid="input-form-description"
-                          rows={3}
-                        />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <FormField
-                    control={form.control}
-                    name="isActive"
-                    render={({ field }) => (
-                      <FormItem className="flex flex-row items-center justify-between rounded-md border p-4">
-                        <div className="space-y-0.5">
-                          <FormLabel className="text-base">
-                            {language === "es" ? "Activo" : "Active"}
-                          </FormLabel>
-                          <FormDescription>
-                            {language === "es" 
-                              ? "¿Este código está activo?" 
-                              : "Is this code active?"}
-                          </FormDescription>
-                        </div>
-                        <FormControl>
-                          <Switch
-                            checked={field.value}
-                            onCheckedChange={field.onChange}
-                            data-testid="switch-form-active"
-                          />
-                        </FormControl>
-                      </FormItem>
-                    )}
-                  />
-
-                  <FormField
-                    control={form.control}
-                    name="canShareWithMaintenance"
-                    render={({ field }) => (
-                      <FormItem className="flex flex-row items-center justify-between rounded-md border p-4">
-                        <div className="space-y-0.5">
-                          <FormLabel className="text-base">
-                            {language === "es" ? "Compartir" : "Share"}
-                          </FormLabel>
-                          <FormDescription>
-                            {language === "es" 
-                              ? "¿Compartir con mantenimiento?" 
-                              : "Share with maintenance?"}
-                          </FormDescription>
-                        </div>
-                        <FormControl>
-                          <Switch
-                            checked={field.value}
-                            onCheckedChange={field.onChange}
-                            data-testid="switch-form-share"
-                          />
-                        </FormControl>
-                      </FormItem>
-                    )}
-                  />
+                    <FormField
+                      control={form.control}
+                      name="canShareWithMaintenance"
+                      render={({ field }) => (
+                        <FormItem className="flex flex-row items-center justify-between rounded-lg border p-4 bg-muted/30">
+                          <div className="space-y-0.5">
+                            <FormLabel className="text-sm font-medium">
+                              {language === "es" ? "Compartir" : "Share"}
+                            </FormLabel>
+                            <FormDescription className="text-xs">
+                              {language === "es" 
+                                ? "Visible para mantenimiento" 
+                                : "Visible to maintenance"}
+                            </FormDescription>
+                          </div>
+                          <FormControl>
+                            <Switch
+                              checked={field.value}
+                              onCheckedChange={field.onChange}
+                              data-testid="switch-form-share"
+                            />
+                          </FormControl>
+                        </FormItem>
+                      )}
+                    />
+                  </div>
                 </div>
 
-                <DialogFooter>
+                <DialogFooter className="pt-4 border-t gap-2">
                   <Button
                     type="button"
                     variant="outline"
@@ -729,12 +807,20 @@ ${access.description ? `${language === "es" ? "Descripción" : "Description"}: $
                   </Button>
                   <Button
                     type="submit"
-                    disabled={createMutation.isPending}
+                    disabled={createMutation.isPending || !formCondominiumId || !form.getValues("unitId")}
                     data-testid="button-submit-form"
                   >
-                    {createMutation.isPending
-                      ? (language === "es" ? "Guardando..." : "Saving...")
-                      : (language === "es" ? "Crear Acceso" : "Create Access")}
+                    {createMutation.isPending ? (
+                      <>
+                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                        {language === "es" ? "Guardando..." : "Saving..."}
+                      </>
+                    ) : (
+                      <>
+                        <Plus className="mr-2 h-4 w-4" />
+                        {language === "es" ? "Crear Acceso" : "Create Access"}
+                      </>
+                    )}
                   </Button>
                 </DialogFooter>
               </form>
