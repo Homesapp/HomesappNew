@@ -29,6 +29,23 @@ The External Management System now includes comprehensive CRM functionality for 
 - Lead-to-client conversion with sourceLeadId/convertedToClientId linking
 - Improved duplicate detection for lead-to-client conversion errors
 
+## Notifications System
+The External Management System features a dedicated notification system separate from the main HomesApp notifications:
+- Agency-specific notifications are displayed within the Agency Configuration page (Notifications tab)
+- Global notification bell is hidden for external agency users to prevent cross-system notification contamination
+- API endpoints for external notifications: GET/PATCH /api/external/notifications, mark-all-read functionality
+- Real-time polling (30s interval) for notification count updates
+- Notification types include payment reminders, contract updates, appointments, and system alerts
+- Priority-based visual indicators (urgent, high, medium, low)
+- Mark as read individually or mark all as read functionality
+
+## Tenant and Owner Portal System
+The system includes dedicated portal access for tenants and owners:
+- Portal credentials management integrated within ExternalRentals page (Portal tab)
+- Token-based portal authentication with bcrypt password hashing
+- Contract-scoped permissions for secure data isolation
+- Portal access includes payment tracking, maintenance reporting, document viewing, and AI chat support
+
 ## External Dependencies
 *   Google Calendar API
 *   Google OAuth 2.0
