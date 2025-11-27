@@ -99,6 +99,7 @@ const unitEditSchema = z.object({
   area: z.union([z.string(), z.number()]).transform(val => val === "" ? null : String(val)).nullable(),
   airbnbPhotosLink: z.string().nullable(),
   notes: z.string().nullable(),
+  isActive: z.boolean().default(true),
 });
 
 type UnitEditFormData = z.infer<typeof unitEditSchema>;
@@ -223,6 +224,7 @@ export default function ExternalUnitDetail() {
       area: null,
       airbnbPhotosLink: null,
       notes: null,
+      isActive: true,
     },
   });
 
@@ -462,17 +464,18 @@ export default function ExternalUnitDetail() {
     if (!unit) return;
     unitEditForm.reset({
       unitNumber: unit.unitNumber,
-      condominiumId: unit.condominiumId || null,
-      zone: unit.zone || null,
-      city: unit.city || null,
-      propertyType: unit.propertyType || null,
-      typology: unit.typology as any || null,
-      floor: unit.floor as any || null,
-      bedrooms: unit.bedrooms || null,
-      bathrooms: unit.bathrooms || null,
-      area: unit.area || null,
-      airbnbPhotosLink: unit.airbnbPhotosLink || null,
-      notes: unit.notes || null,
+      condominiumId: unit.condominiumId ?? null,
+      zone: unit.zone ?? null,
+      city: unit.city ?? null,
+      propertyType: unit.propertyType ?? null,
+      typology: unit.typology as any ?? null,
+      floor: unit.floor as any ?? null,
+      bedrooms: unit.bedrooms ?? null,
+      bathrooms: unit.bathrooms ?? null,
+      area: unit.area ?? null,
+      airbnbPhotosLink: unit.airbnbPhotosLink ?? null,
+      notes: unit.notes ?? null,
+      isActive: unit.isActive ?? true,
     });
     setShowUnitEditDialog(true);
   };
@@ -813,11 +816,10 @@ ${language === "es" ? "ACCESOS" : "ACCESSES"}:
                 </Label>
                 <p className="text-sm font-medium mt-1" data-testid="text-unit-number">{unit.unitNumber}</p>
               </div>
-              {/* Show propertyType only if typology is not set (avoid redundancy) */}
-              {unit.propertyType && !unit.typology && (
+              {unit.propertyType && (
                 <div>
                   <Label className="text-xs text-muted-foreground">
-                    {language === "es" ? "Tipo" : "Type"}
+                    {language === "es" ? "Tipo de Propiedad" : "Property Type"}
                   </Label>
                   <p className="text-sm font-medium mt-1" data-testid="text-property-type">{unit.propertyType}</p>
                 </div>
@@ -868,7 +870,7 @@ ${language === "es" ? "ACCESOS" : "ACCESSES"}:
             </div>
 
             <div className="grid grid-cols-3 gap-4">
-              {unit.bedrooms && (
+              {unit.bedrooms != null && unit.bedrooms > 0 && (
                 <div>
                   <Label className="text-xs text-muted-foreground">
                     {language === "es" ? "Recámaras" : "Bedrooms"}
@@ -876,7 +878,7 @@ ${language === "es" ? "ACCESOS" : "ACCESSES"}:
                   <p className="text-sm font-medium mt-1" data-testid="text-bedrooms">{unit.bedrooms}</p>
                 </div>
               )}
-              {unit.bathrooms && (
+              {unit.bathrooms != null && Number(unit.bathrooms) > 0 && (
                 <div>
                   <Label className="text-xs text-muted-foreground">
                     {language === "es" ? "Baños" : "Bathrooms"}
@@ -884,7 +886,7 @@ ${language === "es" ? "ACCESOS" : "ACCESSES"}:
                   <p className="text-sm font-medium mt-1" data-testid="text-bathrooms">{unit.bathrooms}</p>
                 </div>
               )}
-              {unit.area && (
+              {unit.area != null && Number(unit.area) > 0 && (
                 <div>
                   <Label className="text-xs text-muted-foreground">
                     {language === "es" ? "Área (m²)" : "Area (m²)"}
@@ -1630,6 +1632,31 @@ ${language === "es" ? "ACCESOS" : "ACCESSES"}:
                       <Textarea {...field} value={field.value || ""} rows={3} placeholder={language === "es" ? "Notas adicionales..." : "Additional notes..."} data-testid="input-edit-notes" />
                     </FormControl>
                     <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={unitEditForm.control}
+                name="isActive"
+                render={({ field }) => (
+                  <FormItem className="flex flex-row items-center justify-between rounded-lg border p-3">
+                    <div className="space-y-0.5">
+                      <FormLabel>{language === "es" ? "Estado de la Unidad" : "Unit Status"}</FormLabel>
+                      <FormDescription>
+                        {field.value 
+                          ? (language === "es" ? "La unidad está activa y disponible" : "The unit is active and available")
+                          : (language === "es" ? "La unidad está inactiva" : "The unit is inactive")
+                        }
+                      </FormDescription>
+                    </div>
+                    <FormControl>
+                      <Switch
+                        checked={field.value}
+                        onCheckedChange={field.onChange}
+                        data-testid="switch-edit-is-active"
+                      />
+                    </FormControl>
                   </FormItem>
                 )}
               />
