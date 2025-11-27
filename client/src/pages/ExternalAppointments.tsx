@@ -156,9 +156,10 @@ export default function ExternalAppointments() {
     queryKey: ["/api/external-appointments"],
   });
 
-  const { data: units = [] } = useQuery<ExternalUnit[]>({
+  const { data: unitsData } = useQuery<{ data: ExternalUnit[]; total: number }>({
     queryKey: ["/api/external-units"],
   });
+  const units = unitsData?.data ?? [];
 
   const { data: agencyUsers = [] } = useQuery<AgencyUser[]>({
     queryKey: ["/api/external/users"],
