@@ -72,7 +72,9 @@ import { format, startOfWeek, endOfWeek, eachDayOfInterval, isSameDay, addWeeks,
 import { es, enUS } from "date-fns/locale";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Calendar } from "@/components/ui/calendar";
+import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
 import { cn } from "@/lib/utils";
+import { ChevronsUpDown } from "lucide-react";
 
 type ExternalAppointment = {
   id: string;
@@ -178,6 +180,8 @@ export default function ExternalAppointments() {
   const [selectedAppointment, setSelectedAppointment] = useState<ExternalAppointment | null>(null);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [appointmentToDelete, setAppointmentToDelete] = useState<ExternalAppointment | null>(null);
+  const [condoComboOpen, setCondoComboOpen] = useState(false);
+  const [tourCondoComboOpen, setTourCondoComboOpen] = useState<number | null>(null);
 
   const [formData, setFormData] = useState({
     clientSource: "client" as "client" | "lead" | "manual",
@@ -1140,24 +1144,48 @@ export default function ExternalAppointments() {
                 <div className="grid grid-cols-2 gap-3">
                   <div className="space-y-2">
                     <Label className="text-sm">{language === "es" ? "Condominio" : "Condominium"}</Label>
-                    <Select 
-                      value={formData.condominiumId} 
-                      onValueChange={(v) => setFormData(prev => ({ ...prev, condominiumId: v, unitId: "" }))}
-                    >
-                      <SelectTrigger className="bg-background" data-testid="select-condominium">
-                        <SelectValue placeholder={language === "es" ? "Seleccionar..." : "Select..."} />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {condominiums.map(condo => (
-                          <SelectItem key={condo.id} value={condo.id}>
-                            <div className="flex items-center gap-2">
-                              <Building className="h-4 w-4 text-muted-foreground" />
-                              {condo.name}
-                            </div>
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
+                    <Popover open={condoComboOpen} onOpenChange={setCondoComboOpen}>
+                      <PopoverTrigger asChild>
+                        <Button
+                          variant="outline"
+                          role="combobox"
+                          aria-expanded={condoComboOpen}
+                          className="w-full justify-between bg-background font-normal"
+                          data-testid="select-condominium"
+                        >
+                          {formData.condominiumId 
+                            ? condominiums.find(c => c.id === formData.condominiumId)?.name 
+                            : (language === "es" ? "Buscar condominio..." : "Search condominium...")}
+                          <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                        </Button>
+                      </PopoverTrigger>
+                      <PopoverContent className="w-[300px] p-0 z-[100]" align="start">
+                        <Command>
+                          <CommandInput placeholder={language === "es" ? "Buscar condominio..." : "Search condominium..."} />
+                          <CommandList>
+                            <CommandEmpty>{language === "es" ? "No se encontraron condominios" : "No condominiums found"}</CommandEmpty>
+                            <CommandGroup>
+                              {condominiums.map(condo => (
+                                <CommandItem
+                                  key={condo.id}
+                                  value={condo.name}
+                                  onSelect={() => {
+                                    setFormData(prev => ({ ...prev, condominiumId: condo.id, unitId: "" }));
+                                    setCondoComboOpen(false);
+                                  }}
+                                >
+                                  <Building className="mr-2 h-4 w-4 text-muted-foreground" />
+                                  {condo.name}
+                                  {formData.condominiumId === condo.id && (
+                                    <Check className="ml-auto h-4 w-4" />
+                                  )}
+                                </CommandItem>
+                              ))}
+                            </CommandGroup>
+                          </CommandList>
+                        </Command>
+                      </PopoverContent>
+                    </Popover>
                   </div>
                   <div className="space-y-2">
                     <Label className="text-sm">{language === "es" ? "Unidad" : "Unit"}</Label>
@@ -1217,19 +1245,48 @@ export default function ExternalAppointments() {
                         <span className="text-xs text-muted-foreground">30 min</span>
                       </div>
                       <div className="flex-1 grid grid-cols-2 gap-2">
-                        <Select 
-                          value={stop.condominiumId || ""} 
-                          onValueChange={(v) => handleTourStopChange(index, "condominiumId", v)}
-                        >
-                          <SelectTrigger className="h-9" data-testid={`select-tour-condo-${index}`}>
-                            <SelectValue placeholder={language === "es" ? "Condominio" : "Condo"} />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {condominiums.map(condo => (
-                              <SelectItem key={condo.id} value={condo.id}>{condo.name}</SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
+                        <Popover open={tourCondoComboOpen === index} onOpenChange={(open) => setTourCondoComboOpen(open ? index : null)}>
+                          <PopoverTrigger asChild>
+                            <Button
+                              variant="outline"
+                              role="combobox"
+                              className="h-9 justify-between font-normal"
+                              data-testid={`select-tour-condo-${index}`}
+                            >
+                              <span className="truncate">
+                                {stop.condominiumId 
+                                  ? condominiums.find(c => c.id === stop.condominiumId)?.name 
+                                  : (language === "es" ? "Condominio" : "Condo")}
+                              </span>
+                              <ChevronsUpDown className="ml-1 h-3 w-3 shrink-0 opacity-50" />
+                            </Button>
+                          </PopoverTrigger>
+                          <PopoverContent className="w-[250px] p-0 z-[100]" align="start">
+                            <Command>
+                              <CommandInput placeholder={language === "es" ? "Buscar..." : "Search..."} className="h-9" />
+                              <CommandList>
+                                <CommandEmpty>{language === "es" ? "No encontrado" : "Not found"}</CommandEmpty>
+                                <CommandGroup>
+                                  {condominiums.map(condo => (
+                                    <CommandItem
+                                      key={condo.id}
+                                      value={condo.name}
+                                      onSelect={() => {
+                                        handleTourStopChange(index, "condominiumId", condo.id);
+                                        setTourCondoComboOpen(null);
+                                      }}
+                                    >
+                                      {condo.name}
+                                      {stop.condominiumId === condo.id && (
+                                        <Check className="ml-auto h-4 w-4" />
+                                      )}
+                                    </CommandItem>
+                                  ))}
+                                </CommandGroup>
+                              </CommandList>
+                            </Command>
+                          </PopoverContent>
+                        </Popover>
                         <Select 
                           value={stop.unitId} 
                           onValueChange={(v) => handleTourStopChange(index, "unitId", v)}
