@@ -218,6 +218,18 @@ export default function ExternalCondominiums() {
   const units = unitsResponse?.data || [];
   const unitsTotalFromBackend = unitsResponse?.total || 0;
 
+  // Dedicated query for units of the selected condominium (loads ALL units without pagination)
+  const { data: selectedCondoUnits, isLoading: selectedCondoUnitsLoading } = useQuery<ExternalUnit[]>({
+    queryKey: ['/api/external-units/by-condominium', selectedCondoId],
+    queryFn: async () => {
+      const response = await fetch(`/api/external-units/by-condominium/${selectedCondoId}`, { credentials: 'include' });
+      if (!response.ok) throw new Error('Failed to fetch units for condominium');
+      return response.json();
+    },
+    enabled: !!selectedCondoId, // Only fetch when a condominium is selected
+    staleTime: 2 * 60 * 1000,
+  });
+
   // Clear page transition when data loads
   useEffect(() => {
     if (!condosFetching && condoPageTransition) {
@@ -734,6 +746,11 @@ export default function ExternalCondominiums() {
   };
 
   const getUnitsForCondo = (condoId: string) => {
+    // If viewing the selected condominium, use the dedicated query that loads all units
+    if (condoId === selectedCondoId && selectedCondoUnits) {
+      return selectedCondoUnits;
+    }
+    // Fallback to filtering from paginated units (for cards/table view)
     return units?.filter(u => u.condominiumId === condoId) || [];
   };
 
@@ -1368,7 +1385,13 @@ export default function ExternalCondominiums() {
                       {language === "es" ? "Unidades" : "Units"}
                     </h2>
 
-                    {condoUnits.length > 0 ? (
+                    {selectedCondoUnitsLoading ? (
+                      <div className="flex justify-center py-8">
+                        <p className="text-muted-foreground">
+                          {language === "es" ? "Cargando unidades..." : "Loading units..."}
+                        </p>
+                      </div>
+                    ) : condoUnits.length > 0 ? (
                       <div className="grid gap-6 md:grid-cols-2">
                         {condoUnits.map((unit) => {
                           const activeContract = getActiveRentalContract(unit.id);
