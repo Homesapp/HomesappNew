@@ -61,6 +61,109 @@ const termsFormSchema = z.object({
 
 type TermsFormData = z.infer<typeof termsFormSchema>;
 
+// Backfill Presentation Cards Component
+function BackfillPresentationCards({ language, toast }: { language: string; toast: any }) {
+  const [isRunning, setIsRunning] = useState(false);
+  const [result, setResult] = useState<{ created: number; skipped: number; errors?: string[] } | null>(null);
+
+  const backfillMutation = useMutation({
+    mutationFn: async () => {
+      return await apiRequest("POST", "/api/external-leads/backfill-presentation-cards");
+    },
+    onSuccess: (data: any) => {
+      setResult(data);
+      toast({
+        title: language === "es" ? "Backfill completado" : "Backfill complete",
+        description: language === "es" 
+          ? `Se crearon ${data.created} tarjetas, ${data.skipped} leads ya tenían tarjetas`
+          : `Created ${data.created} cards, ${data.skipped} leads already had cards`,
+      });
+      queryClient.invalidateQueries({ queryKey: ["/api/external-presentation-cards"] });
+    },
+    onError: (error: any) => {
+      toast({
+        title: language === "es" ? "Error en backfill" : "Backfill error",
+        variant: "destructive",
+        description: error.message,
+      });
+    },
+    onSettled: () => {
+      setIsRunning(false);
+    },
+  });
+
+  const handleBackfill = () => {
+    setIsRunning(true);
+    setResult(null);
+    backfillMutation.mutate();
+  };
+
+  return (
+    <div className="space-y-4">
+      <div className="flex items-center gap-4">
+        <Button 
+          onClick={handleBackfill} 
+          disabled={isRunning}
+          data-testid="button-backfill-cards"
+        >
+          {isRunning ? (
+            <>
+              <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+              {language === "es" ? "Procesando..." : "Processing..."}
+            </>
+          ) : (
+            <>
+              <Plus className="w-4 h-4 mr-2" />
+              {language === "es" ? "Generar Tarjetas Iniciales" : "Generate Initial Cards"}
+            </>
+          )}
+        </Button>
+      </div>
+      
+      {result && (
+        <div className="p-4 rounded-lg bg-muted">
+          <div className="flex items-center gap-2 mb-2">
+            <CheckCircle2 className="w-5 h-5 text-green-600" />
+            <span className="font-medium">
+              {language === "es" ? "Resultados" : "Results"}
+            </span>
+          </div>
+          <div className="grid grid-cols-2 gap-4 text-sm">
+            <div>
+              <span className="text-muted-foreground">
+                {language === "es" ? "Tarjetas creadas:" : "Cards created:"}
+              </span>
+              <span className="ml-2 font-medium">{result.created}</span>
+            </div>
+            <div>
+              <span className="text-muted-foreground">
+                {language === "es" ? "Leads ya con tarjetas:" : "Leads with cards:"}
+              </span>
+              <span className="ml-2 font-medium">{result.skipped}</span>
+            </div>
+          </div>
+          {result.errors && result.errors.length > 0 && (
+            <div className="mt-3">
+              <div className="flex items-center gap-2 text-destructive">
+                <AlertCircle className="w-4 h-4" />
+                <span className="text-sm">
+                  {language === "es" ? `${result.errors.length} errores` : `${result.errors.length} errors`}
+                </span>
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+      
+      <p className="text-sm text-muted-foreground">
+        {language === "es" 
+          ? "Esta acción creará tarjetas de presentación iniciales basadas en los datos de registro de cada lead que aún no tenga tarjetas."
+          : "This will create initial presentation cards based on each lead's registration data for leads that don't have any cards yet."}
+      </p>
+    </div>
+  );
+}
+
 export default function ExternalConfiguration() {
   const { t, language } = useLanguage();
   const { toast } = useToast();
@@ -2148,6 +2251,24 @@ export default function ExternalConfiguration() {
                 language={language}
                 toast={toast}
               />
+
+              {/* Presentation Cards Backfill */}
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <Home className="h-5 w-5" />
+                    {language === "es" ? "Tarjetas de Presentación" : "Presentation Cards"}
+                  </CardTitle>
+                  <CardDescription>
+                    {language === "es" 
+                      ? "Genera tarjetas de presentación iniciales para leads que no tienen ninguna"
+                      : "Generate initial presentation cards for leads that don't have any"}
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <BackfillPresentationCards language={language} toast={toast} />
+                </CardContent>
+              </Card>
             </div>
           )}
         </TabsContent>

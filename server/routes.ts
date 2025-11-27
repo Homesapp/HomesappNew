@@ -388,6 +388,53 @@ function hasAdminPrivileges(userRole: string): boolean {
   return ["master", "admin", "admin_jr"].includes(userRole);
 }
 
+// Helper function to normalize lead data for presentation card creation
+function normalizePresentationCardFromLead(lead: any, agencyId: string, createdBy: string) {
+  // Normalize hasPets - handle both string and boolean values
+  let hasPetsValue = false;
+  let petsDescriptionValue: string | undefined = undefined;
+  
+  if (typeof lead.hasPets === 'boolean') {
+    hasPetsValue = lead.hasPets;
+  } else if (typeof lead.hasPets === 'string') {
+    const trimmed = lead.hasPets.trim();
+    if (trimmed !== '' && trimmed.toLowerCase() !== 'no' && trimmed.toLowerCase() !== 'false') {
+      hasPetsValue = true;
+      petsDescriptionValue = trimmed;
+    }
+  }
+
+  // Helper to normalize optional string fields
+  const normalizeString = (val: any): string | undefined => {
+    if (val === null || val === undefined) return undefined;
+    const str = String(val).trim();
+    return str !== '' ? str : undefined;
+  };
+
+  return {
+    agencyId,
+    leadId: lead.id,
+    title: (`${lead.firstName || ''} ${lead.lastName || ''} - Registro inicial`).trim() || 'Registro inicial',
+    propertyType: normalizeString(lead.desiredUnitType),
+    modality: "rent" as const,
+    minBudget: normalizeString(lead.estimatedRentCost),
+    maxBudget: normalizeString(lead.estimatedRentCost),
+    budgetText: normalizeString(lead.estimatedRentCostText),
+    bedrooms: normalizeString(lead.bedrooms),
+    bedroomsText: normalizeString(lead.bedroomsText),
+    preferredZone: normalizeString(lead.desiredNeighborhood),
+    moveInDate: lead.checkInDate || undefined,
+    moveInDateText: normalizeString(lead.checkInDateText),
+    contractDuration: normalizeString(lead.contractDuration),
+    hasPets: hasPetsValue,
+    petsDescription: petsDescriptionValue,
+    specificProperty: normalizeString(lead.desiredProperty),
+    isDefault: true,
+    status: "active" as const,
+    createdBy,
+  };
+}
+
 // Middleware to require full admin privileges
 async function requireFullAdmin(req: any, res: any, next: any) {
   const user = req.user;
@@ -27413,29 +27460,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       // Create initial presentation card from lead data
       try {
-        const hasPetsValue = lead.hasPets && lead.hasPets.toLowerCase() !== "no" && lead.hasPets.toLowerCase() !== "false";
-        await storage.createExternalPresentationCard({
-          agencyId,
-          leadId: lead.id,
-          title: `${lead.firstName} ${lead.lastName} - Registro inicial`,
-          propertyType: lead.desiredUnitType || undefined,
-          modality: "rent",
-          minBudget: lead.estimatedRentCost ? String(lead.estimatedRentCost) : undefined,
-          maxBudget: lead.estimatedRentCost ? String(lead.estimatedRentCost) : undefined,
-          budgetText: lead.estimatedRentCostText || undefined,
-          bedrooms: lead.bedrooms || undefined,
-          bedroomsText: lead.bedroomsText || undefined,
-          preferredZone: lead.desiredNeighborhood || undefined,
-          moveInDate: lead.checkInDate || undefined,
-          moveInDateText: lead.checkInDateText || undefined,
-          contractDuration: lead.contractDuration || undefined,
-          hasPets: hasPetsValue,
-          petsDescription: hasPetsValue ? lead.hasPets : undefined,
-          specificProperty: lead.desiredProperty || undefined,
-          isDefault: true,
-          status: "active",
-          createdBy: req.user.id,
-        });
+        const cardData = normalizePresentationCardFromLead(lead, agencyId, req.user.id);
+        await storage.createExternalPresentationCard(cardData);
       } catch (cardError) {
         console.error("Error creating initial presentation card:", cardError);
       }
@@ -27532,29 +27558,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
         // Create initial presentation card
         try {
-          const hasPetsValue = lead.hasPets && lead.hasPets.toLowerCase() !== "no" && lead.hasPets.toLowerCase() !== "false";
-          await storage.createExternalPresentationCard({
-            agencyId,
-            leadId: lead.id,
-            title: `${lead.firstName} ${lead.lastName} - Registro inicial`,
-            propertyType: lead.desiredUnitType || undefined,
-            modality: "rent",
-            minBudget: lead.estimatedRentCost ? String(lead.estimatedRentCost) : undefined,
-            maxBudget: lead.estimatedRentCost ? String(lead.estimatedRentCost) : undefined,
-            budgetText: lead.estimatedRentCostText || undefined,
-            bedrooms: lead.bedrooms || undefined,
-            bedroomsText: lead.bedroomsText || undefined,
-            preferredZone: lead.desiredNeighborhood || undefined,
-            moveInDate: lead.checkInDate || undefined,
-            moveInDateText: lead.checkInDateText || undefined,
-            contractDuration: lead.contractDuration || undefined,
-            hasPets: hasPetsValue,
-            petsDescription: hasPetsValue ? lead.hasPets : undefined,
-            specificProperty: lead.desiredProperty || undefined,
-            isDefault: true,
-            status: "active",
-            createdBy: req.user.id,
-          });
+          const cardData = normalizePresentationCardFromLead(lead, agencyId, req.user.id);
+          await storage.createExternalPresentationCard(cardData);
           created++;
         } catch (cardError: any) {
           errors.push(`Lead ${lead.id}: ${cardError.message}`);
