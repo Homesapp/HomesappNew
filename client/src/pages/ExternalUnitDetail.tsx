@@ -36,6 +36,7 @@ import { insertExternalUnitOwnerSchema, insertExternalUnitAccessControlSchema, i
 import { formatFloor, floorOptions } from "@/lib/unitHelpers";
 import { UnitImageGallery } from "@/components/external/UnitImageGallery";
 import { UnitAmenitiesSelector } from "@/components/external/UnitAmenitiesSelector";
+import { PropertyPreviewDialog } from "@/components/external/PropertyPreviewDialog";
 
 type OwnerFormData = z.infer<typeof insertExternalUnitOwnerSchema>;
 type AccessControlFormData = z.infer<typeof insertExternalUnitAccessControlSchema>;
@@ -178,6 +179,7 @@ export default function ExternalUnitDetail() {
   const [showAccessDialog, setShowAccessDialog] = useState(false);
   const [showRentalDialog, setShowRentalDialog] = useState(false);
   const [showUnitEditDialog, setShowUnitEditDialog] = useState(false);
+  const [showPreviewDialog, setShowPreviewDialog] = useState(false);
   const [editingOwner, setEditingOwner] = useState<ExternalUnitOwner | null>(null);
   const [editingAccess, setEditingAccess] = useState<ExternalUnitAccessControl | null>(null);
   const [visiblePasswords, setVisiblePasswords] = useState<Set<string>>(new Set());
@@ -837,7 +839,26 @@ ${language === "es" ? "ACCESOS" : "ACCESSES"}:
         </div>
       </div>
 
-      {/* Unit Information and Owner - Side by Side */}
+      {/* Image Gallery - Full Width Hero Section */}
+      <div className="space-y-6">
+        <UnitImageGallery
+          unitId={id}
+          primaryImages={unit.primaryImages || []}
+          secondaryImages={unit.secondaryImages || []}
+          videos={unit.videos || []}
+          virtualTourUrl={unit.virtualTourUrl}
+          language={language}
+          readOnly={!user}
+          onUpdate={(data) => {
+            updateUnitMutation.mutate({
+              unitNumber: unit.unitNumber,
+              ...data,
+            });
+          }}
+        />
+      </div>
+
+      {/* Unit Information and Owner */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Unit Information */}
         <Card data-testid="card-unit-info">
@@ -848,6 +869,15 @@ ${language === "es" ? "ACCESOS" : "ACCESSES"}:
                 {language === "es" ? "Información de la Unidad" : "Unit Information"}
               </CardTitle>
               <div className="flex gap-1">
+                <Button
+                  variant="outline"
+                  size="icon"
+                  onClick={() => setShowPreviewDialog(true)}
+                  title={language === "es" ? "Vista Previa de Publicación" : "Publication Preview"}
+                  data-testid="button-preview-publication"
+                >
+                  <Eye className="h-4 w-4" />
+                </Button>
                 <Button
                   variant="outline"
                   size="icon"
@@ -1184,40 +1214,6 @@ ${language === "es" ? "ACCESOS" : "ACCESSES"}:
                 ))}
               </div>
             )}
-          </CardContent>
-        </Card>
-      </div>
-
-      {/* Image Gallery and Amenities Section */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <UnitImageGallery
-          primaryImages={unit.primaryImages || []}
-          secondaryImages={unit.secondaryImages || []}
-          videos={unit.videos || []}
-          language={language}
-          readOnly={!user}
-          onUpdate={(data) => {
-            updateUnitMutation.mutate({
-              unitNumber: unit.unitNumber,
-              ...data,
-            });
-          }}
-        />
-        
-        <Card data-testid="card-amenities">
-          <CardHeader className="pb-3">
-            <CardTitle className="flex items-center gap-2 text-base">
-              <Home className="h-4 w-4" />
-              {language === "es" ? "Amenidades" : "Amenities"}
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <UnitAmenitiesSelector
-              amenities={unit.amenities || []}
-              language={language}
-              readOnly={true}
-              onChange={() => {}}
-            />
           </CardContent>
         </Card>
       </div>
@@ -2769,6 +2765,35 @@ ${language === "es" ? "ACCESOS" : "ACCESSES"}:
           </Form>
         </DialogContent>
       </Dialog>
+
+      {/* Property Preview Dialog */}
+      <PropertyPreviewDialog
+        open={showPreviewDialog}
+        onOpenChange={setShowPreviewDialog}
+        unit={{
+          unitNumber: unit.unitNumber,
+          title: unit.title,
+          description: unit.description,
+          price: unit.price,
+          propertyType: unit.propertyType,
+          bedrooms: unit.bedrooms,
+          bathrooms: unit.bathrooms,
+          area: unit.area,
+          zone: unit.zone,
+          city: unit.city,
+          address: unit.address,
+          primaryImages: unit.primaryImages || [],
+          secondaryImages: unit.secondaryImages || [],
+          videos: unit.videos || [],
+          virtualTourUrl: unit.virtualTourUrl,
+          googleMapsUrl: unit.googleMapsUrl,
+          amenities: unit.amenities || [],
+          includedServices: unit.includedServices,
+          petFriendly: unit.petFriendly,
+        }}
+        condominiumName={condominium?.name}
+        language={language}
+      />
     </div>
   );
 }

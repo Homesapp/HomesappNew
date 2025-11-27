@@ -1,26 +1,36 @@
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
-import { Image, Plus, Trash2, ChevronLeft, ChevronRight, X, Star, Video, Camera } from "lucide-react";
+import { Progress } from "@/components/ui/progress";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Image, Plus, Trash2, ChevronLeft, ChevronRight, X, Star, Video, Camera, Upload, Link, Globe, AlertCircle } from "lucide-react";
+import { useToast } from "@/hooks/use-toast";
 
 interface UnitImageGalleryProps {
+  unitId?: string;
   primaryImages: string[];
   secondaryImages?: string[];
   videos?: string[];
-  onUpdate?: (data: { primaryImages: string[]; secondaryImages: string[]; videos: string[] }) => void;
+  virtualTourUrl?: string | null;
+  onUpdate?: (data: { primaryImages: string[]; secondaryImages: string[]; videos: string[]; virtualTourUrl?: string | null }) => void;
   language?: "es" | "en";
   readOnly?: boolean;
   title?: string;
 }
 
+const ACCEPTED_FORMATS = ".jpg,.jpeg,.png,.webp,.heic,.heif,.avif,.gif,.tiff,.bmp";
+const MAX_FILE_SIZE = 10 * 1024 * 1024;
+
 export function UnitImageGallery({
+  unitId,
   primaryImages = [],
   secondaryImages = [],
   videos = [],
+  virtualTourUrl = null,
   onUpdate,
   language = "es",
   readOnly = false,
@@ -29,14 +39,84 @@ export function UnitImageGallery({
   const [lightboxOpen, setLightboxOpen] = useState(false);
   const [lightboxIndex, setLightboxIndex] = useState(0);
   const [showAddDialog, setShowAddDialog] = useState(false);
-  const [addType, setAddType] = useState<"primary" | "secondary" | "video">("primary");
+  const [addType, setAddType] = useState<"primary" | "secondary" | "video" | "tour">("primary");
   const [newUrl, setNewUrl] = useState("");
+  const [isUploading, setIsUploading] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState(0);
+  const [uploadError, setUploadError] = useState<string | null>(null);
+  const [activeTab, setActiveTab] = useState<"upload" | "url">("upload");
+  
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const { toast } = useToast();
 
   const allImages = [...primaryImages, ...secondaryImages];
   const hasPrimaryImages = primaryImages.length > 0;
   const hasSecondaryImages = secondaryImages.length > 0;
   const hasVideos = videos.length > 0;
   const hasAnyMedia = hasPrimaryImages || hasSecondaryImages || hasVideos;
+
+  const texts = {
+    es: {
+      gallery: "Galería de Fotos",
+      primaryImages: "Imágenes Principales",
+      secondaryImages: "Imágenes Secundarias",
+      videos: "Videos",
+      tour: "Tour 360°",
+      noImages: "No hay imágenes",
+      addImage: "Agregar Imagen",
+      addPrimary: "Principal",
+      addSecondary: "Secundaria",
+      addVideo: "Video",
+      addTour: "Tour 360°",
+      uploadTab: "Subir Archivo",
+      urlTab: "Desde URL",
+      uploading: "Subiendo y optimizando...",
+      dragDrop: "Arrastra imágenes aquí o haz clic",
+      formats: "JPEG, PNG, WebP, HEIC, AVIF (máx. 10MB)",
+      maxPrimary: "Máximo 5 imágenes principales",
+      maxSecondary: "Máximo 20 imágenes secundarias",
+      videoUrl: "URL del Video",
+      tourUrl: "URL del Tour 360° (kuula.co, etc.)",
+      imageUrl: "URL de la Imagen",
+      cancel: "Cancelar",
+      add: "Agregar",
+      cover: "Portada",
+      uploadSuccess: "Imagen(es) subida(s) correctamente",
+      uploadError: "Error al subir imagen(es)",
+      deleteSuccess: "Imagen eliminada",
+    },
+    en: {
+      gallery: "Photo Gallery",
+      primaryImages: "Primary Images",
+      secondaryImages: "Secondary Images",
+      videos: "Videos",
+      tour: "360° Tour",
+      noImages: "No images",
+      addImage: "Add Image",
+      addPrimary: "Primary",
+      addSecondary: "Secondary",
+      addVideo: "Video",
+      addTour: "360° Tour",
+      uploadTab: "Upload File",
+      urlTab: "From URL",
+      uploading: "Uploading and optimizing...",
+      dragDrop: "Drag images here or click",
+      formats: "JPEG, PNG, WebP, HEIC, AVIF (max. 10MB)",
+      maxPrimary: "Maximum 5 primary images",
+      maxSecondary: "Maximum 20 secondary images",
+      videoUrl: "Video URL",
+      tourUrl: "360° Tour URL (kuula.co, etc.)",
+      imageUrl: "Image URL",
+      cancel: "Cancel",
+      add: "Add",
+      cover: "Cover",
+      uploadSuccess: "Image(s) uploaded successfully",
+      uploadError: "Error uploading image(s)",
+      deleteSuccess: "Image deleted",
+    },
+  };
+
+  const t = texts[language];
 
   const openLightbox = (index: number) => {
     setLightboxIndex(index);
@@ -51,6 +131,99 @@ export function UnitImageGallery({
     setLightboxIndex((prev) => (prev - 1 + allImages.length) % allImages.length);
   };
 
+  const handleFileUpload = async (files: FileList | null) => {
+    if (!files || files.length === 0 || !unitId || !onUpdate) return;
+    
+    const imageType = addType === "primary" ? "primary" : "secondary";
+    const maxImages = imageType === "primary" ? 5 : 20;
+    const currentImages = imageType === "primary" ? primaryImages : secondaryImages;
+    const remainingSlots = maxImages - currentImages.length;
+    
+    if (remainingSlots <= 0) {
+      setUploadError(imageType === "primary" ? t.maxPrimary : t.maxSecondary);
+      return;
+    }
+    
+    const filesToUpload = Array.from(files).slice(0, remainingSlots).filter(file => {
+      if (file.size > MAX_FILE_SIZE) {
+        toast({
+          title: t.uploadError,
+          description: `${file.name}: File too large (max 10MB)`,
+          variant: "destructive",
+        });
+        return false;
+      }
+      return true;
+    });
+    
+    if (filesToUpload.length === 0) return;
+    
+    setIsUploading(true);
+    setUploadProgress(10);
+    setUploadError(null);
+    
+    try {
+      const formData = new FormData();
+      filesToUpload.forEach(file => formData.append('images', file));
+      formData.append('imageType', imageType);
+      
+      setUploadProgress(30);
+      
+      const response = await fetch(`/api/external-units/${unitId}/upload-images`, {
+        method: 'POST',
+        body: formData,
+        credentials: 'include',
+      });
+      
+      setUploadProgress(80);
+      
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || 'Upload failed');
+      }
+      
+      const result = await response.json();
+      setUploadProgress(100);
+      
+      if (result.uploaded && result.uploaded.length > 0) {
+        const newUrls = result.uploaded.map((img: any) => img.publicUrl);
+        
+        if (imageType === "primary") {
+          onUpdate({
+            primaryImages: [...primaryImages, ...newUrls],
+            secondaryImages,
+            videos,
+            virtualTourUrl,
+          });
+        } else {
+          onUpdate({
+            primaryImages,
+            secondaryImages: [...secondaryImages, ...newUrls],
+            videos,
+            virtualTourUrl,
+          });
+        }
+        
+        toast({ title: t.uploadSuccess });
+        setShowAddDialog(false);
+      }
+    } catch (err: any) {
+      console.error('Upload error:', err);
+      setUploadError(err.message);
+      toast({
+        title: t.uploadError,
+        description: err.message,
+        variant: "destructive",
+      });
+    } finally {
+      setIsUploading(false);
+      setUploadProgress(0);
+      if (fileInputRef.current) {
+        fileInputRef.current.value = '';
+      }
+    }
+  };
+
   const handleAddMedia = () => {
     if (!newUrl.trim() || !onUpdate) return;
     
@@ -60,6 +233,7 @@ export function UnitImageGallery({
         primaryImages: [...primaryImages, newUrl.trim()],
         secondaryImages,
         videos,
+        virtualTourUrl,
       });
     } else if (addType === "secondary") {
       if (secondaryImages.length >= 20) return;
@@ -67,12 +241,21 @@ export function UnitImageGallery({
         primaryImages,
         secondaryImages: [...secondaryImages, newUrl.trim()],
         videos,
+        virtualTourUrl,
       });
     } else if (addType === "video") {
       onUpdate({
         primaryImages,
         secondaryImages,
         videos: [...videos, newUrl.trim()],
+        virtualTourUrl,
+      });
+    } else if (addType === "tour") {
+      onUpdate({
+        primaryImages,
+        secondaryImages,
+        videos,
+        virtualTourUrl: newUrl.trim(),
       });
     }
     
@@ -80,95 +263,151 @@ export function UnitImageGallery({
     setShowAddDialog(false);
   };
 
-  const handleRemoveMedia = (type: "primary" | "secondary" | "video", index: number) => {
+  const handleRemoveMedia = async (type: "primary" | "secondary" | "video" | "tour", index: number) => {
     if (!onUpdate) return;
     
     if (type === "primary") {
+      const imageUrl = primaryImages[index];
       const updated = [...primaryImages];
       updated.splice(index, 1);
-      onUpdate({ primaryImages: updated, secondaryImages, videos });
+      onUpdate({ primaryImages: updated, secondaryImages, videos, virtualTourUrl });
+      
+      if (unitId && imageUrl) {
+        try {
+          await fetch(`/api/external-units/${unitId}/images`, {
+            method: 'DELETE',
+            headers: { 'Content-Type': 'application/json' },
+            credentials: 'include',
+            body: JSON.stringify({ imageUrl, imageType: 'primary' }),
+          });
+        } catch (err) {
+          console.warn('Failed to delete from storage:', err);
+        }
+      }
     } else if (type === "secondary") {
+      const imageUrl = secondaryImages[index];
       const updated = [...secondaryImages];
       updated.splice(index, 1);
-      onUpdate({ primaryImages, secondaryImages: updated, videos });
+      onUpdate({ primaryImages, secondaryImages: updated, videos, virtualTourUrl });
+      
+      if (unitId && imageUrl) {
+        try {
+          await fetch(`/api/external-units/${unitId}/images`, {
+            method: 'DELETE',
+            headers: { 'Content-Type': 'application/json' },
+            credentials: 'include',
+            body: JSON.stringify({ imageUrl, imageType: 'secondary' }),
+          });
+        } catch (err) {
+          console.warn('Failed to delete from storage:', err);
+        }
+      }
     } else if (type === "video") {
       const updated = [...videos];
       updated.splice(index, 1);
-      onUpdate({ primaryImages, secondaryImages, videos: updated });
+      onUpdate({ primaryImages, secondaryImages, videos: updated, virtualTourUrl });
+    } else if (type === "tour") {
+      onUpdate({ primaryImages, secondaryImages, videos, virtualTourUrl: null });
     }
+    
+    toast({ title: t.deleteSuccess });
+  };
+
+  const handleDrop = (e: React.DragEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (isUploading) return;
+    
+    const files = e.dataTransfer.files;
+    const imageFiles = Array.from(files).filter(f => f.type.startsWith('image/'));
+    if (imageFiles.length > 0) {
+      const dt = new DataTransfer();
+      imageFiles.forEach(f => dt.items.add(f));
+      handleFileUpload(dt.files);
+    }
+  };
+
+  const handleDragOver = (e: React.DragEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    e.stopPropagation();
+  };
+
+  const openAddDialog = (type: "primary" | "secondary" | "video" | "tour") => {
+    setAddType(type);
+    setNewUrl("");
+    setUploadError(null);
+    setActiveTab(type === "video" || type === "tour" ? "url" : "upload");
+    setShowAddDialog(true);
   };
 
   return (
     <>
       <Card data-testid="card-image-gallery">
         <CardHeader className="pb-3">
-          <div className="flex justify-between items-center gap-2">
+          <div className="flex flex-wrap justify-between items-center gap-2">
             <CardTitle className="flex items-center gap-2 text-base">
               <Camera className="h-4 w-4" />
-              {title || (language === "es" ? "Galería de Fotos" : "Photo Gallery")}
+              {title || t.gallery}
             </CardTitle>
             {!readOnly && onUpdate && (
-              <div className="flex gap-1">
+              <div className="flex flex-wrap gap-1">
                 <Button
                   variant="outline"
                   size="sm"
-                  onClick={() => {
-                    setAddType("primary");
-                    setShowAddDialog(true);
-                  }}
+                  onClick={() => openAddDialog("primary")}
                   disabled={primaryImages.length >= 5}
                   data-testid="button-add-primary-image"
                 >
                   <Star className="h-3 w-3 mr-1" />
-                  {language === "es" ? "Principal" : "Primary"}
+                  {t.addPrimary}
                 </Button>
                 <Button
                   variant="outline"
                   size="sm"
-                  onClick={() => {
-                    setAddType("secondary");
-                    setShowAddDialog(true);
-                  }}
+                  onClick={() => openAddDialog("secondary")}
                   disabled={secondaryImages.length >= 20}
                   data-testid="button-add-secondary-image"
                 >
                   <Plus className="h-3 w-3 mr-1" />
-                  {language === "es" ? "Secundaria" : "Secondary"}
+                  {t.addSecondary}
                 </Button>
                 <Button
                   variant="outline"
                   size="sm"
-                  onClick={() => {
-                    setAddType("video");
-                    setShowAddDialog(true);
-                  }}
+                  onClick={() => openAddDialog("video")}
                   data-testid="button-add-video"
                 >
                   <Video className="h-3 w-3 mr-1" />
-                  {language === "es" ? "Video" : "Video"}
+                  {t.addVideo}
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => openAddDialog("tour")}
+                  data-testid="button-add-tour"
+                >
+                  <Globe className="h-3 w-3 mr-1" />
+                  {t.addTour}
                 </Button>
               </div>
             )}
           </div>
         </CardHeader>
         <CardContent>
-          {!hasAnyMedia ? (
+          {!hasAnyMedia && !virtualTourUrl ? (
             <div className="flex flex-col items-center justify-center py-8 text-muted-foreground" data-testid="text-no-images">
               <Image className="h-10 w-10 mb-2 opacity-50" />
-              <p className="text-sm">{language === "es" ? "No hay imágenes" : "No images"}</p>
+              <p className="text-sm">{t.noImages}</p>
               {!readOnly && onUpdate && (
                 <Button
                   variant="outline"
                   size="sm"
                   className="mt-3"
-                  onClick={() => {
-                    setAddType("primary");
-                    setShowAddDialog(true);
-                  }}
+                  onClick={() => openAddDialog("primary")}
                   data-testid="button-add-first-image"
                 >
-                  <Plus className="h-4 w-4 mr-1" />
-                  {language === "es" ? "Agregar Imagen" : "Add Image"}
+                  <Upload className="h-4 w-4 mr-1" />
+                  {t.addImage}
                 </Button>
               )}
             </div>
@@ -177,13 +416,13 @@ export function UnitImageGallery({
               {hasPrimaryImages && (
                 <div>
                   <p className="text-xs font-medium text-muted-foreground mb-2">
-                    {language === "es" ? "Imágenes Principales" : "Primary Images"} ({primaryImages.length}/5)
+                    {t.primaryImages} ({primaryImages.length}/5)
                   </p>
-                  <div className="grid grid-cols-3 gap-2">
+                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
                     {primaryImages.map((url, index) => (
                       <div
                         key={`primary-${index}`}
-                        className="relative group aspect-video rounded-md overflow-hidden cursor-pointer"
+                        className="relative group aspect-video rounded-md overflow-hidden cursor-pointer border"
                         onClick={() => openLightbox(index)}
                         data-testid={`image-primary-${index}`}
                       >
@@ -191,6 +430,7 @@ export function UnitImageGallery({
                           src={url}
                           alt={`Primary ${index + 1}`}
                           className="w-full h-full object-cover"
+                          loading="lazy"
                           onError={(e) => {
                             (e.target as HTMLImageElement).src = "https://placehold.co/400x300?text=Error";
                           }}
@@ -198,7 +438,7 @@ export function UnitImageGallery({
                         {index === 0 && (
                           <Badge variant="default" className="absolute top-1 left-1 text-xs">
                             <Star className="h-3 w-3 mr-0.5" />
-                            {language === "es" ? "Portada" : "Cover"}
+                            {t.cover}
                           </Badge>
                         )}
                         {!readOnly && onUpdate && (
@@ -224,13 +464,13 @@ export function UnitImageGallery({
               {hasSecondaryImages && (
                 <div>
                   <p className="text-xs font-medium text-muted-foreground mb-2">
-                    {language === "es" ? "Imágenes Secundarias" : "Secondary Images"} ({secondaryImages.length}/20)
+                    {t.secondaryImages} ({secondaryImages.length}/20)
                   </p>
-                  <div className="grid grid-cols-4 gap-2">
+                  <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 gap-2">
                     {secondaryImages.map((url, index) => (
                       <div
                         key={`secondary-${index}`}
-                        className="relative group aspect-square rounded-md overflow-hidden cursor-pointer"
+                        className="relative group aspect-square rounded-md overflow-hidden cursor-pointer border"
                         onClick={() => openLightbox(primaryImages.length + index)}
                         data-testid={`image-secondary-${index}`}
                       >
@@ -238,6 +478,7 @@ export function UnitImageGallery({
                           src={url}
                           alt={`Secondary ${index + 1}`}
                           className="w-full h-full object-cover"
+                          loading="lazy"
                           onError={(e) => {
                             (e.target as HTMLImageElement).src = "https://placehold.co/200x200?text=Error";
                           }}
@@ -262,10 +503,40 @@ export function UnitImageGallery({
                 </div>
               )}
 
+              {virtualTourUrl && (
+                <div>
+                  <p className="text-xs font-medium text-muted-foreground mb-2">
+                    {t.tour}
+                  </p>
+                  <div className="flex items-center gap-2 p-3 rounded-md border bg-muted/30 group">
+                    <Globe className="h-5 w-5 text-primary shrink-0" />
+                    <a
+                      href={virtualTourUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-sm text-primary hover:underline flex-1 truncate"
+                    >
+                      {virtualTourUrl}
+                    </a>
+                    {!readOnly && onUpdate && (
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-6 w-6 shrink-0"
+                        onClick={() => handleRemoveMedia("tour", 0)}
+                        data-testid="button-remove-tour"
+                      >
+                        <Trash2 className="h-3 w-3" />
+                      </Button>
+                    )}
+                  </div>
+                </div>
+              )}
+
               {hasVideos && (
                 <div>
                   <p className="text-xs font-medium text-muted-foreground mb-2">
-                    {language === "es" ? "Videos" : "Videos"} ({videos.length})
+                    {t.videos} ({videos.length})
                   </p>
                   <div className="space-y-2">
                     {videos.map((url, index) => (
@@ -274,7 +545,7 @@ export function UnitImageGallery({
                         className="flex items-center gap-2 p-2 rounded-md border group"
                         data-testid={`video-${index}`}
                       >
-                        <Video className="h-4 w-4 text-muted-foreground" />
+                        <Video className="h-4 w-4 text-muted-foreground shrink-0" />
                         <a
                           href={url}
                           target="_blank"
@@ -356,54 +627,149 @@ export function UnitImageGallery({
       </Dialog>
 
       <Dialog open={showAddDialog} onOpenChange={setShowAddDialog}>
-        <DialogContent data-testid="dialog-add-media">
+        <DialogContent data-testid="dialog-add-media" className="sm:max-w-md">
           <DialogHeader>
             <DialogTitle>
               {addType === "primary"
                 ? (language === "es" ? "Agregar Imagen Principal" : "Add Primary Image")
                 : addType === "secondary"
                 ? (language === "es" ? "Agregar Imagen Secundaria" : "Add Secondary Image")
+                : addType === "tour"
+                ? (language === "es" ? "Agregar Tour 360°" : "Add 360° Tour")
                 : (language === "es" ? "Agregar Video" : "Add Video")}
             </DialogTitle>
           </DialogHeader>
-          <div className="space-y-4">
-            <div>
-              <Label>
-                {addType === "video"
-                  ? (language === "es" ? "URL del Video" : "Video URL")
-                  : (language === "es" ? "URL de la Imagen" : "Image URL")}
-              </Label>
-              <Input
-                value={newUrl}
-                onChange={(e) => setNewUrl(e.target.value)}
-                placeholder="https://..."
-                data-testid="input-media-url"
-              />
-              <p className="text-xs text-muted-foreground mt-1">
-                {addType === "primary"
-                  ? (language === "es" ? "Máximo 5 imágenes principales" : "Maximum 5 primary images")
-                  : addType === "secondary"
-                  ? (language === "es" ? "Máximo 20 imágenes secundarias" : "Maximum 20 secondary images")
-                  : (language === "es" ? "Enlace a video de YouTube, Vimeo, etc." : "Link to YouTube, Vimeo video, etc.")}
-              </p>
+          
+          {(addType === "primary" || addType === "secondary") ? (
+            <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as "upload" | "url")}>
+              <TabsList className="grid w-full grid-cols-2">
+                <TabsTrigger value="upload" className="gap-1">
+                  <Upload className="h-3 w-3" />
+                  {t.uploadTab}
+                </TabsTrigger>
+                <TabsTrigger value="url" className="gap-1">
+                  <Link className="h-3 w-3" />
+                  {t.urlTab}
+                </TabsTrigger>
+              </TabsList>
+              
+              <TabsContent value="upload" className="mt-4">
+                <div
+                  className={`border-2 border-dashed rounded-lg p-6 text-center transition-colors ${
+                    isUploading ? 'bg-muted cursor-not-allowed' : 'hover:border-primary cursor-pointer'
+                  }`}
+                  onClick={() => !isUploading && fileInputRef.current?.click()}
+                  onDrop={handleDrop}
+                  onDragOver={handleDragOver}
+                  data-testid="dropzone-images"
+                >
+                  <input
+                    ref={fileInputRef}
+                    type="file"
+                    accept={ACCEPTED_FORMATS}
+                    multiple
+                    onChange={(e) => handleFileUpload(e.target.files)}
+                    className="hidden"
+                    disabled={isUploading}
+                    data-testid="input-upload-images"
+                  />
+                  
+                  {isUploading ? (
+                    <div className="space-y-3">
+                      <div className="flex items-center justify-center gap-2 text-muted-foreground">
+                        <Upload className="h-5 w-5 animate-pulse" />
+                        <span>{t.uploading}</span>
+                      </div>
+                      <Progress value={uploadProgress} className="w-full max-w-xs mx-auto" />
+                    </div>
+                  ) : (
+                    <div className="space-y-2">
+                      <Upload className="h-8 w-8 mx-auto text-muted-foreground" />
+                      <p className="text-sm text-muted-foreground">{t.dragDrop}</p>
+                      <p className="text-xs text-muted-foreground">{t.formats}</p>
+                    </div>
+                  )}
+                </div>
+                
+                {uploadError && (
+                  <div className="flex items-center gap-2 text-destructive text-sm mt-3">
+                    <AlertCircle className="h-4 w-4" />
+                    <span>{uploadError}</span>
+                  </div>
+                )}
+                
+                <p className="text-xs text-muted-foreground mt-3">
+                  {addType === "primary" ? t.maxPrimary : t.maxSecondary}
+                </p>
+              </TabsContent>
+              
+              <TabsContent value="url" className="mt-4 space-y-4">
+                <div>
+                  <Label>{t.imageUrl}</Label>
+                  <Input
+                    value={newUrl}
+                    onChange={(e) => setNewUrl(e.target.value)}
+                    placeholder="https://..."
+                    data-testid="input-media-url"
+                  />
+                  <p className="text-xs text-muted-foreground mt-1">
+                    {addType === "primary" ? t.maxPrimary : t.maxSecondary}
+                  </p>
+                </div>
+                <div className="flex justify-end gap-2">
+                  <Button
+                    variant="outline"
+                    onClick={() => setShowAddDialog(false)}
+                    data-testid="button-cancel-add-media"
+                  >
+                    {t.cancel}
+                  </Button>
+                  <Button
+                    onClick={handleAddMedia}
+                    disabled={!newUrl.trim()}
+                    data-testid="button-save-media"
+                  >
+                    {t.add}
+                  </Button>
+                </div>
+              </TabsContent>
+            </Tabs>
+          ) : (
+            <div className="space-y-4">
+              <div>
+                <Label>
+                  {addType === "video" ? t.videoUrl : t.tourUrl}
+                </Label>
+                <Input
+                  value={newUrl}
+                  onChange={(e) => setNewUrl(e.target.value)}
+                  placeholder={addType === "tour" ? "https://kuula.co/..." : "https://youtube.com/..."}
+                  data-testid="input-media-url"
+                />
+                <p className="text-xs text-muted-foreground mt-1">
+                  {addType === "video"
+                    ? (language === "es" ? "Enlace a YouTube, Vimeo, etc." : "Link to YouTube, Vimeo, etc.")
+                    : (language === "es" ? "Enlace a kuula.co o similar para tour virtual" : "Link to kuula.co or similar for virtual tour")}
+                </p>
+              </div>
+              <div className="flex justify-end gap-2">
+                <Button
+                  variant="outline"
+                  onClick={() => setShowAddDialog(false)}
+                  data-testid="button-cancel-add-media"
+                >
+                  {t.cancel}
+                </Button>
+                <Button
+                  onClick={handleAddMedia}
+                  disabled={!newUrl.trim()}
+                  data-testid="button-save-media"
+                >
+                  {t.add}
+                </Button>
+              </div>
             </div>
-            <div className="flex justify-end gap-2">
-              <Button
-                variant="outline"
-                onClick={() => setShowAddDialog(false)}
-                data-testid="button-cancel-add-media"
-              >
-                {language === "es" ? "Cancelar" : "Cancel"}
-              </Button>
-              <Button
-                onClick={handleAddMedia}
-                disabled={!newUrl.trim()}
-                data-testid="button-save-media"
-              >
-                {language === "es" ? "Agregar" : "Add"}
-              </Button>
-            </div>
-          </div>
+          )}
         </DialogContent>
       </Dialog>
     </>

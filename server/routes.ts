@@ -13,6 +13,7 @@ import { syncMaintenanceTicketToGoogleCalendar, deleteMaintenanceTicketFromGoogl
 import { calculateRentalCommissions } from "./commissionCalculator";
 import { sendVerificationEmail, sendLeadVerificationEmail, sendDuplicateLeadNotification, sendOwnerReferralVerificationEmail, sendOwnerReferralApprovedNotification, sendOfferLinkEmail } from "./gmail";
 import { readUnitsFromSheet, getSpreadsheetInfo } from "./googleSheets";
+import { imageProcessor } from "./imageProcessor";
 import { getPropertyTitle } from "./propertyHelpers";
 import { setupGoogleAuth } from "./googleAuth";
 import { generateOfferPDF, generateRentalFormPDF, generateOwnerFormPDF, generateQuotationPDF } from "./pdfGenerator";
@@ -25247,6 +25248,183 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error: any) {
       console.error("Error toggling unit status:", error);
       handleGenericError(res, error);
+    }
+  });
+
+
+
+  // Configure multer for external unit image uploads
+  const externalUnitImageStorage = multer.memoryStorage();
+  const uploadExternalUnitImages = multer({
+    storage: externalUnitImageStorage,
+    limits: { fileSize: 10 * 1024 * 1024 }, // 10MB limit
+    fileFilter: (req, file, cb) => {
+      const allowedMimes = [
+        'image/jpeg', 'image/jpg', 'image/png', 'image/webp',
+        'image/avif', 'image/heic', 'image/heif', 'image/gif',
+        'image/tiff', 'image/bmp'
+      ];
+      if (allowedMimes.includes(file.mimetype.toLowerCase())) {
+        cb(null, true);
+      } else {
+        cb(new Error(`Formato no soportado: ${file.mimetype}. Formatos válidos: JPEG, PNG, WebP, HEIC, AVIF, GIF, TIFF, BMP`));
+      }
+    }
+  });
+
+  // POST /api/external-units/:id/upload-images - Upload and convert images for external unit
+  app.post("/api/external-units/:id/upload-images", isAuthenticated, requireRole(EXTERNAL_ADMIN_ROLES), uploadExternalUnitImages.array('images', 20), async (req: any, res) => {
+    try {
+      const { id } = req.params;
+      const { imageType = 'primary' } = req.body; // 'primary' or 'secondary'
+
+      // Verify unit exists and user has access
+      const existing = await storage.getExternalUnit(id);
+      if (!existing) {
+        return res.status(404).json({ message: "Unit not found" });
+      }
+
+      const hasAccess = await verifyExternalAgencyOwnership(req, res, existing.agencyId);
+      if (!hasAccess) return;
+
+      const files = req.files as Express.Multer.File[];
+      if (!files || files.length === 0) {
+        return res.status(400).json({ message: "No images provided" });
+      }
+
+      const uploadedImages: Array<{ objectPath: string; publicUrl: string; width: number; height: number }> = [];
+      const errors: string[] = [];
+
+      for (const file of files) {
+        try {
+          // Process image (convert to WebP, resize, optimize)
+          const processed = await imageProcessor.processImage(file.buffer, file.mimetype, {
+            maxDimension: 2000,
+            quality: 85,
+            outputFormat: 'webp',
+          });
+
+          // Upload to object storage
+          const result = await imageProcessor.uploadToStorage(
+            processed,
+            `external-units/${id}/images`
+          );
+
+          uploadedImages.push({
+            objectPath: result.objectPath,
+            publicUrl: result.publicUrl,
+            width: result.width,
+            height: result.height,
+          });
+
+          console.log(`Image uploaded: ${file.originalname} -> ${result.objectPath} (original: ${result.originalSize}, processed: ${result.processedSize})`);
+        } catch (error: any) {
+          console.error(`Error processing image ${file.originalname}:`, error);
+          errors.push(`${file.originalname}: ${error.message}`);
+        }
+      }
+
+      if (uploadedImages.length === 0) {
+        return res.status(400).json({ 
+          message: "Failed to process all images",
+          errors 
+        });
+      }
+
+      // Update unit with new images
+      const currentPrimary = existing.primaryImages || [];
+      const currentSecondary = existing.secondaryImages || [];
+      
+      const newImageUrls = uploadedImages.map(img => img.publicUrl);
+      
+      let updateData;
+      if (imageType === 'primary') {
+        updateData = { primaryImages: [...currentPrimary, ...newImageUrls] };
+      } else {
+        updateData = { secondaryImages: [...currentSecondary, ...newImageUrls] };
+      }
+
+      await storage.updateExternalUnit(id, updateData);
+
+      res.json({
+        success: true,
+        uploaded: uploadedImages,
+        errors: errors.length > 0 ? errors : undefined,
+        message: `${uploadedImages.length} imagen(es) subida(s) correctamente`
+      });
+    } catch (error: any) {
+      console.error("Error uploading images:", error);
+      res.status(500).json({ message: error.message || "Failed to upload images" });
+    }
+  });
+
+  // DELETE /api/external-units/:id/images - Remove image from external unit
+  app.delete("/api/external-units/:id/images", isAuthenticated, requireRole(EXTERNAL_ADMIN_ROLES), async (req: any, res) => {
+    try {
+      const { id } = req.params;
+      const { imageUrl, imageType = 'primary' } = req.body;
+
+      if (!imageUrl) {
+        return res.status(400).json({ message: "Image URL is required" });
+      }
+
+      // Verify unit exists and user has access
+      const existing = await storage.getExternalUnit(id);
+      if (!existing) {
+        return res.status(404).json({ message: "Unit not found" });
+      }
+
+      const hasAccess = await verifyExternalAgencyOwnership(req, res, existing.agencyId);
+      if (!hasAccess) return;
+
+      // Remove image from the appropriate array
+      let updateData;
+      if (imageType === 'primary') {
+        const filteredImages = (existing.primaryImages || []).filter(url => url !== imageUrl);
+        updateData = { primaryImages: filteredImages };
+      } else {
+        const filteredImages = (existing.secondaryImages || []).filter(url => url !== imageUrl);
+        updateData = { secondaryImages: filteredImages };
+      }
+
+      await storage.updateExternalUnit(id, updateData);
+
+      res.json({ success: true, message: "Imagen eliminada" });
+    } catch (error: any) {
+      console.error("Error deleting image:", error);
+      res.status(500).json({ message: error.message || "Failed to delete image" });
+    }
+  });
+
+  // POST /api/external-units/:id/upload-videos - Upload videos for external unit
+  app.post("/api/external-units/:id/upload-videos", isAuthenticated, requireRole(EXTERNAL_ADMIN_ROLES), async (req: any, res) => {
+    try {
+      const { id } = req.params;
+      const { videoUrls } = req.body;
+
+      if (!videoUrls || !Array.isArray(videoUrls)) {
+        return res.status(400).json({ message: "Video URLs array is required" });
+      }
+
+      // Verify unit exists and user has access
+      const existing = await storage.getExternalUnit(id);
+      if (!existing) {
+        return res.status(404).json({ message: "Unit not found" });
+      }
+
+      const hasAccess = await verifyExternalAgencyOwnership(req, res, existing.agencyId);
+      if (!hasAccess) return;
+
+      // Add new video URLs to existing
+      const currentVideos = existing.videos || [];
+      const newVideos = [...currentVideos, ...videoUrls];
+
+      await storage.updateExternalUnit(id, { videos: newVideos });
+
+      res.json({ success: true, videos: newVideos, message: "Videos agregados correctamente" });
+    } catch (error: any) {
+      console.error("Error adding videos:", error);
+      res.status(500).json({ message: error.message || "Failed to add videos" });
     }
   });
 
