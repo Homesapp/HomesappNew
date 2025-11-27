@@ -21201,6 +21201,153 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ message: "Request has already been reviewed" });
       }
 
+      // Get unit details for syncing
+      const unit = await storage.getExternalUnit(request.unitId);
+      if (!unit) {
+        return res.status(404).json({ message: "Unit not found" });
+      }
+
+      let linkedPropertyId: string | null = null;
+
+      // If approved, sync to properties table
+      if (decision === 'approved') {
+        // Get condominium info for mapping
+        let condominiumId: string | null = null;
+        let condoName: string | null = null;
+        
+        if (unit.condominiumId) {
+          const extCondo = await storage.getExternalCondominium(unit.condominiumId);
+          if (extCondo) {
+            condoName = extCondo.name;
+            // Check if there's a linked main condominium with the same name
+            const mainCondos = await db.select()
+              .from(condominiums)
+              .where(eq(condominiums.name, extCondo.name))
+              .limit(1);
+            
+            if (mainCondos.length > 0) {
+              condominiumId = mainCondos[0].id;
+            } else {
+              // Create a new condominium in the main system
+              const [newCondo] = await db.insert(condominiums)
+                .values({
+                  name: extCondo.name,
+                  location: extCondo.address || unit.zone || 'Tulum',
+                  address: extCondo.address || '',
+                  approvalStatus: 'approved',
+                  status: 'active',
+                  addedBy: userId,
+                })
+                .returning();
+              condominiumId = newCondo.id;
+            }
+          }
+        }
+
+        // Get agency details
+        const agency = await storage.getExternalAgency(request.agencyId);
+
+        // Create property from external unit
+        // Use the admin user as owner, fallback to first admin if not available
+        let propertyOwnerId = userId;
+        if (!propertyOwnerId) {
+          // Find a system admin to use as owner
+          const admins = await db.select().from(users).where(eq(users.role, 'admin')).limit(1);
+          propertyOwnerId = admins[0]?.id || userId;
+        }
+
+        // If no condominium was linked, create a generic one for external properties
+        if (!condominiumId) {
+          const externalCondoName = 'Propiedades Externas';
+          const [existingExtCondo] = await db.select()
+            .from(condominiums)
+            .where(eq(condominiums.name, externalCondoName))
+            .limit(1);
+          
+          if (existingExtCondo) {
+            condominiumId = existingExtCondo.id;
+          } else {
+            const [newExtCondo] = await db.insert(condominiums)
+              .values({
+                name: externalCondoName,
+                location: 'Tulum',
+                address: 'Multiple locations',
+                approvalStatus: 'approved',
+                status: 'active',
+                addedBy: propertyOwnerId,
+              })
+              .returning();
+            condominiumId = newExtCondo.id;
+          }
+        }
+
+        // Transform includedServices to proper format
+        const includedServicesData = unit.includedServices ? {
+          water: unit.includedServices.water === true,
+          electricity: unit.includedServices.electricity === true,
+          internet: unit.includedServices.internet === true,
+          gas: unit.includedServices.gas === true,
+        } : null;
+
+        // Transform accessInfo to proper format (use unattended with lockbox as default)
+        let accessInfoData = null;
+        if (unit.accessInfo) {
+          if (unit.accessInfo.lockboxCode) {
+            accessInfoData = {
+              accessType: 'unattended' as const,
+              method: 'lockbox' as const,
+              lockboxCode: unit.accessInfo.lockboxCode || '',
+              lockboxLocation: '',
+            };
+          } else if (unit.accessInfo.contactPerson) {
+            accessInfoData = {
+              accessType: 'attended' as const,
+              contactPerson: unit.accessInfo.contactPerson || '',
+              contactPhone: unit.accessInfo.contactPhone || '',
+            };
+          }
+        }
+
+        const propertyData = {
+          title: unit.title || `${unit.unitNumber} - ${condoName || unit.zone || 'Property'}`,
+          description: unit.description || '',
+          price: unit.price ? String(unit.price) : "0",
+          propertyType: unit.propertyType || 'departamento',
+          bedrooms: unit.bedrooms || 0,
+          bathrooms: unit.bathrooms ? String(unit.bathrooms) : "1",
+          area: unit.area ? String(unit.area) : null,
+          location: unit.address || unit.zone || 'Tulum',
+          colonyName: unit.zone || null,
+          status: 'rent' as const,
+          unitType: 'private',
+          condominiumId: condominiumId,
+          condoName: condoName || null,
+          unitNumber: unit.unitNumber,
+          showCondoInListing: true,
+          showUnitNumberInListing: true,
+          primaryImages: unit.primaryImages || [],
+          secondaryImages: unit.secondaryImages || [],
+          videos: unit.videos || [],
+          virtualTourUrl: unit.virtualTourUrl || null,
+          googleMapsUrl: unit.googleMapsUrl || null,
+          latitude: unit.latitude ? String(unit.latitude) : null,
+          longitude: unit.longitude ? String(unit.longitude) : null,
+          amenities: unit.amenities || [],
+          includedServices: includedServicesData,
+          accessInfo: accessInfoData,
+          petFriendly: unit.petFriendly || false,
+          ownerId: propertyOwnerId,
+          approvalStatus: 'approved' as const,
+          active: true,
+          published: true,
+          externalUnitId: unit.id,
+          externalAgencyId: agency?.id || null,
+        };
+
+        const property = await storage.createProperty(propertyData);
+        linkedPropertyId = property.id;
+      }
+
       // Update the request
       const [updatedRequest] = await db.update(externalPublicationRequests)
         .set({
@@ -21208,6 +21355,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           reviewedBy: userId,
           reviewedAt: new Date(),
           adminFeedback: feedback || null,
+          linkedPropertyId: linkedPropertyId,
           updatedAt: new Date(),
         })
         .where(eq(externalPublicationRequests.id, id))

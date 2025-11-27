@@ -93,8 +93,9 @@ export default function AdminExternalPublicationRequests() {
 
   const approveMutation = useMutation({
     mutationFn: async (requestId: string) => {
-      return await apiRequest("POST", `/api/external-publication-requests/${requestId}/approve`, {
-        adminFeedback,
+      return await apiRequest("PATCH", `/api/external-publication-requests/${requestId}/review`, {
+        decision: "approved",
+        feedback: adminFeedback,
       });
     },
     onSuccess: () => {
@@ -121,8 +122,9 @@ export default function AdminExternalPublicationRequests() {
 
   const rejectMutation = useMutation({
     mutationFn: async (requestId: string) => {
-      return await apiRequest("POST", `/api/external-publication-requests/${requestId}/reject`, {
-        adminFeedback,
+      return await apiRequest("PATCH", `/api/external-publication-requests/${requestId}/review`, {
+        decision: "rejected",
+        feedback: adminFeedback,
       });
     },
     onSuccess: () => {
