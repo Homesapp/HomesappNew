@@ -99,6 +99,15 @@ const unitEditSchema = z.object({
   airbnbPhotosLink: z.string().nullable(),
   notes: z.string().nullable(),
   isActive: z.boolean().default(true),
+  title: z.string().nullable(),
+  description: z.string().nullable(),
+  price: z.union([z.string(), z.number()]).transform(val => val === "" ? null : String(val)).nullable(),
+  currency: z.string().nullable(),
+  address: z.string().nullable(),
+  googleMapsUrl: z.string().nullable(),
+  virtualTourUrl: z.string().nullable(),
+  petFriendly: z.boolean().default(false),
+  publishToMain: z.boolean().default(false),
 });
 
 type UnitEditFormData = z.infer<typeof unitEditSchema>;
@@ -223,6 +232,15 @@ export default function ExternalUnitDetail() {
       airbnbPhotosLink: null,
       notes: null,
       isActive: true,
+      title: null,
+      description: null,
+      price: null,
+      currency: "MXN",
+      address: null,
+      googleMapsUrl: null,
+      virtualTourUrl: null,
+      petFriendly: false,
+      publishToMain: false,
     },
   });
 
@@ -473,6 +491,15 @@ export default function ExternalUnitDetail() {
       airbnbPhotosLink: unit.airbnbPhotosLink ?? null,
       notes: unit.notes ?? null,
       isActive: unit.isActive ?? true,
+      title: unit.title ?? null,
+      description: unit.description ?? null,
+      price: unit.price ?? null,
+      currency: unit.currency ?? "MXN",
+      address: unit.address ?? null,
+      googleMapsUrl: unit.googleMapsUrl ?? null,
+      virtualTourUrl: unit.virtualTourUrl ?? null,
+      petFriendly: unit.petFriendly ?? false,
+      publishToMain: unit.publishToMain ?? false,
     });
     setShowUnitEditDialog(true);
   };
@@ -1594,6 +1621,188 @@ ${language === "es" ? "ACCESOS" : "ACCESSES"}:
                       <Textarea {...field} value={field.value || ""} rows={3} placeholder={language === "es" ? "Notas adicionales..." : "Additional notes..."} data-testid="input-edit-notes" />
                     </FormControl>
                     <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <Separator className="my-4" />
+              <h4 className="text-sm font-medium text-muted-foreground mb-3">
+                {language === "es" ? "Información de Marketing" : "Marketing Information"}
+              </h4>
+
+              <FormField
+                control={unitEditForm.control}
+                name="title"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>{language === "es" ? "Título del Listado" : "Listing Title"}</FormLabel>
+                    <FormControl>
+                      <Input {...field} value={field.value || ""} placeholder={language === "es" ? "Ej: Hermoso departamento con vista al mar" : "E.g.: Beautiful apartment with ocean view"} data-testid="input-edit-title" />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={unitEditForm.control}
+                name="description"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>{language === "es" ? "Descripción" : "Description"}</FormLabel>
+                    <FormControl>
+                      <Textarea {...field} value={field.value || ""} rows={4} placeholder={language === "es" ? "Descripción detallada de la propiedad..." : "Detailed property description..."} data-testid="input-edit-description" />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <div className="grid grid-cols-2 gap-4">
+                <FormField
+                  control={unitEditForm.control}
+                  name="price"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>{language === "es" ? "Precio Mensual" : "Monthly Price"}</FormLabel>
+                      <FormControl>
+                        <Input 
+                          {...field} 
+                          type="number" 
+                          step="0.01" 
+                          min="0"
+                          value={field.value ?? ""} 
+                          onChange={e => field.onChange(e.target.value)}
+                          placeholder="25000"
+                          data-testid="input-edit-price" 
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={unitEditForm.control}
+                  name="currency"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>{language === "es" ? "Moneda" : "Currency"}</FormLabel>
+                      <Select onValueChange={field.onChange} value={field.value || "MXN"}>
+                        <FormControl>
+                          <SelectTrigger data-testid="select-edit-currency">
+                            <SelectValue placeholder="MXN" />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          <SelectItem value="MXN">MXN (Peso Mexicano)</SelectItem>
+                          <SelectItem value="USD">USD (Dólar)</SelectItem>
+                          <SelectItem value="EUR">EUR (Euro)</SelectItem>
+                        </SelectContent>
+                      </Select>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              </div>
+
+              <Separator className="my-4" />
+              <h4 className="text-sm font-medium text-muted-foreground mb-3">
+                {language === "es" ? "Ubicación" : "Location"}
+              </h4>
+
+              <FormField
+                control={unitEditForm.control}
+                name="address"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>{language === "es" ? "Dirección Completa" : "Full Address"}</FormLabel>
+                    <FormControl>
+                      <Input {...field} value={field.value || ""} placeholder={language === "es" ? "Calle, número, colonia, ciudad" : "Street, number, neighborhood, city"} data-testid="input-edit-address" />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={unitEditForm.control}
+                name="googleMapsUrl"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>{language === "es" ? "Link de Google Maps" : "Google Maps Link"}</FormLabel>
+                    <FormControl>
+                      <Input {...field} value={field.value || ""} type="url" placeholder="https://maps.google.com/..." data-testid="input-edit-google-maps" />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={unitEditForm.control}
+                name="virtualTourUrl"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>{language === "es" ? "Tour Virtual 360°" : "Virtual Tour 360°"}</FormLabel>
+                    <FormControl>
+                      <Input {...field} value={field.value || ""} type="url" placeholder="https://..." data-testid="input-edit-virtual-tour" />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <Separator className="my-4" />
+              <h4 className="text-sm font-medium text-muted-foreground mb-3">
+                {language === "es" ? "Características y Estado" : "Features and Status"}
+              </h4>
+
+              <FormField
+                control={unitEditForm.control}
+                name="petFriendly"
+                render={({ field }) => (
+                  <FormItem className="flex flex-row items-center justify-between rounded-lg border p-3">
+                    <div className="space-y-0.5">
+                      <FormLabel>{language === "es" ? "Acepta Mascotas" : "Pet Friendly"}</FormLabel>
+                      <FormDescription>
+                        {field.value 
+                          ? (language === "es" ? "Se permiten mascotas" : "Pets are allowed")
+                          : (language === "es" ? "No se permiten mascotas" : "No pets allowed")
+                        }
+                      </FormDescription>
+                    </div>
+                    <FormControl>
+                      <Switch
+                        checked={field.value}
+                        onCheckedChange={field.onChange}
+                        data-testid="switch-edit-pet-friendly"
+                      />
+                    </FormControl>
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={unitEditForm.control}
+                name="publishToMain"
+                render={({ field }) => (
+                  <FormItem className="flex flex-row items-center justify-between rounded-lg border p-3">
+                    <div className="space-y-0.5">
+                      <FormLabel>{language === "es" ? "Publicar en Sitio Principal" : "Publish to Main Site"}</FormLabel>
+                      <FormDescription>
+                        {field.value 
+                          ? (language === "es" ? "Se solicitará publicación en HomesApp" : "Will request publication on HomesApp")
+                          : (language === "es" ? "Solo visible en gestión externa" : "Only visible in external management")
+                        }
+                      </FormDescription>
+                    </div>
+                    <FormControl>
+                      <Switch
+                        checked={field.value}
+                        onCheckedChange={field.onChange}
+                        data-testid="switch-edit-publish-to-main"
+                      />
+                    </FormControl>
                   </FormItem>
                 )}
               />

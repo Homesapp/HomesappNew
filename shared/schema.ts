@@ -6612,7 +6612,7 @@ export const externalUnits = pgTable("external_units", {
   zone: varchar("zone", { length: 100 }), // Zona/colonia donde se ubica la unidad
   city: varchar("city", { length: 100 }), // Ciudad
   propertyType: varchar("property_type", { length: 50 }), // Tipo de propiedad
-  typology: unitTypologyEnum("typology"), // Tipología de la unidad
+  typology: unitTypologyEnum("typology"), // Tipología de la unidad (deprecado)
   bedrooms: integer("bedrooms"),
   bathrooms: decimal("bathrooms", { precision: 3, scale: 1 }),
   area: decimal("area", { precision: 10, scale: 2 }), // m²
@@ -6620,6 +6620,41 @@ export const externalUnits = pgTable("external_units", {
   airbnbPhotosLink: text("airbnb_photos_link"), // Link de fotos de Airbnb
   isActive: boolean("is_active").notNull().default(true),
   notes: text("notes"),
+  
+  // === NUEVOS CAMPOS DE MARKETING Y LISTADO ===
+  // Información de marketing
+  title: varchar("title", { length: 255 }), // Título del listado
+  description: text("description"), // Descripción completa
+  
+  // Precios
+  price: decimal("price", { precision: 12, scale: 2 }), // Precio de renta mensual
+  currency: varchar("currency", { length: 3 }).default("MXN"), // Moneda
+  
+  // Medios
+  primaryImages: text("primary_images").array().default(sql`ARRAY[]::text[]`), // 5 fotos principales max
+  secondaryImages: text("secondary_images").array().default(sql`ARRAY[]::text[]`), // 20 fotos secundarias max
+  videos: text("videos").array().default(sql`ARRAY[]::text[]`), // URLs de videos
+  virtualTourUrl: text("virtual_tour_url"), // Link de tour 360
+  
+  // Ubicación
+  address: text("address"), // Dirección completa
+  googleMapsUrl: text("google_maps_url"), // Link de Google Maps
+  latitude: decimal("latitude", { precision: 10, scale: 7 }), // Coordenada latitud
+  longitude: decimal("longitude", { precision: 10, scale: 7 }), // Coordenada longitud
+  
+  // Características
+  amenities: text("amenities").array().default(sql`ARRAY[]::text[]`), // Amenidades
+  petFriendly: boolean("pet_friendly").default(false), // Acepta mascotas
+  includedServices: jsonb("included_services"), // Servicios incluidos {water, electricity, internet, gas}
+  
+  // Acceso
+  accessInfo: jsonb("access_info"), // {lockboxCode, contactPerson, contactPhone}
+  
+  // Publicación en sitio principal
+  publishToMain: boolean("publish_to_main").default(false), // Solicitar publicación
+  publishStatus: varchar("publish_status", { length: 20 }).default("draft"), // draft, pending, approved, rejected
+  publishedAt: timestamp("published_at"), // Fecha de publicación
+  
   createdBy: varchar("created_by").references(() => users.id),
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
@@ -6628,6 +6663,7 @@ export const externalUnits = pgTable("external_units", {
   index("idx_external_units_condominium").on(table.condominiumId),
   index("idx_external_units_active").on(table.isActive),
   index("idx_external_units_zone").on(table.zone),
+  index("idx_external_units_publish_status").on(table.publishStatus),
   unique("unique_unit_number_per_condominium").on(table.condominiumId, table.unitNumber),
 ]);
 
@@ -6638,11 +6674,31 @@ export const insertExternalUnitSchema = createInsertSchema(externalUnits).omit({
   createdAt: true,
   updatedAt: true,
   isActive: true,
+  publishStatus: true,
+  publishedAt: true,
 }).extend({
   typology: z.enum(["estudio", "estudio_plus", "1_recamara", "2_recamaras", "3_recamaras", "loft_mini", "loft_normal", "loft_plus"]).optional(),
   floor: z.enum(["planta_baja", "primer_piso", "segundo_piso", "tercer_piso", "penthouse"]).optional(),
   bathrooms: z.union([z.string(), z.number(), z.null()]).transform(val => (val === undefined || val === null || val === '') ? undefined : String(val)).optional().nullable(),
   area: z.union([z.string(), z.number(), z.null()]).transform(val => (val === undefined || val === null || val === '') ? undefined : String(val)).optional().nullable(),
+  price: z.union([z.string(), z.number(), z.null()]).transform(val => (val === undefined || val === null || val === '') ? undefined : String(val)).optional().nullable(),
+  latitude: z.union([z.string(), z.number(), z.null()]).transform(val => (val === undefined || val === null || val === '') ? undefined : String(val)).optional().nullable(),
+  longitude: z.union([z.string(), z.number(), z.null()]).transform(val => (val === undefined || val === null || val === '') ? undefined : String(val)).optional().nullable(),
+  primaryImages: z.array(z.string()).optional(),
+  secondaryImages: z.array(z.string()).optional(),
+  videos: z.array(z.string()).optional(),
+  amenities: z.array(z.string()).optional(),
+  includedServices: z.object({
+    water: z.boolean().optional(),
+    electricity: z.boolean().optional(),
+    internet: z.boolean().optional(),
+    gas: z.boolean().optional(),
+  }).optional().nullable(),
+  accessInfo: z.object({
+    lockboxCode: z.string().optional(),
+    contactPerson: z.string().optional(),
+    contactPhone: z.string().optional(),
+  }).optional().nullable(),
 });
 
 export const updateExternalUnitSchema = insertExternalUnitSchema.partial();
