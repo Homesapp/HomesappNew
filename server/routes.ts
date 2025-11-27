@@ -30685,6 +30685,43 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // PATCH /api/external/accounting/transactions/:id/mark-paid - Mark transaction as paid
+  app.patch("/api/external/accounting/transactions/:id/mark-paid", isAuthenticated, requireRole(EXTERNAL_ADMIN_ROLES), async (req: any, res) => {
+    try {
+      const { id } = req.params;
+      const { paidDate, notes } = req.body;
+
+      const existing = await storage.getExternalFinancialTransaction(id);
+      if (!existing) {
+        return res.status(404).json({ message: "Transaction not found" });
+      }
+
+      const hasAccess = await verifyExternalAgencyOwnership(req, res, existing.agencyId);
+      if (!hasAccess) return;
+
+      // Update the transaction to mark as paid
+      const updatedTransaction = await storage.updateExternalFinancialTransaction(id, {
+        status: 'paid',
+        paidDate: paidDate ? new Date(paidDate) : new Date(),
+        notes: notes ? (existing.notes ? `${existing.notes}\n${notes}` : notes) : existing.notes,
+      });
+
+      // If this transaction is linked to a maintenance ticket, update ticket accounting status
+      if (existing.maintenanceTicketId) {
+        await db.update(externalMaintenanceTickets)
+          .set({ accountingSyncStatus: 'synced' })
+          .where(eq(externalMaintenanceTickets.id, existing.maintenanceTicketId));
+      }
+
+      await createAuditLog(req, "update", "external_financial_transaction", id, "Marked transaction as paid");
+      res.json(updatedTransaction);
+    } catch (error: any) {
+      console.error("Error marking transaction as paid:", error);
+      handleGenericError(res, error);
+    }
+  });
+
+
   // GET /api/external/accounting/worker-payments - Get worker payments for biweekly period
   app.get("/api/external/accounting/worker-payments", isAuthenticated, requireRole(EXTERNAL_ALL_ROLES), async (req: any, res) => {
     try {
