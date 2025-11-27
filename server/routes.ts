@@ -21637,7 +21637,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         })
         .from(users)
         .where(and(
-          eq(users.role, "external_agency_seller"),
+          inArray(users.role, ["external_agency_admin", "external_agency_staff", "external_agency_seller"]),
           eq(users.externalAgencyId, agencyId),
           or(eq(users.isSuspended, false), isNull(users.isSuspended))
         ))
