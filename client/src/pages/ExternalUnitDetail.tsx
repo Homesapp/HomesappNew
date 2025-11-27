@@ -858,10 +858,10 @@ ${language === "es" ? "ACCESOS" : "ACCESSES"}:
         />
       </div>
 
-      {/* Unit Information and Owner */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+      {/* Row 1: Unit Information (Left) + History (Right) */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
         {/* Unit Information */}
-        <Card data-testid="card-unit-info">
+        <Card data-testid="card-unit-info" className="lg:row-span-1">
           <CardHeader>
             <div className="flex justify-between items-center gap-2">
               <CardTitle className="flex items-center gap-2">
@@ -1019,6 +1019,58 @@ ${language === "es" ? "ACCESOS" : "ACCESSES"}:
               </div>
             )}
 
+            {/* Included Services */}
+            {unit.includedServices && Object.values(unit.includedServices).some(v => v) && (
+              <div>
+                <Label className="text-xs text-muted-foreground mb-1.5 block">
+                  {language === "es" ? "Servicios Incluidos" : "Included Services"}
+                </Label>
+                <div className="flex flex-wrap gap-1.5">
+                  {(unit.includedServices as any).water && (
+                    <Badge variant="outline" className="text-xs" data-testid="badge-service-water">
+                      {language === "es" ? "Agua" : "Water"}
+                    </Badge>
+                  )}
+                  {(unit.includedServices as any).electricity && (
+                    <Badge variant="outline" className="text-xs" data-testid="badge-service-electricity">
+                      {language === "es" ? "Electricidad" : "Electricity"}
+                    </Badge>
+                  )}
+                  {(unit.includedServices as any).internet && (
+                    <Badge variant="outline" className="text-xs" data-testid="badge-service-internet">
+                      Internet
+                    </Badge>
+                  )}
+                  {(unit.includedServices as any).gas && (
+                    <Badge variant="outline" className="text-xs" data-testid="badge-service-gas">
+                      Gas
+                    </Badge>
+                  )}
+                </div>
+              </div>
+            )}
+
+            {/* Amenities */}
+            {unit.amenities && unit.amenities.length > 0 && (
+              <div>
+                <Label className="text-xs text-muted-foreground mb-1.5 block">
+                  {language === "es" ? "Amenidades" : "Amenities"}
+                </Label>
+                <div className="flex flex-wrap gap-1.5 max-w-full overflow-hidden">
+                  {unit.amenities.slice(0, 8).map((amenity: string) => (
+                    <Badge key={amenity} variant="secondary" className="text-xs max-w-[120px] truncate" data-testid={`badge-amenity-${amenity}`}>
+                      {amenity}
+                    </Badge>
+                  ))}
+                  {unit.amenities.length > 8 && (
+                    <Badge variant="secondary" className="text-xs shrink-0">
+                      +{unit.amenities.length - 8}
+                    </Badge>
+                  )}
+                </div>
+              </div>
+            )}
+
             {/* Marketing & Pricing Section */}
             {(unit.title || unit.description || unit.price || unit.address) && (
               <>
@@ -1119,9 +1171,161 @@ ${language === "es" ? "ACCESOS" : "ACCESSES"}:
           </CardContent>
         </Card>
 
+        {/* History with Tabs */}
+        <Card data-testid="card-history">
+          <CardHeader className="pb-3">
+            <CardTitle className="flex items-center gap-2">
+              <Clock className="h-5 w-5" />
+              {language === "es" ? "Historial" : "History"}
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="pt-0">
+            <Tabs defaultValue="rentals" className="w-full">
+              <TabsList className="grid w-full grid-cols-3">
+                <TabsTrigger value="rentals" className="flex items-center gap-1 text-xs" data-testid="tab-rentals">
+                  <FileText className="h-3.5 w-3.5" />
+                  <span className="hidden sm:inline">{language === "es" ? "Rentas" : "Rentals"}</span>
+                  {rentalHistory.length > 0 && (
+                    <Badge variant="secondary" className="ml-1 h-4 px-1 text-[10px]">{rentalHistory.length}</Badge>
+                  )}
+                </TabsTrigger>
+                <TabsTrigger value="maintenance" className="flex items-center gap-1 text-xs" data-testid="tab-maintenance">
+                  <Wrench className="h-3.5 w-3.5" />
+                  <span className="hidden sm:inline">{language === "es" ? "Mant." : "Maint."}</span>
+                  {maintenanceHistory.length > 0 && (
+                    <Badge variant="secondary" className="ml-1 h-4 px-1 text-[10px]">{maintenanceHistory.length}</Badge>
+                  )}
+                </TabsTrigger>
+                <TabsTrigger value="showings" className="flex items-center gap-1 text-xs" data-testid="tab-showings">
+                  <Users className="h-3.5 w-3.5" />
+                  <span className="hidden sm:inline">{language === "es" ? "Visitas" : "Shows"}</span>
+                  {showingsHistory.length > 0 && (
+                    <Badge variant="secondary" className="ml-1 h-4 px-1 text-[10px]">{showingsHistory.length}</Badge>
+                  )}
+                </TabsTrigger>
+              </TabsList>
+
+              <TabsContent value="rentals" className="mt-3">
+                {rentalHistory.length === 0 ? (
+                  <div className="text-center py-6 text-muted-foreground text-sm" data-testid="text-no-rentals">
+                    {language === "es" ? "No hay historial de rentas" : "No rental history"}
+                  </div>
+                ) : (
+                  <div className="space-y-2">
+                    {rentalHistory.map(rental => (
+                      <div
+                        key={rental.id}
+                        className={`p-2.5 rounded-lg border cursor-pointer hover-elevate ${rental.status === 'active' ? 'border-green-500/30 bg-green-500/5' : 'border-border'}`}
+                        onClick={() => navigate(`/external/contracts/${rental.id}`)}
+                        data-testid={`rental-history-${rental.id}`}
+                      >
+                        <div className="flex justify-between items-start gap-2">
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center gap-1.5 mb-1 flex-wrap">
+                              <span className="text-sm font-medium truncate">{rental.tenantName}</span>
+                              <Badge 
+                                variant={rental.status === 'active' ? 'default' : 'secondary'} 
+                                className="shrink-0 h-5 text-[10px]"
+                              >
+                                {(contractStatusTranslations as any)[rental.status]?.[language] || rental.status}
+                              </Badge>
+                            </div>
+                            <div className="flex flex-wrap gap-x-3 gap-y-0.5 text-xs text-muted-foreground">
+                              <span>${Number(rental.monthlyRent).toLocaleString()}/{language === "es" ? "mes" : "mo"}</span>
+                              <span>{formatDate(rental.startDate)} - {formatDate(rental.endDate)}</span>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </TabsContent>
+
+              <TabsContent value="maintenance" className="mt-3">
+                {maintenanceHistory.length === 0 ? (
+                  <div className="text-center py-6 text-muted-foreground text-sm" data-testid="text-no-maintenance">
+                    {language === "es" ? "No hay historial de mantenimiento" : "No maintenance history"}
+                  </div>
+                ) : (
+                  <div className="space-y-2">
+                    {maintenanceHistory.map(ticket => (
+                      <div
+                        key={ticket.id}
+                        className="p-2.5 rounded-lg border cursor-pointer hover-elevate"
+                        onClick={() => navigate(`/external/maintenance/${ticket.id}`)}
+                        data-testid={`maintenance-history-${ticket.id}`}
+                      >
+                        <div className="flex justify-between items-start gap-2">
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center gap-1.5 mb-1 flex-wrap">
+                              <span className="text-sm font-medium truncate">{ticket.title}</span>
+                              <Badge 
+                                variant={ticket.status === 'resolved' || ticket.status === 'closed' ? 'secondary' : 'default'} 
+                                className="shrink-0 h-5 text-[10px]"
+                              >
+                                {(ticketStatusTranslations as any)[ticket.status]?.[language] || ticket.status}
+                              </Badge>
+                            </div>
+                            <div className="flex flex-wrap gap-x-3 gap-y-0.5 text-xs text-muted-foreground">
+                              {ticket.category && <span>{ticket.category}</span>}
+                              <span>{formatDate(ticket.createdAt)}</span>
+                              {ticket.actualCost && <span>${ticket.actualCost}</span>}
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </TabsContent>
+
+              <TabsContent value="showings" className="mt-3">
+                {showingsHistory.length === 0 ? (
+                  <div className="text-center py-6 text-muted-foreground text-sm" data-testid="text-no-showings">
+                    {language === "es" ? "No hay historial de visitas" : "No showings history"}
+                  </div>
+                ) : (
+                  <div className="space-y-2">
+                    {showingsHistory.map(showing => (
+                      <div
+                        key={showing.id}
+                        className="p-2.5 rounded-lg border"
+                        data-testid={`showing-history-${showing.id}`}
+                      >
+                        <div className="flex justify-between items-start gap-2">
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center gap-1.5 mb-1 flex-wrap">
+                              <span className="text-sm font-medium">{formatDate(showing.scheduledAt)}</span>
+                              {showing.outcome && (
+                                <Badge 
+                                  variant={showing.outcome === 'interested' ? 'default' : 'secondary'} 
+                                  className="shrink-0 h-5 text-[10px]"
+                                >
+                                  {(showingOutcomeTranslations as any)[showing.outcome]?.[language] || showing.outcome}
+                                </Badge>
+                              )}
+                            </div>
+                            {showing.leadFeedback && (
+                              <p className="text-xs text-muted-foreground truncate">{showing.leadFeedback}</p>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </TabsContent>
+            </Tabs>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Row 2: Owner (Left) + Access Control (Right) */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
         {/* Owner Information */}
         <Card data-testid="card-owner-info">
-          <CardHeader>
+          <CardHeader className="pb-3">
             <div className="flex justify-between items-center gap-2">
               <CardTitle className="flex items-center gap-2">
                 <User className="h-5 w-5" />
@@ -1137,36 +1341,36 @@ ${language === "es" ? "ACCESOS" : "ACCESSES"}:
               </Button>
             </div>
           </CardHeader>
-          <CardContent>
+          <CardContent className="pt-0">
             {ownersLoading ? (
-              <div className="space-y-3">
-                <Skeleton className="h-20 w-full" />
+              <div className="space-y-2">
+                <Skeleton className="h-16 w-full" />
               </div>
             ) : !owners || owners.length === 0 ? (
-              <div className="text-center py-8 text-muted-foreground" data-testid="text-no-owners">
+              <div className="text-center py-6 text-muted-foreground text-sm" data-testid="text-no-owners">
                 {language === "es" ? "No hay propietarios registrados" : "No owners registered"}
               </div>
             ) : (
-              <div className="space-y-3">
+              <div className="space-y-2">
                 {owners.map(owner => (
                   <div
                     key={owner.id}
-                    className={`p-3 rounded-lg border ${owner.isActive ? "border-primary/30 bg-primary/5" : "border-border bg-muted/30"}`}
+                    className={`p-2.5 rounded-lg border ${owner.isActive ? "border-primary/30 bg-primary/5" : "border-border bg-muted/30"}`}
                     data-testid={`owner-card-${owner.id}`}
                   >
-                    <div className="flex justify-between items-start gap-3">
+                    <div className="flex justify-between items-start gap-2">
                       <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-2 mb-1 flex-wrap">
-                          <p className="font-medium truncate" data-testid={`text-owner-name-${owner.id}`}>
+                        <div className="flex items-center gap-1.5 mb-1 flex-wrap">
+                          <p className="text-sm font-medium truncate" data-testid={`text-owner-name-${owner.id}`}>
                             {owner.ownerName}
                           </p>
                           {owner.ownershipPercentage && (
-                            <Badge variant="outline" className="shrink-0" data-testid={`badge-percentage-${owner.id}`}>
+                            <Badge variant="outline" className="shrink-0 h-5 text-[10px]" data-testid={`badge-percentage-${owner.id}`}>
                               {owner.ownershipPercentage}%
                             </Badge>
                           )}
                           {owner.isActive && (
-                            <Badge variant="default" className="shrink-0" data-testid={`badge-active-${owner.id}`}>
+                            <Badge variant="default" className="shrink-0 h-5 text-[10px]" data-testid={`badge-active-${owner.id}`}>
                               {language === "es" ? "Actual" : "Current"}
                             </Badge>
                           )}
@@ -1181,32 +1385,27 @@ ${language === "es" ? "ACCESOS" : "ACCESSES"}:
                             {owner.ownerPhone}
                           </p>
                         )}
-                        {owner.notes && (
-                          <p className="text-xs text-muted-foreground mt-1" data-testid={`text-owner-notes-${owner.id}`}>
-                            {owner.notes}
-                          </p>
-                        )}
                       </div>
                       <div className="flex gap-1 shrink-0">
                         <Button
                           variant="ghost"
                           size="icon"
-                          className="h-8 w-8"
+                          className="h-7 w-7"
                           onClick={() => handleEditOwner(owner)}
                           disabled={isLoadingAuth || !user}
                           data-testid={`button-edit-owner-${owner.id}`}
                         >
-                          <Edit className="h-3.5 w-3.5" />
+                          <Edit className="h-3 w-3" />
                         </Button>
                         <Button
                           variant="ghost"
                           size="icon"
-                          className="h-8 w-8"
+                          className="h-7 w-7"
                           onClick={() => deleteOwnerMutation.mutate(owner.id)}
                           disabled={deleteOwnerMutation.isPending || isLoadingAuth || !user}
                           data-testid={`button-delete-owner-${owner.id}`}
                         >
-                          <Trash2 className="h-3.5 w-3.5" />
+                          <Trash2 className="h-3 w-3" />
                         </Button>
                       </div>
                     </div>
@@ -1216,309 +1415,123 @@ ${language === "es" ? "ACCESOS" : "ACCESSES"}:
             )}
           </CardContent>
         </Card>
-      </div>
 
-      {/* Access Controls - Full Width */}
-      <Card data-testid="card-access-controls">
-        <CardHeader>
-          <div className="flex justify-between items-center gap-2">
-            <CardTitle className="flex items-center gap-2">
-              <Key className="h-5 w-5" />
-              {language === "es" ? "Control de Acceso" : "Access Control"}
-            </CardTitle>
-            <div className="flex gap-2">
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={copyAccessInfo}
-                disabled={!accessControls || accessControls.filter(a => a.isActive).length === 0}
-                data-testid="button-copy-access-info"
-              >
-                {copiedAccessInfo ? (
-                  <Check className="h-4 w-4 text-green-600" />
-                ) : (
-                  <Copy className="h-4 w-4" />
-                )}
-              </Button>
-              <Button
-                size="sm"
-                onClick={handleAddAccess}
-                disabled={isLoadingAuth || !user}
-                data-testid="button-add-access"
-              >
-                <Plus className="h-4 w-4" />
-              </Button>
-            </div>
-          </div>
-        </CardHeader>
-        <CardContent>
-          {accessLoading ? (
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-              <Skeleton className="h-24 w-full" />
-              <Skeleton className="h-24 w-full" />
-              <Skeleton className="h-24 w-full" />
-            </div>
-          ) : !accessControls || accessControls.length === 0 ? (
-            <div className="text-center py-8 text-muted-foreground" data-testid="text-no-access">
-              {language === "es" ? "No hay controles de acceso registrados" : "No access controls registered"}
-            </div>
-          ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-              {accessControls.map(access => (
-                <div
-                  key={access.id}
-                  className={`p-3 rounded-lg border ${access.isActive ? "border-primary/30 bg-primary/5" : "border-border bg-muted/30 opacity-60"}`}
-                  data-testid={`access-card-${access.id}`}
+        {/* Access Control */}
+        <Card data-testid="card-access-controls">
+          <CardHeader className="pb-3">
+            <div className="flex justify-between items-center gap-2">
+              <CardTitle className="flex items-center gap-2">
+                <Key className="h-5 w-5" />
+                {language === "es" ? "Control de Acceso" : "Access Control"}
+              </CardTitle>
+              <div className="flex gap-1">
+                <Button
+                  variant="outline"
+                  size="icon"
+                  onClick={copyAccessInfo}
+                  disabled={!accessControls || accessControls.filter(a => a.isActive).length === 0}
+                  data-testid="button-copy-access-info"
                 >
-                  <div className="flex justify-between items-start mb-2">
-                    <div className="flex flex-wrap gap-1">
-                      <Badge variant="outline" className="text-xs" data-testid={`badge-access-type-${access.id}`}>
-                        {(accessTypeTranslations as any)[access.accessType]?.[language] || access.accessType}
-                      </Badge>
-                      {!access.isActive && (
-                        <Badge variant="secondary" className="text-xs" data-testid={`badge-inactive-${access.id}`}>
-                          {language === "es" ? "Inactivo" : "Inactive"}
+                  {copiedAccessInfo ? (
+                    <Check className="h-4 w-4 text-green-600" />
+                  ) : (
+                    <Copy className="h-4 w-4" />
+                  )}
+                </Button>
+                <Button
+                  size="sm"
+                  onClick={handleAddAccess}
+                  disabled={isLoadingAuth || !user}
+                  data-testid="button-add-access"
+                >
+                  <Plus className="h-4 w-4" />
+                </Button>
+              </div>
+            </div>
+          </CardHeader>
+          <CardContent className="pt-0">
+            {accessLoading ? (
+              <div className="space-y-2">
+                <Skeleton className="h-16 w-full" />
+                <Skeleton className="h-16 w-full" />
+              </div>
+            ) : !accessControls || accessControls.length === 0 ? (
+              <div className="text-center py-6 text-muted-foreground text-sm" data-testid="text-no-access">
+                {language === "es" ? "No hay controles de acceso registrados" : "No access controls registered"}
+              </div>
+            ) : (
+              <div className="space-y-2">
+                {accessControls.map(access => (
+                  <div
+                    key={access.id}
+                    className={`p-2.5 rounded-lg border ${access.isActive ? "border-primary/30 bg-primary/5" : "border-border bg-muted/30 opacity-60"}`}
+                    data-testid={`access-card-${access.id}`}
+                  >
+                    <div className="flex justify-between items-start mb-1.5">
+                      <div className="flex flex-wrap gap-1">
+                        <Badge variant="outline" className="text-[10px] h-5" data-testid={`badge-access-type-${access.id}`}>
+                          {(accessTypeTranslations as any)[access.accessType]?.[language] || access.accessType}
                         </Badge>
-                      )}
-                    </div>
-                    <div className="flex gap-1 shrink-0">
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        className="h-7 w-7"
-                        onClick={() => handleEditAccess(access)}
-                        disabled={isLoadingAuth || !user}
-                        data-testid={`button-edit-access-${access.id}`}
-                      >
-                        <Edit className="h-3 w-3" />
-                      </Button>
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        className="h-7 w-7"
-                        onClick={() => deleteAccessMutation.mutate(access.id)}
-                        disabled={deleteAccessMutation.isPending || isLoadingAuth || !user}
-                        data-testid={`button-delete-access-${access.id}`}
-                      >
-                        <Trash2 className="h-3 w-3" />
-                      </Button>
-                    </div>
-                  </div>
-                  {access.accessCode && (
-                    <div className="mb-2">
-                      <Label className="text-xs text-muted-foreground">
-                        {language === "es" ? "Código" : "Code"}
-                      </Label>
-                      <div className="flex items-center gap-1 mt-1">
-                        <code 
-                          className="text-xs font-mono bg-muted px-2 py-1 rounded flex-1 truncate" 
-                          data-testid={`text-access-code-${access.id}`}
-                        >
-                          {visiblePasswords.has(access.id) ? access.accessCode : "••••••••"}
-                        </code>
+                        {!access.isActive && (
+                          <Badge variant="secondary" className="text-[10px] h-5" data-testid={`badge-inactive-${access.id}`}>
+                            {language === "es" ? "Inactivo" : "Inactive"}
+                          </Badge>
+                        )}
+                      </div>
+                      <div className="flex flex-wrap gap-0.5">
                         <Button
                           variant="ghost"
                           size="icon"
                           className="h-6 w-6 shrink-0"
-                          onClick={() => togglePasswordVisibility(access.id)}
-                          data-testid={`button-toggle-visibility-${access.id}`}
+                          onClick={() => handleEditAccess(access)}
+                          disabled={isLoadingAuth || !user}
+                          data-testid={`button-edit-access-${access.id}`}
                         >
-                          {visiblePasswords.has(access.id) ? <EyeOff className="h-3 w-3" /> : <Eye className="h-3 w-3" />}
+                          <Edit className="h-3 w-3" />
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-6 w-6 shrink-0"
+                          onClick={() => deleteAccessMutation.mutate(access.id)}
+                          disabled={deleteAccessMutation.isPending || isLoadingAuth || !user}
+                          data-testid={`button-delete-access-${access.id}`}
+                        >
+                          <Trash2 className="h-3 w-3" />
                         </Button>
                       </div>
                     </div>
-                  )}
-                  {access.description && (
-                    <div className="mb-1">
-                      <Label className="text-xs text-muted-foreground">
-                        {language === "es" ? "Descripción" : "Description"}
-                      </Label>
-                      <p className="text-xs mt-0.5 text-muted-foreground" data-testid={`text-access-description-${access.id}`}>
+                    {access.accessCode && (
+                      <div className="flex items-center gap-1">
+                        <code 
+                          className="text-xs font-mono bg-muted px-1.5 py-0.5 rounded flex-1 truncate" 
+                          data-testid={`text-access-code-${access.id}`}
+                        >
+                          {visiblePasswords.has(access.id) ? access.accessCode : "••••••"}
+                        </code>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-5 w-5 shrink-0"
+                          onClick={() => togglePasswordVisibility(access.id)}
+                          data-testid={`button-toggle-visibility-${access.id}`}
+                        >
+                          {visiblePasswords.has(access.id) ? <EyeOff className="h-2.5 w-2.5" /> : <Eye className="h-2.5 w-2.5" />}
+                        </Button>
+                      </div>
+                    )}
+                    {access.description && (
+                      <p className="text-xs text-muted-foreground mt-1 truncate" data-testid={`text-access-description-${access.id}`}>
                         {access.description}
                       </p>
-                    </div>
-                  )}
-                  {access.canShareWithMaintenance && (
-                    <div className="text-xs text-muted-foreground mt-2 pt-2 border-t" data-testid={`text-share-maintenance-${access.id}`}>
-                      ✓ {language === "es" ? "Compartible con mantenimiento" : "Shareable with maintenance"}
-                    </div>
-                  )}
-                </div>
-              ))}
-            </div>
-          )}
-        </CardContent>
-      </Card>
-
-      {/* History Sections with Tabs */}
-      <Card data-testid="card-history">
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Clock className="h-5 w-5" />
-            {language === "es" ? "Historial" : "History"}
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <Tabs defaultValue="rentals" className="w-full">
-            <TabsList className="grid w-full grid-cols-3">
-              <TabsTrigger value="rentals" className="flex items-center gap-1" data-testid="tab-rentals">
-                <FileText className="h-4 w-4" />
-                <span className="hidden sm:inline">{language === "es" ? "Rentas" : "Rentals"}</span>
-                {rentalHistory.length > 0 && (
-                  <Badge variant="secondary" className="ml-1 h-5 px-1.5">{rentalHistory.length}</Badge>
-                )}
-              </TabsTrigger>
-              <TabsTrigger value="maintenance" className="flex items-center gap-1" data-testid="tab-maintenance">
-                <Wrench className="h-4 w-4" />
-                <span className="hidden sm:inline">{language === "es" ? "Mantenimiento" : "Maintenance"}</span>
-                {maintenanceHistory.length > 0 && (
-                  <Badge variant="secondary" className="ml-1 h-5 px-1.5">{maintenanceHistory.length}</Badge>
-                )}
-              </TabsTrigger>
-              <TabsTrigger value="showings" className="flex items-center gap-1" data-testid="tab-showings">
-                <Users className="h-4 w-4" />
-                <span className="hidden sm:inline">{language === "es" ? "Visitas" : "Showings"}</span>
-                {showingsHistory.length > 0 && (
-                  <Badge variant="secondary" className="ml-1 h-5 px-1.5">{showingsHistory.length}</Badge>
-                )}
-              </TabsTrigger>
-            </TabsList>
-
-            <TabsContent value="rentals" className="mt-4">
-              {rentalHistory.length === 0 ? (
-                <div className="text-center py-8 text-muted-foreground" data-testid="text-no-rentals">
-                  {language === "es" ? "No hay historial de rentas" : "No rental history"}
-                </div>
-              ) : (
-                <div className="space-y-3">
-                  {rentalHistory.map(rental => (
-                    <div
-                      key={rental.id}
-                      className={`p-3 rounded-lg border cursor-pointer hover-elevate ${rental.status === 'active' ? 'border-green-500/30 bg-green-500/5' : 'border-border'}`}
-                      onClick={() => navigate(`/external/contracts/${rental.id}`)}
-                      data-testid={`rental-history-${rental.id}`}
-                    >
-                      <div className="flex justify-between items-start gap-3">
-                        <div className="flex-1 min-w-0">
-                          <div className="flex items-center gap-2 mb-1 flex-wrap">
-                            <p className="font-medium" data-testid={`text-tenant-name-${rental.id}`}>
-                              {rental.tenantName}
-                            </p>
-                            <Badge 
-                              variant={rental.status === 'active' ? 'default' : 'secondary'} 
-                              className="shrink-0"
-                              data-testid={`badge-rental-status-${rental.id}`}
-                            >
-                              {(contractStatusTranslations as any)[rental.status]?.[language] || rental.status}
-                            </Badge>
-                          </div>
-                          <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-muted-foreground">
-                            <span>{language === "es" ? "Inicio" : "Start"}: {formatDate(rental.startDate as any)}</span>
-                            <span>{language === "es" ? "Fin" : "End"}: {formatDate(rental.endDate as any)}</span>
-                            <span>{rental.currency} ${rental.monthlyRent}/{language === "es" ? "mes" : "mo"}</span>
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </TabsContent>
-
-            <TabsContent value="maintenance" className="mt-4">
-              {maintenanceHistory.length === 0 ? (
-                <div className="text-center py-8 text-muted-foreground" data-testid="text-no-maintenance">
-                  {language === "es" ? "No hay historial de mantenimiento" : "No maintenance history"}
-                </div>
-              ) : (
-                <div className="space-y-3">
-                  {maintenanceHistory.map(ticket => (
-                    <div
-                      key={ticket.id}
-                      className="p-3 rounded-lg border"
-                      data-testid={`maintenance-history-${ticket.id}`}
-                    >
-                      <div className="flex justify-between items-start gap-3">
-                        <div className="flex-1 min-w-0">
-                          <div className="flex items-center gap-2 mb-1 flex-wrap">
-                            <p className="font-medium truncate" data-testid={`text-ticket-title-${ticket.id}`}>
-                              {ticket.title}
-                            </p>
-                            <Badge 
-                              variant={ticket.status === 'resolved' || ticket.status === 'closed' ? 'secondary' : 'default'} 
-                              className="shrink-0"
-                              data-testid={`badge-ticket-status-${ticket.id}`}
-                            >
-                              {(ticketStatusTranslations as any)[ticket.status]?.[language] || ticket.status}
-                            </Badge>
-                            {ticket.priority && (
-                              <Badge variant="outline" className="shrink-0" data-testid={`badge-ticket-priority-${ticket.id}`}>
-                                {ticket.priority}
-                              </Badge>
-                            )}
-                          </div>
-                          <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-muted-foreground">
-                            {ticket.category && <span>{ticket.category}</span>}
-                            <span>{language === "es" ? "Creado" : "Created"}: {formatDate(ticket.createdAt)}</span>
-                            {ticket.closedAt && (
-                              <span>{language === "es" ? "Completado" : "Completed"}: {formatDate(ticket.closedAt)}</span>
-                            )}
-                            {ticket.actualCost && (
-                              <span>{language === "es" ? "Costo" : "Cost"}: ${ticket.actualCost}</span>
-                            )}
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </TabsContent>
-
-            <TabsContent value="showings" className="mt-4">
-              {showingsHistory.length === 0 ? (
-                <div className="text-center py-8 text-muted-foreground" data-testid="text-no-showings">
-                  {language === "es" ? "No hay historial de visitas" : "No showings history"}
-                </div>
-              ) : (
-                <div className="space-y-3">
-                  {showingsHistory.map(showing => (
-                    <div
-                      key={showing.id}
-                      className="p-3 rounded-lg border"
-                      data-testid={`showing-history-${showing.id}`}
-                    >
-                      <div className="flex justify-between items-start gap-3">
-                        <div className="flex-1 min-w-0">
-                          <div className="flex items-center gap-2 mb-1 flex-wrap">
-                            <span className="text-sm font-medium">
-                              {formatDate(showing.scheduledAt)}
-                            </span>
-                            {showing.outcome && (
-                              <Badge 
-                                variant={showing.outcome === 'interested' ? 'default' : 'secondary'} 
-                                className="shrink-0"
-                                data-testid={`badge-showing-outcome-${showing.id}`}
-                              >
-                                {(showingOutcomeTranslations as any)[showing.outcome]?.[language] || showing.outcome}
-                              </Badge>
-                            )}
-                          </div>
-                          {showing.leadFeedback && (
-                            <p className="text-xs text-muted-foreground mt-1" data-testid={`text-showing-feedback-${showing.id}`}>
-                              {showing.leadFeedback}
-                            </p>
-                          )}
-                        </div>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </TabsContent>
-          </Tabs>
-        </CardContent>
-      </Card>
+                    )}
+                  </div>
+                ))}
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      </div>
 
       {/* Unit Edit Dialog */}
       <Dialog open={showUnitEditDialog} onOpenChange={setShowUnitEditDialog}>
