@@ -138,7 +138,7 @@ export default function ExternalAccesses() {
 
   const createMutation = useMutation({
     mutationFn: async (data: z.infer<typeof accessFormSchema>) => {
-      return await apiRequest("POST", "/api/external-access-controls", data);
+      return await apiRequest("POST", "/api/external-unit-access-controls", data);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['/api/external-all-access-controls'] });
@@ -1157,7 +1157,7 @@ ${access.description ? `${language === "es" ? "Descripción" : "Description"}: $
                         </TableCell>
                         <TableCell>
                           <Link href={`/external/condominiums/${access.condominiumId}/units/${access.unitId}`}>
-                            <Button variant="link" className="p-0 h-auto" data-testid={`link-unit-${access.unitId}`}>
+                            <Button variant="ghost" className="p-0 h-auto text-primary underline-offset-4 hover:underline" data-testid={`link-unit-${access.unitId}`}>
                               {access.unitNumber}
                             </Button>
                           </Link>
@@ -1256,7 +1256,7 @@ ${access.description ? `${language === "es" ? "Descripción" : "Description"}: $
                     <div>
                       <CardTitle className="text-lg">
                         <Link href={`/external/condominiums/${group.condominiumId}/units/${group.unitId}`}>
-                          <Button variant="link" className="p-0 h-auto text-lg font-semibold" data-testid={`link-unit-card-${group.unitId}`}>
+                          <Button variant="ghost" className="p-0 h-auto text-lg font-semibold text-primary underline-offset-4 hover:underline" data-testid={`link-unit-card-${group.unitId}`}>
                             {group.unitNumber}
                           </Button>
                         </Link>
@@ -1389,7 +1389,7 @@ ${access.description ? `${language === "es" ? "Descripción" : "Description"}: $
                 <SelectContent>
                   {maintenanceUsers?.map((user) => (
                     <SelectItem key={user.id} value={user.id}>
-                      {user.name}
+                      {user.firstName} {user.lastName}
                       {user.maintenanceSpecialty && ` (${user.maintenanceSpecialty})`}
                     </SelectItem>
                   ))}
