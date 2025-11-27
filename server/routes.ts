@@ -30661,6 +30661,257 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // GET /api/external/accounting/worker-payments - Get worker payments for biweekly period
+  app.get("/api/external/accounting/worker-payments", isAuthenticated, requireRole(EXTERNAL_ALL_ROLES), async (req: any, res) => {
+    try {
+      const agencyId = await getUserAgencyId(req);
+      if (!agencyId) {
+        return res.status(403).json({ message: "User is not assigned to any agency" });
+      }
+
+      const year = parseInt(req.query.year as string) || new Date().getFullYear();
+      const month = parseInt(req.query.month as string) || (new Date().getMonth() + 1);
+      const period = parseInt(req.query.period as string) || (new Date().getDate() <= 15 ? 1 : 2);
+      const category = req.query.category as string;
+      const condominiumId = req.query.condominiumId as string;
+
+      // Calculate date range for biweekly period
+      const startDay = period === 1 ? 1 : 16;
+      const endDay = period === 1 ? 15 : new Date(year, month, 0).getDate();
+      const startDate = new Date(year, month - 1, startDay, 0, 0, 0);
+      const endDate = new Date(year, month - 1, endDay, 23, 59, 59);
+
+      // Build query conditions
+      const conditions: any[] = [
+        eq(externalMaintenanceTickets.agencyId, agencyId),
+        sql`${externalMaintenanceTickets.closedAt} >= ${startDate}`,
+        sql`${externalMaintenanceTickets.closedAt} <= ${endDate}`,
+        or(
+          eq(externalMaintenanceTickets.status, 'closed'),
+          eq(externalMaintenanceTickets.status, 'resolved')
+        ),
+      ];
+
+      if (category === 'maintenance') {
+        conditions.push(not(eq(externalMaintenanceTickets.category, 'cleaning')));
+      } else if (category === 'cleaning') {
+        conditions.push(eq(externalMaintenanceTickets.category, 'cleaning'));
+      }
+
+      if (condominiumId && condominiumId !== 'all') {
+        const unitIds = await db.select({ id: externalUnits.id })
+          .from(externalUnits)
+          .where(eq(externalUnits.condominiumId, condominiumId));
+        if (unitIds.length > 0) {
+          conditions.push(inArray(externalMaintenanceTickets.unitId, unitIds.map(u => u.id)));
+        }
+      }
+
+      const tickets = await db.select({
+        id: externalMaintenanceTickets.id,
+        title: externalMaintenanceTickets.title,
+        assignedTo: externalMaintenanceTickets.assignedTo,
+        actualCost: externalMaintenanceTickets.actualCost,
+        adminFeeAmount: externalMaintenanceTickets.adminFeeAmount,
+        totalChargeAmount: externalMaintenanceTickets.totalChargeAmount,
+        closedAt: externalMaintenanceTickets.closedAt,
+        unitId: externalMaintenanceTickets.unitId,
+      })
+      .from(externalMaintenanceTickets)
+      .where(and(...conditions));
+
+      // Group by worker
+      const workerPayments = new Map<string, {
+        workerId: string;
+        workerName: string;
+        tickets: any[];
+        totalActualCost: number;
+        totalAdminFee: number;
+        totalCharge: number;
+      }>();
+
+      for (const ticket of tickets) {
+        if (!ticket.assignedTo) continue;
+
+        const [worker] = await db.select({
+          id: users.id,
+          firstName: users.firstName,
+          lastName: users.lastName,
+        }).from(users).where(eq(users.id, ticket.assignedTo));
+
+        if (!worker) continue;
+
+        const workerName = `${worker.firstName || ''} ${worker.lastName || ''}`.trim() || 'Sin nombre';
+        const workerId = worker.id;
+
+        if (!workerPayments.has(workerId)) {
+          workerPayments.set(workerId, {
+            workerId,
+            workerName,
+            tickets: [],
+            totalActualCost: 0,
+            totalAdminFee: 0,
+            totalCharge: 0,
+          });
+        }
+
+        const payment = workerPayments.get(workerId)!;
+        const actualCost = parseFloat(ticket.actualCost || '0');
+        const adminFee = parseFloat(ticket.adminFeeAmount || '0');
+        const totalCharge = parseFloat(ticket.totalChargeAmount || '0') || (actualCost + adminFee);
+
+        payment.tickets.push({
+          id: ticket.id,
+          title: ticket.title,
+          actualCost,
+          adminFee,
+          totalCharge,
+          closedAt: ticket.closedAt,
+        });
+        payment.totalActualCost += actualCost;
+        payment.totalAdminFee += adminFee;
+        payment.totalCharge += totalCharge;
+      }
+
+      const payments = Array.from(workerPayments.values()).map(p => ({
+        id: `payment-${p.workerId}`,
+        workerId: p.workerId,
+        workerName: p.workerName,
+        ticketCount: p.tickets.length,
+        totalActualCost: p.totalActualCost,
+        totalAdminFee: p.totalAdminFee,
+        totalCharge: p.totalCharge,
+        status: 'pending',
+        tickets: p.tickets,
+      }));
+
+      const summary = {
+        totalPayments: payments.length,
+        totalActualCost: payments.reduce((sum, p) => sum + p.totalActualCost, 0),
+        totalAdminFee: payments.reduce((sum, p) => sum + p.totalAdminFee, 0),
+        totalCharge: payments.reduce((sum, p) => sum + p.totalCharge, 0),
+      };
+
+      res.json({ payments, summary });
+    } catch (error: any) {
+      console.error("Error fetching worker payments:", error);
+      handleGenericError(res, error);
+    }
+  });
+
+  // GET /api/external/accounting/commissions - Get agency commissions for biweekly period
+  app.get("/api/external/accounting/commissions", isAuthenticated, requireRole(EXTERNAL_ALL_ROLES), async (req: any, res) => {
+    try {
+      const agencyId = await getUserAgencyId(req);
+      if (!agencyId) {
+        return res.status(403).json({ message: "User is not assigned to any agency" });
+      }
+
+      const year = parseInt(req.query.year as string) || new Date().getFullYear();
+      const month = parseInt(req.query.month as string) || (new Date().getMonth() + 1);
+      const period = parseInt(req.query.period as string) || (new Date().getDate() <= 15 ? 1 : 2);
+      const condominiumId = req.query.condominiumId as string;
+
+      const startDay = period === 1 ? 1 : 16;
+      const endDay = period === 1 ? 15 : new Date(year, month, 0).getDate();
+      const startDate = new Date(year, month - 1, startDay, 0, 0, 0);
+      const endDate = new Date(year, month - 1, endDay, 23, 59, 59);
+
+      const baseConditions: any[] = [
+        eq(externalMaintenanceTickets.agencyId, agencyId),
+        sql`${externalMaintenanceTickets.closedAt} >= ${startDate}`,
+        sql`${externalMaintenanceTickets.closedAt} <= ${endDate}`,
+        or(
+          eq(externalMaintenanceTickets.status, 'closed'),
+          eq(externalMaintenanceTickets.status, 'resolved')
+        ),
+      ];
+
+      if (condominiumId && condominiumId !== 'all') {
+        const unitIds = await db.select({ id: externalUnits.id })
+          .from(externalUnits)
+          .where(eq(externalUnits.condominiumId, condominiumId));
+        if (unitIds.length > 0) {
+          baseConditions.push(inArray(externalMaintenanceTickets.unitId, unitIds.map(u => u.id)));
+        }
+      }
+
+      const maintenanceTickets = await db.select({
+        id: externalMaintenanceTickets.id,
+        title: externalMaintenanceTickets.title,
+        adminFeeAmount: externalMaintenanceTickets.adminFeeAmount,
+        closedAt: externalMaintenanceTickets.closedAt,
+        category: externalMaintenanceTickets.category,
+      })
+      .from(externalMaintenanceTickets)
+      .where(and(
+        ...baseConditions,
+        not(eq(externalMaintenanceTickets.category, 'cleaning'))
+      ));
+
+      const cleaningTickets = await db.select({
+        id: externalMaintenanceTickets.id,
+        title: externalMaintenanceTickets.title,
+        adminFeeAmount: externalMaintenanceTickets.adminFeeAmount,
+        closedAt: externalMaintenanceTickets.closedAt,
+        category: externalMaintenanceTickets.category,
+      })
+      .from(externalMaintenanceTickets)
+      .where(and(
+        ...baseConditions,
+        eq(externalMaintenanceTickets.category, 'cleaning')
+      ));
+
+      const commissions: any[] = [];
+
+      for (const ticket of maintenanceTickets) {
+        const adminFee = parseFloat(ticket.adminFeeAmount || '0');
+        if (adminFee > 0) {
+          commissions.push({
+            id: `comm-maint-${ticket.id}`,
+            type: 'admin_fee',
+            description: `Comisión mantenimiento: ${ticket.title}`,
+            sourceId: ticket.id,
+            amount: adminFee,
+            date: ticket.closedAt,
+            category: 'maintenance',
+          });
+        }
+      }
+
+      for (const ticket of cleaningTickets) {
+        const adminFee = parseFloat(ticket.adminFeeAmount || '0');
+        if (adminFee > 0) {
+          commissions.push({
+            id: `comm-clean-${ticket.id}`,
+            type: 'admin_fee',
+            description: `Comisión limpieza: ${ticket.title}`,
+            sourceId: ticket.id,
+            amount: adminFee,
+            date: ticket.closedAt,
+            category: 'cleaning',
+          });
+        }
+      }
+
+      const totalMaintenanceFees = maintenanceTickets.reduce((sum, t) => sum + parseFloat(t.adminFeeAmount || '0'), 0);
+      const totalCleaningFees = cleaningTickets.reduce((sum, t) => sum + parseFloat(t.adminFeeAmount || '0'), 0);
+
+      const summary = {
+        totalMaintenanceFees,
+        totalCleaningFees,
+        totalRentalCommissions: 0,
+        grandTotal: totalMaintenanceFees + totalCleaningFees,
+      };
+
+      res.json({ commissions, summary });
+    } catch (error: any) {
+      console.error("Error fetching commissions:", error);
+      handleGenericError(res, error);
+    }
+  });
+
+
   // ============================================================================
   // EXTERNAL MANAGEMENT SYSTEM - TERMS AND CONDITIONS ROUTES
   // ============================================================================

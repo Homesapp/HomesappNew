@@ -107,7 +107,18 @@ export default function ExternalAccounting() {
   // Tab control
   const [activeTab, setActiveTab] = useState("transactions");
   
-  // Accounting tab state
+  // Biweekly period state for payment tabs
+  const now = new Date();
+  const currentDay = now.getDate();
+  const [paymentPeriodYear, setPaymentPeriodYear] = useState(now.getFullYear());
+  const [paymentPeriodMonth, setPaymentPeriodMonth] = useState(now.getMonth() + 1);
+  const [paymentPeriodIndex, setPaymentPeriodIndex] = useState<1 | 2>(currentDay <= 15 ? 1 : 2);
+  const [paymentSearchTerm, setPaymentSearchTerm] = useState("");
+  const [paymentViewMode, setPaymentViewMode] = useState<"cards" | "table">("table");
+  const [paymentCondoFilter, setPaymentCondoFilter] = useState<string>("all");
+  const [paymentStatusFilter, setPaymentStatusFilter] = useState<string>("all");
+  
+  // Accounting tab state (legacy - keeping for compatibility)
   const [accountingPeriod, setAccountingPeriod] = useState<"daily" | "biweekly" | "monthly">("monthly");
   const [accountingStartDate, setAccountingStartDate] = useState<string>(format(startOfMonth(new Date()), 'yyyy-MM-dd'));
   const [accountingEndDate, setAccountingEndDate] = useState<string>(format(endOfMonth(new Date()), 'yyyy-MM-dd'));
@@ -356,6 +367,149 @@ export default function ExternalAccounting() {
     return units.filter(unit => unit.condominiumId === selectedCondominiumId);
   }, [units, selectedCondominiumId]);
 
+  // Maintenance payments query - get closed maintenance tickets with costs for the selected biweekly period
+  const { data: maintenancePaymentsData, isLoading: maintenancePaymentsLoading } = useQuery<{
+    payments: Array<{
+      id: string;
+      workerId: string;
+      workerName: string;
+      ticketCount: number;
+      totalActualCost: number;
+      totalAdminFee: number;
+      totalCharge: number;
+      status: string;
+      tickets: Array<{
+        id: string;
+        title: string;
+        actualCost: number;
+        adminFee: number;
+        totalCharge: number;
+        closedAt: string;
+        unitName: string;
+        condoName: string;
+      }>;
+    }>;
+    summary: {
+      totalPayments: number;
+      totalActualCost: number;
+      totalAdminFee: number;
+      totalCharge: number;
+    };
+  }>({
+    queryKey: ['/api/external/accounting/maintenance-payments', paymentPeriodYear, paymentPeriodMonth, paymentPeriodIndex, paymentCondoFilter],
+    queryFn: async () => {
+      const params = new URLSearchParams();
+      params.append('year', paymentPeriodYear.toString());
+      params.append('month', paymentPeriodMonth.toString());
+      params.append('period', paymentPeriodIndex.toString());
+      params.append('category', 'maintenance');
+      if (paymentCondoFilter !== 'all') params.append('condominiumId', paymentCondoFilter);
+      
+      const response = await fetch(`/api/external/accounting/worker-payments?${params.toString()}`, {
+        credentials: 'include',
+      });
+      
+      if (!response.ok) {
+        return { payments: [], summary: { totalPayments: 0, totalActualCost: 0, totalAdminFee: 0, totalCharge: 0 } };
+      }
+      
+      return response.json();
+    },
+    staleTime: 2 * 60 * 1000,
+  });
+
+  // Cleaning payments query - get closed cleaning tickets with costs for the selected biweekly period
+  const { data: cleaningPaymentsData, isLoading: cleaningPaymentsLoading } = useQuery<{
+    payments: Array<{
+      id: string;
+      workerId: string;
+      workerName: string;
+      ticketCount: number;
+      totalActualCost: number;
+      totalAdminFee: number;
+      totalCharge: number;
+      status: string;
+      tickets: Array<{
+        id: string;
+        title: string;
+        actualCost: number;
+        adminFee: number;
+        totalCharge: number;
+        closedAt: string;
+        unitName: string;
+        condoName: string;
+      }>;
+    }>;
+    summary: {
+      totalPayments: number;
+      totalActualCost: number;
+      totalAdminFee: number;
+      totalCharge: number;
+    };
+  }>({
+    queryKey: ['/api/external/accounting/cleaning-payments', paymentPeriodYear, paymentPeriodMonth, paymentPeriodIndex, paymentCondoFilter],
+    queryFn: async () => {
+      const params = new URLSearchParams();
+      params.append('year', paymentPeriodYear.toString());
+      params.append('month', paymentPeriodMonth.toString());
+      params.append('period', paymentPeriodIndex.toString());
+      params.append('category', 'cleaning');
+      if (paymentCondoFilter !== 'all') params.append('condominiumId', paymentCondoFilter);
+      
+      const response = await fetch(`/api/external/accounting/worker-payments?${params.toString()}`, {
+        credentials: 'include',
+      });
+      
+      if (!response.ok) {
+        return { payments: [], summary: { totalPayments: 0, totalActualCost: 0, totalAdminFee: 0, totalCharge: 0 } };
+      }
+      
+      return response.json();
+    },
+    staleTime: 2 * 60 * 1000,
+  });
+
+  // Commissions query - get agency income from admin fees and rental commissions
+  const { data: commissionsData, isLoading: commissionsLoading } = useQuery<{
+    commissions: Array<{
+      id: string;
+      type: string;
+      description: string;
+      sourceId: string;
+      amount: number;
+      date: string;
+      category: string;
+      unitName?: string;
+      condoName?: string;
+    }>;
+    summary: {
+      totalMaintenanceFees: number;
+      totalCleaningFees: number;
+      totalRentalCommissions: number;
+      grandTotal: number;
+    };
+  }>({
+    queryKey: ['/api/external/accounting/commissions', paymentPeriodYear, paymentPeriodMonth, paymentPeriodIndex, paymentCondoFilter],
+    queryFn: async () => {
+      const params = new URLSearchParams();
+      params.append('year', paymentPeriodYear.toString());
+      params.append('month', paymentPeriodMonth.toString());
+      params.append('period', paymentPeriodIndex.toString());
+      if (paymentCondoFilter !== 'all') params.append('condominiumId', paymentCondoFilter);
+      
+      const response = await fetch(`/api/external/accounting/commissions?${params.toString()}`, {
+        credentials: 'include',
+      });
+      
+      if (!response.ok) {
+        return { commissions: [], summary: { totalMaintenanceFees: 0, totalCleaningFees: 0, totalRentalCommissions: 0, grandTotal: 0 } };
+      }
+      
+      return response.json();
+    },
+    staleTime: 2 * 60 * 1000,
+  });
+
   // Auto-switch view mode on genuine breakpoint transitions (only if no manual override)
   useEffect(() => {
     // Only act on actual breakpoint transitions (not every isMobile change)
@@ -409,6 +563,52 @@ export default function ExternalAccounting() {
   const getSortIcon = (column: string) => {
     if (sortColumn !== column) return null;
     return sortDirection === "asc" ? "↑" : "↓";
+  };
+
+  // Biweekly period navigation functions
+  const navigateToPreviousBiweekly = () => {
+    if (paymentPeriodIndex === 1) {
+      const prevMonth = paymentPeriodMonth === 1 ? 12 : paymentPeriodMonth - 1;
+      const prevYear = paymentPeriodMonth === 1 ? paymentPeriodYear - 1 : paymentPeriodYear;
+      setPaymentPeriodMonth(prevMonth);
+      setPaymentPeriodYear(prevYear);
+      setPaymentPeriodIndex(2);
+    } else {
+      setPaymentPeriodIndex(1);
+    }
+  };
+
+  const navigateToNextBiweekly = () => {
+    if (paymentPeriodIndex === 2) {
+      const nextMonth = paymentPeriodMonth === 12 ? 1 : paymentPeriodMonth + 1;
+      const nextYear = paymentPeriodMonth === 12 ? paymentPeriodYear + 1 : paymentPeriodYear;
+      setPaymentPeriodMonth(nextMonth);
+      setPaymentPeriodYear(nextYear);
+      setPaymentPeriodIndex(1);
+    } else {
+      setPaymentPeriodIndex(2);
+    }
+  };
+
+  const navigateToToday = () => {
+    const today = new Date();
+    setPaymentPeriodYear(today.getFullYear());
+    setPaymentPeriodMonth(today.getMonth() + 1);
+    setPaymentPeriodIndex(today.getDate() <= 15 ? 1 : 2);
+  };
+
+  const getMonthName = (month: number) => {
+    const months = language === 'es' 
+      ? ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic']
+      : ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+    return months[month - 1];
+  };
+
+  const getBiweeklyLabel = () => {
+    const periodLabel = paymentPeriodIndex === 1 
+      ? (language === 'es' ? '1ra Quincena' : '1st Half')
+      : (language === 'es' ? '2da Quincena' : '2nd Half');
+    return `${periodLabel} ${getMonthName(paymentPeriodMonth)} ${paymentPeriodYear}`;
   };
 
   const createForm = useForm<TransactionFormData>({
@@ -1161,9 +1361,13 @@ export default function ExternalAccounting() {
 
       <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
         <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 mb-6">
-          <TabsList>
+          <TabsList className="flex flex-wrap h-auto">
             <TabsTrigger value="transactions" data-testid="tab-transactions">{t.transactionsTab}</TabsTrigger>
-            <TabsTrigger value="accounting" data-testid="tab-accounting">{language === 'es' ? 'Contabilidad' : 'Accounting'}</TabsTrigger>
+            <TabsTrigger value="maintenance-payments" data-testid="tab-maintenance-payments">{language === 'es' ? 'Pagos Mantenimiento' : 'Maintenance Payments'}</TabsTrigger>
+            <TabsTrigger value="cleaning-payments" data-testid="tab-cleaning-payments">{language === 'es' ? 'Pagos Limpieza' : 'Cleaning Payments'}</TabsTrigger>
+            <TabsTrigger value="sales-payments" data-testid="tab-sales-payments">{language === 'es' ? 'Pagos Vendedores' : 'Sales Payments'}</TabsTrigger>
+            <TabsTrigger value="commissions" data-testid="tab-commissions">{language === 'es' ? 'Comisiones' : 'Commissions'}</TabsTrigger>
+            <TabsTrigger value="referral-payments" data-testid="tab-referral-payments">{language === 'es' ? 'Pagos Referidos' : 'Referral Payments'}</TabsTrigger>
             <TabsTrigger value="reports" data-testid="tab-reports">{t.reportsTab}</TabsTrigger>
           </TabsList>
         </div>
@@ -1830,262 +2034,526 @@ export default function ExternalAccounting() {
           )}
         </TabsContent>
 
-        {/* Accounting Tab - Financial Cutoffs */}
-        <TabsContent value="accounting" className="space-y-6">
-          {/* Period Selection */}
+        {/* Maintenance Payments Tab */}
+        <TabsContent value="maintenance-payments" className="space-y-6">
+          {/* Biweekly Period Selector and Controls */}
           <Card>
-            <CardHeader className="pb-3">
-              <CardTitle className="flex items-center gap-2">
-                <Calendar className="h-5 w-5" />
-                {language === 'es' ? 'Corte Contable' : 'Accounting Cutoff'}
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-4">
-                <div className="flex gap-2">
-                  <Button 
-                    variant={accountingPeriod === "daily" ? "default" : "outline"}
-                    size="sm"
-                    onClick={() => updateAccountingPeriod("daily")}
-                    data-testid="button-period-daily"
-                  >
-                    {language === 'es' ? 'Diario' : 'Daily'}
+            <CardContent className="pt-6">
+              <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
+                {/* Biweekly Navigation */}
+                <div className="flex items-center gap-2">
+                  <Button variant="outline" size="icon" onClick={navigateToPreviousBiweekly} data-testid="button-prev-biweekly-maint">
+                    <span className="sr-only">Previous</span>
+                    <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" /></svg>
                   </Button>
-                  <Button 
-                    variant={accountingPeriod === "biweekly" ? "default" : "outline"}
-                    size="sm"
-                    onClick={() => updateAccountingPeriod("biweekly")}
-                    data-testid="button-period-biweekly"
-                  >
-                    {language === 'es' ? 'Quincenal' : 'Biweekly'}
+                  <div className="min-w-[180px] text-center font-medium" data-testid="text-biweekly-label-maint">
+                    {getBiweeklyLabel()}
+                  </div>
+                  <Button variant="outline" size="icon" onClick={navigateToNextBiweekly} data-testid="button-next-biweekly-maint">
+                    <span className="sr-only">Next</span>
+                    <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" /></svg>
                   </Button>
-                  <Button 
-                    variant={accountingPeriod === "monthly" ? "default" : "outline"}
-                    size="sm"
-                    onClick={() => updateAccountingPeriod("monthly")}
-                    data-testid="button-period-monthly"
-                  >
-                    {language === 'es' ? 'Mensual' : 'Monthly'}
+                  <Button variant="outline" size="sm" onClick={navigateToToday} data-testid="button-today-maint">
+                    {language === 'es' ? 'Hoy' : 'Today'}
                   </Button>
                 </div>
-                <div className="flex items-center gap-2">
+                
+                {/* Search */}
+                <div className="relative flex-1">
+                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                   <Input
-                    type="date"
-                    value={accountingStartDate}
-                    onChange={(e) => setAccountingStartDate(e.target.value)}
-                    className="w-40"
-                    data-testid="input-accounting-start-date"
+                    placeholder={language === 'es' ? 'Buscar trabajador...' : 'Search worker...'}
+                    value={paymentSearchTerm}
+                    onChange={(e) => setPaymentSearchTerm(e.target.value)}
+                    className="pl-10"
+                    data-testid="input-search-maint-payments"
                   />
-                  <span className="text-muted-foreground">-</span>
-                  <Input
-                    type="date"
-                    value={accountingEndDate}
-                    onChange={(e) => setAccountingEndDate(e.target.value)}
-                    className="w-40"
-                    data-testid="input-accounting-end-date"
-                  />
+                </div>
+                
+                {/* Condo Filter */}
+                <Select value={paymentCondoFilter} onValueChange={setPaymentCondoFilter}>
+                  <SelectTrigger className="w-[180px]" data-testid="select-condo-filter-maint">
+                    <SelectValue placeholder={language === 'es' ? 'Condominio' : 'Condominium'} />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">{language === 'es' ? 'Todos' : 'All'}</SelectItem>
+                    {condominiums?.map((condo) => (
+                      <SelectItem key={condo.id} value={condo.id}>{condo.name}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+
+                {/* View Toggle */}
+                <div className="flex gap-1">
+                  <Button
+                    variant={paymentViewMode === "cards" ? "default" : "outline"}
+                    size="icon"
+                    onClick={() => setPaymentViewMode("cards")}
+                    data-testid="button-view-cards-maint"
+                  >
+                    <LayoutGrid className="h-4 w-4" />
+                  </Button>
+                  <Button
+                    variant={paymentViewMode === "table" ? "default" : "outline"}
+                    size="icon"
+                    onClick={() => setPaymentViewMode("table")}
+                    data-testid="button-view-table-maint"
+                  >
+                    <TableIcon className="h-4 w-4" />
+                  </Button>
                 </div>
               </div>
             </CardContent>
           </Card>
 
           {/* Summary Cards */}
-          <div className="grid gap-4 md:grid-cols-3">
+          <div className="grid gap-4 md:grid-cols-4">
             <Card className="hover-elevate">
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">
-                  {language === 'es' ? 'Total Ingresos' : 'Total Income'}
-                </CardTitle>
-                <ArrowUpRight className="h-4 w-4 text-green-600" />
+              <CardHeader className="flex flex-row items-center justify-between gap-1 space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">{language === 'es' ? 'Trabajadores' : 'Workers'}</CardTitle>
+                <Wrench className="h-4 w-4 text-muted-foreground" />
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold text-green-600" data-testid="text-accounting-income">
-                  {formatCurrency(accountingData.totalIncome)}
-                </div>
-                <p className="text-xs text-muted-foreground">
-                  {accountingData.transactions.filter(t => t.direction === 'inflow').length} {language === 'es' ? 'transacciones' : 'transactions'}
-                </p>
+                <div className="text-2xl font-bold" data-testid="text-maint-workers">{maintenancePaymentsData?.payments?.length || 0}</div>
               </CardContent>
             </Card>
-            
             <Card className="hover-elevate">
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">
-                  {language === 'es' ? 'Total Egresos' : 'Total Expenses'}
-                </CardTitle>
-                <ArrowDownRight className="h-4 w-4 text-red-600" />
+              <CardHeader className="flex flex-row items-center justify-between gap-1 space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">{language === 'es' ? 'Costo Actual' : 'Actual Cost'}</CardTitle>
+                <DollarSign className="h-4 w-4 text-muted-foreground" />
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold text-red-600" data-testid="text-accounting-expenses">
-                  {formatCurrency(accountingData.totalExpenses)}
-                </div>
-                <p className="text-xs text-muted-foreground">
-                  {accountingData.transactions.filter(t => t.direction === 'outflow').length} {language === 'es' ? 'transacciones' : 'transactions'}
-                </p>
+                <div className="text-lg font-bold" data-testid="text-maint-actual-cost">{formatCurrency(maintenancePaymentsData?.summary?.totalActualCost || 0)}</div>
               </CardContent>
             </Card>
-            
             <Card className="hover-elevate">
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">
-                  {language === 'es' ? 'Balance Neto' : 'Net Balance'}
-                </CardTitle>
-                <DollarSign className={`h-4 w-4 ${accountingData.netProfit >= 0 ? 'text-green-600' : 'text-red-600'}`} />
+              <CardHeader className="flex flex-row items-center justify-between gap-1 space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">{language === 'es' ? 'Comisión (15%)' : 'Commission (15%)'}</CardTitle>
+                <Receipt className="h-4 w-4 text-blue-600" />
               </CardHeader>
               <CardContent>
-                <div className={`text-2xl font-bold ${accountingData.netProfit >= 0 ? 'text-green-600' : 'text-red-600'}`} data-testid="text-accounting-net">
-                  {formatCurrency(accountingData.netProfit)}
-                </div>
-                <p className="text-xs text-muted-foreground">
-                  {language === 'es' ? 'Período seleccionado' : 'Selected period'}
-                </p>
+                <div className="text-lg font-bold text-blue-600" data-testid="text-maint-commission">{formatCurrency(maintenancePaymentsData?.summary?.totalAdminFee || 0)}</div>
+              </CardContent>
+            </Card>
+            <Card className="hover-elevate">
+              <CardHeader className="flex flex-row items-center justify-between gap-1 space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">{language === 'es' ? 'Total Cobrado' : 'Total Charged'}</CardTitle>
+                <CircleDollarSign className="h-4 w-4 text-green-600" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-lg font-bold text-green-600" data-testid="text-maint-total-charge">{formatCurrency(maintenancePaymentsData?.summary?.totalCharge || 0)}</div>
               </CardContent>
             </Card>
           </div>
 
-          {/* Breakdown by Category */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <FileText className="h-5 w-5" />
-                {language === 'es' ? 'Desglose por Categoría' : 'Breakdown by Category'}
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              {accountingData.byCategory.length > 0 ? (
+          {/* Payments List */}
+          {maintenancePaymentsLoading ? (
+            <Card><CardContent className="py-8"><div className="flex justify-center"><Skeleton className="h-32 w-full" /></div></CardContent></Card>
+          ) : maintenancePaymentsData?.payments && maintenancePaymentsData.payments.length > 0 ? (
+            paymentViewMode === "cards" ? (
+              <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+                {maintenancePaymentsData.payments.filter(p => !paymentSearchTerm || p.workerName.toLowerCase().includes(paymentSearchTerm.toLowerCase())).map((payment) => (
+                  <Card key={payment.id} className="hover-elevate">
+                    <CardHeader className="pb-2">
+                      <CardTitle className="text-lg">{payment.workerName}</CardTitle>
+                      <p className="text-sm text-muted-foreground">{payment.ticketCount} {language === 'es' ? 'tickets' : 'tickets'}</p>
+                    </CardHeader>
+                    <CardContent className="space-y-2">
+                      <div className="flex justify-between"><span className="text-muted-foreground">{language === 'es' ? 'Costo:' : 'Cost:'}</span><span className="font-medium">{formatCurrency(payment.totalActualCost)}</span></div>
+                      <div className="flex justify-between"><span className="text-muted-foreground">{language === 'es' ? 'Comisión:' : 'Commission:'}</span><span className="font-medium text-blue-600">{formatCurrency(payment.totalAdminFee)}</span></div>
+                      <Separator />
+                      <div className="flex justify-between"><span className="font-medium">{language === 'es' ? 'Total:' : 'Total:'}</span><span className="font-bold text-green-600">{formatCurrency(payment.totalCharge)}</span></div>
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
+            ) : (
+              <Card>
                 <Table>
                   <TableHeader>
                     <TableRow>
-                      <TableHead>{language === 'es' ? 'Categoría' : 'Category'}</TableHead>
-                      <TableHead className="text-right">{language === 'es' ? 'Ingresos' : 'Income'}</TableHead>
-                      <TableHead className="text-right">{language === 'es' ? 'Egresos' : 'Expenses'}</TableHead>
-                      <TableHead className="text-right">{language === 'es' ? 'Transacciones' : 'Transactions'}</TableHead>
+                      <TableHead>{language === 'es' ? 'Trabajador' : 'Worker'}</TableHead>
+                      <TableHead className="text-center">{language === 'es' ? 'Tickets' : 'Tickets'}</TableHead>
+                      <TableHead className="text-right">{language === 'es' ? 'Costo' : 'Cost'}</TableHead>
+                      <TableHead className="text-right">{language === 'es' ? 'Comisión' : 'Commission'}</TableHead>
+                      <TableHead className="text-right">{language === 'es' ? 'Total' : 'Total'}</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {accountingData.byCategory.map((cat) => (
-                      <TableRow key={cat.category}>
-                        <TableCell className="font-medium">{cat.label}</TableCell>
-                        <TableCell className="text-right text-green-600">
-                          {cat.income > 0 ? formatCurrency(cat.income) : '-'}
-                        </TableCell>
-                        <TableCell className="text-right text-red-600">
-                          {cat.expense > 0 ? formatCurrency(cat.expense) : '-'}
-                        </TableCell>
-                        <TableCell className="text-right">{cat.count}</TableCell>
+                    {maintenancePaymentsData.payments.filter(p => !paymentSearchTerm || p.workerName.toLowerCase().includes(paymentSearchTerm.toLowerCase())).map((payment) => (
+                      <TableRow key={payment.id}>
+                        <TableCell className="font-medium">{payment.workerName}</TableCell>
+                        <TableCell className="text-center">{payment.ticketCount}</TableCell>
+                        <TableCell className="text-right">{formatCurrency(payment.totalActualCost)}</TableCell>
+                        <TableCell className="text-right text-blue-600">{formatCurrency(payment.totalAdminFee)}</TableCell>
+                        <TableCell className="text-right font-bold text-green-600">{formatCurrency(payment.totalCharge)}</TableCell>
                       </TableRow>
                     ))}
                   </TableBody>
                 </Table>
-              ) : (
-                <p className="text-muted-foreground text-center py-4">
-                  {language === 'es' ? 'No hay transacciones en este período' : 'No transactions in this period'}
-                </p>
-              )}
+              </Card>
+            )
+          ) : (
+            <Card><CardContent className="py-8 text-center text-muted-foreground">{language === 'es' ? 'No hay pagos de mantenimiento en esta quincena' : 'No maintenance payments in this period'}</CardContent></Card>
+          )}
+        </TabsContent>
+
+        {/* Cleaning Payments Tab */}
+        <TabsContent value="cleaning-payments" className="space-y-6">
+          {/* Biweekly Period Selector and Controls */}
+          <Card>
+            <CardContent className="pt-6">
+              <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
+                {/* Biweekly Navigation */}
+                <div className="flex items-center gap-2">
+                  <Button variant="outline" size="icon" onClick={navigateToPreviousBiweekly} data-testid="button-prev-biweekly-clean">
+                    <span className="sr-only">Previous</span>
+                    <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" /></svg>
+                  </Button>
+                  <div className="min-w-[180px] text-center font-medium" data-testid="text-biweekly-label-clean">
+                    {getBiweeklyLabel()}
+                  </div>
+                  <Button variant="outline" size="icon" onClick={navigateToNextBiweekly} data-testid="button-next-biweekly-clean">
+                    <span className="sr-only">Next</span>
+                    <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" /></svg>
+                  </Button>
+                  <Button variant="outline" size="sm" onClick={navigateToToday} data-testid="button-today-clean">
+                    {language === 'es' ? 'Hoy' : 'Today'}
+                  </Button>
+                </div>
+                
+                {/* Search */}
+                <div className="relative flex-1">
+                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                  <Input
+                    placeholder={language === 'es' ? 'Buscar trabajador...' : 'Search worker...'}
+                    value={paymentSearchTerm}
+                    onChange={(e) => setPaymentSearchTerm(e.target.value)}
+                    className="pl-10"
+                    data-testid="input-search-clean-payments"
+                  />
+                </div>
+                
+                {/* Condo Filter */}
+                <Select value={paymentCondoFilter} onValueChange={setPaymentCondoFilter}>
+                  <SelectTrigger className="w-[180px]" data-testid="select-condo-filter-clean">
+                    <SelectValue placeholder={language === 'es' ? 'Condominio' : 'Condominium'} />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">{language === 'es' ? 'Todos' : 'All'}</SelectItem>
+                    {condominiums?.map((condo) => (
+                      <SelectItem key={condo.id} value={condo.id}>{condo.name}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+
+                {/* View Toggle */}
+                <div className="flex gap-1">
+                  <Button
+                    variant={paymentViewMode === "cards" ? "default" : "outline"}
+                    size="icon"
+                    onClick={() => setPaymentViewMode("cards")}
+                    data-testid="button-view-cards-clean"
+                  >
+                    <LayoutGrid className="h-4 w-4" />
+                  </Button>
+                  <Button
+                    variant={paymentViewMode === "table" ? "default" : "outline"}
+                    size="icon"
+                    onClick={() => setPaymentViewMode("table")}
+                    data-testid="button-view-table-clean"
+                  >
+                    <TableIcon className="h-4 w-4" />
+                  </Button>
+                </div>
+              </div>
             </CardContent>
           </Card>
 
-          {/* Commissions Section */}
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between">
-              <CardTitle className="flex items-center gap-2">
-                <Receipt className="h-5 w-5" />
-                {language === 'es' ? 'Comisiones de Agencia' : 'Agency Commissions'}
-              </CardTitle>
-              <Button variant="outline" size="sm" data-testid="button-export-commissions">
-                <Download className="h-4 w-4 mr-2" />
-                {language === 'es' ? 'Exportar PDF' : 'Export PDF'}
-              </Button>
-            </CardHeader>
-            <CardContent>
-              {accountingData.commissions.length > 0 ? (
+          {/* Summary Cards */}
+          <div className="grid gap-4 md:grid-cols-4">
+            <Card className="hover-elevate">
+              <CardHeader className="flex flex-row items-center justify-between gap-1 space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">{language === 'es' ? 'Trabajadores' : 'Workers'}</CardTitle>
+                <Droplet className="h-4 w-4 text-muted-foreground" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold" data-testid="text-clean-workers">{cleaningPaymentsData?.payments?.length || 0}</div>
+              </CardContent>
+            </Card>
+            <Card className="hover-elevate">
+              <CardHeader className="flex flex-row items-center justify-between gap-1 space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">{language === 'es' ? 'Costo Actual' : 'Actual Cost'}</CardTitle>
+                <DollarSign className="h-4 w-4 text-muted-foreground" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-lg font-bold" data-testid="text-clean-actual-cost">{formatCurrency(cleaningPaymentsData?.summary?.totalActualCost || 0)}</div>
+              </CardContent>
+            </Card>
+            <Card className="hover-elevate">
+              <CardHeader className="flex flex-row items-center justify-between gap-1 space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">{language === 'es' ? 'Comisión (15%)' : 'Commission (15%)'}</CardTitle>
+                <Receipt className="h-4 w-4 text-blue-600" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-lg font-bold text-blue-600" data-testid="text-clean-commission">{formatCurrency(cleaningPaymentsData?.summary?.totalAdminFee || 0)}</div>
+              </CardContent>
+            </Card>
+            <Card className="hover-elevate">
+              <CardHeader className="flex flex-row items-center justify-between gap-1 space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">{language === 'es' ? 'Total Cobrado' : 'Total Charged'}</CardTitle>
+                <CircleDollarSign className="h-4 w-4 text-green-600" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-lg font-bold text-green-600" data-testid="text-clean-total-charge">{formatCurrency(cleaningPaymentsData?.summary?.totalCharge || 0)}</div>
+              </CardContent>
+            </Card>
+          </div>
+
+          {/* Payments List */}
+          {cleaningPaymentsLoading ? (
+            <Card><CardContent className="py-8"><div className="flex justify-center"><Skeleton className="h-32 w-full" /></div></CardContent></Card>
+          ) : cleaningPaymentsData?.payments && cleaningPaymentsData.payments.length > 0 ? (
+            paymentViewMode === "cards" ? (
+              <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+                {cleaningPaymentsData.payments.filter(p => !paymentSearchTerm || p.workerName.toLowerCase().includes(paymentSearchTerm.toLowerCase())).map((payment) => (
+                  <Card key={payment.id} className="hover-elevate">
+                    <CardHeader className="pb-2">
+                      <CardTitle className="text-lg">{payment.workerName}</CardTitle>
+                      <p className="text-sm text-muted-foreground">{payment.ticketCount} {language === 'es' ? 'servicios' : 'services'}</p>
+                    </CardHeader>
+                    <CardContent className="space-y-2">
+                      <div className="flex justify-between"><span className="text-muted-foreground">{language === 'es' ? 'Costo:' : 'Cost:'}</span><span className="font-medium">{formatCurrency(payment.totalActualCost)}</span></div>
+                      <div className="flex justify-between"><span className="text-muted-foreground">{language === 'es' ? 'Comisión:' : 'Commission:'}</span><span className="font-medium text-blue-600">{formatCurrency(payment.totalAdminFee)}</span></div>
+                      <Separator />
+                      <div className="flex justify-between"><span className="font-medium">{language === 'es' ? 'Total:' : 'Total:'}</span><span className="font-bold text-green-600">{formatCurrency(payment.totalCharge)}</span></div>
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
+            ) : (
+              <Card>
                 <Table>
                   <TableHeader>
                     <TableRow>
-                      <TableHead>{language === 'es' ? 'Descripción' : 'Description'}</TableHead>
-                      <TableHead>{language === 'es' ? 'Fecha' : 'Date'}</TableHead>
-                      <TableHead className="text-right">{language === 'es' ? 'Monto Bruto' : 'Gross Amount'}</TableHead>
-                      <TableHead className="text-right">{language === 'es' ? 'Comisión (15%)' : 'Commission (15%)'}</TableHead>
+                      <TableHead>{language === 'es' ? 'Trabajador' : 'Worker'}</TableHead>
+                      <TableHead className="text-center">{language === 'es' ? 'Servicios' : 'Services'}</TableHead>
+                      <TableHead className="text-right">{language === 'es' ? 'Costo' : 'Cost'}</TableHead>
+                      <TableHead className="text-right">{language === 'es' ? 'Comisión' : 'Commission'}</TableHead>
+                      <TableHead className="text-right">{language === 'es' ? 'Total' : 'Total'}</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {accountingData.commissions.map((comm: any) => (
-                      <TableRow key={comm.id}>
-                        <TableCell className="font-medium">{comm.description || getCategoryLabel(comm.category)}</TableCell>
-                        <TableCell>{comm.dueDate ? format(new Date(comm.dueDate), 'dd/MM/yyyy') : '-'}</TableCell>
-                        <TableCell className="text-right">{formatCurrency(parseFloat(comm.grossAmount || '0'))}</TableCell>
-                        <TableCell className="text-right text-primary font-medium">{formatCurrency(comm.commission)}</TableCell>
+                    {cleaningPaymentsData.payments.filter(p => !paymentSearchTerm || p.workerName.toLowerCase().includes(paymentSearchTerm.toLowerCase())).map((payment) => (
+                      <TableRow key={payment.id}>
+                        <TableCell className="font-medium">{payment.workerName}</TableCell>
+                        <TableCell className="text-center">{payment.ticketCount}</TableCell>
+                        <TableCell className="text-right">{formatCurrency(payment.totalActualCost)}</TableCell>
+                        <TableCell className="text-right text-blue-600">{formatCurrency(payment.totalAdminFee)}</TableCell>
+                        <TableCell className="text-right font-bold text-green-600">{formatCurrency(payment.totalCharge)}</TableCell>
                       </TableRow>
                     ))}
-                    <TableRow className="border-t-2">
-                      <TableCell colSpan={3} className="font-bold text-right">
-                        {language === 'es' ? 'Total Comisiones:' : 'Total Commissions:'}
-                      </TableCell>
-                      <TableCell className="text-right font-bold text-primary">
-                        {formatCurrency(accountingData.commissions.reduce((sum: number, c: any) => sum + c.commission, 0))}
-                      </TableCell>
-                    </TableRow>
                   </TableBody>
                 </Table>
-              ) : (
-                <p className="text-muted-foreground text-center py-4">
-                  {language === 'es' ? 'No hay comisiones en este período' : 'No commissions in this period'}
-                </p>
-              )}
+              </Card>
+            )
+          ) : (
+            <Card><CardContent className="py-8 text-center text-muted-foreground">{language === 'es' ? 'No hay pagos de limpieza en esta quincena' : 'No cleaning payments in this period'}</CardContent></Card>
+          )}
+        </TabsContent>
+
+        {/* Sales Payments Tab */}
+        <TabsContent value="sales-payments" className="space-y-6">
+          <Card>
+            <CardContent className="pt-6">
+              <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
+                {/* Biweekly Navigation */}
+                <div className="flex items-center gap-2">
+                  <Button variant="outline" size="icon" onClick={navigateToPreviousBiweekly} data-testid="button-prev-biweekly-sales">
+                    <span className="sr-only">Previous</span>
+                    <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" /></svg>
+                  </Button>
+                  <div className="min-w-[180px] text-center font-medium" data-testid="text-biweekly-label-sales">
+                    {getBiweeklyLabel()}
+                  </div>
+                  <Button variant="outline" size="icon" onClick={navigateToNextBiweekly} data-testid="button-next-biweekly-sales">
+                    <span className="sr-only">Next</span>
+                    <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" /></svg>
+                  </Button>
+                  <Button variant="outline" size="sm" onClick={navigateToToday} data-testid="button-today-sales">
+                    {language === 'es' ? 'Hoy' : 'Today'}
+                  </Button>
+                </div>
+                
+                {/* Search */}
+                <div className="relative flex-1">
+                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                  <Input
+                    placeholder={language === 'es' ? 'Buscar vendedor...' : 'Search salesperson...'}
+                    value={paymentSearchTerm}
+                    onChange={(e) => setPaymentSearchTerm(e.target.value)}
+                    className="pl-10"
+                    data-testid="input-search-sales-payments"
+                  />
+                </div>
+              </div>
             </CardContent>
           </Card>
 
-          {/* Payroll / Maintenance Payments */}
+          {/* Placeholder content - To be implemented */}
           <Card>
-            <CardHeader className="flex flex-row items-center justify-between">
-              <CardTitle className="flex items-center gap-2">
-                <Wrench className="h-5 w-5" />
-                {language === 'es' ? 'Pagos de Nómina / Mantenimiento' : 'Payroll / Maintenance Payments'}
-              </CardTitle>
-              <Button variant="outline" size="sm" data-testid="button-export-payroll">
-                <Download className="h-4 w-4 mr-2" />
-                {language === 'es' ? 'Exportar PDF' : 'Export PDF'}
-              </Button>
-            </CardHeader>
-            <CardContent>
-              {accountingData.payrollItems.length > 0 ? (
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>{language === 'es' ? 'Descripción' : 'Description'}</TableHead>
-                      <TableHead>{language === 'es' ? 'Fecha' : 'Date'}</TableHead>
-                      <TableHead>{language === 'es' ? 'Estado' : 'Status'}</TableHead>
-                      <TableHead className="text-right">{language === 'es' ? 'Monto' : 'Amount'}</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {accountingData.payrollItems.map((item) => (
-                      <TableRow key={item.id}>
-                        <TableCell className="font-medium">{item.description || getCategoryLabel(item.category)}</TableCell>
-                        <TableCell>{item.dueDate ? format(new Date(item.dueDate), 'dd/MM/yyyy') : '-'}</TableCell>
-                        <TableCell>
-                          <Badge variant={item.status === 'paid' ? 'default' : 'secondary'}>
-                            {getStatusLabel(item.status)}
-                          </Badge>
-                        </TableCell>
-                        <TableCell className="text-right">{formatCurrency(parseFloat(item.netAmount || '0'))}</TableCell>
-                      </TableRow>
+            <CardContent className="py-12 text-center">
+              <DollarSign className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
+              <h3 className="text-lg font-medium mb-2">{language === 'es' ? 'Pagos a Vendedores' : 'Sales Payments'}</h3>
+              <p className="text-muted-foreground">
+                {language === 'es' 
+                  ? 'Los pagos a vendedores se generarán automáticamente basados en las comisiones de ventas/rentas de la quincena.'
+                  : 'Sales payments will be automatically generated based on sales/rental commissions for the period.'}
+              </p>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        {/* Commissions Tab */}
+        <TabsContent value="commissions" className="space-y-6">
+          <Card>
+            <CardContent className="pt-6">
+              <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
+                {/* Biweekly Navigation */}
+                <div className="flex items-center gap-2">
+                  <Button variant="outline" size="icon" onClick={navigateToPreviousBiweekly} data-testid="button-prev-biweekly-comm">
+                    <span className="sr-only">Previous</span>
+                    <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" /></svg>
+                  </Button>
+                  <div className="min-w-[180px] text-center font-medium" data-testid="text-biweekly-label-comm">
+                    {getBiweeklyLabel()}
+                  </div>
+                  <Button variant="outline" size="icon" onClick={navigateToNextBiweekly} data-testid="button-next-biweekly-comm">
+                    <span className="sr-only">Next</span>
+                    <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" /></svg>
+                  </Button>
+                  <Button variant="outline" size="sm" onClick={navigateToToday} data-testid="button-today-comm">
+                    {language === 'es' ? 'Hoy' : 'Today'}
+                  </Button>
+                </div>
+                
+                {/* Search */}
+                <div className="relative flex-1">
+                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                  <Input
+                    placeholder={language === 'es' ? 'Buscar...' : 'Search...'}
+                    value={paymentSearchTerm}
+                    onChange={(e) => setPaymentSearchTerm(e.target.value)}
+                    className="pl-10"
+                    data-testid="input-search-commissions"
+                  />
+                </div>
+                
+                {/* Condo Filter */}
+                <Select value={paymentCondoFilter} onValueChange={setPaymentCondoFilter}>
+                  <SelectTrigger className="w-[180px]" data-testid="select-condo-filter-comm">
+                    <SelectValue placeholder={language === 'es' ? 'Condominio' : 'Condominium'} />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">{language === 'es' ? 'Todos' : 'All'}</SelectItem>
+                    {condominiums?.map((condo) => (
+                      <SelectItem key={condo.id} value={condo.id}>{condo.name}</SelectItem>
                     ))}
-                    <TableRow className="border-t-2">
-                      <TableCell colSpan={3} className="font-bold text-right">
-                        {language === 'es' ? 'Total Pagos:' : 'Total Payments:'}
+                  </SelectContent>
+                </Select>
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Summary Cards */}
+          <div className="grid gap-4 md:grid-cols-4">
+            <Card className="hover-elevate">
+              <CardHeader className="flex flex-row items-center justify-between gap-1 space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">{language === 'es' ? 'Comisiones Mant.' : 'Maint. Fees'}</CardTitle>
+                <Wrench className="h-4 w-4 text-blue-600" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-lg font-bold text-blue-600" data-testid="text-comm-maint">{formatCurrency(commissionsData?.summary?.totalMaintenanceFees || 0)}</div>
+              </CardContent>
+            </Card>
+            <Card className="hover-elevate">
+              <CardHeader className="flex flex-row items-center justify-between gap-1 space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">{language === 'es' ? 'Comisiones Limp.' : 'Cleaning Fees'}</CardTitle>
+                <Droplet className="h-4 w-4 text-cyan-600" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-lg font-bold text-cyan-600" data-testid="text-comm-clean">{formatCurrency(commissionsData?.summary?.totalCleaningFees || 0)}</div>
+              </CardContent>
+            </Card>
+            <Card className="hover-elevate">
+              <CardHeader className="flex flex-row items-center justify-between gap-1 space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">{language === 'es' ? 'Comisiones Rentas' : 'Rental Comm.'}</CardTitle>
+                <Home className="h-4 w-4 text-purple-600" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-lg font-bold text-purple-600" data-testid="text-comm-rental">{formatCurrency(commissionsData?.summary?.totalRentalCommissions || 0)}</div>
+              </CardContent>
+            </Card>
+            <Card className="hover-elevate">
+              <CardHeader className="flex flex-row items-center justify-between gap-1 space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">{language === 'es' ? 'Total Ingresos' : 'Total Income'}</CardTitle>
+                <CircleDollarSign className="h-4 w-4 text-green-600" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-lg font-bold text-green-600" data-testid="text-comm-total">{formatCurrency(commissionsData?.summary?.grandTotal || 0)}</div>
+              </CardContent>
+            </Card>
+          </div>
+
+          {/* Commissions Table */}
+          {commissionsLoading ? (
+            <Card><CardContent className="py-8"><div className="flex justify-center"><Skeleton className="h-32 w-full" /></div></CardContent></Card>
+          ) : commissionsData?.commissions && commissionsData.commissions.length > 0 ? (
+            <Card>
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>{language === 'es' ? 'Tipo' : 'Type'}</TableHead>
+                    <TableHead>{language === 'es' ? 'Descripción' : 'Description'}</TableHead>
+                    <TableHead>{language === 'es' ? 'Fecha' : 'Date'}</TableHead>
+                    <TableHead className="text-right">{language === 'es' ? 'Monto' : 'Amount'}</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {commissionsData.commissions.filter(c => !paymentSearchTerm || c.description.toLowerCase().includes(paymentSearchTerm.toLowerCase())).map((comm) => (
+                    <TableRow key={comm.id}>
+                      <TableCell>
+                        <Badge variant={comm.category === 'maintenance' ? 'default' : comm.category === 'cleaning' ? 'secondary' : 'outline'}>
+                          {comm.category === 'maintenance' ? (language === 'es' ? 'Mant.' : 'Maint.') : 
+                           comm.category === 'cleaning' ? (language === 'es' ? 'Limp.' : 'Clean.') : 
+                           (language === 'es' ? 'Renta' : 'Rental')}
+                        </Badge>
                       </TableCell>
-                      <TableCell className="text-right font-bold">
-                        {formatCurrency(accountingData.payrollItems.reduce((sum, i) => sum + parseFloat(i.netAmount || '0'), 0))}
-                      </TableCell>
+                      <TableCell className="font-medium">{comm.description}</TableCell>
+                      <TableCell>{comm.date ? format(new Date(comm.date), 'dd/MM/yyyy') : '-'}</TableCell>
+                      <TableCell className="text-right font-bold text-green-600">{formatCurrency(comm.amount)}</TableCell>
                     </TableRow>
-                  </TableBody>
-                </Table>
-              ) : (
-                <p className="text-muted-foreground text-center py-4">
-                  {language === 'es' ? 'No hay pagos de nómina en este período' : 'No payroll payments in this period'}
-                </p>
-              )}
+                  ))}
+                </TableBody>
+              </Table>
+            </Card>
+          ) : (
+            <Card><CardContent className="py-8 text-center text-muted-foreground">{language === 'es' ? 'No hay comisiones en esta quincena' : 'No commissions in this period'}</CardContent></Card>
+          )}
+        </TabsContent>
+
+        {/* Referral Payments Tab - Placeholder */}
+        <TabsContent value="referral-payments" className="space-y-6">
+          <Card>
+            <CardContent className="py-12 text-center">
+              <DollarSign className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
+              <h3 className="text-lg font-medium mb-2">{language === 'es' ? 'Pagos a Referidos' : 'Referral Payments'}</h3>
+              <p className="text-muted-foreground mb-4">
+                {language === 'es' 
+                  ? 'El sistema de referidos será implementado próximamente. Aquí podrás gestionar los pagos a personas que refieran clientes o propietarios.'
+                  : 'The referral system will be implemented soon. Here you will be able to manage payments to people who refer clients or owners.'}
+              </p>
+              <Badge variant="secondary">{language === 'es' ? 'Próximamente' : 'Coming Soon'}</Badge>
             </CardContent>
           </Card>
         </TabsContent>
