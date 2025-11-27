@@ -94,6 +94,7 @@ type ExternalAppointment = {
   unitId: string | null;
   clientId: string | null;
   leadId: string | null;
+  presentationCardId: string | null;
   salespersonId: string | null;
   conciergeId: string | null;
   mode: "individual" | "tour";
@@ -113,6 +114,18 @@ type ExternalAppointment = {
   createdAt: string;
   updatedAt: string;
   tourStops?: TourStop[];
+};
+
+type PresentationCard = {
+  id: string;
+  cardName: string | null;
+  status: string;
+  propertyType: string | null;
+  budgetMin: number | null;
+  budgetMax: number | null;
+  bedrooms: number | null;
+  zone: string | null;
+  moveInDate: string | null;
 };
 
 type LeadPreferences = {
@@ -225,6 +238,7 @@ export default function ExternalAppointments() {
     clientSource: "client" as "client" | "lead" | "manual",
     clientId: "",
     leadId: "",
+    presentationCardId: "",
     clientName: "",
     clientEmail: "",
     clientPhone: "",
@@ -277,6 +291,21 @@ export default function ExternalAppointments() {
     queryKey: ["/api/external-leads"],
   });
   const leads = leadsData?.data ?? [];
+
+  const hasPresentationCardContext = (formData.clientSource === "client" && !!formData.clientId) || 
+                                     (formData.clientSource === "lead" && !!formData.leadId);
+  
+  const presentationCardQueryEndpoint = formData.clientSource === "client" && formData.clientId 
+    ? `/api/external/presentation-cards?clientId=${formData.clientId}`
+    : formData.clientSource === "lead" && formData.leadId 
+      ? `/api/external/presentation-cards?leadId=${formData.leadId}`
+      : "";
+
+  const { data: presentationCards = [] } = useQuery<PresentationCard[]>({
+    queryKey: ["/api/external/presentation-cards", formData.clientSource, formData.clientId, formData.leadId],
+    queryFn: () => fetch(presentationCardQueryEndpoint, { credentials: "include" }).then(r => r.json()),
+    enabled: hasPresentationCardContext && !!presentationCardQueryEndpoint,
+  });
 
   const { data: agencyUsers = [] } = useQuery<AgencyUser[]>({
     queryKey: ["/api/external/users"],
@@ -493,6 +522,10 @@ export default function ExternalAppointments() {
     setIsDialogOpen(false);
     setEditingAppointment(null);
     setFormData({
+      clientSource: "client",
+      clientId: "",
+      leadId: "",
+      presentationCardId: "",
       clientName: "",
       clientEmail: "",
       clientPhone: "",
@@ -500,6 +533,7 @@ export default function ExternalAppointments() {
       type: "in-person",
       date: new Date(),
       time: "10:00",
+      condominiumId: "",
       unitId: "",
       notes: "",
       tourStops: [],
@@ -509,7 +543,13 @@ export default function ExternalAppointments() {
   const handleOpenEdit = (appointment: ExternalAppointment) => {
     const appointmentDate = new Date(appointment.date);
     setEditingAppointment(appointment);
+    const clientSource = appointment.clientId ? "client" : appointment.leadId ? "lead" : "manual";
+    const unit = units.find(u => u.id === appointment.unitId);
     setFormData({
+      clientSource: clientSource as "client" | "lead" | "manual",
+      clientId: appointment.clientId || "",
+      leadId: appointment.leadId || "",
+      presentationCardId: appointment.presentationCardId || "",
       clientName: appointment.clientName,
       clientEmail: appointment.clientEmail || "",
       clientPhone: appointment.clientPhone || "",
@@ -517,9 +557,10 @@ export default function ExternalAppointments() {
       type: appointment.type,
       date: appointmentDate,
       time: format(appointmentDate, "HH:mm"),
+      condominiumId: unit?.condominiumId || "",
       unitId: appointment.unitId || "",
       notes: appointment.notes || "",
-      tourStops: appointment.tourStops?.map(s => ({ unitId: s.unitId, notes: s.notes || "" })) || [],
+      tourStops: appointment.tourStops?.map(s => ({ unitId: s.unitId, condominiumId: "", notes: s.notes || "" })) || [],
     });
     setIsDialogOpen(true);
   };
@@ -544,6 +585,9 @@ export default function ExternalAppointments() {
     }
     if (formData.clientSource === "lead" && formData.leadId) {
       data.leadId = formData.leadId;
+    }
+    if (formData.presentationCardId) {
+      data.presentationCardId = formData.presentationCardId;
     }
 
     if (formData.mode === "individual") {
@@ -1266,6 +1310,59 @@ export default function ExternalAppointments() {
                       </div>
                     </div>
                   </div>
+                </div>
+              )}
+
+              {/* Presentation Card Selector */}
+              {presentationCards.length > 0 && (formData.clientId || formData.leadId) && (
+                <div className="space-y-2 pt-3 border-t">
+                  <div className="flex items-center gap-2 text-sm font-medium text-muted-foreground">
+                    <Target className="h-4 w-4" />
+                    {language === "es" ? "Tarjeta de Presentacion (Opcional)" : "Presentation Card (Optional)"}
+                  </div>
+                  <Select 
+                    value={formData.presentationCardId} 
+                    onValueChange={(v) => setFormData(prev => ({ ...prev, presentationCardId: v }))}
+                  >
+                    <SelectTrigger className="bg-background" data-testid="select-presentation-card">
+                      <SelectValue placeholder={language === "es" ? "Seleccionar tarjeta..." : "Select card..."} />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="">
+                        <span className="text-muted-foreground">{language === "es" ? "Sin tarjeta" : "No card"}</span>
+                      </SelectItem>
+                      {presentationCards.map(card => (
+                        <SelectItem key={card.id} value={card.id}>
+                          <div className="flex items-center gap-2">
+                            <Target className="h-4 w-4 text-primary" />
+                            <span className="font-medium">{card.cardName || (language === "es" ? "Sin nombre" : "Unnamed")}</span>
+                            <div className="flex items-center gap-1 text-xs text-muted-foreground">
+                              {card.bedrooms && (
+                                <span className="flex items-center gap-0.5">
+                                  <Bed className="h-3 w-3" />
+                                  {card.bedrooms}
+                                </span>
+                              )}
+                              {card.budgetMax && (
+                                <span className="flex items-center gap-0.5">
+                                  <DollarSign className="h-3 w-3" />
+                                  ${(card.budgetMax / 1000).toFixed(0)}K
+                                </span>
+                              )}
+                              {card.zone && <span>• {card.zone}</span>}
+                            </div>
+                          </div>
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  {formData.presentationCardId && (
+                    <p className="text-xs text-muted-foreground">
+                      {language === "es" 
+                        ? "Esta cita se vinculara con la tarjeta de presentacion seleccionada"
+                        : "This appointment will be linked to the selected presentation card"}
+                    </p>
+                  )}
                 </div>
               )}
             </div>
