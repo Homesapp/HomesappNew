@@ -7745,3 +7745,269 @@ export const insertExternalPropertyRatingSchema = createInsertSchema(externalPro
 });
 export type InsertExternalPropertyRating = z.infer<typeof insertExternalPropertyRatingSchema>;
 export type ExternalPropertyRating = typeof externalPropertyRatings.$inferSelect;
+
+// =================================
+// PORTAL ACCESS SYSTEM - Tenant & Owner Portals
+// =================================
+
+export const portalRoleEnum = pgEnum("portal_role", ["tenant", "owner"]);
+export const portalTokenStatusEnum = pgEnum("portal_token_status", ["active", "expired", "revoked", "used"]);
+export const paymentReceiptStatusEnum = pgEnum("payment_receipt_status", ["pending", "approved", "rejected"]);
+export const terminationRequestStatusEnum = pgEnum("termination_request_status", ["pending", "approved", "rejected", "cancelled"]);
+
+// Portal Access Tokens - Credentials for tenant/owner portal access
+export const externalPortalAccessTokens = pgTable("external_portal_access_tokens", {
+  id: varchar("id").primaryKey().$defaultFn(() => crypto.randomUUID()),
+  agencyId: varchar("agency_id").notNull().references(() => externalAgencies.id, { onDelete: "cascade" }),
+  contractId: varchar("contract_id").notNull().references(() => externalRentalContracts.id, { onDelete: "cascade" }),
+  role: portalRoleEnum("role").notNull(),
+  
+  accessCode: varchar("access_code", { length: 8 }).notNull(), // Simple 8-char code for easy sharing
+  hashedSecret: text("hashed_secret").notNull(), // bcrypt hash of the full access token
+  
+  email: varchar("email", { length: 255 }),
+  phone: varchar("phone", { length: 50 }),
+  recipientName: varchar("recipient_name", { length: 255 }),
+  
+  invitedUserId: varchar("invited_user_id").references(() => users.id), // If linked to existing user
+  
+  status: portalTokenStatusEnum("status").notNull().default("active"),
+  expiresAt: timestamp("expires_at"), // Null = expires when contract ends
+  lastUsedAt: timestamp("last_used_at"),
+  usageCount: integer("usage_count").notNull().default(0),
+  
+  invitationSentAt: timestamp("invitation_sent_at"),
+  invitationMethod: varchar("invitation_method", { length: 20 }), // email, sms, whatsapp
+  
+  createdBy: varchar("created_by").references(() => users.id),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+}, (table) => [
+  index("idx_portal_tokens_agency").on(table.agencyId),
+  index("idx_portal_tokens_contract").on(table.contractId),
+  index("idx_portal_tokens_access_code").on(table.accessCode),
+  index("idx_portal_tokens_role").on(table.role),
+  index("idx_portal_tokens_status").on(table.status),
+]);
+
+export const insertExternalPortalAccessTokenSchema = createInsertSchema(externalPortalAccessTokens).omit({
+  id: true, createdAt: true, updatedAt: true,
+});
+export type InsertExternalPortalAccessToken = z.infer<typeof insertExternalPortalAccessTokenSchema>;
+export type ExternalPortalAccessToken = typeof externalPortalAccessTokens.$inferSelect;
+
+// Portal Sessions - Track active portal sessions
+export const externalPortalSessions = pgTable("external_portal_sessions", {
+  id: varchar("id").primaryKey().$defaultFn(() => crypto.randomUUID()),
+  tokenId: varchar("token_id").notNull().references(() => externalPortalAccessTokens.id, { onDelete: "cascade" }),
+  contractId: varchar("contract_id").notNull().references(() => externalRentalContracts.id, { onDelete: "cascade" }),
+  role: portalRoleEnum("role").notNull(),
+  
+  sessionToken: text("session_token").notNull().unique(), // JWT or session ID
+  
+  ipHash: varchar("ip_hash", { length: 64 }), // Hashed IP for security
+  userAgent: text("user_agent"),
+  deviceInfo: jsonb("device_info"), // {browser, os, device}
+  
+  issuedAt: timestamp("issued_at").defaultNow().notNull(),
+  expiresAt: timestamp("expires_at").notNull(),
+  lastActivityAt: timestamp("last_activity_at").defaultNow().notNull(),
+  revokedAt: timestamp("revoked_at"),
+}, (table) => [
+  index("idx_portal_sessions_token").on(table.tokenId),
+  index("idx_portal_sessions_contract").on(table.contractId),
+  index("idx_portal_sessions_session_token").on(table.sessionToken),
+]);
+
+export const insertExternalPortalSessionSchema = createInsertSchema(externalPortalSessions).omit({
+  id: true,
+});
+export type InsertExternalPortalSession = z.infer<typeof insertExternalPortalSessionSchema>;
+export type ExternalPortalSession = typeof externalPortalSessions.$inferSelect;
+
+// Payment Receipts - Tenant uploads, owner verifies
+export const externalPaymentReceipts = pgTable("external_payment_receipts", {
+  id: varchar("id").primaryKey().$defaultFn(() => crypto.randomUUID()),
+  agencyId: varchar("agency_id").notNull().references(() => externalAgencies.id, { onDelete: "cascade" }),
+  contractId: varchar("contract_id").notNull().references(() => externalRentalContracts.id, { onDelete: "cascade" }),
+  paymentScheduleId: varchar("payment_schedule_id").references(() => externalPaymentSchedules.id, { onDelete: "set null" }),
+  
+  uploadedByRole: portalRoleEnum("uploaded_by_role").notNull().default("tenant"),
+  uploadedByTokenId: varchar("uploaded_by_token_id").references(() => externalPortalAccessTokens.id),
+  uploadedByUserId: varchar("uploaded_by_user_id").references(() => users.id),
+  
+  receiptUrl: text("receipt_url").notNull(),
+  receiptFileName: varchar("receipt_file_name", { length: 255 }),
+  
+  paymentType: varchar("payment_type", { length: 50 }).notNull(), // rent, deposit, service, special_charge
+  amount: decimal("amount", { precision: 10, scale: 2 }).notNull(),
+  currency: varchar("currency", { length: 10 }).notNull().default("MXN"),
+  paymentDate: timestamp("payment_date").notNull(),
+  paymentMethod: varchar("payment_method", { length: 50 }), // transfer, cash, card, etc.
+  referenceNumber: varchar("reference_number", { length: 100 }),
+  notes: text("notes"),
+  
+  status: paymentReceiptStatusEnum("status").notNull().default("pending"),
+  
+  reviewedByRole: portalRoleEnum("reviewed_by_role"),
+  reviewedByTokenId: varchar("reviewed_by_token_id").references(() => externalPortalAccessTokens.id),
+  reviewedByUserId: varchar("reviewed_by_user_id").references(() => users.id),
+  reviewedAt: timestamp("reviewed_at"),
+  reviewNotes: text("review_notes"),
+  
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+}, (table) => [
+  index("idx_payment_receipts_agency").on(table.agencyId),
+  index("idx_payment_receipts_contract").on(table.contractId),
+  index("idx_payment_receipts_schedule").on(table.paymentScheduleId),
+  index("idx_payment_receipts_status").on(table.status),
+]);
+
+export const insertExternalPaymentReceiptSchema = createInsertSchema(externalPaymentReceipts).omit({
+  id: true, createdAt: true, updatedAt: true,
+});
+export type InsertExternalPaymentReceipt = z.infer<typeof insertExternalPaymentReceiptSchema>;
+export type ExternalPaymentReceipt = typeof externalPaymentReceipts.$inferSelect;
+
+// Service Accounts - Utility bills and payment info managed by owner
+export const externalServiceAccounts = pgTable("external_service_accounts", {
+  id: varchar("id").primaryKey().$defaultFn(() => crypto.randomUUID()),
+  agencyId: varchar("agency_id").notNull().references(() => externalAgencies.id, { onDelete: "cascade" }),
+  contractId: varchar("contract_id").notNull().references(() => externalRentalContracts.id, { onDelete: "cascade" }),
+  unitId: varchar("unit_id").references(() => externalUnits.id, { onDelete: "set null" }),
+  
+  serviceType: serviceTypeEnum("service_type").notNull(),
+  serviceName: varchar("service_name", { length: 100 }), // Custom name like "CFE", "CAPA", etc.
+  accountNumber: varchar("account_number", { length: 100 }),
+  providerName: varchar("provider_name", { length: 100 }),
+  
+  paymentInstructions: text("payment_instructions"),
+  paymentUrl: text("payment_url"),
+  paymentLocations: text("payment_locations"),
+  
+  dueDay: integer("due_day"), // Day of month payment is due (1-31)
+  estimatedAmount: decimal("estimated_amount", { precision: 10, scale: 2 }),
+  currency: varchar("currency", { length: 10 }).default("MXN"),
+  
+  ownerVisible: boolean("owner_visible").notNull().default(true),
+  tenantVisible: boolean("tenant_visible").notNull().default(true),
+  
+  notes: text("notes"),
+  
+  createdBy: varchar("created_by").references(() => users.id),
+  createdByRole: portalRoleEnum("created_by_role"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+}, (table) => [
+  index("idx_service_accounts_agency").on(table.agencyId),
+  index("idx_service_accounts_contract").on(table.contractId),
+  index("idx_service_accounts_unit").on(table.unitId),
+  index("idx_service_accounts_type").on(table.serviceType),
+]);
+
+export const insertExternalServiceAccountSchema = createInsertSchema(externalServiceAccounts).omit({
+  id: true, createdAt: true, updatedAt: true,
+});
+export type InsertExternalServiceAccount = z.infer<typeof insertExternalServiceAccountSchema>;
+export type ExternalServiceAccount = typeof externalServiceAccounts.$inferSelect;
+
+// Termination Requests - Tenant requests to end rental early
+export const externalTerminationRequests = pgTable("external_termination_requests", {
+  id: varchar("id").primaryKey().$defaultFn(() => crypto.randomUUID()),
+  agencyId: varchar("agency_id").notNull().references(() => externalAgencies.id, { onDelete: "cascade" }),
+  contractId: varchar("contract_id").notNull().references(() => externalRentalContracts.id, { onDelete: "cascade" }),
+  
+  requestedByRole: portalRoleEnum("requested_by_role").notNull(),
+  requestedByTokenId: varchar("requested_by_token_id").references(() => externalPortalAccessTokens.id),
+  requestedByUserId: varchar("requested_by_user_id").references(() => users.id),
+  
+  requestedEndDate: timestamp("requested_end_date").notNull(),
+  reason: text("reason").notNull(),
+  additionalNotes: text("additional_notes"),
+  
+  status: terminationRequestStatusEnum("status").notNull().default("pending"),
+  
+  reviewedByUserId: varchar("reviewed_by_user_id").references(() => users.id),
+  reviewedAt: timestamp("reviewed_at"),
+  reviewNotes: text("review_notes"),
+  
+  approvedEndDate: timestamp("approved_end_date"),
+  depositDeductions: decimal("deposit_deductions", { precision: 10, scale: 2 }),
+  depositDeductionReason: text("deposit_deduction_reason"),
+  
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+}, (table) => [
+  index("idx_termination_requests_agency").on(table.agencyId),
+  index("idx_termination_requests_contract").on(table.contractId),
+  index("idx_termination_requests_status").on(table.status),
+]);
+
+export const insertExternalTerminationRequestSchema = createInsertSchema(externalTerminationRequests).omit({
+  id: true, createdAt: true, updatedAt: true,
+});
+export type InsertExternalTerminationRequest = z.infer<typeof insertExternalTerminationRequestSchema>;
+export type ExternalTerminationRequest = typeof externalTerminationRequests.$inferSelect;
+
+// Owner Payment Confirmations - Owner confirms tenant payments
+export const externalOwnerPaymentConfirmations = pgTable("external_owner_payment_confirmations", {
+  id: varchar("id").primaryKey().$defaultFn(() => crypto.randomUUID()),
+  agencyId: varchar("agency_id").notNull().references(() => externalAgencies.id, { onDelete: "cascade" }),
+  contractId: varchar("contract_id").notNull().references(() => externalRentalContracts.id, { onDelete: "cascade" }),
+  paymentScheduleId: varchar("payment_schedule_id").references(() => externalPaymentSchedules.id, { onDelete: "set null" }),
+  receiptId: varchar("receipt_id").references(() => externalPaymentReceipts.id, { onDelete: "set null" }),
+  
+  confirmedByRole: portalRoleEnum("confirmed_by_role").notNull().default("owner"),
+  confirmedByTokenId: varchar("confirmed_by_token_id").references(() => externalPortalAccessTokens.id),
+  confirmedByUserId: varchar("confirmed_by_user_id").references(() => users.id),
+  
+  amount: decimal("amount", { precision: 10, scale: 2 }).notNull(),
+  currency: varchar("currency", { length: 10 }).notNull().default("MXN"),
+  paymentDate: timestamp("payment_date").notNull(),
+  
+  isConfirmed: boolean("is_confirmed").notNull().default(true),
+  notes: text("notes"),
+  
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+}, (table) => [
+  index("idx_owner_confirmations_agency").on(table.agencyId),
+  index("idx_owner_confirmations_contract").on(table.contractId),
+  index("idx_owner_confirmations_schedule").on(table.paymentScheduleId),
+  index("idx_owner_confirmations_receipt").on(table.receiptId),
+]);
+
+export const insertExternalOwnerPaymentConfirmationSchema = createInsertSchema(externalOwnerPaymentConfirmations).omit({
+  id: true, createdAt: true,
+});
+export type InsertExternalOwnerPaymentConfirmation = z.infer<typeof insertExternalOwnerPaymentConfirmationSchema>;
+export type ExternalOwnerPaymentConfirmation = typeof externalOwnerPaymentConfirmations.$inferSelect;
+
+// Portal Chat Messages - AI-powered support chat for portal users
+export const externalPortalChatMessages = pgTable("external_portal_chat_messages", {
+  id: varchar("id").primaryKey().$defaultFn(() => crypto.randomUUID()),
+  agencyId: varchar("agency_id").notNull().references(() => externalAgencies.id, { onDelete: "cascade" }),
+  contractId: varchar("contract_id").notNull().references(() => externalRentalContracts.id, { onDelete: "cascade" }),
+  sessionId: varchar("session_id").references(() => externalPortalSessions.id, { onDelete: "set null" }),
+  
+  role: portalRoleEnum("role").notNull(), // tenant or owner
+  tokenId: varchar("token_id").references(() => externalPortalAccessTokens.id),
+  
+  messageType: varchar("message_type", { length: 20 }).notNull().default("user"), // user, assistant, system
+  content: text("content").notNull(),
+  
+  metadata: jsonb("metadata"), // For storing context, references, etc.
+  
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+}, (table) => [
+  index("idx_portal_chat_agency").on(table.agencyId),
+  index("idx_portal_chat_contract").on(table.contractId),
+  index("idx_portal_chat_session").on(table.sessionId),
+  index("idx_portal_chat_role").on(table.role),
+]);
+
+export const insertExternalPortalChatMessageSchema = createInsertSchema(externalPortalChatMessages).omit({
+  id: true, createdAt: true,
+});
+export type InsertExternalPortalChatMessage = z.infer<typeof insertExternalPortalChatMessageSchema>;
+export type ExternalPortalChatMessage = typeof externalPortalChatMessages.$inferSelect;
