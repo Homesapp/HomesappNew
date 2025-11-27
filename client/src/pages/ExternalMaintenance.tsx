@@ -1863,8 +1863,366 @@ export default function ExternalMaintenance() {
               </Card>
             </>
           )}
+        </TabsContent>
 
-      {/* Create Dialog */}
+        <TabsContent value="cleaning" className="space-y-6 mt-6">
+          {/* Cleaning Header with Action */}
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div>
+              <h2 className="text-xl font-semibold">{language === 'es' ? 'Limpieza' : 'Cleaning'}</h2>
+              <p className="text-sm text-muted-foreground">{language === 'es' ? 'Gestiona trabajos del personal de limpieza' : 'Manage cleaning staff jobs'}</p>
+            </div>
+            <Button onClick={() => { setDialogMode("cleaning"); setShowDialog(true); }} data-testid="button-new-cleaning-ticket">
+              <Plus className="mr-2 h-4 w-4" />
+              {language === 'es' ? 'Nueva Limpieza' : 'New Cleaning'}
+            </Button>
+          </div>
+
+          {/* Biweekly Period Navigation - Same as Maintenance */}
+          <div className="flex items-center gap-2">
+            <Button
+              variant="outline"
+              size="icon"
+              onClick={goToPreviousPeriod}
+              data-testid="button-prev-period-cleaning"
+            >
+              <ChevronDown className="h-4 w-4 rotate-90" />
+            </Button>
+            <div className="flex items-center gap-2 text-sm px-3 py-1 bg-muted rounded-md">
+              <CalendarIcon className="h-4 w-4" />
+              <span className="font-medium">
+                {biweeklyStats?.period?.label || `${periodIndex === 1 ? '1ra' : '2da'} Quincena`}
+              </span>
+            </div>
+            <Button
+              variant="outline"
+              size="icon"
+              onClick={goToNextPeriod}
+              data-testid="button-next-period-cleaning"
+            >
+              <ChevronDown className="h-4 w-4 -rotate-90" />
+            </Button>
+          </div>
+
+          {/* Metrics - Biweekly Stats (same as Maintenance) */}
+          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-7">
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between gap-2 space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">{t.totalJobs}</CardTitle>
+                <Wrench className="h-4 w-4 text-muted-foreground" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold" data-testid="text-cleaning-total">{cleaningStats?.stats?.total || 0}</div>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between gap-2 space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">{t.open}</CardTitle>
+                <AlertTriangle className="h-4 w-4 text-amber-600" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold text-amber-600" data-testid="text-cleaning-open">{cleaningStats?.stats?.open || 0}</div>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between gap-2 space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">{t.resolved}</CardTitle>
+                <CheckCircle2 className="h-4 w-4 text-green-600" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold text-green-600" data-testid="text-cleaning-resolved">{cleaningStats?.stats?.resolved || 0}</div>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between gap-2 space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">{t.actualCost}</CardTitle>
+                <DollarSign className="h-4 w-4 text-muted-foreground" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-lg font-bold" data-testid="text-cleaning-actual-cost">{formatCurrency(cleaningStats?.stats?.actualCost || 0)}</div>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between gap-2 space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">{t.commissions}</CardTitle>
+                <TrendingUp className="h-4 w-4 text-blue-600" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-lg font-bold text-blue-600" data-testid="text-cleaning-commissions">{formatCurrency(cleaningStats?.stats?.commission || 0)}</div>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between gap-2 space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">{t.totalCharge}</CardTitle>
+                <TrendingUp className="h-4 w-4 text-green-600" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-lg font-bold text-green-600" data-testid="text-cleaning-total-charge">{formatCurrency(cleaningStats?.stats?.totalCharge || 0)}</div>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between gap-2 space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">{t.paidTotal}</CardTitle>
+                <CreditCard className="h-4 w-4 text-purple-600" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-lg font-bold text-purple-600" data-testid="text-cleaning-paid-total">{formatCurrency(cleaningStats?.stats?.paidTotal || 0)}</div>
+              </CardContent>
+            </Card>
+          </div>
+
+          {/* Search and Filters (same as Maintenance) */}
+          <Card>
+            <CardContent className="pt-6">
+              <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
+                {/* Search Input */}
+                <div className="relative flex-1">
+                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                  <Input
+                    placeholder={t.search}
+                    value={searchTerm}
+                    onChange={(e) => {
+                      setSearchTerm(e.target.value);
+                      setCurrentPage(1);
+                    }}
+                    className="pl-10"
+                    data-testid="input-search-cleaning"
+                  />
+                </div>
+
+                {/* Filter Button with Popover */}
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <Button 
+                      variant="outline" 
+                      size="icon"
+                      className="flex-shrink-0 relative"
+                      data-testid="button-toggle-filters-cleaning"
+                    >
+                      <Filter className="h-4 w-4" />
+                      {(statusFilter !== "all" || priorityFilter !== "all" || condominiumFilter !== "all") && (
+                        <Badge variant="default" className="absolute -top-1 -right-1 h-4 w-4 p-0 flex items-center justify-center text-[10px]">
+                          {[statusFilter !== "all", priorityFilter !== "all", condominiumFilter !== "all"].filter(Boolean).length}
+                        </Badge>
+                      )}
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-80" align="end">
+                    <div className="space-y-4">
+                      <div className="space-y-2">
+                        <label className="text-sm font-medium">{t.status}</label>
+                        <div className="flex flex-wrap gap-2">
+                          <Button variant={statusFilter === "all" ? "default" : "outline"} size="sm" onClick={() => { setStatusFilter("all"); setCurrentPage(1); }}>{t.all}</Button>
+                          <Button variant={statusFilter === "open" ? "default" : "outline"} size="sm" onClick={() => { setStatusFilter("open"); setCurrentPage(1); }}>{statusColors.open.label[language]}</Button>
+                          <Button variant={statusFilter === "in_progress" ? "default" : "outline"} size="sm" onClick={() => { setStatusFilter("in_progress"); setCurrentPage(1); }}>{statusColors.in_progress.label[language]}</Button>
+                          <Button variant={statusFilter === "resolved" ? "default" : "outline"} size="sm" onClick={() => { setStatusFilter("resolved"); setCurrentPage(1); }}>{statusColors.resolved.label[language]}</Button>
+                          <Button variant={statusFilter === "closed" ? "default" : "outline"} size="sm" onClick={() => { setStatusFilter("closed"); setCurrentPage(1); }}>{statusColors.closed.label[language]}</Button>
+                        </div>
+                      </div>
+                      <div className="space-y-2">
+                        <label className="text-sm font-medium">{t.priority}</label>
+                        <div className="flex flex-wrap gap-2">
+                          <Button variant={priorityFilter === "all" ? "default" : "outline"} size="sm" onClick={() => { setPriorityFilter("all"); setCurrentPage(1); }}>{t.all}</Button>
+                          <Button variant={priorityFilter === "low" ? "default" : "outline"} size="sm" onClick={() => { setPriorityFilter("low"); setCurrentPage(1); }}>{priorityColors.low.label[language]}</Button>
+                          <Button variant={priorityFilter === "medium" ? "default" : "outline"} size="sm" onClick={() => { setPriorityFilter("medium"); setCurrentPage(1); }}>{priorityColors.medium.label[language]}</Button>
+                          <Button variant={priorityFilter === "high" ? "default" : "outline"} size="sm" onClick={() => { setPriorityFilter("high"); setCurrentPage(1); }}>{priorityColors.high.label[language]}</Button>
+                          <Button variant={priorityFilter === "urgent" ? "default" : "outline"} size="sm" onClick={() => { setPriorityFilter("urgent"); setCurrentPage(1); }}>{priorityColors.urgent.label[language]}</Button>
+                        </div>
+                      </div>
+                      <div className="space-y-2">
+                        <label className="text-sm font-medium">{t.condominium}</label>
+                        <Select value={condominiumFilter} onValueChange={(value) => { setCondominiumFilter(value); setCurrentPage(1); }}>
+                          <SelectTrigger><SelectValue placeholder={t.all} /></SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="all">{t.all}</SelectItem>
+                            {condominiums?.map((condo) => (
+                              <SelectItem key={condo.id} value={condo.id}>{condo.name}</SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      <Button variant="outline" size="sm" className="w-full" onClick={() => { setStatusFilter("all"); setPriorityFilter("all"); setCondominiumFilter("all"); setCurrentPage(1); }}>
+                        {language === 'es' ? 'Limpiar filtros' : 'Clear filters'}
+                      </Button>
+                    </div>
+                  </PopoverContent>
+                </Popover>
+
+                {/* Today Button */}
+                <Button
+                  variant={dateFilter === 'today' ? "default" : "outline"}
+                  size="sm"
+                  onClick={() => setDateFilter(dateFilter === 'today' ? 'all' : 'today')}
+                  data-testid="button-today-cleaning"
+                >
+                  {language === 'es' ? 'HOY' : 'TODAY'}
+                </Button>
+
+                {/* View Mode Toggle */}
+                <div className="flex gap-1">
+                  <Button
+                    variant={viewMode === 'cards' ? "default" : "outline"}
+                    size="icon"
+                    onClick={() => { setViewMode('cards'); setManualViewModeOverride(true); }}
+                    data-testid="button-view-cards-cleaning"
+                  >
+                    <LayoutGrid className="h-4 w-4" />
+                  </Button>
+                  <Button
+                    variant={viewMode === 'table' ? "default" : "outline"}
+                    size="icon"
+                    onClick={() => { setViewMode('table'); setManualViewModeOverride(true); }}
+                    data-testid="button-view-table-cleaning"
+                  >
+                    <TableIcon className="h-4 w-4" />
+                  </Button>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Tickets Table/Cards */}
+          {ticketsLoading ? (
+            <TableLoading />
+          ) : tickets.length === 0 ? (
+            <Card className="p-8 text-center">
+              <Wrench className="mx-auto h-12 w-12 text-muted-foreground mb-4" />
+              <h3 className="text-lg font-medium mb-2">
+                {language === 'es' ? 'No hay tickets de limpieza' : 'No cleaning tickets'}
+              </h3>
+              <p className="text-muted-foreground mb-4">
+                {language === 'es' 
+                  ? 'Crea el primer ticket de limpieza para comenzar' 
+                  : 'Create the first cleaning ticket to get started'}
+              </p>
+              <Button onClick={() => { setDialogMode("cleaning"); setShowDialog(true); }}>
+                <Plus className="mr-2 h-4 w-4" />
+                {language === 'es' ? 'Nueva Limpieza' : 'New Cleaning'}
+              </Button>
+            </Card>
+          ) : viewMode === 'table' ? (
+            <Card>
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>{language === 'es' ? 'Estado' : 'Status'}</TableHead>
+                    <TableHead>{language === 'es' ? 'Prioridad' : 'Priority'}</TableHead>
+                    <TableHead>{language === 'es' ? 'Unidad' : 'Unit'}</TableHead>
+                    <TableHead>{language === 'es' ? 'Título' : 'Title'}</TableHead>
+                    <TableHead>{language === 'es' ? 'Costo Real' : 'Actual Cost'}</TableHead>
+                    <TableHead>{language === 'es' ? 'Total' : 'Total'}</TableHead>
+                    <TableHead>{language === 'es' ? 'Última Act.' : 'Last Update'}</TableHead>
+                    <TableHead>{language === 'es' ? 'Acciones' : 'Actions'}</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {tickets.map((ticket: any) => (
+                    <TableRow key={ticket.id}>
+                      <TableCell>
+                        <Badge variant={ticket.status === 'open' ? 'destructive' : ticket.status === 'closed' ? 'default' : 'secondary'}>
+                          {ticket.status}
+                        </Badge>
+                      </TableCell>
+                      <TableCell>
+                        <Badge variant={ticket.priority === 'urgent' ? 'destructive' : 'outline'}>
+                          {ticket.priority}
+                        </Badge>
+                      </TableCell>
+                      <TableCell>{ticket.unit?.name || '-'}</TableCell>
+                      <TableCell className="max-w-[200px] truncate">{ticket.title}</TableCell>
+                      <TableCell>${parseFloat(ticket.actualCost || '0').toLocaleString('en-US', { minimumFractionDigits: 2 })}</TableCell>
+                      <TableCell>${parseFloat(ticket.totalChargeAmount || '0').toLocaleString('en-US', { minimumFractionDigits: 2 })}</TableCell>
+                      <TableCell>{ticket.updatedAt ? format(new Date(ticket.updatedAt), 'dd MMM yyyy HH:mm', { locale: es }) : '-'}</TableCell>
+                      <TableCell>
+                        <div className="flex items-center gap-1">
+                          <Button 
+                            variant="ghost" 
+                            size="icon"
+                            onClick={() => handleEditTicket(ticket)}
+                            data-testid={`button-edit-cleaning-${ticket.id}`}
+                          >
+                            <Pencil className="h-4 w-4" />
+                          </Button>
+                          <Button 
+                            variant="ghost" 
+                            size="icon"
+                            onClick={() => handleViewTicket(ticket)}
+                            data-testid={`button-view-cleaning-${ticket.id}`}
+                          >
+                            <Eye className="h-4 w-4" />
+                          </Button>
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </Card>
+          ) : (
+            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+              {tickets.map((ticket: any) => (
+                <Card key={ticket.id} className="hover-elevate cursor-pointer" onClick={() => handleViewTicket(ticket)}>
+                  <CardHeader className="pb-2">
+                    <div className="flex items-center justify-between">
+                      <Badge variant={ticket.status === 'open' ? 'destructive' : ticket.status === 'closed' ? 'default' : 'secondary'}>
+                        {ticket.status}
+                      </Badge>
+                      <Badge variant={ticket.priority === 'urgent' ? 'destructive' : 'outline'}>
+                        {ticket.priority}
+                      </Badge>
+                    </div>
+                    <CardTitle className="text-base mt-2 line-clamp-1">{ticket.title}</CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="space-y-2 text-sm">
+                      <div className="flex items-center gap-2 text-muted-foreground">
+                        <Home className="h-4 w-4" />
+                        <span>{ticket.unit?.name || '-'}</span>
+                      </div>
+                      <div className="flex items-center justify-between">
+                        <span className="text-muted-foreground">{language === 'es' ? 'Total:' : 'Total:'}</span>
+                        <span className="font-medium">${parseFloat(ticket.totalChargeAmount || '0').toLocaleString('en-US', { minimumFractionDigits: 2 })}</span>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+          )}
+
+          {/* Pagination */}
+          {tickets.length > 0 && (
+            <ExternalPaginationControls
+              currentPage={currentPage}
+              totalPages={serverTotalPages}
+              itemsPerPage={itemsPerPage}
+              totalItems={totalItems}
+              onPageChange={setCurrentPage}
+              onItemsPerPageChange={(value) => {
+                setItemsPerPage(value);
+                setCurrentPage(1);
+              }}
+            />
+          )}
+        </TabsContent>
+
+        <TabsContent value="quotations" className="mt-6">
+          <ExternalQuotationsTab />
+        </TabsContent>
+
+
+        <TabsContent value="assignments" className="mt-6">
+          <ExternalMaintenanceWorkers initialTab="assignments" hideHeader />
+        </TabsContent>
+      </Tabs>
+
+      {/* Create Dialog - Outside of Tabs for proper rendering */}
       <Dialog open={showDialog} onOpenChange={(open) => {
         setShowDialog(open);
         if (open) {
@@ -2255,7 +2613,7 @@ export default function ExternalMaintenance() {
         </DialogContent>
       </Dialog>
 
-      {/* Edit Dialog */}
+      {/* Edit Dialog - Outside of Tabs for proper rendering */}
       <Dialog open={showEditDialog} onOpenChange={setShowEditDialog}>
         <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
@@ -2639,7 +2997,7 @@ export default function ExternalMaintenance() {
         </DialogContent>
       </Dialog>
 
-      {/* Edit Photo Phase Dialog */}
+      {/* Edit Photo Phase Dialog - Outside of Tabs for proper rendering */}
       <Dialog open={showPhotoPhaseDialog} onOpenChange={(open) => {
         setShowPhotoPhaseDialog(open);
         if (!open) setEditingPhotoPhase(null);
@@ -2707,364 +3065,6 @@ export default function ExternalMaintenance() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
-        </TabsContent>
-
-        <TabsContent value="cleaning" className="space-y-6 mt-6">
-          {/* Cleaning Header with Action */}
-          <div className="flex flex-wrap items-center justify-between gap-3">
-            <div>
-              <h2 className="text-xl font-semibold">{language === 'es' ? 'Limpieza' : 'Cleaning'}</h2>
-              <p className="text-sm text-muted-foreground">{language === 'es' ? 'Gestiona trabajos del personal de limpieza' : 'Manage cleaning staff jobs'}</p>
-            </div>
-            <Button onClick={() => { setDialogMode("cleaning"); setShowDialog(true); }} data-testid="button-new-cleaning-ticket">
-              <Plus className="mr-2 h-4 w-4" />
-              {language === 'es' ? 'Nueva Limpieza' : 'New Cleaning'}
-            </Button>
-          </div>
-
-          {/* Biweekly Period Navigation - Same as Maintenance */}
-          <div className="flex items-center gap-2">
-            <Button
-              variant="outline"
-              size="icon"
-              onClick={goToPreviousPeriod}
-              data-testid="button-prev-period-cleaning"
-            >
-              <ChevronDown className="h-4 w-4 rotate-90" />
-            </Button>
-            <div className="flex items-center gap-2 text-sm px-3 py-1 bg-muted rounded-md">
-              <CalendarIcon className="h-4 w-4" />
-              <span className="font-medium">
-                {biweeklyStats?.period?.label || `${periodIndex === 1 ? '1ra' : '2da'} Quincena`}
-              </span>
-            </div>
-            <Button
-              variant="outline"
-              size="icon"
-              onClick={goToNextPeriod}
-              data-testid="button-next-period-cleaning"
-            >
-              <ChevronDown className="h-4 w-4 -rotate-90" />
-            </Button>
-          </div>
-
-          {/* Metrics - Biweekly Stats (same as Maintenance) */}
-          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-7">
-            <Card>
-              <CardHeader className="flex flex-row items-center justify-between gap-2 space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">{t.totalJobs}</CardTitle>
-                <Wrench className="h-4 w-4 text-muted-foreground" />
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold" data-testid="text-cleaning-total">{cleaningStats?.stats?.total || 0}</div>
-              </CardContent>
-            </Card>
-
-            <Card>
-              <CardHeader className="flex flex-row items-center justify-between gap-2 space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">{t.open}</CardTitle>
-                <AlertTriangle className="h-4 w-4 text-amber-600" />
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold text-amber-600" data-testid="text-cleaning-open">{cleaningStats?.stats?.open || 0}</div>
-              </CardContent>
-            </Card>
-
-            <Card>
-              <CardHeader className="flex flex-row items-center justify-between gap-2 space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">{t.resolved}</CardTitle>
-                <CheckCircle2 className="h-4 w-4 text-green-600" />
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold text-green-600" data-testid="text-cleaning-resolved">{cleaningStats?.stats?.resolved || 0}</div>
-              </CardContent>
-            </Card>
-
-            <Card>
-              <CardHeader className="flex flex-row items-center justify-between gap-2 space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">{t.actualCost}</CardTitle>
-                <DollarSign className="h-4 w-4 text-muted-foreground" />
-              </CardHeader>
-              <CardContent>
-                <div className="text-lg font-bold" data-testid="text-cleaning-actual-cost">{formatCurrency(cleaningStats?.stats?.actualCost || 0)}</div>
-              </CardContent>
-            </Card>
-
-            <Card>
-              <CardHeader className="flex flex-row items-center justify-between gap-2 space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">{t.commissions}</CardTitle>
-                <TrendingUp className="h-4 w-4 text-blue-600" />
-              </CardHeader>
-              <CardContent>
-                <div className="text-lg font-bold text-blue-600" data-testid="text-cleaning-commissions">{formatCurrency(cleaningStats?.stats?.commission || 0)}</div>
-              </CardContent>
-            </Card>
-
-            <Card>
-              <CardHeader className="flex flex-row items-center justify-between gap-2 space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">{t.totalCharge}</CardTitle>
-                <TrendingUp className="h-4 w-4 text-green-600" />
-              </CardHeader>
-              <CardContent>
-                <div className="text-lg font-bold text-green-600" data-testid="text-cleaning-total-charge">{formatCurrency(cleaningStats?.stats?.totalCharge || 0)}</div>
-              </CardContent>
-            </Card>
-
-            <Card>
-              <CardHeader className="flex flex-row items-center justify-between gap-2 space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">{t.paidTotal}</CardTitle>
-                <CreditCard className="h-4 w-4 text-purple-600" />
-              </CardHeader>
-              <CardContent>
-                <div className="text-lg font-bold text-purple-600" data-testid="text-cleaning-paid-total">{formatCurrency(cleaningStats?.stats?.paidTotal || 0)}</div>
-              </CardContent>
-            </Card>
-          </div>
-
-          {/* Search and Filters (same as Maintenance) */}
-          <Card>
-            <CardContent className="pt-6">
-              <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
-                {/* Search Input */}
-                <div className="relative flex-1">
-                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                  <Input
-                    placeholder={t.search}
-                    value={searchTerm}
-                    onChange={(e) => {
-                      setSearchTerm(e.target.value);
-                      setCurrentPage(1);
-                    }}
-                    className="pl-10"
-                    data-testid="input-search-cleaning"
-                  />
-                </div>
-
-                {/* Filter Button with Popover */}
-                <Popover>
-                  <PopoverTrigger asChild>
-                    <Button 
-                      variant="outline" 
-                      size="icon"
-                      className="flex-shrink-0 relative"
-                      data-testid="button-toggle-filters-cleaning"
-                    >
-                      <Filter className="h-4 w-4" />
-                      {(statusFilter !== "all" || priorityFilter !== "all" || condominiumFilter !== "all") && (
-                        <Badge variant="default" className="absolute -top-1 -right-1 h-4 w-4 p-0 flex items-center justify-center text-[10px]">
-                          {[statusFilter !== "all", priorityFilter !== "all", condominiumFilter !== "all"].filter(Boolean).length}
-                        </Badge>
-                      )}
-                    </Button>
-                  </PopoverTrigger>
-                  <PopoverContent className="w-80" align="end">
-                    <div className="space-y-4">
-                      <div className="space-y-2">
-                        <label className="text-sm font-medium">{t.status}</label>
-                        <div className="flex flex-wrap gap-2">
-                          <Button variant={statusFilter === "all" ? "default" : "outline"} size="sm" onClick={() => { setStatusFilter("all"); setCurrentPage(1); }}>{t.all}</Button>
-                          <Button variant={statusFilter === "open" ? "default" : "outline"} size="sm" onClick={() => { setStatusFilter("open"); setCurrentPage(1); }}>{statusColors.open.label[language]}</Button>
-                          <Button variant={statusFilter === "in_progress" ? "default" : "outline"} size="sm" onClick={() => { setStatusFilter("in_progress"); setCurrentPage(1); }}>{statusColors.in_progress.label[language]}</Button>
-                          <Button variant={statusFilter === "resolved" ? "default" : "outline"} size="sm" onClick={() => { setStatusFilter("resolved"); setCurrentPage(1); }}>{statusColors.resolved.label[language]}</Button>
-                          <Button variant={statusFilter === "closed" ? "default" : "outline"} size="sm" onClick={() => { setStatusFilter("closed"); setCurrentPage(1); }}>{statusColors.closed.label[language]}</Button>
-                        </div>
-                      </div>
-                      <div className="space-y-2">
-                        <label className="text-sm font-medium">{t.priority}</label>
-                        <div className="flex flex-wrap gap-2">
-                          <Button variant={priorityFilter === "all" ? "default" : "outline"} size="sm" onClick={() => { setPriorityFilter("all"); setCurrentPage(1); }}>{t.all}</Button>
-                          <Button variant={priorityFilter === "low" ? "default" : "outline"} size="sm" onClick={() => { setPriorityFilter("low"); setCurrentPage(1); }}>{priorityColors.low.label[language]}</Button>
-                          <Button variant={priorityFilter === "medium" ? "default" : "outline"} size="sm" onClick={() => { setPriorityFilter("medium"); setCurrentPage(1); }}>{priorityColors.medium.label[language]}</Button>
-                          <Button variant={priorityFilter === "high" ? "default" : "outline"} size="sm" onClick={() => { setPriorityFilter("high"); setCurrentPage(1); }}>{priorityColors.high.label[language]}</Button>
-                          <Button variant={priorityFilter === "urgent" ? "default" : "outline"} size="sm" onClick={() => { setPriorityFilter("urgent"); setCurrentPage(1); }}>{priorityColors.urgent.label[language]}</Button>
-                        </div>
-                      </div>
-                      <div className="space-y-2">
-                        <label className="text-sm font-medium">{t.condominium}</label>
-                        <Select value={condominiumFilter} onValueChange={(value) => { setCondominiumFilter(value); setCurrentPage(1); }}>
-                          <SelectTrigger><SelectValue placeholder={t.all} /></SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="all">{t.all}</SelectItem>
-                            {condominiums?.map((condo) => (
-                              <SelectItem key={condo.id} value={condo.id}>{condo.name}</SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                      </div>
-                      <Button variant="outline" size="sm" className="w-full" onClick={() => { setStatusFilter("all"); setPriorityFilter("all"); setCondominiumFilter("all"); setCurrentPage(1); }}>
-                        {language === 'es' ? 'Limpiar filtros' : 'Clear filters'}
-                      </Button>
-                    </div>
-                  </PopoverContent>
-                </Popover>
-
-                {/* Today Button */}
-                <Button
-                  variant={dateFilter === 'today' ? "default" : "outline"}
-                  size="sm"
-                  onClick={() => setDateFilter(dateFilter === 'today' ? 'all' : 'today')}
-                  data-testid="button-today-cleaning"
-                >
-                  {language === 'es' ? 'HOY' : 'TODAY'}
-                </Button>
-
-                {/* View Mode Toggle */}
-                <div className="flex gap-1">
-                  <Button
-                    variant={viewMode === 'cards' ? "default" : "outline"}
-                    size="icon"
-                    onClick={() => { setViewMode('cards'); setManualViewModeOverride(true); }}
-                    data-testid="button-view-cards-cleaning"
-                  >
-                    <LayoutGrid className="h-4 w-4" />
-                  </Button>
-                  <Button
-                    variant={viewMode === 'table' ? "default" : "outline"}
-                    size="icon"
-                    onClick={() => { setViewMode('table'); setManualViewModeOverride(true); }}
-                    data-testid="button-view-table-cleaning"
-                  >
-                    <TableIcon className="h-4 w-4" />
-                  </Button>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-
-          {/* Tickets Table/Cards */}
-          {ticketsLoading ? (
-            <TableLoading />
-          ) : tickets.length === 0 ? (
-            <Card className="p-8 text-center">
-              <Wrench className="mx-auto h-12 w-12 text-muted-foreground mb-4" />
-              <h3 className="text-lg font-medium mb-2">
-                {language === 'es' ? 'No hay tickets de limpieza' : 'No cleaning tickets'}
-              </h3>
-              <p className="text-muted-foreground mb-4">
-                {language === 'es' 
-                  ? 'Crea el primer ticket de limpieza para comenzar' 
-                  : 'Create the first cleaning ticket to get started'}
-              </p>
-              <Button onClick={() => { setDialogMode("cleaning"); setShowDialog(true); }}>
-                <Plus className="mr-2 h-4 w-4" />
-                {language === 'es' ? 'Nueva Limpieza' : 'New Cleaning'}
-              </Button>
-            </Card>
-          ) : viewMode === 'table' ? (
-            <Card>
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>{language === 'es' ? 'Estado' : 'Status'}</TableHead>
-                    <TableHead>{language === 'es' ? 'Prioridad' : 'Priority'}</TableHead>
-                    <TableHead>{language === 'es' ? 'Unidad' : 'Unit'}</TableHead>
-                    <TableHead>{language === 'es' ? 'Título' : 'Title'}</TableHead>
-                    <TableHead>{language === 'es' ? 'Costo Real' : 'Actual Cost'}</TableHead>
-                    <TableHead>{language === 'es' ? 'Total' : 'Total'}</TableHead>
-                    <TableHead>{language === 'es' ? 'Última Act.' : 'Last Update'}</TableHead>
-                    <TableHead>{language === 'es' ? 'Acciones' : 'Actions'}</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {tickets.map((ticket: any) => (
-                    <TableRow key={ticket.id}>
-                      <TableCell>
-                        <Badge variant={ticket.status === 'open' ? 'destructive' : ticket.status === 'closed' ? 'default' : 'secondary'}>
-                          {ticket.status}
-                        </Badge>
-                      </TableCell>
-                      <TableCell>
-                        <Badge variant={ticket.priority === 'urgent' ? 'destructive' : 'outline'}>
-                          {ticket.priority}
-                        </Badge>
-                      </TableCell>
-                      <TableCell>{ticket.unit?.name || '-'}</TableCell>
-                      <TableCell className="max-w-[200px] truncate">{ticket.title}</TableCell>
-                      <TableCell>${parseFloat(ticket.actualCost || '0').toLocaleString('en-US', { minimumFractionDigits: 2 })}</TableCell>
-                      <TableCell>${parseFloat(ticket.totalChargeAmount || '0').toLocaleString('en-US', { minimumFractionDigits: 2 })}</TableCell>
-                      <TableCell>{ticket.updatedAt ? format(new Date(ticket.updatedAt), 'dd MMM yyyy HH:mm', { locale: es }) : '-'}</TableCell>
-                      <TableCell>
-                        <div className="flex items-center gap-1">
-                          <Button 
-                            variant="ghost" 
-                            size="icon"
-                            onClick={() => handleEditTicket(ticket)}
-                            data-testid={`button-edit-cleaning-${ticket.id}`}
-                          >
-                            <Pencil className="h-4 w-4" />
-                          </Button>
-                          <Button 
-                            variant="ghost" 
-                            size="icon"
-                            onClick={() => handleViewTicket(ticket)}
-                            data-testid={`button-view-cleaning-${ticket.id}`}
-                          >
-                            <Eye className="h-4 w-4" />
-                          </Button>
-                        </div>
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </Card>
-          ) : (
-            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-              {tickets.map((ticket: any) => (
-                <Card key={ticket.id} className="hover-elevate cursor-pointer" onClick={() => handleViewTicket(ticket)}>
-                  <CardHeader className="pb-2">
-                    <div className="flex items-center justify-between">
-                      <Badge variant={ticket.status === 'open' ? 'destructive' : ticket.status === 'closed' ? 'default' : 'secondary'}>
-                        {ticket.status}
-                      </Badge>
-                      <Badge variant={ticket.priority === 'urgent' ? 'destructive' : 'outline'}>
-                        {ticket.priority}
-                      </Badge>
-                    </div>
-                    <CardTitle className="text-base mt-2 line-clamp-1">{ticket.title}</CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="space-y-2 text-sm">
-                      <div className="flex items-center gap-2 text-muted-foreground">
-                        <Home className="h-4 w-4" />
-                        <span>{ticket.unit?.name || '-'}</span>
-                      </div>
-                      <div className="flex items-center justify-between">
-                        <span className="text-muted-foreground">{language === 'es' ? 'Total:' : 'Total:'}</span>
-                        <span className="font-medium">${parseFloat(ticket.totalChargeAmount || '0').toLocaleString('en-US', { minimumFractionDigits: 2 })}</span>
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
-              ))}
-            </div>
-          )}
-
-          {/* Pagination */}
-          {tickets.length > 0 && (
-            <ExternalPaginationControls
-              currentPage={currentPage}
-              totalPages={serverTotalPages}
-              itemsPerPage={itemsPerPage}
-              totalItems={totalItems}
-              onPageChange={setCurrentPage}
-              onItemsPerPageChange={(value) => {
-                setItemsPerPage(value);
-                setCurrentPage(1);
-              }}
-            />
-          )}
-        </TabsContent>
-
-        <TabsContent value="quotations" className="mt-6">
-          <ExternalQuotationsTab />
-        </TabsContent>
-
-
-        <TabsContent value="assignments" className="mt-6">
-          <ExternalMaintenanceWorkers initialTab="assignments" hideHeader />
-        </TabsContent>
-      </Tabs>
 
       {/* Closure Report Dialog - Outside of Tabs for proper rendering */}
       <Dialog open={showClosureDialog} onOpenChange={(open) => {
