@@ -203,9 +203,11 @@ import {
   externalPayments,
   externalPaymentSchedules,
   externalMaintenanceTickets,
+  externalClients,
+  externalFinancialTransactions,
 } from "@shared/schema";
 import { db } from "./db";
-import { eq, and, inArray, desc, asc, sql, ne, isNull, isNotNull } from "drizzle-orm";
+import { eq, and, inArray, desc, asc, sql, ne, isNull, isNotNull, gte, lte } from "drizzle-orm";
 
 // Helper function to verify external agency ownership
 async function verifyExternalAgencyOwnership(req: any, res: any, agencyId: string): Promise<boolean> {
@@ -28369,6 +28371,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Get all closed/resolved tickets - excluding cleaning category
       const allTickets = await db.select({
         ticket: externalMaintenanceTickets,
+  externalClients,
+  externalFinancialTransactions,
         unit: externalUnits,
         condominium: externalCondominiums,
         worker: users,
@@ -28448,6 +28452,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Get all closed/resolved tickets - only cleaning category
       const allTickets = await db.select({
         ticket: externalMaintenanceTickets,
+  externalClients,
+  externalFinancialTransactions,
         unit: externalUnits,
         condominium: externalCondominiums,
         worker: users,
@@ -28527,6 +28533,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Get service commissions from closed tickets (admin fees)
       const serviceTickets = await db.select({
         ticket: externalMaintenanceTickets,
+  externalClients,
+  externalFinancialTransactions,
         unit: externalUnits,
         condominium: externalCondominiums,
       })

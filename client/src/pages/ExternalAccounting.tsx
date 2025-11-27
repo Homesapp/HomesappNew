@@ -68,6 +68,87 @@ import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, Responsive
 
 type TransactionFormData = z.infer<typeof insertExternalFinancialTransactionSchema>;
 
+// Types for specialized accounting tabs
+interface PayrollItem {
+  ticketId: string;
+  ticketNumber: string;
+  title: string;
+  category: string;
+  closedAt: string | null;
+  unitNumber: string | null;
+  condominiumName: string | null;
+  workerName: string;
+  workerEmail: string | null;
+  netPayment: number;
+  adminFee: number;
+  totalCharged: number;
+}
+
+interface CommissionItem {
+  type: 'service' | 'rental';
+  id: string;
+  reference: string;
+  description: string;
+  category: string;
+  date: string | null;
+  unitNumber: string | null;
+  condominiumName: string | null;
+  baseAmount: number;
+  commissionAmount: number;
+}
+
+interface SellerPayoutItem {
+  leadId: string;
+  contractId: string;
+  leadName: string;
+  leadEmail: string | null;
+  sellerName: string;
+  sellerEmail: string | null;
+  unitNumber: string | null;
+  condominiumName: string | null;
+  contractStartDate: string;
+  monthlyRent: number;
+  rentalCommission: number;
+  sellerPayout: number;
+}
+
+interface PayrollResponse {
+  period: { year: number; month: number; biweekly: number };
+  startDate: string;
+  endDate: string;
+  items: PayrollItem[];
+  totals: {
+    count: number;
+    netPayment: number;
+    adminFees: number;
+  };
+}
+
+interface CommissionsResponse {
+  period: { year: number; month: number; biweekly: number };
+  startDate: string;
+  endDate: string;
+  items: CommissionItem[];
+  totals: {
+    serviceCount: number;
+    rentalCount: number;
+    serviceCommissions: number;
+    rentalCommissions: number;
+    totalCommissions: number;
+  };
+}
+
+interface SellerPayoutsResponse {
+  period: { year: number; month: number; biweekly: number };
+  startDate: string;
+  endDate: string;
+  items: SellerPayoutItem[];
+  totals: {
+    count: number;
+    totalPayouts: number;
+  };
+}
+
 export default function ExternalAccounting() {
   const [, setLocation] = useLocation();
   const { language } = useLanguage();
@@ -120,6 +201,13 @@ export default function ExternalAccounting() {
   
   // Auto-fee calculation toggle (15% administrative fee)
   const [applyAutoFee, setApplyAutoFee] = useState(true);
+
+  // Biweekly period filters for specialized accounting tabs
+  const now = new Date();
+  const currentBiweekly = now.getDate() <= 15 ? 1 : 2;
+  const [payrollYear, setPayrollYear] = useState(now.getFullYear());
+  const [payrollMonth, setPayrollMonth] = useState(now.getMonth() + 1);
+  const [payrollBiweekly, setPayrollBiweekly] = useState(currentBiweekly);
 
   // Calculate date range based on dateFilter
   const getDateRange = () => {
@@ -348,6 +436,75 @@ export default function ExternalAccounting() {
       }));
     },
     staleTime: 5 * 60 * 1000, // 5 minutes
+  });
+
+  // Queries for specialized accounting tabs
+  const { data: maintenancePayrollData, isLoading: maintenancePayrollLoading } = useQuery<PayrollResponse>({
+    queryKey: ['/api/external/accounting/payroll/maintenance', payrollYear, payrollMonth, payrollBiweekly],
+    queryFn: async () => {
+      const params = new URLSearchParams();
+      params.append('year', payrollYear.toString());
+      params.append('month', payrollMonth.toString());
+      params.append('period', payrollBiweekly.toString());
+      const response = await fetch(`/api/external/accounting/payroll/maintenance?${params.toString()}`, {
+        credentials: 'include',
+      });
+      if (!response.ok) throw new Error('Failed to fetch maintenance payroll');
+      return response.json();
+    },
+    enabled: activeTab === 'maintenance-payroll',
+    staleTime: 2 * 60 * 1000,
+  });
+
+  const { data: cleaningPayrollData, isLoading: cleaningPayrollLoading } = useQuery<PayrollResponse>({
+    queryKey: ['/api/external/accounting/payroll/cleaning', payrollYear, payrollMonth, payrollBiweekly],
+    queryFn: async () => {
+      const params = new URLSearchParams();
+      params.append('year', payrollYear.toString());
+      params.append('month', payrollMonth.toString());
+      params.append('period', payrollBiweekly.toString());
+      const response = await fetch(`/api/external/accounting/payroll/cleaning?${params.toString()}`, {
+        credentials: 'include',
+      });
+      if (!response.ok) throw new Error('Failed to fetch cleaning payroll');
+      return response.json();
+    },
+    enabled: activeTab === 'cleaning-payroll',
+    staleTime: 2 * 60 * 1000,
+  });
+
+  const { data: commissionsData, isLoading: commissionsLoading } = useQuery<CommissionsResponse>({
+    queryKey: ['/api/external/accounting/commissions', payrollYear, payrollMonth, payrollBiweekly],
+    queryFn: async () => {
+      const params = new URLSearchParams();
+      params.append('year', payrollYear.toString());
+      params.append('month', payrollMonth.toString());
+      params.append('period', payrollBiweekly.toString());
+      const response = await fetch(`/api/external/accounting/commissions?${params.toString()}`, {
+        credentials: 'include',
+      });
+      if (!response.ok) throw new Error('Failed to fetch commissions');
+      return response.json();
+    },
+    enabled: activeTab === 'commissions',
+    staleTime: 2 * 60 * 1000,
+  });
+
+  const { data: sellerPayoutsData, isLoading: sellerPayoutsLoading } = useQuery<SellerPayoutsResponse>({
+    queryKey: ['/api/external/accounting/seller-payouts', payrollYear, payrollMonth, payrollBiweekly],
+    queryFn: async () => {
+      const params = new URLSearchParams();
+      params.append('year', payrollYear.toString());
+      params.append('month', payrollMonth.toString());
+      params.append('period', payrollBiweekly.toString());
+      const response = await fetch(`/api/external/accounting/seller-payouts?${params.toString()}`, {
+        credentials: 'include',
+      });
+      if (!response.ok) throw new Error('Failed to fetch seller payouts');
+      return response.json();
+    },
+    enabled: activeTab === 'seller-payouts',
+    staleTime: 2 * 60 * 1000,
   });
 
   // Filter units by selected condominium for the create form
@@ -667,6 +824,55 @@ export default function ExternalAccounting() {
     incomeVsExpenses: 'Ingresos vs Egresos',
     last12Months: 'Últimos 12 Meses',
     topCategories: 'Principales Categorías',
+    // Specialized accounting tabs
+    maintenancePayroll: 'Nómina Mantenimiento',
+    cleaningPayroll: 'Nómina Limpieza',
+    commissions: 'Comisiones',
+    sellerPayouts: 'Pagos a Vendedores',
+    period: 'Período',
+    year: 'Año',
+    month: 'Mes',
+    biweekly: 'Quincena',
+    first: '1ra (1-15)',
+    second: '2da (16-fin)',
+    noDataPeriod: 'No hay datos para este período',
+    loading: 'Cargando...',
+    ticket: 'Ticket',
+    worker: 'Trabajador',
+    netPayment: 'Pago Neto',
+    adminFee: 'Cuota Admin',
+    total: 'Total',
+    totalNetPayment: 'Total Pago Neto',
+    totalAdminFees: 'Total Cuotas Admin',
+    items: 'elementos',
+    reference: 'Referencia',
+    baseAmount: 'Monto Base',
+    commission: 'Comisión',
+    serviceCommissions: 'Comisiones Servicios',
+    rentalCommissions: 'Comisiones Rentas',
+    totalCommissions: 'Total Comisiones',
+    lead: 'Lead',
+    seller: 'Vendedor',
+    monthlyRent: 'Renta Mensual',
+    rentalCommission: 'Comisión Renta',
+    sellerPayout: 'Pago Vendedor',
+    totalPayouts: 'Total Pagos',
+    service: 'Servicio',
+    rental: 'Renta',
+    maintenance: 'Mantenimiento',
+    cleaning: 'Limpieza',
+    january: 'Enero',
+    february: 'Febrero',
+    march: 'Marzo',
+    april: 'Abril',
+    may: 'Mayo',
+    june: 'Junio',
+    july: 'Julio',
+    august: 'Agosto',
+    september: 'Septiembre',
+    october: 'Octubre',
+    november: 'Noviembre',
+    december: 'Diciembre',
   } : {
     title: 'Financial Accounting',
     subtitle: 'Financial management and reports',
@@ -782,7 +988,62 @@ export default function ExternalAccounting() {
     incomeVsExpenses: 'Income vs Expenses',
     last12Months: 'Last 12 Months',
     topCategories: 'Top Categories',
+    // Specialized accounting tabs
+    maintenancePayroll: 'Maintenance Payroll',
+    cleaningPayroll: 'Cleaning Payroll',
+    commissions: 'Commissions',
+    sellerPayouts: 'Seller Payouts',
+    period: 'Period',
+    year: 'Year',
+    month: 'Month',
+    biweekly: 'Biweekly',
+    first: '1st (1-15)',
+    second: '2nd (16-end)',
+    noDataPeriod: 'No data for this period',
+    loading: 'Loading...',
+    ticket: 'Ticket',
+    worker: 'Worker',
+    netPayment: 'Net Payment',
+    adminFee: 'Admin Fee',
+    total: 'Total',
+    totalNetPayment: 'Total Net Payment',
+    totalAdminFees: 'Total Admin Fees',
+    items: 'items',
+    reference: 'Reference',
+    baseAmount: 'Base Amount',
+    commission: 'Commission',
+    serviceCommissions: 'Service Commissions',
+    rentalCommissions: 'Rental Commissions',
+    totalCommissions: 'Total Commissions',
+    lead: 'Lead',
+    seller: 'Seller',
+    monthlyRent: 'Monthly Rent',
+    rentalCommission: 'Rental Commission',
+    sellerPayout: 'Seller Payout',
+    totalPayouts: 'Total Payouts',
+    service: 'Service',
+    rental: 'Rental',
+    maintenance: 'Maintenance',
+    cleaning: 'Cleaning',
+    january: 'January',
+    february: 'February',
+    march: 'March',
+    april: 'April',
+    may: 'May',
+    june: 'June',
+    july: 'July',
+    august: 'August',
+    september: 'September',
+    october: 'October',
+    november: 'November',
+    december: 'December',
   };
+
+  // Month names for selectors
+  const monthNames = [
+    t.january, t.february, t.march, t.april, t.may, t.june,
+    t.july, t.august, t.september, t.october, t.november, t.december
+  ];
 
   const getCategoryLabel = (category: string) => {
     return t[category as keyof typeof t] || category;
@@ -1161,10 +1422,14 @@ export default function ExternalAccounting() {
 
       <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
         <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 mb-6">
-          <TabsList>
+          <TabsList className="flex flex-wrap h-auto gap-1">
             <TabsTrigger value="transactions" data-testid="tab-transactions">{t.transactionsTab}</TabsTrigger>
             <TabsTrigger value="accounting" data-testid="tab-accounting">{language === 'es' ? 'Contabilidad' : 'Accounting'}</TabsTrigger>
             <TabsTrigger value="reports" data-testid="tab-reports">{t.reportsTab}</TabsTrigger>
+            <TabsTrigger value="maintenance-payroll" data-testid="tab-maintenance-payroll">{t.maintenancePayroll}</TabsTrigger>
+            <TabsTrigger value="cleaning-payroll" data-testid="tab-cleaning-payroll">{t.cleaningPayroll}</TabsTrigger>
+            <TabsTrigger value="commissions" data-testid="tab-commissions">{t.commissions}</TabsTrigger>
+            <TabsTrigger value="seller-payouts" data-testid="tab-seller-payouts">{t.sellerPayouts}</TabsTrigger>
           </TabsList>
         </div>
 
@@ -2213,6 +2478,540 @@ export default function ExternalAccounting() {
                   })}
                 </div>
               </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        {/* Maintenance Payroll Tab */}
+        <TabsContent value="maintenance-payroll" className="space-y-6">
+          <Card>
+            <CardHeader>
+              <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+                <div className="flex items-center gap-2">
+                  <Wrench className="h-5 w-5" />
+                  <CardTitle>{t.maintenancePayroll}</CardTitle>
+                </div>
+                <div className="flex flex-wrap items-center gap-2">
+                  <Select value={payrollYear.toString()} onValueChange={(v) => setPayrollYear(parseInt(v))}>
+                    <SelectTrigger className="w-24" data-testid="select-payroll-year">
+                      <SelectValue placeholder={t.year} />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {[2024, 2025, 2026].map((y) => (
+                        <SelectItem key={y} value={y.toString()}>{y}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <Select value={payrollMonth.toString()} onValueChange={(v) => setPayrollMonth(parseInt(v))}>
+                    <SelectTrigger className="w-32" data-testid="select-payroll-month">
+                      <SelectValue placeholder={t.month} />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {monthNames.map((m, i) => (
+                        <SelectItem key={i + 1} value={(i + 1).toString()}>{m}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <Select value={payrollBiweekly.toString()} onValueChange={(v) => setPayrollBiweekly(parseInt(v))}>
+                    <SelectTrigger className="w-32" data-testid="select-payroll-biweekly">
+                      <SelectValue placeholder={t.biweekly} />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="1">{t.first}</SelectItem>
+                      <SelectItem value="2">{t.second}</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => {
+                      if (!maintenancePayrollData?.items?.length) return;
+                      const ws = XLSX.utils.json_to_sheet(maintenancePayrollData.items.map(item => ({
+                        [t.ticket]: item.ticketNumber,
+                        [language === 'es' ? 'Título' : 'Title']: item.title,
+                        [t.worker]: item.workerName,
+                        [t.unit]: item.unitNumber || 'N/A',
+                        [t.condominium]: item.condominiumName || 'N/A',
+                        [t.netPayment]: item.netPayment,
+                        [t.adminFee]: item.adminFee,
+                        [t.total]: item.totalCharged,
+                      })));
+                      const wb = XLSX.utils.book_new();
+                      XLSX.utils.book_append_sheet(wb, ws, t.maintenancePayroll);
+                      XLSX.writeFile(wb, `maintenance_payroll_${payrollYear}_${payrollMonth}_Q${payrollBiweekly}.xlsx`);
+                    }}
+                    disabled={!maintenancePayrollData?.items?.length}
+                    data-testid="button-export-maintenance"
+                  >
+                    <Download className="h-4 w-4 mr-1" />
+                    {t.exportExcel}
+                  </Button>
+                </div>
+              </div>
+            </CardHeader>
+            <CardContent>
+              {maintenancePayrollLoading ? (
+                <div className="space-y-2">
+                  {[1, 2, 3].map(i => <Skeleton key={i} className="h-12 w-full" />)}
+                </div>
+              ) : !maintenancePayrollData?.items?.length ? (
+                <div className="text-center py-8 text-muted-foreground">{t.noDataPeriod}</div>
+              ) : (
+                <>
+                  <div className="grid grid-cols-3 gap-4 mb-6">
+                    <Card>
+                      <CardContent className="pt-4 text-center">
+                        <div className="text-2xl font-bold">{maintenancePayrollData.totals.count}</div>
+                        <div className="text-sm text-muted-foreground">{t.items}</div>
+                      </CardContent>
+                    </Card>
+                    <Card>
+                      <CardContent className="pt-4 text-center">
+                        <div className="text-2xl font-bold text-green-600">{formatCurrency(maintenancePayrollData.totals.netPayment)}</div>
+                        <div className="text-sm text-muted-foreground">{t.totalNetPayment}</div>
+                      </CardContent>
+                    </Card>
+                    <Card>
+                      <CardContent className="pt-4 text-center">
+                        <div className="text-2xl font-bold text-blue-600">{formatCurrency(maintenancePayrollData.totals.adminFees)}</div>
+                        <div className="text-sm text-muted-foreground">{t.totalAdminFees}</div>
+                      </CardContent>
+                    </Card>
+                  </div>
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>{t.ticket}</TableHead>
+                        <TableHead>{t.worker}</TableHead>
+                        <TableHead>{t.unit}</TableHead>
+                        <TableHead className="text-right">{t.netPayment}</TableHead>
+                        <TableHead className="text-right">{t.adminFee}</TableHead>
+                        <TableHead className="text-right">{t.total}</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {maintenancePayrollData.items.map((item) => (
+                        <TableRow key={item.ticketId}>
+                          <TableCell>
+                            <div className="font-medium">{item.ticketNumber}</div>
+                            <div className="text-xs text-muted-foreground">{item.title}</div>
+                          </TableCell>
+                          <TableCell>{item.workerName}</TableCell>
+                          <TableCell>
+                            <div>{item.unitNumber || 'N/A'}</div>
+                            <div className="text-xs text-muted-foreground">{item.condominiumName || ''}</div>
+                          </TableCell>
+                          <TableCell className="text-right font-medium text-green-600">{formatCurrency(item.netPayment)}</TableCell>
+                          <TableCell className="text-right text-blue-600">{formatCurrency(item.adminFee)}</TableCell>
+                          <TableCell className="text-right font-medium">{formatCurrency(item.totalCharged)}</TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </>
+              )}
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        {/* Cleaning Payroll Tab */}
+        <TabsContent value="cleaning-payroll" className="space-y-6">
+          <Card>
+            <CardHeader>
+              <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+                <div className="flex items-center gap-2">
+                  <Home className="h-5 w-5" />
+                  <CardTitle>{t.cleaningPayroll}</CardTitle>
+                </div>
+                <div className="flex flex-wrap items-center gap-2">
+                  <Select value={payrollYear.toString()} onValueChange={(v) => setPayrollYear(parseInt(v))}>
+                    <SelectTrigger className="w-24" data-testid="select-cleaning-year">
+                      <SelectValue placeholder={t.year} />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {[2024, 2025, 2026].map((y) => (
+                        <SelectItem key={y} value={y.toString()}>{y}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <Select value={payrollMonth.toString()} onValueChange={(v) => setPayrollMonth(parseInt(v))}>
+                    <SelectTrigger className="w-32" data-testid="select-cleaning-month">
+                      <SelectValue placeholder={t.month} />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {monthNames.map((m, i) => (
+                        <SelectItem key={i + 1} value={(i + 1).toString()}>{m}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <Select value={payrollBiweekly.toString()} onValueChange={(v) => setPayrollBiweekly(parseInt(v))}>
+                    <SelectTrigger className="w-32" data-testid="select-cleaning-biweekly">
+                      <SelectValue placeholder={t.biweekly} />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="1">{t.first}</SelectItem>
+                      <SelectItem value="2">{t.second}</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => {
+                      if (!cleaningPayrollData?.items?.length) return;
+                      const ws = XLSX.utils.json_to_sheet(cleaningPayrollData.items.map(item => ({
+                        [t.ticket]: item.ticketNumber,
+                        [language === 'es' ? 'Título' : 'Title']: item.title,
+                        [t.worker]: item.workerName,
+                        [t.unit]: item.unitNumber || 'N/A',
+                        [t.condominium]: item.condominiumName || 'N/A',
+                        [t.netPayment]: item.netPayment,
+                        [t.adminFee]: item.adminFee,
+                        [t.total]: item.totalCharged,
+                      })));
+                      const wb = XLSX.utils.book_new();
+                      XLSX.utils.book_append_sheet(wb, ws, t.cleaningPayroll);
+                      XLSX.writeFile(wb, `cleaning_payroll_${payrollYear}_${payrollMonth}_Q${payrollBiweekly}.xlsx`);
+                    }}
+                    disabled={!cleaningPayrollData?.items?.length}
+                    data-testid="button-export-cleaning"
+                  >
+                    <Download className="h-4 w-4 mr-1" />
+                    {t.exportExcel}
+                  </Button>
+                </div>
+              </div>
+            </CardHeader>
+            <CardContent>
+              {cleaningPayrollLoading ? (
+                <div className="space-y-2">
+                  {[1, 2, 3].map(i => <Skeleton key={i} className="h-12 w-full" />)}
+                </div>
+              ) : !cleaningPayrollData?.items?.length ? (
+                <div className="text-center py-8 text-muted-foreground">{t.noDataPeriod}</div>
+              ) : (
+                <>
+                  <div className="grid grid-cols-3 gap-4 mb-6">
+                    <Card>
+                      <CardContent className="pt-4 text-center">
+                        <div className="text-2xl font-bold">{cleaningPayrollData.totals.count}</div>
+                        <div className="text-sm text-muted-foreground">{t.items}</div>
+                      </CardContent>
+                    </Card>
+                    <Card>
+                      <CardContent className="pt-4 text-center">
+                        <div className="text-2xl font-bold text-green-600">{formatCurrency(cleaningPayrollData.totals.netPayment)}</div>
+                        <div className="text-sm text-muted-foreground">{t.totalNetPayment}</div>
+                      </CardContent>
+                    </Card>
+                    <Card>
+                      <CardContent className="pt-4 text-center">
+                        <div className="text-2xl font-bold text-blue-600">{formatCurrency(cleaningPayrollData.totals.adminFees)}</div>
+                        <div className="text-sm text-muted-foreground">{t.totalAdminFees}</div>
+                      </CardContent>
+                    </Card>
+                  </div>
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>{t.ticket}</TableHead>
+                        <TableHead>{t.worker}</TableHead>
+                        <TableHead>{t.unit}</TableHead>
+                        <TableHead className="text-right">{t.netPayment}</TableHead>
+                        <TableHead className="text-right">{t.adminFee}</TableHead>
+                        <TableHead className="text-right">{t.total}</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {cleaningPayrollData.items.map((item) => (
+                        <TableRow key={item.ticketId}>
+                          <TableCell>
+                            <div className="font-medium">{item.ticketNumber}</div>
+                            <div className="text-xs text-muted-foreground">{item.title}</div>
+                          </TableCell>
+                          <TableCell>{item.workerName}</TableCell>
+                          <TableCell>
+                            <div>{item.unitNumber || 'N/A'}</div>
+                            <div className="text-xs text-muted-foreground">{item.condominiumName || ''}</div>
+                          </TableCell>
+                          <TableCell className="text-right font-medium text-green-600">{formatCurrency(item.netPayment)}</TableCell>
+                          <TableCell className="text-right text-blue-600">{formatCurrency(item.adminFee)}</TableCell>
+                          <TableCell className="text-right font-medium">{formatCurrency(item.totalCharged)}</TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </>
+              )}
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        {/* Commissions Tab */}
+        <TabsContent value="commissions" className="space-y-6">
+          <Card>
+            <CardHeader>
+              <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+                <div className="flex items-center gap-2">
+                  <Receipt className="h-5 w-5" />
+                  <CardTitle>{t.commissions}</CardTitle>
+                </div>
+                <div className="flex flex-wrap items-center gap-2">
+                  <Select value={payrollYear.toString()} onValueChange={(v) => setPayrollYear(parseInt(v))}>
+                    <SelectTrigger className="w-24" data-testid="select-commissions-year">
+                      <SelectValue placeholder={t.year} />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {[2024, 2025, 2026].map((y) => (
+                        <SelectItem key={y} value={y.toString()}>{y}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <Select value={payrollMonth.toString()} onValueChange={(v) => setPayrollMonth(parseInt(v))}>
+                    <SelectTrigger className="w-32" data-testid="select-commissions-month">
+                      <SelectValue placeholder={t.month} />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {monthNames.map((m, i) => (
+                        <SelectItem key={i + 1} value={(i + 1).toString()}>{m}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <Select value={payrollBiweekly.toString()} onValueChange={(v) => setPayrollBiweekly(parseInt(v))}>
+                    <SelectTrigger className="w-32" data-testid="select-commissions-biweekly">
+                      <SelectValue placeholder={t.biweekly} />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="1">{t.first}</SelectItem>
+                      <SelectItem value="2">{t.second}</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => {
+                      if (!commissionsData?.items?.length) return;
+                      const ws = XLSX.utils.json_to_sheet(commissionsData.items.map(item => ({
+                        [language === 'es' ? 'Tipo' : 'Type']: item.type === 'service' ? t.service : t.rental,
+                        [t.reference]: item.reference,
+                        [t.description]: item.description,
+                        [t.category]: item.category,
+                        [t.unit]: item.unitNumber || 'N/A',
+                        [t.baseAmount]: item.baseAmount,
+                        [t.commission]: item.commissionAmount,
+                      })));
+                      const wb = XLSX.utils.book_new();
+                      XLSX.utils.book_append_sheet(wb, ws, t.commissions);
+                      XLSX.writeFile(wb, `commissions_${payrollYear}_${payrollMonth}_Q${payrollBiweekly}.xlsx`);
+                    }}
+                    disabled={!commissionsData?.items?.length}
+                    data-testid="button-export-commissions"
+                  >
+                    <Download className="h-4 w-4 mr-1" />
+                    {t.exportExcel}
+                  </Button>
+                </div>
+              </div>
+            </CardHeader>
+            <CardContent>
+              {commissionsLoading ? (
+                <div className="space-y-2">
+                  {[1, 2, 3].map(i => <Skeleton key={i} className="h-12 w-full" />)}
+                </div>
+              ) : !commissionsData?.items?.length ? (
+                <div className="text-center py-8 text-muted-foreground">{t.noDataPeriod}</div>
+              ) : (
+                <>
+                  <div className="grid grid-cols-4 gap-4 mb-6">
+                    <Card>
+                      <CardContent className="pt-4 text-center">
+                        <div className="text-2xl font-bold">{commissionsData.totals.serviceCount}</div>
+                        <div className="text-sm text-muted-foreground">{t.service}</div>
+                      </CardContent>
+                    </Card>
+                    <Card>
+                      <CardContent className="pt-4 text-center">
+                        <div className="text-2xl font-bold">{commissionsData.totals.rentalCount}</div>
+                        <div className="text-sm text-muted-foreground">{t.rental}</div>
+                      </CardContent>
+                    </Card>
+                    <Card>
+                      <CardContent className="pt-4 text-center">
+                        <div className="text-2xl font-bold text-blue-600">{formatCurrency(commissionsData.totals.serviceCommissions)}</div>
+                        <div className="text-sm text-muted-foreground">{t.serviceCommissions}</div>
+                      </CardContent>
+                    </Card>
+                    <Card>
+                      <CardContent className="pt-4 text-center">
+                        <div className="text-2xl font-bold text-green-600">{formatCurrency(commissionsData.totals.totalCommissions)}</div>
+                        <div className="text-sm text-muted-foreground">{t.totalCommissions}</div>
+                      </CardContent>
+                    </Card>
+                  </div>
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>{language === 'es' ? 'Tipo' : 'Type'}</TableHead>
+                        <TableHead>{t.reference}</TableHead>
+                        <TableHead>{t.description}</TableHead>
+                        <TableHead>{t.unit}</TableHead>
+                        <TableHead className="text-right">{t.baseAmount}</TableHead>
+                        <TableHead className="text-right">{t.commission}</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {commissionsData.items.map((item) => (
+                        <TableRow key={`${item.type}-${item.id}`}>
+                          <TableCell>
+                            <Badge variant={item.type === 'service' ? 'default' : 'secondary'}>
+                              {item.type === 'service' ? t.service : t.rental}
+                            </Badge>
+                          </TableCell>
+                          <TableCell className="font-medium">{item.reference}</TableCell>
+                          <TableCell>
+                            <div>{item.description}</div>
+                            <div className="text-xs text-muted-foreground">{item.category}</div>
+                          </TableCell>
+                          <TableCell>
+                            <div>{item.unitNumber || 'N/A'}</div>
+                            <div className="text-xs text-muted-foreground">{item.condominiumName || ''}</div>
+                          </TableCell>
+                          <TableCell className="text-right">{formatCurrency(item.baseAmount)}</TableCell>
+                          <TableCell className="text-right font-medium text-green-600">{formatCurrency(item.commissionAmount)}</TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </>
+              )}
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        {/* Seller Payouts Tab */}
+        <TabsContent value="seller-payouts" className="space-y-6">
+          <Card>
+            <CardHeader>
+              <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+                <div className="flex items-center gap-2">
+                  <Building2 className="h-5 w-5" />
+                  <CardTitle>{t.sellerPayouts}</CardTitle>
+                </div>
+                <div className="flex flex-wrap items-center gap-2">
+                  <Select value={payrollYear.toString()} onValueChange={(v) => setPayrollYear(parseInt(v))}>
+                    <SelectTrigger className="w-24" data-testid="select-payouts-year">
+                      <SelectValue placeholder={t.year} />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {[2024, 2025, 2026].map((y) => (
+                        <SelectItem key={y} value={y.toString()}>{y}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <Select value={payrollMonth.toString()} onValueChange={(v) => setPayrollMonth(parseInt(v))}>
+                    <SelectTrigger className="w-32" data-testid="select-payouts-month">
+                      <SelectValue placeholder={t.month} />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {monthNames.map((m, i) => (
+                        <SelectItem key={i + 1} value={(i + 1).toString()}>{m}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <Select value={payrollBiweekly.toString()} onValueChange={(v) => setPayrollBiweekly(parseInt(v))}>
+                    <SelectTrigger className="w-32" data-testid="select-payouts-biweekly">
+                      <SelectValue placeholder={t.biweekly} />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="1">{t.first}</SelectItem>
+                      <SelectItem value="2">{t.second}</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => {
+                      if (!sellerPayoutsData?.items?.length) return;
+                      const ws = XLSX.utils.json_to_sheet(sellerPayoutsData.items.map(item => ({
+                        [t.lead]: item.leadName,
+                        [t.seller]: item.sellerName,
+                        [t.unit]: item.unitNumber || 'N/A',
+                        [t.condominium]: item.condominiumName || 'N/A',
+                        [language === 'es' ? 'Inicio Contrato' : 'Contract Start']: item.contractStartDate,
+                        [t.monthlyRent]: item.monthlyRent,
+                        [t.rentalCommission]: item.rentalCommission,
+                        [t.sellerPayout]: item.sellerPayout,
+                      })));
+                      const wb = XLSX.utils.book_new();
+                      XLSX.utils.book_append_sheet(wb, ws, t.sellerPayouts);
+                      XLSX.writeFile(wb, `seller_payouts_${payrollYear}_${payrollMonth}_Q${payrollBiweekly}.xlsx`);
+                    }}
+                    disabled={!sellerPayoutsData?.items?.length}
+                    data-testid="button-export-payouts"
+                  >
+                    <Download className="h-4 w-4 mr-1" />
+                    {t.exportExcel}
+                  </Button>
+                </div>
+              </div>
+            </CardHeader>
+            <CardContent>
+              {sellerPayoutsLoading ? (
+                <div className="space-y-2">
+                  {[1, 2, 3].map(i => <Skeleton key={i} className="h-12 w-full" />)}
+                </div>
+              ) : !sellerPayoutsData?.items?.length ? (
+                <div className="text-center py-8 text-muted-foreground">{t.noDataPeriod}</div>
+              ) : (
+                <>
+                  <div className="grid grid-cols-2 gap-4 mb-6">
+                    <Card>
+                      <CardContent className="pt-4 text-center">
+                        <div className="text-2xl font-bold">{sellerPayoutsData.totals.count}</div>
+                        <div className="text-sm text-muted-foreground">{t.items}</div>
+                      </CardContent>
+                    </Card>
+                    <Card>
+                      <CardContent className="pt-4 text-center">
+                        <div className="text-2xl font-bold text-green-600">{formatCurrency(sellerPayoutsData.totals.totalPayouts)}</div>
+                        <div className="text-sm text-muted-foreground">{t.totalPayouts}</div>
+                      </CardContent>
+                    </Card>
+                  </div>
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>{t.lead}</TableHead>
+                        <TableHead>{t.seller}</TableHead>
+                        <TableHead>{t.unit}</TableHead>
+                        <TableHead className="text-right">{t.monthlyRent}</TableHead>
+                        <TableHead className="text-right">{t.rentalCommission}</TableHead>
+                        <TableHead className="text-right">{t.sellerPayout}</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {sellerPayoutsData.items.map((item) => (
+                        <TableRow key={item.contractId}>
+                          <TableCell>
+                            <div className="font-medium">{item.leadName}</div>
+                            <div className="text-xs text-muted-foreground">{item.leadEmail || ''}</div>
+                          </TableCell>
+                          <TableCell>
+                            <div>{item.sellerName}</div>
+                            <div className="text-xs text-muted-foreground">{item.sellerEmail || ''}</div>
+                          </TableCell>
+                          <TableCell>
+                            <div>{item.unitNumber || 'N/A'}</div>
+                            <div className="text-xs text-muted-foreground">{item.condominiumName || ''}</div>
+                          </TableCell>
+                          <TableCell className="text-right">{formatCurrency(item.monthlyRent)}</TableCell>
+                          <TableCell className="text-right">{formatCurrency(item.rentalCommission)}</TableCell>
+                          <TableCell className="text-right font-medium text-green-600">{formatCurrency(item.sellerPayout)}</TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </>
+              )}
             </CardContent>
           </Card>
         </TabsContent>
