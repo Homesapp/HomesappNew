@@ -211,6 +211,7 @@ const categoryLabels: Record<string, { es: string; en: string }> = {
   hvac: { es: "Climatización", en: "HVAC" },
   general: { es: "General", en: "General" },
   emergency: { es: "Emergencia", en: "Emergency" },
+  cleaning: { es: "Limpieza", en: "Cleaning" },
   other: { es: "Otro", en: "Other" },
 };
 
@@ -221,6 +222,7 @@ export default function ExternalMaintenance() {
   const { user } = useAuth();
   const isMobile = useMobile();
   const [showDialog, setShowDialog] = useState(false);
+  const [dialogMode, setDialogMode] = useState<"maintenance" | "cleaning">("maintenance");
   const [showEditDialog, setShowEditDialog] = useState(false);
   const [editingTicket, setEditingTicket] = useState<ExternalMaintenanceTicket | null>(null);
   const [searchTerm, setSearchTerm] = useState("");
@@ -1057,9 +1059,9 @@ export default function ExternalMaintenance() {
               <h2 className="text-xl font-semibold">{language === 'es' ? 'Mantenimientos' : 'Maintenance'}</h2>
               <p className="text-sm text-muted-foreground">{t.subtitle}</p>
             </div>
-            <Button onClick={() => setShowDialog(true)} data-testid="button-new-ticket">
+            <Button onClick={() => { setDialogMode("maintenance"); setShowDialog(true); }} data-testid="button-new-ticket">
               <Plus className="mr-2 h-4 w-4" />
-              {t.newTicket}
+              {language === 'es' ? 'Nuevo Mantenimiento' : 'New Maintenance'}
             </Button>
           </div>
 
@@ -1863,14 +1865,27 @@ export default function ExternalMaintenance() {
           )}
 
       {/* Create Dialog */}
-      <Dialog open={showDialog} onOpenChange={setShowDialog}>
+      <Dialog open={showDialog} onOpenChange={(open) => {
+        setShowDialog(open);
+        if (open) {
+          form.setValue("category", dialogMode === "cleaning" ? "cleaning" : "other");
+        }
+      }}>
         <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle>{t.createTicket}</DialogTitle>
+            <DialogTitle>
+              {dialogMode === "cleaning" 
+                ? (language === 'es' ? 'Nueva Limpieza' : 'New Cleaning')
+                : (language === 'es' ? 'Nuevo Mantenimiento' : 'New Maintenance')}
+            </DialogTitle>
             <DialogDescription>
-              {language === 'es' 
-                ? 'Complete la información del ticket de mantenimiento'
-                : 'Fill in the maintenance ticket information'}
+              {dialogMode === "cleaning"
+                ? (language === 'es' 
+                    ? 'Complete la información del servicio de limpieza'
+                    : 'Fill in the cleaning service information')
+                : (language === 'es' 
+                    ? 'Complete la información del ticket de mantenimiento'
+                    : 'Fill in the maintenance ticket information')}
             </DialogDescription>
           </DialogHeader>
 
@@ -1980,30 +1995,51 @@ export default function ExternalMaintenance() {
                 />
 
                 <div className="grid gap-4 md:grid-cols-2">
-                  <FormField
-                    control={form.control}
-                    name="category"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>{t.selectCategory}</FormLabel>
-                        <Select value={field.value} onValueChange={field.onChange}>
-                          <SelectTrigger data-testid="select-form-category">
-                            <SelectValue />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="plumbing">{categoryLabels.plumbing[language]}</SelectItem>
-                            <SelectItem value="electrical">{categoryLabels.electrical[language]}</SelectItem>
-                            <SelectItem value="appliances">{categoryLabels.appliances[language]}</SelectItem>
-                            <SelectItem value="hvac">{categoryLabels.hvac[language]}</SelectItem>
-                            <SelectItem value="general">{categoryLabels.general[language]}</SelectItem>
-                            <SelectItem value="emergency">{categoryLabels.emergency[language]}</SelectItem>
-                            <SelectItem value="other">{categoryLabels.other[language]}</SelectItem>
-                          </SelectContent>
-                        </Select>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
+                  {dialogMode === "cleaning" ? (
+                    <FormField
+                      control={form.control}
+                      name="category"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>{t.selectCategory}</FormLabel>
+                          <Select value={field.value} onValueChange={field.onChange} disabled>
+                            <SelectTrigger data-testid="select-form-category">
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="cleaning">{categoryLabels.cleaning[language]}</SelectItem>
+                            </SelectContent>
+                          </Select>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                  ) : (
+                    <FormField
+                      control={form.control}
+                      name="category"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>{t.selectCategory}</FormLabel>
+                          <Select value={field.value} onValueChange={field.onChange}>
+                            <SelectTrigger data-testid="select-form-category">
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="plumbing">{categoryLabels.plumbing[language]}</SelectItem>
+                              <SelectItem value="electrical">{categoryLabels.electrical[language]}</SelectItem>
+                              <SelectItem value="appliances">{categoryLabels.appliances[language]}</SelectItem>
+                              <SelectItem value="hvac">{categoryLabels.hvac[language]}</SelectItem>
+                              <SelectItem value="general">{categoryLabels.general[language]}</SelectItem>
+                              <SelectItem value="emergency">{categoryLabels.emergency[language]}</SelectItem>
+                              <SelectItem value="other">{categoryLabels.other[language]}</SelectItem>
+                            </SelectContent>
+                          </Select>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                  )}
 
                   <FormField
                     control={form.control}
@@ -2680,9 +2716,9 @@ export default function ExternalMaintenance() {
               <h2 className="text-xl font-semibold">{language === 'es' ? 'Limpieza' : 'Cleaning'}</h2>
               <p className="text-sm text-muted-foreground">{language === 'es' ? 'Gestiona trabajos del personal de limpieza' : 'Manage cleaning staff jobs'}</p>
             </div>
-            <Button onClick={() => setShowDialog(true)} data-testid="button-new-cleaning-ticket">
+            <Button onClick={() => { setDialogMode("cleaning"); setShowDialog(true); }} data-testid="button-new-cleaning-ticket">
               <Plus className="mr-2 h-4 w-4" />
-              {t.newTicket}
+              {language === 'es' ? 'Nueva Limpieza' : 'New Cleaning'}
             </Button>
           </div>
 
@@ -2909,9 +2945,9 @@ export default function ExternalMaintenance() {
                   ? 'Crea el primer ticket de limpieza para comenzar' 
                   : 'Create the first cleaning ticket to get started'}
               </p>
-              <Button onClick={() => setShowDialog(true)}>
+              <Button onClick={() => { setDialogMode("cleaning"); setShowDialog(true); }}>
                 <Plus className="mr-2 h-4 w-4" />
-                {t.newTicket}
+                {language === 'es' ? 'Nueva Limpieza' : 'New Cleaning'}
               </Button>
             </Card>
           ) : viewMode === 'table' ? (
