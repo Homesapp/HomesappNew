@@ -21617,6 +21617,37 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   app.post("/api/external-agency-users", isAuthenticated, requireRole(EXTERNAL_ADMIN_ROLES), async (req: any, res) => {
+
+  // Get sellers for external agency (for lead assignment dropdowns)
+  app.get("/api/external-sellers", isAuthenticated, requireRole([...EXTERNAL_ADMIN_ROLES, 'external_agency_seller']), async (req: any, res) => {
+    try {
+      const agencyId = await getUserAgencyId(req);
+      if (!agencyId) {
+        return res.status(400).json({ message: "No agency assigned to user" });
+      }
+
+      // Get all users with seller role that belong to this agency and are not suspended
+      const sellerUsers = await db
+        .select({
+          id: users.id,
+          email: users.email,
+          firstName: users.firstName,
+          lastName: users.lastName,
+        })
+        .from(users)
+        .where(and(
+          eq(users.role, "external_agency_seller"),
+          eq(users.externalAgencyId, agencyId),
+          or(eq(users.isSuspended, false), isNull(users.isSuspended))
+        ))
+        .orderBy(users.firstName, users.lastName);
+
+      res.json(sellerUsers);
+    } catch (error: any) {
+      console.error("Error fetching external sellers:", error);
+      handleGenericError(res, error);
+    }
+  });
     try {
       const agencyId = await getUserAgencyId(req);
       if (!agencyId) {
