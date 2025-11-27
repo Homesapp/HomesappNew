@@ -230,6 +230,7 @@ import {
   insertExternalAppointmentUnitSchema,
 } from "@shared/schema";
 import { db } from "./db";
+import { registerPortalRoutes } from "./portal-routes";
 import { eq, and, or, not, inArray, desc, asc, sql, ne, isNull, isNotNull } from "drizzle-orm";
 
 // Helper function to verify external agency ownership
@@ -34606,6 +34607,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
       handleGenericError(res, error);
     }
   });
+
+  // Register portal routes for tenant/owner portals
+  registerPortalRoutes(
+    app,
+    handleGenericError,
+    isAuthenticated,
+    requireRole,
+    EXTERNAL_ADMIN_ROLES,
+    getUserAgencyId,
+    createAuditLog
+  );
 
   const httpServer = createServer(app);
   const sessionMiddleware = getSession();
