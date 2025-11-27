@@ -595,7 +595,8 @@ export default function ExternalAccounts() {
   const resetPasswordMutation = useMutation({
     mutationFn: async (data: { userId: string; userName: string; userEmail: string }) => {
       const response = await apiRequest("PATCH", `/api/external-agency-users/${data.userId}/reset-password`, {});
-      return { ...response, userName: data.userName, userEmail: data.userEmail };
+      const json = await response.json();
+      return { ...json, userName: data.userName, userEmail: data.userEmail };
     },
     onSuccess: (response: any) => {
       setTempPassword(response.tempPassword);
