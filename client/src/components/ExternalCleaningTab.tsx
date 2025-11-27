@@ -56,7 +56,7 @@ import {
 import { useLanguage } from "@/contexts/LanguageContext";
 import { useToast } from "@/hooks/use-toast";
 import { queryClient, apiRequest } from "@/lib/queryClient";
-import { useIsMobile } from "@/hooks/use-mobile.tsx";
+import { useMobile } from "@/hooks/use-mobile";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
@@ -124,7 +124,7 @@ interface ExternalCleaningTabProps {
 
 export function ExternalCleaningTab({ language }: ExternalCleaningTabProps) {
   const { toast } = useToast();
-  const isMobile = useIsMobile();
+  const isMobile = useMobile();
   
   const [showDialog, setShowDialog] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
