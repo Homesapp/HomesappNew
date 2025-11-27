@@ -190,6 +190,8 @@ export default function ExternalAccounts() {
   const [tempUserRole, setTempUserRole] = useState<string | null>(null);
   const [copiedId, setCopiedId] = useState<string | null>(null);
   const [showWelcomeModal, setShowWelcomeModal] = useState(false);
+  const [showResetPasswordModal, setShowResetPasswordModal] = useState(false);
+  const [resetPasswordUserId, setResetPasswordUserId] = useState<string | null>(null);
   
   // View mode with SSR-safe auto-detection
   const [viewMode, setViewMode] = useState<'table' | 'cards'>('table');
@@ -622,18 +624,23 @@ export default function ExternalAccounts() {
 
   const resetPasswordMutation = useMutation({
     mutationFn: async (userId: string) => {
-      return await apiRequest("PATCH", `/api/external-agency-users/${userId}/reset-password`, {});
+      setResetPasswordUserId(userId);
+      const res = await apiRequest("PATCH", `/api/external-agency-users/${userId}/reset-password`, {});
+      const data = await res.json();
+      return { ...data, userId };
     },
     onSuccess: (response: any) => {
+      const user = users?.find(u => u.id === response.userId);
+      if (user) {
+        setTempEmail(user.email);
+        setTempUserName(`${user.firstName} ${user.lastName}`);
+        setTempUserRole(user.role);
+      }
       setTempPassword(response.tempPassword);
-      toast({
-        title: language === "es" ? "Contraseña reseteada" : "Password reset",
-        description: language === "es" 
-          ? "Se ha generado una nueva contraseña temporal"
-          : "A new temporary password has been generated",
-      });
+      setShowResetPasswordModal(true);
     },
     onError: () => {
+      setResetPasswordUserId(null);
       toast({
         title: language === "es" ? "Error" : "Error",
         description: language === "es"
@@ -1088,7 +1095,7 @@ The HomesApp Team`;
                       <FormItem className="space-y-3">
                         <FormLabel className="text-xs">{language === "es" ? "Rol del Usuario" : "User Role"} *</FormLabel>
                         <FormControl>
-                          <input type="hidden" {...field} />
+                          <input type="hidden" name={field.name} value={field.value || ""} onChange={field.onChange} onBlur={field.onBlur} ref={field.ref} />
                         </FormControl>
                         <div className="grid grid-cols-2 gap-2" data-testid="select-role">
                             {(["external_agency_admin", "external_agency_accounting", "external_agency_maintenance", "external_agency_seller", "external_agency_concierge", "external_agency_lawyer"] as const).map((role) => {
@@ -1287,6 +1294,120 @@ The HomesApp Team`;
 
           <DialogFooter className="mt-4">
             <Button variant="outline" onClick={closeWelcomeModal} data-testid="button-close-welcome">
+              {language === "es" ? "Cerrar" : "Close"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Reset Password Modal */}
+      <Dialog open={showResetPasswordModal} onOpenChange={(open) => {
+        if (!open) {
+          setShowResetPasswordModal(false);
+          setResetPasswordUserId(null);
+          setTempPassword(null);
+          setTempEmail(null);
+          setTempUserName(null);
+          setTempUserRole(null);
+          setCopiedId(null);
+        }
+      }}>
+        <DialogContent className="max-w-md" data-testid="dialog-reset-password">
+          <DialogHeader>
+            <div className="flex items-center gap-3">
+              <div className="h-10 w-10 rounded-full bg-blue-100 dark:bg-blue-900/30 flex items-center justify-center">
+                <RotateCw className="h-5 w-5 text-blue-600 dark:text-blue-400" />
+              </div>
+              <div>
+                <DialogTitle>
+                  {language === "es" ? "Nueva Contraseña Generada" : "New Password Generated"}
+                </DialogTitle>
+                {tempUserName && (
+                  <div className="flex items-center gap-2 mt-1">
+                    <span className="text-sm text-muted-foreground">{tempUserName}</span>
+                    {tempUserRole && (
+                      <Badge variant="outline" className="text-xs">
+                        {ROLE_LABELS[language][tempUserRole as keyof typeof ROLE_LABELS['es']] || tempUserRole}
+                      </Badge>
+                    )}
+                  </div>
+                )}
+              </div>
+            </div>
+          </DialogHeader>
+          
+          <div className="space-y-4 mt-4">
+            <div className="p-4 rounded-lg border bg-muted/30">
+              <p className="text-xs text-muted-foreground mb-2 flex items-center gap-1">
+                <UserIcon className="h-3 w-3" />
+                {language === "es" ? "Nueva contraseña temporal" : "New temporary password"}
+              </p>
+              <div className="flex items-center gap-2">
+                <code className="text-lg font-mono flex-1 font-semibold">{tempPassword}</code>
+                <Button
+                  variant="default"
+                  size="sm"
+                  onClick={() => tempPassword && copyToClipboard(tempPassword, 'reset-password')}
+                  data-testid="button-copy-reset-password"
+                  className="gap-1.5"
+                >
+                  {copiedId === 'reset-password' ? (
+                    <>
+                      <Check className="h-4 w-4" />
+                      {language === "es" ? "Copiado" : "Copied"}
+                    </>
+                  ) : (
+                    <>
+                      <Copy className="h-4 w-4" />
+                      {language === "es" ? "Copiar" : "Copy"}
+                    </>
+                  )}
+                </Button>
+              </div>
+            </div>
+
+            {tempEmail && (
+              <div className="p-3 rounded-lg border bg-muted/20">
+                <p className="text-xs text-muted-foreground mb-1 flex items-center gap-1">
+                  <Mail className="h-3 w-3" />
+                  {language === "es" ? "Email del usuario" : "User email"}
+                </p>
+                <div className="flex items-center gap-2">
+                  <code className="text-sm font-mono flex-1 truncate">{tempEmail}</code>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="h-7 w-7 p-0 shrink-0"
+                    onClick={() => tempEmail && copyToClipboard(tempEmail, 'reset-email')}
+                    data-testid="button-copy-reset-email"
+                  >
+                    {copiedId === 'reset-email' ? <Check className="h-3.5 w-3.5 text-green-600" /> : <Copy className="h-3.5 w-3.5" />}
+                  </Button>
+                </div>
+              </div>
+            )}
+
+            <p className="text-xs text-muted-foreground text-center">
+              {language === "es" 
+                ? "Envía esta contraseña al usuario. Deberá cambiarla en su primer inicio de sesión."
+                : "Send this password to the user. They will need to change it on first login."}
+            </p>
+          </div>
+
+          <DialogFooter className="mt-4">
+            <Button 
+              variant="outline" 
+              onClick={() => {
+                setShowResetPasswordModal(false);
+                setResetPasswordUserId(null);
+                setTempPassword(null);
+                setTempEmail(null);
+                setTempUserName(null);
+                setTempUserRole(null);
+                setCopiedId(null);
+              }} 
+              data-testid="button-close-reset-password"
+            >
               {language === "es" ? "Cerrar" : "Close"}
             </Button>
           </DialogFooter>
