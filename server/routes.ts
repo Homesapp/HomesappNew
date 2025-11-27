@@ -27411,6 +27411,35 @@ export async function registerRoutes(app: Express): Promise<Server> {
         createdBy: req.user.id,
       });
       
+      // Create initial presentation card from lead data
+      try {
+        const hasPetsValue = lead.hasPets && lead.hasPets.toLowerCase() !== "no" && lead.hasPets.toLowerCase() !== "false";
+        await storage.createExternalPresentationCard({
+          agencyId,
+          leadId: lead.id,
+          title: `${lead.firstName} ${lead.lastName} - Registro inicial`,
+          propertyType: lead.desiredUnitType || undefined,
+          modality: "rent",
+          minBudget: lead.estimatedRentCost ? String(lead.estimatedRentCost) : undefined,
+          maxBudget: lead.estimatedRentCost ? String(lead.estimatedRentCost) : undefined,
+          budgetText: lead.estimatedRentCostText || undefined,
+          bedrooms: lead.bedrooms || undefined,
+          bedroomsText: lead.bedroomsText || undefined,
+          preferredZone: lead.desiredNeighborhood || undefined,
+          moveInDate: lead.checkInDate || undefined,
+          moveInDateText: lead.checkInDateText || undefined,
+          contractDuration: lead.contractDuration || undefined,
+          hasPets: hasPetsValue,
+          petsDescription: hasPetsValue ? lead.hasPets : undefined,
+          specificProperty: lead.desiredProperty || undefined,
+          isDefault: true,
+          status: "active",
+          createdBy: req.user.id,
+        });
+      } catch (cardError) {
+        console.error("Error creating initial presentation card:", cardError);
+      }
+      
       await createAuditLog(req, "create", "external_lead", lead.id, "Created new lead");
       res.status(201).json(lead);
     } catch (error: any) {
@@ -27477,7 +27506,76 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
 
-  // POST /api/external-leads/:id/reassign - Reassign lead to different seller
+  // POST /api/external-leads/backfill-presentation-cards - Create initial cards for leads without them
+  app.post("/api/external-leads/backfill-presentation-cards", isAuthenticated, requireRole(EXTERNAL_ADMIN_ROLES), async (req: any, res) => {
+    try {
+      const agencyId = await getUserAgencyId(req);
+      if (!agencyId) {
+        return res.status(403).json({ message: "No agency assigned" });
+      }
+
+      // Get all leads for this agency
+      const leads = await storage.getExternalLeads(agencyId);
+      
+      let created = 0;
+      let skipped = 0;
+      const errors: string[] = [];
+
+      for (const lead of leads) {
+        // Check if lead already has a presentation card
+        const existingCards = await storage.getExternalPresentationCards(agencyId, undefined, lead.id);
+        
+        if (existingCards.length > 0) {
+          skipped++;
+          continue;
+        }
+
+        // Create initial presentation card
+        try {
+          const hasPetsValue = lead.hasPets && lead.hasPets.toLowerCase() !== "no" && lead.hasPets.toLowerCase() !== "false";
+          await storage.createExternalPresentationCard({
+            agencyId,
+            leadId: lead.id,
+            title: `${lead.firstName} ${lead.lastName} - Registro inicial`,
+            propertyType: lead.desiredUnitType || undefined,
+            modality: "rent",
+            minBudget: lead.estimatedRentCost ? String(lead.estimatedRentCost) : undefined,
+            maxBudget: lead.estimatedRentCost ? String(lead.estimatedRentCost) : undefined,
+            budgetText: lead.estimatedRentCostText || undefined,
+            bedrooms: lead.bedrooms || undefined,
+            bedroomsText: lead.bedroomsText || undefined,
+            preferredZone: lead.desiredNeighborhood || undefined,
+            moveInDate: lead.checkInDate || undefined,
+            moveInDateText: lead.checkInDateText || undefined,
+            contractDuration: lead.contractDuration || undefined,
+            hasPets: hasPetsValue,
+            petsDescription: hasPetsValue ? lead.hasPets : undefined,
+            specificProperty: lead.desiredProperty || undefined,
+            isDefault: true,
+            status: "active",
+            createdBy: req.user.id,
+          });
+          created++;
+        } catch (cardError: any) {
+          errors.push(`Lead ${lead.id}: ${cardError.message}`);
+        }
+      }
+
+      await createAuditLog(req, "update", "external_presentation_card", "backfill", `Backfilled ${created} initial cards, skipped ${skipped}, errors ${errors.length}`);
+
+      res.json({
+        message: `Backfill completado: ${created} tarjetas creadas, ${skipped} leads ya tenían tarjetas`,
+        created,
+        skipped,
+        errors: errors.length > 0 ? errors : undefined,
+      });
+    } catch (error: any) {
+      console.error("Error in backfill:", error);
+      handleGenericError(res, error);
+    }
+  });
+
+    // POST /api/external-leads/:id/reassign - Reassign lead to different seller
   app.post("/api/external-leads/:id/reassign", isAuthenticated, requireRole(EXTERNAL_ADMIN_ROLES), async (req: any, res) => {
     try {
       const { id } = req.params;
