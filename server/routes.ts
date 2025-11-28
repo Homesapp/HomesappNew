@@ -25703,10 +25703,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
       let whatsappMessage = message;
       if (!whatsappMessage && unit) {
         whatsappMessage = `Hola \${lead?.firstName || ''}! Te comparto esta propiedad que puede interesarte:\n\n` +
-          `📍 \${unit.name}\n` +
-          `🏠 \${unit.unitType || 'Propiedad'} - \${unit.bedrooms || 0} recámaras\n` +
-          `💰 $\${unit.monthlyRent?.toLocaleString() || 'Consultar'} \${unit.currency || 'MXN'}/mes\n` +
-          `📍 \${unit.zone || ''}\n\n` +
+          `\${unit.name}\n` +
+          `\${unit.unitType || 'Propiedad'} - \${unit.bedrooms || 0} recámaras\n` +
+          `$\${unit.monthlyRent?.toLocaleString() || 'Consultar'} \${unit.currency || 'MXN'}/mes\n` +
+          `\${unit.zone || ''}\n\n` +
           `¿Te gustaría agendar una visita?`;
       }
 
@@ -25927,6 +25927,235 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.json({ success: true });
     } catch (error: any) {
       console.error("Error deleting template:", error);
+      handleGenericError(res, error);
+    }
+  });
+
+
+  // POST /api/external-seller/templates/seed-defaults - Create default templates for agency
+  app.post("/api/external-seller/templates/seed-defaults", isAuthenticated, requireRole(['external_agency_seller', ...EXTERNAL_ADMIN_ROLES]), async (req: any, res) => {
+    try {
+      const agencyId = await getUserAgencyId(req);
+      if (!agencyId) {
+        return res.status(400).json({ message: "User is not assigned to any agency" });
+      }
+
+      // Default templates for different use cases
+      const defaultTemplates = [
+        // Property Share Templates
+        {
+          templateType: "property_share",
+          title: "Propiedad Destacada",
+          body: `¡Hola {{nombre}}! 
+
+Te comparto esta excelente propiedad que coincide con lo que buscas:
+
+*{{propiedad}}*
+{{zona}}
+${{precio}} MXN/mes
+{{recamaras}} recámaras
+
+¿Te gustaría agendar una visita? Estoy a tus órdenes.
+
+Saludos,
+{{vendedor}}`,
+          isDefault: true,
+        },
+        {
+          templateType: "property_share",
+          title: "Múltiples Opciones",
+          body: `¡Hola {{nombre}}!
+
+Basándome en tus preferencias, encontré esta propiedad que podría interesarte:
+
+*{{propiedad}}*
+Ubicación: {{zona}}
+Renta: ${{precio}} MXN mensuales
+Habitaciones: {{recamaras}}
+
+Tengo más opciones similares si esta no te convence. ¿Qué te parece?
+
+{{vendedor}}`,
+          isDefault: false,
+        },
+        {
+          templateType: "property_share",
+          title: "Oportunidad Rápida",
+          body: `{{nombre}}, ¡buenas noticias! 
+
+Acaba de entrar esta propiedad al mercado:
+
+*{{propiedad}}* en {{zona}}
+Precio: ${{precio}}/mes | {{recamaras}} recámaras
+
+Las propiedades en esta zona se rentan rápido. ¿Cuándo puedes verla?
+
+{{vendedor}}`,
+          isDefault: false,
+        },
+        // Follow-up Templates
+        {
+          templateType: "follow_up",
+          title: "Seguimiento General",
+          body: `¡Hola {{nombre}}! 
+
+Quería dar seguimiento a tu búsqueda de departamento. ¿Has tenido oportunidad de revisar las opciones que te compartí?
+
+Quedo atento a tus comentarios.
+
+{{vendedor}}`,
+          isDefault: true,
+        },
+        {
+          templateType: "follow_up",
+          title: "Post-Visita",
+          body: `¡Hola {{nombre}}!
+
+Espero que estés muy bien. ¿Qué te pareció la propiedad que visitamos? 
+
+Me encantaría conocer tus impresiones y si necesitas más información para tomar tu decisión.
+
+Saludos,
+{{vendedor}}`,
+          isDefault: false,
+        },
+        {
+          templateType: "follow_up",
+          title: "Recordatorio Amigable",
+          body: `{{nombre}}, ¡espero que todo marche bien! 
+
+No he sabido de ti desde nuestra última conversación. ¿Sigues buscando propiedad? Tengo nuevas opciones que podrían gustarte.
+
+Cuando tengas un momento, platiquemos.
+
+{{vendedor}}`,
+          isDefault: false,
+        },
+        // Initial Contact Templates
+        {
+          templateType: "initial_contact",
+          title: "Bienvenida",
+          body: `¡Hola {{nombre}}! 
+
+Gracias por tu interés en nuestras propiedades. Soy {{vendedor}} y te ayudaré a encontrar el lugar perfecto para ti.
+
+Para poder enviarte las mejores opciones, ¿podrías confirmarme:
+- Zona de preferencia
+- Presupuesto aproximado
+- Número de recámaras que necesitas
+
+¡Estoy a tus órdenes!`,
+          isDefault: true,
+        },
+        {
+          templateType: "initial_contact",
+          title: "Respuesta a Consulta",
+          body: `¡Hola {{nombre}}!
+
+Recibí tu consulta y con gusto te ayudo. Tenemos varias opciones que podrían interesarte.
+
+¿Tienes disponibilidad esta semana para platicar sobre lo que buscas? Así puedo enviarte propiedades que realmente se ajusten a tus necesidades.
+
+Saludos,
+{{vendedor}}`,
+          isDefault: false,
+        },
+        // Appointment Templates
+        {
+          templateType: "appointment",
+          title: "Confirmación de Cita",
+          body: `¡Hola {{nombre}}!
+
+Te confirmo nuestra cita para visitar:
+
+*{{propiedad}}*
+{{zona}}
+
+¿Podrías confirmarme la hora que te acomoda? Estoy disponible por la mañana o tarde.
+
+{{vendedor}}`,
+          isDefault: true,
+        },
+        {
+          templateType: "appointment",
+          title: "Recordatorio de Visita",
+          body: `{{nombre}}, ¡te recuerdo nuestra cita de hoy!
+
+Visitaremos: *{{propiedad}}*
+Ubicación: {{zona}}
+
+Si necesitas reagendar o tienes alguna pregunta, avísame con tiempo.
+
+¡Nos vemos pronto!
+{{vendedor}}`,
+          isDefault: false,
+        },
+        // General Templates
+        {
+          templateType: "general",
+          title: "Agradecimiento",
+          body: `¡Hola {{nombre}}!
+
+Muchas gracias por confiar en nosotros para encontrar tu nuevo hogar. Fue un placer ayudarte.
+
+Si en el futuro necesitas algo más, no dudes en contactarme.
+
+¡Te deseo lo mejor!
+{{vendedor}}`,
+          isDefault: true,
+        },
+        {
+          templateType: "general",
+          title: "Información Adicional",
+          body: `{{nombre}}, aquí te comparto información adicional sobre la propiedad que te interesó:
+
+*{{propiedad}}*
+{{zona}}
+${{precio}}/mes
+
+¿Tienes alguna otra pregunta? Con gusto te ayudo.
+
+{{vendedor}}`,
+          isDefault: false,
+        },
+      ];
+
+      // Insert templates (sellerId = null means shared for agency)
+      const createdTemplates = [];
+      for (const template of defaultTemplates) {
+        try {
+          // Check if a similar template already exists
+          const [existing] = await db.select().from(sellerMessageTemplates)
+            .where(and(
+              eq(sellerMessageTemplates.agencyId, agencyId),
+              eq(sellerMessageTemplates.title, template.title),
+              eq(sellerMessageTemplates.templateType, template.templateType as any),
+              isNull(sellerMessageTemplates.sellerId)
+            ));
+
+          if (!existing) {
+            const [created] = await db.insert(sellerMessageTemplates).values({
+              agencyId,
+              sellerId: null, // Shared template for all sellers in agency
+              templateType: template.templateType as any,
+              title: template.title,
+              body: template.body,
+              isDefault: template.isDefault,
+            }).returning();
+            createdTemplates.push(created);
+          }
+        } catch (err) {
+          console.error(`Error creating template ${template.title}:`, err);
+        }
+      }
+
+      res.status(201).json({ 
+        success: true, 
+        message: `${createdTemplates.length} templates created`,
+        templates: createdTemplates 
+      });
+    } catch (error: any) {
+      console.error("Error seeding default templates:", error);
       handleGenericError(res, error);
     }
   });

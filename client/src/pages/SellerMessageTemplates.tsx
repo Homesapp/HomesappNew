@@ -25,7 +25,9 @@ import {
   Home,
   Calendar,
   Info,
-  Users
+  Users,
+  Download,
+  Loader2
 } from "lucide-react";
 import { SiWhatsapp } from "react-icons/si";
 
@@ -133,6 +135,28 @@ export default function SellerMessageTemplates() {
     onError: () => {
       toast({
         title: language === "es" ? "Error al eliminar" : "Error deleting",
+        variant: "destructive",
+      });
+    },
+  });
+
+  const seedDefaultsMutation = useMutation({
+    mutationFn: async () => {
+      const res = await apiRequest("POST", "/api/external-seller/templates/seed-defaults", {});
+      return res.json();
+    },
+    onSuccess: (data) => {
+      queryClient.invalidateQueries({ queryKey: ["/api/external-seller/templates"] });
+      toast({
+        title: language === "es" ? "Plantillas cargadas" : "Templates loaded",
+        description: language === "es" 
+          ? `Se crearon ${data.templates?.length || 0} plantillas predeterminadas`
+          : `${data.templates?.length || 0} default templates were created`,
+      });
+    },
+    onError: () => {
+      toast({
+        title: language === "es" ? "Error al cargar plantillas" : "Error loading templates",
         variant: "destructive",
       });
     },
@@ -269,10 +293,30 @@ export default function SellerMessageTemplates() {
               ? "Crea tu primera plantilla para agilizar tus mensajes" 
               : "Create your first template to speed up messaging"}
           </p>
-          <Button onClick={() => setIsCreateOpen(true)}>
-            <Plus className="mr-2 h-4 w-4" />
-            {language === "es" ? "Crear Plantilla" : "Create Template"}
-          </Button>
+          <div className="flex flex-col sm:flex-row gap-3 justify-center">
+            <Button 
+              variant="outline"
+              onClick={() => seedDefaultsMutation.mutate()}
+              disabled={seedDefaultsMutation.isPending}
+              className="min-h-[44px]"
+              data-testid="button-load-defaults"
+            >
+              {seedDefaultsMutation.isPending ? (
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              ) : (
+                <Download className="mr-2 h-4 w-4" />
+              )}
+              {language === "es" ? "Cargar Plantillas Predeterminadas" : "Load Default Templates"}
+            </Button>
+            <Button 
+              onClick={() => setIsCreateOpen(true)}
+              className="min-h-[44px]"
+              data-testid="button-create-first-template"
+            >
+              <Plus className="mr-2 h-4 w-4" />
+              {language === "es" ? "Crear Plantilla" : "Create Template"}
+            </Button>
+          </div>
         </Card>
       ) : (
         <div className="space-y-6">
