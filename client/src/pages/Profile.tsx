@@ -6,7 +6,7 @@ import { Card, CardHeader, CardTitle, CardContent, CardFooter } from "@/componen
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { useToast } from "@/hooks/use-toast";
 import { useLocation } from "wouter";
-import { Trash2, Save, Upload, X, Moon, Sun } from "lucide-react";
+import { Trash2, Save, Upload, X, Moon, Sun, Lock, Eye, EyeOff } from "lucide-react";
 import { useTheme } from "@/components/ThemeProvider";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { Separator } from "@/components/ui/separator";
@@ -26,8 +26,9 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { updateUserProfileSchema, type UpdateUserProfile } from "@shared/schema";
+import { updateUserProfileSchema, type UpdateUserProfile, changePasswordSchema, type ChangePassword } from "@shared/schema";
 import { useEffect, useRef, useState } from "react";
+import { z } from "zod";
 
 function AppearanceSettings() {
   const { theme, setTheme } = useTheme();
@@ -66,6 +67,211 @@ function AppearanceSettings() {
             {t("profile.darkMode") || "Modo oscuro"}
           </Button>
         </div>
+      </div>
+    </div>
+  );
+}
+
+// Extended schema for password confirmation
+const changePasswordFormSchema = changePasswordSchema.extend({
+  confirmPassword: z.string().min(1, "Please confirm your password"),
+}).refine((data) => data.newPassword === data.confirmPassword, {
+  message: "Passwords do not match",
+  path: ["confirmPassword"],
+});
+
+type ChangePasswordForm = z.infer<typeof changePasswordFormSchema>;
+
+function ChangePasswordSection() {
+  const { t } = useLanguage();
+  const { toast } = useToast();
+  const [showCurrentPassword, setShowCurrentPassword] = useState(false);
+  const [showNewPassword, setShowNewPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+  
+  const form = useForm<ChangePasswordForm>({
+    resolver: zodResolver(changePasswordFormSchema),
+    defaultValues: {
+      currentPassword: "",
+      newPassword: "",
+      confirmPassword: "",
+    },
+  });
+
+  const changePasswordMutation = useMutation({
+    mutationFn: async (data: ChangePassword) => {
+      return await apiRequest("POST", "/api/auth/change-password", data);
+    },
+    onSuccess: () => {
+      form.reset();
+      toast({
+        title: t("profile.passwordUpdated"),
+        description: t("profile.passwordUpdatedDesc"),
+      });
+    },
+    onError: (error: any) => {
+      const errorMessage = error.message || "";
+      if (errorMessage.includes("incorrect") || errorMessage.includes("Current password")) {
+        toast({
+          title: t("common.error") || "Error",
+          description: t("profile.currentPasswordIncorrect"),
+          variant: "destructive",
+        });
+      } else {
+        toast({
+          title: t("common.error") || "Error",
+          description: error.message || t("profile.passwordError"),
+          variant: "destructive",
+        });
+      }
+    },
+  });
+
+  const onSubmit = (data: ChangePasswordForm) => {
+    changePasswordMutation.mutate({
+      currentPassword: data.currentPassword,
+      newPassword: data.newPassword,
+    });
+  };
+
+  return (
+    <div className="space-y-4">
+      <Separator />
+      <div>
+        <h3 className="text-lg font-medium mb-2 flex items-center gap-2">
+          <Lock className="h-5 w-5" />
+          {t("profile.security") || "Seguridad"}
+        </h3>
+        <p className="text-sm text-muted-foreground mb-4">
+          {t("profile.securityDesc") || "Gestiona tu contraseña"}
+        </p>
+        
+        <Form {...form}>
+          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+            <FormField
+              control={form.control}
+              name="currentPassword"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>{t("profile.currentPassword")}</FormLabel>
+                  <FormControl>
+                    <div className="relative">
+                      <Input
+                        {...field}
+                        type={showCurrentPassword ? "text" : "password"}
+                        placeholder="********"
+                        data-testid="input-current-password"
+                        className="pr-10"
+                      />
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="icon"
+                        className="absolute right-0 top-0 h-full px-3 hover:bg-transparent"
+                        onClick={() => setShowCurrentPassword(!showCurrentPassword)}
+                        data-testid="button-toggle-current-password"
+                      >
+                        {showCurrentPassword ? (
+                          <EyeOff className="h-4 w-4 text-muted-foreground" />
+                        ) : (
+                          <Eye className="h-4 w-4 text-muted-foreground" />
+                        )}
+                      </Button>
+                    </div>
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+            
+            <FormField
+              control={form.control}
+              name="newPassword"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>{t("profile.newPassword")}</FormLabel>
+                  <FormControl>
+                    <div className="relative">
+                      <Input
+                        {...field}
+                        type={showNewPassword ? "text" : "password"}
+                        placeholder="********"
+                        data-testid="input-new-password"
+                        className="pr-10"
+                      />
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="icon"
+                        className="absolute right-0 top-0 h-full px-3 hover:bg-transparent"
+                        onClick={() => setShowNewPassword(!showNewPassword)}
+                        data-testid="button-toggle-new-password"
+                      >
+                        {showNewPassword ? (
+                          <EyeOff className="h-4 w-4 text-muted-foreground" />
+                        ) : (
+                          <Eye className="h-4 w-4 text-muted-foreground" />
+                        )}
+                      </Button>
+                    </div>
+                  </FormControl>
+                  <FormDescription className="text-xs">
+                    {t("profile.passwordRequirements")}
+                  </FormDescription>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+            
+            <FormField
+              control={form.control}
+              name="confirmPassword"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>{t("profile.confirmNewPassword")}</FormLabel>
+                  <FormControl>
+                    <div className="relative">
+                      <Input
+                        {...field}
+                        type={showConfirmPassword ? "text" : "password"}
+                        placeholder="********"
+                        data-testid="input-confirm-password"
+                        className="pr-10"
+                      />
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="icon"
+                        className="absolute right-0 top-0 h-full px-3 hover:bg-transparent"
+                        onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                        data-testid="button-toggle-confirm-password"
+                      >
+                        {showConfirmPassword ? (
+                          <EyeOff className="h-4 w-4 text-muted-foreground" />
+                        ) : (
+                          <Eye className="h-4 w-4 text-muted-foreground" />
+                        )}
+                      </Button>
+                    </div>
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+            
+            <Button
+              type="submit"
+              disabled={changePasswordMutation.isPending}
+              className="w-full sm:w-auto min-h-[44px]"
+              data-testid="button-update-password"
+            >
+              <Lock className="h-4 w-4 mr-2" />
+              {changePasswordMutation.isPending 
+                ? t("profile.updatingPassword") 
+                : t("profile.updatePassword")}
+            </Button>
+          </form>
+        </Form>
       </div>
     </div>
   );
@@ -367,6 +573,9 @@ export default function Profile() {
 
               {/* Appearance Settings */}
               <AppearanceSettings />
+              
+              {/* Change Password Section */}
+              <ChangePasswordSection />
             </CardContent>
             <CardFooter className="flex flex-col-reverse sm:flex-row justify-between gap-3">
               <AlertDialog>
