@@ -385,14 +385,27 @@ export default function SellerCalendar() {
                   variant="outline" 
                   size="sm"
                   onClick={goToToday}
-                  className="min-h-[36px]"
+                  className="min-h-[44px]"
+                  data-testid="button-today"
                 >
                   {language === "es" ? "Hoy" : "Today"}
                 </Button>
-                <Button variant="ghost" size="icon" onClick={goToPreviousMonth}>
+                <Button 
+                  variant="ghost" 
+                  size="icon" 
+                  onClick={goToPreviousMonth}
+                  className="min-h-[44px] min-w-[44px]"
+                  data-testid="button-prev-month"
+                >
                   <ChevronLeft className="h-4 w-4" />
                 </Button>
-                <Button variant="ghost" size="icon" onClick={goToNextMonth}>
+                <Button 
+                  variant="ghost" 
+                  size="icon" 
+                  onClick={goToNextMonth}
+                  className="min-h-[44px] min-w-[44px]"
+                  data-testid="button-next-month"
+                >
                   <ChevronRight className="h-4 w-4" />
                 </Button>
               </div>
