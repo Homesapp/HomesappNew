@@ -474,7 +474,7 @@ export default function SellerCalendar() {
             <div className="grid grid-cols-7 gap-1">
               {/* Empty cells for days before first of month */}
               {Array.from({ length: getDay(daysInMonth[0]) }).map((_, i) => (
-                <div key={`empty-${i}`} className="aspect-square" />
+                <div key={`empty-${i}`} className="h-10" />
               ))}
               
               {/* Day cells */}
@@ -488,7 +488,7 @@ export default function SellerCalendar() {
                     key={day.toISOString()}
                     onClick={() => setSelectedDate(day)}
                     className={cn(
-                      "aspect-square p-1 rounded-md text-sm relative transition-colors min-h-[44px]",
+                      "h-10 p-1 rounded-md text-sm relative transition-colors",
                       "hover-elevate focus:outline-none focus:ring-2 focus:ring-primary",
                       isToday(day) && "bg-primary/10 font-bold",
                       isSelected && "bg-primary text-primary-foreground",
@@ -498,12 +498,12 @@ export default function SellerCalendar() {
                   >
                     <span>{format(day, 'd')}</span>
                     {dayAppointments.length > 0 && (
-                      <div className="absolute bottom-1 left-1/2 -translate-x-1/2 flex gap-0.5">
+                      <div className="absolute bottom-0.5 left-1/2 -translate-x-1/2 flex gap-0.5">
                         {dayAppointments.slice(0, 3).map((apt, i) => (
                           <div
                             key={i}
                             className={cn(
-                              "w-1.5 h-1.5 rounded-full",
+                              "w-1 h-1 rounded-full",
                               apt.status === 'cancelled' ? "bg-red-400" :
                               apt.status === 'completed' ? "bg-green-400" :
                               apt.isRestricted ? "bg-gray-400" : "bg-primary"
