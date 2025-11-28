@@ -6259,7 +6259,9 @@ export const externalPresentationCards = pgTable("external_presentation_cards", 
   petsDescription: varchar("pets_description", { length: 200 }), // "2 perros pequeños"
   
   // Additional Requirements
-  amenities: text("amenities").array().default(sql`ARRAY[]::text[]`), // pool, gym, parking, etc.
+  amenities: text("amenities").array().default(sql`ARRAY[]::text[]`), // pool, gym, parking, etc. (legacy text)
+  desiredCharacteristics: text("desired_characteristics").array().default(sql`ARRAY[]::text[]`), // IDs of agency characteristics
+  desiredAmenities: text("desired_amenities").array().default(sql`ARRAY[]::text[]`), // IDs of agency amenities
   additionalRequirements: text("additional_requirements"),
   specificProperty: varchar("specific_property", { length: 200 }), // "Naia Naay E302"
   

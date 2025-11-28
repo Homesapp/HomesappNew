@@ -21081,6 +21081,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
   const EXTERNAL_MAINTENANCE_ROLES = ["master", "admin", "external_agency_admin", "external_agency_maintenance"];
   // EXTERNAL_ALL_ROLES: Read-only access for all external agency users
   const EXTERNAL_ALL_ROLES = ["master", "admin", "external_agency_admin", "external_agency_accounting", "external_agency_maintenance", "external_agency_seller", "external_agency_concierge", "external_agency_lawyer"];
+  // EXTERNAL_SELLER_ROLES: Operations for sellers including lead management and presentation cards
+  const EXTERNAL_SELLER_ROLES = ["master", "admin", "external_agency_admin", "external_agency_seller"];
 
   // ==============================
   // EXTERNAL PUBLICATION REQUESTS
@@ -30715,7 +30717,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // POST /api/external/presentation-cards - Create presentation card
-  app.post("/api/external/presentation-cards", isAuthenticated, requireRole(EXTERNAL_ADMIN_ROLES), async (req: any, res) => {
+  app.post("/api/external/presentation-cards", isAuthenticated, requireRole(EXTERNAL_SELLER_ROLES), async (req: any, res) => {
     try {
       const agencyId = await getUserAgencyId(req);
       if (!agencyId) {
@@ -30748,7 +30750,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // PATCH /api/external/presentation-cards/:id - Update presentation card
-  app.patch("/api/external/presentation-cards/:id", isAuthenticated, requireRole(EXTERNAL_ADMIN_ROLES), async (req: any, res) => {
+  app.patch("/api/external/presentation-cards/:id", isAuthenticated, requireRole(EXTERNAL_SELLER_ROLES), async (req: any, res) => {
     try {
       const { id } = req.params;
       const agencyId = await getUserAgencyId(req);

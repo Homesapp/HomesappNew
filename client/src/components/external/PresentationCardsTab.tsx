@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { format } from "date-fns";
 import { es, enUS } from "date-fns/locale";
@@ -9,6 +9,8 @@ import { Textarea } from "@/components/ui/textarea";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
+import { Separator } from "@/components/ui/separator";
+import { ScrollArea } from "@/components/ui/scroll-area";
 import {
   Card,
   CardContent,
@@ -58,6 +60,12 @@ import {
   Archive,
   MoreVertical,
   Clock,
+  FileText,
+  Check,
+  X,
+  Sparkles,
+  Building2,
+  Loader2,
 } from "lucide-react";
 import {
   DropdownMenu,
@@ -68,7 +76,7 @@ import {
 import { useLanguage } from "@/contexts/LanguageContext";
 import { useToast } from "@/hooks/use-toast";
 import { queryClient, apiRequest } from "@/lib/queryClient";
-import type { ExternalPresentationCard } from "@shared/schema";
+import type { ExternalPresentationCard, ExternalAgencyUnitCharacteristic, ExternalAgencyAmenity } from "@shared/schema";
 
 interface LeadPreferences {
   budgetMin?: number | string | null;
@@ -81,6 +89,8 @@ interface LeadPreferences {
   desiredNeighborhood?: string | null;
   contractDuration?: string | null;
   hasPets?: string | null;
+  desiredCharacteristics?: string[] | null;
+  desiredAmenities?: string[] | null;
 }
 
 interface PresentationCardsTabProps {
@@ -96,12 +106,24 @@ const PROPERTY_TYPES = [
   { value: "estudio", label: { es: "Estudio", en: "Studio" } },
   { value: "penthouse", label: { es: "Penthouse", en: "Penthouse" } },
   { value: "townhouse", label: { es: "Townhouse", en: "Townhouse" } },
+  { value: "loft", label: { es: "Loft", en: "Loft" } },
+  { value: "villa", label: { es: "Villa", en: "Villa" } },
 ];
 
 const MODALITIES = [
   { value: "rent", label: { es: "Renta", en: "Rent" } },
   { value: "sale", label: { es: "Venta", en: "Sale" } },
   { value: "both", label: { es: "Ambos", en: "Both" } },
+];
+
+const CONTRACT_DURATIONS = [
+  { value: "1 mes", label: { es: "1 mes", en: "1 month" } },
+  { value: "3 meses", label: { es: "3 meses", en: "3 months" } },
+  { value: "6 meses", label: { es: "6 meses", en: "6 months" } },
+  { value: "12 meses", label: { es: "12 meses", en: "12 months" } },
+  { value: "24 meses", label: { es: "24 meses", en: "24 months" } },
+  { value: "36 meses", label: { es: "36 meses", en: "36 months" } },
+  { value: "indefinido", label: { es: "Indefinido", en: "Indefinite" } },
 ];
 
 const STATUS_COLORS: Record<string, string> = {
@@ -132,6 +154,8 @@ interface FormData {
   hasPets: boolean;
   petsDescription: string;
   amenities: string[];
+  desiredCharacteristics: string[];
+  desiredAmenities: string[];
   additionalRequirements: string;
   specificProperty: string;
   isDefault: boolean;
@@ -153,6 +177,8 @@ const defaultFormData: FormData = {
   hasPets: false,
   petsDescription: "",
   amenities: [],
+  desiredCharacteristics: [],
+  desiredAmenities: [],
   additionalRequirements: "",
   specificProperty: "",
   isDefault: false,
@@ -180,6 +206,24 @@ export default function PresentationCardsTab({ leadId, clientId, personName, lea
     },
   });
 
+  const { data: characteristics = [] } = useQuery<ExternalAgencyUnitCharacteristic[]>({
+    queryKey: ["agency-characteristics"],
+    queryFn: async () => {
+      const response = await fetch("/api/external/config/unit-characteristics", { credentials: 'include' });
+      if (!response.ok) return [];
+      return response.json();
+    },
+  });
+
+  const { data: amenitiesList = [] } = useQuery<ExternalAgencyAmenity[]>({
+    queryKey: ["agency-amenities"],
+    queryFn: async () => {
+      const response = await fetch("/api/external/config/amenities", { credentials: 'include' });
+      if (!response.ok) return [];
+      return response.json();
+    },
+  });
+
   const createMutation = useMutation({
     mutationFn: async (data: Partial<ExternalPresentationCard>) => {
       const res = await apiRequest("POST", "/api/external/presentation-cards", {
@@ -195,7 +239,7 @@ export default function PresentationCardsTab({ leadId, clientId, personName, lea
       resetForm();
       toast({
         title: language === "es" ? "Tarjeta creada" : "Card created",
-        description: language === "es" ? "La tarjeta de presentación se creó correctamente" : "Presentation card was created successfully",
+        description: language === "es" ? "La tarjeta de presentacion se creo correctamente" : "Presentation card was created successfully",
       });
     },
     onError: () => {
@@ -219,7 +263,7 @@ export default function PresentationCardsTab({ leadId, clientId, personName, lea
       resetForm();
       toast({
         title: language === "es" ? "Tarjeta actualizada" : "Card updated",
-        description: language === "es" ? "La tarjeta de presentación se actualizó correctamente" : "Presentation card was updated successfully",
+        description: language === "es" ? "La tarjeta de presentacion se actualizo correctamente" : "Presentation card was updated successfully",
       });
     },
     onError: () => {
@@ -240,7 +284,7 @@ export default function PresentationCardsTab({ leadId, clientId, personName, lea
       queryClient.invalidateQueries({ queryKey: ["presentation-cards", leadId || clientId] });
       toast({
         title: language === "es" ? "Tarjeta eliminada" : "Card deleted",
-        description: language === "es" ? "La tarjeta de presentación se eliminó correctamente" : "Presentation card was deleted successfully",
+        description: language === "es" ? "La tarjeta de presentacion se elimino correctamente" : "Presentation card was deleted successfully",
       });
     },
     onError: () => {
@@ -259,7 +303,7 @@ export default function PresentationCardsTab({ leadId, clientId, personName, lea
 
   const handleCreate = () => {
     createMutation.mutate({
-      title: formData.title || `${language === "es" ? "Búsqueda de" : "Search for"} ${personName}`,
+      title: formData.title || `${language === "es" ? "Busqueda de" : "Search for"} ${personName}`,
       propertyType: formData.propertyType,
       modality: formData.modality,
       minBudget: formData.minBudget || null,
@@ -274,6 +318,8 @@ export default function PresentationCardsTab({ leadId, clientId, personName, lea
       hasPets: formData.hasPets,
       petsDescription: formData.petsDescription,
       amenities: formData.amenities,
+      desiredCharacteristics: formData.desiredCharacteristics,
+      desiredAmenities: formData.desiredAmenities,
       additionalRequirements: formData.additionalRequirements,
       specificProperty: formData.specificProperty,
       isDefault: formData.isDefault,
@@ -301,6 +347,8 @@ export default function PresentationCardsTab({ leadId, clientId, personName, lea
         hasPets: formData.hasPets,
         petsDescription: formData.petsDescription,
         amenities: formData.amenities,
+        desiredCharacteristics: formData.desiredCharacteristics,
+        desiredAmenities: formData.desiredAmenities,
         additionalRequirements: formData.additionalRequirements,
         specificProperty: formData.specificProperty,
         isDefault: formData.isDefault,
@@ -326,6 +374,8 @@ export default function PresentationCardsTab({ leadId, clientId, personName, lea
       hasPets: card.hasPets || false,
       petsDescription: card.petsDescription || "",
       amenities: card.amenities || [],
+      desiredCharacteristics: card.desiredCharacteristics || [],
+      desiredAmenities: card.desiredAmenities || [],
       additionalRequirements: card.additionalRequirements || "",
       specificProperty: card.specificProperty || "",
       isDefault: card.isDefault || false,
@@ -357,7 +407,7 @@ export default function PresentationCardsTab({ leadId, clientId, personName, lea
     const budgetMaxNum = leadPreferences.budgetMax ? Number(leadPreferences.budgetMax) : null;
     setFormData({
       ...defaultFormData,
-      title: `${language === "es" ? "Búsqueda de" : "Search for"} ${personName}`,
+      title: `${language === "es" ? "Busqueda de" : "Search for"} ${personName}`,
       propertyType: leadPreferences.desiredUnitType?.toLowerCase() || "",
       budgetText: "",
       minBudget: budgetMinNum ? String(budgetMinNum) : (leadPreferences.estimatedRentCost ? String(Math.round(leadPreferences.estimatedRentCost * 0.85)) : ""),
@@ -368,171 +418,356 @@ export default function PresentationCardsTab({ leadId, clientId, personName, lea
       contractDuration: leadPreferences.contractDuration || "",
       hasPets: leadPreferences.hasPets && leadPreferences.hasPets !== "No" ? true : false,
       petsDescription: leadPreferences.hasPets && leadPreferences.hasPets !== "No" ? leadPreferences.hasPets : "",
+      desiredCharacteristics: leadPreferences.desiredCharacteristics || [],
+      desiredAmenities: leadPreferences.desiredAmenities || [],
     });
     setIsCreateOpen(true);
   };
 
+  const toggleCharacteristic = (id: string) => {
+    setFormData(prev => ({
+      ...prev,
+      desiredCharacteristics: prev.desiredCharacteristics.includes(id)
+        ? prev.desiredCharacteristics.filter(c => c !== id)
+        : [...prev.desiredCharacteristics, id]
+    }));
+  };
+
+  const toggleAmenity = (id: string) => {
+    setFormData(prev => ({
+      ...prev,
+      desiredAmenities: prev.desiredAmenities.includes(id)
+        ? prev.desiredAmenities.filter(a => a !== id)
+        : [...prev.desiredAmenities, id]
+    }));
+  };
+
+  const getCharacteristicName = (id: string) => {
+    return characteristics.find(c => c.id === id)?.name || id;
+  };
+
+  const getAmenityName = (id: string) => {
+    return amenitiesList.find(a => a.id === id)?.name || id;
+  };
+
   const renderCardForm = () => (
-    <div className="space-y-4 max-h-[60vh] overflow-y-auto pr-2">
-      <div>
-        <Label>{language === "es" ? "Título" : "Title"}</Label>
-        <Input
-          value={formData.title}
-          onChange={(e) => setFormData({ ...formData, title: e.target.value })}
-          placeholder={language === "es" ? "Ej: Búsqueda principal" : "E.g: Main search"}
-          data-testid="input-card-title"
-        />
-      </div>
+    <ScrollArea className="max-h-[70vh] pr-4">
+      <div className="space-y-6">
+        <div className="space-y-4">
+          <div className="flex items-center gap-2 text-sm font-medium text-primary">
+            <FileText className="w-4 h-4" />
+            {language === "es" ? "Informacion Basica" : "Basic Information"}
+          </div>
+          
+          <div>
+            <Label className="text-sm">{language === "es" ? "Titulo de la tarjeta" : "Card title"}</Label>
+            <Input
+              value={formData.title}
+              onChange={(e) => setFormData({ ...formData, title: e.target.value })}
+              placeholder={language === "es" ? "Ej: Busqueda principal" : "E.g: Main search"}
+              className="min-h-[44px]"
+              data-testid="input-card-title"
+            />
+          </div>
 
-      <div className="grid grid-cols-2 gap-4">
-        <div>
-          <Label>{language === "es" ? "Tipo de propiedad" : "Property type"}</Label>
-          <Select value={formData.propertyType} onValueChange={(v) => setFormData({ ...formData, propertyType: v })}>
-            <SelectTrigger data-testid="select-property-type">
-              <SelectValue placeholder={language === "es" ? "Seleccionar" : "Select"} />
-            </SelectTrigger>
-            <SelectContent>
-              {PROPERTY_TYPES.map((type) => (
-                <SelectItem key={type.value} value={type.value}>
-                  {type.label[language]}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <Label className="text-sm">{language === "es" ? "Tipo de propiedad" : "Property type"}</Label>
+              <Select value={formData.propertyType} onValueChange={(v) => setFormData({ ...formData, propertyType: v })}>
+                <SelectTrigger className="min-h-[44px]" data-testid="select-property-type">
+                  <SelectValue placeholder={language === "es" ? "Seleccionar" : "Select"} />
+                </SelectTrigger>
+                <SelectContent>
+                  {PROPERTY_TYPES.map((type) => (
+                    <SelectItem key={type.value} value={type.value} className="min-h-[44px]">
+                      {type.label[language]}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div>
+              <Label className="text-sm">{language === "es" ? "Modalidad" : "Modality"}</Label>
+              <Select value={formData.modality} onValueChange={(v) => setFormData({ ...formData, modality: v })}>
+                <SelectTrigger className="min-h-[44px]" data-testid="select-modality">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {MODALITIES.map((m) => (
+                    <SelectItem key={m.value} value={m.value} className="min-h-[44px]">
+                      {m.label[language]}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
         </div>
-        <div>
-          <Label>{language === "es" ? "Modalidad" : "Modality"}</Label>
-          <Select value={formData.modality} onValueChange={(v) => setFormData({ ...formData, modality: v })}>
-            <SelectTrigger data-testid="select-modality">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              {MODALITIES.map((m) => (
-                <SelectItem key={m.value} value={m.value}>
-                  {m.label[language]}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+
+        <Separator />
+
+        <div className="space-y-4">
+          <div className="flex items-center gap-2 text-sm font-medium text-primary">
+            <DollarSign className="w-4 h-4" />
+            {language === "es" ? "Presupuesto" : "Budget"}
+          </div>
+
+          <div>
+            <Label className="text-sm">{language === "es" ? "Descripcion del presupuesto" : "Budget description"}</Label>
+            <Input
+              value={formData.budgetText}
+              onChange={(e) => setFormData({ ...formData, budgetText: e.target.value })}
+              placeholder={language === "es" ? "Ej: 20-30 mil pesos" : "E.g: 20-30k pesos"}
+              className="min-h-[44px]"
+              data-testid="input-budget-text"
+            />
+          </div>
+
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <Label className="text-sm">{language === "es" ? "Minimo ($)" : "Minimum ($)"}</Label>
+              <Input
+                type="number"
+                value={formData.minBudget}
+                onChange={(e) => setFormData({ ...formData, minBudget: e.target.value })}
+                placeholder="15000"
+                className="min-h-[44px]"
+                data-testid="input-min-budget"
+              />
+            </div>
+            <div>
+              <Label className="text-sm">{language === "es" ? "Maximo ($)" : "Maximum ($)"}</Label>
+              <Input
+                type="number"
+                value={formData.maxBudget}
+                onChange={(e) => setFormData({ ...formData, maxBudget: e.target.value })}
+                placeholder="30000"
+                className="min-h-[44px]"
+                data-testid="input-max-budget"
+              />
+            </div>
+          </div>
+        </div>
+
+        <Separator />
+
+        <div className="space-y-4">
+          <div className="flex items-center gap-2 text-sm font-medium text-primary">
+            <Building2 className="w-4 h-4" />
+            {language === "es" ? "Especificaciones" : "Specifications"}
+          </div>
+
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <Label className="text-sm">{language === "es" ? "Recamaras" : "Bedrooms"}</Label>
+              <Input
+                type="number"
+                value={formData.bedrooms}
+                onChange={(e) => setFormData({ ...formData, bedrooms: e.target.value })}
+                placeholder="2"
+                className="min-h-[44px]"
+                data-testid="input-bedrooms"
+              />
+            </div>
+            <div>
+              <Label className="text-sm">{language === "es" ? "Banos" : "Bathrooms"}</Label>
+              <Input
+                type="number"
+                value={formData.bathrooms}
+                onChange={(e) => setFormData({ ...formData, bathrooms: e.target.value })}
+                placeholder="2"
+                className="min-h-[44px]"
+                data-testid="input-bathrooms"
+              />
+            </div>
+          </div>
+
+          <div>
+            <Label className="text-sm">{language === "es" ? "Zona preferida" : "Preferred zone"}</Label>
+            <Input
+              value={formData.preferredZone}
+              onChange={(e) => setFormData({ ...formData, preferredZone: e.target.value })}
+              placeholder={language === "es" ? "Ej: Aldea Zama, Centro Tulum" : "E.g: Downtown, Beach area"}
+              className="min-h-[44px]"
+              data-testid="input-zone"
+            />
+          </div>
+
+          <div>
+            <Label className="text-sm">{language === "es" ? "Propiedad especifica" : "Specific property"}</Label>
+            <Input
+              value={formData.specificProperty}
+              onChange={(e) => setFormData({ ...formData, specificProperty: e.target.value })}
+              placeholder={language === "es" ? "Ej: Naia Naay E302" : "E.g: Naia Naay E302"}
+              className="min-h-[44px]"
+              data-testid="input-specific-property"
+            />
+          </div>
+        </div>
+
+        <Separator />
+
+        <div className="space-y-4">
+          <div className="flex items-center gap-2 text-sm font-medium text-primary">
+            <Calendar className="w-4 h-4" />
+            {language === "es" ? "Tiempos" : "Timeline"}
+          </div>
+
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <Label className="text-sm">{language === "es" ? "Fecha de ingreso" : "Move-in date"}</Label>
+              <Input
+                value={formData.moveInDateText}
+                onChange={(e) => setFormData({ ...formData, moveInDateText: e.target.value })}
+                placeholder={language === "es" ? "Ej: Enero 2025" : "E.g: January 2025"}
+                className="min-h-[44px]"
+                data-testid="input-move-in"
+              />
+            </div>
+            <div>
+              <Label className="text-sm">{language === "es" ? "Duracion del contrato" : "Contract duration"}</Label>
+              <Select value={formData.contractDuration} onValueChange={(v) => setFormData({ ...formData, contractDuration: v })}>
+                <SelectTrigger className="min-h-[44px]" data-testid="select-contract-duration">
+                  <SelectValue placeholder={language === "es" ? "Seleccionar" : "Select"} />
+                </SelectTrigger>
+                <SelectContent>
+                  {CONTRACT_DURATIONS.map((d) => (
+                    <SelectItem key={d.value} value={d.value} className="min-h-[44px]">
+                      {d.label[language]}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+        </div>
+
+        <Separator />
+
+        <div className="space-y-4">
+          <div className="flex items-center gap-2 text-sm font-medium text-primary">
+            <PawPrint className="w-4 h-4" />
+            {language === "es" ? "Mascotas" : "Pets"}
+          </div>
+
+          <div className="flex items-center justify-between min-h-[44px] px-3 py-2 border rounded-md">
+            <Label className="text-sm">{language === "es" ? "Tiene mascotas?" : "Has pets?"}</Label>
+            <Switch
+              checked={formData.hasPets}
+              onCheckedChange={(v) => setFormData({ ...formData, hasPets: v })}
+              data-testid="switch-pets"
+            />
+          </div>
+
+          {formData.hasPets && (
+            <div>
+              <Label className="text-sm">{language === "es" ? "Descripcion de mascotas" : "Pets description"}</Label>
+              <Input
+                value={formData.petsDescription}
+                onChange={(e) => setFormData({ ...formData, petsDescription: e.target.value })}
+                placeholder={language === "es" ? "Ej: 1 perro pequeno, 2 gatos" : "E.g: 1 small dog, 2 cats"}
+                className="min-h-[44px]"
+                data-testid="input-pets-description"
+              />
+            </div>
+          )}
+        </div>
+
+        {characteristics.length > 0 && (
+          <>
+            <Separator />
+            <div className="space-y-4">
+              <div className="flex items-center gap-2 text-sm font-medium text-primary">
+                <Sparkles className="w-4 h-4" />
+                {language === "es" ? "Caracteristicas Deseadas" : "Desired Characteristics"}
+              </div>
+              <div className="flex flex-wrap gap-2">
+                {characteristics.map((char) => (
+                  <Button
+                    key={char.id}
+                    type="button"
+                    variant={formData.desiredCharacteristics.includes(char.id) ? "default" : "outline"}
+                    size="sm"
+                    className="min-h-[44px] px-3"
+                    onClick={() => toggleCharacteristic(char.id)}
+                    data-testid={`toggle-characteristic-${char.id}`}
+                  >
+                    {formData.desiredCharacteristics.includes(char.id) && (
+                      <Check className="w-4 h-4 mr-1" />
+                    )}
+                    {char.name}
+                  </Button>
+                ))}
+              </div>
+            </div>
+          </>
+        )}
+
+        {amenitiesList.length > 0 && (
+          <>
+            <Separator />
+            <div className="space-y-4">
+              <div className="flex items-center gap-2 text-sm font-medium text-primary">
+                <Home className="w-4 h-4" />
+                {language === "es" ? "Amenidades Deseadas" : "Desired Amenities"}
+              </div>
+              <div className="flex flex-wrap gap-2">
+                {amenitiesList.map((amenity) => (
+                  <Button
+                    key={amenity.id}
+                    type="button"
+                    variant={formData.desiredAmenities.includes(amenity.id) ? "default" : "outline"}
+                    size="sm"
+                    className="min-h-[44px] px-3"
+                    onClick={() => toggleAmenity(amenity.id)}
+                    data-testid={`toggle-amenity-${amenity.id}`}
+                  >
+                    {formData.desiredAmenities.includes(amenity.id) && (
+                      <Check className="w-4 h-4 mr-1" />
+                    )}
+                    {amenity.name}
+                  </Button>
+                ))}
+              </div>
+            </div>
+          </>
+        )}
+
+        <Separator />
+
+        <div className="space-y-4">
+          <div className="flex items-center gap-2 text-sm font-medium text-primary">
+            <FileText className="w-4 h-4" />
+            {language === "es" ? "Notas Adicionales" : "Additional Notes"}
+          </div>
+
+          <div>
+            <Label className="text-sm">{language === "es" ? "Requisitos adicionales" : "Additional requirements"}</Label>
+            <Textarea
+              value={formData.additionalRequirements}
+              onChange={(e) => setFormData({ ...formData, additionalRequirements: e.target.value })}
+              placeholder={language === "es" ? "Otros requisitos o preferencias del cliente..." : "Other client requirements or preferences..."}
+              className="min-h-[88px] resize-none"
+              data-testid="textarea-requirements"
+            />
+          </div>
+
+          <div className="flex items-center justify-between min-h-[44px] px-3 py-2 border rounded-md bg-muted/30">
+            <div>
+              <Label className="text-sm font-medium">{language === "es" ? "Tarjeta predeterminada" : "Default card"}</Label>
+              <p className="text-xs text-muted-foreground">
+                {language === "es" ? "Usar como perfil principal de busqueda" : "Use as main search profile"}
+              </p>
+            </div>
+            <Switch
+              checked={formData.isDefault}
+              onCheckedChange={(v) => setFormData({ ...formData, isDefault: v })}
+              data-testid="switch-default"
+            />
+          </div>
         </div>
       </div>
-
-      <div>
-        <Label>{language === "es" ? "Presupuesto (texto)" : "Budget (text)"}</Label>
-        <Input
-          value={formData.budgetText}
-          onChange={(e) => setFormData({ ...formData, budgetText: e.target.value })}
-          placeholder={language === "es" ? "Ej: 20-30 mil" : "E.g: 20-30k"}
-          data-testid="input-budget-text"
-        />
-      </div>
-
-      <div className="grid grid-cols-2 gap-4">
-        <div>
-          <Label>{language === "es" ? "Presupuesto mín" : "Min budget"}</Label>
-          <Input
-            type="number"
-            value={formData.minBudget}
-            onChange={(e) => setFormData({ ...formData, minBudget: e.target.value })}
-            placeholder="15000"
-            data-testid="input-min-budget"
-          />
-        </div>
-        <div>
-          <Label>{language === "es" ? "Presupuesto máx" : "Max budget"}</Label>
-          <Input
-            type="number"
-            value={formData.maxBudget}
-            onChange={(e) => setFormData({ ...formData, maxBudget: e.target.value })}
-            placeholder="30000"
-            data-testid="input-max-budget"
-          />
-        </div>
-      </div>
-
-      <div className="grid grid-cols-2 gap-4">
-        <div>
-          <Label>{language === "es" ? "Recámaras" : "Bedrooms"}</Label>
-          <Input
-            type="number"
-            value={formData.bedrooms}
-            onChange={(e) => setFormData({ ...formData, bedrooms: e.target.value })}
-            placeholder="2"
-            data-testid="input-bedrooms"
-          />
-        </div>
-        <div>
-          <Label>{language === "es" ? "Baños" : "Bathrooms"}</Label>
-          <Input
-            type="number"
-            value={formData.bathrooms}
-            onChange={(e) => setFormData({ ...formData, bathrooms: e.target.value })}
-            placeholder="2"
-            data-testid="input-bathrooms"
-          />
-        </div>
-      </div>
-
-      <div>
-        <Label>{language === "es" ? "Zona preferida" : "Preferred zone"}</Label>
-        <Input
-          value={formData.preferredZone}
-          onChange={(e) => setFormData({ ...formData, preferredZone: e.target.value })}
-          placeholder={language === "es" ? "Ej: Aldea Zama, Centro" : "E.g: Downtown, Beach area"}
-          data-testid="input-zone"
-        />
-      </div>
-
-      <div>
-        <Label>{language === "es" ? "Duración del contrato" : "Contract duration"}</Label>
-        <Input
-          value={formData.contractDuration}
-          onChange={(e) => setFormData({ ...formData, contractDuration: e.target.value })}
-          placeholder={language === "es" ? "Ej: 12 meses" : "E.g: 12 months"}
-          data-testid="input-contract-duration"
-        />
-      </div>
-
-      <div className="flex items-center justify-between">
-        <Label>{language === "es" ? "¿Tiene mascotas?" : "Has pets?"}</Label>
-        <Switch
-          checked={formData.hasPets}
-          onCheckedChange={(v) => setFormData({ ...formData, hasPets: v })}
-          data-testid="switch-pets"
-        />
-      </div>
-
-      {formData.hasPets && (
-        <div>
-          <Label>{language === "es" ? "Descripción de mascotas" : "Pets description"}</Label>
-          <Input
-            value={formData.petsDescription}
-            onChange={(e) => setFormData({ ...formData, petsDescription: e.target.value })}
-            placeholder={language === "es" ? "Ej: 1 perro pequeño" : "E.g: 1 small dog"}
-            data-testid="input-pets-description"
-          />
-        </div>
-      )}
-
-      <div>
-        <Label>{language === "es" ? "Requisitos adicionales" : "Additional requirements"}</Label>
-        <Textarea
-          value={formData.additionalRequirements}
-          onChange={(e) => setFormData({ ...formData, additionalRequirements: e.target.value })}
-          placeholder={language === "es" ? "Otros requisitos..." : "Other requirements..."}
-          data-testid="textarea-requirements"
-        />
-      </div>
-
-      <div className="flex items-center justify-between">
-        <Label>{language === "es" ? "Tarjeta predeterminada" : "Default card"}</Label>
-        <Switch
-          checked={formData.isDefault}
-          onCheckedChange={(v) => setFormData({ ...formData, isDefault: v })}
-          data-testid="switch-default"
-        />
-      </div>
-    </div>
+    </ScrollArea>
   );
 
   if (isLoading) {
@@ -540,7 +775,7 @@ export default function PresentationCardsTab({ leadId, clientId, personName, lea
       <div className="space-y-4">
         <div className="flex items-center justify-between">
           <Skeleton className="h-6 w-40" />
-          <Skeleton className="h-9 w-24" />
+          <Skeleton className="h-11 w-28" />
         </div>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <Skeleton className="h-48" />
@@ -554,14 +789,14 @@ export default function PresentationCardsTab({ leadId, clientId, personName, lea
     <div className="space-y-4">
       <div className="flex items-center justify-between">
         <h3 className="text-lg font-medium">
-          {language === "es" ? "Tarjetas de Presentación" : "Presentation Cards"}
+          {language === "es" ? "Tarjetas de Presentacion" : "Presentation Cards"}
         </h3>
         <Button 
           onClick={() => {
             resetForm();
             setIsCreateOpen(true);
           }}
-          size="sm"
+          className="min-h-[44px]"
           data-testid="button-add-card"
         >
           <Plus className="w-4 h-4 mr-2" />
@@ -573,10 +808,10 @@ export default function PresentationCardsTab({ leadId, clientId, personName, lea
         hasPreferences ? (
           <Card className="border-primary/30 bg-primary/5">
             <CardHeader className="pb-2">
-              <div className="flex items-center justify-between">
+              <div className="flex items-center justify-between flex-wrap gap-2">
                 <CardTitle className="text-base flex items-center gap-2">
                   <Home className="w-4 h-4 text-primary" />
-                  {language === "es" ? "Preferencias de Búsqueda" : "Search Preferences"}
+                  {language === "es" ? "Preferencias de Busqueda" : "Search Preferences"}
                 </CardTitle>
                 <Badge variant="secondary" className="text-xs">
                   {language === "es" ? "Del perfil" : "From profile"}
@@ -587,12 +822,12 @@ export default function PresentationCardsTab({ leadId, clientId, personName, lea
               <div className="grid grid-cols-2 gap-3 text-sm">
                 {(leadPreferences?.budgetMin || leadPreferences?.budgetMax || leadPreferences?.estimatedRentCost || leadPreferences?.estimatedRentCostText) && (
                   <div className="flex items-center gap-2">
-                    <DollarSign className="h-4 w-4 text-green-600" />
-                    <div>
+                    <DollarSign className="h-4 w-4 text-green-600 shrink-0" />
+                    <div className="min-w-0">
                       <span className="text-muted-foreground text-xs block">{language === "es" ? "Presupuesto" : "Budget"}</span>
-                      <span className="font-medium">
+                      <span className="font-medium truncate block">
                         {leadPreferences?.budgetMin || leadPreferences?.budgetMax 
-                          ? `$${leadPreferences.budgetMin ? Number(leadPreferences.budgetMin).toLocaleString() : '0'} - $${leadPreferences.budgetMax ? Number(leadPreferences.budgetMax).toLocaleString() : '∞'}`
+                          ? `$${leadPreferences.budgetMin ? Number(leadPreferences.budgetMin).toLocaleString() : '0'} - $${leadPreferences.budgetMax ? Number(leadPreferences.budgetMax).toLocaleString() : ''}`
                           : (leadPreferences?.estimatedRentCostText || 
                             (leadPreferences?.estimatedRentCost ? `$${leadPreferences.estimatedRentCost.toLocaleString()}` : "-"))}
                       </span>
@@ -601,26 +836,26 @@ export default function PresentationCardsTab({ leadId, clientId, personName, lea
                 )}
                 {(leadPreferences?.bedrooms || leadPreferences?.bedroomsText) && (
                   <div className="flex items-center gap-2">
-                    <Bed className="h-4 w-4 text-blue-600" />
-                    <div>
-                      <span className="text-muted-foreground text-xs block">{language === "es" ? "Recámaras" : "Bedrooms"}</span>
+                    <Bed className="h-4 w-4 text-blue-600 shrink-0" />
+                    <div className="min-w-0">
+                      <span className="text-muted-foreground text-xs block">{language === "es" ? "Recamaras" : "Bedrooms"}</span>
                       <span className="font-medium">{leadPreferences?.bedroomsText || leadPreferences?.bedrooms}</span>
                     </div>
                   </div>
                 )}
                 {leadPreferences?.desiredNeighborhood && (
                   <div className="flex items-center gap-2">
-                    <MapPin className="h-4 w-4 text-orange-600" />
-                    <div>
+                    <MapPin className="h-4 w-4 text-orange-600 shrink-0" />
+                    <div className="min-w-0">
                       <span className="text-muted-foreground text-xs block">{language === "es" ? "Zona" : "Zone"}</span>
-                      <span className="font-medium">{leadPreferences.desiredNeighborhood}</span>
+                      <span className="font-medium truncate block">{leadPreferences.desiredNeighborhood}</span>
                     </div>
                   </div>
                 )}
                 {leadPreferences?.desiredUnitType && (
                   <div className="flex items-center gap-2">
-                    <Home className="h-4 w-4 text-purple-600" />
-                    <div>
+                    <Home className="h-4 w-4 text-purple-600 shrink-0" />
+                    <div className="min-w-0">
                       <span className="text-muted-foreground text-xs block">{language === "es" ? "Tipo" : "Type"}</span>
                       <span className="font-medium">{leadPreferences.desiredUnitType}</span>
                     </div>
@@ -628,17 +863,17 @@ export default function PresentationCardsTab({ leadId, clientId, personName, lea
                 )}
                 {leadPreferences?.contractDuration && (
                   <div className="flex items-center gap-2">
-                    <Calendar className="h-4 w-4 text-teal-600" />
-                    <div>
-                      <span className="text-muted-foreground text-xs block">{language === "es" ? "Duración" : "Duration"}</span>
+                    <Calendar className="h-4 w-4 text-teal-600 shrink-0" />
+                    <div className="min-w-0">
+                      <span className="text-muted-foreground text-xs block">{language === "es" ? "Duracion" : "Duration"}</span>
                       <span className="font-medium">{leadPreferences.contractDuration}</span>
                     </div>
                   </div>
                 )}
                 {leadPreferences?.hasPets && leadPreferences.hasPets !== "No" && (
                   <div className="flex items-center gap-2">
-                    <PawPrint className="h-4 w-4 text-amber-600" />
-                    <div>
+                    <PawPrint className="h-4 w-4 text-amber-600 shrink-0" />
+                    <div className="min-w-0">
                       <span className="text-muted-foreground text-xs block">{language === "es" ? "Mascotas" : "Pets"}</span>
                       <span className="font-medium">{leadPreferences.hasPets}</span>
                     </div>
@@ -647,8 +882,7 @@ export default function PresentationCardsTab({ leadId, clientId, personName, lea
               </div>
               <Button 
                 variant="outline" 
-                size="sm"
-                className="w-full mt-2"
+                className="w-full mt-2 min-h-[44px]"
                 onClick={initFormFromPreferences}
                 data-testid="button-create-from-preferences"
               >
@@ -663,12 +897,12 @@ export default function PresentationCardsTab({ leadId, clientId, personName, lea
               <Home className="w-12 h-12 text-muted-foreground mb-3" />
               <p className="text-muted-foreground">
                 {language === "es" 
-                  ? `${personName} no tiene tarjetas de presentación aún`
+                  ? `${personName} no tiene tarjetas de presentacion aun`
                   : `${personName} has no presentation cards yet`}
               </p>
               <Button 
                 variant="outline" 
-                className="mt-4"
+                className="mt-4 min-h-[44px]"
                 onClick={() => {
                   resetForm();
                   setIsCreateOpen(true);
@@ -687,30 +921,35 @@ export default function PresentationCardsTab({ leadId, clientId, personName, lea
             <Card key={card.id} className={card.status === "archived" ? "opacity-60" : ""}>
               <CardHeader className="pb-2">
                 <div className="flex items-start justify-between gap-2">
-                  <div className="flex items-center gap-2 flex-wrap">
-                    <CardTitle className="text-base">
+                  <div className="flex items-center gap-2 flex-wrap min-w-0">
+                    <CardTitle className="text-base truncate">
                       {card.title}
                     </CardTitle>
                     {card.isDefault && (
-                      <Star className="w-4 h-4 text-yellow-500 fill-yellow-500" />
+                      <Star className="w-4 h-4 text-yellow-500 fill-yellow-500 shrink-0" />
                     )}
                   </div>
-                  <div className="flex items-center gap-1">
+                  <div className="flex items-center gap-1 shrink-0">
                     <Badge className={STATUS_COLORS[card.status]}>
                       {STATUS_LABELS[card.status]?.[language] || card.status}
                     </Badge>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="min-h-[44px] min-w-[44px]"
+                      onClick={() => openEdit(card)}
+                      data-testid={`button-edit-card-${card.id}`}
+                    >
+                      <Edit2 className="h-4 w-4" />
+                    </Button>
                     <DropdownMenu>
                       <DropdownMenuTrigger asChild>
-                        <Button variant="ghost" size="icon" className="h-8 w-8" data-testid={`button-card-menu-${card.id}`}>
+                        <Button variant="ghost" size="icon" className="min-h-[44px] min-w-[44px]" data-testid={`button-card-menu-${card.id}`}>
                           <MoreVertical className="h-4 w-4" />
                         </Button>
                       </DropdownMenuTrigger>
                       <DropdownMenuContent align="end">
-                        <DropdownMenuItem onClick={() => openEdit(card)}>
-                          <Edit2 className="w-4 h-4 mr-2" />
-                          {language === "es" ? "Editar" : "Edit"}
-                        </DropdownMenuItem>
-                        <DropdownMenuItem onClick={() => toggleStatus(card)}>
+                        <DropdownMenuItem onClick={() => toggleStatus(card)} className="min-h-[44px]">
                           {card.status === "active" ? (
                             <>
                               <Archive className="w-4 h-4 mr-2" />
@@ -725,7 +964,7 @@ export default function PresentationCardsTab({ leadId, clientId, personName, lea
                         </DropdownMenuItem>
                         <AlertDialog>
                           <AlertDialogTrigger asChild>
-                            <DropdownMenuItem onSelect={(e) => e.preventDefault()} className="text-destructive">
+                            <DropdownMenuItem onSelect={(e) => e.preventDefault()} className="text-destructive min-h-[44px]">
                               <Trash2 className="w-4 h-4 mr-2" />
                               {language === "es" ? "Eliminar" : "Delete"}
                             </DropdownMenuItem>
@@ -733,19 +972,19 @@ export default function PresentationCardsTab({ leadId, clientId, personName, lea
                           <AlertDialogContent>
                             <AlertDialogHeader>
                               <AlertDialogTitle>
-                                {language === "es" ? "¿Eliminar tarjeta?" : "Delete card?"}
+                                {language === "es" ? "Eliminar tarjeta?" : "Delete card?"}
                               </AlertDialogTitle>
                               <AlertDialogDescription>
                                 {language === "es" 
-                                  ? "Esta acción no se puede deshacer."
+                                  ? "Esta accion no se puede deshacer."
                                   : "This action cannot be undone."}
                               </AlertDialogDescription>
                             </AlertDialogHeader>
                             <AlertDialogFooter>
-                              <AlertDialogCancel>
+                              <AlertDialogCancel className="min-h-[44px]">
                                 {language === "es" ? "Cancelar" : "Cancel"}
                               </AlertDialogCancel>
-                              <AlertDialogAction onClick={() => deleteMutation.mutate(card.id)}>
+                              <AlertDialogAction onClick={() => deleteMutation.mutate(card.id)} className="min-h-[44px]">
                                 {language === "es" ? "Eliminar" : "Delete"}
                               </AlertDialogAction>
                             </AlertDialogFooter>
@@ -759,21 +998,21 @@ export default function PresentationCardsTab({ leadId, clientId, personName, lea
               <CardContent className="space-y-2 text-sm">
                 {card.propertyType && (
                   <div className="flex items-center gap-2 text-muted-foreground">
-                    <Home className="w-4 h-4" />
+                    <Home className="w-4 h-4 shrink-0" />
                     <span>{PROPERTY_TYPES.find(t => t.value === card.propertyType)?.label[language] || card.propertyType}</span>
                   </div>
                 )}
                 {(card.budgetText || card.minBudget || card.maxBudget) && (
                   <div className="flex items-center gap-2 text-muted-foreground">
-                    <DollarSign className="w-4 h-4" />
+                    <DollarSign className="w-4 h-4 shrink-0" />
                     <span>
                       {card.budgetText || 
                         (card.minBudget && card.maxBudget 
-                          ? `$${card.minBudget.toLocaleString()} - $${card.maxBudget.toLocaleString()}`
+                          ? `$${Number(card.minBudget).toLocaleString()} - $${Number(card.maxBudget).toLocaleString()}`
                           : card.minBudget 
-                            ? `${language === "es" ? "Desde" : "From"} $${card.minBudget.toLocaleString()}`
+                            ? `${language === "es" ? "Desde" : "From"} $${Number(card.minBudget).toLocaleString()}`
                             : card.maxBudget
-                              ? `${language === "es" ? "Hasta" : "Up to"} $${card.maxBudget.toLocaleString()}`
+                              ? `${language === "es" ? "Hasta" : "Up to"} $${Number(card.maxBudget).toLocaleString()}`
                               : "-"
                         )
                       }
@@ -782,20 +1021,48 @@ export default function PresentationCardsTab({ leadId, clientId, personName, lea
                 )}
                 {(card.bedrooms || card.bedroomsText) && (
                   <div className="flex items-center gap-2 text-muted-foreground">
-                    <Bed className="w-4 h-4" />
-                    <span>{card.bedroomsText || card.bedrooms} {language === "es" ? "recámaras" : "bedrooms"}</span>
+                    <Bed className="w-4 h-4 shrink-0" />
+                    <span>{card.bedroomsText || card.bedrooms} {language === "es" ? "recamaras" : "bedrooms"}</span>
                   </div>
                 )}
                 {card.preferredZone && (
                   <div className="flex items-center gap-2 text-muted-foreground">
-                    <MapPin className="w-4 h-4" />
-                    <span>{card.preferredZone}</span>
+                    <MapPin className="w-4 h-4 shrink-0" />
+                    <span className="truncate">{card.preferredZone}</span>
                   </div>
                 )}
                 {card.hasPets && card.petsDescription && (
                   <div className="flex items-center gap-2 text-muted-foreground">
-                    <PawPrint className="w-4 h-4" />
+                    <PawPrint className="w-4 h-4 shrink-0" />
                     <span>{card.petsDescription}</span>
+                  </div>
+                )}
+                {(card.desiredCharacteristics && card.desiredCharacteristics.length > 0) && (
+                  <div className="flex flex-wrap gap-1 pt-1">
+                    {card.desiredCharacteristics.slice(0, 3).map((charId) => (
+                      <Badge key={charId} variant="secondary" className="text-xs">
+                        {getCharacteristicName(charId)}
+                      </Badge>
+                    ))}
+                    {card.desiredCharacteristics.length > 3 && (
+                      <Badge variant="outline" className="text-xs">
+                        +{card.desiredCharacteristics.length - 3}
+                      </Badge>
+                    )}
+                  </div>
+                )}
+                {(card.desiredAmenities && card.desiredAmenities.length > 0) && (
+                  <div className="flex flex-wrap gap-1">
+                    {card.desiredAmenities.slice(0, 3).map((amenityId) => (
+                      <Badge key={amenityId} variant="outline" className="text-xs border-primary/30 text-primary">
+                        {getAmenityName(amenityId)}
+                      </Badge>
+                    ))}
+                    {card.desiredAmenities.length > 3 && (
+                      <Badge variant="outline" className="text-xs">
+                        +{card.desiredAmenities.length - 3}
+                      </Badge>
+                    )}
                   </div>
                 )}
               </CardContent>
@@ -809,23 +1076,25 @@ export default function PresentationCardsTab({ leadId, clientId, personName, lea
       )}
 
       <Dialog open={isCreateOpen} onOpenChange={setIsCreateOpen}>
-        <DialogContent className="max-w-lg">
+        <DialogContent className="max-w-2xl max-h-[90vh]">
           <DialogHeader>
-            <DialogTitle>
-              {language === "es" ? "Nueva Tarjeta de Presentación" : "New Presentation Card"}
+            <DialogTitle className="flex items-center gap-2">
+              <FileText className="w-5 h-5 text-primary" />
+              {language === "es" ? "Nueva Tarjeta de Presentacion" : "New Presentation Card"}
             </DialogTitle>
             <DialogDescription>
               {language === "es" 
-                ? "Define los criterios de búsqueda para este cliente"
-                : "Define the search criteria for this client"}
+                ? "Define los criterios de busqueda para este cliente. Cuanto mas detallado, mejor sera el matching de propiedades."
+                : "Define the search criteria for this client. The more detailed, the better the property matching."}
             </DialogDescription>
           </DialogHeader>
           {renderCardForm()}
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setIsCreateOpen(false)}>
+          <DialogFooter className="gap-2 sm:gap-0">
+            <Button variant="outline" onClick={() => setIsCreateOpen(false)} className="min-h-[44px]">
               {language === "es" ? "Cancelar" : "Cancel"}
             </Button>
-            <Button onClick={handleCreate} disabled={createMutation.isPending}>
+            <Button onClick={handleCreate} disabled={createMutation.isPending} className="min-h-[44px]">
+              {createMutation.isPending && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
               {createMutation.isPending 
                 ? (language === "es" ? "Creando..." : "Creating...")
                 : (language === "es" ? "Crear Tarjeta" : "Create Card")}
@@ -835,23 +1104,25 @@ export default function PresentationCardsTab({ leadId, clientId, personName, lea
       </Dialog>
 
       <Dialog open={isEditOpen} onOpenChange={setIsEditOpen}>
-        <DialogContent className="max-w-lg">
+        <DialogContent className="max-w-2xl max-h-[90vh]">
           <DialogHeader>
-            <DialogTitle>
-              {language === "es" ? "Editar Tarjeta" : "Edit Card"}
+            <DialogTitle className="flex items-center gap-2">
+              <Edit2 className="w-5 h-5 text-primary" />
+              {language === "es" ? "Editar Tarjeta de Presentacion" : "Edit Presentation Card"}
             </DialogTitle>
             <DialogDescription>
               {language === "es" 
-                ? "Modifica los criterios de búsqueda"
-                : "Modify the search criteria"}
+                ? "Modifica los criterios de busqueda segun las nuevas preferencias del cliente."
+                : "Modify the search criteria according to the client's new preferences."}
             </DialogDescription>
           </DialogHeader>
           {renderCardForm()}
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setIsEditOpen(false)}>
+          <DialogFooter className="gap-2 sm:gap-0">
+            <Button variant="outline" onClick={() => setIsEditOpen(false)} className="min-h-[44px]">
               {language === "es" ? "Cancelar" : "Cancel"}
             </Button>
-            <Button onClick={handleEdit} disabled={updateMutation.isPending}>
+            <Button onClick={handleEdit} disabled={updateMutation.isPending} className="min-h-[44px]">
+              {updateMutation.isPending && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
               {updateMutation.isPending 
                 ? (language === "es" ? "Guardando..." : "Saving...")
                 : (language === "es" ? "Guardar Cambios" : "Save Changes")}
