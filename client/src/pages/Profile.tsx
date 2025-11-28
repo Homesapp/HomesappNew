@@ -135,19 +135,13 @@ function ChangePasswordSection() {
   };
 
   return (
-    <div className="space-y-4">
-      <Separator />
-      <div>
-        <h3 className="text-lg font-medium mb-2 flex items-center gap-2">
-          <Lock className="h-5 w-5" />
-          {t("profile.security") || "Seguridad"}
-        </h3>
-        <p className="text-sm text-muted-foreground mb-4">
-          {t("profile.securityDesc") || "Gestiona tu contraseña"}
-        </p>
-        
-        <Form {...form}>
-          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+    <div>
+      <p className="text-sm text-muted-foreground mb-4">
+        {t("profile.securityDesc") || "Gestiona tu contraseña"}
+      </p>
+      
+      <Form {...form}>
+        <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
             <FormField
               control={form.control}
               name="currentPassword"
@@ -272,7 +266,6 @@ function ChangePasswordSection() {
             </Button>
           </form>
         </Form>
-      </div>
     </div>
   );
 }
@@ -573,9 +566,6 @@ export default function Profile() {
 
               {/* Appearance Settings */}
               <AppearanceSettings />
-              
-              {/* Change Password Section */}
-              <ChangePasswordSection />
             </CardContent>
             <CardFooter className="flex flex-col-reverse sm:flex-row justify-between gap-3">
               <AlertDialog>
@@ -625,6 +615,19 @@ export default function Profile() {
               </Card>
             </form>
           </Form>
+          
+          {/* Change Password Section - separate card outside main form */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Lock className="h-5 w-5" />
+                {t("profile.changePassword")}
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <ChangePasswordSection />
+            </CardContent>
+          </Card>
       </div>
     </div>
   );
