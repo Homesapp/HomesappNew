@@ -164,6 +164,26 @@ export default function LeadRegistrationVendedor() {
       const fullPhone = `${data.countryCode}${data.phone}`;
       const seller = sellers.find(s => s.id === data.sellerId);
       
+      // Helper: parse budget text to extract numeric value (in pesos)
+      const parseBudgetText = (text?: string): number | undefined => {
+        if (!text) return undefined;
+        const cleanText = text.toLowerCase().replace(/,/g, '').replace(/\$/g, '').trim();
+        const match = cleanText.match(/(\d+(?:\.\d+)?)/);
+        if (!match) return undefined;
+        let num = parseFloat(match[1]);
+        if (cleanText.includes('mil') || cleanText.includes('k') || num < 100) {
+          num = num * 1000;
+        }
+        return Math.round(num);
+      };
+      
+      // Helper: parse bedrooms text to extract numeric value
+      const parseBedroomsText = (text?: string): number | undefined => {
+        if (!text) return undefined;
+        const match = text.match(/(\d+)/);
+        return match ? parseInt(match[1]) : undefined;
+      };
+      
       // Prepare property interests with full structure for backend
       const propertyInterestsPayload = propertyInterests.map(p => ({
         condominiumId: p.condominiumId,
@@ -175,6 +195,10 @@ export default function LeadRegistrationVendedor() {
       const allCondominiumIds = propertyInterests.map(p => p.condominiumId).join(",");
       const allUnitIds = propertyInterests.flatMap(p => p.unitIds).join(",");
       
+      // Parse numeric values from text fields
+      const numericBudget = parseBudgetText(data.estimatedRentCost);
+      const numericBedrooms = parseBedroomsText(data.bedrooms);
+      
       const response = await fetch("/api/public/leads/vendedor", {
         method: "POST",
         headers: {
@@ -185,6 +209,12 @@ export default function LeadRegistrationVendedor() {
           phone: fullPhone,
           desiredUnitType: data.desiredUnitTypes?.join(", ") || "",
           desiredNeighborhood: data.desiredNeighborhoods?.join(", ") || "",
+          // Text fields for display
+          estimatedRentCostText: data.estimatedRentCost,
+          bedroomsText: data.bedrooms,
+          // Numeric fields for filtering (parsed from text)
+          estimatedRentCost: numericBudget,
+          bedrooms: numericBedrooms,
           // Full structured property interests
           propertyInterests: propertyInterestsPayload,
           // Legacy fields for backward compatibility
@@ -431,7 +461,7 @@ export default function LeadRegistrationVendedor() {
                       <FormItem>
                         <FormLabel>Presupuesto de Renta (MXN) *</FormLabel>
                         <FormControl>
-                          <Input {...field} type="number" placeholder="15000" data-testid="input-estimated-rent" />
+                          <Input {...field} placeholder="Ej: 18-25 mil" data-testid="input-estimated-rent" />
                         </FormControl>
                         <FormMessage />
                       </FormItem>
@@ -445,20 +475,9 @@ export default function LeadRegistrationVendedor() {
                     render={({ field }) => (
                       <FormItem>
                         <FormLabel>Recámaras *</FormLabel>
-                        <Select onValueChange={field.onChange} value={field.value}>
-                          <FormControl>
-                            <SelectTrigger data-testid="select-bedrooms">
-                              <SelectValue placeholder="Cantidad" />
-                            </SelectTrigger>
-                          </FormControl>
-                          <SelectContent>
-                            <SelectItem value="0">Studio</SelectItem>
-                            <SelectItem value="1">1</SelectItem>
-                            <SelectItem value="2">2</SelectItem>
-                            <SelectItem value="3">3</SelectItem>
-                            <SelectItem value="4+">4+</SelectItem>
-                          </SelectContent>
-                        </Select>
+                        <FormControl>
+                          <Input {...field} placeholder="Ej: 1-2, 2+" data-testid="input-bedrooms" />
+                        </FormControl>
                         <FormMessage />
                       </FormItem>
                     )}

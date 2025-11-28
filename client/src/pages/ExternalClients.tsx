@@ -496,7 +496,9 @@ export default function ExternalClients() {
       checkInDate: undefined,
       hasPets: "",
       estimatedRentCost: undefined,
+      estimatedRentCostText: "",
       bedrooms: undefined,
+      bedroomsText: "",
       desiredUnitType: "",
       desiredNeighborhood: "",
       sellerId: undefined,
@@ -511,10 +513,37 @@ export default function ExternalClients() {
 
   const createLeadMutation = useMutation({
     mutationFn: async (data: LeadFormData) => {
+      // Helper: parse budget text to extract numeric value (in pesos)
+      const parseBudgetText = (text?: string | null): number | undefined => {
+        if (!text) return undefined;
+        const cleanText = text.toLowerCase().replace(/,/g, '').replace(/\$/g, '').trim();
+        // Match first number in string (e.g., "18-25 mil" -> 18)
+        const match = cleanText.match(/(\d+(?:\.\d+)?)/);
+        if (!match) return undefined;
+        let num = parseFloat(match[1]);
+        // Multiply by 1000 if "mil" or "k" is present, or if number is small (< 100 likely means thousands)
+        if (cleanText.includes('mil') || cleanText.includes('k') || num < 100) {
+          num = num * 1000;
+        }
+        return Math.round(num);
+      };
+      
+      // Helper: parse bedrooms text to extract numeric value
+      const parseBedroomsText = (text?: string | null): number | undefined => {
+        if (!text) return undefined;
+        // Match first number in string (e.g., "1-2" -> 1, "2+" -> 2)
+        const match = text.match(/(\d+)/);
+        return match ? parseInt(match[1]) : undefined;
+      };
+      
       // Convert Date to ISO string for API
+      // Parse numeric values from text fields for filtering/analytics
       const processedData = {
         ...data,
         checkInDate: data.checkInDate ? new Date(data.checkInDate).toISOString() : undefined,
+        // Use explicit numeric value if provided, otherwise derive from text
+        estimatedRentCost: data.estimatedRentCost || parseBudgetText(data.estimatedRentCostText),
+        bedrooms: data.bedrooms || parseBedroomsText(data.bedroomsText),
       };
       // For master/admin users, include the selected agencyId
       const payload = isMasterOrAdmin && selectedAgencyIdForLead 
@@ -3074,6 +3103,7 @@ export default function ExternalClients() {
                   {language === "es" ? "Información de Contacto" : "Contact Information"}
                 </div>
                 
+{!isSeller && (
                 <FormField
                   control={leadForm.control}
                   name="registrationType"
@@ -3108,6 +3138,7 @@ export default function ExternalClients() {
                     </FormItem>
                   )}
                 />
+                )}
 
                 <div className="grid gap-4 sm:grid-cols-2">
                   <FormField
@@ -3206,10 +3237,10 @@ export default function ExternalClients() {
                   {language === "es" ? "Preferencias de Búsqueda" : "Search Preferences"}
                 </div>
 
-                <div className="grid gap-4 sm:grid-cols-3">
+                <div className="grid gap-4 sm:grid-cols-2">
                   <FormField
                     control={leadForm.control}
-                    name="estimatedRentCost"
+                    name="estimatedRentCostText"
                     render={({ field }) => (
                       <FormItem>
                         <FormLabel className="flex items-center gap-2">
@@ -3219,10 +3250,8 @@ export default function ExternalClients() {
                         <FormControl>
                           <Input 
                             {...field} 
-                            type="number"
                             value={field.value || ""} 
-                            onChange={(e) => field.onChange(e.target.value ? parseInt(e.target.value) : undefined)}
-                            placeholder="25000"
+                            placeholder={language === "es" ? "Ej: 18-25 mil" : "E.g: 18-25k"}
                             data-testid="input-create-lead-budget" 
                           />
                         </FormControl>
@@ -3232,30 +3261,21 @@ export default function ExternalClients() {
                   />
                   <FormField
                     control={leadForm.control}
-                    name="bedrooms"
+                    name="bedroomsText"
                     render={({ field }) => (
                       <FormItem>
                         <FormLabel className="flex items-center gap-2">
                           <BedDouble className="h-3.5 w-3.5 text-muted-foreground" />
                           {language === "es" ? "Recámaras" : "Bedrooms"}
                         </FormLabel>
-                        <Select 
-                          onValueChange={(value) => field.onChange(value ? parseInt(value) : undefined)} 
-                          value={field.value?.toString() || ""}
-                        >
-                          <FormControl>
-                            <SelectTrigger data-testid="select-create-lead-bedrooms">
-                              <SelectValue placeholder={language === "es" ? "Seleccionar" : "Select"} />
-                            </SelectTrigger>
-                          </FormControl>
-                          <SelectContent>
-                            <SelectItem value="0">Studio</SelectItem>
-                            <SelectItem value="1">1</SelectItem>
-                            <SelectItem value="2">2</SelectItem>
-                            <SelectItem value="3">3</SelectItem>
-                            <SelectItem value="4">4+</SelectItem>
-                          </SelectContent>
-                        </Select>
+                        <FormControl>
+                          <Input 
+                            {...field} 
+                            value={field.value || ""} 
+                            placeholder={language === "es" ? "Ej: 1-2, 2+" : "E.g: 1-2, 2+"}
+                            data-testid="input-create-lead-bedrooms" 
+                          />
+                        </FormControl>
                         <FormMessage />
                       </FormItem>
                     )}
@@ -3583,6 +3603,7 @@ export default function ExternalClients() {
                     )}
                   />
                 </div>
+{!isSeller && (
                 <FormField
                   control={leadForm.control}
                   name="sellerId"
@@ -3614,6 +3635,7 @@ export default function ExternalClients() {
                     </FormItem>
                   )}
                 />
+                )}
 
                 <FormField
                   control={leadForm.control}

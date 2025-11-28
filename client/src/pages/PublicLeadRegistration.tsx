@@ -55,10 +55,42 @@ export default function PublicLeadRegistration() {
 
   const submitMutation = useMutation({
     mutationFn: async (data: typeof formData) => {
+      // Helper: parse budget text to extract numeric value (in pesos)
+      const parseBudgetText = (text?: string): number | undefined => {
+        if (!text) return undefined;
+        const cleanText = text.toLowerCase().replace(/,/g, '').replace(/\$/g, '').trim();
+        const match = cleanText.match(/(\d+(?:\.\d+)?)/);
+        if (!match) return undefined;
+        let num = parseFloat(match[1]);
+        if (cleanText.includes('mil') || cleanText.includes('k') || num < 100) {
+          num = num * 1000;
+        }
+        return Math.round(num);
+      };
+      
+      // Helper: parse bedrooms text to extract numeric value
+      const parseBedroomsText = (text?: string): number | undefined => {
+        if (!text) return undefined;
+        const match = text.match(/(\d+)/);
+        return match ? parseInt(match[1]) : undefined;
+      };
+      
+      // Parse numeric values from text fields
+      const numericBudget = parseBudgetText(data.estimatedRentCost);
+      const numericBedrooms = parseBedroomsText(data.bedroomsDesired);
+      
       const response = await fetch(`/api/leads/${token}`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(data),
+        body: JSON.stringify({
+          ...data,
+          // Text fields for display
+          estimatedRentCostText: data.estimatedRentCost,
+          bedroomsText: data.bedroomsDesired,
+          // Numeric fields for filtering (parsed from text)
+          estimatedRentCost: numericBudget,
+          bedrooms: numericBedrooms,
+        }),
       });
       if (!response.ok) {
         const errorData = await response.json();
@@ -263,39 +295,35 @@ export default function PublicLeadRegistration() {
             {/* Optional fields */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="space-y-2">
-                <Label htmlFor="checkInDate">Check-in Date</Label>
+                <Label htmlFor="estimatedRentCost">Rent Budget (MXN)</Label>
                 <Input
-                  id="checkInDate"
-                  type="date"
-                  value={formData.checkInDate}
-                  onChange={(e) => setFormData({ ...formData, checkInDate: e.target.value })}
-                  data-testid="input-check-in-date"
+                  id="estimatedRentCost"
+                  value={formData.estimatedRentCost}
+                  onChange={(e) => setFormData({ ...formData, estimatedRentCost: e.target.value })}
+                  placeholder="E.g: 18-25 mil"
+                  data-testid="input-rent-budget"
                 />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="bedroomsDesired">Bedrooms Desired</Label>
+                <Label htmlFor="bedroomsDesired">Bedrooms</Label>
                 <Input
                   id="bedroomsDesired"
-                  type="number"
-                  min="1"
                   value={formData.bedroomsDesired}
                   onChange={(e) => setFormData({ ...formData, bedroomsDesired: e.target.value })}
-                  placeholder="2"
+                  placeholder="E.g: 1-2, 2+"
                   data-testid="input-bedrooms"
                 />
               </div>
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="estimatedRentCost">Estimated Rent Budget</Label>
+              <Label htmlFor="checkInDate">Desired Check-in Date</Label>
               <Input
-                id="estimatedRentCost"
-                type="number"
-                min="0"
-                value={formData.estimatedRentCost}
-                onChange={(e) => setFormData({ ...formData, estimatedRentCost: e.target.value })}
-                placeholder="2000"
-                data-testid="input-rent-budget"
+                id="checkInDate"
+                type="date"
+                value={formData.checkInDate}
+                onChange={(e) => setFormData({ ...formData, checkInDate: e.target.value })}
+                data-testid="input-check-in-date"
               />
             </div>
 
