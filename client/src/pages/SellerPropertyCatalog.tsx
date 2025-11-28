@@ -441,6 +441,7 @@ export default function SellerPropertyCatalog() {
     return catalogData.data.map((u: any) => ({
       ...u,
       status: u.isActive ? 'active' : 'rented',
+      petsAllowed: Boolean(u.petsAllowed ?? u.petFriendly ?? u.allowsPets ?? false),
     }));
   }, [catalogData?.data]);
 
