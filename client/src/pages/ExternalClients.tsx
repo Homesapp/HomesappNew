@@ -1087,7 +1087,8 @@ export default function ExternalClients() {
         </div>
       </div>
 
-      {/* Public Registration Links Section */}
+      {/* Public Registration Links Section - Hide for sellers */}
+      {!isSeller && (
       <Collapsible open={isPublicLinksExpanded} onOpenChange={setIsPublicLinksExpanded}>
         <Card>
           <CardHeader>
@@ -1190,24 +1191,24 @@ export default function ExternalClients() {
             </CardContent>
           </CollapsibleContent>
         </Card>
-      </Collapsible>
+      </Collapsible>)}
 
       {/* Tabs */}
       <Tabs value={activeTab} onValueChange={(value) => setActiveTab(value as "clients" | "leads")}>
         <div className="flex items-center justify-between gap-4">
-          <TabsList className={`grid ${isSeller ? 'grid-cols-1' : 'grid-cols-2'}`} style={{ width: "fit-content" }}>
-            {!isSeller && (
+          {!isSeller && (
+            <TabsList className="grid grid-cols-2" style={{ width: "fit-content" }}>
               <TabsTrigger value="clients" data-testid="tab-clients">
                 {language === "es" ? "Clientes" : "Clients"}
               </TabsTrigger>
-            )}
-            <TabsTrigger value="leads" data-testid="tab-leads">
-              {language === "es" ? "Leads" : "Leads"}
-            </TabsTrigger>
-          </TabsList>
+              <TabsTrigger value="leads" data-testid="tab-leads">
+                {language === "es" ? "Leads" : "Leads"}
+              </TabsTrigger>
+            </TabsList>
+          )}
 
           {/* Create Button */}
-          {activeTab === "clients" && (
+          {activeTab === "clients" && !isSeller && (
             <Button 
               onClick={() => setIsCreateDialogOpen(true)}
               data-testid="button-create-client"
@@ -1218,21 +1219,23 @@ export default function ExternalClients() {
           )}
           {activeTab === "leads" && (
             <div className="flex items-center gap-2">
-              <Button 
-                variant="outline"
-                onClick={() => {
-                  setIsImportDialogOpen(true);
-                  setImportStep("upload");
-                  setImportFile(null);
-                  setImportData([]);
-                  setImportPreview([]);
-                  setImportResults(null);
-                }}
-                data-testid="button-import-leads"
-              >
-                <Upload className="mr-2 h-4 w-4" />
-                {language === "es" ? "Importar" : "Import"}
-              </Button>
+              {!isSeller && (
+                <Button 
+                  variant="outline"
+                  onClick={() => {
+                    setIsImportDialogOpen(true);
+                    setImportStep("upload");
+                    setImportFile(null);
+                    setImportData([]);
+                    setImportPreview([]);
+                    setImportResults(null);
+                  }}
+                  data-testid="button-import-leads"
+                >
+                  <Upload className="mr-2 h-4 w-4" />
+                  {language === "es" ? "Importar" : "Import"}
+                </Button>
+              )}
               <Button 
                 onClick={() => setIsCreateLeadDialogOpen(true)}
                 data-testid="button-create-lead"
