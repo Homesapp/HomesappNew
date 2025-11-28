@@ -242,6 +242,7 @@ function AuthenticatedApp() {
         <Route path="/buscar-propiedades" component={PropertySearch} />
         <Route path="/solicitud-proveedor" component={ProviderApplication} />
         <Route path="/aplicar" component={Apply} />
+        <Route path="/p/:slug" component={PropertyFullDetails} />
         <Route path="/propiedad/:id/completo" component={PropertyFullDetails} />
         <Route path="/propiedad/:id" component={PropertyDetails} />
         <Route path="/favoritos" component={Favorites} />
@@ -382,7 +383,8 @@ function AuthenticatedApp() {
               <Route path="/mis-citas" component={Appointments} />
               <Route path="/buscar-propiedades" component={PropertySearch} />
               <Route path="/aplicar" component={Apply} />
-              <Route path="/propiedad/:id/completo" component={PropertyFullDetails} />
+              <Route path="/p/:slug" component={PropertyFullDetails} />
+        <Route path="/propiedad/:id/completo" component={PropertyFullDetails} />
               <Route path="/propiedad/:id" component={PropertyDetails} />
               <Route path="/favoritos" component={Favorites} />
               <Route path="/mis-oportunidades" component={MyOpportunities} />

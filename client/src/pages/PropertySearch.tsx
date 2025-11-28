@@ -435,7 +435,7 @@ export default function PropertySearch() {
               <div
                 key={property.id}
                 className="group cursor-pointer rounded-2xl overflow-hidden border bg-card hover-elevate"
-                onClick={() => setLocation(`/propiedad/${property.id}/completo`)}
+                onClick={() => setLocation(property.slug ? `/p/${property.slug}` : `/propiedad/${property.id}/completo`)}
                 data-testid={`card-property-${property.id}`}
               >
                 <div className="relative aspect-[4/3] overflow-hidden bg-muted">

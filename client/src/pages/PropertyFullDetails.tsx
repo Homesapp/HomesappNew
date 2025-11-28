@@ -50,7 +50,8 @@ interface PropertyNote {
 }
 
 export default function PropertyFullDetails() {
-  const [, params] = useRoute("/propiedad/:id/completo");
+  const [matchId, paramsId] = useRoute("/propiedad/:id/completo");
+  const [matchSlug, paramsSlug] = useRoute("/p/:slug");
   const [, setLocation] = useLocation();
   const { isAuthenticated, user: authUser, adminUser } = useAuth();
   const { toast } = useToast();
@@ -62,17 +63,20 @@ export default function PropertyFullDetails() {
   const [expandedImageIndex, setExpandedImageIndex] = useState<number | null>(null);
   const [noteContent, setNoteContent] = useState("");
 
+  const isSlugRoute = matchSlug && paramsSlug?.slug;
+  const propertyIdentifier = isSlugRoute ? paramsSlug?.slug : paramsId?.id;
+  
   const user = authUser || adminUser;
   const isAdminOrSeller = user?.role === "admin" || user?.role === "seller" || user?.role === "master";
 
   const { data: property, isLoading } = useQuery<Property>({
-    queryKey: ["/api/properties", params?.id],
-    enabled: !!params?.id,
+    queryKey: isSlugRoute ? ["/api/properties/by-slug", propertyIdentifier] : ["/api/properties", propertyIdentifier],
+    enabled: !!propertyIdentifier,
   });
 
   const { data: notes = [], isLoading: notesLoading } = useQuery<PropertyNote[]>({
-    queryKey: ["/api/property-notes", params?.id],
-    enabled: !!params?.id && isAdminOrSeller,
+    queryKey: ["/api/property-notes", property?.id],
+    enabled: !!property?.id && isAdminOrSeller,
   });
 
   const createNoteMutation = useMutation({
@@ -81,13 +85,13 @@ export default function PropertyFullDetails() {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          propertyId: params?.id,
+          propertyId: property?.id,
           content,
         }),
       });
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/property-notes", params?.id] });
+      queryClient.invalidateQueries({ queryKey: ["/api/property-notes", property?.id] });
       setNoteContent("");
       toast({
         title: "Nota agregada",
@@ -110,7 +114,7 @@ export default function PropertyFullDetails() {
       });
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/property-notes", params?.id] });
+      queryClient.invalidateQueries({ queryKey: ["/api/property-notes", property?.id] });
       toast({
         title: "Nota eliminada",
         description: "La nota interna ha sido eliminada",
