@@ -466,6 +466,7 @@ function AuthenticatedApp() {
               <Route path="/external/seller-goals" component={SellerGoals} />
               <Route path="/external/seller-catalog" component={SellerPropertyCatalog} />
               <Route path="/external/seller-templates" component={SellerMessageTemplates} />
+              <Route path="/external/seller-help" component={Help} />
               <Route path="/admin/predictive-analytics" component={AdminPredictiveAnalytics} />
               <Route path="/admin/legal-documents" component={AdminLegalDocuments} />
               <Route path="/admin/tenant-screening" component={AdminTenantScreening} />

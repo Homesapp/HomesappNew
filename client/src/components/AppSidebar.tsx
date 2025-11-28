@@ -316,6 +316,7 @@ export function AppSidebar({ userRole, userId }: AppSidebarProps) {
     { titleKey: "sidebar.sellerReports", url: "/external/seller-reports", icon: BarChart3, roles: ["external_agency_seller"] },
     { titleKey: "sidebar.sellerCommissions", url: "/external/seller-commissions", icon: DollarSign, roles: ["external_agency_seller"] },
     { titleKey: "sidebar.sellerGoals", url: "/external/seller-goals", icon: Target, roles: ["external_agency_seller"] },
+    { titleKey: "sidebar.sellerHelp", url: "/external/seller-help", icon: HelpCircle, roles: ["external_agency_seller"] },
   ];
 
   const serviceItems = [
