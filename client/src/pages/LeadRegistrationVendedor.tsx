@@ -62,7 +62,8 @@ const vendedorFormSchema = z.object({
   contractDuration: z.string().min(1, "Tiempo de contrato requerido"),
   checkInDate: z.string().min(1, "Fecha de check-in requerida"),
   hasPets: z.string().min(1, "Información sobre mascotas requerida"),
-  estimatedRentCost: z.string().min(1, "Costo estimado requerido"),
+  budgetMin: z.number().optional(),
+  budgetMax: z.number().optional(),
   bedrooms: z.string().min(1, "Número de recámaras requerido"),
   desiredUnitTypes: z.array(z.string()).optional(),
   desiredNeighborhoods: z.array(z.string()).optional(),
@@ -147,7 +148,8 @@ export default function LeadRegistrationVendedor() {
       contractDuration: "",
       checkInDate: "",
       hasPets: "",
-      estimatedRentCost: "",
+      budgetMin: undefined,
+      budgetMax: undefined,
       bedrooms: "",
       desiredUnitTypes: [],
       desiredNeighborhoods: [],
@@ -196,7 +198,6 @@ export default function LeadRegistrationVendedor() {
       const allUnitIds = propertyInterests.flatMap(p => p.unitIds).join(",");
       
       // Parse numeric values from text fields
-      const numericBudget = parseBudgetText(data.estimatedRentCost);
       const numericBedrooms = parseBedroomsText(data.bedrooms);
       
       const response = await fetch("/api/public/leads/vendedor", {
@@ -209,11 +210,12 @@ export default function LeadRegistrationVendedor() {
           phone: fullPhone,
           desiredUnitType: data.desiredUnitTypes?.join(", ") || "",
           desiredNeighborhood: data.desiredNeighborhoods?.join(", ") || "",
+          // Budget range fields (numeric)
+          budgetMin: data.budgetMin,
+          budgetMax: data.budgetMax,
           // Text fields for display
-          estimatedRentCostText: data.estimatedRentCost,
           bedroomsText: data.bedrooms,
-          // Numeric fields for filtering (parsed from text)
-          estimatedRentCost: numericBudget,
+          // Numeric fields for filtering
           bedrooms: numericBedrooms,
           // Full structured property interests
           propertyInterests: propertyInterestsPayload,
@@ -454,19 +456,50 @@ export default function LeadRegistrationVendedor() {
                       </FormItem>
                     )}
                   />
-                  <FormField
-                    control={form.control}
-                    name="estimatedRentCost"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Presupuesto de Renta (MXN) *</FormLabel>
-                        <FormControl>
-                          <Input {...field} placeholder="Ej: 18-25 mil" data-testid="input-estimated-rent" />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
+                  <div className="space-y-2">
+                    <FormLabel>Presupuesto de Renta (MXN)</FormLabel>
+                    <div className="flex items-center gap-2">
+                      <FormField
+                        control={form.control}
+                        name="budgetMin"
+                        render={({ field }) => (
+                          <FormItem className="flex-1">
+                            <FormControl>
+                              <Input 
+                                {...field} 
+                                type="number"
+                                value={field.value || ""} 
+                                onChange={(e) => field.onChange(e.target.value ? Number(e.target.value) : undefined)}
+                                placeholder="Mín"
+                                data-testid="input-budget-min" 
+                              />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                      <span className="text-muted-foreground">-</span>
+                      <FormField
+                        control={form.control}
+                        name="budgetMax"
+                        render={({ field }) => (
+                          <FormItem className="flex-1">
+                            <FormControl>
+                              <Input 
+                                {...field} 
+                                type="number"
+                                value={field.value || ""} 
+                                onChange={(e) => field.onChange(e.target.value ? Number(e.target.value) : undefined)}
+                                placeholder="Máx"
+                                data-testid="input-budget-max" 
+                              />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                    </div>
+                  </div>
                 </div>
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                   <FormField
