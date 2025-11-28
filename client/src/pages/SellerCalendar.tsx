@@ -73,6 +73,11 @@ interface Unit {
   condominium?: { name: string };
 }
 
+interface Condominium {
+  id: string;
+  name: string;
+}
+
 export default function SellerCalendar() {
   const { language } = useLanguage();
   const { user } = useAuth();
@@ -94,8 +99,9 @@ export default function SellerCalendar() {
     date: '',
     time: '10:00',
     notes: '',
-    tourStops: [] as { unitId: string; notes: string }[],
+    tourStops: [] as { unitId: string; condominiumId: string; notes: string }[],
     unitId: '', // For individual appointments
+    condominiumId: '', // For individual appointments - select condominium first
   });
 
   // Fetch appointments
@@ -124,6 +130,26 @@ export default function SellerCalendar() {
     },
   });
   const units = unitsResponse?.data || [];
+
+  // Extract unique condominiums from units for the dropdown
+  const condominiums = useMemo(() => {
+    const condoMap = new Map<string, Condominium>();
+    units.forEach(unit => {
+      if (unit.condominiumId && unit.condominium?.name) {
+        condoMap.set(unit.condominiumId, {
+          id: unit.condominiumId,
+          name: unit.condominium.name
+        });
+      }
+    });
+    return Array.from(condoMap.values()).sort((a, b) => a.name.localeCompare(b.name));
+  }, [units]);
+
+  // Filter units by selected condominium
+  const filteredUnits = useMemo(() => {
+    if (!formData.condominiumId) return [];
+    return units.filter(u => u.condominiumId === formData.condominiumId);
+  }, [units, formData.condominiumId]);
 
   // Create appointment mutation
   const createMutation = useMutation({
@@ -183,6 +209,7 @@ export default function SellerCalendar() {
       notes: '',
       tourStops: [],
       unitId: '',
+      condominiumId: '',
     });
   };
 
@@ -239,7 +266,7 @@ export default function SellerCalendar() {
     }
     setFormData(prev => ({
       ...prev,
-      tourStops: [...prev.tourStops, { unitId: '', notes: '' }],
+      tourStops: [...prev.tourStops, { unitId: '', condominiumId: '', notes: '' }],
     }));
   };
 
@@ -252,13 +279,24 @@ export default function SellerCalendar() {
   };
 
   // Handle tour stop update
-  const updateTourStop = (index: number, field: 'unitId' | 'notes', value: string) => {
+  const updateTourStop = (index: number, field: 'unitId' | 'condominiumId' | 'notes', value: string) => {
     setFormData(prev => ({
       ...prev,
-      tourStops: prev.tourStops.map((stop, i) => 
-        i === index ? { ...stop, [field]: value } : stop
-      ),
+      tourStops: prev.tourStops.map((stop, i) => {
+        if (i !== index) return stop;
+        // If changing condominium, reset unitId
+        if (field === 'condominiumId') {
+          return { ...stop, condominiumId: value, unitId: '' };
+        }
+        return { ...stop, [field]: value };
+      }),
     }));
+  };
+
+  // Get units filtered by condominium for tour stops
+  const getUnitsForTourStop = (condominiumId: string) => {
+    if (!condominiumId) return [];
+    return units.filter(u => u.condominiumId === condominiumId);
   };
 
   // Handle form submit
@@ -679,28 +717,63 @@ export default function SellerCalendar() {
               </div>
             </div>
 
-            {/* Individual: Single Property */}
+            {/* Individual: Condominium + Unit Selection */}
             {formData.mode === 'individual' && (
-              <div className="space-y-2">
-                <Label>{language === "es" ? "Propiedad" : "Property"}</Label>
-                <Select 
-                  value={formData.unitId} 
-                  onValueChange={(v) => setFormData(prev => ({ ...prev, unitId: v }))}
-                >
-                  <SelectTrigger className="min-h-[44px]" data-testid="select-unit">
-                    <SelectValue placeholder={language === "es" ? "Seleccionar propiedad..." : "Select property..."} />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {units.map(unit => (
-                      <SelectItem key={unit.id} value={unit.id} className="min-h-[44px]">
-                        <div className="flex items-center gap-2">
-                          <Building2 className="h-4 w-4" />
-                          {getUnitDisplayName(unit)}
-                        </div>
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+              <div className="space-y-4">
+                {/* Condominium Selection */}
+                <div className="space-y-2">
+                  <Label>{language === "es" ? "Condominio" : "Condominium"}</Label>
+                  <Select 
+                    value={formData.condominiumId} 
+                    onValueChange={(v) => setFormData(prev => ({ 
+                      ...prev, 
+                      condominiumId: v,
+                      unitId: '' // Reset unit when condominium changes
+                    }))}
+                  >
+                    <SelectTrigger className="min-h-[44px]" data-testid="select-condominium">
+                      <SelectValue placeholder={language === "es" ? "Seleccionar condominio..." : "Select condominium..."} />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {condominiums.map(condo => (
+                        <SelectItem key={condo.id} value={condo.id} className="min-h-[44px]">
+                          <div className="flex items-center gap-2">
+                            <Building2 className="h-4 w-4" />
+                            {condo.name}
+                          </div>
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                {/* Unit Selection - only show when condominium is selected */}
+                <div className="space-y-2">
+                  <Label>{language === "es" ? "Unidad" : "Unit"}</Label>
+                  <Select 
+                    value={formData.unitId} 
+                    onValueChange={(v) => setFormData(prev => ({ ...prev, unitId: v }))}
+                    disabled={!formData.condominiumId}
+                  >
+                    <SelectTrigger className="min-h-[44px]" data-testid="select-unit">
+                      <SelectValue placeholder={
+                        !formData.condominiumId 
+                          ? (language === "es" ? "Primero selecciona un condominio" : "First select a condominium")
+                          : (language === "es" ? "Seleccionar unidad..." : "Select unit...")
+                      } />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {filteredUnits.map(unit => (
+                        <SelectItem key={unit.id} value={unit.id} className="min-h-[44px]">
+                          <div className="flex items-center gap-2">
+                            <Home className="h-4 w-4" />
+                            {unit.unitNumber}
+                          </div>
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
               </div>
             )}
 
@@ -736,10 +809,10 @@ export default function SellerCalendar() {
                     </p>
                   </div>
                 ) : (
-                  <div className="space-y-2">
+                  <div className="space-y-3">
                     {formData.tourStops.map((stop, index) => (
-                      <div key={index} className="flex gap-2 items-start p-3 bg-muted/50 rounded-lg">
-                        <div className="flex-1 space-y-2">
+                      <div key={index} className="p-3 bg-muted/50 rounded-lg space-y-3">
+                        <div className="flex items-center justify-between">
                           <div className="flex items-center gap-2">
                             <Badge variant="outline" className="text-xs">
                               {index + 1}
@@ -751,34 +824,64 @@ export default function SellerCalendar() {
                               )}
                             </span>
                           </div>
-                          <Select 
-                            value={stop.unitId} 
-                            onValueChange={(v) => updateTourStop(index, 'unitId', v)}
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="icon"
+                            onClick={() => removeTourStop(index)}
+                            className="shrink-0 min-h-[44px] min-w-[44px]"
+                            data-testid={`button-remove-stop-${index}`}
                           >
-                            <SelectTrigger className="min-h-[44px]" data-testid={`select-tour-stop-${index}`}>
-                              <SelectValue placeholder={language === "es" ? "Seleccionar..." : "Select..."} />
-                            </SelectTrigger>
-                            <SelectContent>
-                              {units.filter(u => 
-                                !formData.tourStops.some((s, i) => i !== index && s.unitId === u.id)
-                              ).map(unit => (
+                            <X className="h-4 w-4" />
+                          </Button>
+                        </div>
+                        
+                        {/* Condominium Selection */}
+                        <Select 
+                          value={stop.condominiumId} 
+                          onValueChange={(v) => updateTourStop(index, 'condominiumId', v)}
+                        >
+                          <SelectTrigger className="min-h-[44px]" data-testid={`select-tour-condo-${index}`}>
+                            <SelectValue placeholder={language === "es" ? "Seleccionar condominio..." : "Select condominium..."} />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {condominiums.map(condo => (
+                              <SelectItem key={condo.id} value={condo.id} className="min-h-[44px]">
+                                <div className="flex items-center gap-2">
+                                  <Building2 className="h-4 w-4" />
+                                  {condo.name}
+                                </div>
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                        
+                        {/* Unit Selection */}
+                        <Select 
+                          value={stop.unitId} 
+                          onValueChange={(v) => updateTourStop(index, 'unitId', v)}
+                          disabled={!stop.condominiumId}
+                        >
+                          <SelectTrigger className="min-h-[44px]" data-testid={`select-tour-unit-${index}`}>
+                            <SelectValue placeholder={
+                              !stop.condominiumId 
+                                ? (language === "es" ? "Primero selecciona un condominio" : "First select a condominium")
+                                : (language === "es" ? "Seleccionar unidad..." : "Select unit...")
+                            } />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {getUnitsForTourStop(stop.condominiumId)
+                              .filter(u => !formData.tourStops.some((s, i) => i !== index && s.unitId === u.id))
+                              .map(unit => (
                                 <SelectItem key={unit.id} value={unit.id} className="min-h-[44px]">
-                                  {getUnitDisplayName(unit)}
+                                  <div className="flex items-center gap-2">
+                                    <Home className="h-4 w-4" />
+                                    {unit.unitNumber}
+                                  </div>
                                 </SelectItem>
                               ))}
-                            </SelectContent>
-                          </Select>
-                        </div>
-                        <Button
-                          type="button"
-                          variant="ghost"
-                          size="icon"
-                          onClick={() => removeTourStop(index)}
-                          className="shrink-0 min-h-[44px] min-w-[44px]"
-                          data-testid={`button-remove-stop-${index}`}
-                        >
-                          <X className="h-4 w-4" />
-                        </Button>
+                          </SelectContent>
+                        </Select>
                       </div>
                     ))}
                   </div>
