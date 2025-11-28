@@ -1236,7 +1236,7 @@ export default function SellerPropertyCatalog() {
             </Card>
           ) : viewMode === "grid" ? (
             /* ============================================
-               PROFESSIONAL CARD GRID VIEW
+               PROFESSIONAL CARD GRID VIEW - Redesigned
                ============================================ */
             <div className="grid gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
               {units.map((unit) => {
@@ -1247,7 +1247,7 @@ export default function SellerPropertyCatalog() {
                     className="group overflow-hidden flex flex-col bg-card hover-elevate transition-all duration-200" 
                     data-testid={`card-property-${unit.id}`}
                   >
-                    {/* Image Section with Overlay */}
+                    {/* Image Section */}
                     <div className="relative aspect-[16/10] bg-muted overflow-hidden">
                       {unit.images && unit.images.length > 0 ? (
                         <img
@@ -1261,8 +1261,8 @@ export default function SellerPropertyCatalog() {
                         </div>
                       )}
                       
-                      {/* Gradient Overlay for better text readability */}
-                      <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent" />
+                      {/* Gradient Overlay */}
+                      <div className="absolute inset-0 bg-gradient-to-t from-black/40 via-transparent to-transparent" />
                       
                       {/* Top Left: Match Score */}
                       {matchInfo.score > 0 && (
@@ -1284,57 +1284,59 @@ export default function SellerPropertyCatalog() {
                         </div>
                       )}
                       
-                      {/* Bottom: Price Badge on Image */}
-                      <div className="absolute bottom-2 left-2 right-2 flex items-end justify-between">
-                        <div className="bg-primary text-primary-foreground rounded-lg px-3 py-1.5 shadow-lg">
-                          <span className="text-lg font-bold">
-                            ${unit.monthlyRent?.toLocaleString() || "—"}
-                          </span>
-                          <span className="text-xs ml-1 opacity-90">
-                            {unit.currency || "MXN"}/mes
-                          </span>
-                        </div>
-                        
-                        {/* Status Badge */}
-                        <Badge
-                          className={`text-xs px-2 py-1 ${
-                            unit.status === "active" 
-                              ? "bg-green-600 hover:bg-green-700 text-white border-0" 
-                              : "bg-red-600 hover:bg-red-700 text-white border-0"
-                          }`}
-                        >
-                          {unit.status === "active" ? "Disponible" : "Rentada"}
-                        </Badge>
-                      </div>
+                      {/* Bottom Right: Status Badge */}
+                      <Badge
+                        className={`absolute right-2 bottom-2 text-xs px-2 py-1 ${
+                          unit.status === "active" 
+                            ? "bg-green-600 hover:bg-green-700 text-white border-0" 
+                            : "bg-red-600 hover:bg-red-700 text-white border-0"
+                        }`}
+                      >
+                        {unit.status === "active" ? "Disponible" : "Rentada"}
+                      </Badge>
                     </div>
 
                     {/* Content Section */}
-                    <CardContent className="p-4 flex-1 flex flex-col gap-3">
-                      {/* Property Title & Location */}
-                      <div>
-                        <h3 className="font-semibold text-base line-clamp-1 mb-1" data-testid={`text-unit-name-${unit.id}`}>
-                          {unit.condominiumName || unit.name}
-                        </h3>
-                        <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                          {unit.unitNumber && (
-                            <span className="font-medium text-foreground">#{unit.unitNumber}</span>
-                          )}
-                          <span className="flex items-center gap-1">
-                            <MapPin className="h-3.5 w-3.5" />
-                            {unit.zone || "Sin zona"}
+                    <CardContent className="p-3 flex-1 flex flex-col gap-2">
+                      {/* Title Row: Name + Price */}
+                      <div className="flex items-start justify-between gap-2">
+                        <div className="min-w-0 flex-1">
+                          <h3 className="font-semibold text-base line-clamp-1" data-testid={`text-unit-name-${unit.id}`}>
+                            {unit.condominiumName || unit.name}
+                          </h3>
+                          <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                            {unit.unitNumber && (
+                              <span className="font-medium text-foreground">#{unit.unitNumber}</span>
+                            )}
+                            <span className="flex items-center gap-1">
+                              <MapPin className="h-3.5 w-3.5" />
+                              {unit.zone || "Sin zona"}
+                            </span>
+                          </div>
+                        </div>
+                        {/* Price Badge - Clean black text style */}
+                        <div className="flex-shrink-0 bg-primary/10 dark:bg-primary/20 rounded-lg px-2.5 py-1.5 border border-primary/20">
+                          <div className="flex items-center gap-1">
+                            <DollarSign className="h-4 w-4 text-primary" />
+                            <span className="text-sm font-bold text-foreground">
+                              {unit.monthlyRent?.toLocaleString() || "—"}
+                            </span>
+                          </div>
+                          <span className="text-[10px] text-muted-foreground block text-center">
+                            {unit.currency || "MXN"}/mes
                           </span>
                         </div>
                       </div>
 
-                      {/* Property Specs Row */}
-                      <div className="flex items-center gap-3 py-2 border-y border-border/50">
-                        <div className="flex items-center gap-1.5 text-sm">
+                      {/* Property Specs Row - Recámaras, Baños, M2, Pet Friendly */}
+                      <div className="flex items-center flex-wrap gap-x-3 gap-y-1 py-2 text-sm">
+                        <div className="flex items-center gap-1">
                           <Bed className="h-4 w-4 text-muted-foreground" />
                           <span className="font-medium">{unit.bedrooms || 0}</span>
                           <span className="text-muted-foreground text-xs">rec</span>
                         </div>
                         <Separator orientation="vertical" className="h-4" />
-                        <div className="flex items-center gap-1.5 text-sm">
+                        <div className="flex items-center gap-1">
                           <Bath className="h-4 w-4 text-muted-foreground" />
                           <span className="font-medium">{unit.bathrooms || 0}</span>
                           <span className="text-muted-foreground text-xs">baños</span>
@@ -1342,39 +1344,62 @@ export default function SellerPropertyCatalog() {
                         {unit.squareMeters && (
                           <>
                             <Separator orientation="vertical" className="h-4" />
-                            <div className="flex items-center gap-1.5 text-sm">
+                            <div className="flex items-center gap-1">
                               <Square className="h-4 w-4 text-muted-foreground" />
                               <span className="font-medium">{unit.squareMeters}</span>
                               <span className="text-muted-foreground text-xs">m²</span>
                             </div>
                           </>
                         )}
+                        {unit.petsAllowed && (
+                          <>
+                            <Separator orientation="vertical" className="h-4" />
+                            <div className="flex items-center gap-1 text-green-600 dark:text-green-500">
+                              <PawPrint className="h-4 w-4" />
+                            </div>
+                          </>
+                        )}
                       </div>
 
-                      {/* Property Features */}
-                      <div className="flex flex-wrap gap-1.5">
+                      {/* Characteristics Badges Row */}
+                      <div className="flex flex-wrap gap-1">
                         {unit.unitType && (
-                          <Badge variant="secondary" className="text-xs font-normal">
+                          <Badge variant="secondary" className="text-[10px] font-normal px-1.5 py-0.5">
                             {unit.unitType}
                           </Badge>
                         )}
                         {unit.hasFurniture && (
-                          <Badge variant="secondary" className="text-xs font-normal">
+                          <Badge variant="secondary" className="text-[10px] font-normal px-1.5 py-0.5">
                             Amueblado
                           </Badge>
                         )}
-                        {unit.petsAllowed && (
-                          <Badge variant="secondary" className="text-xs font-normal gap-1">
-                            <PawPrint className="h-3 w-3" />
-                            Mascotas OK
-                          </Badge>
-                        )}
                         {unit.hasParking && (
-                          <Badge variant="secondary" className="text-xs font-normal">
+                          <Badge variant="secondary" className="text-[10px] font-normal px-1.5 py-0.5">
                             Estacionamiento
                           </Badge>
                         )}
+                        {unit.hasAC && (
+                          <Badge variant="secondary" className="text-[10px] font-normal px-1.5 py-0.5">
+                            A/C
+                          </Badge>
+                        )}
                       </div>
+
+                      {/* Amenities Badges Row */}
+                      {(unit.amenities && unit.amenities.length > 0) && (
+                        <div className="flex flex-wrap gap-1">
+                          {unit.amenities.slice(0, 4).map((amenity, idx) => (
+                            <Badge key={idx} variant="outline" className="text-[10px] font-normal px-1.5 py-0.5">
+                              {amenity}
+                            </Badge>
+                          ))}
+                          {unit.amenities.length > 4 && (
+                            <Badge variant="outline" className="text-[10px] font-normal px-1.5 py-0.5">
+                              +{unit.amenities.length - 4}
+                            </Badge>
+                          )}
+                        </div>
+                      )}
                     </CardContent>
 
                     {/* Action Footer */}
@@ -1416,7 +1441,7 @@ export default function SellerPropertyCatalog() {
             </div>
           ) : (
             /* ============================================
-               PROFESSIONAL TABLE/LIST VIEW
+               PROFESSIONAL TABLE/LIST VIEW - Redesigned
                ============================================ */
             <div className="space-y-3">
               {/* Header Row */}
@@ -1457,7 +1482,7 @@ export default function SellerPropertyCatalog() {
                     }`}
                     data-testid={`row-property-${unit.id}`}
                   >
-                    <div className="flex items-stretch min-h-[120px]">
+                    <div className="flex items-stretch min-h-[140px]">
                       {/* Checkbox Column */}
                       <div 
                         className="flex items-center justify-center w-12 sm:w-14 border-r bg-muted/30 cursor-pointer hover:bg-muted/50 transition-colors"
@@ -1509,14 +1534,14 @@ export default function SellerPropertyCatalog() {
                       </div>
                       
                       {/* Main Content */}
-                      <div className="flex-1 p-4 flex flex-col sm:flex-row gap-4">
-                        {/* Left: Property Info */}
-                        <div className="flex-1 min-w-0 space-y-2">
-                          <div>
+                      <div className="flex-1 p-3 flex flex-col gap-2">
+                        {/* Title Row: Name + Price */}
+                        <div className="flex items-start justify-between gap-2">
+                          <div className="min-w-0 flex-1">
                             <h3 className="font-semibold text-base line-clamp-1">
                               {unit.condominiumName || unit.name}
                             </h3>
-                            <div className="flex items-center gap-2 text-sm text-muted-foreground mt-0.5">
+                            <div className="flex items-center gap-2 text-sm text-muted-foreground">
                               {unit.unitNumber && (
                                 <span className="font-medium text-foreground">#{unit.unitNumber}</span>
                               )}
@@ -1526,58 +1551,92 @@ export default function SellerPropertyCatalog() {
                               </span>
                             </div>
                           </div>
-                          
-                          {/* Specs Row */}
-                          <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-sm">
-                            <span className="flex items-center gap-1.5">
-                              <Bed className="h-4 w-4 text-muted-foreground" />
-                              <span className="font-medium">{unit.bedrooms || 0}</span>
-                              <span className="text-muted-foreground">rec</span>
-                            </span>
-                            <span className="flex items-center gap-1.5">
-                              <Bath className="h-4 w-4 text-muted-foreground" />
-                              <span className="font-medium">{unit.bathrooms || 0}</span>
-                              <span className="text-muted-foreground">baños</span>
-                            </span>
-                            {unit.squareMeters && (
-                              <span className="flex items-center gap-1.5">
-                                <Square className="h-4 w-4 text-muted-foreground" />
-                                <span className="font-medium">{unit.squareMeters}</span>
-                                <span className="text-muted-foreground">m²</span>
+                          {/* Price Badge */}
+                          <div className="flex-shrink-0 bg-primary/10 dark:bg-primary/20 rounded-lg px-2.5 py-1.5 border border-primary/20">
+                            <div className="flex items-center gap-1">
+                              <DollarSign className="h-4 w-4 text-primary" />
+                              <span className="text-sm font-bold text-foreground">
+                                {unit.monthlyRent?.toLocaleString() || "—"}
                               </span>
-                            )}
-                          </div>
-                          
-                          {/* Features */}
-                          <div className="flex flex-wrap gap-1.5">
-                            {unit.unitType && (
-                              <Badge variant="outline" className="text-xs">
-                                {unit.unitType}
-                              </Badge>
-                            )}
-                            {unit.hasFurniture && (
-                              <Badge variant="outline" className="text-xs">
-                                Amueblado
-                              </Badge>
-                            )}
-                            {unit.petsAllowed && (
-                              <Badge variant="outline" className="text-xs gap-1">
-                                <PawPrint className="h-3 w-3" />
-                                Mascotas
-                              </Badge>
-                            )}
+                            </div>
+                            <span className="text-[10px] text-muted-foreground block text-center">
+                              {unit.currency || "MXN"}/mes
+                            </span>
                           </div>
                         </div>
                         
-                        {/* Right: Price */}
-                        <div className="flex sm:flex-col items-center sm:items-end justify-between sm:justify-center gap-2 sm:min-w-[140px]">
-                          <div className="text-right">
-                            <p className="text-xl sm:text-2xl font-bold text-primary">
-                              ${unit.monthlyRent?.toLocaleString() || "—"}
-                            </p>
-                            <p className="text-xs text-muted-foreground">{unit.currency || "MXN"}/mes</p>
+                        {/* Specs Row - Recámaras, Baños, M2, Pet Friendly */}
+                        <div className="flex items-center flex-wrap gap-x-3 gap-y-1 text-sm">
+                          <div className="flex items-center gap-1">
+                            <Bed className="h-4 w-4 text-muted-foreground" />
+                            <span className="font-medium">{unit.bedrooms || 0}</span>
+                            <span className="text-muted-foreground text-xs">rec</span>
                           </div>
+                          <Separator orientation="vertical" className="h-4" />
+                          <div className="flex items-center gap-1">
+                            <Bath className="h-4 w-4 text-muted-foreground" />
+                            <span className="font-medium">{unit.bathrooms || 0}</span>
+                            <span className="text-muted-foreground text-xs">baños</span>
+                          </div>
+                          {unit.squareMeters && (
+                            <>
+                              <Separator orientation="vertical" className="h-4" />
+                              <div className="flex items-center gap-1">
+                                <Square className="h-4 w-4 text-muted-foreground" />
+                                <span className="font-medium">{unit.squareMeters}</span>
+                                <span className="text-muted-foreground text-xs">m²</span>
+                              </div>
+                            </>
+                          )}
+                          {unit.petsAllowed && (
+                            <>
+                              <Separator orientation="vertical" className="h-4" />
+                              <div className="flex items-center gap-1 text-green-600 dark:text-green-500">
+                                <PawPrint className="h-4 w-4" />
+                              </div>
+                            </>
+                          )}
                         </div>
+                        
+                        {/* Characteristics Badges */}
+                        <div className="flex flex-wrap gap-1">
+                          {unit.unitType && (
+                            <Badge variant="secondary" className="text-[10px] font-normal px-1.5 py-0.5">
+                              {unit.unitType}
+                            </Badge>
+                          )}
+                          {unit.hasFurniture && (
+                            <Badge variant="secondary" className="text-[10px] font-normal px-1.5 py-0.5">
+                              Amueblado
+                            </Badge>
+                          )}
+                          {unit.hasParking && (
+                            <Badge variant="secondary" className="text-[10px] font-normal px-1.5 py-0.5">
+                              Estacionamiento
+                            </Badge>
+                          )}
+                          {unit.hasAC && (
+                            <Badge variant="secondary" className="text-[10px] font-normal px-1.5 py-0.5">
+                              A/C
+                            </Badge>
+                          )}
+                        </div>
+
+                        {/* Amenities Badges */}
+                        {(unit.amenities && unit.amenities.length > 0) && (
+                          <div className="flex flex-wrap gap-1">
+                            {unit.amenities.slice(0, 3).map((amenity, idx) => (
+                              <Badge key={idx} variant="outline" className="text-[10px] font-normal px-1.5 py-0.5">
+                                {amenity}
+                              </Badge>
+                            ))}
+                            {unit.amenities.length > 3 && (
+                              <Badge variant="outline" className="text-[10px] font-normal px-1.5 py-0.5">
+                                +{unit.amenities.length - 3}
+                              </Badge>
+                            )}
+                          </div>
+                        )}
                       </div>
                       
                       {/* Actions Column */}
