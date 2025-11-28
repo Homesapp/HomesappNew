@@ -27233,44 +27233,11 @@ ${{precio}}/mes
   });
 
   // GET /api/external-seller/commissions - Get seller commission history
+  // Note: External seller commissions tracking not yet implemented
   app.get("/api/external-seller/commissions", isAuthenticated, requireRole(['external_agency_seller', ...EXTERNAL_ADMIN_ROLES]), async (req: any, res) => {
     try {
-      const sellerId = req.user?.claims?.sub || req.user?.id;
-      const agencyId = await getUserAgencyId(req);
-      
-      if (!agencyId) {
-        return res.status(400).json({ message: "User is not assigned to any agency" });
-      }
-
-      // Get commissions from payouts table where the seller is the agent
-      const commissions = await db.select({
-        id: payouts.id,
-        amount: payouts.amount,
-        status: payouts.status,
-        rentalDate: payouts.createdAt,
-        paidAt: payouts.processedAt,
-        propertyName: externalUnits.name,
-        clientName: sql`CONCAT(${externalClients.firstName}, ' ', ${externalClients.lastName})`,
-      })
-      .from(payouts)
-      .leftJoin(externalRentals, eq(payouts.rentalId, externalRentals.id))
-      .leftJoin(externalUnits, eq(externalRentals.unitId, externalUnits.id))
-      .leftJoin(externalClients, eq(externalRentals.clientId, externalClients.id))
-      .where(and(
-        eq(payouts.agencyId, agencyId),
-        eq(payouts.recipientType, 'agent'),
-        eq(payouts.recipientId, sellerId)
-      ))
-      .orderBy(desc(payouts.createdAt))
-      .limit(50);
-
-      // Map status to expected frontend values
-      const mappedCommissions = commissions.map(c => ({
-        ...c,
-        status: c.status === 'completed' ? 'paid' : c.status === 'pending' ? 'pending' : 'approved'
-      }));
-
-      return res.json(mappedCommissions);
+      // For now, return empty array since external seller commissions are not yet tracked
+      return res.json([]);
     } catch (error: any) {
       console.error("Error fetching seller commissions:", error);
       handleGenericError(res, error);
