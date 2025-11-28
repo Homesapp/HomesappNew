@@ -324,6 +324,26 @@ export default function ExternalClients() {
   });
   const activePropertyTypes = propertyTypesConfig.filter(pt => pt.isActive);
 
+  // Fetch configurable unit characteristics
+  const { data: characteristicsConfig = [] } = useQuery<Array<{id: string; name: string; nameEn?: string; category?: string; isActive: boolean; sortOrder: number}>>({
+    queryKey: ['/api/external/config/unit-characteristics'],
+    staleTime: 5 * 60 * 1000,
+  });
+  const activeCharacteristics = characteristicsConfig.filter(c => c.isActive);
+
+  // Fetch configurable amenities
+  const { data: amenitiesConfig = [] } = useQuery<Array<{id: string; name: string; nameEn?: string; category?: string; isActive: boolean; sortOrder: number}>>({
+    queryKey: ['/api/external/config/amenities'],
+    staleTime: 5 * 60 * 1000,
+  });
+  const activeAmenities = amenitiesConfig.filter(a => a.isActive);
+
+  // State for selected characteristics and amenities in forms
+  const [selectedCreateCharacteristics, setSelectedCreateCharacteristics] = useState<string[]>([]);
+  const [selectedCreateAmenities, setSelectedCreateAmenities] = useState<string[]>([]);
+  const [selectedEditCharacteristics, setSelectedEditCharacteristics] = useState<string[]>([]);
+  const [selectedEditAmenities, setSelectedEditAmenities] = useState<string[]>([]);
+
   useEffect(() => {
     const clampedPage = Math.min(leadCurrentPage, totalLeadPages);
     if (clampedPage !== leadCurrentPage) {
@@ -546,10 +566,17 @@ export default function ExternalClients() {
         budgetMax: data.budgetMax,
         bedrooms: data.bedrooms || parseBedroomsText(data.bedroomsText),
       };
+      // Include selected characteristics and amenities
+      const dataWithSelections = {
+        ...processedData,
+        desiredCharacteristics: selectedCreateCharacteristics,
+        desiredAmenities: selectedCreateAmenities,
+      };
+      
       // For master/admin users, include the selected agencyId
       const payload = isMasterOrAdmin && selectedAgencyIdForLead 
-        ? { ...processedData, agencyId: selectedAgencyIdForLead }
-        : processedData;
+        ? { ...dataWithSelections, agencyId: selectedAgencyIdForLead }
+        : dataWithSelections;
       const res = await apiRequest("POST", "/api/external-leads", payload);
       return res.json();
     },
@@ -563,6 +590,8 @@ export default function ExternalClients() {
       });
       setIsCreateLeadDialogOpen(false);
       setSelectedAgencyIdForLead(""); // Reset agency selection
+      setSelectedCreateCharacteristics([]); // Reset selections
+      setSelectedCreateAmenities([]);
       leadForm.reset();
     },
     onError: (error: any) => {
@@ -594,7 +623,13 @@ export default function ExternalClients() {
 
   const updateLeadMutation = useMutation({
     mutationFn: async ({ id, data }: { id: string; data: EditLeadFormData }) => {
-      const res = await apiRequest("PATCH", `/api/external-leads/${id}`, data);
+      // Include selected characteristics and amenities
+      const dataWithSelections = {
+        ...data,
+        desiredCharacteristics: selectedEditCharacteristics,
+        desiredAmenities: selectedEditAmenities,
+      };
+      const res = await apiRequest("PATCH", `/api/external-leads/${id}`, dataWithSelections);
       return res.json();
     },
     onSuccess: () => {
@@ -607,6 +642,8 @@ export default function ExternalClients() {
       });
       setIsEditLeadDialogOpen(false);
       setSelectedLead(null);
+      setSelectedEditCharacteristics([]); // Reset selections
+      setSelectedEditAmenities([]);
       editLeadForm.reset();
     },
     onError: (error: any) => {
@@ -2750,6 +2787,8 @@ export default function ExternalClients() {
                     setSelectedLead(lead);
                     editLeadForm.reset(lead);
                     setEditCondominiumId(lead.interestedCondominiumId || "");
+                    setSelectedEditCharacteristics((lead as any).desiredCharacteristics || []);
+                    setSelectedEditAmenities((lead as any).desiredAmenities || []);
                     setIsEditLeadDialogOpen(true);
                   }}
                   onDelete={(lead) => {
@@ -2909,6 +2948,8 @@ export default function ExternalClients() {
                                     setSelectedLead(lead);
                                     editLeadForm.reset(lead);
                                     setEditCondominiumId(lead.interestedCondominiumId || "");
+                                    setSelectedEditCharacteristics((lead as any).desiredCharacteristics || []);
+                                    setSelectedEditAmenities((lead as any).desiredAmenities || []);
                                     setIsEditLeadDialogOpen(true);
                                   }}
                                   data-testid={`button-edit-lead-${lead.id}`}
@@ -3010,6 +3051,8 @@ export default function ExternalClients() {
                                 setSelectedLead(lead);
                                 editLeadForm.reset(lead);
                                 setEditCondominiumId(lead.interestedCondominiumId || "");
+                                setSelectedEditCharacteristics((lead as any).desiredCharacteristics || []);
+                                setSelectedEditAmenities((lead as any).desiredAmenities || []);
                                 setIsEditLeadDialogOpen(true);
                               }}
                               data-testid={`button-edit-lead-${lead.id}`}
@@ -3613,10 +3656,87 @@ export default function ExternalClients() {
                 </div>
               </div>
 
-              {/* Section 3: Status & Additional Info */}
+              {/* Section 3: Property Characteristics & Amenities */}
+              {(activeCharacteristics.length > 0 || activeAmenities.length > 0) && (
+                <div className="space-y-4 pt-2 border-t">
+                  <div className="flex items-center gap-2 text-sm font-semibold text-foreground pt-2">
+                    <div className="flex items-center justify-center w-6 h-6 rounded-full bg-primary text-primary-foreground text-xs">3</div>
+                    {language === "es" ? "Características y Amenidades Deseadas" : "Desired Characteristics & Amenities"}
+                  </div>
+                  <p className="text-xs text-muted-foreground">
+                    {language === "es" 
+                      ? "Seleccione las características y amenidades que busca el cliente (opcional)"
+                      : "Select the characteristics and amenities the client is looking for (optional)"}
+                  </p>
+
+                  {/* Unit Characteristics */}
+                  {activeCharacteristics.length > 0 && (
+                    <div className="space-y-3">
+                      <Label className="flex items-center gap-2 text-sm font-medium">
+                        <Home className="h-3.5 w-3.5 text-muted-foreground" />
+                        {language === "es" ? "Características de Unidad" : "Unit Characteristics"}
+                      </Label>
+                      <div className="flex flex-wrap gap-2">
+                        {activeCharacteristics.map((char) => (
+                          <Button
+                            key={char.id}
+                            type="button"
+                            variant={selectedCreateCharacteristics.includes(char.id) ? "default" : "outline"}
+                            size="sm"
+                            className="h-7 text-xs"
+                            onClick={() => {
+                              setSelectedCreateCharacteristics(prev => 
+                                prev.includes(char.id) 
+                                  ? prev.filter(id => id !== char.id)
+                                  : [...prev, char.id]
+                              );
+                            }}
+                            data-testid={`toggle-create-char-${char.id}`}
+                          >
+                            {language === "es" ? char.name : (char.nameEn || char.name)}
+                          </Button>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Amenities */}
+                  {activeAmenities.length > 0 && (
+                    <div className="space-y-3">
+                      <Label className="flex items-center gap-2 text-sm font-medium">
+                        <Building2 className="h-3.5 w-3.5 text-muted-foreground" />
+                        {language === "es" ? "Amenidades del Desarrollo" : "Development Amenities"}
+                      </Label>
+                      <div className="flex flex-wrap gap-2">
+                        {activeAmenities.map((amenity) => (
+                          <Button
+                            key={amenity.id}
+                            type="button"
+                            variant={selectedCreateAmenities.includes(amenity.id) ? "default" : "outline"}
+                            size="sm"
+                            className="h-7 text-xs"
+                            onClick={() => {
+                              setSelectedCreateAmenities(prev => 
+                                prev.includes(amenity.id) 
+                                  ? prev.filter(id => id !== amenity.id)
+                                  : [...prev, amenity.id]
+                              );
+                            }}
+                            data-testid={`toggle-create-amenity-${amenity.id}`}
+                          >
+                            {language === "es" ? amenity.name : (amenity.nameEn || amenity.name)}
+                          </Button>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* Section 4: Status & Additional Info */}
               <div className="space-y-4 pt-2 border-t">
                 <div className="flex items-center gap-2 text-sm font-semibold text-foreground pt-2">
-                  <div className="flex items-center justify-center w-6 h-6 rounded-full bg-primary text-primary-foreground text-xs">3</div>
+                  <div className="flex items-center justify-center w-6 h-6 rounded-full bg-primary text-primary-foreground text-xs">{activeCharacteristics.length > 0 || activeAmenities.length > 0 ? '4' : '3'}</div>
                   {language === "es" ? "Estado y Seguimiento" : "Status & Follow-up"}
                 </div>
 
@@ -3773,7 +3893,13 @@ export default function ExternalClients() {
       </Dialog>
 
       {/* Edit Lead Dialog */}
-      <Dialog open={isEditLeadDialogOpen} onOpenChange={setIsEditLeadDialogOpen}>
+      <Dialog open={isEditLeadDialogOpen} onOpenChange={(open) => {
+        setIsEditLeadDialogOpen(open);
+        if (!open) {
+          setSelectedEditCharacteristics([]);
+          setSelectedEditAmenities([]);
+        }
+      }}>
         <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
           <DialogHeader className="pb-4 border-b">
             <div className="flex items-center gap-3">
@@ -4295,6 +4421,83 @@ export default function ExternalClients() {
                 </div>
               </div>
 
+              {/* Characteristics & Amenities Section */}
+              {(activeCharacteristics.length > 0 || activeAmenities.length > 0) && (
+                <div className="space-y-4 pt-4 border-t">
+                  <h3 className="text-sm font-semibold flex items-center gap-2">
+                    <Building2 className="h-4 w-4" />
+                    {language === "es" ? "Características y Amenidades Deseadas" : "Desired Characteristics & Amenities"}
+                  </h3>
+                  <p className="text-xs text-muted-foreground">
+                    {language === "es" 
+                      ? "Seleccione las características y amenidades que busca el cliente (opcional)"
+                      : "Select the characteristics and amenities the client is looking for (optional)"}
+                  </p>
+
+                  {/* Unit Characteristics */}
+                  {activeCharacteristics.length > 0 && (
+                    <div className="space-y-3">
+                      <Label className="flex items-center gap-2 text-sm font-medium">
+                        <Home className="h-3.5 w-3.5 text-muted-foreground" />
+                        {language === "es" ? "Características de Unidad" : "Unit Characteristics"}
+                      </Label>
+                      <div className="flex flex-wrap gap-2">
+                        {activeCharacteristics.map((char) => (
+                          <Button
+                            key={char.id}
+                            type="button"
+                            variant={selectedEditCharacteristics.includes(char.id) ? "default" : "outline"}
+                            size="sm"
+                            className="h-7 text-xs"
+                            onClick={() => {
+                              setSelectedEditCharacteristics(prev => 
+                                prev.includes(char.id) 
+                                  ? prev.filter(id => id !== char.id)
+                                  : [...prev, char.id]
+                              );
+                            }}
+                            data-testid={`toggle-edit-char-${char.id}`}
+                          >
+                            {language === "es" ? char.name : (char.nameEn || char.name)}
+                          </Button>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Amenities */}
+                  {activeAmenities.length > 0 && (
+                    <div className="space-y-3">
+                      <Label className="flex items-center gap-2 text-sm font-medium">
+                        <Building2 className="h-3.5 w-3.5 text-muted-foreground" />
+                        {language === "es" ? "Amenidades del Desarrollo" : "Development Amenities"}
+                      </Label>
+                      <div className="flex flex-wrap gap-2">
+                        {activeAmenities.map((amenity) => (
+                          <Button
+                            key={amenity.id}
+                            type="button"
+                            variant={selectedEditAmenities.includes(amenity.id) ? "default" : "outline"}
+                            size="sm"
+                            className="h-7 text-xs"
+                            onClick={() => {
+                              setSelectedEditAmenities(prev => 
+                                prev.includes(amenity.id) 
+                                  ? prev.filter(id => id !== amenity.id)
+                                  : [...prev, amenity.id]
+                              );
+                            }}
+                            data-testid={`toggle-edit-amenity-${amenity.id}`}
+                          >
+                            {language === "es" ? amenity.name : (amenity.nameEn || amenity.name)}
+                          </Button>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
+
               {/* Notes Section */}
               <div className="space-y-4 pt-4 border-t">
                 <h3 className="text-sm font-semibold flex items-center gap-2">
@@ -4325,7 +4528,11 @@ export default function ExternalClients() {
                 <Button
                   type="button"
                   variant="outline"
-                  onClick={() => setIsEditLeadDialogOpen(false)}
+                  onClick={() => {
+                    setIsEditLeadDialogOpen(false);
+                    setSelectedEditCharacteristics([]);
+                    setSelectedEditAmenities([]);
+                  }}
                   data-testid="button-edit-lead-cancel"
                 >
                   {language === "es" ? "Cancelar" : "Cancel"}
@@ -4713,6 +4920,8 @@ export default function ExternalClients() {
                 if (selectedLead) {
                   editLeadForm.reset(selectedLead);
                   setEditCondominiumId(selectedLead.interestedCondominiumId || "");
+                  setSelectedEditCharacteristics((selectedLead as any).desiredCharacteristics || []);
+                  setSelectedEditAmenities((selectedLead as any).desiredAmenities || []);
                   setIsEditLeadDialogOpen(true);
                 }
               }}

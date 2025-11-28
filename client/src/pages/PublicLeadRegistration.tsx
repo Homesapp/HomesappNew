@@ -15,7 +15,7 @@ import {
   TabsList,
   TabsTrigger,
 } from "@/components/ui/tabs";
-import { CheckCircle2, AlertCircle, Building2, Calendar as CalendarIcon } from "lucide-react";
+import { CheckCircle2, AlertCircle, Building2, Calendar as CalendarIcon, Home, Sparkles } from "lucide-react";
 
 export default function PublicLeadRegistration() {
   const params = useParams<{ token: string }>();
@@ -34,12 +34,15 @@ export default function PublicLeadRegistration() {
   });
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [submitSuccess, setSubmitSuccess] = useState(false);
+  const [selectedCharacteristics, setSelectedCharacteristics] = useState<string[]>([]);
+  const [selectedAmenities, setSelectedAmenities] = useState<string[]>([]);
 
   // Fetch registration form data
   const { data: formInfo, isLoading, error } = useQuery<{
     agencyName: string;
     registrationType: "seller" | "broker";
     expiresAt: string;
+    agencyId?: string;
   }>({
     queryKey: [`/api/leads/${token}`],
     queryFn: async () => {
@@ -52,6 +55,29 @@ export default function PublicLeadRegistration() {
     },
     retry: false,
   });
+
+  // Fetch characteristics and amenities for the agency
+  const { data: characteristicsData = [] } = useQuery<Array<{id: string; name: string; nameEn?: string; category?: string; isActive: boolean}>>({
+    queryKey: [`/api/leads/${token}/characteristics`],
+    queryFn: async () => {
+      const response = await fetch(`/api/leads/${token}/characteristics`);
+      if (!response.ok) return [];
+      return response.json();
+    },
+    enabled: !!token && !!formInfo,
+  });
+  const activeCharacteristics = characteristicsData.filter(c => c.isActive);
+
+  const { data: amenitiesData = [] } = useQuery<Array<{id: string; name: string; nameEn?: string; category?: string; isActive: boolean}>>({
+    queryKey: [`/api/leads/${token}/amenities`],
+    queryFn: async () => {
+      const response = await fetch(`/api/leads/${token}/amenities`);
+      if (!response.ok) return [];
+      return response.json();
+    },
+    enabled: !!token && !!formInfo,
+  });
+  const activeAmenities = amenitiesData.filter(a => a.isActive);
 
   const submitMutation = useMutation({
     mutationFn: async (data: typeof formData) => {
@@ -90,6 +116,9 @@ export default function PublicLeadRegistration() {
           // Numeric fields for filtering (parsed from text)
           estimatedRentCost: numericBudget,
           bedrooms: numericBedrooms,
+          // Selected characteristics and amenities
+          desiredCharacteristics: selectedCharacteristics,
+          desiredAmenities: selectedAmenities,
         }),
       });
       if (!response.ok) {
@@ -338,6 +367,78 @@ export default function PublicLeadRegistration() {
                 I have pets
               </Label>
             </div>
+
+            {/* Property Characteristics & Amenities */}
+            {(activeCharacteristics.length > 0 || activeAmenities.length > 0) && (
+              <div className="space-y-4 pt-2 border-t">
+                <div className="flex items-center gap-2 text-sm font-medium">
+                  <Sparkles className="h-4 w-4 text-muted-foreground" />
+                  <span>Desired Features (Optional)</span>
+                </div>
+
+                {/* Unit Characteristics */}
+                {activeCharacteristics.length > 0 && (
+                  <div className="space-y-2">
+                    <Label className="flex items-center gap-2 text-sm">
+                      <Home className="h-3.5 w-3.5 text-muted-foreground" />
+                      Unit Characteristics
+                    </Label>
+                    <div className="flex flex-wrap gap-2">
+                      {activeCharacteristics.map((char) => (
+                        <Button
+                          key={char.id}
+                          type="button"
+                          variant={selectedCharacteristics.includes(char.id) ? "default" : "outline"}
+                          size="sm"
+                          className="h-7 text-xs"
+                          onClick={() => {
+                            setSelectedCharacteristics(prev => 
+                              prev.includes(char.id) 
+                                ? prev.filter(id => id !== char.id)
+                                : [...prev, char.id]
+                            );
+                          }}
+                          data-testid={`toggle-char-${char.id}`}
+                        >
+                          {char.nameEn || char.name}
+                        </Button>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* Amenities */}
+                {activeAmenities.length > 0 && (
+                  <div className="space-y-2">
+                    <Label className="flex items-center gap-2 text-sm">
+                      <Building2 className="h-3.5 w-3.5 text-muted-foreground" />
+                      Development Amenities
+                    </Label>
+                    <div className="flex flex-wrap gap-2">
+                      {activeAmenities.map((amenity) => (
+                        <Button
+                          key={amenity.id}
+                          type="button"
+                          variant={selectedAmenities.includes(amenity.id) ? "default" : "outline"}
+                          size="sm"
+                          className="h-7 text-xs"
+                          onClick={() => {
+                            setSelectedAmenities(prev => 
+                              prev.includes(amenity.id) 
+                                ? prev.filter(id => id !== amenity.id)
+                                : [...prev, amenity.id]
+                            );
+                          }}
+                          data-testid={`toggle-amenity-${amenity.id}`}
+                        >
+                          {amenity.nameEn || amenity.name}
+                        </Button>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
 
             <div className="space-y-2">
               <Label htmlFor="notes">Additional Notes</Label>

@@ -30284,8 +30284,56 @@ export async function registerRoutes(app: Express): Promise<Server> {
         registrationType: registrationToken.registrationType,
         expiresAt: registrationToken.expiresAt,
       });
+
     } catch (error: any) {
       console.error("Error fetching registration form:", error);
+      handleGenericError(res, error);
+    }
+  });
+  // Public endpoint - GET unit characteristics for registration form
+  app.get("/api/leads/:token/characteristics", async (req, res) => {
+    try {
+      const { token } = req.params;
+      const registrationToken = await storage.getExternalLeadRegistrationToken(token);
+      
+      if (!registrationToken) {
+        return res.status(404).json({ message: "Registration link not found" });
+      }
+      
+      // Check if expired
+      if (new Date() > new Date(registrationToken.expiresAt)) {
+        return res.status(410).json({ message: "Registration link has expired" });
+      }
+      
+      // Get unit characteristics for the agency
+      const characteristics = await storage.getExternalUnitCharacteristics(registrationToken.agencyId);
+      res.json(characteristics);
+    } catch (error: any) {
+      console.error("Error fetching characteristics:", error);
+      handleGenericError(res, error);
+    }
+  });
+
+  // Public endpoint - GET amenities for registration form
+  app.get("/api/leads/:token/amenities", async (req, res) => {
+    try {
+      const { token } = req.params;
+      const registrationToken = await storage.getExternalLeadRegistrationToken(token);
+      
+      if (!registrationToken) {
+        return res.status(404).json({ message: "Registration link not found" });
+      }
+      
+      // Check if expired
+      if (new Date() > new Date(registrationToken.expiresAt)) {
+        return res.status(410).json({ message: "Registration link has expired" });
+      }
+      
+      // Get amenities for the agency
+      const amenities = await storage.getExternalAmenities(registrationToken.agencyId);
+      res.json(amenities);
+    } catch (error: any) {
+      console.error("Error fetching amenities:", error);
       handleGenericError(res, error);
     }
   });
