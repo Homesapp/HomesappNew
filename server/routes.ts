@@ -30564,7 +30564,7 @@ ${{precio}}/mes
         conditions.push(lte(externalLeadReminders.reminderDate, new Date(to as string)));
       }
       
-      const reminders = await db.select({
+      const results = await db.select({
         reminder: externalLeadReminders,
         lead: {
           id: externalLeads.id,
@@ -30579,14 +30579,28 @@ ${{precio}}/mes
         .where(and(...conditions))
         .orderBy(asc(externalLeadReminders.reminderDate));
       
+      // Flatten the response to match frontend expectations
+      const reminders = results.map(r => ({
+        id: r.reminder.id,
+        leadId: r.reminder.leadId,
+        reminderType: r.reminder.reminderType,
+        title: r.reminder.title,
+        description: r.reminder.description,
+        dueDate: r.reminder.reminderDate, // Map reminderDate to dueDate for frontend
+        priority: r.reminder.priority,
+        status: r.reminder.status,
+        lead: r.lead ? {
+          firstName: r.lead.firstName,
+          lastName: r.lead.lastName,
+        } : null,
+      }));
+      
       res.json(reminders);
     } catch (error: any) {
       console.error("Error fetching seller reminders:", error);
       handleGenericError(res, error);
     }
   });
-
-  
   // GET /api/external-leads/:id/properties-sent - Get all properties sent to a lead
   app.get("/api/external-leads/:id/properties-sent", isAuthenticated, requireRole([...EXTERNAL_ADMIN_ROLES, 'external_agency_seller']), async (req: any, res) => {
     try {
