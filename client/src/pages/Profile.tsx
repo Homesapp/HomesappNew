@@ -1,18 +1,13 @@
 import { useAuth } from "@/hooks/useAuth";
-import { useMutation, useQueryClient, useQuery } from "@tanstack/react-query";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { Button } from "@/components/ui/button";
 import { Card, CardHeader, CardTitle, CardContent, CardFooter } from "@/components/ui/card";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { useToast } from "@/hooks/use-toast";
 import { useLocation } from "wouter";
-import { Trash2, Save, Upload, X, MessageCircle, Moon, Sun } from "lucide-react";
+import { Trash2, Save, Upload, X, Moon, Sun } from "lucide-react";
 import { useTheme } from "@/components/ThemeProvider";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Badge } from "@/components/ui/badge";
-import type { ChatConversation } from "@shared/schema";
-import { formatDistanceToNow } from "date-fns";
-import { es, enUS } from "date-fns/locale";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { Separator } from "@/components/ui/separator";
 import {
@@ -86,8 +81,6 @@ export default function Profile() {
   const [imagePreview, setImagePreview] = useState<string>("");
   const [imageChanged, setImageChanged] = useState(false);
   const [originalImage, setOriginalImage] = useState<string>("");
-  const dateLocale = language === 'en' ? enUS : es;
-
   const form = useForm<UpdateUserProfile>({
     resolver: zodResolver(updateUserProfileSchema),
     defaultValues: {
@@ -226,33 +219,11 @@ export default function Profile() {
     return "U";
   };
 
-  const { data: conversations = [] } = useQuery<ChatConversation[]>({
-    queryKey: ["/api/chat/conversations"],
-    queryFn: async () => {
-      const response = await fetch("/api/chat/conversations");
-      if (!response.ok) throw new Error("Failed to fetch conversations");
-      return response.json();
-    },
-  });
-
-  const recentConversations = conversations.slice(0, 5);
-
   return (
     <div className="container mx-auto p-6 max-w-4xl">
       <h1 className="text-3xl font-bold mb-6">{t("profile.title")}</h1>
 
-      <Tabs defaultValue="personal" className="space-y-6">
-        <TabsList className="grid w-full grid-cols-2">
-          <TabsTrigger value="personal" data-testid="tab-personal">
-            {t("profile.personalInfo")}
-          </TabsTrigger>
-          <TabsTrigger value="chat" data-testid="tab-chat">
-            <MessageCircle className="h-4 w-4 mr-2" />
-            {t("profile.conversations")}
-          </TabsTrigger>
-        </TabsList>
-
-        <TabsContent value="personal">
+      <div className="space-y-6">
           <Form {...form}>
             <form onSubmit={form.handleSubmit(onSubmit)}>
               <Card>
@@ -445,77 +416,7 @@ export default function Profile() {
               </Card>
             </form>
           </Form>
-        </TabsContent>
-
-        <TabsContent value="chat">
-          <Card>
-            <CardHeader>
-              <CardTitle>{t("profile.recentConversations")}</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              {recentConversations.length === 0 ? (
-                <div className="text-center py-12 text-muted-foreground">
-                  <MessageCircle className="h-12 w-12 mx-auto mb-4 opacity-50" />
-                  <p>{t("profile.noConversations")}</p>
-                </div>
-              ) : (
-                <div className="space-y-3">
-                  {recentConversations.map((conversation) => (
-                    <Card
-                      key={conversation.id}
-                      className="hover-elevate cursor-pointer"
-                      onClick={() => setLocation("/chat")}
-                      data-testid={`conversation-${conversation.id}`}
-                    >
-                      <CardContent className="pt-4">
-                        <div className="flex items-start justify-between gap-3">
-                          <div className="flex items-start gap-3 flex-1">
-                            <Avatar className="h-10 w-10">
-                              <AvatarFallback>
-                                {conversation.isBot ? "🤖" : "👤"}
-                              </AvatarFallback>
-                            </Avatar>
-                            <div className="flex-1 min-w-0">
-                              <div className="flex items-center gap-2 flex-wrap">
-                                <h4 className="font-semibold text-sm">
-                                  {conversation.title}
-                                </h4>
-                                {conversation.isBot && (
-                                  <Badge variant="secondary" className="text-xs">
-                                    {t("profile.bot")}
-                                  </Badge>
-                                )}
-                              </div>
-                              {conversation.lastMessageAt && (
-                                <p className="text-xs text-muted-foreground mt-1">
-                                  {formatDistanceToNow(new Date(conversation.lastMessageAt), {
-                                    addSuffix: true,
-                                    locale: dateLocale,
-                                  })}
-                                </p>
-                              )}
-                            </div>
-                          </div>
-                        </div>
-                      </CardContent>
-                    </Card>
-                  ))}
-                </div>
-              )}
-              
-              <div className="flex justify-center pt-4">
-                <Button
-                  variant="outline"
-                  onClick={() => setLocation("/chat")}
-                  data-testid="button-view-all-chats"
-                >
-                  {t("profile.viewAllChats")}
-                </Button>
-              </div>
-            </CardContent>
-          </Card>
-        </TabsContent>
-      </Tabs>
+      </div>
     </div>
   );
 }
