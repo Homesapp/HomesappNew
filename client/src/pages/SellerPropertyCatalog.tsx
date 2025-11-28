@@ -1296,13 +1296,13 @@ export default function SellerPropertyCatalog() {
                           <h3 className="font-semibold text-base line-clamp-1" data-testid={`text-unit-name-${unit.id}`}>
                             {unit.condominiumName || unit.name}
                           </h3>
-                          <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                          <div className="flex items-center justify-start gap-2 text-sm text-muted-foreground w-full">
                             {unit.unitNumber && (
                               <span className="font-medium text-foreground">#{unit.unitNumber}</span>
                             )}
                             <span className="flex items-center gap-1">
-                              <MapPin className="h-3.5 w-3.5" />
-                              {unit.zone || "Sin zona"}
+                              <MapPin className="h-3.5 w-3.5 flex-shrink-0" />
+                              <span className="truncate">{unit.zone || "Sin zona"}</span>
                             </span>
                           </div>
                         </div>
@@ -1533,13 +1533,13 @@ export default function SellerPropertyCatalog() {
                             <h3 className="font-semibold text-base line-clamp-1">
                               {unit.condominiumName || unit.name}
                             </h3>
-                            <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                            <div className="flex items-center justify-start gap-2 text-sm text-muted-foreground w-full">
                               {unit.unitNumber && (
                                 <span className="font-medium text-foreground">#{unit.unitNumber}</span>
                               )}
                               <span className="flex items-center gap-1">
-                                <MapPin className="h-3.5 w-3.5" />
-                                {unit.zone || "Sin zona"}
+                                <MapPin className="h-3.5 w-3.5 flex-shrink-0" />
+                                <span className="truncate">{unit.zone || "Sin zona"}</span>
                               </span>
                             </div>
                           </div>
