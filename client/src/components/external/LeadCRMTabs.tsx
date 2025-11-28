@@ -46,7 +46,13 @@ import {
   XCircle,
   ArrowRight,
   CreditCard,
+  Share2,
+  DollarSign,
+  Building2,
+  Eye,
+  ThumbsUp,
 } from "lucide-react";
+import { SiWhatsapp } from "react-icons/si";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { useToast } from "@/hooks/use-toast";
 import { queryClient, apiRequest } from "@/lib/queryClient";
@@ -124,6 +130,15 @@ export default function LeadCRMTabs({ lead }: LeadCRMTabsProps) {
     queryKey: ["/api/external-leads", lead.id, "status-history"],
     queryFn: async () => {
       const response = await fetch(`/api/external-leads/${lead.id}/status-history`, { credentials: 'include' });
+      if (!response.ok) return [];
+      return response.json();
+    },
+  });
+
+  const { data: propertyOffers, isLoading: offersLoading } = useQuery<any[]>({
+    queryKey: ["/api/external-seller/lead", lead.id, "property-offers"],
+    queryFn: async () => {
+      const response = await fetch(`/api/external-seller/lead/${lead.id}/property-offers`, { credentials: 'include' });
       if (!response.ok) return [];
       return response.json();
     },
@@ -209,10 +224,14 @@ export default function LeadCRMTabs({ lead }: LeadCRMTabsProps) {
   return (
     <div className="mt-4">
       <Tabs defaultValue="cards" className="w-full">
-        <TabsList className="w-full grid grid-cols-4 mb-4">
+        <TabsList className="w-full grid grid-cols-5 mb-4">
           <TabsTrigger value="cards" className="flex items-center gap-2" data-testid="tab-lead-cards">
             <CreditCard className="h-4 w-4" />
             <span className="hidden sm:inline">{language === "es" ? "Tarjetas" : "Cards"}</span>
+          </TabsTrigger>
+          <TabsTrigger value="offers" className="flex items-center gap-2" data-testid="tab-lead-offers">
+            <Share2 className="h-4 w-4" />
+            <span className="hidden sm:inline">{language === "es" ? "Enviadas" : "Sent"}</span>
           </TabsTrigger>
           <TabsTrigger value="activities" className="flex items-center gap-2" data-testid="tab-lead-activities">
             <Activity className="h-4 w-4" />
@@ -233,6 +252,90 @@ export default function LeadCRMTabs({ lead }: LeadCRMTabsProps) {
             leadId={lead.id} 
             personName={`${lead.firstName} ${lead.lastName}`}
           />
+        </TabsContent>
+
+        <TabsContent value="offers" className="space-y-4">
+          <div className="flex justify-between items-center">
+            <h4 className="font-medium text-sm">
+              {language === "es" ? "Propiedades Compartidas" : "Shared Properties"}
+            </h4>
+            <Badge variant="outline">
+              {propertyOffers?.length || 0} {language === "es" ? "enviadas" : "sent"}
+            </Badge>
+          </div>
+
+          {offersLoading ? (
+            <div className="space-y-3">
+              <Skeleton className="h-20 w-full" />
+              <Skeleton className="h-20 w-full" />
+            </div>
+          ) : propertyOffers && propertyOffers.length > 0 ? (
+            <div className="space-y-3 max-h-64 overflow-y-auto">
+              {propertyOffers.map((offer: any) => (
+                <Card key={offer.id} className="hover-elevate">
+                  <CardContent className="p-3">
+                    <div className="flex items-start gap-3">
+                      <div className="p-2 rounded-full bg-green-100 text-green-700 dark:bg-green-900/50 dark:text-green-300">
+                        <SiWhatsapp className="h-4 w-4" />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center justify-between gap-2 flex-wrap">
+                          <div className="flex items-center gap-2">
+                            <Building2 className="h-4 w-4 text-muted-foreground" />
+                            <span className="font-medium text-sm">{offer.unitName || language === "es" ? "Propiedad" : "Property"}</span>
+                          </div>
+                          <div className="flex items-center gap-1">
+                            {offer.isViewed && (
+                              <Badge variant="outline" className="text-xs gap-1">
+                                <Eye className="h-3 w-3" />
+                                {language === "es" ? "Vista" : "Viewed"}
+                              </Badge>
+                            )}
+                            {offer.isInterested && (
+                              <Badge variant="default" className="text-xs gap-1">
+                                <ThumbsUp className="h-3 w-3" />
+                                {language === "es" ? "Interesado" : "Interested"}
+                              </Badge>
+                            )}
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-4 mt-1 text-xs text-muted-foreground">
+                          {offer.unitZone && (
+                            <span>{offer.unitZone}</span>
+                          )}
+                          {offer.unitPrice && (
+                            <span className="flex items-center gap-1">
+                              <DollarSign className="h-3 w-3" />
+                              ${Number(offer.unitPrice).toLocaleString()}
+                            </span>
+                          )}
+                        </div>
+                        <div className="flex items-center gap-2 mt-2 text-xs text-muted-foreground">
+                          <Clock className="h-3 w-3" />
+                          {format(new Date(offer.sentAt), "d MMM yyyy HH:mm", { locale: language === "es" ? es : enUS })}
+                          {offer.sellerName && (
+                            <span className="text-muted-foreground">
+                              • {language === "es" ? "por" : "by"} {offer.sellerName}
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+          ) : (
+            <div className="text-center py-8 text-muted-foreground">
+              <Share2 className="h-8 w-8 mx-auto mb-2 opacity-50" />
+              <p>{language === "es" ? "No se han compartido propiedades" : "No properties shared yet"}</p>
+              <p className="text-xs mt-1">
+                {language === "es" 
+                  ? "Las propiedades compartidas vía WhatsApp aparecerán aquí" 
+                  : "Properties shared via WhatsApp will appear here"}
+              </p>
+            </div>
+          )}
         </TabsContent>
 
         <TabsContent value="activities" className="space-y-4">

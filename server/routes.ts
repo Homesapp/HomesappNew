@@ -25557,16 +25557,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
         conditions.push(eq(externalUnits.bedrooms, parseInt(bedrooms as string)));
       }
       if (zone) {
-        conditions.push(ilike(externalUnits.zone, \`%\${zone}%\`));
+        conditions.push(ilike(externalUnits.zone, `%\${zone}%`));
       }
       if (propertyType) {
         conditions.push(eq(externalUnits.unitType, propertyType as string));
       }
       if (search) {
         conditions.push(or(
-          ilike(externalUnits.name, \`%\${search}%\`),
-          ilike(externalUnits.zone, \`%\${search}%\`),
-          ilike(externalUnits.unitType, \`%\${search}%\`)
+          ilike(externalUnits.name, `%\${search}%`),
+          ilike(externalUnits.zone, `%\${search}%`),
+          ilike(externalUnits.unitType, `%\${search}%`)
         ));
       }
 
@@ -25590,7 +25590,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           .orderBy(desc(externalUnits.createdAt))
           .limit(parseInt(limit as string))
           .offset(parseInt(offset as string)),
-        db.select({ count: sql<number>\`count(*)\` })
+        db.select({ count: sql<number>`count(*)` })
           .from(externalUnits)
           .where(and(...conditions))
       ]);
@@ -25643,16 +25643,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Generate WhatsApp link
       let whatsappMessage = message;
       if (!whatsappMessage && unit) {
-        whatsappMessage = \`Hola \${lead?.firstName || ''}! Te comparto esta propiedad que puede interesarte:\n\n\` +
-          \`📍 \${unit.name}\n\` +
-          \`🏠 \${unit.unitType || 'Propiedad'} - \${unit.bedrooms || 0} recámaras\n\` +
-          \`💰 $\${unit.monthlyRent?.toLocaleString() || 'Consultar'} \${unit.currency || 'MXN'}/mes\n\` +
-          \`📍 \${unit.zone || ''}\n\n\` +
-          \`¿Te gustaría agendar una visita?\`;
+        whatsappMessage = `Hola \${lead?.firstName || ''}! Te comparto esta propiedad que puede interesarte:\n\n` +
+          `📍 \${unit.name}\n` +
+          `🏠 \${unit.unitType || 'Propiedad'} - \${unit.bedrooms || 0} recámaras\n` +
+          `💰 $\${unit.monthlyRent?.toLocaleString() || 'Consultar'} \${unit.currency || 'MXN'}/mes\n` +
+          `📍 \${unit.zone || ''}\n\n` +
+          `¿Te gustaría agendar una visita?`;
       }
 
       const phone = lead?.phone?.replace(/\D/g, '') || '';
-      const whatsappUrl = \`https://wa.me/\${phone}?text=\${encodeURIComponent(whatsappMessage || '')}\`;
+      const whatsappUrl = `https://wa.me/\${phone}?text=\${encodeURIComponent(whatsappMessage || '')}`;
 
       res.json({
         success: true,
@@ -26192,9 +26192,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       // Get leads stats
       const [leadsStats] = await db.select({
-        total: sql<number>\`count(*)\`,
-        converted: sql<number>\`count(*) filter (where \${externalLeads.status} = 'converted' or \${externalLeads.status} = 'renta_concretada')\`,
-        thisMonth: sql<number>\`count(*) filter (where \${externalLeads.createdAt} >= \${startOfMonth})\`,
+        total: sql<number>`count(*)`,
+        converted: sql<number>`count(*) filter (where \${externalLeads.status} = 'converted' or \${externalLeads.status} = 'renta_concretada')`,
+        thisMonth: sql<number>`count(*) filter (where \${externalLeads.createdAt} >= \${startOfMonth})`,
       })
         .from(externalLeads)
         .where(and(
@@ -26204,9 +26204,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       // Get properties shared count
       const [offersStats] = await db.select({
-        totalSent: sql<number>\`count(*)\`,
-        thisMonth: sql<number>\`count(*) filter (where \${externalLeadPropertyOffers.sentAt} >= \${startOfMonth})\`,
-        interested: sql<number>\`count(*) filter (where \${externalLeadPropertyOffers.isInterested} = true)\`,
+        totalSent: sql<number>`count(*)`,
+        thisMonth: sql<number>`count(*) filter (where \${externalLeadPropertyOffers.sentAt} >= \${startOfMonth})`,
+        interested: sql<number>`count(*) filter (where \${externalLeadPropertyOffers.isInterested} = true)`,
       })
         .from(externalLeadPropertyOffers)
         .where(and(
@@ -26216,8 +26216,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       // Get pending follow-ups
       const [followUpStats] = await db.select({
-        pending: sql<number>\`count(*) filter (where \${sellerFollowUpTasks.status} = 'pending')\`,
-        overdue: sql<number>\`count(*) filter (where \${sellerFollowUpTasks.status} = 'pending' and \${sellerFollowUpTasks.dueDate} < \${now})\`,
+        pending: sql<number>`count(*) filter (where \${sellerFollowUpTasks.status} = 'pending')`,
+        overdue: sql<number>`count(*) filter (where \${sellerFollowUpTasks.status} = 'pending' and \${sellerFollowUpTasks.dueDate} < \${now})`,
       })
         .from(sellerFollowUpTasks)
         .where(and(
@@ -26299,7 +26299,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           leadId: lead.id,
           dueDate,
           priority: 'medium',
-          reason: \`Sin contacto en \${inactiveDays}+ días\`,
+          reason: `Sin contacto en \${inactiveDays}+ días`,
           autoGenerated: true,
           lastContactedAt: lead.updatedAt,
         }).returning();

@@ -24,8 +24,14 @@ import {
   AlertCircle,
   Percent,
   UserPlus,
-  Activity
+  Activity,
+  Home,
+  MessageSquare,
+  Bell,
+  Share2,
+  BarChart3
 } from "lucide-react";
+import { Button } from "@/components/ui/button";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { useAuth } from "@/hooks/useAuth";
 import { Link } from "wouter";
@@ -114,6 +120,32 @@ function SellerDashboard() {
     staleTime: 2 * 60 * 1000,
   });
 
+  const { data: sellerMetrics } = useQuery<{
+    leads: { total: number; converted: number; thisMonth: number; conversionRate: number };
+    propertiesSent: { total: number; thisMonth: number; interested: number };
+    followUps: { pending: number; overdue: number };
+  }>({
+    queryKey: ['/api/external-seller/metrics'],
+    staleTime: 2 * 60 * 1000,
+  });
+
+  const { data: followUps } = useQuery<{
+    tasks: Array<{
+      id: string;
+      leadFirstName: string;
+      leadLastName: string;
+      leadPhone: string;
+      dueDate: string;
+      priority: string;
+      reason: string;
+    }>;
+    overdueCount: number;
+    totalPending: number;
+  }>({
+    queryKey: ['/api/external-seller/follow-ups'],
+    staleTime: 60 * 1000,
+  });
+
   const stats = summary || {
     totalLeads: 0,
     leadsByStatus: {},
@@ -135,26 +167,25 @@ function SellerDashboard() {
       count: stats.totalLeads,
     },
     {
-      title: language === "es" ? "Propiedades" : "Properties",
-      description: language === "es" ? "Catálogo de propiedades" : "Property catalog",
-      icon: Building2,
-      href: "/external/condominiums",
+      title: language === "es" ? "Catálogo" : "Catalog",
+      description: language === "es" ? "Buscar y compartir propiedades" : "Search and share properties",
+      icon: Home,
+      href: "/external/seller-catalog",
       color: "text-indigo-600",
     },
     {
-      title: language === "es" ? "Calendario" : "Calendar",
-      description: language === "es" ? "Ver citas y visitas" : "View appointments and showings",
-      icon: Calendar,
-      href: "/external/calendar",
-      color: "text-purple-600",
-      count: stats.todayShowings,
+      title: language === "es" ? "Plantillas" : "Templates",
+      description: language === "es" ? "Mensajes de WhatsApp" : "WhatsApp messages",
+      icon: MessageSquare,
+      href: "/external/seller-templates",
+      color: "text-green-600",
     },
     {
-      title: language === "es" ? "Citas" : "Appointments",
-      description: language === "es" ? "Gestionar citas" : "Manage appointments",
-      icon: Clock,
-      href: "/external-appointments",
-      color: "text-green-600",
+      title: language === "es" ? "Reportes" : "Reports",
+      description: language === "es" ? "Ver mi rendimiento" : "View my performance",
+      icon: BarChart3,
+      href: "/external/seller-reports",
+      color: "text-purple-600",
     },
   ];
 
@@ -244,23 +275,53 @@ function SellerDashboard() {
           </CardContent>
         </Card>
 
-        <Card data-testid="card-upcoming-showings">
+        <Card data-testid="card-properties-sent">
           <CardHeader className="flex flex-row items-center justify-between gap-2 space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">
-              {language === "es" ? "Próximas Visitas" : "Upcoming Showings"}
+              {language === "es" ? "Propiedades Enviadas" : "Properties Sent"}
             </CardTitle>
-            <Calendar className="h-4 w-4 text-muted-foreground" />
+            <Share2 className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
             {isLoading ? (
               <Skeleton className="h-8 w-16" />
             ) : (
               <>
-                <div className="text-2xl font-bold" data-testid="text-upcoming-showings">
-                  {stats.upcomingShowings.length}
+                <div className="text-2xl font-bold" data-testid="text-properties-sent">
+                  {sellerMetrics?.propertiesSent.total || 0}
                 </div>
                 <p className="text-xs text-muted-foreground mt-1">
-                  {language === "es" ? "Próximos 7 días" : "Next 7 days"}
+                  {sellerMetrics?.propertiesSent.thisMonth || 0} {language === "es" ? "este mes" : "this month"}
+                </p>
+              </>
+            )}
+          </CardContent>
+        </Card>
+
+        <Card data-testid="card-follow-ups">
+          <CardHeader className="flex flex-row items-center justify-between gap-2 space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">
+              {language === "es" ? "Seguimientos" : "Follow-ups"}
+            </CardTitle>
+            <Bell className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            {isLoading ? (
+              <Skeleton className="h-8 w-16" />
+            ) : (
+              <>
+                <div className="flex items-center gap-2">
+                  <span className="text-2xl font-bold" data-testid="text-follow-ups">
+                    {followUps?.totalPending || 0}
+                  </span>
+                  {(followUps?.overdueCount || 0) > 0 && (
+                    <Badge variant="destructive" className="text-xs">
+                      {followUps?.overdueCount} {language === "es" ? "vencidos" : "overdue"}
+                    </Badge>
+                  )}
+                </div>
+                <p className="text-xs text-muted-foreground mt-1">
+                  {language === "es" ? "Pendientes de contactar" : "Pending to contact"}
                 </p>
               </>
             )}
@@ -320,6 +381,71 @@ function SellerDashboard() {
           ))}
         </div>
       </div>
+
+      {/* Follow-up Reminders */}
+      {(followUps?.tasks?.length || 0) > 0 && (
+        <Card data-testid="card-followup-reminders" className="border-amber-200 dark:border-amber-800">
+          <CardHeader className="pb-2">
+            <div className="flex items-center justify-between gap-2">
+              <CardTitle className="text-lg flex items-center gap-2">
+                <Bell className="h-5 w-5 text-amber-600" />
+                {language === "es" ? "Seguimientos Pendientes" : "Pending Follow-ups"}
+              </CardTitle>
+              {(followUps?.overdueCount || 0) > 0 && (
+                <Badge variant="destructive">
+                  {followUps?.overdueCount} {language === "es" ? "vencidos" : "overdue"}
+                </Badge>
+              )}
+            </div>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-2">
+              {followUps?.tasks?.slice(0, 5).map((task) => {
+                const isOverdue = new Date(task.dueDate) < new Date();
+                return (
+                  <div 
+                    key={task.id}
+                    className={`flex items-center justify-between p-3 rounded-lg border ${
+                      isOverdue ? 'border-red-200 bg-red-50 dark:border-red-900 dark:bg-red-950/30' : ''
+                    }`}
+                    data-testid={`followup-item-${task.id}`}
+                  >
+                    <div className="flex items-center gap-3 min-w-0">
+                      <div className={`h-8 w-8 rounded-full flex items-center justify-center shrink-0 ${
+                        isOverdue ? 'bg-red-100 dark:bg-red-900' : 'bg-amber-100 dark:bg-amber-900'
+                      }`}>
+                        {isOverdue ? (
+                          <AlertCircle className="h-4 w-4 text-red-600 dark:text-red-400" />
+                        ) : (
+                          <Clock className="h-4 w-4 text-amber-600 dark:text-amber-400" />
+                        )}
+                      </div>
+                      <div className="min-w-0">
+                        <p className="font-medium text-sm truncate">
+                          {task.leadFirstName} {task.leadLastName}
+                        </p>
+                        <p className="text-xs text-muted-foreground truncate">
+                          {task.reason || (language === "es" ? "Seguimiento pendiente" : "Pending follow-up")}
+                        </p>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <span className={`text-xs ${isOverdue ? 'text-red-600' : 'text-muted-foreground'}`}>
+                        {format(new Date(task.dueDate), "d MMM", { locale: dateLocale })}
+                      </span>
+                      <Link href={`/external/clients`}>
+                        <Button size="sm" variant="outline" className="h-7 text-xs">
+                          {language === "es" ? "Ver" : "View"}
+                        </Button>
+                      </Link>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       <div className="grid gap-6 md:grid-cols-2">
         {/* Upcoming Showings */}
