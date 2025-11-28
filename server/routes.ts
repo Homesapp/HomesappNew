@@ -25557,16 +25557,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
         conditions.push(eq(externalUnits.bedrooms, parseInt(bedrooms as string)));
       }
       if (zone) {
-        conditions.push(ilike(externalUnits.zone, `%\${zone}%`));
+        conditions.push(ilike(externalUnits.zone, '%' + (zone as string) + '%'));
       }
       if (propertyType) {
         conditions.push(eq(externalUnits.unitType, propertyType as string));
       }
       if (search) {
         conditions.push(or(
-          ilike(externalUnits.name, `%\${search}%`),
-          ilike(externalUnits.zone, `%\${search}%`),
-          ilike(externalUnits.unitType, `%\${search}%`)
+          ilike(externalUnits.name, '%' + (search as string) + '%'),
+          ilike(externalUnits.zone, '%' + (search as string) + '%'),
+          ilike(externalUnits.unitType, '%' + (search as string) + '%')
         ));
       }
 
@@ -26190,11 +26190,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const now = new Date();
       const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
 
-      // Get leads stats
-      const [leadsStats] = await db.select({
-        total: sql<number>`count(*)`,
-        converted: sql<number>`count(*) filter (where \${externalLeads.status} = 'converted' or \${externalLeads.status} = 'renta_concretada')`,
-        thisMonth: sql<number>`count(*) filter (where \${externalLeads.createdAt} >= \${startOfMonth})`,
+      // Get total leads
+      const [totalResult] = await db.select({
+        count: sql<number>`count(*)`
       })
         .from(externalLeads)
         .where(and(
@@ -26202,11 +26200,34 @@ export async function registerRoutes(app: Express): Promise<Server> {
           eq(externalLeads.assignedToId, sellerId)
         ));
 
-      // Get properties shared count
-      const [offersStats] = await db.select({
-        totalSent: sql<number>`count(*)`,
-        thisMonth: sql<number>`count(*) filter (where \${externalLeadPropertyOffers.sentAt} >= \${startOfMonth})`,
-        interested: sql<number>`count(*) filter (where \${externalLeadPropertyOffers.isInterested} = true)`,
+      // Get converted leads
+      const [convertedResult] = await db.select({
+        count: sql<number>`count(*)`
+      })
+        .from(externalLeads)
+        .where(and(
+          eq(externalLeads.agencyId, agencyId),
+          eq(externalLeads.assignedToId, sellerId),
+          or(
+            eq(externalLeads.status, 'convertido'),
+            eq(externalLeads.status, 'renta_concretada')
+          )
+        ));
+
+      // Get this month leads
+      const [thisMonthResult] = await db.select({
+        count: sql<number>`count(*)`
+      })
+        .from(externalLeads)
+        .where(and(
+          eq(externalLeads.agencyId, agencyId),
+          eq(externalLeads.assignedToId, sellerId),
+          gte(externalLeads.createdAt, startOfMonth)
+        ));
+
+      // Get total properties sent
+      const [offersTotal] = await db.select({
+        count: sql<number>`count(*)`
       })
         .from(externalLeadPropertyOffers)
         .where(and(
@@ -26214,37 +26235,71 @@ export async function registerRoutes(app: Express): Promise<Server> {
           eq(externalLeadPropertyOffers.sellerId, sellerId)
         ));
 
+      // Get this month properties sent
+      const [offersThisMonth] = await db.select({
+        count: sql<number>`count(*)`
+      })
+        .from(externalLeadPropertyOffers)
+        .where(and(
+          eq(externalLeadPropertyOffers.agencyId, agencyId),
+          eq(externalLeadPropertyOffers.sellerId, sellerId),
+          gte(externalLeadPropertyOffers.sentAt, startOfMonth)
+        ));
+
+      // Get interested count
+      const [offersInterested] = await db.select({
+        count: sql<number>`count(*)`
+      })
+        .from(externalLeadPropertyOffers)
+        .where(and(
+          eq(externalLeadPropertyOffers.agencyId, agencyId),
+          eq(externalLeadPropertyOffers.sellerId, sellerId),
+          eq(externalLeadPropertyOffers.isInterested, true)
+        ));
+
       // Get pending follow-ups
-      const [followUpStats] = await db.select({
-        pending: sql<number>`count(*) filter (where \${sellerFollowUpTasks.status} = 'pending')`,
-        overdue: sql<number>`count(*) filter (where \${sellerFollowUpTasks.status} = 'pending' and \${sellerFollowUpTasks.dueDate} < \${now})`,
+      const [pendingFollowUps] = await db.select({
+        count: sql<number>`count(*)`
       })
         .from(sellerFollowUpTasks)
         .where(and(
           eq(sellerFollowUpTasks.agencyId, agencyId),
-          eq(sellerFollowUpTasks.sellerId, sellerId)
+          eq(sellerFollowUpTasks.sellerId, sellerId),
+          eq(sellerFollowUpTasks.status, 'pending')
+        ));
+
+      // Get overdue follow-ups
+      const [overdueFollowUps] = await db.select({
+        count: sql<number>`count(*)`
+      })
+        .from(sellerFollowUpTasks)
+        .where(and(
+          eq(sellerFollowUpTasks.agencyId, agencyId),
+          eq(sellerFollowUpTasks.sellerId, sellerId),
+          eq(sellerFollowUpTasks.status, 'pending'),
+          lt(sellerFollowUpTasks.dueDate, now)
         ));
 
       // Calculate conversion rate
-      const totalLeads = Number(leadsStats?.total || 0);
-      const convertedLeads = Number(leadsStats?.converted || 0);
+      const totalLeads = Number(totalResult?.count || 0);
+      const convertedLeads = Number(convertedResult?.count || 0);
       const conversionRate = totalLeads > 0 ? (convertedLeads / totalLeads) * 100 : 0;
 
       res.json({
         leads: {
           total: totalLeads,
           converted: convertedLeads,
-          thisMonth: Number(leadsStats?.thisMonth || 0),
+          thisMonth: Number(thisMonthResult?.count || 0),
           conversionRate: Math.round(conversionRate * 10) / 10,
         },
         propertiesSent: {
-          total: Number(offersStats?.totalSent || 0),
-          thisMonth: Number(offersStats?.thisMonth || 0),
-          interested: Number(offersStats?.interested || 0),
+          total: Number(offersTotal?.count || 0),
+          thisMonth: Number(offersThisMonth?.count || 0),
+          interested: Number(offersInterested?.count || 0),
         },
         followUps: {
-          pending: Number(followUpStats?.pending || 0),
-          overdue: Number(followUpStats?.overdue || 0),
+          pending: Number(pendingFollowUps?.count || 0),
+          overdue: Number(overdueFollowUps?.count || 0),
         },
       });
     } catch (error: any) {
@@ -26252,8 +26307,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       handleGenericError(res, error);
     }
   });
-
-  // POST /api/external-seller/auto-generate-follow-ups - Auto-generate follow-ups for inactive leads
   app.post("/api/external-seller/auto-generate-follow-ups", isAuthenticated, requireRole(['external_agency_seller', ...EXTERNAL_ADMIN_ROLES]), async (req: any, res) => {
     try {
       const agencyId = await getUserAgencyId(req);
