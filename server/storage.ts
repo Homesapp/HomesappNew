@@ -10145,7 +10145,7 @@ export class DatabaseStorage implements IStorage {
       conditions.push(eq(externalLeads.registrationType, filters.registrationType));
     }
     if (filters?.sellerId) {
-      conditions.push(or(eq(externalLeads.sellerId, filters.sellerId), eq(externalLeads.assignedSellerId, filters.sellerId))!);
+      conditions.push(eq(externalLeads.sellerId, filters.sellerId));
     }
     if (filters?.expiringDays) {
       const EXPIRY_DAYS = 90;
@@ -10218,7 +10218,7 @@ export class DatabaseStorage implements IStorage {
       conditions.push(eq(externalLeads.registrationType, filters.registrationType));
     }
     if (filters?.sellerId) {
-      conditions.push(or(eq(externalLeads.sellerId, filters.sellerId), eq(externalLeads.assignedSellerId, filters.sellerId))!);
+      conditions.push(eq(externalLeads.sellerId, filters.sellerId));
     }
     if (filters?.expiringDays) {
       const EXPIRY_DAYS = 90;

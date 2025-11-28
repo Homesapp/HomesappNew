@@ -1050,8 +1050,7 @@ export default function ExternalClients() {
   };
 
   const handleLeadClick = (lead: ExternalLead) => {
-    setSelectedLead(lead);
-    setIsLeadDetailOpen(true);
+    navigate(`/external/leads/${lead.id}`);
   };
 
   const SortableHeader = ({ field, children }: { field: SortField; children: string }) => (
