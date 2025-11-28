@@ -25591,6 +25591,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
           amenities: externalUnits.amenities,
           condominiumId: externalUnits.condominiumId,
           condominiumName: externalCondominiums.name,
+          squareMeters: externalUnits.area,
+          description: externalUnits.description,
+          petsAllowed: externalUnits.petFriendly,
         })
           .from(externalUnits)
           .leftJoin(externalCondominiums, eq(externalUnits.condominiumId, externalCondominiums.id))
@@ -35337,6 +35340,9 @@ ${{precio}}/mes
             unitNumber: externalUnits.unitNumber,
             condominiumId: externalUnits.condominiumId,
             condominiumName: externalCondominiums.name,
+          squareMeters: externalUnits.area,
+          description: externalUnits.description,
+          petsAllowed: externalUnits.petFriendly,
             zone: externalUnits.zone,
             typology: externalUnits.typology,
             propertyType: externalUnits.propertyType,

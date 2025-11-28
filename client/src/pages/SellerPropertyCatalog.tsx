@@ -48,7 +48,10 @@ import {
   Sparkles,
   Send,
   ChevronDown,
-  ChevronUp
+  ChevronUp,
+  Loader2,
+  Maximize2,
+  Square
 } from "lucide-react";
 import { SiWhatsapp } from "react-icons/si";
 
@@ -67,6 +70,11 @@ interface Unit {
   amenities: string[] | null;
   condominiumId: string | null;
   condominiumName: string | null;
+  squareMeters: number | null;
+  hasFurniture: boolean | null;
+  hasParking: boolean | null;
+  petsAllowed: boolean | null;
+  description: string | null;
 }
 
 interface Lead {
@@ -198,8 +206,11 @@ export default function SellerPropertyCatalog() {
   const [leadsPanelExpanded, setLeadsPanelExpanded] = useState(true);
   const [leadStatusFilter, setLeadStatusFilter] = useState<string>("all");
   const [previousDataLength, setPreviousDataLength] = useState<number>(0);
+  const [page, setPage] = useState(1);
+  const [allUnits, setAllUnits] = useState<Unit[]>([]);
+  const ITEMS_PER_PAGE = 50;
 
-  const buildQueryString = () => {
+  const buildQueryString = (pageNum: number = page) => {
     const params = new URLSearchParams();
     if (search) params.append("search", search);
     if (filters.minPrice) params.append("minPrice", filters.minPrice);
@@ -208,18 +219,41 @@ export default function SellerPropertyCatalog() {
     if (filters.zone) params.append("zone", filters.zone);
     if (filters.propertyType) params.append("propertyType", filters.propertyType);
     if (filters.status) params.append("status", filters.status);
+    params.append("limit", String(ITEMS_PER_PAGE));
+    params.append("offset", String((pageNum - 1) * ITEMS_PER_PAGE));
     return params.toString();
   };
 
-  const { data: catalogData, isLoading } = useQuery<{ data: Unit[]; total: number }>({
-    queryKey: ["/api/external-seller/property-catalog", search, filters],
+  const { data: catalogData, isLoading, isFetching } = useQuery<{ data: Unit[]; total: number }>({
+    queryKey: ["/api/external-seller/property-catalog", search, filters, page],
     queryFn: async () => {
-      const qs = buildQueryString();
+      const qs = buildQueryString(page);
       const res = await fetch(`/api/external-seller/property-catalog?${qs}`);
       if (!res.ok) throw new Error("Failed to fetch properties");
       return res.json();
     },
   });
+
+  // Update allUnits when data changes
+  useEffect(() => {
+    if (catalogData?.data) {
+      if (page === 1) {
+        setAllUnits(catalogData.data);
+      } else {
+        setAllUnits(prev => {
+          const existingIds = new Set(prev.map(u => u.id));
+          const newUnits = catalogData.data.filter(u => !existingIds.has(u.id));
+          return [...prev, ...newUnits];
+        });
+      }
+    }
+  }, [catalogData?.data, page]);
+
+  // Reset pagination when filters change
+  useEffect(() => {
+    setPage(1);
+    setAllUnits([]);
+  }, [search, filters]);
 
   const { data: leadsData, isLoading: leadsLoading } = useQuery<{ data: Lead[] }>({
     queryKey: ["/api/external-leads"],
@@ -278,7 +312,9 @@ export default function SellerPropertyCatalog() {
     },
   });
 
-  const units = catalogData?.data || [];
+  const units = allUnits;
+  const totalUnits = catalogData?.total || 0;
+  const hasMore = units.length < totalUnits;
   const allLeads = leadsData?.data || [];
   
   useEffect(() => {
@@ -934,10 +970,11 @@ export default function SellerPropertyCatalog() {
               )}
             </Card>
           ) : viewMode === "grid" ? (
-            <div className="grid gap-3 sm:gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+            <div className="grid gap-4 sm:gap-5 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4">
               {units.map((unit) => (
-                <Card key={unit.id} className="group overflow-hidden" data-testid={`card-property-${unit.id}`}>
-                  <div className="relative h-36 sm:h-40 bg-muted">
+                <Card key={unit.id} className="group overflow-hidden flex flex-col" data-testid={`card-property-${unit.id}`}>
+                  {/* Image Section - Larger */}
+                  <div className="relative h-48 sm:h-56 bg-muted">
                     {unit.images && unit.images.length > 0 ? (
                       <img
                         src={unit.images[0]}
@@ -946,70 +983,114 @@ export default function SellerPropertyCatalog() {
                       />
                     ) : (
                       <div className="flex h-full items-center justify-center bg-gradient-to-br from-muted to-muted-foreground/10">
-                        <Home className="h-12 w-12 text-muted-foreground/30" />
+                        <Home className="h-16 w-16 text-muted-foreground/30" />
                       </div>
                     )}
+                    {/* Status Badge */}
                     <Badge
                       className="absolute left-2 top-2"
                       variant={unit.status === "active" ? "default" : "secondary"}
                     >
                       {unit.status === "active" ? "Disponible" : "Rentada"}
                     </Badge>
+                    {/* Image count badge */}
+                    {unit.images && unit.images.length > 1 && (
+                      <Badge 
+                        variant="secondary" 
+                        className="absolute right-2 top-2 bg-black/60 text-white border-0"
+                      >
+                        {unit.images.length} fotos
+                      </Badge>
+                    )}
                   </div>
 
-                  <CardContent className="p-3">
-                    {/* Condominium and Unit Number */}
-                    <div className="mb-1 flex items-center gap-1 text-xs font-medium">
-                      <Building2 className="h-3 w-3 flex-shrink-0 text-primary" />
-                      <span className="line-clamp-1">
-                        {unit.condominiumName || "Sin condominio"}
+                  <CardContent className="p-4 flex-1 flex flex-col">
+                    {/* Price - Prominent */}
+                    <div className="mb-3 flex items-baseline gap-1">
+                      <span className="text-2xl font-bold text-primary">
+                        ${unit.monthlyRent?.toLocaleString() || "—"}
                       </span>
-                    </div>
-                    <h3 className="mb-1 line-clamp-1 text-sm font-semibold" data-testid={`text-unit-name-${unit.id}`}>
-                      {unit.unitNumber ? `Unidad ${unit.unitNumber}` : unit.name}
-                    </h3>
-                    <div className="mb-2 flex items-center gap-1 text-xs text-muted-foreground">
-                      <MapPin className="h-3 w-3 flex-shrink-0" />
-                      <span className="line-clamp-1">{unit.zone || "Sin zona"}</span>
-                    </div>
-
-                    <div className="mb-2 flex flex-wrap gap-1">
-                      {unit.unitType && (
-                        <Badge variant="outline" className="gap-1 text-xs">
-                          <Home className="h-2.5 w-2.5" />
-                          {unit.unitType}
-                        </Badge>
-                      )}
-                      {unit.bedrooms && (
-                        <Badge variant="outline" className="gap-1 text-xs">
-                          <Bed className="h-2.5 w-2.5" />
-                          {unit.bedrooms}
-                        </Badge>
-                      )}
-                      {unit.bathrooms && (
-                        <Badge variant="outline" className="gap-1 text-xs">
-                          <Bath className="h-2.5 w-2.5" />
-                          {unit.bathrooms}
-                        </Badge>
-                      )}
-                    </div>
-
-                    <div className="flex items-center gap-1 text-base font-bold text-primary">
-                      <span>$</span>
-                      <span>
-                        {unit.monthlyRent?.toLocaleString() || "—"}
-                      </span>
-                      <span className="text-xs font-normal text-muted-foreground">
+                      <span className="text-sm text-muted-foreground">
                         {unit.currency || "MXN"}/mes
                       </span>
                     </div>
+
+                    {/* Condominium */}
+                    <div className="mb-2 flex items-center gap-2">
+                      <Building2 className="h-4 w-4 flex-shrink-0 text-primary" />
+                      <span className="font-medium line-clamp-1">
+                        {unit.condominiumName || "Sin condominio"}
+                      </span>
+                    </div>
+
+                    {/* Unit Name/Number */}
+                    <h3 className="mb-2 line-clamp-1 text-base font-semibold" data-testid={`text-unit-name-${unit.id}`}>
+                      {unit.unitNumber ? `Unidad ${unit.unitNumber}` : unit.name}
+                    </h3>
+
+                    {/* Location */}
+                    <div className="mb-3 flex items-center gap-2 text-sm text-muted-foreground">
+                      <MapPin className="h-4 w-4 flex-shrink-0" />
+                      <span className="line-clamp-1">{unit.zone || "Sin zona"}</span>
+                    </div>
+
+                    {/* Property Details Grid */}
+                    <div className="mb-3 grid grid-cols-3 gap-2 text-center">
+                      <div className="rounded-lg bg-muted/50 p-2">
+                        <Bed className="mx-auto h-4 w-4 text-muted-foreground mb-1" />
+                        <p className="text-sm font-medium">{unit.bedrooms || "—"}</p>
+                        <p className="text-xs text-muted-foreground">Recámaras</p>
+                      </div>
+                      <div className="rounded-lg bg-muted/50 p-2">
+                        <Bath className="mx-auto h-4 w-4 text-muted-foreground mb-1" />
+                        <p className="text-sm font-medium">{unit.bathrooms || "—"}</p>
+                        <p className="text-xs text-muted-foreground">Baños</p>
+                      </div>
+                      <div className="rounded-lg bg-muted/50 p-2">
+                        <Maximize2 className="mx-auto h-4 w-4 text-muted-foreground mb-1" />
+                        <p className="text-sm font-medium">{unit.squareMeters ? `${unit.squareMeters}` : "—"}</p>
+                        <p className="text-xs text-muted-foreground">m²</p>
+                      </div>
+                    </div>
+
+                    {/* Property Type & Amenities */}
+                    <div className="mb-3 flex flex-wrap gap-1.5">
+                      {unit.unitType && (
+                        <Badge variant="outline" className="gap-1 text-xs">
+                          <Home className="h-3 w-3" />
+                          {unit.unitType}
+                        </Badge>
+                      )}
+                      {unit.hasFurniture && (
+                        <Badge variant="outline" className="gap-1 text-xs">
+                          Amueblado
+                        </Badge>
+                      )}
+                      {unit.hasParking && (
+                        <Badge variant="outline" className="gap-1 text-xs">
+                          Estacionamiento
+                        </Badge>
+                      )}
+                      {unit.petsAllowed && (
+                        <Badge variant="outline" className="gap-1 text-xs">
+                          <PawPrint className="h-3 w-3" />
+                          Mascotas
+                        </Badge>
+                      )}
+                    </div>
+
+                    {/* Description Preview */}
+                    {unit.description && (
+                      <p className="text-xs text-muted-foreground line-clamp-2 mb-3">
+                        {unit.description}
+                      </p>
+                    )}
                   </CardContent>
 
-                  <CardFooter className="flex gap-2 border-t p-2">
+                  <CardFooter className="flex gap-2 border-t p-3 mt-auto">
                     {selectedLead ? (
                       <Button
-                        size="sm"
-                        className="flex-1 gap-1 h-10"
+                        className="flex-1 gap-2 h-11"
                         onClick={() => handleDirectWhatsApp(unit, selectedLead)}
                         data-testid={`button-whatsapp-${unit.id}`}
                       >
@@ -1020,21 +1101,19 @@ export default function SellerPropertyCatalog() {
                       <>
                         <Button
                           variant="outline"
-                          size="sm"
-                          className="flex-1 gap-1 h-10"
+                          className="flex-1 gap-2 h-11"
                           onClick={() => handleFindMatches(unit)}
                           data-testid={`button-find-matches-${unit.id}`}
                         >
-                          <Users className="h-3.5 w-3.5" />
+                          <Users className="h-4 w-4" />
                           Leads
                         </Button>
                         <Button
-                          size="sm"
-                          className="flex-1 gap-1 h-10"
+                          className="flex-1 gap-2 h-11"
                           onClick={() => handleShareClick(unit)}
                           data-testid={`button-share-${unit.id}`}
                         >
-                          <SiWhatsapp className="h-3.5 w-3.5" />
+                          <SiWhatsapp className="h-4 w-4" />
                           Compartir
                         </Button>
                       </>
@@ -1145,6 +1224,31 @@ export default function SellerPropertyCatalog() {
                   </div>
                 </Card>
               ))}
+            </div>
+          )}
+
+          {/* Load More Button */}
+          {hasMore && !isLoading && (
+            <div className="flex justify-center py-6">
+              <Button
+                variant="outline"
+                size="lg"
+                onClick={() => setPage(p => p + 1)}
+                disabled={isFetching}
+                className="gap-2 min-w-[200px] h-12"
+                data-testid="button-load-more"
+              >
+                {isFetching ? (
+                  <>
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                    Cargando...
+                  </>
+                ) : (
+                  <>
+                    Cargar más ({units.length} de {totalUnits})
+                  </>
+                )}
+              </Button>
             </div>
           )}
         </ScrollArea>
