@@ -25606,6 +25606,60 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // GET /api/external-seller/my-leads - Get leads assigned to current seller with search preferences
+  app.get("/api/external-seller/my-leads", isAuthenticated, requireRole(['external_agency_seller', ...EXTERNAL_ADMIN_ROLES]), async (req: any, res) => {
+    try {
+      const agencyId = await getUserAgencyId(req);
+      if (!agencyId) {
+        return res.status(400).json({ message: "User is not assigned to any agency" });
+      }
+
+      const sellerId = req.user?.id;
+      if (!sellerId) {
+        return res.status(401).json({ message: "User not authenticated" });
+      }
+
+      const { limit = '50', offset = '0', status } = req.query;
+
+      const conditions: any[] = [
+        eq(externalLeads.agencyId, agencyId),
+        eq(externalLeads.sellerId, sellerId),
+        ne(externalLeads.status, 'proceso_renta'),
+      ];
+
+      if (status) {
+        conditions.push(eq(externalLeads.status, status as string));
+      }
+
+      const leads = await db.select({
+        id: externalLeads.id,
+        firstName: externalLeads.firstName,
+        lastName: externalLeads.lastName,
+        phone: externalLeads.phone,
+        email: externalLeads.email,
+        status: externalLeads.status,
+        estimatedRentCost: externalLeads.estimatedRentCost,
+        estimatedRentCostText: externalLeads.estimatedRentCostText,
+        bedrooms: externalLeads.bedrooms,
+        bedroomsText: externalLeads.bedroomsText,
+        desiredUnitType: externalLeads.desiredUnitType,
+        desiredNeighborhood: externalLeads.desiredNeighborhood,
+        contractDuration: externalLeads.contractDuration,
+        hasPets: externalLeads.hasPets,
+      })
+        .from(externalLeads)
+        .where(and(...conditions))
+        .orderBy(desc(externalLeads.createdAt))
+        .limit(parseInt(limit as string))
+        .offset(parseInt(offset as string));
+
+      res.json({ data: leads });
+    } catch (error: any) {
+      console.error("Error fetching seller leads:", error);
+      handleGenericError(res, error);
+    }
+  });
+
   // POST /api/external-seller/share-property - Share property with lead and log it
   app.post("/api/external-seller/share-property", isAuthenticated, requireRole(['external_agency_seller', ...EXTERNAL_ADMIN_ROLES]), async (req: any, res) => {
     try {

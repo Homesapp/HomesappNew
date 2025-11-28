@@ -11,6 +11,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Textarea } from "@/components/ui/textarea";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import { Separator } from "@/components/ui/separator";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { 
@@ -29,7 +31,15 @@ import {
   ExternalLink,
   Building2,
   SlidersHorizontal,
-  X
+  X,
+  User,
+  Wallet,
+  Target,
+  Calendar,
+  PawPrint,
+  ChevronRight,
+  CheckCircle2,
+  Phone
 } from "lucide-react";
 import { SiWhatsapp } from "react-icons/si";
 
@@ -46,6 +56,23 @@ interface Unit {
   images: string[] | null;
   amenities: string[] | null;
   condominiumId: string | null;
+}
+
+interface Lead {
+  id: string;
+  firstName: string;
+  lastName: string;
+  phone: string | null;
+  email: string | null;
+  status: string;
+  estimatedRentCost: number | null;
+  estimatedRentCostText: string | null;
+  bedrooms: number | null;
+  bedroomsText: string | null;
+  desiredUnitType: string | null;
+  desiredNeighborhood: string | null;
+  contractDuration: string | null;
+  hasPets: string | null;
 }
 
 interface MatchingLead {
@@ -75,7 +102,8 @@ export default function SellerPropertyCatalog() {
   const [shareDialogOpen, setShareDialogOpen] = useState(false);
   const [matchingLeadsOpen, setMatchingLeadsOpen] = useState(false);
   const [customMessage, setCustomMessage] = useState("");
-  const [selectedLead, setSelectedLead] = useState<MatchingLead | null>(null);
+  const [selectedLead, setSelectedLead] = useState<Lead | null>(null);
+  const [showLeadPanel, setShowLeadPanel] = useState(true);
 
   const buildQueryString = () => {
     const params = new URLSearchParams();
@@ -95,6 +123,15 @@ export default function SellerPropertyCatalog() {
       const qs = buildQueryString();
       const res = await fetch(`/api/external-seller/property-catalog?${qs}`);
       if (!res.ok) throw new Error("Failed to fetch properties");
+      return res.json();
+    },
+  });
+
+  const { data: leadsData, isLoading: leadsLoading } = useQuery<{ data: Lead[] }>({
+    queryKey: ["/api/external-seller/my-leads"],
+    queryFn: async () => {
+      const res = await fetch("/api/external-seller/my-leads?limit=50");
+      if (!res.ok) throw new Error("Failed to fetch leads");
       return res.json();
     },
   });
@@ -146,6 +183,7 @@ export default function SellerPropertyCatalog() {
   });
 
   const units = catalogData?.data || [];
+  const leads = leadsData?.data || [];
 
   const hasActiveFilters = Object.values(filters).some((v) => v && v !== "active");
 
@@ -159,22 +197,67 @@ export default function SellerPropertyCatalog() {
       status: "active",
     });
     setSearch("");
+    setSelectedLead(null);
   };
 
-  const generateDefaultMessage = (unit: Unit) => {
+  const applyLeadFilters = (lead: Lead) => {
+    setSelectedLead(lead);
+    const newFilters = {
+      minPrice: "",
+      maxPrice: "",
+      bedrooms: "",
+      zone: "",
+      propertyType: "",
+      status: "active",
+    };
+    
+    if (lead.estimatedRentCost) {
+      const variance = Math.round(lead.estimatedRentCost * 0.15);
+      newFilters.minPrice = String(lead.estimatedRentCost - variance);
+      newFilters.maxPrice = String(lead.estimatedRentCost + variance);
+    }
+    if (lead.bedrooms) {
+      newFilters.bedrooms = String(lead.bedrooms);
+    }
+    if (lead.desiredNeighborhood) {
+      newFilters.zone = lead.desiredNeighborhood;
+    }
+    if (lead.desiredUnitType) {
+      newFilters.propertyType = lead.desiredUnitType;
+    }
+    setFilters(newFilters);
+  };
+
+  const generateDefaultMessage = (unit: Unit, lead?: Lead | null) => {
+    const greeting = lead ? `¡Hola ${lead.firstName}!` : "¡Hola!";
     return (
-      `¡Hola! Te comparto esta propiedad que puede interesarte:\n\n` +
-      `📍 ${unit.name}\n` +
-      `🏠 ${unit.unitType || "Propiedad"} - ${unit.bedrooms || 0} recámaras\n` +
-      `💰 $${unit.monthlyRent?.toLocaleString() || "Consultar"} ${unit.currency || "MXN"}/mes\n` +
-      `📍 ${unit.zone || ""}\n\n` +
+      `${greeting} Te comparto esta propiedad que puede interesarte:\n\n` +
+      `🏠 ${unit.name}\n` +
+      `📍 ${unit.zone || ""}\n` +
+      `🛏️ ${unit.bedrooms || 0} recámaras, ${unit.bathrooms || 0} baños\n` +
+      `💰 $${unit.monthlyRent?.toLocaleString() || "Consultar"} ${unit.currency || "MXN"}/mes\n\n` +
       `¿Te gustaría agendar una visita?`
     );
   };
 
   const handleShareClick = (unit: Unit) => {
     setSelectedUnit(unit);
-    setCustomMessage(generateDefaultMessage(unit));
+    setCustomMessage(generateDefaultMessage(unit, selectedLead));
+    setShareDialogOpen(true);
+  };
+
+  const handleDirectWhatsApp = (unit: Unit, lead: Lead) => {
+    if (!lead.phone) {
+      toast({
+        title: t("common.error", "Error"),
+        description: t("sellerCatalog.noPhone", "El lead no tiene teléfono registrado"),
+        variant: "destructive",
+      });
+      return;
+    }
+    setSelectedUnit(unit);
+    setSelectedLead(lead);
+    setCustomMessage(generateDefaultMessage(unit, lead));
     setShareDialogOpen(true);
   };
 
@@ -184,9 +267,12 @@ export default function SellerPropertyCatalog() {
   };
 
   const handleShareWithLead = (lead: MatchingLead) => {
-    setSelectedLead(lead);
+    const fullLead = leads.find(l => l.id === lead.id);
+    if (fullLead) {
+      setSelectedLead(fullLead);
+    }
     if (selectedUnit) {
-      setCustomMessage(generateDefaultMessage(selectedUnit).replace("¡Hola!", `¡Hola ${lead.firstName}!`));
+      setCustomMessage(generateDefaultMessage(selectedUnit, fullLead));
     }
     setMatchingLeadsOpen(false);
     setShareDialogOpen(true);
@@ -209,290 +295,489 @@ export default function SellerPropertyCatalog() {
     });
   };
 
+  const getStatusColor = (status: string) => {
+    switch (status) {
+      case "nuevo": return "bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200";
+      case "contactado": return "bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200";
+      case "en_negociacion": return "bg-orange-100 text-orange-800 dark:bg-orange-900 dark:text-orange-200";
+      case "proceso_renta": return "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200";
+      default: return "";
+    }
+  };
+
   return (
-    <div className="space-y-6 p-4 md:p-6">
-      <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
-        <div>
-          <h1 className="text-2xl font-bold" data-testid="text-page-title">
-            {t("sellerCatalog.title", "Catálogo de Propiedades")}
-          </h1>
-          <p className="text-muted-foreground">
-            {t("sellerCatalog.subtitle", "Encuentra y comparte propiedades con tus leads")}
-          </p>
-        </div>
-        <Badge variant="secondary" className="self-start">
-          {catalogData?.total || 0} {t("sellerCatalog.properties", "propiedades")}
-        </Badge>
-      </div>
-
-      <div className="flex flex-col gap-4 md:flex-row md:items-center">
-        <div className="relative flex-1">
-          <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-          <Input
-            placeholder={t("sellerCatalog.searchPlaceholder", "Buscar por nombre, zona, tipo...")}
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            className="pl-10"
-            data-testid="input-search"
-          />
-        </div>
-
-        <Popover open={filtersOpen} onOpenChange={setFiltersOpen}>
-          <PopoverTrigger asChild>
-            <Button variant="outline" className="gap-2" data-testid="button-filters">
-              <SlidersHorizontal className="h-4 w-4" />
-              {t("sellerCatalog.filters", "Filtros")}
-              {hasActiveFilters && (
-                <Badge variant="default" className="ml-1 h-5 w-5 rounded-full p-0 text-xs">
-                  {Object.values(filters).filter((v) => v && v !== "active").length}
-                </Badge>
-              )}
-            </Button>
-          </PopoverTrigger>
-          <PopoverContent className="w-80" align="end">
-            <div className="space-y-4">
-              <div className="flex items-center justify-between">
-                <h4 className="font-medium">{t("sellerCatalog.filterProperties", "Filtrar propiedades")}</h4>
-                {hasActiveFilters && (
-                  <Button variant="ghost" size="sm" onClick={clearFilters}>
-                    <X className="mr-1 h-3 w-3" />
-                    {t("common.clear", "Limpiar")}
-                  </Button>
-                )}
-              </div>
-
-              <div className="space-y-3">
-                <div className="grid grid-cols-2 gap-2">
-                  <div>
-                    <Label className="text-xs">{t("sellerCatalog.minPrice", "Precio mín")}</Label>
-                    <Input
-                      type="number"
-                      placeholder="0"
-                      value={filters.minPrice}
-                      onChange={(e) => setFilters({ ...filters, minPrice: e.target.value })}
-                      data-testid="input-min-price"
-                    />
-                  </div>
-                  <div>
-                    <Label className="text-xs">{t("sellerCatalog.maxPrice", "Precio máx")}</Label>
-                    <Input
-                      type="number"
-                      placeholder="100000"
-                      value={filters.maxPrice}
-                      onChange={(e) => setFilters({ ...filters, maxPrice: e.target.value })}
-                      data-testid="input-max-price"
-                    />
-                  </div>
-                </div>
-
-                <div>
-                  <Label className="text-xs">{t("sellerCatalog.bedrooms", "Recámaras")}</Label>
-                  <Select
-                    value={filters.bedrooms}
-                    onValueChange={(v) => setFilters({ ...filters, bedrooms: v })}
-                  >
-                    <SelectTrigger data-testid="select-bedrooms">
-                      <SelectValue placeholder={t("sellerCatalog.any", "Cualquiera")} />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="">{t("sellerCatalog.any", "Cualquiera")}</SelectItem>
-                      <SelectItem value="1">1</SelectItem>
-                      <SelectItem value="2">2</SelectItem>
-                      <SelectItem value="3">3</SelectItem>
-                      <SelectItem value="4">4+</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-
-                <div>
-                  <Label className="text-xs">{t("sellerCatalog.zone", "Zona")}</Label>
-                  <Select
-                    value={filters.zone}
-                    onValueChange={(v) => setFilters({ ...filters, zone: v })}
-                  >
-                    <SelectTrigger data-testid="select-zone">
-                      <SelectValue placeholder={t("sellerCatalog.allZones", "Todas las zonas")} />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="">{t("sellerCatalog.allZones", "Todas las zonas")}</SelectItem>
-                      {zones?.map((zone) => (
-                        <SelectItem key={zone.id} value={zone.name}>
-                          {zone.name}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-
-                <div>
-                  <Label className="text-xs">{t("sellerCatalog.propertyType", "Tipo de propiedad")}</Label>
-                  <Select
-                    value={filters.propertyType}
-                    onValueChange={(v) => setFilters({ ...filters, propertyType: v })}
-                  >
-                    <SelectTrigger data-testid="select-property-type">
-                      <SelectValue placeholder={t("sellerCatalog.allTypes", "Todos los tipos")} />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="">{t("sellerCatalog.allTypes", "Todos los tipos")}</SelectItem>
-                      {propertyTypes?.map((type) => (
-                        <SelectItem key={type.id} value={type.name}>
-                          {type.name}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-
-                <div>
-                  <Label className="text-xs">{t("sellerCatalog.status", "Estado")}</Label>
-                  <Select
-                    value={filters.status}
-                    onValueChange={(v) => setFilters({ ...filters, status: v })}
-                  >
-                    <SelectTrigger data-testid="select-status">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="active">{t("sellerCatalog.active", "Disponible")}</SelectItem>
-                      <SelectItem value="rented">{t("sellerCatalog.rented", "Rentada")}</SelectItem>
-                      <SelectItem value="">{t("sellerCatalog.all", "Todas")}</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-              </div>
-
-              <Button onClick={() => setFiltersOpen(false)} className="w-full">
-                {t("sellerCatalog.applyFilters", "Aplicar filtros")}
-              </Button>
+    <div className="flex h-[calc(100vh-4rem)] gap-0">
+      {showLeadPanel && (
+        <div className="w-80 flex-shrink-0 border-r bg-muted/30">
+          <div className="flex h-14 items-center justify-between border-b px-4">
+            <div className="flex items-center gap-2">
+              <Users className="h-5 w-5 text-primary" />
+              <h2 className="font-semibold">{t("sellerCatalog.myLeads", "Mis Leads")}</h2>
+              <Badge variant="secondary" className="ml-1">{leads.length}</Badge>
             </div>
-          </PopoverContent>
-        </Popover>
-      </div>
-
-      {isLoading ? (
-        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-          {[1, 2, 3, 4, 5, 6].map((i) => (
-            <Card key={i}>
-              <Skeleton className="h-48 w-full rounded-t-lg" />
-              <CardContent className="p-4">
-                <Skeleton className="mb-2 h-5 w-3/4" />
-                <Skeleton className="mb-4 h-4 w-1/2" />
-                <div className="flex gap-2">
-                  <Skeleton className="h-6 w-16" />
-                  <Skeleton className="h-6 w-16" />
+            <Button 
+              variant="ghost" 
+              size="icon" 
+              onClick={() => setShowLeadPanel(false)}
+              data-testid="button-hide-leads"
+            >
+              <X className="h-4 w-4" />
+            </Button>
+          </div>
+          
+          <ScrollArea className="h-[calc(100%-3.5rem)]">
+            <div className="space-y-2 p-3">
+              {leadsLoading ? (
+                Array.from({ length: 5 }).map((_, i) => (
+                  <Skeleton key={i} className="h-32 w-full rounded-lg" />
+                ))
+              ) : leads.length === 0 ? (
+                <div className="py-8 text-center">
+                  <Users className="mx-auto mb-2 h-10 w-10 text-muted-foreground/50" />
+                  <p className="text-sm text-muted-foreground">
+                    {t("sellerCatalog.noLeads", "No tienes leads asignados")}
+                  </p>
                 </div>
-              </CardContent>
-            </Card>
-          ))}
-        </div>
-      ) : units.length === 0 ? (
-        <Card className="p-12 text-center">
-          <Building2 className="mx-auto mb-4 h-12 w-12 text-muted-foreground" />
-          <h3 className="text-lg font-medium">
-            {t("sellerCatalog.noProperties", "No se encontraron propiedades")}
-          </h3>
-          <p className="text-muted-foreground">
-            {t("sellerCatalog.tryAdjusting", "Intenta ajustar los filtros de búsqueda")}
-          </p>
-        </Card>
-      ) : (
-        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-          {units.map((unit) => (
-            <Card key={unit.id} className="overflow-hidden" data-testid={`card-property-${unit.id}`}>
-              <div className="relative h-48 bg-muted">
-                {unit.images && unit.images.length > 0 ? (
-                  <img
-                    src={unit.images[0]}
-                    alt={unit.name}
-                    className="h-full w-full object-cover"
-                  />
-                ) : (
-                  <div className="flex h-full items-center justify-center">
-                    <Home className="h-16 w-16 text-muted-foreground/50" />
-                  </div>
-                )}
-                <Badge
-                  className="absolute right-2 top-2"
-                  variant={unit.status === "active" ? "default" : "secondary"}
-                >
-                  {unit.status === "active"
-                    ? t("sellerCatalog.available", "Disponible")
-                    : t("sellerCatalog.rented", "Rentada")}
-                </Badge>
-              </div>
-
-              <CardContent className="p-4">
-                <h3 className="mb-1 line-clamp-1 font-semibold" data-testid={`text-unit-name-${unit.id}`}>
-                  {unit.name}
-                </h3>
-                <div className="mb-3 flex items-center gap-1 text-sm text-muted-foreground">
-                  <MapPin className="h-3 w-3" />
-                  <span className="line-clamp-1">{unit.zone || t("sellerCatalog.noZone", "Sin zona")}</span>
-                </div>
-
-                <div className="mb-3 flex flex-wrap gap-2">
-                  {unit.unitType && (
-                    <Badge variant="outline" className="gap-1">
-                      <Home className="h-3 w-3" />
-                      {unit.unitType}
-                    </Badge>
-                  )}
-                  {unit.bedrooms && (
-                    <Badge variant="outline" className="gap-1">
-                      <Bed className="h-3 w-3" />
-                      {unit.bedrooms}
-                    </Badge>
-                  )}
-                  {unit.bathrooms && (
-                    <Badge variant="outline" className="gap-1">
-                      <Bath className="h-3 w-3" />
-                      {unit.bathrooms}
-                    </Badge>
-                  )}
-                </div>
-
-                <div className="flex items-center gap-1 text-lg font-bold text-primary">
-                  <DollarSign className="h-4 w-4" />
-                  <span>
-                    {unit.monthlyRent?.toLocaleString() || "—"} {unit.currency || "MXN"}
-                  </span>
-                  <span className="text-sm font-normal text-muted-foreground">/mes</span>
-                </div>
-              </CardContent>
-
-              <CardFooter className="flex gap-2 border-t p-3">
-                <Button
-                  variant="outline"
-                  size="sm"
-                  className="flex-1 gap-1"
-                  onClick={() => handleFindMatches(unit)}
-                  data-testid={`button-find-matches-${unit.id}`}
-                >
-                  <Users className="h-4 w-4" />
-                  {t("sellerCatalog.findMatches", "Leads")}
-                </Button>
-                <Button
-                  size="sm"
-                  className="flex-1 gap-1"
-                  onClick={() => handleShareClick(unit)}
-                  data-testid={`button-share-${unit.id}`}
-                >
-                  <SiWhatsapp className="h-4 w-4" />
-                  {t("sellerCatalog.share", "Compartir")}
-                </Button>
-              </CardFooter>
-            </Card>
-          ))}
+              ) : (
+                leads.map((lead) => (
+                  <Card 
+                    key={lead.id} 
+                    className={`cursor-pointer transition-all hover-elevate ${
+                      selectedLead?.id === lead.id 
+                        ? "ring-2 ring-primary" 
+                        : ""
+                    }`}
+                    onClick={() => applyLeadFilters(lead)}
+                    data-testid={`card-lead-${lead.id}`}
+                  >
+                    <CardContent className="p-3">
+                      <div className="mb-2 flex items-start justify-between">
+                        <div className="flex items-center gap-2">
+                          <div className="flex h-8 w-8 items-center justify-center rounded-full bg-primary/10">
+                            <User className="h-4 w-4 text-primary" />
+                          </div>
+                          <div>
+                            <p className="font-medium leading-tight">
+                              {lead.firstName} {lead.lastName}
+                            </p>
+                            {lead.phone && (
+                              <p className="text-xs text-muted-foreground">{lead.phone}</p>
+                            )}
+                          </div>
+                        </div>
+                        {selectedLead?.id === lead.id && (
+                          <CheckCircle2 className="h-5 w-5 text-primary" />
+                        )}
+                      </div>
+                      
+                      <Separator className="my-2" />
+                      
+                      <div className="space-y-1.5 text-xs">
+                        <div className="flex items-center gap-1.5 text-muted-foreground">
+                          <Wallet className="h-3 w-3" />
+                          <span className="font-medium text-foreground">
+                            {lead.estimatedRentCost 
+                              ? `$${lead.estimatedRentCost.toLocaleString()} MXN` 
+                              : lead.estimatedRentCostText || "Sin definir"}
+                          </span>
+                        </div>
+                        
+                        <div className="flex items-center gap-1.5 text-muted-foreground">
+                          <Bed className="h-3 w-3" />
+                          <span className="font-medium text-foreground">
+                            {lead.bedroomsText || lead.bedrooms || "—"} recámaras
+                          </span>
+                        </div>
+                        
+                        <div className="flex items-center gap-1.5 text-muted-foreground">
+                          <MapPin className="h-3 w-3" />
+                          <span className="font-medium text-foreground">
+                            {lead.desiredNeighborhood || "Cualquier zona"}
+                          </span>
+                        </div>
+                        
+                        <div className="flex items-center gap-1.5 text-muted-foreground">
+                          <Home className="h-3 w-3" />
+                          <span className="font-medium text-foreground">
+                            {lead.desiredUnitType || "Cualquier tipo"}
+                          </span>
+                        </div>
+                        
+                        {lead.hasPets && lead.hasPets !== "No" && (
+                          <div className="flex items-center gap-1.5 text-muted-foreground">
+                            <PawPrint className="h-3 w-3" />
+                            <span className="font-medium text-foreground">
+                              {lead.hasPets}
+                            </span>
+                          </div>
+                        )}
+                        
+                        {lead.contractDuration && (
+                          <div className="flex items-center gap-1.5 text-muted-foreground">
+                            <Calendar className="h-3 w-3" />
+                            <span className="font-medium text-foreground">
+                              {lead.contractDuration}
+                            </span>
+                          </div>
+                        )}
+                      </div>
+                      
+                      <div className="mt-2 flex items-center justify-between">
+                        <Badge className={`text-xs ${getStatusColor(lead.status)}`}>
+                          {lead.status.replace(/_/g, " ")}
+                        </Badge>
+                        <Button 
+                          variant="ghost" 
+                          size="sm" 
+                          className="h-7 gap-1 px-2 text-xs"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            applyLeadFilters(lead);
+                          }}
+                        >
+                          <Target className="h-3 w-3" />
+                          Buscar
+                        </Button>
+                      </div>
+                    </CardContent>
+                  </Card>
+                ))
+              )}
+            </div>
+          </ScrollArea>
         </div>
       )}
+
+      <div className="flex flex-1 flex-col overflow-hidden">
+        <div className="flex-shrink-0 border-b bg-background p-4">
+          <div className="mb-4 flex flex-wrap items-center justify-between gap-4">
+            <div className="flex items-center gap-2">
+              {!showLeadPanel && (
+                <Button 
+                  variant="outline" 
+                  size="sm" 
+                  onClick={() => setShowLeadPanel(true)}
+                  className="gap-1"
+                  data-testid="button-show-leads"
+                >
+                  <Users className="h-4 w-4" />
+                  Leads
+                </Button>
+              )}
+              <div>
+                <h1 className="text-xl font-bold" data-testid="text-page-title">
+                  {t("sellerCatalog.title", "Catálogo de Propiedades")}
+                </h1>
+                {selectedLead && (
+                  <p className="text-sm text-muted-foreground">
+                    Mostrando propiedades para <span className="font-medium text-primary">{selectedLead.firstName} {selectedLead.lastName}</span>
+                  </p>
+                )}
+              </div>
+            </div>
+            <Badge variant="secondary" className="text-sm">
+              {catalogData?.total || 0} propiedades
+            </Badge>
+          </div>
+
+          <div className="flex flex-wrap items-center gap-3">
+            <div className="relative flex-1 min-w-[200px]">
+              <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+              <Input
+                placeholder={t("sellerCatalog.searchPlaceholder", "Buscar por nombre, zona, tipo...")}
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                className="pl-10"
+                data-testid="input-search"
+              />
+            </div>
+
+            <Popover open={filtersOpen} onOpenChange={setFiltersOpen}>
+              <PopoverTrigger asChild>
+                <Button variant="outline" className="gap-2" data-testid="button-filters">
+                  <SlidersHorizontal className="h-4 w-4" />
+                  Filtros
+                  {hasActiveFilters && (
+                    <Badge variant="default" className="ml-1 h-5 w-5 rounded-full p-0 text-xs">
+                      {Object.values(filters).filter((v) => v && v !== "active").length}
+                    </Badge>
+                  )}
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-80" align="end">
+                <div className="space-y-4">
+                  <div className="flex items-center justify-between">
+                    <h4 className="font-medium">Filtrar propiedades</h4>
+                    {hasActiveFilters && (
+                      <Button variant="ghost" size="sm" onClick={clearFilters}>
+                        <X className="mr-1 h-3 w-3" />
+                        Limpiar
+                      </Button>
+                    )}
+                  </div>
+
+                  <div className="space-y-3">
+                    <div className="grid grid-cols-2 gap-2">
+                      <div>
+                        <Label className="text-xs">Precio mín</Label>
+                        <Input
+                          type="number"
+                          placeholder="0"
+                          value={filters.minPrice}
+                          onChange={(e) => setFilters({ ...filters, minPrice: e.target.value })}
+                          data-testid="input-min-price"
+                        />
+                      </div>
+                      <div>
+                        <Label className="text-xs">Precio máx</Label>
+                        <Input
+                          type="number"
+                          placeholder="100000"
+                          value={filters.maxPrice}
+                          onChange={(e) => setFilters({ ...filters, maxPrice: e.target.value })}
+                          data-testid="input-max-price"
+                        />
+                      </div>
+                    </div>
+
+                    <div>
+                      <Label className="text-xs">Recámaras</Label>
+                      <Select
+                        value={filters.bedrooms}
+                        onValueChange={(v) => setFilters({ ...filters, bedrooms: v })}
+                      >
+                        <SelectTrigger data-testid="select-bedrooms">
+                          <SelectValue placeholder="Cualquiera" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="">Cualquiera</SelectItem>
+                          <SelectItem value="1">1</SelectItem>
+                          <SelectItem value="2">2</SelectItem>
+                          <SelectItem value="3">3</SelectItem>
+                          <SelectItem value="4">4+</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+
+                    <div>
+                      <Label className="text-xs">Zona</Label>
+                      <Select
+                        value={filters.zone}
+                        onValueChange={(v) => setFilters({ ...filters, zone: v })}
+                      >
+                        <SelectTrigger data-testid="select-zone">
+                          <SelectValue placeholder="Todas las zonas" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="">Todas las zonas</SelectItem>
+                          {zones?.map((zone) => (
+                            <SelectItem key={zone.id} value={zone.name}>
+                              {zone.name}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+
+                    <div>
+                      <Label className="text-xs">Tipo de propiedad</Label>
+                      <Select
+                        value={filters.propertyType}
+                        onValueChange={(v) => setFilters({ ...filters, propertyType: v })}
+                      >
+                        <SelectTrigger data-testid="select-property-type">
+                          <SelectValue placeholder="Todos los tipos" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="">Todos los tipos</SelectItem>
+                          {propertyTypes?.map((type) => (
+                            <SelectItem key={type.id} value={type.name}>
+                              {type.name}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+
+                    <div>
+                      <Label className="text-xs">Estado</Label>
+                      <Select
+                        value={filters.status}
+                        onValueChange={(v) => setFilters({ ...filters, status: v })}
+                      >
+                        <SelectTrigger data-testid="select-status">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="active">Disponible</SelectItem>
+                          <SelectItem value="rented">Rentada</SelectItem>
+                          <SelectItem value="">Todas</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  </div>
+
+                  <Button onClick={() => setFiltersOpen(false)} className="w-full">
+                    Aplicar filtros
+                  </Button>
+                </div>
+              </PopoverContent>
+            </Popover>
+
+            {selectedLead && (
+              <Button variant="outline" size="sm" onClick={clearFilters} className="gap-1">
+                <X className="h-3 w-3" />
+                Quitar filtros de {selectedLead.firstName}
+              </Button>
+            )}
+          </div>
+        </div>
+
+        <ScrollArea className="flex-1 p-4">
+          {isLoading ? (
+            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+              {Array.from({ length: 8 }).map((_, i) => (
+                <Card key={i}>
+                  <Skeleton className="h-40 w-full rounded-t-lg" />
+                  <CardContent className="p-4">
+                    <Skeleton className="mb-2 h-5 w-3/4" />
+                    <Skeleton className="mb-4 h-4 w-1/2" />
+                    <div className="flex gap-2">
+                      <Skeleton className="h-6 w-16" />
+                      <Skeleton className="h-6 w-16" />
+                    </div>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+          ) : units.length === 0 ? (
+            <Card className="p-12 text-center">
+              <Building2 className="mx-auto mb-4 h-12 w-12 text-muted-foreground" />
+              <h3 className="text-lg font-medium">
+                No se encontraron propiedades
+              </h3>
+              <p className="text-muted-foreground">
+                Intenta ajustar los filtros de búsqueda
+              </p>
+              {selectedLead && (
+                <Button variant="outline" className="mt-4" onClick={clearFilters}>
+                  Quitar filtros de {selectedLead.firstName}
+                </Button>
+              )}
+            </Card>
+          ) : (
+            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+              {units.map((unit) => (
+                <Card key={unit.id} className="group overflow-hidden" data-testid={`card-property-${unit.id}`}>
+                  <div className="relative h-40 bg-muted">
+                    {unit.images && unit.images.length > 0 ? (
+                      <img
+                        src={unit.images[0]}
+                        alt={unit.name}
+                        className="h-full w-full object-cover transition-transform group-hover:scale-105"
+                      />
+                    ) : (
+                      <div className="flex h-full items-center justify-center bg-gradient-to-br from-muted to-muted-foreground/10">
+                        <Home className="h-12 w-12 text-muted-foreground/30" />
+                      </div>
+                    )}
+                    <Badge
+                      className="absolute right-2 top-2"
+                      variant={unit.status === "active" ? "default" : "secondary"}
+                    >
+                      {unit.status === "active" ? "Disponible" : "Rentada"}
+                    </Badge>
+                  </div>
+
+                  <CardContent className="p-3">
+                    <h3 className="mb-1 line-clamp-1 text-sm font-semibold" data-testid={`text-unit-name-${unit.id}`}>
+                      {unit.name}
+                    </h3>
+                    <div className="mb-2 flex items-center gap-1 text-xs text-muted-foreground">
+                      <MapPin className="h-3 w-3" />
+                      <span className="line-clamp-1">{unit.zone || "Sin zona"}</span>
+                    </div>
+
+                    <div className="mb-2 flex flex-wrap gap-1">
+                      {unit.unitType && (
+                        <Badge variant="outline" className="gap-1 text-xs">
+                          <Home className="h-2.5 w-2.5" />
+                          {unit.unitType}
+                        </Badge>
+                      )}
+                      {unit.bedrooms && (
+                        <Badge variant="outline" className="gap-1 text-xs">
+                          <Bed className="h-2.5 w-2.5" />
+                          {unit.bedrooms}
+                        </Badge>
+                      )}
+                      {unit.bathrooms && (
+                        <Badge variant="outline" className="gap-1 text-xs">
+                          <Bath className="h-2.5 w-2.5" />
+                          {unit.bathrooms}
+                        </Badge>
+                      )}
+                    </div>
+
+                    <div className="flex items-center gap-1 text-base font-bold text-primary">
+                      <span>$</span>
+                      <span>
+                        {unit.monthlyRent?.toLocaleString() || "—"}
+                      </span>
+                      <span className="text-xs font-normal text-muted-foreground">
+                        {unit.currency || "MXN"}/mes
+                      </span>
+                    </div>
+                  </CardContent>
+
+                  <CardFooter className="flex gap-2 border-t p-2">
+                    {selectedLead ? (
+                      <Button
+                        size="sm"
+                        className="flex-1 gap-1"
+                        onClick={() => handleDirectWhatsApp(unit, selectedLead)}
+                        data-testid={`button-whatsapp-${unit.id}`}
+                      >
+                        <SiWhatsapp className="h-4 w-4" />
+                        WhatsApp a {selectedLead.firstName}
+                      </Button>
+                    ) : (
+                      <>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="flex-1 gap-1"
+                          onClick={() => handleFindMatches(unit)}
+                          data-testid={`button-find-matches-${unit.id}`}
+                        >
+                          <Users className="h-3.5 w-3.5" />
+                          Leads
+                        </Button>
+                        <Button
+                          size="sm"
+                          className="flex-1 gap-1"
+                          onClick={() => handleShareClick(unit)}
+                          data-testid={`button-share-${unit.id}`}
+                        >
+                          <SiWhatsapp className="h-3.5 w-3.5" />
+                          Compartir
+                        </Button>
+                      </>
+                    )}
+                  </CardFooter>
+                </Card>
+              ))}
+            </div>
+          )}
+        </ScrollArea>
+      </div>
 
       <Dialog open={matchingLeadsOpen} onOpenChange={setMatchingLeadsOpen}>
         <DialogContent className="max-w-md">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <Users className="h-5 w-5" />
-              {t("sellerCatalog.matchingLeads", "Leads compatibles")}
+              Leads compatibles
             </DialogTitle>
             <DialogDescription>
               {selectedUnit?.name}
@@ -541,7 +826,7 @@ export default function SellerPropertyCatalog() {
               <div className="py-8 text-center">
                 <Users className="mx-auto mb-2 h-10 w-10 text-muted-foreground/50" />
                 <p className="text-muted-foreground">
-                  {t("sellerCatalog.noMatchingLeads", "No se encontraron leads compatibles")}
+                  No se encontraron leads compatibles
                 </p>
               </div>
             )}
@@ -554,7 +839,7 @@ export default function SellerPropertyCatalog() {
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <SiWhatsapp className="h-5 w-5 text-green-600" />
-              {t("sellerCatalog.shareViaWhatsApp", "Compartir por WhatsApp")}
+              Compartir por WhatsApp
             </DialogTitle>
             <DialogDescription>
               {selectedUnit?.name}
@@ -566,7 +851,7 @@ export default function SellerPropertyCatalog() {
             {!selectedLead && (
               <div className="rounded-lg border border-amber-200 bg-amber-50 p-3 dark:border-amber-800 dark:bg-amber-950">
                 <p className="text-sm text-amber-800 dark:text-amber-200">
-                  {t("sellerCatalog.selectLeadFirst", "Primero selecciona un lead desde la lista de 'Leads compatibles'")}
+                  Primero selecciona un lead desde el panel izquierdo o desde "Leads compatibles"
                 </p>
                 <Button
                   variant="outline"
@@ -578,13 +863,13 @@ export default function SellerPropertyCatalog() {
                   }}
                 >
                   <Users className="mr-2 h-4 w-4" />
-                  {t("sellerCatalog.selectLead", "Seleccionar lead")}
+                  Seleccionar lead
                 </Button>
               </div>
             )}
 
             <div>
-              <Label>{t("sellerCatalog.message", "Mensaje")}</Label>
+              <Label>Mensaje</Label>
               <Textarea
                 value={customMessage}
                 onChange={(e) => setCustomMessage(e.target.value)}
@@ -597,16 +882,16 @@ export default function SellerPropertyCatalog() {
             <div className="flex gap-2">
               <Button variant="outline" size="sm" onClick={copyToClipboard} className="gap-1">
                 <Copy className="h-4 w-4" />
-                {t("common.copy", "Copiar")}
+                Copiar
               </Button>
               {selectedUnit && (
                 <Button
                   variant="outline"
                   size="sm"
-                  onClick={() => setCustomMessage(generateDefaultMessage(selectedUnit))}
+                  onClick={() => setCustomMessage(generateDefaultMessage(selectedUnit, selectedLead))}
                   className="gap-1"
                 >
-                  {t("sellerCatalog.resetMessage", "Restaurar")}
+                  Restaurar
                 </Button>
               )}
             </div>
@@ -614,7 +899,7 @@ export default function SellerPropertyCatalog() {
 
           <DialogFooter>
             <Button variant="outline" onClick={() => setShareDialogOpen(false)}>
-              {t("common.cancel", "Cancelar")}
+              Cancelar
             </Button>
             <Button
               onClick={handleSendShare}
@@ -624,8 +909,8 @@ export default function SellerPropertyCatalog() {
             >
               <SiWhatsapp className="h-4 w-4" />
               {sharePropertyMutation.isPending
-                ? t("common.sending", "Enviando...")
-                : t("sellerCatalog.openWhatsApp", "Abrir WhatsApp")}
+                ? "Enviando..."
+                : "Abrir WhatsApp"}
             </Button>
           </DialogFooter>
         </DialogContent>
