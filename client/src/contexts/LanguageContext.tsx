@@ -733,6 +733,14 @@ const translations: Record<Language, Record<string, string>> = {
     "seller.commissions.status.rejected": "Rechazado",
     "seller.commissions.status.disbursed": "Desembolsado",
     
+    // Seller Goals
+    "goals.monthlyLeadAcquisition": "Adquisición Mensual de Leads",
+    "goals.monthlyLeadAcquisitionDesc": "Consigue nuevos leads este mes",
+    "goals.monthlyConversions": "Conversiones Mensuales",
+    "goals.monthlyConversionsDesc": "Convierte leads en clientes",
+    "goals.monthlyShowings": "Visitas Mensuales",
+    "goals.monthlyShowingsDesc": "Agenda y completa visitas a propiedades",
+    
     "sidebar.sellerGoals": "Mis Metas",
     "sidebar.sellerLeads": "Mis Leads",
     "sidebar.sellerCalendar": "Mi Calendario",
@@ -2083,6 +2091,14 @@ const translations: Record<Language, Record<string, string>> = {
     "seller.commissions.status.approved": "Approved",
     "seller.commissions.status.rejected": "Rejected",
     "seller.commissions.status.disbursed": "Disbursed",
+    
+    // Seller Goals
+    "goals.monthlyLeadAcquisition": "Monthly Lead Acquisition",
+    "goals.monthlyLeadAcquisitionDesc": "Acquire new leads this month",
+    "goals.monthlyConversions": "Monthly Conversions",
+    "goals.monthlyConversionsDesc": "Convert leads to clients",
+    "goals.monthlyShowings": "Monthly Property Showings",
+    "goals.monthlyShowingsDesc": "Schedule and complete property showings",
     
     "sidebar.sellerGoals": "My Goals",
     "sidebar.sellerLeads": "My Leads",

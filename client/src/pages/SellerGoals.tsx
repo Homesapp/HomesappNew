@@ -8,8 +8,10 @@ import { useLanguage } from "@/contexts/LanguageContext";
 
 type SellerGoal = {
   id: string;
-  name: string;
-  description: string;
+  name?: string;
+  description?: string;
+  nameKey?: string;
+  descriptionKey?: string;
   type: 'leads' | 'conversions' | 'revenue' | 'showings';
   target: number;
   current: number;
@@ -61,7 +63,7 @@ const PERIOD_LABELS: Record<string, Record<string, string>> = {
 };
 
 export default function SellerGoals() {
-  const { language } = useLanguage();
+  const { language, t } = useLanguage();
 
   const { data: goalsData, isLoading } = useQuery<SellerGoalsData>({
     queryKey: ['/api/external-dashboard/seller-goals'],
@@ -213,8 +215,12 @@ export default function SellerGoals() {
                           <Icon className={`h-5 w-5 ${isCompleted ? 'text-green-600' : 'text-primary'}`} />
                         </div>
                         <div>
-                          <h3 className="font-semibold">{goal.name}</h3>
-                          <p className="text-sm text-muted-foreground">{goal.description}</p>
+                          <h3 className="font-semibold">
+                            {goal.nameKey ? t(goal.nameKey) : goal.name}
+                          </h3>
+                          <p className="text-sm text-muted-foreground">
+                            {goal.descriptionKey ? t(goal.descriptionKey) : goal.description}
+                          </p>
                         </div>
                       </div>
                       <div className="flex items-center gap-2 shrink-0">
