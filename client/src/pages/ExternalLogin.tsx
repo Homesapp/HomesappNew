@@ -49,7 +49,7 @@ export default function ExternalLogin() {
         const userRole = userData?.role;
         
         // Check if user has external agency role
-        const externalRoles = ["external_agency_admin", "external_agency_accounting", "external_agency_maintenance", "external_agency_staff"];
+        const externalRoles = ["external_agency_admin", "external_agency_accounting", "external_agency_maintenance", "external_agency_staff", "external_agency_seller", "external_agency_seller_assistant"];
         if (externalRoles.includes(userRole)) {
           // Success - redirect to external dashboard
           setLocation("/external/dashboard");
