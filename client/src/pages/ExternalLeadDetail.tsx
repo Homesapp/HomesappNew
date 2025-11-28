@@ -72,7 +72,7 @@ import { useLanguage } from "@/contexts/LanguageContext";
 import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
 import { queryClient, apiRequest } from "@/lib/queryClient";
-import type { ExternalLead, ExternalPresentationCard } from "@shared/schema";
+import type { ExternalLead, ExternalPresentationCard, ExternalAgencyUnitCharacteristic, ExternalAgencyAmenity } from "@shared/schema";
 import PresentationCardsTab from "@/components/external/PresentationCardsTab";
 import LeadOffersSection from "@/components/external/LeadOffersSection";
 import LeadActivitiesTab from "@/components/external/LeadActivitiesTab";
@@ -138,7 +138,26 @@ export default function ExternalLeadDetail() {
     enabled: !!leadId,
   });
 
+  const { data: characteristics = [] } = useQuery<ExternalAgencyUnitCharacteristic[]>({
+    queryKey: ["/api/external/config/unit-characteristics"],
+    queryFn: async () => {
+      const response = await fetch("/api/external/config/unit-characteristics", { credentials: 'include' });
+      return response.json();
+    },
+  });
+
+  const { data: amenitiesList = [] } = useQuery<ExternalAgencyAmenity[]>({
+    queryKey: ["/api/external/config/amenities"],
+    queryFn: async () => {
+      const response = await fetch("/api/external/config/amenities", { credentials: 'include' });
+      return response.json();
+    },
+  });
+
   const activeCard = presentationCards?.find(c => c.isDefault) || (presentationCards && presentationCards.length > 0 ? presentationCards[0] : null);
+  
+  const getCharacteristicName = (id: string) => characteristics.find(c => c.id === id)?.name || id;
+  const getAmenityName = (id: string) => amenitiesList.find(a => a.id === id)?.name || id;
 
   const updateStatusMutation = useMutation({
     mutationFn: async (status: string) => {
@@ -163,7 +182,7 @@ export default function ExternalLeadDetail() {
       toast({
         title: language === "es" ? "Lead eliminado" : "Lead deleted",
       });
-      navigate("/external/clients");
+      navigate("/external/leads");
     },
   });
 
@@ -210,7 +229,7 @@ export default function ExternalLeadDetail() {
             <Button 
               variant="outline" 
               className="mt-4"
-              onClick={() => navigate("/external/clients")}
+              onClick={() => navigate("/external/leads")}
             >
               <ArrowLeft className="w-4 h-4 mr-2" />
               {language === "es" ? "Volver" : "Go back"}
@@ -234,7 +253,7 @@ export default function ExternalLeadDetail() {
               <Button 
                 variant="ghost" 
                 size="icon"
-                onClick={() => navigate("/external/clients")}
+                onClick={() => navigate("/external/leads")}
                 data-testid="button-back-to-leads"
               >
                 <ArrowLeft className="h-4 w-4" />
@@ -257,7 +276,7 @@ export default function ExternalLeadDetail() {
                     </Button>
                   </DropdownMenuTrigger>
                   <DropdownMenuContent align="end">
-                    <DropdownMenuItem onClick={() => navigate(`/external/clients?edit=${lead.id}`)}>
+                    <DropdownMenuItem onClick={() => navigate(`/external/leads?edit=${lead.id}`)}>
                       <Edit2 className="h-4 w-4 mr-2" />
                       {language === "es" ? "Editar" : "Edit"}
                     </DropdownMenuItem>
@@ -428,6 +447,38 @@ export default function ExternalLeadDetail() {
                   </div>
                 )}
               </div>
+
+              {/* Desired Characteristics */}
+              {lead.desiredCharacteristics && lead.desiredCharacteristics.length > 0 && (
+                <div className="space-y-2 pt-2">
+                  <div className="text-xs text-muted-foreground font-medium">
+                    {language === "es" ? "Características Deseadas" : "Desired Features"}
+                  </div>
+                  <div className="flex flex-wrap gap-1">
+                    {lead.desiredCharacteristics.map((charId) => (
+                      <Badge key={charId} variant="secondary" className="text-xs">
+                        {getCharacteristicName(charId)}
+                      </Badge>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Desired Amenities */}
+              {lead.desiredAmenities && lead.desiredAmenities.length > 0 && (
+                <div className="space-y-2 pt-2">
+                  <div className="text-xs text-muted-foreground font-medium">
+                    {language === "es" ? "Amenidades Deseadas" : "Desired Amenities"}
+                  </div>
+                  <div className="flex flex-wrap gap-1">
+                    {lead.desiredAmenities.map((amenityId) => (
+                      <Badge key={amenityId} variant="outline" className="text-xs">
+                        {getAmenityName(amenityId)}
+                      </Badge>
+                    ))}
+                  </div>
+                </div>
+              )}
             </div>
 
             {/* Assigned Seller */}
