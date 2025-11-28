@@ -269,6 +269,16 @@ export default function LeadCRMTabs({ lead }: LeadCRMTabsProps) {
           <PresentationCardsTab 
             leadId={lead.id} 
             personName={`${lead.firstName} ${lead.lastName}`}
+            leadPreferences={{
+              estimatedRentCost: lead.estimatedRentCost,
+              estimatedRentCostText: lead.estimatedRentCostText,
+              bedrooms: lead.bedrooms,
+              bedroomsText: lead.bedroomsText,
+              desiredUnitType: lead.desiredUnitType,
+              desiredNeighborhood: lead.desiredNeighborhood,
+              contractDuration: lead.contractDuration,
+              hasPets: lead.hasPets,
+            }}
           />
         </TabsContent>
 

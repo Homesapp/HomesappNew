@@ -4361,7 +4361,7 @@ export default function ExternalClients() {
                         <div>
                           <span className="text-muted-foreground text-xs">{language === "es" ? "Presupuesto" : "Budget"}</span>
                           <p className="font-medium text-green-600">
-                            {selectedLead.estimatedRentCost ? `$${selectedLead.estimatedRentCost.toLocaleString()}` : selectedLead.estimatedRentCostText}
+                            {selectedLead.estimatedRentCostText || (selectedLead.estimatedRentCost ? `$${selectedLead.estimatedRentCost.toLocaleString()}` : "-")}
                           </p>
                         </div>
                       )}
