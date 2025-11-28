@@ -366,8 +366,6 @@ async function createAuditLog(
       if (extraData) {
         enrichedDetails = `${details || ''} ${extraData ? `[${extraData}]` : ''}`.trim();
       }
-      
-      res.json(updatedLead);
     }
     
     await storage.createAuditLog({
@@ -460,12 +458,8 @@ async function requireFullAdmin(req: any, res: any, next: any) {
       if (!dbUser) {
         return res.status(403).json({ 
           message: "Forbidden: This action requires full administrator privileges" 
+        });
       }
-      
-      res.json(updatedLead);
-      }
-      
-      res.json(updatedLead);
       userRole = dbUser.role;
     }
     
@@ -580,8 +574,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (req.session && req.session.adminUser) {
         return res.json(req.session.adminUser);
       }
-      
-      res.json(updatedLead);
 
       // Otherwise, get regular user from Replit Auth
       const userId = req.user.claims.sub;
@@ -598,18 +590,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
           firstName: claims.first_name || '',
           lastName: claims.last_name || '',
           profileImageUrl: claims.profile_image_url,
+        });
       }
-      
-      res.json(updatedLead);
-      }
-      
-      res.json(updatedLead);
       
       if (!user) {
         return res.status(404).json({ message: "User not found" });
       }
-      
-      res.json(updatedLead);
       
       res.json(user);
     } catch (error) {
@@ -641,8 +627,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
         console.error("Error updating user role:", error);
         res.status(500).json({ message: "Failed to update role" });
       }
-      
-      res.json(updatedLead);
     });
     
     // Test endpoint to bootstrap admin session without OIDC (development only, for e2e testing)
@@ -661,7 +645,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
             passwordHash: await bcrypt.hash("test-password", 10),
             role: "admin",
             isActive: true,
-        }
+          });
         }
         
         // Upsert to users table for foreign key constraints
@@ -671,9 +655,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           firstName: testAdmin.firstName,
           lastName: testAdmin.lastName,
           role: testAdmin.role,
-      }
-      
-      res.json(updatedLead);
+        });
         
         // Set admin session
         req.session.adminUser = {
@@ -690,10 +672,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
           req.session.save((err: any) => {
             if (err) reject(err);
             else resolve();
-        }
-      }
-      
-      res.json(updatedLead);
+          });
+        });
         
         res.json({ 
           success: true, 
@@ -702,15 +682,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
             username: testAdmin.username,
             role: testAdmin.role,
           }
-      }
-      
-      res.json(updatedLead);
+        });
       } catch (error) {
         console.error("Error creating test admin session:", error);
         res.status(500).json({ message: "Failed to create test session" });
       }
-      
-      res.json(updatedLead);
     });
   }
 
@@ -722,12 +698,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ 
           message: "Invalid request data",
           errors: validationResult.error.errors 
+        });
       }
-      
-      res.json(updatedLead);
-      }
-      
-      res.json(updatedLead);
       
       const { username, password } = validationResult.data;
       
@@ -737,22 +709,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(401).json({ message: "Invalid credentials" });
       }
       
-      res.json(updatedLead);
-      
       // Check if admin is active
       if (!admin.isActive) {
         return res.status(403).json({ message: "Account is inactive" });
       }
-      
-      res.json(updatedLead);
       
       // Verify password
       const isValidPassword = await bcrypt.compare(password, admin.passwordHash);
       if (!isValidPassword) {
         return res.status(401).json({ message: "Invalid credentials" });
       }
-      
-      res.json(updatedLead);
       
       // Ensure admin also exists in users table (for foreign key constraints)
       try {
@@ -763,15 +729,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
           lastName: admin.lastName,
           role: admin.role,
           profileImageUrl: admin.profileImageUrl,
-      }
-      
-      res.json(updatedLead);
+        });
       } catch (upsertError) {
         console.error("Error upserting admin to users table:", upsertError);
         // Don't fail login if this fails, but log it
       }
-      
-      res.json(updatedLead);
       
       // Create session with admin info
       req.session.adminUser = {
@@ -788,9 +750,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         req.session.save((err: any) => {
           if (err) reject(err);
           else resolve();
-      }
-      
-      res.json(updatedLead);
+        });
+      });
       
       // Return admin info (without password hash)
       const { passwordHash, ...adminWithoutPassword } = admin;
@@ -842,8 +803,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       } else {
         cb(new Error('Tipo de archivo no permitido. Solo JPG, PNG y WEBP.'));
       }
-      
-      res.json(updatedLead);
     }
   });
 
@@ -872,8 +831,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       } else {
         cb(new Error('Tipo de archivo no permitido. Solo JPG, PNG y WEBP.'));
       }
-      
-      res.json(updatedLead);
     }
   });
 
@@ -902,8 +859,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       } else {
         cb(new Error('Tipo de archivo no permitido. Solo JPG, PNG y WEBP.'));
       }
-      
-      res.json(updatedLead);
     }
   });
 
@@ -913,8 +868,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!req.file) {
         return res.status(400).json({ message: "No se proporcionó ninguna foto" });
       }
-      
-      res.json(updatedLead);
 
       const photoUrl = `/attached_assets/stock_images/${req.file.filename}`;
       res.json({ url: photoUrl });
@@ -930,8 +883,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!req.file) {
         return res.status(400).json({ message: "No se proporcionó ninguna foto" });
       }
-      
-      res.json(updatedLead);
 
       const photoUrl = `/attached_assets/maintenance_photos/${req.file.filename}`;
       res.json({ url: photoUrl });
@@ -949,8 +900,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(200).json(null);
       }
       
-      res.json(updatedLead);
-      
       // Fetch full admin data from database to include onboarding fields
       const adminId = req.session.adminUser.id;
       const admin = await storage.getAdminById(adminId);
@@ -958,8 +907,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!admin) {
         return res.status(200).json(null);
       }
-      
-      res.json(updatedLead);
       
       const { passwordHash, ...adminWithoutPassword } = admin;
       res.json(adminWithoutPassword);
@@ -975,20 +922,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!req.session.adminUser) {
         return res.status(401).json({ message: "Not authenticated" });
       }
-      
-      res.json(updatedLead);
 
       const validationResult = updateAdminProfileSchema.safeParse(req.body);
       if (!validationResult.success) {
         return res.status(400).json({
           message: "Invalid request data",
           errors: validationResult.error.errors,
+        });
       }
-      
-      res.json(updatedLead);
-      }
-      
-      res.json(updatedLead);
 
       const adminId = req.session.adminUser.id;
       const updatedAdmin = await storage.updateAdminProfile(adminId, validationResult.data);
@@ -1006,9 +947,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         req.session.save((err: any) => {
           if (err) reject(err);
           else resolve();
-      }
-      
-      res.json(updatedLead);
+        });
+      });
 
       const { passwordHash, ...adminWithoutPassword } = updatedAdmin;
       res.json(adminWithoutPassword);
@@ -1024,20 +964,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!req.session.adminUser) {
         return res.status(401).json({ message: "Not authenticated" });
       }
-      
-      res.json(updatedLead);
 
       const validationResult = updateAdminPasswordSchema.safeParse(req.body);
       if (!validationResult.success) {
         return res.status(400).json({
           message: "Invalid request data",
           errors: validationResult.error.errors,
+        });
       }
-      
-      res.json(updatedLead);
-      }
-      
-      res.json(updatedLead);
 
       const { currentPassword, newPassword } = validationResult.data;
       const adminId = req.session.adminUser.id;
@@ -1047,16 +981,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!admin) {
         return res.status(404).json({ message: "Admin not found" });
       }
-      
-      res.json(updatedLead);
 
       // Verify current password
       const isValidPassword = await bcrypt.compare(currentPassword, admin.passwordHash);
       if (!isValidPassword) {
         return res.status(401).json({ message: "Current password is incorrect" });
       }
-      
-      res.json(updatedLead);
 
       // Hash new password
       const newPasswordHash = await bcrypt.hash(newPassword, 10);
@@ -1079,12 +1009,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({
           message: "Invalid request data",
           errors: validationResult.error.errors,
+        });
       }
-      
-      res.json(updatedLead);
-      }
-      
-      res.json(updatedLead);
 
       const { email, password } = validationResult.data;
 
@@ -1093,30 +1019,22 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!user || !user.passwordHash) {
         return res.status(401).json({ message: "Credenciales inválidas" });
       }
-      
-      res.json(updatedLead);
 
       // Check if user is approved
       if (user.status !== "approved") {
         return res.status(403).json({ message: "Tu cuenta está pendiente de aprobación" });
       }
-      
-      res.json(updatedLead);
 
       // Check if email is verified
       if (!user.emailVerified) {
         return res.status(403).json({ message: "Por favor verifica tu email primero" });
       }
-      
-      res.json(updatedLead);
 
       // Verify password
       const isValidPassword = await bcrypt.compare(password, user.passwordHash);
       if (!isValidPassword) {
         return res.status(401).json({ message: "Credenciales inválidas" });
       }
-      
-      res.json(updatedLead);
 
       // Create session
       req.session.userId = user.id;
@@ -1126,9 +1044,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         req.session.save((err: any) => {
           if (err) reject(err);
           else resolve();
-      }
-      
-      res.json(updatedLead);
+        });
+      });
 
       // Return user info (without password hash)
       const { passwordHash, ...userWithoutPassword } = user;
@@ -1152,14 +1069,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
             return res.status(500).json({ message: "Error al cerrar sesión" });
           }
           res.json({ message: "Sesión cerrada exitosamente" });
-      }
-      
-      res.json(updatedLead);
+        });
       } else {
         res.status(400).json({ message: "No hay sesión activa" });
       }
-      
-      res.json(updatedLead);
     } catch (error) {
       console.error("Error during logout:", error);
       res.status(500).json({ message: "Error al cerrar sesión" });
@@ -1176,8 +1089,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!user) {
         return res.status(404).json({ message: "User not found" });
       }
-      
-      res.json(updatedLead);
 
       // Generate temporary password
       const temporaryPassword = generateTemporaryPassword();
@@ -1220,8 +1131,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!user) {
         return res.status(404).json({ message: "User not found" });
       }
-      
-      res.json(updatedLead);
 
       // Generate new temporary password
       const temporaryPassword = generateTemporaryPassword();
@@ -1261,12 +1170,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({
           message: "Invalid request data",
           errors: validationResult.error.errors,
+        });
       }
-      
-      res.json(updatedLead);
-      }
-      
-      res.json(updatedLead);
 
       const { currentPassword, newPassword } = validationResult.data;
       const userId = req.user.claims.sub;
@@ -1276,24 +1181,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!user || !user.passwordHash) {
         return res.status(400).json({ message: "User not found or no password set" });
       }
-      
-      res.json(updatedLead);
 
       // Verify current password
       const isValidPassword = await bcrypt.compare(currentPassword, user.passwordHash);
       if (!isValidPassword) {
         return res.status(401).json({ message: "Current password is incorrect" });
       }
-      
-      res.json(updatedLead);
 
       // Validate new password strength
       const strengthValidation = validatePasswordStrength(newPassword);
       if (!strengthValidation.valid) {
         return res.status(400).json({ message: strengthValidation.message });
       }
-      
-      res.json(updatedLead);
 
       // Hash new password
       const passwordHash = await bcrypt.hash(newPassword, 10);
@@ -1325,12 +1224,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({
           message: "Invalid request data",
           errors: validationResult.error.errors,
+        });
       }
-      
-      res.json(updatedLead);
-      }
-      
-      res.json(updatedLead);
 
       const { newPassword } = validationResult.data;
       const userId = req.user.claims.sub;
@@ -1340,23 +1235,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!user) {
         return res.status(404).json({ message: "User not found" });
       }
-      
-      res.json(updatedLead);
 
       // Check if user actually needs to change password
       if (!user.requirePasswordChange) {
         return res.status(400).json({ message: "Password change not required" });
       }
-      
-      res.json(updatedLead);
 
       // Validate new password strength
       const strengthValidation = validatePasswordStrength(newPassword);
       if (!strengthValidation.valid) {
         return res.status(400).json({ message: strengthValidation.message });
       }
-      
-      res.json(updatedLead);
 
       // Hash new password
       const passwordHash = await bcrypt.hash(newPassword, 10);
@@ -1479,12 +1368,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ 
           message: "Datos inválidos",
           errors: validationResult.error.errors 
+        });
       }
-      
-      res.json(updatedLead);
-      }
-      
-      res.json(updatedLead);
       
       const { role } = validationResult.data;
       const user = await storage.updateUserRole(id, role);
@@ -1520,12 +1405,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ 
           message: "Datos inválidos",
           errors: validationResult.error.errors 
+        });
       }
-      
-      res.json(updatedLead);
-      }
-      
-      res.json(updatedLead);
       
       const { role } = validationResult.data;
 
@@ -1540,31 +1421,21 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (ADMIN_ROLES.includes(role)) {
         return res.status(403).json({ 
           message: "Los roles administrativos solo pueden ser asignados por un administrador master" 
+        });
       }
-      
-      res.json(updatedLead);
-      }
-      
-      res.json(updatedLead);
 
       // Validate role is in switchable set
       if (!SWITCHABLE_ROLES.includes(role)) {
         return res.status(400).json({ 
           message: "Rol inválido" 
+        });
       }
-      
-      res.json(updatedLead);
-      }
-      
-      res.json(updatedLead);
 
       // Get current user data to check their approved roles
       const currentUser = await storage.getUser(userId);
       if (!currentUser) {
         return res.status(404).json({ message: "Usuario no encontrado" });
       }
-      
-      res.json(updatedLead);
 
       // User can always switch between owner and cliente (base roles)
       const isBaseRole = role === "owner" || role === "cliente";
@@ -1577,12 +1448,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!isBaseRole && !isApprovedAdditionalRole) {
         return res.status(400).json({ 
           message: "Solo puedes cambiar a roles que tienes aprobados" 
+        });
       }
-      
-      res.json(updatedLead);
-      }
-      
-      res.json(updatedLead);
 
       const user = await storage.updateUserRole(userId, role);
       
@@ -1648,13 +1515,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (encryptedData.bankAccountNumber) {
         encryptedData.bankAccountNumber = encrypt(encryptedData.bankAccountNumber);
       }
-      
-      res.json(updatedLead);
       if (encryptedData.bankClabe) {
         encryptedData.bankClabe = encrypt(encryptedData.bankClabe);
       }
-      
-      res.json(updatedLead);
       
       const user = await storage.updateBankInfo(userId, encryptedData);
       
@@ -1668,8 +1531,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
           userResponse.bankAccountNumber = '';
         }
       }
-      
-      res.json(updatedLead);
       if (userResponse.bankClabe) {
         try {
           userResponse.bankClabe = decrypt(userResponse.bankClabe);
@@ -1678,8 +1539,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
           userResponse.bankClabe = '';
         }
       }
-      
-      res.json(updatedLead);
       
       await createAuditLog(
         req,
@@ -1699,8 +1558,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (error instanceof z.ZodError) {
         return res.status(400).json({ message: "Datos inválidos", errors: error.errors });
       }
-      
-      res.json(updatedLead);
       res.status(500).json({ message: "Failed to update bank information" });
     }
   });
@@ -1744,8 +1601,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
         updates.hasSeenWelcome = true;
       }
       
-      res.json(updatedLead);
-      
       await db
         .update(users)
         .set(updates)
@@ -1788,8 +1643,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(401).json({ message: "Not authenticated" });
       }
       
-      res.json(updatedLead);
-      
       res.json({ success: true });
     } catch (error) {
       console.error("Error completing onboarding:", error);
@@ -1827,8 +1680,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(401).json({ message: "Not authenticated" });
       }
       
-      res.json(updatedLead);
-      
       res.json({ success: true });
     } catch (error) {
       console.error("Error skipping onboarding:", error);
@@ -1853,9 +1704,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           token,
           expiresAt,
           used: false,
-      }
-      
-      res.json(updatedLead);
+        });
         
         // Determine the base URL for the reset link
         // In production: use REPLIT_DOMAINS (first domain) or WEB_REPL_DEPLOYMENT_URL
@@ -1887,12 +1736,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
           console.error('Email error details:', {
             message: emailError instanceof Error ? emailError.message : 'Unknown error',
             stack: emailError instanceof Error ? emailError.stack : undefined
-        }
+          });
           // Still return success to prevent user enumeration
         }
       }
-      
-      res.json(updatedLead);
       
       res.json({ message: "Si el email existe, recibirás un enlace de restablecimiento" });
     } catch (error) {
@@ -1900,8 +1747,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (error instanceof z.ZodError) {
         return res.status(400).json({ message: "Email inválido", errors: error.errors });
       }
-      
-      res.json(updatedLead);
       res.status(500).json({ message: "Error al procesar solicitud" });
     }
   });
@@ -1917,19 +1762,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ message: "Token inválido o expirado" });
       }
       
-      res.json(updatedLead);
-      
       if (resetToken.used) {
         return res.status(400).json({ message: "Este token ya fue usado" });
       }
       
-      res.json(updatedLead);
-      
       if (new Date() > resetToken.expiresAt) {
         return res.status(400).json({ message: "Este token ha expirado" });
       }
-      
-      res.json(updatedLead);
       
       const passwordHash = await bcrypt.hash(newPassword, 10);
       await storage.updateUserPassword(resetToken.userId, passwordHash);
@@ -1941,8 +1780,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (error instanceof z.ZodError) {
         return res.status(400).json({ message: "Datos inválidos", errors: error.errors });
       }
-      
-      res.json(updatedLead);
       res.status(500).json({ message: "Error al restablecer contraseña" });
     }
   });
@@ -1957,13 +1794,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ message: "Usuario no encontrado" });
       }
       
-      res.json(updatedLead);
-      
       if (!user.passwordHash) {
         return res.status(400).json({ message: "Esta cuenta usa autenticación de terceros. No se puede enviar enlace de restablecimiento." });
       }
-      
-      res.json(updatedLead);
       
       const token = crypto.randomBytes(32).toString('hex');
       const expiresAt = new Date(Date.now() + 60 * 60 * 1000);
@@ -2012,14 +1845,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ message: "No puedes eliminar tu propia cuenta" });
       }
       
-      res.json(updatedLead);
-      
       const user = await storage.getUser(userId);
       if (!user) {
         return res.status(404).json({ message: "Usuario no encontrado" });
       }
-      
-      res.json(updatedLead);
       
       // Check for related data that would prevent deletion
       const hasRelatedData = await db.select({ count: sql<number>`count(*)::int` })
@@ -2030,12 +1859,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (hasRelatedData) {
         return res.status(400).json({ 
           message: "No se puede eliminar este usuario porque tiene conversaciones de chat asociadas. Considera suspender la cuenta en su lugar." 
+        });
       }
-      
-      res.json(updatedLead);
-      }
-      
-      res.json(updatedLead);
       
       await createAuditLog(
         req,
@@ -2101,14 +1926,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ message: "Usuario no encontrado" });
       }
       
-      res.json(updatedLead);
-      
       const adminId = req.user?.claims?.sub || req.user?.id;
       if (userId === adminId) {
         return res.status(400).json({ message: "No puedes suspender tu propia cuenta" });
       }
-      
-      res.json(updatedLead);
       
       const suspendedAt = new Date();
       const suspensionEndDate = validated.suspensionType === "temporary" && validated.endDate
@@ -2141,8 +1962,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (error instanceof z.ZodError) {
         return res.status(400).json({ message: "Datos inválidos", errors: error.errors });
       }
-      
-      res.json(updatedLead);
       res.status(500).json({ message: "Error al suspender usuario" });
     }
   });
@@ -2156,8 +1975,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!user) {
         return res.status(404).json({ message: "Usuario no encontrado" });
       }
-      
-      res.json(updatedLead);
       
       await db
         .update(users)
@@ -2196,21 +2013,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!user) {
         return res.status(404).json({ message: "Usuario no encontrado" });
       }
-      
-      res.json(updatedLead);
 
       // Validate role
       const validRoles = ["cliente", "seller", "owner", "concierge", "provider", "admin", "admin_jr", "master", "management"];
       if (role && !validRoles.includes(role)) {
         return res.status(400).json({ message: "Rol inválido" });
       }
-      
-      res.json(updatedLead);
       if (additionalRole && !validRoles.includes(additionalRole)) {
         return res.status(400).json({ message: "Rol adicional inválido" });
       }
-      
-      res.json(updatedLead);
 
       const updateData: any = {};
       if (role) updateData.role = role;
@@ -2267,8 +2078,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (error instanceof z.ZodError) {
         return res.status(400).json({ message: "Datos inválidos", errors: error.errors });
       }
-      
-      res.json(updatedLead);
       res.status(500).json({ message: "Error al subir documento" });
     }
   });
@@ -2299,15 +2108,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
       } else {
         res.status(400).json({ message: "Debes aceptar los términos y condiciones" });
       }
-      
-      res.json(updatedLead);
     } catch (error) {
       console.error("Error accepting commission terms:", error);
       if (error instanceof z.ZodError) {
         return res.status(400).json({ message: "Datos inválidos", errors: error.errors });
       }
-      
-      res.json(updatedLead);
       res.status(500).json({ message: "Error al aceptar términos" });
     }
   });
@@ -2322,13 +2127,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ message: "Vendedor no encontrado" });
       }
       
-      res.json(updatedLead);
-      
       if (seller.role !== "seller") {
         return res.status(400).json({ message: "El usuario no es un vendedor" });
       }
-      
-      res.json(updatedLead);
       
       const updates: any = {
         documentApprovalStatus: validated.status,
@@ -2340,8 +2141,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       } else if (validated.status === "approved") {
         updates.documentRejectionReason = null;
       }
-      
-      res.json(updatedLead);
       
       await db
         .update(users)
@@ -2362,8 +2161,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (error instanceof z.ZodError) {
         return res.status(400).json({ message: "Datos inválidos", errors: error.errors });
       }
-      
-      res.json(updatedLead);
       res.status(500).json({ message: "Error al actualizar estado de documento" });
     }
   });
@@ -2376,12 +2173,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({
           message: "Invalid registration data",
           errors: validationResult.error.errors,
+        });
       }
-      
-      res.json(updatedLead);
-      }
-      
-      res.json(updatedLead);
 
       const { email, password, firstName, lastName, phone, preferredLanguage } = validationResult.data;
 
@@ -2389,38 +2182,26 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!isValidEmail(email)) {
         return res.status(400).json({ message: "Formato de email inválido" });
       }
-      
-      res.json(updatedLead);
 
       if (!isStrongPassword(password)) {
         return res.status(400).json({ 
           message: "La contraseña debe tener al menos 8 caracteres, una mayúscula, una minúscula y un número" 
+        });
       }
-      
-      res.json(updatedLead);
-      }
-      
-      res.json(updatedLead);
 
       if (containsSQLKeywords(firstName) || containsSQLKeywords(lastName)) {
         return res.status(400).json({ message: "Nombre contiene caracteres no permitidos" });
       }
-      
-      res.json(updatedLead);
 
       if (phone && !isValidPhoneNumber(phone)) {
         return res.status(400).json({ message: "Formato de teléfono inválido" });
       }
-      
-      res.json(updatedLead);
 
       // Check if user already exists
       const existingUser = await storage.getUserByEmail(email);
       if (existingUser) {
         return res.status(409).json({ message: "El email ya está registrado" });
       }
-      
-      res.json(updatedLead);
 
       // Hash password
       const passwordHash = await bcrypt.hash(password, 10);
@@ -2465,8 +2246,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
         console.error("Email error details:", emailError);
         // Don't fail registration if email fails
       }
-      
-      res.json(updatedLead);
 
       res.status(201).json({
         message: emailSent 
@@ -2490,30 +2269,22 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!email || !code) {
         return res.status(400).json({ message: "Email y código son requeridos" });
       }
-      
-      res.json(updatedLead);
 
       // Validate code format (6 digits)
       if (!/^\d{6}$/.test(code)) {
         return res.status(400).json({ message: "Código inválido" });
       }
-      
-      res.json(updatedLead);
 
       // Get user by email
       const user = await storage.getUserByEmail(email);
       if (!user) {
         return res.status(400).json({ message: "Código de verificación inválido" });
       }
-      
-      res.json(updatedLead);
 
       // Check if already verified
       if (user.emailVerified) {
         return res.status(400).json({ message: "El email ya está verificado" });
       }
-      
-      res.json(updatedLead);
 
       // Get verification token for this specific user
       const verificationToken = await storage.getEmailVerificationTokenByUserId(user.id);
@@ -2522,16 +2293,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!verificationToken || verificationToken.code !== code) {
         return res.status(400).json({ message: "Código de verificación inválido" });
       }
-      
-      res.json(updatedLead);
 
       // Check if code is expired
       if (new Date() > verificationToken.expiresAt) {
         await storage.deleteEmailVerificationToken(verificationToken.id);
         return res.status(400).json({ message: "El código ha expirado" });
       }
-      
-      res.json(updatedLead);
 
       // Verify user email
       await storage.verifyUserEmail(user.id);
@@ -2547,9 +2314,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         req.session.save((err: any) => {
           if (err) reject(err);
           else resolve();
-      }
-      
-      res.json(updatedLead);
+        });
+      });
 
       res.json({ 
         message: "Email verificado exitosamente",
@@ -2576,23 +2342,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!email) {
         return res.status(400).json({ message: "Email es requerido" });
       }
-      
-      res.json(updatedLead);
 
       // Get user
       const user = await storage.getUserByEmail(email);
       if (!user) {
         return res.status(404).json({ message: "Usuario no encontrado" });
       }
-      
-      res.json(updatedLead);
 
       // Check if already verified
       if (user.emailVerified) {
         return res.status(400).json({ message: "El email ya está verificado" });
       }
-      
-      res.json(updatedLead);
 
       // Delete old verification code if exists
       await storage.deleteEmailVerificationTokenByUserId(user.id);
@@ -2617,8 +2377,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
         console.error("Error sending verification email:", emailError);
         res.status(500).json({ message: "Error al enviar el código" });
       }
-      
-      res.json(updatedLead);
     } catch (error) {
       console.error("Error resending verification code:", error);
       res.status(500).json({ message: "Error al reenviar el código" });
@@ -2632,8 +2390,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!token || typeof token !== "string") {
         return res.status(400).json({ message: "Token inválido" });
       }
-      
-      res.json(updatedLead);
 
       // Legacy support - redirect to verification page
       res.redirect(`/verify-email?token=${token}`);
@@ -2650,8 +2406,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!token || typeof token !== "string") {
         return res.status(400).json({ message: "Token inválido" });
       }
-      
-      res.json(updatedLead);
 
       // This is for old-style verification - not used anymore but kept for backward compatibility
       res.json({ 
@@ -2696,12 +2450,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({
           message: "Datos de usuario inválidos",
           errors: validationResult.error.errors,
+        });
       }
-      
-      res.json(updatedLead);
-      }
-      
-      res.json(updatedLead);
 
       const { email, password, firstName, lastName, role, phone, sendEmail } = validationResult.data;
 
@@ -2710,8 +2460,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (existingUser) {
         return res.status(409).json({ message: "El email ya está registrado" });
       }
-      
-      res.json(updatedLead);
 
       // Hash password
       const passwordHash = await bcrypt.hash(password, 10);
@@ -2741,7 +2489,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
             userId: user.id,
             token: verificationToken,
             expiresAt,
-        }
+          });
 
           await sendVerificationEmail(user.email, verificationToken);
         } catch (emailError) {
@@ -2749,8 +2497,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
           // Don't fail user creation if email fails
         }
       }
-      
-      res.json(updatedLead);
 
       // Create audit log
       await createAuditLog(
@@ -2784,32 +2530,22 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!userId) {
         return res.status(401).json({ message: "Usuario no autenticado" });
       }
-      
-      res.json(updatedLead);
 
       const validationResult = insertRoleRequestSchema.safeParse(req.body);
       if (!validationResult.success) {
         return res.status(400).json({
           message: "Datos inválidos",
           errors: validationResult.error.errors,
+        });
       }
-      
-      res.json(updatedLead);
-      }
-      
-      res.json(updatedLead);
 
       // Check if user already has an active request
       const existingRequest = await storage.getUserActiveRoleRequest(userId);
       if (existingRequest) {
         return res.status(409).json({
           message: "Ya tienes una solicitud pendiente",
+        });
       }
-      
-      res.json(updatedLead);
-      }
-      
-      res.json(updatedLead);
 
       const roleRequest = await storage.createRoleRequest({
         ...validationResult.data,
@@ -2871,8 +2607,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!userId) {
         return res.status(401).json({ message: "Usuario no autenticado" });
       }
-      
-      res.json(updatedLead);
 
       const requests = await storage.getRoleRequests({ userId });
       res.json(requests);
@@ -2892,35 +2626,25 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!roleRequest) {
         return res.status(404).json({ message: "Solicitud no encontrada" });
       }
-      
-      res.json(updatedLead);
 
       // Check if request is still pending
       if (roleRequest.status !== "pending") {
         return res.status(400).json({
           message: `Esta solicitud ya fue ${roleRequest.status === "approved" ? "aprobada" : "rechazada"}`,
+        });
       }
-      
-      res.json(updatedLead);
-      }
-      
-      res.json(updatedLead);
 
       // Validate requested role is allowed
       const allowedRoles = ["owner", "seller", "management", "concierge", "provider", "hoa_manager"];
       if (!allowedRoles.includes(roleRequest.requestedRole)) {
         return res.status(400).json({ message: "Rol solicitado no es válido" });
       }
-      
-      res.json(updatedLead);
 
       // Check if user already has this role
       const user = await storage.getUser(roleRequest.userId);
       if (user?.additionalRole === roleRequest.requestedRole) {
         return res.status(400).json({ message: "El usuario ya tiene este rol" });
       }
-      
-      res.json(updatedLead);
 
       // Update role request status
       // Only pass reviewerId if it's an OIDC user (not admin or local auth)
@@ -2962,19 +2686,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!roleRequest) {
         return res.status(404).json({ message: "Solicitud no encontrada" });
       }
-      
-      res.json(updatedLead);
 
       // Check if request is still pending
       if (roleRequest.status !== "pending") {
         return res.status(400).json({
           message: `Esta solicitud ya fue ${roleRequest.status === "approved" ? "aprobada" : "rechazada"}`,
+        });
       }
-      
-      res.json(updatedLead);
-      }
-      
-      res.json(updatedLead);
 
       // Update role request status
       // Only pass reviewerId if it's an OIDC user (not admin or local auth)
@@ -3010,15 +2728,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!userId) {
         return res.status(401).json({ message: "Usuario no autenticado" });
       }
-      
-      res.json(updatedLead);
 
       const user = await storage.getUser(userId);
       if (!user || user.role !== "owner") {
         return res.status(403).json({ message: "Solo los propietarios pueden solicitar aumento de límite" });
       }
-      
-      res.json(updatedLead);
 
       // Validate request data
       const validationResult = createPropertyLimitRequestSchema.safeParse(req.body);
@@ -3026,24 +2740,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({
           message: "Datos inválidos",
           errors: validationResult.error.errors,
+        });
       }
-      
-      res.json(updatedLead);
-      }
-      
-      res.json(updatedLead);
 
       // Check if user already has a pending request
       const existingRequest = await storage.getUserActivePropertyLimitRequest(userId);
       if (existingRequest) {
         return res.status(409).json({
           message: "Ya tienes una solicitud pendiente",
+        });
       }
-      
-      res.json(updatedLead);
-      }
-      
-      res.json(updatedLead);
 
       const currentLimit = user.propertyLimit || 3;
       const requestedLimit = validationResult.data.requestedLimit;
@@ -3051,12 +2757,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (requestedLimit <= currentLimit) {
         return res.status(400).json({
           message: `El límite solicitado debe ser mayor que tu límite actual (${currentLimit})`,
+        });
       }
-      
-      res.json(updatedLead);
-      }
-      
-      res.json(updatedLead);
 
       const request = await storage.createPropertyLimitRequest({
         ownerId: userId,
@@ -3087,8 +2789,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!userId) {
         return res.status(401).json({ message: "Usuario no autenticado" });
       }
-      
-      res.json(updatedLead);
 
       const user = await storage.getUser(userId);
       const isAdmin = user && ["master", "admin", "admin_jr"].includes(user.role);
@@ -3105,8 +2805,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
         filters.ownerId = userId;
         if (status) filters.status = status;
       }
-      
-      res.json(updatedLead);
 
       const requests = await storage.getPropertyLimitRequests(filters);
       
@@ -3144,18 +2842,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!request) {
         return res.status(404).json({ message: "Solicitud no encontrada" });
       }
-      
-      res.json(updatedLead);
 
       if (request.status !== "pending") {
         return res.status(400).json({
           message: `Esta solicitud ya fue ${request.status === "approved" ? "aprobada" : "rechazada"}`,
+        });
       }
-      
-      res.json(updatedLead);
-      }
-      
-      res.json(updatedLead);
 
       // Update property limit request status
       const reviewerIdToSave = (!req.user?.adminAuth && !req.user?.localAuth) ? req.user?.claims?.sub : null;
@@ -3198,18 +2890,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!request) {
         return res.status(404).json({ message: "Solicitud no encontrada" });
       }
-      
-      res.json(updatedLead);
 
       if (request.status !== "pending") {
         return res.status(400).json({
           message: `Esta solicitud ya fue ${request.status === "approved" ? "aprobada" : "rechazada"}`,
+        });
       }
-      
-      res.json(updatedLead);
-      }
-      
-      res.json(updatedLead);
 
       // Update property limit request status
       const reviewerIdToSave = (!req.user?.adminAuth && !req.user?.localAuth) ? req.user?.claims?.sub : null;
@@ -3271,8 +2957,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (cached) {
         return res.json(cached);
       }
-      
-      res.json(updatedLead);
 
       // Cache miss - fetch from database
       const colonies = await storage.getApprovedColonies();
@@ -3309,14 +2993,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
         isAdmin = user.role === "master" || user.role === "admin" || user.additionalRole === "admin";
       }
       
-      res.json(updatedLead);
-      
       // Admins can create directly, owners need to suggest with limits
       if (!isAdmin && userRole !== "owner") {
         return res.status(403).json({ message: "Solo los propietarios y administradores pueden crear colonias" });
       }
-      
-      res.json(updatedLead);
 
       // Check suggestion limits only for non-admin owners
       if (!isAdmin && userRole === "owner") {
@@ -3326,17 +3006,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
         if (todaySuggestions >= 3) {
           return res.status(429).json({ 
             message: "Has alcanzado el límite de 3 sugerencias por día" 
-        }
+          });
         }
 
         if (totalSuggestions >= 15) {
           return res.status(429).json({ 
             message: "Has alcanzado el límite de 15 sugerencias totales" 
-        }
+          });
         }
       }
-      
-      res.json(updatedLead);
       
       // Validate request body with Zod
       const colonySchema = z.object({
@@ -3348,12 +3026,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ 
           message: "Datos inválidos", 
           errors: validationResult.error.errors 
+        });
       }
-      
-      res.json(updatedLead);
-      }
-      
-      res.json(updatedLead);
 
       const { name } = validationResult.data;
 
@@ -3387,8 +3061,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (isAdmin) {
         await cache.invalidate(CacheKeys.coloniesApproved());
       }
-      
-      res.json(updatedLead);
 
       res.json(colony);
     } catch (error) {
@@ -3417,15 +3089,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
         userRole = user.role;
         isAdmin = user.role === "master" || user.role === "admin" || user.additionalRole === "admin";
       }
-      
-      res.json(updatedLead);
 
       const { name } = req.body;
       if (!name || name.trim() === "") {
         return res.status(400).json({ message: "El nombre de la colonia es requerido" });
       }
-      
-      res.json(updatedLead);
 
       // Search for existing colony by exact name (case-insensitive)
       const existingColony = await db
@@ -3437,8 +3105,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (existingColony.length > 0) {
         return res.json(existingColony[0]);
       }
-      
-      res.json(updatedLead);
 
       // Generate slug from name
       const slug = name.trim().toLowerCase()
@@ -3467,8 +3133,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (isAdmin) {
         await cache.invalidate(CacheKeys.coloniesApproved());
       }
-      
-      res.json(updatedLead);
 
       res.json(newColony);
     } catch (error) {
@@ -3491,12 +3155,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ 
           message: "Datos inválidos", 
           errors: validationResult.error.errors 
+        });
       }
-      
-      res.json(updatedLead);
-      }
-      
-      res.json(updatedLead);
 
       const colony = await storage.createColony(validationResult.data);
 
@@ -3530,12 +3190,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ 
           message: "Datos inválidos", 
           errors: validationResult.error.errors 
+        });
       }
-      
-      res.json(updatedLead);
-      }
-      
-      res.json(updatedLead);
 
       const colony = await storage.updateColony(id, validationResult.data);
 
@@ -3591,15 +3247,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!existingColony) {
         return res.status(404).json({ message: "Colonia no encontrada" });
       }
-      
-      res.json(updatedLead);
 
       // Update name if provided
       if (name && name.trim() !== "" && name !== existingColony.name) {
         await storage.updateColony(id, { name: name.trim() });
       }
-      
-      res.json(updatedLead);
 
       const colony = await storage.updateColonyStatus(id, "approved");
       
@@ -3630,8 +3282,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!existingColony) {
         return res.status(404).json({ message: "Colonia no encontrada" });
       }
-      
-      res.json(updatedLead);
 
       const colony = await storage.updateColonyStatus(id, "rejected");
       
@@ -3677,8 +3327,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (cached) {
         return res.json(cached);
       }
-      
-      res.json(updatedLead);
 
       // Cache miss - fetch from database
       const condominiums = await storage.getApprovedCondominiums();
@@ -3715,14 +3363,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
         isAdmin = user.role === "master" || user.role === "admin" || user.additionalRole === "admin";
       }
       
-      res.json(updatedLead);
-      
       // Admins can create directly, owners need to suggest with limits
       if (!isAdmin && userRole !== "owner") {
         return res.status(403).json({ message: "Solo los propietarios y administradores pueden crear condominios" });
       }
-      
-      res.json(updatedLead);
 
       // Check suggestion limits only for non-admin owners
       if (!isAdmin && userRole === "owner") {
@@ -3732,17 +3376,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
         if (todaySuggestions >= 3) {
           return res.status(429).json({ 
             message: "Has alcanzado el límite de 3 sugerencias por día" 
-        }
+          });
         }
 
         if (totalSuggestions >= 15) {
           return res.status(429).json({ 
             message: "Has alcanzado el límite de 15 sugerencias totales" 
-        }
+          });
         }
       }
-      
-      res.json(updatedLead);
       
       // Validate request body with Zod
       const condominiumSchema = z.object({
@@ -3757,12 +3399,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ 
           message: "Datos inválidos", 
           errors: validationResult.error.errors 
+        });
       }
-      
-      res.json(updatedLead);
-      }
-      
-      res.json(updatedLead);
 
       const { name, colonyId, zone, address } = validationResult.data;
 
@@ -3791,8 +3429,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (isAdmin) {
         await cache.invalidate(CacheKeys.condominiumsApproved());
       }
-      
-      res.json(updatedLead);
 
       res.json(condominium);
     } catch (error) {
@@ -3822,15 +3458,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
         userRole = user.role;
         isAdmin = user.role === "master" || user.role === "admin" || user.additionalRole === "admin";
       }
-      
-      res.json(updatedLead);
 
       const { name } = req.body;
       if (!name || name.trim() === "") {
         return res.status(400).json({ message: "El nombre del condominio es requerido" });
       }
-      
-      res.json(updatedLead);
 
       // Search for existing condominium by exact name (case-insensitive)
       const existingCondo = await db
@@ -3842,8 +3474,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (existingCondo.length > 0) {
         return res.json(existingCondo[0]);
       }
-      
-      res.json(updatedLead);
 
       // Create new condominium
       const approvalStatus = isAdmin ? "approved" : "pending_review";
@@ -3865,8 +3495,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (isAdmin) {
         await cache.invalidate(CacheKeys.condominiumsApproved());
       }
-      
-      res.json(updatedLead);
 
       res.json(newCondo);
     } catch (error) {
@@ -3885,15 +3513,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!existingCondominium) {
         return res.status(404).json({ message: "Condominio no encontrado" });
       }
-      
-      res.json(updatedLead);
 
       // Update name if provided
       if (name && name.trim() !== "" && name !== existingCondominium.name) {
         await storage.updateCondominium(id, { name: name.trim() });
       }
-      
-      res.json(updatedLead);
 
       const condominium = await storage.updateCondominiumStatus(id, "approved");
       
@@ -3924,8 +3548,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!existingCondominium) {
         return res.status(404).json({ message: "Condominio no encontrado" });
       }
-      
-      res.json(updatedLead);
 
       const condominium = await storage.updateCondominiumStatus(id, "rejected");
       
@@ -3953,8 +3575,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!existingCondominium) {
         return res.status(404).json({ message: "Condominio no encontrado" });
       }
-      
-      res.json(updatedLead);
 
       // Validate request body with Zod
       const updateSchema = z.object({
@@ -3969,12 +3589,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ 
           message: "Datos inválidos", 
           errors: validationResult.error.errors 
+        });
       }
-      
-      res.json(updatedLead);
-      }
-      
-      res.json(updatedLead);
 
       const condominium = await storage.updateCondominium(id, validationResult.data);
       
@@ -4006,14 +3622,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!existingCondominium) {
         return res.status(404).json({ message: "Condominio no encontrado" });
       }
-      
-      res.json(updatedLead);
 
       if (typeof active !== "boolean") {
         return res.status(400).json({ message: "El campo 'active' debe ser booleano" });
       }
-      
-      res.json(updatedLead);
 
       const condominium = await storage.toggleCondominiumActive(id, active);
       
@@ -4044,20 +3656,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!existingCondominium) {
         return res.status(404).json({ message: "Condominio no encontrado" });
       }
-      
-      res.json(updatedLead);
 
       // Check if condominium has associated properties
       const propertiesCount = await storage.countPropertiesByCondominium(id);
       if (propertiesCount > 0) {
         return res.status(400).json({ 
           message: `No se puede eliminar el condominio porque tiene ${propertiesCount} propiedad${propertiesCount > 1 ? 'es' : ''} asociada${propertiesCount > 1 ? 's' : ''}. Por favor, elimina o reasigna las propiedades primero.` 
+        });
       }
-      
-      res.json(updatedLead);
-      }
-      
-      res.json(updatedLead);
 
       await createAuditLog(
         req,
@@ -4163,8 +3769,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!condominium) {
         return res.status(404).json({ message: "Condominio no encontrado" });
       }
-      
-      res.json(updatedLead);
 
       // Get properties in this condominium
       const allProperties = await storage.getProperties({});
@@ -4242,8 +3846,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!uuidRegex.test(condominiumId)) {
         return res.json([]);
       }
-      
-      res.json(updatedLead);
       const units = await db
         .select()
         .from(condominiumUnits)
@@ -4277,8 +3879,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
         userRole = user.role;
         isAdmin = user.role === "master" || user.role === "admin" || user.additionalRole === "admin";
       }
-      
-      res.json(updatedLead);
 
       const { condominiumId } = req.params;
       const { unitNumber } = req.body;
@@ -4287,14 +3887,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!uuidRegex.test(condominiumId)) {
         return res.json([]);
       }
-      
-      res.json(updatedLead);
 
       if (!unitNumber || unitNumber.trim() === "") {
         return res.status(400).json({ message: "El número de unidad es requerido" });
       }
-      
-      res.json(updatedLead);
 
       // Search for existing unit in this condominium with exact unit number
       const existingUnit = await db
@@ -4311,8 +3907,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (existingUnit.length > 0) {
         return res.json(existingUnit[0]);
       }
-      
-      res.json(updatedLead);
 
       // Create new unit
       const newUnit = await storage.createCondominiumUnit({
@@ -4355,8 +3949,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ message: "Configuración no encontrada" });
       }
       
-      res.json(updatedLead);
-      
       res.json(config);
     } catch (error) {
       console.error("Error fetching system configuration:", error);
@@ -4372,8 +3964,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!value) {
         return res.status(400).json({ message: "Valor es requerido" });
       }
-      
-      res.json(updatedLead);
       
       const userId = req.user.claims.sub;
       const config = await storage.upsertSystemConfig({
@@ -4422,8 +4012,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ message: "Término no encontrado" });
       }
       
-      res.json(updatedLead);
-      
       res.json(term);
     } catch (error) {
       console.error("Error fetching property owner term:", error);
@@ -4438,8 +4026,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!title || !titleEn || !content || !contentEn) {
         return res.status(400).json({ message: "Todos los campos son requeridos" });
       }
-      
-      res.json(updatedLead);
       
       const userId = req.user.claims.sub;
       const term = await storage.createPropertyOwnerTerm({
@@ -4521,16 +4107,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
         }
       }
       
-      res.json(updatedLead);
-      
       const amenities = await storage.getAmenities(filters);
       
       // Store in cache only if no filters
       if (shouldCache) {
         await cache.set(cacheKey, amenities, CacheTTL.STATIC);
       }
-      
-      res.json(updatedLead);
       
       res.json(amenities);
     } catch (error) {
@@ -4572,14 +4154,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
         isAdmin = user.role === "master" || user.role === "admin" || user.additionalRole === "admin";
       }
       
-      res.json(updatedLead);
-      
       // Admins can create directly, owners need to suggest with limits
       if (!isAdmin && userRole !== "owner") {
         return res.status(403).json({ message: "Solo los propietarios y administradores pueden crear amenidades" });
       }
-      
-      res.json(updatedLead);
 
       // Check suggestion limits only for non-admin owners
       if (!isAdmin && userRole === "owner") {
@@ -4589,17 +4167,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
         if (todaySuggestions >= 3) {
           return res.status(429).json({ 
             message: "Has alcanzado el límite de 3 sugerencias por día" 
-        }
+          });
         }
 
         if (totalSuggestions >= 15) {
           return res.status(429).json({ 
             message: "Has alcanzado el límite de 15 sugerencias totales" 
-        }
+          });
         }
       }
-      
-      res.json(updatedLead);
       
       // Validate request body with Zod
       const amenitySchema = z.object({
@@ -4612,12 +4188,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ 
           message: "Datos inválidos", 
           errors: validationResult.error.errors 
+        });
       }
-      
-      res.json(updatedLead);
-      }
-      
-      res.json(updatedLead);
 
       const { name, category } = validationResult.data;
 
@@ -4644,8 +4216,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (isAdmin) {
         await cache.invalidate(CacheKeys.amenities());
       }
-      
-      res.json(updatedLead);
 
       res.json(amenity);
     } catch (error) {
@@ -4663,15 +4233,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!existingAmenity) {
         return res.status(404).json({ message: "Amenidad no encontrada" });
       }
-      
-      res.json(updatedLead);
 
       // Update name if provided
       if (name && name.trim() !== "" && name !== existingAmenity.name) {
         await storage.updateAmenity(id, { name: name.trim() });
       }
-      
-      res.json(updatedLead);
 
       const amenity = await storage.updateAmenityStatus(id, "approved");
       
@@ -4701,8 +4267,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!existingAmenity) {
         return res.status(404).json({ message: "Amenidad no encontrada" });
       }
-      
-      res.json(updatedLead);
 
       const amenity = await storage.updateAmenityStatus(id, "rejected");
       
@@ -4739,19 +4303,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ 
           message: "Datos inválidos", 
           errors: validationResult.error.errors 
+        });
       }
-      
-      res.json(updatedLead);
-      }
-      
-      res.json(updatedLead);
 
       const existingAmenity = await storage.getAmenity(id);
       if (!existingAmenity) {
         return res.status(404).json({ message: "Amenidad no encontrada" });
       }
-      
-      res.json(updatedLead);
 
       const amenity = await storage.updateAmenity(id, validationResult.data);
 
@@ -4781,8 +4339,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!existingAmenity) {
         return res.status(404).json({ message: "Amenidad no encontrada" });
       }
-      
-      res.json(updatedLead);
 
       await createAuditLog(
         req,
@@ -4822,16 +4378,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
         }
       }
       
-      res.json(updatedLead);
-      
       const features = await storage.getPropertyFeatures(filters);
       
       // Store in cache only if no filters
       if (shouldCache) {
         await cache.set(cacheKey, features, CacheTTL.STATIC);
       }
-      
-      res.json(updatedLead);
       
       res.json(features);
     } catch (error) {
@@ -4854,12 +4406,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ 
           message: "Datos inválidos", 
           errors: validationResult.error.errors 
+        });
       }
-      
-      res.json(updatedLead);
-      }
-      
-      res.json(updatedLead);
 
       const feature = await storage.createPropertyFeature(validationResult.data);
 
@@ -4897,19 +4445,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ 
           message: "Datos inválidos", 
           errors: validationResult.error.errors 
+        });
       }
-      
-      res.json(updatedLead);
-      }
-      
-      res.json(updatedLead);
 
       const existingFeature = await storage.getPropertyFeature(id);
       if (!existingFeature) {
         return res.status(404).json({ message: "Característica no encontrada" });
       }
-      
-      res.json(updatedLead);
 
       const feature = await storage.updatePropertyFeature(id, validationResult.data);
 
@@ -4936,8 +4478,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!existingFeature) {
         return res.status(404).json({ message: "Característica no encontrada" });
       }
-      
-      res.json(updatedLead);
 
       await createAuditLog(
         req,
@@ -5002,8 +4542,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (q && typeof q === "string") {
         filters.query = q;
       }
-      
-      res.json(updatedLead);
       if (minPrice) filters.minPrice = parseFloat(minPrice as string);
       if (maxPrice) filters.maxPrice = parseFloat(maxPrice as string);
       if (bedrooms) filters.bedrooms = parseInt(bedrooms as string);
@@ -5013,64 +4551,40 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (location && typeof location === "string") {
         filters.location = location;
       }
-      
-      res.json(updatedLead);
       if (amenities) {
         filters.amenities = typeof amenities === "string" ? amenities.split(",") : amenities;
       }
-      
-      res.json(updatedLead);
       if (status && typeof status === "string") {
         filters.status = status;
       }
-      
-      res.json(updatedLead);
       if (minRating) filters.minRating = parseFloat(minRating as string);
       if (featured !== undefined) {
         filters.featured = featured === "true";
       }
-      
-      res.json(updatedLead);
       if (availableFrom && typeof availableFrom === "string") {
         filters.availableFrom = new Date(availableFrom);
       }
-      
-      res.json(updatedLead);
       if (availableTo && typeof availableTo === "string") {
         filters.availableTo = new Date(availableTo);
       }
-      
-      res.json(updatedLead);
       if (propertyType && typeof propertyType === "string") {
         filters.propertyType = propertyType;
       }
-      
-      res.json(updatedLead);
       if (colonyName && typeof colonyName === "string") {
         filters.colonyName = colonyName;
       }
-      
-      res.json(updatedLead);
       if (condoName && typeof condoName === "string") {
         filters.condoName = condoName;
       }
-      
-      res.json(updatedLead);
       if (unitType && typeof unitType === "string") {
         filters.unitType = unitType;
       }
-      
-      res.json(updatedLead);
       if (allowsSubleasing !== undefined) {
         filters.allowsSubleasing = allowsSubleasing === "true";
       }
-      
-      res.json(updatedLead);
       if (limit) {
         filters.limit = parseInt(limit as string);
       }
-      
-      res.json(updatedLead);
 
       // Only show published properties in public search (home and search pages) for non-authenticated users
       // Authenticated users (especially admin) can see all properties
@@ -5079,8 +4593,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
         // Force published = true for non-authenticated users
         filters.published = true;
       }
-      
-      res.json(updatedLead);
 
       const properties = await storage.searchPropertiesAdvanced(filters);
       res.json(properties);
@@ -5098,15 +4610,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ message: "Property not found" });
       }
       
-      res.json(updatedLead);
-      
       // Only show approved or published properties to non-authenticated users
       const isUserAuthenticated = req.user || (req.session && (req.session.adminUser || req.session.userId));
       if (!isUserAuthenticated && !["approved", "published"].includes(property.approvalStatus)) {
         return res.status(404).json({ message: "Property not found" });
       }
-      
-      res.json(updatedLead);
       
       res.json(property);
     } catch (error) {
@@ -5123,8 +4631,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!user || !["master", "admin", "admin_jr", "seller", "owner"].includes(user.role)) {
         return res.status(403).json({ message: "Forbidden" });
       }
-      
-      res.json(updatedLead);
 
       const sanitizedBody = {
         ...req.body,
@@ -5153,11 +4659,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
             currentCount: currentPropertyCount,
             limit: propertyLimit,
             canRequestIncrease: true,
-        }
+          });
         }
       }
-      
-      res.json(updatedLead);
       
       const property = await storage.createProperty(propertyData);
       
@@ -5184,8 +4688,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!property) {
         return res.status(404).json({ message: "Property not found" });
       }
-      
-      res.json(updatedLead);
 
       // Handle both admin and regular user sessions
       let isAuthorized = false;
@@ -5204,14 +4706,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
           isAuthorized = property.ownerId === userId || ["master", "admin", "admin_jr"].includes(user.role);
         }
       }
-      
-      res.json(updatedLead);
 
       if (!isAuthorized) {
         return res.status(403).json({ message: "Forbidden" });
       }
-      
-      res.json(updatedLead);
 
       const sanitizedBody = {
         ...req.body,
@@ -5286,16 +4784,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return;
       }
       
-      res.json(updatedLead);
-      
       // Handle regular property deletion
       const property = await storage.getProperty(id);
 
       if (!property) {
         return res.status(404).json({ message: "Property not found" });
       }
-      
-      res.json(updatedLead);
 
       // Handle both admin and regular user sessions
       let isAuthorized = false;
@@ -5314,14 +4808,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
           isAuthorized = property.ownerId === userId || ["master", "admin"].includes(user.role);
         }
       }
-      
-      res.json(updatedLead);
 
       if (!isAuthorized) {
         return res.status(403).json({ message: "Forbidden" });
       }
-      
-      res.json(updatedLead);
 
       // Log property deletion (before deletion to capture details)
       await createAuditLog(
@@ -5354,8 +4844,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ message: "Propiedad no encontrada" });
       }
       
-      res.json(updatedLead);
-      
       // Only owner, assigned staff, or admin can view documents
       const isOwner = property.ownerId === userId;
       const isAdmin = user && ["master", "admin", "admin_jr"].includes(user.role);
@@ -5364,8 +4852,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!isOwner && !isAdmin && !isAssignedStaff) {
         return res.status(403).json({ message: "No autorizado" });
       }
-      
-      res.json(updatedLead);
       
       const documents = await storage.getPropertyDocuments(propertyId, category);
       res.json(documents);
@@ -5387,14 +4873,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ message: "Propiedad no encontrada" });
       }
       
-      res.json(updatedLead);
-      
       // Only owner or admin can upload documents
       if (property.ownerId !== userId && !["master", "admin", "admin_jr"].includes(user?.role || "")) {
         return res.status(403).json({ message: "No autorizado" });
       }
-      
-      res.json(updatedLead);
 
       const { documentType, category } = req.body;
 
@@ -5408,22 +4890,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (personaMoralOnlyTypes.includes(documentType) && category !== 'persona_moral') {
         return res.status(400).json({ 
           message: `El documento ${documentType} solo puede ser de categoría persona_moral` 
+        });
       }
-      
-      res.json(updatedLead);
-      }
-      
-      res.json(updatedLead);
 
       if (optionalTypes.includes(documentType) && category !== 'optional') {
         return res.status(400).json({ 
           message: `El documento ${documentType} debe ser de categoría optional` 
+        });
       }
-      
-      res.json(updatedLead);
-      }
-      
-      res.json(updatedLead);
 
       // If category is persona_moral but documentType is not acta_constitutiva, it's still valid
       // (persona_moral needs same docs as persona_fisica PLUS acta_constitutiva)
@@ -5486,21 +4960,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ message: "Documento no encontrado" });
       }
       
-      res.json(updatedLead);
-      
       const property = await storage.getProperty(document.propertyId);
       if (!property) {
         return res.status(404).json({ message: "Propiedad no encontrada" });
       }
       
-      res.json(updatedLead);
-      
       // Only owner or admin can delete documents
       if (property.ownerId !== userId && !["master", "admin", "admin_jr"].includes(user?.role || "")) {
         return res.status(403).json({ message: "No autorizado" });
       }
-      
-      res.json(updatedLead);
 
       await createAuditLog(
         req,
@@ -5540,28 +5008,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!newOwnerId) {
         return res.status(400).json({ message: "newOwnerId is required" });
       }
-      
-      res.json(updatedLead);
 
       const property = await storage.getProperty(id);
       if (!property) {
         return res.status(404).json({ message: "Property not found" });
       }
-      
-      res.json(updatedLead);
 
       const newOwner = await storage.getUser(newOwnerId);
       if (!newOwner) {
         return res.status(404).json({ message: "New owner not found" });
       }
-      
-      res.json(updatedLead);
 
       if (!["owner", "seller"].includes(newOwner.role)) {
         return res.status(400).json({ message: "New owner must have 'owner' or 'seller' role" });
       }
-      
-      res.json(updatedLead);
 
       const previousOwnerId = property.ownerId;
       const updatedProperty = await storage.updateProperty(id, { ownerId: newOwnerId });
@@ -5591,21 +5051,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!ownerStatus || !["active", "suspended", "rented"].includes(ownerStatus)) {
         return res.status(400).json({ message: "Invalid ownerStatus. Must be: active, suspended, or rented" });
       }
-      
-      res.json(updatedLead);
 
       const property = await storage.getProperty(id);
       if (!property) {
         return res.status(404).json({ message: "Property not found" });
       }
-      
-      res.json(updatedLead);
 
       if (property.ownerId !== userId) {
         return res.status(403).json({ message: "Only the owner can change the property status" });
       }
-      
-      res.json(updatedLead);
 
       const updateData: any = { ownerStatus };
 
@@ -5624,8 +5078,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
           updateData.published = false;
         }
       }
-      
-      res.json(updatedLead);
 
       const updatedProperty = await storage.updateProperty(id, updateData);
 
@@ -5655,14 +5107,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!property) {
         return res.status(404).json({ message: "Property not found" });
       }
-      
-      res.json(updatedLead);
 
       if (!user || (property.ownerId !== userId && !["master", "admin"].includes(user.role))) {
         return res.status(403).json({ message: "Forbidden" });
       }
-      
-      res.json(updatedLead);
 
       // If email is provided instead of staffId, look up the user by email
       let staffId = req.body.staffId;
@@ -5673,8 +5121,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
         }
         staffId = staffMember.id;
       }
-      
-      res.json(updatedLead);
 
       const staffData = insertPropertyStaffSchema.parse({
         propertyId: id,
@@ -5712,8 +5158,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!user) {
         return res.status(401).json({ message: "User not found" });
       }
-      
-      res.json(updatedLead);
 
       // Check if user has an authorized role
       const adminRoles = ["master", "admin", "admin_jr", "management"];
@@ -5727,20 +5171,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!isAdminRole && !isProviderRole && !isConcierge) {
         return res.status(403).json({ 
           message: "No tienes permisos para acceder a esta información" 
+        });
       }
-      
-      res.json(updatedLead);
-      }
-      
-      res.json(updatedLead);
 
       // Only concierges need appointment verification
       if (isConcierge) {
         const appointments = await storage.getAppointments({
           propertyId: id,
-      }
-      
-      res.json(updatedLead);
+        });
 
         const hasConfirmedAppointment = appointments.some(
           (apt: any) => 
@@ -5751,11 +5189,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
         if (!hasConfirmedAppointment) {
           return res.status(403).json({ 
             message: "Solo puedes acceder a la información de acceso si tienes una cita confirmada en esta propiedad" 
-        }
+          });
         }
       }
-      
-      res.json(updatedLead);
 
       // Get property with access info
       const property = await storage.getProperty(id);
@@ -5763,18 +5199,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!property) {
         return res.status(404).json({ message: "Property not found" });
       }
-      
-      res.json(updatedLead);
 
       if (!property.accessInfo) {
         return res.status(404).json({ 
           message: "Esta propiedad no tiene información de acceso configurada" 
+        });
       }
-      
-      res.json(updatedLead);
-      }
-      
-      res.json(updatedLead);
 
       // Return only the access info
       res.json({ 
@@ -5799,8 +5229,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!user || !["seller", "admin", "admin_jr", "master"].includes(user.role)) {
         return res.status(403).json({ message: "Solo vendedores y administradores pueden ver anotaciones internas" });
       }
-      
-      res.json(updatedLead);
 
       const notes = await storage.getPropertyNotes(propertyId);
       res.json(notes);
@@ -5819,16 +5247,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!user || !["seller", "admin", "admin_jr", "master"].includes(user.role)) {
         return res.status(403).json({ message: "Solo vendedores y administradores pueden crear anotaciones internas" });
       }
-      
-      res.json(updatedLead);
 
       const { content } = req.body;
       
       if (!content || content.trim() === "") {
         return res.status(400).json({ message: "El contenido de la anotación es requerido" });
       }
-      
-      res.json(updatedLead);
 
       const note = await storage.createPropertyNote({
         propertyId,
@@ -5852,23 +5276,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!user) {
         return res.status(401).json({ message: "User not found" });
       }
-      
-      res.json(updatedLead);
 
       const note = await storage.getPropertyNote(noteId);
       
       if (!note) {
         return res.status(404).json({ message: "Note not found" });
       }
-      
-      res.json(updatedLead);
 
       // Only the author or admin can delete
       if (note.authorId !== userId && !["admin", "master"].includes(user.role)) {
         return res.status(403).json({ message: "Solo el autor o un administrador pueden eliminar esta anotación" });
       }
-      
-      res.json(updatedLead);
 
       await storage.deletePropertyNote(noteId);
       res.json({ message: "Note deleted successfully" });
@@ -5887,8 +5305,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!user || !["owner", "seller", "admin", "admin_jr", "master"].includes(user.role)) {
         return res.status(403).json({ message: "Acceso denegado" });
       }
-      
-      res.json(updatedLead);
 
       // Get actual properties where user is owner
       const properties = await storage.getProperties({ ownerId: userId });
@@ -5947,22 +5363,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(403).json({ message: "Acceso denegado" });
       }
       
-      res.json(updatedLead);
-      
       const property = await storage.getProperty(id);
       
       if (!property) {
         return res.status(404).json({ message: "Propiedad no encontrada" });
       }
       
-      res.json(updatedLead);
-      
       // Verify owner
       if (property.ownerId !== userId) {
         return res.status(403).json({ message: "No tienes permiso para ver esta propiedad" });
       }
-      
-      res.json(updatedLead);
       
       res.json(property);
     } catch (error) {
@@ -5979,8 +5389,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!user || !["owner", "seller", "admin", "admin_jr", "master"].includes(user.role)) {
         return res.status(403).json({ message: "Acceso denegado" });
       }
-      
-      res.json(updatedLead);
 
       // Get all change requests and filter by owner
       const allChangeRequests = await storage.getPropertyChangeRequests();
@@ -6000,8 +5408,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!user || !["owner", "seller", "admin", "admin_jr", "master"].includes(user.role)) {
         return res.status(403).json({ message: "Acceso denegado" });
       }
-      
-      res.json(updatedLead);
 
       // Validate request body with Zod
       const validationResult = createPropertyChangeRequestSchema.safeParse(req.body);
@@ -6009,12 +5415,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ 
           message: "Datos inválidos", 
           errors: validationResult.error.errors 
+        });
       }
-      
-      res.json(updatedLead);
-      }
-      
-      res.json(updatedLead);
 
       const { propertyId, changedFields } = validationResult.data;
 
@@ -6023,13 +5425,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!property) {
         return res.status(404).json({ message: "Propiedad no encontrada" });
       }
-      
-      res.json(updatedLead);
       if (property.ownerId !== userId && !["admin", "admin_jr", "master"].includes(user.role)) {
         return res.status(403).json({ message: "No tienes permisos para modificar esta propiedad" });
       }
-      
-      res.json(updatedLead);
 
       // Create change request and update property status in transaction
       await db.transaction(async (tx) => {
@@ -6037,16 +5435,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
           propertyId,
           requestedById: userId,
           changedFields: changedFields as any,
-      }
-      
-      res.json(updatedLead);
+        });
 
         // Update property approval status to "changes_requested"
         await storage.updateProperty(propertyId, { 
           approvalStatus: "changes_requested" 
-      }
-      
-      res.json(updatedLead);
+        });
 
         await createAuditLog(
           req,
@@ -6072,8 +5466,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!user || !["owner", "seller", "admin", "admin_jr", "master"].includes(user.role)) {
         return res.status(403).json({ message: "Acceso denegado" });
       }
-      
-      res.json(updatedLead);
 
       const settings = await storage.getOwnerSettings(userId);
       res.json(settings || { userId, autoApproveAppointments: false });
@@ -6091,8 +5483,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!user || !["owner", "seller", "admin", "admin_jr", "master"].includes(user.role)) {
         return res.status(403).json({ message: "Acceso denegado" });
       }
-      
-      res.json(updatedLead);
 
       // Validate request body with Zod
       const validationResult = updateOwnerSettingsSchema.safeParse(req.body);
@@ -6100,12 +5490,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ 
           message: "Datos inválidos", 
           errors: validationResult.error.errors 
+        });
       }
-      
-      res.json(updatedLead);
-      }
-      
-      res.json(updatedLead);
 
       const updates = validationResult.data;
       
@@ -6118,8 +5504,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       } else {
         settings = await storage.createOwnerSettings({ userId, ...updates });
       }
-      
-      res.json(updatedLead);
 
       await createAuditLog(
         req,
@@ -6144,8 +5528,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!user || !["owner", "seller", "admin", "admin_jr", "master"].includes(user.role)) {
         return res.status(403).json({ message: "Acceso denegado" });
       }
-      
-      res.json(updatedLead);
 
       // Get properties owned by user
       const properties = await storage.getProperties({ ownerId: userId });
@@ -6154,8 +5536,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (propertyIds.length === 0) {
         return res.json([]);
       }
-      
-      res.json(updatedLead);
 
       // Get all appointments for these properties and filter by ownerApprovalStatus
       const allAppointments = await storage.getAppointments({});
@@ -6178,15 +5558,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!user || !["owner", "seller", "admin", "admin_jr", "master"].includes(user.role)) {
         return res.status(403).json({ message: "Acceso denegado" });
       }
-      
-      res.json(updatedLead);
 
       const appointment = await storage.getAppointment(id);
       if (!appointment) {
         return res.status(404).json({ message: "Cita no encontrada" });
       }
-      
-      res.json(updatedLead);
 
       // Verify user owns the property
       const property = await storage.getProperty(appointment.propertyId);
@@ -6197,8 +5573,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
         console.log(`[APPROVE DEBUG] Permission denied - property exists: ${!!property}, userId matches: ${property?.ownerId === userId}, is admin: ${["admin", "admin_jr", "master"].includes(user.role)}`);
         return res.status(403).json({ message: "No tienes permisos para aprobar esta cita" });
       }
-      
-      res.json(updatedLead);
 
       // Update appointment approval status
       const updated = await storage.updateAppointment(id, {
@@ -6233,8 +5607,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
         );
       }
       
-      res.json(updatedLead);
-      
       // Notify client
       notifications.push(
         storage.createNotification({
@@ -6264,8 +5636,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
         );
       }
       
-      res.json(updatedLead);
-      
       // Create all notifications
       await Promise.all(notifications);
 
@@ -6285,23 +5655,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!user || !["owner", "seller", "admin", "admin_jr", "master"].includes(user.role)) {
         return res.status(403).json({ message: "Acceso denegado" });
       }
-      
-      res.json(updatedLead);
 
       const appointment = await storage.getAppointment(id);
       if (!appointment) {
         return res.status(404).json({ message: "Cita no encontrada" });
       }
-      
-      res.json(updatedLead);
 
       // Verify user owns the property
       const property = await storage.getProperty(appointment.propertyId);
       if (!property || (property.ownerId !== userId && !["admin", "admin_jr", "master"].includes(user.role))) {
         return res.status(403).json({ message: "No tienes permisos para rechazar esta cita" });
       }
-      
-      res.json(updatedLead);
 
       // Update appointment approval status
       const updated = await storage.updateAppointment(id, {
@@ -6350,8 +5714,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
         );
       }
       
-      res.json(updatedLead);
-      
       // Create all notifications
       await Promise.all(notifications);
 
@@ -6373,30 +5735,22 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!user || !["owner", "seller", "admin", "admin_jr", "master"].includes(user.role)) {
         return res.status(403).json({ message: "Acceso denegado" });
       }
-      
-      res.json(updatedLead);
 
       const appointment = await storage.getAppointment(id);
       if (!appointment) {
         return res.status(404).json({ message: "Cita no encontrada" });
       }
-      
-      res.json(updatedLead);
 
       const property = await storage.getProperty(appointment.propertyId);
       
       if (!property) {
         return res.status(404).json({ message: "Propiedad no encontrada" });
       }
-      
-      res.json(updatedLead);
 
       // Verify owner
       if (property.ownerId !== userId && !["admin", "admin_jr", "master"].includes(user.role)) {
         return res.status(403).json({ message: "No eres el propietario de esta propiedad" });
       }
-      
-      res.json(updatedLead);
 
       // Update appointment with reschedule request
       const updated = await storage.updateAppointment(id, {
@@ -6443,8 +5797,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
         );
       }
       
-      res.json(updatedLead);
-      
       // Create all notifications
       await Promise.all(notifications);
 
@@ -6465,29 +5817,21 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!appointment) {
         return res.status(404).json({ message: "Cita no encontrada" });
       }
-      
-      res.json(updatedLead);
 
       // Verify client
       if (appointment.clientId !== userId) {
         return res.status(403).json({ message: "No eres el cliente de esta cita" });
       }
-      
-      res.json(updatedLead);
 
       // Verify reschedule request exists
       if (appointment.rescheduleStatus !== "requested" || !appointment.rescheduleRequestedDate) {
         return res.status(400).json({ message: "No hay solicitud de reprogramación pendiente" });
       }
-      
-      res.json(updatedLead);
 
       const property = await storage.getProperty(appointment.propertyId);
       if (!property) {
         return res.status(404).json({ message: "Propiedad no encontrada" });
       }
-      
-      res.json(updatedLead);
 
       // Update appointment: approve reschedule and change date
       const updated = await storage.updateAppointment(id, {
@@ -6533,8 +5877,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
         );
       }
       
-      res.json(updatedLead);
-      
       // Create all notifications
       await Promise.all(notifications);
 
@@ -6555,29 +5897,21 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!appointment) {
         return res.status(404).json({ message: "Cita no encontrada" });
       }
-      
-      res.json(updatedLead);
 
       // Verify client
       if (appointment.clientId !== userId) {
         return res.status(403).json({ message: "No eres el cliente de esta cita" });
       }
-      
-      res.json(updatedLead);
 
       // Verify reschedule request exists
       if (appointment.rescheduleStatus !== "requested") {
         return res.status(400).json({ message: "No hay solicitud de reprogramación pendiente" });
       }
-      
-      res.json(updatedLead);
 
       const property = await storage.getProperty(appointment.propertyId);
       if (!property) {
         return res.status(404).json({ message: "Propiedad no encontrada" });
       }
-      
-      res.json(updatedLead);
 
       // Update appointment: reject reschedule and cancel appointment
       const updated = await storage.updateAppointment(id, {
@@ -6623,8 +5957,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
         );
       }
       
-      res.json(updatedLead);
-      
       // Create all notifications
       await Promise.all(notifications);
 
@@ -6646,43 +5978,31 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!appointment) {
         return res.status(404).json({ message: "Cita no encontrada" });
       }
-      
-      res.json(updatedLead);
 
       // Verify client
       if (appointment.clientId !== userId) {
         return res.status(403).json({ message: "No eres el cliente de esta cita" });
       }
-      
-      res.json(updatedLead);
 
       // Cannot reschedule cancelled or completed appointments
       if (appointment.status === "cancelled") {
         return res.status(400).json({ message: "No se puede reprogramar una cita cancelada" });
       }
-      
-      res.json(updatedLead);
 
       if (appointment.status === "completed") {
         return res.status(400).json({ message: "No se puede reprogramar una cita ya completada" });
       }
-      
-      res.json(updatedLead);
 
       // Cannot reschedule appointments that already passed
       const appointmentDate = new Date(appointment.date);
       if (appointmentDate < new Date()) {
         return res.status(400).json({ message: "No se puede reprogramar una cita que ya pasó" });
       }
-      
-      res.json(updatedLead);
 
       const property = await storage.getProperty(appointment.propertyId);
       if (!property) {
         return res.status(404).json({ message: "Propiedad no encontrada" });
       }
-      
-      res.json(updatedLead);
 
       // Update appointment with reschedule request
       const updated = await storage.updateAppointment(id, {
@@ -6729,8 +6049,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
         );
       }
       
-      res.json(updatedLead);
-      
       // Notify admins
       const admins = await storage.getUsersByRole("admin");
       for (const admin of admins) {
@@ -6746,8 +6064,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
           })
         );
       }
-      
-      res.json(updatedLead);
       
       // Create all notifications
       await Promise.all(notifications);
@@ -6769,36 +6085,26 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!user || !["owner", "seller", "admin", "admin_jr", "master"].includes(user.role)) {
         return res.status(403).json({ message: "Acceso denegado" });
       }
-      
-      res.json(updatedLead);
 
       const appointment = await storage.getAppointment(id);
       if (!appointment) {
         return res.status(404).json({ message: "Cita no encontrada" });
       }
-      
-      res.json(updatedLead);
 
       const property = await storage.getProperty(appointment.propertyId);
       if (!property) {
         return res.status(404).json({ message: "Propiedad no encontrada" });
       }
-      
-      res.json(updatedLead);
 
       // Verify owner
       if (property.ownerId !== userId && !["admin", "admin_jr", "master"].includes(user.role)) {
         return res.status(403).json({ message: "No eres el propietario de esta propiedad" });
       }
-      
-      res.json(updatedLead);
 
       // Verify reschedule request exists
       if (appointment.rescheduleStatus !== "requested" || !appointment.rescheduleRequestedDate) {
         return res.status(400).json({ message: "No hay solicitud de reprogramación pendiente" });
       }
-      
-      res.json(updatedLead);
 
       // Update appointment: approve reschedule and change date
       const updated = await storage.updateAppointment(id, {
@@ -6844,8 +6150,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
         );
       }
       
-      res.json(updatedLead);
-      
       // Create all notifications
       await Promise.all(notifications);
 
@@ -6866,36 +6170,26 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!user || !["owner", "seller", "admin", "admin_jr", "master"].includes(user.role)) {
         return res.status(403).json({ message: "Acceso denegado" });
       }
-      
-      res.json(updatedLead);
 
       const appointment = await storage.getAppointment(id);
       if (!appointment) {
         return res.status(404).json({ message: "Cita no encontrada" });
       }
-      
-      res.json(updatedLead);
 
       const property = await storage.getProperty(appointment.propertyId);
       if (!property) {
         return res.status(404).json({ message: "Propiedad no encontrada" });
       }
-      
-      res.json(updatedLead);
 
       // Verify owner
       if (property.ownerId !== userId && !["admin", "admin_jr", "master"].includes(user.role)) {
         return res.status(403).json({ message: "No eres el propietario de esta propiedad" });
       }
-      
-      res.json(updatedLead);
 
       // Verify reschedule request exists
       if (appointment.rescheduleStatus !== "requested") {
         return res.status(400).json({ message: "No hay solicitud de reprogramación pendiente" });
       }
-      
-      res.json(updatedLead);
 
       // Update appointment: reject reschedule (keep original date)
       const updated = await storage.updateAppointment(id, {
@@ -6945,8 +6239,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!appointment) {
         return res.status(404).json({ message: "Cita no encontrada" });
       }
-      
-      res.json(updatedLead);
 
       const updated = await storage.updateAppointment(id, {
         ownerApprovalStatus: "approved",
@@ -6980,8 +6272,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!appointment) {
         return res.status(404).json({ message: "Cita no encontrada" });
       }
-      
-      res.json(updatedLead);
 
       // Get property info
       const property = await storage.getProperty(appointment.propertyId);
@@ -7028,8 +6318,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
           };
         }
       }
-      
-      res.json(updatedLead);
 
       // Add property info with condominium and unit details
       if (property) {
@@ -7044,8 +6332,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
           condominium: condoInfo,
         };
       }
-      
-      res.json(updatedLead);
 
       // Add concierge info if available
       if (appointment.conciergeId) {
@@ -7061,8 +6347,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
           };
         }
       }
-      
-      res.json(updatedLead);
 
       res.json(filteredAppointment);
     } catch (error: any) {
@@ -7082,15 +6366,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!appointment) {
         return res.status(404).json({ message: "Cita no encontrada" });
       }
-      
-      res.json(updatedLead);
 
       // Validate feedback type
       if (!["client", "staff"].includes(feedbackType)) {
         return res.status(400).json({ message: "Tipo de feedback inválido" });
       }
-      
-      res.json(updatedLead);
 
       let updates: any = {};
 
@@ -7114,8 +6394,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
         updates.staffFeedback = feedback;
       }
-      
-      res.json(updatedLead);
 
       const updated = await storage.updateAppointment(id, updates);
 
@@ -7143,8 +6421,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!appointment) {
         return res.status(404).json({ message: "Cita no encontrada" });
       }
-      
-      res.json(updatedLead);
 
       const updated = await storage.updateAppointment(id, {
         accessCredentialsSent: true,
@@ -7176,13 +6452,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (status) {
         changeRequests = changeRequests.filter(cr => cr.status === status);
       }
-      
-      res.json(updatedLead);
       if (propertyId) {
         changeRequests = changeRequests.filter(cr => cr.propertyId === propertyId);
       }
-      
-      res.json(updatedLead);
       
       res.json(changeRequests);
     } catch (error) {
@@ -7201,30 +6473,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!changeRequest) {
         return res.status(404).json({ message: "Solicitud no encontrada" });
       }
-      
-      res.json(updatedLead);
 
       if (changeRequest.status !== "pending") {
         return res.status(400).json({ 
           message: "Esta solicitud ya fue procesada" 
+        });
       }
-      
-      res.json(updatedLead);
-      }
-      
-      res.json(updatedLead);
 
       // Validate changed fields before applying
       const changedFields = changeRequest.changedFields as any;
       if (typeof changedFields !== 'object' || changedFields === null || Array.isArray(changedFields)) {
         return res.status(400).json({ 
           message: "Datos de cambio inválidos" 
+        });
       }
-      
-      res.json(updatedLead);
-      }
-      
-      res.json(updatedLead);
 
       // Approve and apply changes in transaction
       await db.transaction(async (tx) => {
@@ -7264,18 +6526,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!changeRequest) {
         return res.status(404).json({ message: "Solicitud no encontrada" });
       }
-      
-      res.json(updatedLead);
 
       if (changeRequest.status !== "pending") {
         return res.status(400).json({ 
           message: "Esta solicitud ya fue procesada" 
+        });
       }
-      
-      res.json(updatedLead);
-      }
-      
-      res.json(updatedLead);
 
       // Only pass reviewerId if it's an OIDC user (not admin or local auth)
       const reviewerIdToSave = (!req.user?.adminAuth && !req.user?.localAuth) ? req.user?.claims?.sub : null;
@@ -7311,13 +6567,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (status) {
         reports = reports.filter(r => r.status === status);
       }
-      
-      res.json(updatedLead);
       if (propertyId) {
         reports = reports.filter(r => r.propertyId === propertyId);
       }
-      
-      res.json(updatedLead);
       
       res.json(reports);
     } catch (error) {
@@ -7334,8 +6586,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!report) {
         return res.status(404).json({ message: "Reporte no encontrado" });
       }
-      
-      res.json(updatedLead);
       
       res.json(report);
     } catch (error) {
@@ -7356,8 +6606,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
         requests = requests.filter(r => r.status === status);
       }
       
-      res.json(updatedLead);
-      
       res.json(requests);
     } catch (error) {
       console.error("Error fetching rental opportunity requests:", error);
@@ -7373,8 +6621,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!request) {
         return res.status(404).json({ message: "Solicitud no encontrada" });
       }
-      
-      res.json(updatedLead);
       
       res.json(request);
     } catch (error) {
@@ -7392,18 +6638,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!request) {
         return res.status(404).json({ message: "Solicitud no encontrada" });
       }
-      
-      res.json(updatedLead);
 
       if (request.status !== "pending") {
         return res.status(400).json({ 
           message: "Esta solicitud ya fue procesada" 
+        });
       }
-      
-      res.json(updatedLead);
-      }
-      
-      res.json(updatedLead);
 
       const updated = await storage.approveRentalOpportunityRequest(id, adminId);
 
@@ -7446,24 +6686,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ message: "La razón de rechazo es requerida" });
       }
       
-      res.json(updatedLead);
-      
       const request = await storage.getRentalOpportunityRequest(id);
       if (!request) {
         return res.status(404).json({ message: "Solicitud no encontrada" });
       }
-      
-      res.json(updatedLead);
 
       if (request.status !== "pending") {
         return res.status(400).json({ 
           message: "Esta solicitud ya fue procesada" 
+        });
       }
-      
-      res.json(updatedLead);
-      }
-      
-      res.json(updatedLead);
 
       const updated = await storage.rejectRentalOpportunityRequest(id, adminId, rejectionReason);
 
@@ -7505,29 +6737,21 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!userId || !propertyId) {
         return res.status(400).json({ message: "userId y propertyId son requeridos" });
       }
-      
-      res.json(updatedLead);
 
       // Verify user exists and is a client
       const user = await storage.getUser(userId);
       if (!user) {
         return res.status(404).json({ message: "Usuario no encontrado" });
       }
-      
-      res.json(updatedLead);
       if (user.role !== "cliente") {
         return res.status(400).json({ message: "Solo se puede otorgar oportunidades a clientes" });
       }
-      
-      res.json(updatedLead);
 
       // Verify property exists
       const property = await storage.getProperty(propertyId);
       if (!property) {
         return res.status(404).json({ message: "Propiedad no encontrada" });
       }
-      
-      res.json(updatedLead);
 
       // Check if there's already an approved opportunity for this client-property combination
       const existingOpportunities = await db
@@ -7544,12 +6768,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (existingOpportunities.length > 0) {
         return res.status(400).json({ 
           message: "Ya existe una oportunidad aprobada para este cliente en esta propiedad" 
+        });
       }
-      
-      res.json(updatedLead);
-      }
-      
-      res.json(updatedLead);
 
       // Create the rental opportunity request directly as approved
       const [opportunityRequest] = await db
@@ -7601,12 +6821,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ 
           message: "Datos inválidos", 
           errors: validationResult.error.errors 
+        });
       }
-      
-      res.json(updatedLead);
-      }
-      
-      res.json(updatedLead);
 
       const { propertyId, inspectionDate, observations } = validationResult.data;
 
@@ -7615,8 +6831,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!property) {
         return res.status(404).json({ message: "Propiedad no encontrada" });
       }
-      
-      res.json(updatedLead);
 
       // Create inspection report
       const report = await storage.createInspectionReport({
@@ -7652,12 +6866,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ 
           message: "Datos inválidos", 
           errors: validationResult.error.errors 
+        });
       }
-      
-      res.json(updatedLead);
-      }
-      
-      res.json(updatedLead);
 
       const updates = validationResult.data;
 
@@ -7665,8 +6875,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!report) {
         return res.status(404).json({ message: "Reporte no encontrado" });
       }
-      
-      res.json(updatedLead);
 
       // Update inspection report (cascade logic in storage handles property approval status)
       const updated = await storage.updateInspectionReport(id, updates as any);
@@ -7784,33 +6992,21 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (approvalStatus) {
         filters.approvalStatus = approvalStatus;
       }
-      
-      res.json(updatedLead);
       if (propertyType) {
         filters.propertyType = propertyType;
       }
-      
-      res.json(updatedLead);
       if (status) {
         filters.status = status;
       }
-      
-      res.json(updatedLead);
       if (featured !== undefined) {
         filters.featured = featured === "true";
       }
-      
-      res.json(updatedLead);
       if (q && typeof q === "string") {
         filters.query = q;
       }
-      
-      res.json(updatedLead);
       if (requestVirtualTour === "true") {
         filters.requestVirtualTour = true;
       }
-      
-      res.json(updatedLead);
       
       // Get real properties
       const properties = await storage.searchPropertiesAdvanced(filters);
@@ -7965,8 +7161,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
         allProperties = [...properties, ...submittedDraftProperties, ...draftProperties];
       }
       
-      res.json(updatedLead);
-      
       res.json(allProperties);
     } catch (error) {
       console.error("Error fetching admin properties:", error);
@@ -8037,15 +7231,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.json(newProperty);
       }
       
-      res.json(updatedLead);
-      
       // Handle regular property approval
       const property = await storage.getProperty(id);
       if (!property) {
         return res.status(404).json({ message: "Propiedad no encontrada" });
       }
-      
-      res.json(updatedLead);
       
       const updated = await storage.updateProperty(id, {
         approvalStatus: "approved",
@@ -8077,8 +7267,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!property) {
         return res.status(404).json({ message: "Propiedad no encontrada" });
       }
-      
-      res.json(updatedLead);
       
       // Update to published
       const updated = await storage.updateProperty(id, {
@@ -8112,8 +7300,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!property) {
         return res.status(404).json({ message: "Propiedad no encontrada" });
       }
-      
-      res.json(updatedLead);
       
       const updated = await storage.updateProperty(id, {
         featured: featured,
@@ -8154,9 +7340,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           status: "rejected",
           reviewedBy: adminId,
           reviewedAt: new Date(),
-      }
-      
-      res.json(updatedLead);
+        });
         
         await createAuditLog(
           req,
@@ -8169,15 +7353,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.json(updated);
       }
       
-      res.json(updatedLead);
-      
       // Handle regular property rejection
       const property = await storage.getProperty(id);
       if (!property) {
         return res.status(404).json({ message: "Propiedad no encontrada" });
       }
-      
-      res.json(updatedLead);
       
       const updated = await storage.updateProperty(id, {
         approvalStatus: "rejected",
@@ -8207,8 +7387,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ message: "IDs de propiedades requeridos" });
       }
       
-      res.json(updatedLead);
-      
       const results = await Promise.all(
         propertyIds.map(async (id: string) => {
           try {
@@ -8218,7 +7396,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
             await storage.updateProperty(id, {
               approvalStatus: "approved",
               published: publish !== false,
-          }
+            });
             
             await createAuditLog(
               req,
@@ -8250,8 +7428,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ message: "IDs de propiedades requeridos" });
       }
       
-      res.json(updatedLead);
-      
       const results = await Promise.all(
         propertyIds.map(async (id: string) => {
           try {
@@ -8261,7 +7437,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
             await storage.updateProperty(id, {
               approvalStatus: "rejected",
               published: false,
-          }
+            });
             
             await createAuditLog(
               req,
@@ -8317,8 +7493,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ message: "Plantilla no encontrada" });
       }
       
-      res.json(updatedLead);
-      
       await createAuditLog(
         req,
         "view",
@@ -8341,12 +7515,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ 
           message: "Datos inválidos", 
           errors: validationResult.error.errors 
+        });
       }
-      
-      res.json(updatedLead);
-      }
-      
-      res.json(updatedLead);
 
       const template = await storage.createAgreementTemplate(validationResult.data);
 
@@ -8374,19 +7544,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ 
           message: "Datos inválidos", 
           errors: validationResult.error.errors 
+        });
       }
-      
-      res.json(updatedLead);
-      }
-      
-      res.json(updatedLead);
 
       const existing = await storage.getAgreementTemplate(id);
       if (!existing) {
         return res.status(404).json({ message: "Plantilla no encontrada" });
       }
-      
-      res.json(updatedLead);
 
       const updated = await storage.updateAgreementTemplate(id, validationResult.data);
 
@@ -8413,8 +7577,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!existing) {
         return res.status(404).json({ message: "Plantilla no encontrada" });
       }
-      
-      res.json(updatedLead);
 
       await storage.deleteAgreementTemplate(id);
 
@@ -8455,13 +7617,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ message: "Borrador no encontrado" });
       }
       
-      res.json(updatedLead);
-      
       if (draft.userId !== userId) {
         return res.status(403).json({ message: "No autorizado" });
       }
-      
-      res.json(updatedLead);
       
       res.json(draft);
     } catch (error: any) {
@@ -8478,8 +7636,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!invitationToken) {
         return res.status(400).json({ message: "Token de invitación requerido" });
       }
-      
-      res.json(updatedLead);
 
       console.log("[DRAFT-CREATE-PUBLIC] Token:", invitationToken.substring(0, 10) + "...");
 
@@ -8488,20 +7644,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!token) {
         return res.status(404).json({ message: "Token de invitación no encontrado" });
       }
-      
-      res.json(updatedLead);
 
       if (token.used) {
         return res.status(400).json({ message: "Este token ya fue utilizado" });
       }
-      
-      res.json(updatedLead);
 
       if (new Date() > new Date(token.expiresAt)) {
         return res.status(400).json({ message: "El token de invitación ha expirado" });
       }
-      
-      res.json(updatedLead);
 
       // Validate draft data
       const validationResult = insertPropertySubmissionDraftSchema.safeParse({
@@ -8516,12 +7666,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
           message: "Datos inválidos",
           errors: validationResult.error.errors,
           code: "VALIDATION_ERROR"
+        });
       }
-      
-      res.json(updatedLead);
-      }
-      
-      res.json(updatedLead);
 
       // Create draft
       const draft = await storage.createPropertySubmissionDraft(validationResult.data);
@@ -8563,12 +7709,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
           message: "Datos inválidos", 
           errors: validationResult.error.errors,
           code: "VALIDATION_ERROR"
+        });
       }
-      
-      res.json(updatedLead);
-      }
-      
-      res.json(updatedLead);
 
       const draft = await storage.createPropertySubmissionDraft(validationResult.data);
       console.log("[DRAFT-CREATE] Success, ID:", draft.id);
@@ -8600,8 +7742,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!invitationToken) {
         return res.status(400).json({ message: "Token de invitación requerido" });
       }
-      
-      res.json(updatedLead);
 
       console.log("[DRAFT-UPDATE-PUBLIC] Draft:", id, "Step:", draftData.currentStep);
 
@@ -8610,74 +7750,50 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!token) {
         return res.status(404).json({ message: "Token de invitación no encontrado" });
       }
-      
-      res.json(updatedLead);
 
       // SECURITY: Enforce single-use semantics - once token is marked used, no more updates
       if (token.used) {
         return res.status(403).json({ 
           message: "Este token ya fue utilizado y el borrador no puede ser modificado" 
+        });
       }
-      
-      res.json(updatedLead);
-      }
-      
-      res.json(updatedLead);
 
       if (new Date() > new Date(token.expiresAt)) {
         return res.status(400).json({ message: "El token de invitación ha expirado" });
       }
-      
-      res.json(updatedLead);
 
       // SECURITY: Require token to have a linked draft before allowing updates
       // This prevents attackers from using a token to hijack arbitrary drafts
       if (!token.propertyDraftId) {
         return res.status(400).json({ 
           message: "Token no tiene un borrador asociado. Primero crea un borrador." 
+        });
       }
-      
-      res.json(updatedLead);
-      }
-      
-      res.json(updatedLead);
 
       // SECURITY: Verify that the draft ID in the URL matches the token's linked draft
       if (token.propertyDraftId !== id) {
         return res.status(403).json({ 
           message: "No autorizado: este token no está vinculado a este borrador" 
+        });
       }
-      
-      res.json(updatedLead);
-      }
-      
-      res.json(updatedLead);
 
       // Get existing draft
       const existingDraft = await storage.getPropertySubmissionDraft(id);
       if (!existingDraft) {
         return res.status(404).json({ message: "Borrador no encontrado" });
       }
-      
-      res.json(updatedLead);
 
       // Verify that the draft belongs to this token (double-check)
       if (existingDraft.tokenId !== token.id) {
         return res.status(403).json({ message: "No autorizado para modificar este borrador" });
       }
-      
-      res.json(updatedLead);
 
       // SECURITY: Only allow updates if draft is still in "draft" status
       if (existingDraft.status !== "draft") {
         return res.status(403).json({ 
           message: "Este borrador ya fue enviado y no puede ser modificado" 
+        });
       }
-      
-      res.json(updatedLead);
-      }
-      
-      res.json(updatedLead);
 
       // SECURITY: Prevent updates to drafts created more than 48 hours ago
       const draftAge = Date.now() - new Date(existingDraft.createdAt).getTime();
@@ -8685,12 +7801,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (draftAge > MAX_DRAFT_AGE) {
         return res.status(403).json({
           message: "Este borrador ha expirado y no puede ser modificado"
+        });
       }
-      
-      res.json(updatedLead);
-      }
-      
-      res.json(updatedLead);
 
       // Validate input
       const validationResult = insertPropertySubmissionDraftSchema.partial().safeParse(draftData);
@@ -8700,12 +7812,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
           message: "Datos inválidos",
           errors: validationResult.error.errors,
           code: "VALIDATION_ERROR"
+        });
       }
-      
-      res.json(updatedLead);
-      }
-      
-      res.json(updatedLead);
 
       // Remove server-controlled fields
       const sanitizedData = { ...validationResult.data };
@@ -8726,12 +7834,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({
           message: "Borrador no encontrado",
           code: "DRAFT_NOT_FOUND"
+        });
       }
-      
-      res.json(updatedLead);
-      }
-      
-      res.json(updatedLead);
 
       console.log("[DRAFT-UPDATE-PUBLIC] Success, updated step:", updated.currentStep);
 
@@ -8740,13 +7844,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
         await storage.updatePropertySubmissionToken(token.id, {
           used: true,
           usedAt: new Date()
-      }
-      
-      res.json(updatedLead);
+        });
         console.log("[DRAFT-UPDATE-PUBLIC] Token marked as used after submission");
       }
-      
-      res.json(updatedLead);
 
       return res.json(updated);
     } catch (error: any) {
@@ -8773,12 +7873,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
           message: "Datos inválidos", 
           errors: validationResult.error.errors,
           code: "VALIDATION_ERROR"
+        });
       }
-      
-      res.json(updatedLead);
-      }
-      
-      res.json(updatedLead);
 
       // Remove ALL server-controlled fields to prevent unauthorized mutation
       const sanitizedData = { ...validationResult.data };
@@ -8801,12 +7897,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ 
           message: "Borrador no encontrado",
           code: "DRAFT_NOT_FOUND"
+        });
       }
-      
-      res.json(updatedLead);
-      }
-      
-      res.json(updatedLead);
 
       console.log("[DRAFT-UPDATE] Success, updated step:", updated.currentStep);
       
@@ -8826,22 +7918,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ 
           message: "Borrador no encontrado",
           code: "DRAFT_NOT_FOUND"
+        });
       }
-      
-      res.json(updatedLead);
-      }
-      
-      res.json(updatedLead);
       if (error.message?.includes("permission")) {
         return res.status(403).json({ 
           message: "No tienes permiso para modificar este borrador",
           code: "PERMISSION_DENIED"
+        });
       }
-      
-      res.json(updatedLead);
-      }
-      
-      res.json(updatedLead);
       return res.status(500).json({ 
         message: error.message || "Error al actualizar borrador",
         code: "INTERNAL_ERROR"
@@ -8885,8 +7969,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
         adminId = req.user.claims.sub;
       }
       
-      res.json(updatedLead);
-      
       // Approve the draft and create property
       const property = await storage.approvePropertySubmissionDraft(id, adminId);
       
@@ -8908,7 +7990,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
             property,
             warning: true,
             documentStatus,
-        }
+          });
         }
         
         if (!documentStatus.validated) {
@@ -8925,11 +8007,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
             property,
             warning: true,
             documentStatus,
-        }
+          });
         }
       }
-      
-      res.json(updatedLead);
       
       await createAuditLog(
         req,
@@ -9060,8 +8140,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ message: "Token no encontrado" });
       }
       
-      res.json(updatedLead);
-      
       // Delete the token
       await storage.deletePropertySubmissionToken(id);
       
@@ -9091,8 +8169,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!existingToken) {
         return res.status(404).json({ message: "Token no encontrado" });
       }
-      
-      res.json(updatedLead);
       
       // CRITICAL: Ensure admin exists in users table for foreign key constraint
       // This must succeed before creating the token to avoid FK violations
@@ -9155,36 +8231,24 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ 
           valid: false,
           message: "Token no encontrado" 
+        });
       }
-      
-      res.json(updatedLead);
-      }
-      
-      res.json(updatedLead);
       
       // Check if token is already used
       if (tokenRecord.used) {
         return res.status(400).json({ 
           valid: false,
           message: "Este enlace ya fue utilizado" 
+        });
       }
-      
-      res.json(updatedLead);
-      }
-      
-      res.json(updatedLead);
       
       // Check if token is expired
       if (new Date() > tokenRecord.expiresAt) {
         return res.status(400).json({ 
           valid: false,
           message: "Este enlace ha expirado" 
+        });
       }
-      
-      res.json(updatedLead);
-      }
-      
-      res.json(updatedLead);
       
       // Token is valid
       res.json({ 
@@ -9211,14 +8275,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ message: "Token no encontrado" });
       }
       
-      res.json(updatedLead);
-      
       // Check if token has a linked draft
       if (!tokenRecord.propertyDraftId) {
         return res.status(404).json({ message: "No hay borrador vinculado a este token" });
       }
-      
-      res.json(updatedLead);
       
       // Get the draft
       const draft = await storage.getPropertySubmissionDraft(tokenRecord.propertyDraftId);
@@ -9226,8 +8286,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!draft) {
         return res.status(404).json({ message: "Borrador no encontrado" });
       }
-      
-      res.json(updatedLead);
       
       res.json(draft);
     } catch (error: any) {
@@ -9247,13 +8305,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ message: "Acuerdo no encontrado" });
       }
       
-      res.json(updatedLead);
-      
       if (agreement.userId !== userId) {
         return res.status(403).json({ message: "No autorizado" });
       }
-      
-      res.json(updatedLead);
       
       res.json(agreement);
     } catch (error: any) {
@@ -9275,12 +8329,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ 
           message: "Datos inválidos", 
           errors: validationResult.error.errors 
+        });
       }
-      
-      res.json(updatedLead);
-      }
-      
-      res.json(updatedLead);
 
       const agreement = await storage.createPropertyAgreement(validationResult.data);
       
@@ -9309,26 +8359,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ message: "Se requiere el nombre del firmante" });
       }
       
-      res.json(updatedLead);
-      
       const agreement = await storage.getPropertyAgreement(id);
       if (!agreement) {
         return res.status(404).json({ message: "Acuerdo no encontrado" });
       }
       
-      res.json(updatedLead);
-      
       if (agreement.userId !== userId) {
         return res.status(403).json({ message: "No autorizado" });
       }
       
-      res.json(updatedLead);
-      
       if (agreement.status === "signed") {
         return res.status(400).json({ message: "Este acuerdo ya ha sido firmado" });
       }
-      
-      res.json(updatedLead);
       
       const signerIp = req.ip || req.socket.remoteAddress || "unknown";
       const signed = await storage.signPropertyAgreement(id, signerName, signerIp);
@@ -9383,8 +8425,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ message: "Se requiere un array de configuraciones" });
       }
       
-      res.json(updatedLead);
-      
       const results = await storage.bulkSetSidebarMenuVisibility(configurations);
       
       await createAuditLog(
@@ -9433,8 +8473,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!setting) {
         return res.status(404).json({ message: "Configuración no encontrada" });
       }
-      
-      res.json(updatedLead);
       res.json(setting);
     } catch (error: any) {
       console.error("Error fetching system setting:", error);
@@ -9462,8 +8500,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!value) {
         return res.status(400).json({ message: "El valor es requerido" });
       }
-      
-      res.json(updatedLead);
 
       const setting = await storage.updateSystemSetting(key, value);
 
@@ -9516,8 +8552,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!Array.isArray(configurations)) {
         return res.status(400).json({ message: "Se requiere un array de configuraciones" });
       }
-      
-      res.json(updatedLead);
       
       const results = await storage.bulkSetSidebarMenuVisibilityUser(userId, configurations);
       
@@ -9578,12 +8612,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (activeSORs.length >= 3) {
         return res.status(400).json({ 
           error: "Ya tienes 3 solicitudes activas. Espera a que se procesen antes de crear una nueva." 
+        });
       }
-      
-      res.json(updatedLead);
-      }
-      
-      res.json(updatedLead);
 
       // Crear SOR
       const [newSOR] = await db
@@ -9743,18 +8773,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!sor) {
         return res.status(404).json({ error: "Solicitud de oportunidad no encontrada" });
       }
-      
-      res.json(updatedLead);
 
       if (sor.status !== "pending") {
         return res.status(400).json({ 
           error: "Esta solicitud ya tiene una visita programada o ha sido procesada" 
+        });
       }
-      
-      res.json(updatedLead);
-      }
-      
-      res.json(updatedLead);
 
       // Preparar datos del appointment
       let meetLink: string | null = null;
@@ -9772,7 +8796,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
             start: appointmentDate,
             end: endDate,
             attendees: [],
-        }
+          });
 
           if (eventResult) {
             meetLink = eventResult.meetLink;
@@ -9783,8 +8807,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
           // Continue without meet link if event creation fails
         }
       }
-      
-      res.json(updatedLead);
 
       try {
         // Crear appointment
@@ -9818,9 +8840,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           userId,
           action: "view_layer2", // Visita programada
           metadata: { appointmentId: appointment.id, sorId },
-      }
-      
-      res.json(updatedLead);
+        });
 
         res.json(appointment);
       } catch (dbError) {
@@ -9835,8 +8855,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
         }
         throw dbError;
       }
-      
-      res.json(updatedLead);
     } catch (error: any) {
       return handleGenericError(res, error, "al programar la visita desde SOR");
     }
@@ -9861,12 +8879,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ 
           error: "Datos inválidos",
           details: validationResult.error.errors 
+        });
       }
-      
-      res.json(updatedLead);
-      }
-      
-      res.json(updatedLead);
 
       const { offerAmount, notes } = validationResult.data;
 
@@ -9885,19 +8899,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!sor) {
         return res.status(404).json({ error: "Solicitud de oportunidad no encontrada" });
       }
-      
-      res.json(updatedLead);
 
       // Verificar que la visita ya se completó
       if (sor.status !== "visit_completed" && sor.status !== "scheduled_visit") {
         return res.status(400).json({ 
           error: "Debes completar la visita antes de hacer una oferta" 
+        });
       }
-      
-      res.json(updatedLead);
-      }
-      
-      res.json(updatedLead);
 
       // Verificar que no exista ya una oferta para esta SOR
       const [existingOffer] = await db
@@ -9909,12 +8917,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (existingOffer) {
         return res.status(400).json({ 
           error: "Ya existe una oferta para esta solicitud" 
+        });
       }
-      
-      res.json(updatedLead);
-      }
-      
-      res.json(updatedLead);
 
       // Buscar el appointment asociado
       const [appointment] = await db
@@ -9984,8 +8988,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (ownerProperties.length === 0) {
         return res.json([]);
       }
-      
-      res.json(updatedLead);
 
       const propertyIds = ownerProperties.map(p => p.id);
 
@@ -10036,8 +9038,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!counterOfferAmount || parseFloat(counterOfferAmount) <= 0) {
         return res.status(400).json({ error: "El monto de la contraoferta debe ser mayor a 0" });
       }
-      
-      res.json(updatedLead);
 
       // Buscar la oferta
       const [existingOffer] = await db
@@ -10049,18 +9049,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!existingOffer) {
         return res.status(404).json({ error: "Oferta no encontrada" });
       }
-      
-      res.json(updatedLead);
 
       if (existingOffer.status !== "pending") {
         return res.status(400).json({ 
           error: "Solo se pueden hacer contraofertas a ofertas pendientes" 
+        });
       }
-      
-      res.json(updatedLead);
-      }
-      
-      res.json(updatedLead);
 
       // Actualizar la oferta con contraoferta
       const [updatedOffer] = await db
@@ -10084,8 +9078,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
           })
           .where(eq(rentalOpportunityRequests.id, existingOffer.opportunityRequestId));
       }
-      
-      res.json(updatedLead);
 
       // Registrar en lead_journeys
       await db.insert(leadJourneys).values({
@@ -10126,14 +9118,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!existingOffer) {
         return res.status(404).json({ error: "Oferta no encontrada" });
       }
-      
-      res.json(updatedLead);
 
       if (existingOffer.status === "accepted") {
         return res.status(400).json({ error: "Esta oferta ya fue aceptada" });
       }
-      
-      res.json(updatedLead);
 
       // Actualizar la oferta a aceptada
       const [updatedOffer] = await db
@@ -10155,8 +9143,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
           })
           .where(eq(rentalOpportunityRequests.id, existingOffer.opportunityRequestId));
       }
-      
-      res.json(updatedLead);
 
       // Registrar en lead_journeys
       await db.insert(leadJourneys).values({
@@ -10198,14 +9184,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!existingOffer) {
         return res.status(404).json({ error: "Oferta no encontrada" });
       }
-      
-      res.json(updatedLead);
 
       if (existingOffer.status === "accepted") {
         return res.status(400).json({ error: "No se puede rechazar una oferta ya aceptada" });
       }
-      
-      res.json(updatedLead);
 
       // Actualizar la oferta a rechazada
       const [updatedOffer] = await db
@@ -10228,8 +9210,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
           })
           .where(eq(rentalOpportunityRequests.id, existingOffer.opportunityRequestId));
       }
-      
-      res.json(updatedLead);
 
       // Registrar en lead_journeys
       await db.insert(leadJourneys).values({
@@ -10264,15 +9244,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!propertyId) {
         return res.status(400).json({ message: "Property ID is required" });
       }
-      
-      res.json(updatedLead);
 
       const property = await storage.getProperty(propertyId);
       if (!property) {
         return res.status(404).json({ message: "Property not found" });
       }
-      
-      res.json(updatedLead);
 
       const favorite = await storage.addFavorite({ userId, propertyId });
       res.status(201).json(favorite);
@@ -10281,8 +9257,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (error.message?.includes("duplicate")) {
         return res.status(400).json({ message: "Property already in favorites" });
       }
-      
-      res.json(updatedLead);
       res.status(500).json({ message: "Failed to add favorite" });
     }
   });
@@ -10334,8 +9308,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ message: "User not found" });
       }
       
-      res.json(updatedLead);
-      
       const { status, assignedToId } = req.query;
       
       // For sellers: get leads they registered OR are assigned to
@@ -10348,8 +9320,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
         const leads = await storage.getLeadsForSeller(userId, filters);
         return res.json(leads);
       }
-      
-      res.json(updatedLead);
       
       // For admins: apply regular filters
       const filters: any = {};
@@ -10374,22 +9344,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ message: "User not found" });
       }
       
-      res.json(updatedLead);
-      
       const lead = await storage.getLead(id);
       
       if (!lead) {
         return res.status(404).json({ message: "Lead not found" });
       }
       
-      res.json(updatedLead);
-      
       // Sellers can only access leads they registered OR are assigned to
       if (currentUser.role === "seller" && lead.registeredById !== userId && lead.assignedToId !== userId) {
         return res.status(403).json({ message: "No tienes permiso para acceder a este lead" });
       }
-      
-      res.json(updatedLead);
       
       res.json(lead);
     } catch (error) {
@@ -10406,8 +9370,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!phone) {
         return res.status(400).json({ message: "Teléfono requerido" });
       }
-      
-      res.json(updatedLead);
 
       // Check for existing lead with this phone
       const existingLead = await storage.getActiveLeadByPhone(phone);
@@ -10416,12 +9378,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.json({ 
           isDuplicate: false,
           message: "Teléfono disponible"
+        });
       }
-      
-      res.json(updatedLead);
-      }
-      
-      res.json(updatedLead);
 
       // Get original seller information
       const originalSeller = await storage.getUser(existingLead.registeredById);
@@ -10430,12 +9388,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.json({
           isDuplicate: true,
           message: "Lead duplicado detectado"
+        });
       }
-      
-      res.json(updatedLead);
-      }
-      
-      res.json(updatedLead);
 
       // Return duplicate information (excluding phone for security)
       res.json({
@@ -10494,8 +9448,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
           return res.status(404).json({ message: "Usuario no encontrado" });
         }
       }
-      
-      res.json(updatedLead);
 
       const leadData = req.body;
       
@@ -10551,9 +9503,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           message: `El lead ${existingLead.firstName} ${existingLead.lastName} (${existingLead.phone}) fue registrado nuevamente por ${currentUser.firstName} ${currentUser.lastName}`,
           type: "lead_duplicate",
           link: `/leads/${existingLead.id}`,
-      }
-      
-      res.json(updatedLead);
+        });
         
         await createAuditLog(req, "create", "lead", existingLead.id, `Intento de crear lead duplicado: ${leadData.firstName} ${leadData.lastName} (${leadData.phone})`);
         
@@ -10581,12 +9531,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
             daysRemaining,
           },
           isDuplicate: true
+        });
       }
-      
-      res.json(updatedLead);
-      }
-      
-      res.json(updatedLead);
       
       // Crear nuevo lead con fecha de validez
       // Leads registrados por vendedores/admin se marcan como verificados automáticamente
@@ -10610,15 +9556,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
           entityId: lead.id,
           userId: userId,
           metadata: { firstName: lead.firstName, lastName: lead.lastName, source: lead.source },
-      }
-      
-      res.json(updatedLead);
+        });
       } catch (scoringError) {
         console.error("Error calculating lead score:", scoringError);
         // Don't fail lead creation if scoring fails
       }
-      
-      res.json(updatedLead);
       
       res.status(201).json(lead);
     } catch (error: any) {
@@ -10638,21 +9580,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ message: "User not found" });
       }
       
-      res.json(updatedLead);
-      
       const existingLead = await storage.getLead(id);
       if (!existingLead) {
         return res.status(404).json({ message: "Lead not found" });
       }
       
-      res.json(updatedLead);
-      
       // Sellers can only update their own leads
       if (currentUser.role === "seller" && existingLead.registeredById !== userId) {
         return res.status(403).json({ message: "No tienes permiso para actualizar este lead" });
       }
-      
-      res.json(updatedLead);
       
       const updatedLead = await storage.updateLead(id, updates);
       
@@ -10669,14 +9605,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
           entityId: id,
           userId: userId,
           metadata: { updates: Object.keys(updates) },
-      }
-      
-      res.json(updatedLead);
+        });
       } catch (scoringError) {
         console.error("Error recalculating lead score:", scoringError);
       }
-      
-      res.json(updatedLead);
       
       res.json(updatedLead);
     } catch (error: any) {
@@ -10696,27 +9628,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ message: "User not found" });
       }
       
-      res.json(updatedLead);
-      
       if (!status) {
         return res.status(400).json({ message: "Status is required" });
       }
-      
-      res.json(updatedLead);
       
       const existingLead = await storage.getLead(id);
       if (!existingLead) {
         return res.status(404).json({ message: "Lead not found" });
       }
       
-      res.json(updatedLead);
-      
       // Sellers can only update status of their own leads
       if (currentUser.role === "seller" && existingLead.registeredById !== userId) {
         return res.status(403).json({ message: "No tienes permiso para actualizar el estado de este lead" });
       }
-      
-      res.json(updatedLead);
       
       const updatedLead = await storage.updateLeadStatus(id, status);
       
@@ -10744,9 +9668,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           entityId: id,
           userId: userId,
           metadata: { newStatus: status, previousStatus: existingLead.status },
-      }
-      
-      res.json(updatedLead);
+        });
         
         // Check if we need to create alerts based on status change
         if (status === "perdido") {
@@ -10758,13 +9680,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
             message: `El lead ${updatedLead.firstName} ${updatedLead.lastName} ha sido marcado como perdido`,
             relatedEntityType: "lead",
             relatedEntityId: id,
-        }
+          });
         }
       } catch (error) {
         console.error("Error in lead status change automation:", error);
       }
-      
-      res.json(updatedLead);
       
       res.json(updatedLead);
     } catch (error: any) {
@@ -10784,21 +9704,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ message: "User not found" });
       }
       
-      res.json(updatedLead);
-      
       const lead = await storage.getLead(id);
       if (!lead) {
         return res.status(404).json({ message: "Lead not found" });
       }
       
-      res.json(updatedLead);
-      
       // Sellers can only view history of their own leads
       if (currentUser.role === "seller" && lead.registeredById !== userId && lead.assignedToId !== userId) {
         return res.status(403).json({ message: "No tienes permiso para ver el historial de este lead" });
       }
-      
-      res.json(updatedLead);
       
       const history = await storage.getLeadHistory(id);
       
@@ -10834,8 +9748,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ message: "Lead not found" });
       }
       
-      res.json(updatedLead);
-      
       await createAuditLog(req, "delete", "lead", id, `Lead eliminado: ${existingLead.firstName} ${existingLead.lastName}`);
       
       await storage.deleteLead(id);
@@ -10856,21 +9768,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ message: "Nuevo vendedor requerido" });
       }
       
-      res.json(updatedLead);
-      
       const existingLead = await storage.getLead(id);
       if (!existingLead) {
         return res.status(404).json({ message: "Lead not found" });
       }
       
-      res.json(updatedLead);
-      
       const newSeller = await storage.getUser(newSellerId);
       if (!newSeller || newSeller.role !== "seller") {
         return res.status(400).json({ message: "El usuario seleccionado no es un vendedor válido" });
       }
-      
-      res.json(updatedLead);
       
       const previousSeller = await storage.getUser(existingLead.registeredById);
       
@@ -10913,21 +9819,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ message: "User not found" });
       }
       
-      res.json(updatedLead);
-      
       const lead = await storage.getLead(id);
       if (!lead) {
         return res.status(404).json({ message: "Lead no encontrado" });
       }
       
-      res.json(updatedLead);
-      
       // Sellers can only access appointments for their own leads
       if (currentUser.role === "seller" && lead.registeredById !== userId) {
         return res.status(403).json({ message: "No tienes permiso para acceder a las citas de este lead" });
       }
-      
-      res.json(updatedLead);
       
       const leadAppointments = await db
         .select()
@@ -10971,27 +9871,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ message: "Token y email son requeridos" });
       }
       
-      res.json(updatedLead);
-      
       // Buscar el lead por email
       const lead = await storage.getLeadByEmail(email as string);
       if (!lead) {
         return res.status(404).json({ message: "Lead no encontrado" });
       }
       
-      res.json(updatedLead);
-      
       // Verificar si ya está verificado
       if (lead.emailVerified) {
         return res.status(200).json({ 
           message: "El email ya fue verificado anteriormente",
           alreadyVerified: true
+        });
       }
-      
-      res.json(updatedLead);
-      }
-      
-      res.json(updatedLead);
       
       // Obtener el token de verificación
       const verificationToken = await storage.getEmailVerificationTokenByUserId(lead.id);
@@ -10999,15 +9891,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ message: "Token de verificación inválido" });
       }
       
-      res.json(updatedLead);
-      
       // Verificar que no haya expirado
       if (new Date() > verificationToken.expiresAt) {
         await storage.deleteEmailVerificationToken(verificationToken.id);
         return res.status(400).json({ message: "El token ha expirado" });
       }
-      
-      res.json(updatedLead);
       
       // Marcar el email del lead como verificado
       await storage.verifyLeadEmail(lead.id);
@@ -11034,15 +9922,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ message: "Token es requerido" });
       }
       
-      res.json(updatedLead);
-      
       // Buscar el referido por token
       const referral = await storage.getOwnerReferralByVerificationToken(token);
       if (!referral) {
         return res.status(404).json({ message: "Token de verificación inválido o expirado" });
       }
-      
-      res.json(updatedLead);
       
       // Verificar si ya está verificado
       if (referral.emailVerified) {
@@ -11055,19 +9939,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
             lastName: referral.lastName,
             propertyAddress: referral.propertyAddress
           }
+        });
       }
-      
-      res.json(updatedLead);
-      }
-      
-      res.json(updatedLead);
       
       // Verificar que no haya expirado
       if (referral.verificationTokenExpiry && new Date() > referral.verificationTokenExpiry) {
         return res.status(400).json({ message: "El token ha expirado" });
       }
-      
-      res.json(updatedLead);
       
       // Marcar el email del referido como verificado
       const updatedReferral = await storage.verifyOwnerReferralEmail(referral.id);
@@ -11100,13 +9978,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ message: "User not found" });
       }
       
-      res.json(updatedLead);
-      
       if (!propertyId) {
         return res.status(400).json({ message: "ID de propiedad es requerido" });
       }
-      
-      res.json(updatedLead);
       
       // Verificar que el lead existe
       const lead = await storage.getLead(leadId);
@@ -11114,22 +9988,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ message: "Lead no encontrado" });
       }
       
-      res.json(updatedLead);
-      
       // Sellers can only offer properties to their own leads
       if (currentUser.role === "seller" && lead.registeredById !== userId) {
         return res.status(403).json({ message: "No tienes permiso para ofrecer propiedades a este lead" });
       }
-      
-      res.json(updatedLead);
       
       // Verificar que la propiedad existe
       const property = await storage.getProperty(propertyId);
       if (!property) {
         return res.status(404).json({ message: "Propiedad no encontrada" });
       }
-      
-      res.json(updatedLead);
       
       // Crear el registro de oferta de propiedad
       const offer = await storage.createLeadPropertyOffer({
@@ -11161,22 +10029,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ message: "User not found" });
       }
       
-      res.json(updatedLead);
-      
       // Verify the lead exists
       const lead = await storage.getLead(leadId);
       if (!lead) {
         return res.status(404).json({ message: "Lead no encontrado" });
       }
       
-      res.json(updatedLead);
-      
       // Sellers can only access offered properties for their own leads
       if (currentUser.role === "seller" && lead.registeredById !== userId) {
         return res.status(403).json({ message: "No tienes permiso para acceder a las propiedades ofrecidas de este lead" });
       }
-      
-      res.json(updatedLead);
       
       const offers = await storage.getLeadPropertyOffers({ leadId });
       
@@ -11215,8 +10077,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!currentUser) {
         return res.status(404).json({ message: "Usuario no encontrado" });
       }
-      
-      res.json(updatedLead);
       
       const referralData = {
         ...req.body,
@@ -11268,8 +10128,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ message: "Usuario no encontrado" });
       }
       
-      res.json(updatedLead);
-      
       let referrals;
       
       if (currentUser.role === "seller") {
@@ -11286,8 +10144,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
         }
         referrals = await storage.getOwnerReferrals(filters);
       }
-      
-      res.json(updatedLead);
       
       res.json(referrals);
     } catch (error) {
@@ -11307,22 +10163,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ message: "Usuario no encontrado" });
       }
       
-      res.json(updatedLead);
-      
       const referral = await storage.getOwnerReferral(id);
       
       if (!referral) {
         return res.status(404).json({ message: "Referido no encontrado" });
       }
       
-      res.json(updatedLead);
-      
       // Sellers can only see their own referrals
       if (currentUser.role === "seller" && referral.referrerId !== userId) {
         return res.status(403).json({ message: "No tienes permiso para ver este referido" });
       }
-      
-      res.json(updatedLead);
       
       res.json(referral);
     } catch (error) {
@@ -11344,13 +10194,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ message: "Referido no encontrado" });
       }
       
-      res.json(updatedLead);
-      
       if (!referral.emailVerified) {
         return res.status(400).json({ message: "El email del propietario debe ser verificado antes de aprobar" });
       }
-      
-      res.json(updatedLead);
       
       // Calculate default 20% commission if not provided
       if (!commissionAmount && referral.estimatedValue) {
@@ -11359,8 +10205,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
           commissionAmount = (estimatedValue * 0.20).toFixed(2);
         }
       }
-      
-      res.json(updatedLead);
       
       const updatedReferral = await storage.approveOwnerReferralByAdmin(id, userId, commissionAmount);
       
@@ -11375,8 +10219,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
           commissionAmount || updatedReferral.commissionAmount || '0.00'
         );
       }
-      
-      res.json(updatedLead);
       
       await createAuditLog(req, "update", "owner_referral", id, `Referido de propietario aprobado con comisión de $${commissionAmount || updatedReferral.commissionAmount}`);
       
@@ -11401,15 +10243,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ message: "Se requiere una razón de rechazo" });
       }
       
-      res.json(updatedLead);
-      
       const referral = await storage.getOwnerReferral(id);
       
       if (!referral) {
         return res.status(404).json({ message: "Referido no encontrado" });
       }
-      
-      res.json(updatedLead);
       
       const updatedReferral = await storage.rejectOwnerReferralByAdmin(id, userId, rejectionReason);
       
@@ -11458,8 +10296,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!appointment) {
         return res.status(404).json({ message: "Cita no encontrada" });
       }
-      
-      res.json(updatedLead);
 
       const updatedAppointment = await storage.updateAppointment(id, req.body);
 
@@ -11485,8 +10321,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!appointment) {
         return res.status(404).json({ message: "Cita no encontrada" });
       }
-      
-      res.json(updatedLead);
 
       const updatedAppointment = await storage.updateAppointment(id, {
         status: "cancelled" as any,
@@ -11513,8 +10347,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ message: "User not found" });
       }
       
-      res.json(updatedLead);
-      
       const { status, clientId, propertyId } = req.query;
       const filters: any = {};
       if (status) filters.status = status;
@@ -11534,8 +10366,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
         // Admin/seller requested specific clientId
         filters.clientId = clientId;
       }
-      
-      res.json(updatedLead);
 
       const appointments = await storage.getAppointments(filters);
       
@@ -11614,8 +10444,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!date) {
         return res.status(400).json({ message: "Date parameter is required" });
       }
-      
-      res.json(updatedLead);
 
       const slotDate = new Date(date);
       // Convert mode to duration: individual=60min (default), tour=30min
@@ -11653,8 +10481,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!date) {
         return res.status(400).json({ message: "Date parameter is required" });
       }
-      
-      res.json(updatedLead);
 
       const slotDate = new Date(date);
       const availableCount = await storage.getAvailableSlotCount(slotDate);
@@ -11682,8 +10508,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!appointment) {
         return res.status(404).json({ message: "Cita no encontrada" });
       }
-      
-      res.json(updatedLead);
 
       // Check permissions: owner of the property or admin
       const property = await storage.getProperty(appointment.propertyId);
@@ -11693,8 +10517,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!isOwner && !isAdmin) {
         return res.status(403).json({ message: "No tienes permiso para asignar conserjes a esta cita" });
       }
-      
-      res.json(updatedLead);
 
       // Validate concierge is available
       const availableConcierges = await storage.getAvailableConcierguesForSlot(appointment.date);
@@ -11703,8 +10525,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!isConciergeAvailable) {
         return res.status(400).json({ message: "El conserje seleccionado no está disponible para este horario" });
       }
-      
-      res.json(updatedLead);
 
       // Assign concierge with access information
       const updatedAppointment = await storage.assignConciergeToAppointment(
@@ -11747,8 +10567,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
           })
         );
       }
-      
-      res.json(updatedLead);
 
       // Notify property owner - confirmation with concierge assignment
       if (property?.ownerId && property.ownerId !== userId) {
@@ -11764,8 +10582,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
           })
         );
       }
-      
-      res.json(updatedLead);
 
       // Notify concierge - appointment details, access instructions, property location
       if (concierge) {
@@ -11785,8 +10601,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
           })
         );
       }
-      
-      res.json(updatedLead);
 
       // Notify admins - assignment confirmation
       const admins = await storage.getUsersByRole("admin");
@@ -11808,8 +10622,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
           );
         }
       }
-      
-      res.json(updatedLead);
 
       // Create all notifications
       await Promise.all(notifications);
@@ -11846,8 +10658,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
         // Non-admins cannot specify different clientId, silently use their own
       }
       
-      res.json(updatedLead);
-      
       // Validate manual property data (only for sellers and admins)
       const hasPropertyId = !!req.body.propertyId;
       const hasManualProperty = req.body.condominiumName || req.body.unitNumber;
@@ -11857,32 +10667,28 @@ export async function registerRoutes(app: Express): Promise<Server> {
         if (!user || !["master", "admin", "admin_jr", "seller"].includes(user.role)) {
           return res.status(403).json({ 
             message: "Solo vendedores y administradores pueden crear citas con propiedades manuales" 
-        }
+          });
         }
         
         // Can't have both propertyId and manual property data
         if (hasPropertyId) {
           return res.status(400).json({ 
             message: "No puedes proporcionar propertyId y datos de propiedad manual al mismo tiempo" 
-        }
+          });
         }
         
         // Both condominiumName and unitNumber are required for manual properties
         if (!req.body.condominiumName || !req.body.unitNumber) {
           return res.status(400).json({ 
             message: "Debes proporcionar tanto el nombre del condominio como el número de unidad" 
-        }
+          });
         }
       } else if (!hasPropertyId) {
         // Must have either propertyId or manual property data
         return res.status(400).json({ 
           message: "Debes proporcionar una propiedad existente o los datos de condominio y unidad" 
+        });
       }
-      
-      res.json(updatedLead);
-      }
-      
-      res.json(updatedLead);
       
       // Clean special values and convert date string to Date object if needed
       const cleanedBody = {
@@ -11916,12 +10722,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (clientAppointmentsOnDay.length > 0) {
         return res.status(400).json({ 
           message: "Ya tienes una cita programada para este día. Solo puedes coordinar 1 cita por día. Si necesitas coordinar otra cita el mismo día, primero debes cancelar la que tienes." 
+        });
       }
-      
-      res.json(updatedLead);
-      }
-      
-      res.json(updatedLead);
 
       // Create Google Meet event if type is video
       let meetLink = null;
@@ -11943,7 +10745,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
             start: appointmentDate,
             end: endDate,
             attendees: [], // Can be extended to include emails
-        }
+          });
 
           if (eventResult) {
             meetLink = eventResult.meetLink;
@@ -11954,17 +10756,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
           // Continue without meet link if event creation fails
         }
       }
-      
-      res.json(updatedLead);
 
       try {
         const appointment = await storage.createAppointment({
           ...appointmentData,
           meetLink: meetLink || appointmentData.meetLink,
           googleEventId: googleEventId || undefined,
-      }
-      
-      res.json(updatedLead);
+        });
 
         // Log appointment creation
         const property = appointment.propertyId ? await storage.getProperty(appointment.propertyId) : null;
@@ -12008,7 +10806,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
                 ownerApprovalStatus: "approved",
                 ownerApprovedAt: new Date(),
                 ownerApprovalNotes: "Aprobada automáticamente por configuración del propietario",
-            }
+              });
               
               // Create notifications for concierge, client, and admin
               const notifications = [];
@@ -12088,8 +10886,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
         }
         throw dbError;
       }
-      
-      res.json(updatedLead);
     } catch (error: any) {
       return handleGenericError(res, error, "al crear la cita");
     }
@@ -12132,14 +10928,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
           `Cita cancelada para ${property?.title || "propiedad"} - ${new Date(appointment.date).toLocaleDateString()}`
         );
       }
-      
-      res.json(updatedLead);
 
       if (appointment?.googleEventId) {
         await deleteGoogleMeetEvent(appointment.googleEventId);
       }
-      
-      res.json(updatedLead);
 
       await storage.deleteAppointment(id);
       res.status(204).send();
@@ -12163,30 +10955,22 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!leadId || !date || !type) {
         return res.status(400).json({ message: "Lead, fecha y tipo son requeridos" });
       }
-      
-      res.json(updatedLead);
 
       // Validate property input: must have propertyId OR (condominiumName + unitNumber)
       if (!propertyId && (!condominiumName || !unitNumber)) {
         return res.status(400).json({ message: "Debes proporcionar un ID de propiedad O nombre de condominio y número de unidad" });
       }
-      
-      res.json(updatedLead);
 
       // Verify lead exists and belongs to seller (unless admin)
       const lead = await storage.getLead(leadId);
       if (!lead) {
         return res.status(404).json({ message: "Lead no encontrado" });
       }
-      
-      res.json(updatedLead);
 
       // Sellers can only create appointments with their own leads
       if (user?.role === "seller" && lead.registeredById !== userId) {
         return res.status(403).json({ message: "Solo puedes crear citas con leads que tú registraste" });
       }
-      
-      res.json(updatedLead);
 
       // Verify property exists and is published (only if propertyId provided)
       let property = null;
@@ -12200,8 +10984,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
           return res.status(400).json({ message: "Solo puedes crear citas con propiedades publicadas" });
         }
       }
-      
-      res.json(updatedLead);
 
       // Use clientId if lead is registered, otherwise use lead contact info
       const clientId = lead.userId || undefined;
@@ -12227,7 +11009,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
             start: appointmentDate,
             end: endDate,
             attendees: [],
-        }
+          });
 
           if (eventResult) {
             meetLink = eventResult.meetLink;
@@ -12237,8 +11019,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
           console.error("Error creating Google Meet event:", meetError);
         }
       }
-      
-      res.json(updatedLead);
 
       // Create appointment with auto-approved status
       const appointment = await storage.createAppointment({
@@ -12264,8 +11044,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (lead.status === "nuevo" || lead.status === "contactado" || lead.status === "calificado") {
         await storage.updateLeadStatus(leadId, "visita_agendada");
       }
-      
-      res.json(updatedLead);
 
       await createAuditLog(
         req,
@@ -12285,12 +11063,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
           relatedEntityType: "appointment",
           relatedEntityId: appointment.id,
           priority: "high",
+        });
       }
-      
-      res.json(updatedLead);
-      }
-      
-      res.json(updatedLead);
 
       res.status(201).json(appointment);
     } catch (error: any) {
@@ -12302,8 +11076,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
           console.error("Error rolling back Google Meet event:", rollbackError);
         }
       }
-      
-      res.json(updatedLead);
       console.error("Error creating appointment with lead:", error);
       res.status(500).json({ message: error.message || "Error al crear cita con lead" });
     }
@@ -12320,8 +11092,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!appointment) {
         return res.status(404).json({ message: "Cita no encontrada" });
       }
-      
-      res.json(updatedLead);
 
       // Update appointment to confirmed
       const updated = await storage.updateAppointment(id, {
@@ -12349,12 +11119,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
           relatedEntityType: "appointment",
           relatedEntityId: appointment.id,
           priority: "high",
+        });
       }
-      
-      res.json(updatedLead);
-      }
-      
-      res.json(updatedLead);
 
       res.json(updated);
     } catch (error: any) {
@@ -12375,8 +11141,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!appointment) {
         return res.status(404).json({ message: "Cita no encontrada" });
       }
-      
-      res.json(updatedLead);
 
       // Cancel appointment
       const updated = await storage.updateAppointment(id, {
@@ -12391,8 +11155,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
           console.error("Error deleting Google Meet event:", error);
         }
       }
-      
-      res.json(updatedLead);
 
       await createAuditLog(
         req,
@@ -12412,12 +11174,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
           relatedEntityType: "appointment",
           relatedEntityId: appointment.id,
           priority: "high",
+        });
       }
-      
-      res.json(updatedLead);
-      }
-      
-      res.json(updatedLead);
 
       res.json(updated);
     } catch (error: any) {
@@ -12437,15 +11195,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!newDate) {
         return res.status(400).json({ message: "Nueva fecha es requerida" });
       }
-      
-      res.json(updatedLead);
 
       const appointment = await storage.getAppointment(id);
       if (!appointment) {
         return res.status(404).json({ message: "Cita no encontrada" });
       }
-      
-      res.json(updatedLead);
 
       const oldDate = new Date(appointment.date);
 
@@ -12473,12 +11227,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
           relatedEntityType: "appointment",
           relatedEntityId: appointment.id,
           priority: "high",
+        });
       }
-      
-      res.json(updatedLead);
-      }
-      
-      res.json(updatedLead);
 
       res.json(updated);
     } catch (error: any) {
@@ -12538,8 +11288,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (error.name === "ZodError") {
         return res.status(400).json({ message: "Validation error", errors: error.errors });
       }
-      
-      res.json(updatedLead);
       res.status(400).json({ message: error.message || "Failed to create calendar event" });
     }
   });
@@ -12553,13 +11301,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (updates.startDate) {
         updates.startDate = new Date(updates.startDate);
       }
-      
-      res.json(updatedLead);
       if (updates.endDate) {
         updates.endDate = new Date(updates.endDate);
       }
-      
-      res.json(updatedLead);
 
       // Use partial validation
       const validatedData = insertCalendarEventSchema.partial().parse(updates);
@@ -12580,8 +11324,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (error.name === "ZodError") {
         return res.status(400).json({ message: "Validation error", errors: error.errors });
       }
-      
-      res.json(updatedLead);
       res.status(500).json({ message: "Failed to update calendar event" });
     }
   });
@@ -12600,8 +11342,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
           `Evento de calendario eliminado: ${event.title}`
         );
       }
-      
-      res.json(updatedLead);
 
       await storage.deleteCalendarEvent(id);
       res.status(204).send();
@@ -12656,15 +11396,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!userId) {
         return res.status(401).json({ message: "Usuario no autenticado" });
       }
-      
-      res.json(updatedLead);
 
       const user = await storage.getUser(userId);
       if (!user) {
         return res.status(404).json({ message: "Usuario no encontrado" });
       }
-      
-      res.json(updatedLead);
 
       // Conserjes ven solo sus slots, admins ven todos
       let slots;
@@ -12679,8 +11415,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       } else {
         return res.status(403).json({ message: "No autorizado" });
       }
-      
-      res.json(updatedLead);
 
       res.json(slots);
     } catch (error) {
@@ -12695,15 +11429,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!userId) {
         return res.status(401).json({ message: "Usuario no autenticado" });
       }
-      
-      res.json(updatedLead);
 
       const user = await storage.getUser(userId);
       if (!user || user.role !== "concierge") {
         return res.status(403).json({ message: "Solo los conserjes pueden bloquear horarios" });
       }
-      
-      res.json(updatedLead);
 
       const { startTime, endTime, reason } = req.body;
 
@@ -12725,12 +11455,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ 
           message: "No puedes bloquear horarios con citas confirmadas",
           conflictingAppointments: conflictingAppointments.length
+        });
       }
-      
-      res.json(updatedLead);
-      }
-      
-      res.json(updatedLead);
 
       const slot = await storage.createConciergeBlockedSlot({
         conciergeId: userId,
@@ -12760,8 +11486,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!userId) {
         return res.status(401).json({ message: "Usuario no autenticado" });
       }
-      
-      res.json(updatedLead);
 
       const { id } = req.params;
       const slot = await storage.getConciergeBlockedSlot(id);
@@ -12769,15 +11493,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!slot) {
         return res.status(404).json({ message: "Horario bloqueado no encontrado" });
       }
-      
-      res.json(updatedLead);
 
       // Only the owner concierge can delete their blocked slots
       if (slot.conciergeId !== userId) {
         return res.status(403).json({ message: "No autorizado para eliminar este horario" });
       }
-      
-      res.json(updatedLead);
 
       await storage.deleteConciergeBlockedSlot(id);
 
@@ -12870,11 +11590,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
         if (!appointment || appointment.clientId !== userId) {
           return res.status(403).json({ 
             message: "Solo puedes dejar reviews de citas a las que asististe" 
-        }
+          });
         }
       }
-      
-      res.json(updatedLead);
       
       // Enforce authenticated user as the reviewer
       const reviewData = {
@@ -12956,8 +11674,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(403).json({ message: "Acceso denegado" });
       }
       
-      res.json(updatedLead);
-      
       const filters: any = {};
       if (clientId) filters.clientId = clientId;
       if (conciergeId) filters.conciergeId = conciergeId;
@@ -12978,8 +11694,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (user?.role !== "concierge") {
         return res.status(403).json({ message: "Solo los conserjes pueden dejar reviews de clientes" });
       }
-      
-      res.json(updatedLead);
       
       // Security: Remove conciergeId from body to prevent impersonation
       const { conciergeId: _, ...bodyWithoutConciergeId } = req.body;
@@ -13024,8 +11738,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
         clientId = userId;
       }
       
-      res.json(updatedLead);
-      
       const cards = await storage.getPresentationCards(clientId);
       res.json(cards);
     } catch (error) {
@@ -13060,12 +11772,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (existingCards.length >= 3) {
         return res.status(400).json({ 
           message: "Has alcanzado el límite de 3 tarjetas de presentación. Elimina una existente para crear una nueva." 
+        });
       }
-      
-      res.json(updatedLead);
-      }
-      
-      res.json(updatedLead);
 
       const cardData = insertPresentationCardSchema.parse({
         ...req.body,
@@ -13119,8 +11827,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!existingCard) {
         return res.status(404).json({ message: "Presentation card not found" });
       }
-      
-      res.json(updatedLead);
 
       // If activating, deactivate all other cards first
       if (!existingCard.isActive) {
@@ -13128,8 +11834,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
           .set({ isActive: false })
           .where(eq(presentationCards.clientId, userId));
       }
-      
-      res.json(updatedLead);
 
       // Toggle the card's active state
       const card = await db.update(presentationCards)
@@ -13230,8 +11934,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!recommendation[0]) {
         return res.status(404).json({ message: "Recommendation not found" });
       }
-      
-      res.json(updatedLead);
 
       res.json(recommendation[0]);
     } catch (error) {
@@ -13257,8 +11959,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!recommendation[0]) {
         return res.status(404).json({ message: "Recommendation not found" });
       }
-      
-      res.json(updatedLead);
 
       res.json(recommendation[0]);
     } catch (error) {
@@ -13321,8 +12021,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!suggestion[0]) {
         return res.status(404).json({ message: "Suggestion not found" });
       }
-      
-      res.json(updatedLead);
 
       res.json(suggestion[0]);
     } catch (error) {
@@ -13348,8 +12046,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!suggestion[0]) {
         return res.status(404).json({ message: "Suggestion not found" });
       }
-      
-      res.json(updatedLead);
 
       res.json(suggestion[0]);
     } catch (error) {
@@ -13423,8 +12119,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(403).json({ message: "You must be a registered service provider to create services" });
       }
       
-      res.json(updatedLead);
-      
       const provider = providers[0];
       
       // Force providerId from authenticated user's service provider
@@ -13477,8 +12171,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       } else if (user?.role !== "master" && user?.role !== "admin") {
         filters.clientId = userId;
       }
-      
-      res.json(updatedLead);
       
       if (providerId) filters.providerId = providerId;
       if (status) filters.status = status;
@@ -13557,8 +12249,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
         filters.status = status;
       }
       
-      res.json(updatedLead);
-      
       const applications = await storage.getProviderApplications(filters);
       res.json(applications);
     } catch (error) {
@@ -13576,8 +12266,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ message: "Provider application not found" });
       }
       
-      res.json(updatedLead);
-      
       res.json(application);
     } catch (error) {
       console.error("Error fetching provider application:", error);
@@ -13594,8 +12282,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!["approved", "rejected"].includes(status)) {
         return res.status(400).json({ message: "Status must be 'approved' or 'rejected'" });
       }
-      
-      res.json(updatedLead);
       
       const application = await storage.updateProviderApplicationStatus(id, status, adminId, notes);
       
@@ -13662,13 +12348,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (customClientReferralPercent !== undefined) {
         updates.customClientReferralPercent = customClientReferralPercent === null ? null : customClientReferralPercent;
       }
-      
-      res.json(updatedLead);
       if (customOwnerReferralPercent !== undefined) {
         updates.customOwnerReferralPercent = customOwnerReferralPercent === null ? null : customOwnerReferralPercent;
       }
-      
-      res.json(updatedLead);
 
       const user = await storage.updateUser(userId, updates);
 
@@ -13701,8 +12383,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
         if (status) clientFilters.status = status;
         clientReferrals = await storage.getClientReferrals(clientFilters);
       }
-      
-      res.json(updatedLead);
 
       if (!type || type === "owner") {
         const ownerFilters: any = {};
@@ -13710,8 +12390,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
         if (status) ownerFilters.status = status;
         ownerReferrals = await storage.getOwnerReferrals(ownerFilters);
       }
-      
-      res.json(updatedLead);
 
       // Get unique user IDs
       const userIds = new Set([
@@ -13745,12 +12423,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
             },
             clientReferrals: [],
             ownerReferrals: [],
-        }
+          });
         }
         referralsByUser.get(referral.referrerId).clientReferrals.push(referral);
       }
-      
-      res.json(updatedLead);
 
       for (const referral of ownerReferrals) {
         if (!referralsByUser.has(referral.referrerId)) {
@@ -13766,12 +12442,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
             },
             clientReferrals: [],
             ownerReferrals: [],
-        }
+          });
         }
         referralsByUser.get(referral.referrerId).ownerReferrals.push(referral);
       }
-      
-      res.json(updatedLead);
 
       res.json(Array.from(referralsByUser.values()));
     } catch (error) {
@@ -13789,8 +12463,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!user) {
         return res.status(403).json({ message: "User not found" });
       }
-      
-      res.json(updatedLead);
       
       let filters: any = {};
       
@@ -13812,8 +12484,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
           filters.status = req.query.status;
         }
       }
-      
-      res.json(updatedLead);
 
       const referrals = await storage.getClientReferrals(filters);
       res.json(referrals);
@@ -13887,8 +12557,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(403).json({ message: "User not found" });
       }
       
-      res.json(updatedLead);
-      
       let filters: any = {};
       
       if (["master", "admin", "admin_jr"].includes(user.role)) {
@@ -13909,8 +12577,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
           filters.status = req.query.status;
         }
       }
-      
-      res.json(updatedLead);
 
       const referrals = await storage.getOwnerReferrals(filters);
       res.json(referrals);
@@ -13984,13 +12650,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ message: "Referido no encontrado" });
       }
       
-      res.json(updatedLead);
-      
       if (!referral.emailVerified) {
         return res.status(400).json({ message: "El email del propietario debe ser verificado antes de aprobar" });
       }
-      
-      res.json(updatedLead);
       
       // Calculate default 20% commission if not provided
       if (!commissionAmount && referral.estimatedValue) {
@@ -13999,8 +12661,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
           commissionAmount = (estimatedValue * 0.20).toFixed(2);
         }
       }
-      
-      res.json(updatedLead);
       
       const updatedReferral = await storage.approveOwnerReferralByAdmin(id, userId, commissionAmount);
       
@@ -14015,8 +12675,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
           commissionAmount || updatedReferral.commissionAmount || '0.00'
         );
       }
-      
-      res.json(updatedLead);
       
       await createAuditLog(
         req, 
@@ -14046,15 +12704,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ message: "Se requiere una razón de rechazo" });
       }
       
-      res.json(updatedLead);
-      
       const referral = await storage.getOwnerReferral(id);
       
       if (!referral) {
         return res.status(404).json({ message: "Referido no encontrado" });
       }
-      
-      res.json(updatedLead);
       
       const updatedReferral = await storage.rejectOwnerReferralByAdmin(id, userId, rejectionReason);
       
@@ -14086,8 +12740,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ message: "User not found" });
       }
       
-      res.json(updatedLead);
-      
       const { status, clientId, propertyId } = req.query;
       const filters: any = {};
       if (status) filters.status = status;
@@ -14107,8 +12759,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
         // Admin/seller requested specific clientId
         filters.clientId = clientId;
       }
-      
-      res.json(updatedLead);
 
       const offers = await storage.getOffers(filters);
       res.json(offers);
@@ -14131,8 +12781,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
         }
         // Non-admins cannot specify different clientId, silently use their own
       }
-      
-      res.json(updatedLead);
       
       // Clean special values
       const cleanedBody = {
@@ -14191,8 +12839,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!user || !["owner", "admin", "master"].includes(user.role)) {
         return res.status(403).json({ message: "Solo propietarios pueden acceder a esta ruta" });
       }
-      
-      res.json(updatedLead);
 
       const offers = await storage.getOffersByOwner(userId);
       res.json(offers);
@@ -14212,28 +12858,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!offer) {
         return res.status(404).json({ message: "Oferta no encontrada" });
       }
-      
-      res.json(updatedLead);
 
       const property = await storage.getProperty(offer.propertyId);
       if (!property || property.ownerId !== userId) {
         return res.status(403).json({ message: "No tienes permiso para aceptar esta oferta" });
       }
-      
-      res.json(updatedLead);
 
       // Validate workflow state - owner can accept when it's client's turn (pending or countered by client)
       if (offer.status === 'accepted' || offer.status === 'rejected') {
         return res.status(400).json({ message: "Esta oferta ya fue procesada" });
       }
-      
-      res.json(updatedLead);
 
       if (offer.status === 'countered' && offer.lastOfferedBy === 'owner') {
         return res.status(400).json({ message: "No puedes aceptar tu propia contraoferta. Espera la respuesta del cliente." });
       }
-      
-      res.json(updatedLead);
 
       const { offer: acceptedOffer, contract } = await storage.acceptOffer(id);
       
@@ -14256,9 +12894,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           category: "contract",
           relatedEntityType: "rental_contract",
           relatedEntityId: contract.id,
-      }
-      
-      res.json(updatedLead);
+        });
 
         // Create notification for owner about contract
         await storage.createNotification({
@@ -14268,12 +12904,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
           category: "contract",
           relatedEntityType: "rental_contract",
           relatedEntityId: contract.id,
+        });
       }
-      
-      res.json(updatedLead);
-      }
-      
-      res.json(updatedLead);
 
       await createAuditLog(
         req,
@@ -14301,28 +12933,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!offer) {
         return res.status(404).json({ message: "Oferta no encontrada" });
       }
-      
-      res.json(updatedLead);
 
       const property = await storage.getProperty(offer.propertyId);
       if (!property || property.ownerId !== userId) {
         return res.status(403).json({ message: "No tienes permiso para aceptar esta oferta" });
       }
-      
-      res.json(updatedLead);
 
       // Validate workflow state - owner can accept when it's client's turn (pending or countered by client)
       if (offer.status === 'accepted' || offer.status === 'rejected') {
         return res.status(400).json({ message: "Esta oferta ya fue procesada" });
       }
-      
-      res.json(updatedLead);
 
       if (offer.status === 'countered' && offer.lastOfferedBy === 'owner') {
         return res.status(400).json({ message: "No puedes aceptar tu propia contraoferta. Espera la respuesta del cliente." });
       }
-      
-      res.json(updatedLead);
 
       const { offer: acceptedOffer, contract } = await storage.acceptOffer(id);
       
@@ -14347,9 +12971,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           category: "contract",
           relatedEntityType: "rental_contract",
           relatedEntityId: contract.id,
-      }
-      
-      res.json(updatedLead);
+        });
 
         // Create notification for owner about contract
         await storage.createNotification({
@@ -14359,12 +12981,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
           category: "contract",
           relatedEntityType: "rental_contract",
           relatedEntityId: contract.id,
+        });
       }
-      
-      res.json(updatedLead);
-      }
-      
-      res.json(updatedLead);
 
       await createAuditLog(
         req,
@@ -14392,28 +13010,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!offer) {
         return res.status(404).json({ message: "Oferta no encontrada" });
       }
-      
-      res.json(updatedLead);
 
       const property = await storage.getProperty(offer.propertyId);
       if (!property || property.ownerId !== userId) {
         return res.status(403).json({ message: "No tienes permiso para rechazar esta oferta" });
       }
-      
-      res.json(updatedLead);
 
       // Validate workflow state
       if (offer.status === 'accepted' || offer.status === 'rejected') {
         return res.status(400).json({ message: "Esta oferta ya fue procesada" });
       }
-      
-      res.json(updatedLead);
 
       if (offer.status === 'countered' && offer.lastOfferedBy === 'owner') {
         return res.status(400).json({ message: "No puedes rechazar tu propia contraoferta. Espera la respuesta del cliente." });
       }
-      
-      res.json(updatedLead);
 
       const rejectedOffer = await storage.rejectOffer(id, reason);
       
@@ -14462,36 +13072,26 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!offer) {
         return res.status(404).json({ message: "Oferta no encontrada" });
       }
-      
-      res.json(updatedLead);
 
       const property = await storage.getProperty(offer.propertyId);
       if (!property || property.ownerId !== userId) {
         return res.status(403).json({ message: "No tienes permiso para contraofertar esta oferta" });
       }
-      
-      res.json(updatedLead);
 
       // Validate workflow state - owner can counter-offer when it's their turn (pending or countered by client)
       if (offer.status === 'accepted' || offer.status === 'rejected') {
         return res.status(400).json({ message: "Esta oferta ya fue procesada" });
       }
-      
-      res.json(updatedLead);
 
       if (offer.status === 'countered' && offer.lastOfferedBy === 'owner') {
         return res.status(400).json({ message: "Ya enviaste una contraoferta. Espera la respuesta del cliente." });
       }
-      
-      res.json(updatedLead);
 
       // Check negotiation round limit
       const currentRound = offer.negotiationRound || 0;
       if (currentRound >= 3) {
         return res.status(400).json({ message: "Se alcanzó el límite máximo de 3 rondas de negociación" });
       }
-      
-      res.json(updatedLead);
 
       const counterOffer = await storage.createCounterOffer(id, {
         ...validatedData,
@@ -14563,33 +13163,23 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!offer) {
         return res.status(404).json({ message: "Oferta no encontrada" });
       }
-      
-      res.json(updatedLead);
 
       if (offer.clientId !== userId) {
         return res.status(403).json({ message: "No tienes permiso para aceptar esta contraoferta" });
       }
-      
-      res.json(updatedLead);
 
       // Validate workflow state - client can accept when it's owner's turn (countered by owner)
       if (offer.status === 'accepted' || offer.status === 'rejected') {
         return res.status(400).json({ message: "Esta oferta ya fue procesada" });
       }
-      
-      res.json(updatedLead);
 
       if (offer.status !== 'countered') {
         return res.status(400).json({ message: "No hay contraoferta pendiente para aceptar" });
       }
-      
-      res.json(updatedLead);
 
       if (offer.lastOfferedBy === 'client') {
         return res.status(400).json({ message: "No puedes aceptar tu propia contraoferta. Espera la respuesta del propietario." });
       }
-      
-      res.json(updatedLead);
 
       const { offer: acceptedOffer, contract } = await storage.acceptOffer(id);
       
@@ -14603,9 +13193,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           category: "offer",
           relatedEntityType: "offer",
           relatedEntityId: id,
-      }
-      
-      res.json(updatedLead);
+        });
 
         // Create notification for owner about contract
         if (contract) {
@@ -14616,11 +13204,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
             category: "contract",
             relatedEntityType: "rental_contract",
             relatedEntityId: contract.id,
-        }
+          });
         }
       }
-      
-      res.json(updatedLead);
 
       // Create notification for client about contract
       if (contract) {
@@ -14631,12 +13217,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
           category: "contract",
           relatedEntityType: "rental_contract",
           relatedEntityId: contract.id,
+        });
       }
-      
-      res.json(updatedLead);
-      }
-      
-      res.json(updatedLead);
 
       await createAuditLog(
         req,
@@ -14664,33 +13246,23 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!offer) {
         return res.status(404).json({ message: "Oferta no encontrada" });
       }
-      
-      res.json(updatedLead);
 
       if (offer.clientId !== userId) {
         return res.status(403).json({ message: "No tienes permiso para rechazar esta contraoferta" });
       }
-      
-      res.json(updatedLead);
 
       // Validate workflow state
       if (offer.status === 'accepted' || offer.status === 'rejected') {
         return res.status(400).json({ message: "Esta oferta ya fue procesada" });
       }
-      
-      res.json(updatedLead);
 
       if (offer.status !== 'countered') {
         return res.status(400).json({ message: "No hay contraoferta pendiente para rechazar" });
       }
-      
-      res.json(updatedLead);
 
       if (offer.lastOfferedBy === 'client') {
         return res.status(400).json({ message: "No puedes rechazar tu propia contraoferta. Espera la respuesta del propietario." });
       }
-      
-      res.json(updatedLead);
 
       const rejectedOffer = await storage.rejectOffer(id, reason);
       
@@ -14704,12 +13276,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
           category: "offer",
           relatedEntityType: "offer",
           relatedEntityId: id,
+        });
       }
-      
-      res.json(updatedLead);
-      }
-      
-      res.json(updatedLead);
 
       await createAuditLog(
         req,
@@ -14746,35 +13314,25 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!offer) {
         return res.status(404).json({ message: "Oferta no encontrada" });
       }
-      
-      res.json(updatedLead);
 
       if (offer.clientId !== userId) {
         return res.status(403).json({ message: "No tienes permiso para contraofertar" });
       }
-      
-      res.json(updatedLead);
 
       // Validate workflow state - client can counter-offer when it's their turn (countered by owner)
       if (offer.status === 'accepted' || offer.status === 'rejected') {
         return res.status(400).json({ message: "Esta oferta ya fue procesada" });
       }
-      
-      res.json(updatedLead);
 
       if (offer.status === 'countered' && offer.lastOfferedBy === 'client') {
         return res.status(400).json({ message: "Ya enviaste una contraoferta. Espera la respuesta del propietario." });
       }
-      
-      res.json(updatedLead);
 
       // Check negotiation round limit
       const currentRound = offer.negotiationRound || 0;
       if (currentRound >= 3) {
         return res.status(400).json({ message: "Se alcanzó el límite máximo de 3 rondas de negociación" });
       }
-      
-      res.json(updatedLead);
 
       const counterOffer = await storage.createCounterOffer(id, {
         ...validatedData,
@@ -14791,12 +13349,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
           category: "offer",
           relatedEntityType: "offer",
           relatedEntityId: id,
+        });
       }
-      
-      res.json(updatedLead);
-      }
-      
-      res.json(updatedLead);
 
       await createAuditLog(
         req,
@@ -14823,8 +13377,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!contract) {
         return res.status(404).json({ message: "Contrato no encontrado" });
       }
-      
-      res.json(updatedLead);
 
       // Verify user has access to this contract (tenant, owner, or admin)
       const property = await storage.getProperty(contract.propertyId);
@@ -14834,8 +13386,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (contract.tenantId !== userId && property?.ownerId !== userId && !isAdmin) {
         return res.status(403).json({ message: "No tienes permiso para ver este contrato" });
       }
-      
-      res.json(updatedLead);
 
       // Get additional info
       const tenantInfo = await storage.getContractTenantInfo(contractId);
@@ -14857,15 +13407,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!contract) {
         return res.status(404).json({ message: "Contrato no encontrado" });
       }
-      
-      res.json(updatedLead);
 
       // Verify user is the tenant
       if (contract.tenantId !== userId) {
         return res.status(403).json({ message: "No tienes permiso para ver esta información" });
       }
-      
-      res.json(updatedLead);
 
       const tenantInfo = await storage.getContractTenantInfo(contractId);
       res.json(tenantInfo || null);
@@ -14884,15 +13430,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!contract) {
         return res.status(404).json({ message: "Contrato no encontrado" });
       }
-      
-      res.json(updatedLead);
 
       // Verify user is the tenant
       if (contract.tenantId !== userId) {
         return res.status(403).json({ message: "No tienes permiso para actualizar esta información" });
       }
-      
-      res.json(updatedLead);
 
       // Validate request body with Zod schema
       const validationResult = insertContractTenantInfoSchema
@@ -14904,12 +13446,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ 
           message: "Datos inválidos", 
           errors: validationResult.error.errors 
+        });
       }
-      
-      res.json(updatedLead);
-      }
-      
-      res.json(updatedLead);
 
       const sanitizedData = sanitizeObject(validationResult.data);
 
@@ -14923,12 +13461,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         tenantInfo = await storage.createContractTenantInfo({
           ...sanitizedData,
           rentalContractId: contractId
+        });
       }
-      
-      res.json(updatedLead);
-      }
-      
-      res.json(updatedLead);
 
       // Update contract status if both forms are complete
       const ownerInfo = await storage.getContractOwnerInfo(contractId);
@@ -14945,11 +13479,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
             category: "contract",
             relatedEntityType: "rental_contract",
             relatedEntityId: contractId,
-        }
+          });
         }
       }
-      
-      res.json(updatedLead);
 
       await createAuditLog(
         req,
@@ -14975,8 +13507,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!contract) {
         return res.status(404).json({ message: "Contrato no encontrado" });
       }
-      
-      res.json(updatedLead);
 
       const property = await storage.getProperty(contract.propertyId);
       
@@ -14984,8 +13514,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (property?.ownerId !== userId) {
         return res.status(403).json({ message: "No tienes permiso para ver esta información" });
       }
-      
-      res.json(updatedLead);
 
       const ownerInfo = await storage.getContractOwnerInfo(contractId);
       res.json(ownerInfo || null);
@@ -15004,8 +13532,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!contract) {
         return res.status(404).json({ message: "Contrato no encontrado" });
       }
-      
-      res.json(updatedLead);
 
       const property = await storage.getProperty(contract.propertyId);
       
@@ -15013,8 +13539,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (property?.ownerId !== userId) {
         return res.status(403).json({ message: "No tienes permiso para actualizar esta información" });
       }
-      
-      res.json(updatedLead);
 
       // Validate request body with Zod schema
       const validationResult = insertContractOwnerInfoSchema
@@ -15026,12 +13550,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ 
           message: "Datos inválidos", 
           errors: validationResult.error.errors 
+        });
       }
-      
-      res.json(updatedLead);
-      }
-      
-      res.json(updatedLead);
 
       const sanitizedData = sanitizeObject(validationResult.data);
 
@@ -15045,12 +13565,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         ownerInfo = await storage.createContractOwnerInfo({
           ...sanitizedData,
           rentalContractId: contractId
+        });
       }
-      
-      res.json(updatedLead);
-      }
-      
-      res.json(updatedLead);
 
       // Update contract status if both forms are complete
       const tenantInfo = await storage.getContractTenantInfo(contractId);
@@ -15067,11 +13583,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
             category: "contract",
             relatedEntityType: "rental_contract",
             relatedEntityId: contractId,
-        }
+          });
         }
       }
-      
-      res.json(updatedLead);
 
       await createAuditLog(
         req,
@@ -15100,28 +13614,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(403).json({ message: "No tienes permiso para verificar contratos" });
       }
       
-      res.json(updatedLead);
-      
       const contract = await storage.getRentalContract(contractId);
       if (!contract) {
         return res.status(404).json({ message: "Contrato no encontrado" });
       }
-      
-      res.json(updatedLead);
 
       if (contract.status !== 'pendiente_verificacion') {
         return res.status(400).json({ message: "El contrato no está en estado pendiente de verificación" });
       }
-      
-      res.json(updatedLead);
 
       if (verified) {
         // Approve and move to apartado
         await storage.updateRentalContractStatus(contractId, 'apartado', {
           apartadoDate: new Date()
-      }
-      
-      res.json(updatedLead);
+        });
 
         // Notify tenant and owner to sign
         await storage.createNotification({
@@ -15131,9 +13637,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           category: "contract",
           relatedEntityType: "rental_contract",
           relatedEntityId: contractId,
-      }
-      
-      res.json(updatedLead);
+        });
 
         const property = await storage.getProperty(contract.propertyId);
         if (property?.ownerId) {
@@ -15144,7 +13648,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
             category: "contract",
             relatedEntityType: "rental_contract",
             relatedEntityId: contractId,
-        }
+          });
         }
       } else {
         // Reject and move back to draft
@@ -15158,12 +13662,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
           category: "contract",
           relatedEntityType: "rental_contract",
           relatedEntityId: contractId,
+        });
       }
-      
-      res.json(updatedLead);
-      }
-      
-      res.json(updatedLead);
 
       await createAuditLog(
         req,
@@ -15220,12 +13720,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         console.error('[Offer Token Creation] External agency user missing externalUnitId');
         return res.status(400).json({ 
           message: "Para agencias externas se requiere externalUnitId" 
+        });
       }
-      
-      res.json(updatedLead);
-      }
-      
-      res.json(updatedLead);
       
       if (isExternalFlow) {
         // External system flow - validate externalUnitId is a valid string
@@ -15244,9 +13740,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           unitId: externalUnit.id,
           agencyId: externalUnit.agencyId,
           unitNumber: externalUnit.unitNumber
-      }
-      
-      res.json(updatedLead);
+        });
         
         // Verify user has access to this agency
         const agencyId = await getUserAgencyId(req);
@@ -15254,7 +13748,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           console.error('[Offer Token Creation] Agency access denied:', {
             userAgencyId: agencyId,
             unitAgencyId: externalUnit.agencyId
-        }
+          });
           return res.status(403).json({ message: "No tienes acceso a esta unidad" });
         }
         
@@ -15285,8 +13779,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       } else {
         return res.status(400).json({ message: "Se requiere propertyId o externalUnitId" });
       }
-      
-      res.json(updatedLead);
 
       // If leadId provided, validate lead exists (internal system only)
       if (leadId) {
@@ -15295,8 +13787,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
           return res.status(404).json({ message: "Lead no encontrado" });
         }
       }
-      
-      res.json(updatedLead);
 
       // Generate unique token
       const token = crypto.randomBytes(32).toString('hex');
@@ -15317,8 +13807,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
             )
           );
       }
-      
-      res.json(updatedLead);
 
       // Create offer token
       const offerToken = await db.insert(offerTokens).values({
@@ -15337,8 +13825,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
         await storage.updateLeadStatus(leadId, "oferta_enviada");
         auditMessage += ' y lead actualizado a oferta_enviada';
       }
-      
-      res.json(updatedLead);
 
       await createAuditLog(
         req,
@@ -15373,24 +13859,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ 
           valid: false, 
           message: "Token no encontrado" 
+        });
       }
-      
-      res.json(updatedLead);
-      }
-      
-      res.json(updatedLead);
 
       // Check if expired
       if (new Date() > new Date(data.expiresAt)) {
         return res.status(410).json({ 
           valid: false, 
           message: "Este enlace ha expirado" 
+        });
       }
-      
-      res.json(updatedLead);
-      }
-      
-      res.json(updatedLead);
 
       // Check if already used - but allow viewing completed offers
       const isCompleted = data.isUsed;
@@ -15400,12 +13878,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(409).json({
           valid: false,
           message: "Este enlace fue utilizado pero no contiene datos de la oferta"
+        });
       }
-      
-      res.json(updatedLead);
-      }
-      
-      res.json(updatedLead);
 
       // Map optimized data to frontend format
       const property = data.unitId ? {
@@ -15450,8 +13924,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (data.leadId) {
         lead = await storage.getLead(data.leadId);
       }
-      
-      res.json(updatedLead);
 
       res.json({
         valid: true,
@@ -15485,21 +13957,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!offerToken) {
         return res.status(404).json({ message: "Token no encontrado" });
       }
-      
-      res.json(updatedLead);
 
       // Check if expired
       if (new Date() > new Date(offerToken.expiresAt)) {
         return res.status(410).json({ message: "Este enlace ha expirado" });
       }
-      
-      res.json(updatedLead);
 
       if (!req.files || req.files.length === 0) {
         return res.status(400).json({ message: "No se subieron archivos" });
       }
-      
-      res.json(updatedLead);
 
       // Generate URLs for uploaded files
       const photoUrls = (req.files as Express.Multer.File[]).map(file => {
@@ -15531,22 +13997,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!offerToken) {
         return res.status(404).json({ message: "Token no encontrado" });
       }
-      
-      res.json(updatedLead);
 
       // Check if expired
       if (new Date() > new Date(offerToken.expiresAt)) {
         return res.status(410).json({ message: "Este enlace ha expirado" });
       }
-      
-      res.json(updatedLead);
 
       // Check if already used
       if (offerToken.isUsed) {
         return res.status(410).json({ message: "Este enlace ya fue utilizado" });
       }
-      
-      res.json(updatedLead);
 
       // Update offer token with submitted data
       const [updatedToken] = await db
@@ -15566,8 +14026,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (offerToken.leadId) {
         await storage.updateLeadStatus(offerToken.leadId, "en_negociacion");
       }
-      
-      res.json(updatedLead);
 
       res.json({
         message: "Oferta enviada exitosamente",
@@ -15594,8 +14052,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       } else if (status === "pending") {
         query = query.where(eq(offerTokens.isUsed, false));
       }
-      
-      res.json(updatedLead);
 
       const tokens = await query;
 
@@ -15639,8 +14095,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!existingToken) {
         return res.status(404).json({ message: "Token no encontrado" });
       }
-      
-      res.json(updatedLead);
 
       // Delete the token
       await db
@@ -15663,8 +14117,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!clientEmail || !clientName) {
         return res.status(400).json({ message: "Email y nombre del cliente son requeridos" });
       }
-      
-      res.json(updatedLead);
 
       // Get offer token
       const [offerToken] = await db
@@ -15676,16 +14128,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!offerToken) {
         return res.status(404).json({ message: "Token de oferta no encontrado" });
       }
-      
-      res.json(updatedLead);
 
       // Get property info
       const property = await storage.getProperty(offerToken.propertyId);
       if (!property) {
         return res.status(404).json({ message: "Propiedad no encontrada" });
       }
-      
-      res.json(updatedLead);
 
       // Build offer link
       const baseUrl = process.env.NODE_ENV === 'production' 
@@ -15734,22 +14182,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!offerToken) {
         return res.status(404).json({ message: "Token de oferta no encontrado" });
       }
-      
-      res.json(updatedLead);
 
       if (!offerToken.isUsed || !offerToken.offerData) {
         return res.status(400).json({ message: "La oferta aún no ha sido completada" });
       }
-      
-      res.json(updatedLead);
 
       // Get property info
       const property = await storage.getProperty(offerToken.propertyId);
       if (!property) {
         return res.status(404).json({ message: "Propiedad no encontrada" });
       }
-      
-      res.json(updatedLead);
 
       // Generate PDF
       const pdfBuffer = await generateOfferPDF(offerToken.offerData, property);
@@ -15833,8 +14275,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       } else {
         return res.status(400).json({ message: "Se requiere propertyId o externalUnitId" });
       }
-      
-      res.json(updatedLead);
 
       // Generate unique token (16 characters - suficiente para enlaces temporales)
       const token = crypto.randomBytes(8).toString('hex');
@@ -15879,8 +14319,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
             )
           );
       }
-      
-      res.json(updatedLead);
 
       await createAuditLog(
         req,
@@ -15914,22 +14352,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!data) {
         return res.status(404).json({ message: "Token no encontrado" });
       }
-      
-      res.json(updatedLead);
 
       // Check if token is expired
       if (new Date() > new Date(data.expiresAt)) {
         return res.status(400).json({ message: "Este enlace ha expirado" });
       }
-      
-      res.json(updatedLead);
 
       // Check if token is already used
       if (data.isUsed) {
         return res.status(400).json({ message: "Este enlace ya ha sido utilizado" });
       }
-      
-      res.json(updatedLead);
 
       const recipientType = data.recipientType || 'tenant';
       
@@ -15993,8 +14425,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
         }
       }
       
-      res.json(updatedLead);
-      
       // Pre-fill data for owner forms: Get owner info from external_unit_owners
       if (recipientType === 'owner' && data.externalUnitOwnerId) {
         const owner = await storage.getOwnerForPrefill(data.externalUnitOwnerId);
@@ -16008,8 +14438,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
           };
         }
       }
-      
-      res.json(updatedLead);
       
       // Support for internal system flow if propertyId exists
       const isExternalFlow = !!data.externalUnitId;
@@ -16025,12 +14453,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
           recipientType,
           property,
           expiresAt: data.expiresAt,
+        });
       }
-      
-      res.json(updatedLead);
-      }
-      
-      res.json(updatedLead);
       
       res.json({
         valid: true,
@@ -16066,16 +14490,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
         console.log('Missing tenant or owner token in group:', rentalFormGroupId);
         return null;
       }
-      
-      res.json(updatedLead);
 
       // Check if both are completed
       if (!tenantToken.isUsed || !ownerToken.isUsed) {
         console.log('Not all forms completed yet in group:', rentalFormGroupId);
         return null;
       }
-      
-      res.json(updatedLead);
 
       // IDEMPOTENCY CHECK: Verify if contract already exists for this rental group
       const existingContracts = await db
@@ -16088,8 +14508,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
         console.log('Contract already exists for rental form group:', rentalFormGroupId, '- Contract ID:', existingContracts[0].id);
         return { ...existingContracts[0], alreadyExisted: true };
       }
-      
-      res.json(updatedLead);
 
       // Get the completed form data
       const [tenantFormData] = await db
@@ -16108,24 +14526,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
         console.log('Missing form data in group:', rentalFormGroupId);
         return null;
       }
-      
-      res.json(updatedLead);
 
       // Verify we have required data
       if (!ownerToken.externalUnitId) {
         console.log('Missing external unit ID in owner token');
         return null;
       }
-      
-      res.json(updatedLead);
 
       // Validate required owner form fields
       if (!ownerFormData.agreedRent || !ownerFormData.rentMonths || !ownerFormData.rentStartDate) {
         console.log('Missing required owner form fields (agreedRent, rentMonths, or rentStartDate)');
         return null;
       }
-      
-      res.json(updatedLead);
 
       // Validate numeric values
       const agreedRent = Number(ownerFormData.agreedRent);
@@ -16134,14 +14546,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
         console.log('Invalid agreedRent value:', ownerFormData.agreedRent);
         return null;
       }
-      
-      res.json(updatedLead);
       if (!Number.isInteger(rentMonths) || rentMonths <= 0) {
         console.log('Invalid rentMonths value:', ownerFormData.rentMonths);
         return null;
       }
-      
-      res.json(updatedLead);
 
       // Calculate end date
       const startDate = new Date(ownerFormData.rentStartDate);
@@ -16171,9 +14579,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           petName: tenantFormData.petName || null,
           petPhotoUrl: tenantFormData.petPhotoUrl || null,
           createdBy,
-      }
-      
-      res.json(updatedLead);
+        });
 
         console.log('Created rental contract from dual forms:', contract.id);
         return contract;
@@ -16199,8 +14605,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
         // If it's a different error, re-throw it
         throw insertError;
       }
-      
-      res.json(updatedLead);
     } catch (error) {
       console.error('Error creating dual form contract:', error);
       return null;
@@ -16222,20 +14626,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!rentalFormToken) {
         return res.status(404).json({ message: "Token no encontrado" });
       }
-      
-      res.json(updatedLead);
 
       if (new Date() > new Date(rentalFormToken.expiresAt)) {
         return res.status(400).json({ message: "Este enlace ha expirado" });
       }
-      
-      res.json(updatedLead);
 
       if (rentalFormToken.isUsed) {
         return res.status(400).json({ message: "Este enlace ya ha sido utilizado" });
       }
-      
-      res.json(updatedLead);
 
       // Transform date string to Date object if present
       const transformedData: any = { ...formData };
@@ -16252,8 +14650,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
           ));
         }
       }
-      
-      res.json(updatedLead);
 
       // Validate integer fields to prevent out-of-range errors
       if (transformedData.age !== undefined && transformedData.age !== null) {
@@ -16264,8 +14660,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
         transformedData.age = Math.floor(age); // Ensure integer
       }
       
-      res.json(updatedLead);
-      
       if (transformedData.numberOfTenants !== undefined && transformedData.numberOfTenants !== null) {
         const numberOfTenants = Number(transformedData.numberOfTenants);
         if (!Number.isFinite(numberOfTenants) || numberOfTenants < 1 || numberOfTenants > 20) {
@@ -16274,8 +14668,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
         transformedData.numberOfTenants = Math.floor(numberOfTenants); // Ensure integer
       }
       
-      res.json(updatedLead);
-      
       if (transformedData.guarantorAge !== undefined && transformedData.guarantorAge !== null) {
         const guarantorAge = Number(transformedData.guarantorAge);
         if (!Number.isFinite(guarantorAge) || guarantorAge < 18 || guarantorAge > 150) {
@@ -16283,8 +14675,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
         }
         transformedData.guarantorAge = Math.floor(guarantorAge); // Ensure integer
       }
-      
-      res.json(updatedLead);
 
       // Extract documents object before cleaning
       const documents = transformedData.documents || {};
@@ -16297,41 +14687,27 @@ export async function registerRoutes(app: Express): Promise<Server> {
           cleanedData[key] = value;
         }
       }
-      
-      res.json(updatedLead);
 
       // Map document URLs to database fields
       const documentFields: any = {};
       if (documents.tenantIdDocument) {
         documentFields.tenantIdDocument = documents.tenantIdDocument;
       }
-      
-      res.json(updatedLead);
       if (documents.tenantProofOfAddress) {
         documentFields.tenantProofOfAddress = documents.tenantProofOfAddress;
       }
-      
-      res.json(updatedLead);
       if (documents.tenantProofOfIncome && documents.tenantProofOfIncome.length > 0) {
         documentFields.tenantProofOfIncome = documents.tenantProofOfIncome;
       }
-      
-      res.json(updatedLead);
       if (documents.guarantorIdDocument) {
         documentFields.guarantorIdDocument = documents.guarantorIdDocument;
       }
-      
-      res.json(updatedLead);
       if (documents.guarantorProofOfAddress) {
         documentFields.guarantorProofOfAddress = documents.guarantorProofOfAddress;
       }
-      
-      res.json(updatedLead);
       if (documents.guarantorProofOfIncome && documents.guarantorProofOfIncome.length > 0) {
         documentFields.guarantorProofOfIncome = documents.guarantorProofOfIncome;
       }
-      
-      res.json(updatedLead);
 
       // Create tenant rental form
       // Use the correct property field depending on internal vs external system
@@ -16349,8 +14725,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       } else if (rentalFormToken.propertyId) {
         rentalFormData.propertyId = rentalFormToken.propertyId;
       }
-      
-      res.json(updatedLead);
       
       const [rentalForm] = await db
         .insert(tenantRentalForms)
@@ -16385,8 +14759,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
           }
         }
       }
-      
-      res.json(updatedLead);
 
       // Note: Lead status remains "en_negociacion" after form submission
       // Admin will review the form and then proceed to contract elaboration
@@ -16428,8 +14800,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       } else {
         cb(new Error('Tipo de archivo no permitido. Solo JPG, PNG, WEBP y PDF.'));
       }
-      
-      res.json(updatedLead);
     }
   });
 
@@ -16449,34 +14819,24 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!rentalFormToken) {
         return res.status(404).json({ message: "Token no encontrado" });
       }
-      
-      res.json(updatedLead);
 
       // Verify this is a tenant token
       if (rentalFormToken.recipientType !== 'tenant') {
         return res.status(400).json({ message: "Este token no es para formulario de inquilino" });
       }
-      
-      res.json(updatedLead);
 
       // Check if expired
       if (new Date() > new Date(rentalFormToken.expiresAt)) {
         return res.status(410).json({ message: "Este enlace ha expirado" });
       }
-      
-      res.json(updatedLead);
 
       if (!req.files || req.files.length === 0) {
         return res.status(400).json({ message: "No se subieron archivos" });
       }
-      
-      res.json(updatedLead);
 
       if (!documentType) {
         return res.status(400).json({ message: "Tipo de documento es requerido" });
       }
-      
-      res.json(updatedLead);
 
       // Validate document type
       const validDocumentTypes = [
@@ -16491,8 +14851,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!validDocumentTypes.includes(documentType)) {
         return res.status(400).json({ message: "Tipo de documento inválido" });
       }
-      
-      res.json(updatedLead);
 
       // Generate URLs for uploaded files
       const documentUrls = (req.files as Express.Multer.File[]).map(file => {
@@ -16535,8 +14893,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       } else {
         cb(new Error('Tipo de archivo no permitido. Solo JPG, PNG, WEBP y PDF.'));
       }
-      
-      res.json(updatedLead);
     }
   });
 
@@ -16559,34 +14915,24 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!rentalFormToken) {
         return res.status(404).json({ message: "Token no encontrado" });
       }
-      
-      res.json(updatedLead);
 
       // Verify this is an owner token
       if (rentalFormToken.recipientType !== 'owner') {
         return res.status(400).json({ message: "Este token no es para formulario de propietario" });
       }
-      
-      res.json(updatedLead);
 
       // Check if expired
       if (new Date() > new Date(rentalFormToken.expiresAt)) {
         return res.status(410).json({ message: "Este enlace ha expirado" });
       }
-      
-      res.json(updatedLead);
 
       if (!req.files || req.files.length === 0) {
         return res.status(400).json({ message: "No se subieron archivos" });
       }
-      
-      res.json(updatedLead);
 
       if (!documentType) {
         return res.status(400).json({ message: "Tipo de documento es requerido" });
       }
-      
-      res.json(updatedLead);
 
       // Validate document type
       const validDocumentTypes = [
@@ -16603,8 +14949,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!validDocumentTypes.includes(documentType)) {
         return res.status(400).json({ message: "Tipo de documento inválido" });
       }
-      
-      res.json(updatedLead);
 
       // Generate URLs for uploaded files
       const documentUrls = (req.files as Express.Multer.File[]).map(file => {
@@ -16637,27 +14981,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!rentalFormToken) {
         return res.status(404).json({ message: "Token no encontrado" });
       }
-      
-      res.json(updatedLead);
 
       // Verify this is an owner token
       if (rentalFormToken.recipientType !== 'owner') {
         return res.status(400).json({ message: "Este token no es para formulario de propietario" });
       }
-      
-      res.json(updatedLead);
 
       if (new Date() > new Date(rentalFormToken.expiresAt)) {
         return res.status(400).json({ message: "Este enlace ha expirado" });
       }
-      
-      res.json(updatedLead);
 
       if (rentalFormToken.isUsed) {
         return res.status(400).json({ message: "Este enlace ya ha sido utilizado" });
       }
-      
-      res.json(updatedLead);
 
       // Validate with Zod schema
       const validationResult = insertOwnerRentalFormDataSchema.safeParse({
@@ -16671,12 +15007,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ 
           message: "Datos del formulario inválidos",
           errors: validationResult.error.errors 
+        });
       }
-      
-      res.json(updatedLead);
-      }
-      
-      res.json(updatedLead);
 
       const sanitizedData = validationResult.data;
 
@@ -16714,8 +15046,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
           }
         }
       }
-      
-      res.json(updatedLead);
 
       res.json({
         success: true,
@@ -16738,8 +15068,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!clientEmail || !clientName) {
         return res.status(400).json({ message: "Email y nombre del cliente son requeridos" });
       }
-      
-      res.json(updatedLead);
 
       // Get rental form token
       const [rentalFormToken] = await db
@@ -16751,16 +15079,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!rentalFormToken) {
         return res.status(404).json({ message: "Token de formato de renta no encontrado" });
       }
-      
-      res.json(updatedLead);
 
       // Get property info
       const property = await storage.getProperty(rentalFormToken.propertyId);
       if (!property) {
         return res.status(404).json({ message: "Propiedad no encontrada" });
       }
-      
-      res.json(updatedLead);
 
       // Build rental form link
       const baseUrl = process.env.NODE_ENV === 'production' 
@@ -16805,8 +15129,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       } else if (status === "unused") {
         query = query.where(eq(tenantRentalFormTokens.isUsed, false));
       }
-      
-      res.json(updatedLead);
 
       const tokens = await query;
 
@@ -16843,8 +15165,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (status && status !== "all") {
         query = query.where(eq(tenantRentalForms.status, status as string));
       }
-      
-      res.json(updatedLead);
 
       const forms = await query;
 
@@ -16878,8 +15198,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!["aprobado", "rechazado", "en_revision"].includes(status)) {
         return res.status(400).json({ message: "Estado inválido" });
       }
-      
-      res.json(updatedLead);
 
       const [rentalForm] = await db
         .select()
@@ -16890,8 +15208,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!rentalForm) {
         return res.status(404).json({ message: "Formulario no encontrado" });
       }
-      
-      res.json(updatedLead);
 
       // Update rental form
       await db
@@ -16934,8 +15250,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!contract) {
         return res.status(404).json({ message: "Contrato no encontrado" });
       }
-      
-      res.json(updatedLead);
 
       const user = await storage.getUser(userId);
       const property = await storage.getProperty(contract.propertyId);
@@ -16949,8 +15263,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!isAuthorized) {
         return res.status(403).json({ message: "No autorizado" });
       }
-      
-      res.json(updatedLead);
 
       const documents = await storage.getContractLegalDocuments(contractId);
       res.json(documents);
@@ -16970,8 +15282,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (user?.role !== "abogado") {
         return res.status(403).json({ message: "Solo abogados pueden subir documentos legales" });
       }
-      
-      res.json(updatedLead);
 
       const validationResult = insertContractLegalDocumentSchema.safeParse({
         ...req.body,
@@ -16983,12 +15293,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ 
           message: "Datos inválidos", 
           errors: validationResult.error.flatten() 
+        });
       }
-      
-      res.json(updatedLead);
-      }
-      
-      res.json(updatedLead);
 
       const sanitizedData = sanitizeObject(validationResult.data);
       const document = await storage.createContractLegalDocument(sanitizedData);
@@ -17017,16 +15323,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!document) {
         return res.status(404).json({ message: "Documento no encontrado" });
       }
-      
-      res.json(updatedLead);
 
       const user = await storage.getUser(userId);
       // Only the lawyer who uploaded or admins can update
       if (document.uploadedById !== userId && !["master", "admin"].includes(user?.role || "")) {
         return res.status(403).json({ message: "No autorizado" });
       }
-      
-      res.json(updatedLead);
 
       // Use dedicated update schema that excludes rentalContractId and uploadedById
       const validationResult = updateContractLegalDocumentSchema.safeParse(req.body);
@@ -17034,12 +15336,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ 
           message: "Datos inválidos", 
           errors: validationResult.error.flatten() 
+        });
       }
-      
-      res.json(updatedLead);
-      }
-      
-      res.json(updatedLead);
 
       const sanitizedData = sanitizeObject(validationResult.data);
       
@@ -17077,15 +15375,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!document) {
         return res.status(404).json({ message: "Documento no encontrado" });
       }
-      
-      res.json(updatedLead);
 
       const contract = await storage.getRentalContract(document.rentalContractId);
       if (!contract) {
         return res.status(404).json({ message: "Contrato no encontrado" });
       }
-      
-      res.json(updatedLead);
 
       const user = await storage.getUser(userId);
       const property = await storage.getProperty(contract.propertyId);
@@ -17099,8 +15393,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!isAuthorized) {
         return res.status(403).json({ message: "No autorizado" });
       }
-      
-      res.json(updatedLead);
 
       const discussions = await storage.getContractTermDiscussions(documentId);
       res.json(discussions);
@@ -17119,8 +15411,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!document) {
         return res.status(404).json({ message: "Documento no encontrado" });
       }
-      
-      res.json(updatedLead);
 
       const validationResult = insertContractTermDiscussionSchema.safeParse({
         ...req.body,
@@ -17132,12 +15422,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ 
           message: "Datos inválidos", 
           errors: validationResult.error.flatten() 
+        });
       }
-      
-      res.json(updatedLead);
-      }
-      
-      res.json(updatedLead);
 
       const sanitizedData = sanitizeObject(validationResult.data);
       const discussion = await storage.createContractTermDiscussion(sanitizedData);
@@ -17167,8 +15453,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!["abogado", "master", "admin"].includes(user?.role || "")) {
         return res.status(403).json({ message: "No autorizado para resolver discusiones" });
       }
-      
-      res.json(updatedLead);
 
       const discussion = await storage.resolveContractTermDiscussion(discussionId, userId);
 
@@ -17197,15 +15481,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!document) {
         return res.status(404).json({ message: "Documento no encontrado" });
       }
-      
-      res.json(updatedLead);
 
       const contract = await storage.getRentalContract(document.rentalContractId);
       if (!contract) {
         return res.status(404).json({ message: "Contrato no encontrado" });
       }
-      
-      res.json(updatedLead);
 
       const user = await storage.getUser(userId);
       const property = await storage.getProperty(contract.propertyId);
@@ -17219,8 +15499,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!isAuthorized) {
         return res.status(403).json({ message: "No autorizado" });
       }
-      
-      res.json(updatedLead);
 
       const approvals = await storage.getContractApprovals(documentId);
       res.json(approvals);
@@ -17239,15 +15517,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!document) {
         return res.status(404).json({ message: "Documento no encontrado" });
       }
-      
-      res.json(updatedLead);
 
       const contract = await storage.getRentalContract(document.rentalContractId);
       if (!contract) {
         return res.status(404).json({ message: "Contrato no encontrado" });
       }
-      
-      res.json(updatedLead);
 
       const property = await storage.getProperty(contract.propertyId);
       
@@ -17259,8 +15533,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!["tenant", "owner"].includes(userRole)) {
         return res.status(403).json({ message: "Solo inquilinos y propietarios pueden aprobar" });
       }
-      
-      res.json(updatedLead);
 
       const validationResult = insertContractApprovalSchema.safeParse({
         ...req.body,
@@ -17273,12 +15545,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ 
           message: "Datos inválidos", 
           errors: validationResult.error.flatten() 
+        });
       }
-      
-      res.json(updatedLead);
-      }
-      
-      res.json(updatedLead);
 
       const sanitizedData = sanitizeObject(validationResult.data);
       const approval = await storage.createContractApproval(sanitizedData);
@@ -17303,9 +15571,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           category: "contract",
           relatedEntityType: "rental_contract",
           relatedEntityId: contract.id,
-      }
-      
-      res.json(updatedLead);
+        });
 
         if (property?.ownerId) {
           await storage.createNotification({
@@ -17315,11 +15581,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
             category: "contract",
             relatedEntityType: "rental_contract",
             relatedEntityId: contract.id,
-        }
+          });
         }
       }
-      
-      res.json(updatedLead);
 
       await createAuditLog(
         req,
@@ -17346,8 +15610,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!contract) {
         return res.status(404).json({ message: "Contrato no encontrado" });
       }
-      
-      res.json(updatedLead);
 
       const user = await storage.getUser(userId);
       const property = await storage.getProperty(contract.propertyId);
@@ -17361,8 +15623,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!isAuthorized) {
         return res.status(403).json({ message: "No autorizado" });
       }
-      
-      res.json(updatedLead);
 
       const appointments = await storage.getCheckInAppointments({ rentalContractId: contractId });
       res.json(appointments[0] || null);
@@ -17382,22 +15642,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!["master", "admin", "admin_jr"].includes(user?.role || "")) {
         return res.status(403).json({ message: "Solo administradores pueden programar check-in" });
       }
-      
-      res.json(updatedLead);
 
       const contract = await storage.getRentalContract(contractId);
       if (!contract) {
         return res.status(404).json({ message: "Contrato no encontrado" });
       }
-      
-      res.json(updatedLead);
 
       const property = await storage.getProperty(contract.propertyId);
       if (!property) {
         return res.status(404).json({ message: "Propiedad no encontrada" });
       }
-      
-      res.json(updatedLead);
 
       const validationResult = insertCheckInAppointmentSchema.safeParse({
         ...req.body,
@@ -17411,12 +15665,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ 
           message: "Datos inválidos", 
           errors: validationResult.error.flatten() 
+        });
       }
-      
-      res.json(updatedLead);
-      }
-      
-      res.json(updatedLead);
 
       const sanitizedData = sanitizeObject(validationResult.data);
       const appointment = await storage.createCheckInAppointment(sanitizedData);
@@ -17439,12 +15689,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
           category: "appointment",
           relatedEntityType: "check_in_appointment",
           relatedEntityId: appointment.id,
+        });
       }
-      
-      res.json(updatedLead);
-      }
-      
-      res.json(updatedLead);
 
       await createAuditLog(
         req,
@@ -17470,8 +15716,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!["master", "admin", "admin_jr"].includes(user?.role || "")) {
         return res.status(403).json({ message: "Solo administradores pueden completar check-in" });
       }
-      
-      res.json(updatedLead);
 
       const appointment = await storage.completeCheckInAppointment(appointmentId);
       
@@ -17503,8 +15747,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!contract) {
         return res.status(404).json({ message: "Contrato no encontrado" });
       }
-      
-      res.json(updatedLead);
 
       const user = await storage.getUser(userId);
       const property = await storage.getProperty(contract.propertyId);
@@ -17518,8 +15760,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!isAuthorized) {
         return res.status(403).json({ message: "No autorizado" });
       }
-      
-      res.json(updatedLead);
 
       const documents = await storage.getContractSignedDocuments(contractId);
       res.json(documents);
@@ -17539,8 +15779,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!["master", "admin", "admin_jr"].includes(user?.role || "")) {
         return res.status(403).json({ message: "Solo administradores pueden subir documentos firmados" });
       }
-      
-      res.json(updatedLead);
 
       const validationResult = insertContractSignedDocumentSchema.safeParse({
         ...req.body,
@@ -17552,12 +15790,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ 
           message: "Datos inválidos", 
           errors: validationResult.error.flatten() 
+        });
       }
-      
-      res.json(updatedLead);
-      }
-      
-      res.json(updatedLead);
 
       const sanitizedData = sanitizeObject(validationResult.data);
       const document = await storage.createContractSignedDocument(sanitizedData);
@@ -17585,8 +15819,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!propertyId) {
         return res.status(400).json({ message: "propertyId is required" });
       }
-      
-      res.json(updatedLead);
 
       const completedAppointments = await storage.getAppointments({
         propertyId: propertyId as string,
@@ -17631,8 +15863,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!application) {
         return res.status(404).json({ message: "Rental application not found" });
       }
-      
-      res.json(updatedLead);
       res.json(application);
     } catch (error) {
       console.error("Error fetching rental application:", error);
@@ -17653,8 +15883,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
         }
         // Non-admins cannot specify different applicantId, silently use their own
       }
-      
-      res.json(updatedLead);
       
       const applicationData = insertRentalApplicationSchema.parse({
         ...req.body,
@@ -17708,8 +15936,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!status) {
         return res.status(400).json({ message: "Status is required" });
       }
-      
-      res.json(updatedLead);
 
       const application = await storage.updateRentalApplicationStatus(id, status);
       
@@ -17738,15 +15964,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!user || !["master", "admin", "admin_jr"].includes(user.role)) {
         return res.status(403).json({ message: "Forbidden" });
       }
-      
-      res.json(updatedLead);
 
       const application = await storage.getRentalApplication(id);
       if (!application) {
         return res.status(404).json({ message: "Rental application not found" });
       }
-      
-      res.json(updatedLead);
 
       // Log deletion
       await createAuditLog(
@@ -17790,8 +16012,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!contract) {
         return res.status(404).json({ message: "Rental contract not found" });
       }
-      
-      res.json(updatedLead);
       res.json(contract);
     } catch (error) {
       console.error("Error fetching rental contract:", error);
@@ -17806,8 +16026,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!monthlyRent || !leaseDurationMonths) {
         return res.status(400).json({ message: "monthlyRent and leaseDurationMonths are required" });
       }
-      
-      res.json(updatedLead);
 
       let hasReferral = false;
       let referralPercent = 20;
@@ -17819,8 +16037,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
           referralPercent = parseFloat(property.referralPercent || "20");
         }
       }
-      
-      res.json(updatedLead);
 
       const commissions = calculateRentalCommissions({
         monthlyRent: parseFloat(monthlyRent),
@@ -17844,8 +16060,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!property) {
         return res.status(404).json({ message: "Property not found" });
       }
-      
-      res.json(updatedLead);
 
       // Check if owner accepted rental terms during property submission
       const ownerSubmission = await storage.getPropertySubmissionDraftByProperty(propertyId);
@@ -17861,8 +16075,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
         }
         // Note: If terms incomplete, we continue without pre-filling (backward compatible with legacy data)
       }
-      
-      res.json(updatedLead);
 
       const hasReferral = !!property.referralPartnerId;
       const referralPercent = parseFloat(property.referralPercent || "20");
@@ -17913,14 +16125,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
           entityId: contract.id,
           userId: req.user.claims.sub,
           metadata: { propertyId, status: contract.status, monthlyRent: monthlyRent.toString() },
-      }
-      
-      res.json(updatedLead);
+        });
       } catch (error) {
         console.error("Error in contract creation automation:", error);
       }
-      
-      res.json(updatedLead);
 
       res.status(201).json(contract);
     } catch (error) {
@@ -17953,14 +16161,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
           entityId: id,
           userId: req.user.claims.sub,
           metadata: { updates: Object.keys(req.body) },
-      }
-      
-      res.json(updatedLead);
+        });
       } catch (error) {
         console.error("Error in contract update automation:", error);
       }
-      
-      res.json(updatedLead);
 
       res.json(contract);
     } catch (error) {
@@ -17977,8 +16181,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!status) {
         return res.status(400).json({ message: "Status is required" });
       }
-      
-      res.json(updatedLead);
 
       const additionalData: any = {};
       const now = new Date();
@@ -17991,8 +16193,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
         additionalData.checkInDate = now;
         additionalData.payoutReleasedAt = now;
       }
-      
-      res.json(updatedLead);
 
       const contract = await storage.updateRentalContractStatus(id, status, additionalData);
 
@@ -18015,9 +16215,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           entityId: id,
           userId: req.user.claims.sub,
           metadata: { newStatus: status },
-      }
-      
-      res.json(updatedLead);
+        });
 
         // Create alerts based on health score
         if (healthScore.status === "critical" || healthScore.status === "poor") {
@@ -18029,7 +16227,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
             message: `El contrato de renta requiere atención: score ${healthScore.score}/100`,
             relatedEntityType: "contract",
             relatedEntityId: id,
-        }
+          });
         }
 
         // Alert for contracts near expiry
@@ -18042,13 +16240,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
             message: `El contrato de renta vence pronto. Considerar renovación.`,
             relatedEntityType: "contract",
             relatedEntityId: id,
-        }
+          });
         }
       } catch (error) {
         console.error("Error in contract status automation:", error);
       }
-      
-      res.json(updatedLead);
 
       res.json(contract);
     } catch (error) {
@@ -18066,15 +16262,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!user || !["master", "admin", "admin_jr"].includes(user.role)) {
         return res.status(403).json({ message: "Forbidden" });
       }
-      
-      res.json(updatedLead);
 
       const contract = await storage.getRentalContract(id);
       if (!contract) {
         return res.status(404).json({ message: "Rental contract not found" });
       }
-      
-      res.json(updatedLead);
 
       await createAuditLog(
         req,
@@ -18157,8 +16349,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
         allRequests.push(...requests);
       }
       
-      res.json(updatedLead);
-      
       res.json(allRequests);
     } catch (error) {
       console.error("Error fetching client maintenance requests:", error);
@@ -18177,8 +16367,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(403).json({ message: "Solo los clientes pueden ver propiedades visitadas" });
       }
       
-      res.json(updatedLead);
-      
       const visitedProperties = await storage.getVisitedPropertiesByClient(userId);
       res.json(visitedProperties);
     } catch (error) {
@@ -18196,8 +16384,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!user || user.role !== "cliente") {
         return res.status(403).json({ message: "Solo los clientes pueden solicitar oportunidades de renta" });
       }
-      
-      res.json(updatedLead);
 
       // Check if user already has a pending or approved request for this property
       const existingRequests = await storage.getRentalOpportunityRequestsByClient(userId);
@@ -18212,12 +16398,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
           message: existingRequest.status === 'approved' 
             ? "Ya tienes una solicitud aprobada para esta propiedad" 
             : "Ya tienes una solicitud pendiente para esta propiedad" 
+        });
       }
-      
-      res.json(updatedLead);
-      }
-      
-      res.json(updatedLead);
 
       const request = await storage.createRentalOpportunityRequest({
         userId,
@@ -18270,8 +16452,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(403).json({ message: "Solo los clientes pueden ver sus solicitudes" });
       }
       
-      res.json(updatedLead);
-      
       const requests = await storage.getRentalOpportunityRequestsByClient(userId);
       res.json(requests);
     } catch (error) {
@@ -18291,13 +16471,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ message: "Rental not found" });
       }
       
-      res.json(updatedLead);
-      
       if (rental.tenantId !== userId && rental.ownerId !== userId) {
         return res.status(403).json({ message: "Forbidden" });
       }
-      
-      res.json(updatedLead);
       
       const payments = await storage.getRentalPayments(id);
       res.json(payments);
@@ -18319,14 +16495,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ message: "Payment not found" });
       }
       
-      res.json(updatedLead);
-      
       // Verify user is the tenant
       if (payment.tenantId !== userId) {
         return res.status(403).json({ message: "Only tenant can register payment" });
       }
-      
-      res.json(updatedLead);
       
       // Store payment in request for later use
       (req as any).validatedPayment = payment;
@@ -18350,9 +16522,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           paymentProof: paymentProofUrl,
           status: "paid",
           notes: req.body.notes || null,
-      }
-      
-      res.json(updatedLead);
+        });
         
         // Get rental contract for notification
         const rental = await storage.getRentalContract(payment.rentalContractId);
@@ -18365,7 +16535,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
             message: `Tu inquilino ha registrado un pago de $${payment.amount}`,
             relatedEntityType: "rental_payment",
             relatedEntityId: paymentId,
-        }
+          });
         }
         
         res.json(updatedPayment);
@@ -18388,21 +16558,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ message: "Payment not found" });
       }
       
-      res.json(updatedLead);
-      
       // Get rental contract to verify user is owner
       const rental = await storage.getRentalContract(payment.rentalContractId);
       if (!rental) {
         return res.status(404).json({ message: "Rental not found" });
       }
       
-      res.json(updatedLead);
-      
       if (rental.ownerId !== userId) {
         return res.status(403).json({ message: "Only owner can approve payments" });
       }
-      
-      res.json(updatedLead);
       
       // Approve the payment
       const approvedPayment = await storage.approveRentalPayment(paymentId, userId);
@@ -18434,8 +16598,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(403).json({ message: "Forbidden" });
       }
       
-      res.json(updatedLead);
-      
       const payments = await storage.getPendingPaymentsByOwner(userId);
       res.json(payments);
     } catch (error: any) {
@@ -18455,13 +16617,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ message: "Rental not found" });
       }
       
-      res.json(updatedLead);
-      
       if (rental.tenantId !== userId) {
         return res.status(403).json({ message: "Only tenant can create maintenance requests" });
       }
-      
-      res.json(updatedLead);
       
       const requestData = insertTenantMaintenanceRequestSchema.parse({
         ...req.body,
@@ -18501,13 +16659,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ message: "Rental not found" });
       }
       
-      res.json(updatedLead);
-      
       if (rental.tenantId !== userId && rental.ownerId !== userId) {
         return res.status(403).json({ message: "Forbidden" });
       }
-      
-      res.json(updatedLead);
       
       const requests = await storage.getTenantMaintenanceRequests(id);
       res.json(requests);
@@ -18529,8 +16683,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ message: "Rental not found" });
       }
       
-      res.json(updatedLead);
-      
       // Get maintenance staff assigned to the property
       const propertyStaff = await storage.getPropertyStaff(rental.propertyId);
       const maintenanceStaff = propertyStaff.filter(s => s.role === 'maintenance' && s.active);
@@ -18544,8 +16696,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!isTenant && !isOwner && !isMaintenanceStaff) {
         return res.status(403).json({ message: "Forbidden" });
       }
-      
-      res.json(updatedLead);
       
       // Check if conversation already exists
       let conversation = await storage.getChatConversationByRentalContractId(id);
@@ -18562,31 +16712,25 @@ export async function registerRoutes(app: Express): Promise<Server> {
           title,
           rentalContractId: id,
           createdById: userId,
-      }
-      
-      res.json(updatedLead);
+        });
         
         // Add participants (tenant, owner, and maintenance staff)
         await storage.addChatParticipant({
           conversationId: conversation.id,
           userId: rental.tenantId,
-      }
-      
-      res.json(updatedLead);
+        });
         
         await storage.addChatParticipant({
           conversationId: conversation.id,
           userId: rental.ownerId,
-      }
-      
-      res.json(updatedLead);
+        });
         
         // Add maintenance staff as participants
         for (const staffId of maintenanceStaffIds) {
           await storage.addChatParticipant({
             conversationId: conversation.id,
             userId: staffId,
-        }
+          });
         }
       } else {
         // Conversation exists - ensure all required participants are added
@@ -18606,12 +16750,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
             await storage.addChatParticipant({
               conversationId: conversation.id,
               userId: participantId,
-          }
+            });
           }
         }
       }
-      
-      res.json(updatedLead);
       
       res.json(conversation);
     } catch (error: any) {
@@ -18643,13 +16785,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ message: "Rental not found" });
       }
       
-      res.json(updatedLead);
-      
       if (rental.ownerId !== userId) {
         return res.status(403).json({ message: "Forbidden" });
       }
-      
-      res.json(updatedLead);
       
       const inventory = await storage.getPropertyDeliveryInventory(id);
       res.json(inventory || null);
@@ -18670,13 +16808,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ message: "Rental not found" });
       }
       
-      res.json(updatedLead);
-      
       if (rental.ownerId !== userId) {
         return res.status(403).json({ message: "Forbidden" });
       }
-      
-      res.json(updatedLead);
       
       // Validate request body with Zod partial schema for updates
       const updateSchema = insertPropertyDeliveryInventorySchema.partial();
@@ -18701,8 +16835,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
         inventory = await storage.createPropertyDeliveryInventory(inventoryData);
       }
       
-      res.json(updatedLead);
-      
       res.json(inventory);
     } catch (error: any) {
       console.error("Error saving inventory:", error);
@@ -18721,13 +16853,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ message: "Rental not found" });
       }
       
-      res.json(updatedLead);
-      
       if (rental.ownerId !== userId) {
         return res.status(403).json({ message: "Forbidden" });
       }
-      
-      res.json(updatedLead);
       
       const form = await storage.getTenantMoveInForm(id);
       res.json(form || null);
@@ -18748,13 +16876,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ message: "Rental not found" });
       }
       
-      res.json(updatedLead);
-      
       if (rental.ownerId !== userId) {
         return res.status(403).json({ message: "Forbidden" });
       }
-      
-      res.json(updatedLead);
       
       // Validate request body with Zod partial schema for updates
       const updateSchema = insertTenantMoveInFormSchema.partial();
@@ -18776,8 +16900,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
         };
         form = await storage.createTenantMoveInForm(formData);
       }
-      
-      res.json(updatedLead);
       
       res.json(form);
     } catch (error: any) {
@@ -18822,12 +16944,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ 
           message: "Datos inválidos",
           errors: validationResult.error.errors 
+        });
       }
-      
-      res.json(updatedLead);
-      }
-      
-      res.json(updatedLead);
       
       const { userId, permission } = validationResult.data;
       await storage.removePermission(userId, permission);
@@ -18862,8 +16980,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!budget) {
         return res.status(404).json({ message: "Budget not found" });
       }
-      
-      res.json(updatedLead);
       res.json(budget);
     } catch (error) {
       console.error("Error fetching budget:", error);
@@ -18879,8 +16995,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!user || !["master", "admin", "admin_jr", "management", "provider"].includes(user.role)) {
         return res.status(403).json({ message: "Forbidden" });
       }
-      
-      res.json(updatedLead);
 
       const budgetData = insertBudgetSchema.parse({
         ...req.body,
@@ -18905,14 +17019,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!budget) {
         return res.status(404).json({ message: "Budget not found" });
       }
-      
-      res.json(updatedLead);
 
       if (!user || (budget.staffId !== userId && !["master", "admin", "admin_jr"].includes(user.role))) {
         return res.status(403).json({ message: "Forbidden" });
       }
-      
-      res.json(updatedLead);
 
       const updatedBudget = await storage.updateBudget(id, req.body);
       res.json(updatedBudget);
@@ -18932,14 +17042,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!budget) {
         return res.status(404).json({ message: "Budget not found" });
       }
-      
-      res.json(updatedLead);
 
       if (!user || (budget.staffId !== userId && !["master", "admin"].includes(user.role))) {
         return res.status(403).json({ message: "Forbidden" });
       }
-      
-      res.json(updatedLead);
 
       await storage.deleteBudget(id);
       res.status(204).send();
@@ -18998,8 +17104,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!task) {
         return res.status(404).json({ message: "Task not found" });
       }
-      
-      res.json(updatedLead);
       res.json(task);
     } catch (error) {
       console.error("Error fetching task:", error);
@@ -19015,8 +17119,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!user || !["master", "admin", "admin_jr", "management"].includes(user.role)) {
         return res.status(403).json({ message: "Forbidden" });
       }
-      
-      res.json(updatedLead);
 
       // Clean special values
       const cleanedBody = {
@@ -19053,14 +17155,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!task) {
         return res.status(404).json({ message: "Task not found" });
       }
-      
-      res.json(updatedLead);
 
       if (!user || (task.assignedToId !== userId && !["master", "admin", "admin_jr", "management"].includes(user.role))) {
         return res.status(403).json({ message: "Forbidden" });
       }
-      
-      res.json(updatedLead);
 
       const updatedTask = await storage.updateTask(id, req.body);
       
@@ -19090,14 +17188,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!task) {
         return res.status(404).json({ message: "Task not found" });
       }
-      
-      res.json(updatedLead);
 
       if (!user || !["master", "admin", "management"].includes(user.role)) {
         return res.status(403).json({ message: "Forbidden" });
       }
-      
-      res.json(updatedLead);
 
       // Log task deletion (before deletion to capture details)
       await createAuditLog(
@@ -19139,8 +17233,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!report) {
         return res.status(404).json({ message: "Work report not found" });
       }
-      
-      res.json(updatedLead);
       res.json(report);
     } catch (error) {
       console.error("Error fetching work report:", error);
@@ -19194,8 +17286,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (userId !== currentUserId && !["master", "admin"].includes(currentUser?.role || "")) {
         return res.status(403).json({ message: "Forbidden" });
       }
-      
-      res.json(updatedLead);
 
       const logs = await storage.getUserAuditHistory(userId, limit ? parseInt(limit as string) : 100);
       res.json(logs);
@@ -19303,8 +17393,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!conversation) {
         return res.status(404).json({ message: "Conversation not found" });
       }
-      
-      res.json(updatedLead);
       res.json(conversation);
     } catch (error) {
       console.error("Error fetching chat conversation:", error);
@@ -19321,8 +17409,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ message: "User not found" });
       }
       
-      res.json(updatedLead);
-      
       const conversationData = insertChatConversationSchema.parse(req.body);
       
       // Get and validate participants from request
@@ -19331,8 +17417,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (participantUserIds.length === 0) {
         return res.status(400).json({ message: "Conversations must have participants" });
       }
-      
-      res.json(updatedLead);
       
       // Fetch all participants to verify their roles
       const participantUsers = await Promise.all(
@@ -19344,8 +17428,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (validParticipants.length !== participantUserIds.length) {
         return res.status(400).json({ message: "One or more participants not found" });
       }
-      
-      res.json(updatedLead);
       
       // Chat restriction 0: Sellers can only chat with leads whose email is verified
       if (conversationData.type === "lead") {
@@ -19361,12 +17443,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
           if (!lead.emailVerified) {
             return res.status(403).json({ 
               message: "No puedes chatear con este lead hasta que verifique su correo electrónico" 
-          }
+            });
           }
         }
       }
-      
-      res.json(updatedLead);
 
       // Chat restriction 1: Owners can only chat with clients after rental completion
       if (conversationData.type === "rental") {
@@ -19379,7 +17459,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           if (!conversationData.propertyId) {
             return res.status(400).json({ 
               message: "Rental conversations require a property ID" 
-          }
+            });
           }
           
           // Get the property to find its owner
@@ -19393,7 +17473,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           if (!isPropertyOwnerInConversation) {
             return res.status(403).json({ 
               message: "Rental conversations must include the property owner" 
-          }
+            });
           }
           
           // Check if there's an active rental application between the property owner and any client
@@ -19406,12 +17486,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
           if (!hasActiveRental) {
             return res.status(403).json({ 
               message: "Los propietarios solo pueden chatear con clientes después de completar el proceso de renta" 
-          }
+            });
           }
         }
       }
-      
-      res.json(updatedLead);
       
       // Chat restriction 2: Appointment conversations require concierge involvement
       if (conversationData.type === "appointment") {
@@ -19424,12 +17502,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
           if (conciergeParticipants.length === 0) {
             return res.status(403).json({ 
               message: "Las conversaciones de citas entre propietarios y clientes requieren la participación de un conserje" 
-          }
+            });
           }
         }
       }
-      
-      res.json(updatedLead);
       
       const conversation = await storage.createChatConversation(conversationData);
       res.status(201).json(conversation);
@@ -19467,20 +17543,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
           type: 'new_message',
           conversationId,
           message
-      }
-      
-      res.json(updatedLead);
+        });
         
         clients.forEach((client) => {
           if (client.readyState === WebSocket.OPEN) {
             client.send(messagePayload);
           }
+        });
       }
-      
-      res.json(updatedLead);
-      }
-      
-      res.json(updatedLead);
       
       res.status(201).json(message);
     } catch (error: any) {
@@ -19521,14 +17591,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ message: "Conversation not found" });
       }
       
-      res.json(updatedLead);
-      
       const updated = await storage.markConversationAsRead(id, userId);
       if (!updated) {
         return res.status(403).json({ message: "You are not a participant in this conversation" });
       }
-      
-      res.json(updatedLead);
       
       res.json({ success: true });
     } catch (error) {
@@ -19548,16 +17614,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!appointment) {
         return res.status(404).json({ message: "Appointment not found" });
       }
-      
-      res.json(updatedLead);
 
       // Get the property to check ownership
       const property = await storage.getProperty(appointment.propertyId);
       if (!property) {
         return res.status(404).json({ message: "Property not found" });
       }
-      
-      res.json(updatedLead);
 
       // Security: User must be the property owner OR the assigned concierge
       const isOwner = property.ownerId === userId;
@@ -19566,8 +17628,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!isOwner && !isConcierge) {
         return res.status(403).json({ message: "You do not have access to this appointment chat" });
       }
-      
-      res.json(updatedLead);
 
       // Check if conversation already exists for this appointment
       const existingConversation = await storage.getChatConversationByAppointmentId(appointmentId);
@@ -19576,8 +17636,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
         // Return existing conversation
         return res.json(existingConversation);
       }
-      
-      res.json(updatedLead);
 
       // Create new appointment chat conversation
       const propertyDisplay = property.customListingTitle || 
@@ -19603,12 +17661,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         await storage.addChatParticipant({
           conversationId: conversation.id,
           userId: appointment.conciergeId,
+        });
       }
-      
-      res.json(updatedLead);
-      }
-      
-      res.json(updatedLead);
 
       // Create initial system message
       const initialMessage = await storage.createChatMessage({
@@ -19637,8 +17691,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!user) {
         return res.status(404).json({ message: "User not found" });
       }
-      
-      res.json(updatedLead);
 
       // Get chatbot config
       const config = await storage.getChatbotConfig();
@@ -19646,15 +17698,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!config) {
         return res.status(500).json({ message: "Chatbot configuration not found" });
       }
-      
-      res.json(updatedLead);
 
       // Check if chatbot is active
       if (!config.isActive) {
         return res.status(503).json({ message: "El asistente virtual no está disponible en este momento" });
       }
-      
-      res.json(updatedLead);
 
       // Create chatbot conversation
       const conversation = await storage.createChatConversation({
@@ -19696,31 +17744,23 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!conversationId || !message) {
         return res.status(400).json({ message: "Missing conversationId or message" });
       }
-      
-      res.json(updatedLead);
 
       // Get user info
       const user = await storage.getUser(userId);
       if (!user) {
         return res.status(404).json({ message: "User not found" });
       }
-      
-      res.json(updatedLead);
 
       // Get chatbot config
       const config = await storage.getChatbotConfig();
       if (!config) {
         return res.status(500).json({ message: "Chatbot configuration not found" });
       }
-      
-      res.json(updatedLead);
 
       // Check if chatbot is active
       if (!config.isActive) {
         return res.status(503).json({ message: "El asistente virtual no está disponible en este momento" });
       }
-      
-      res.json(updatedLead);
 
       // Get user's presentation cards
       const presentationCardsData = await storage.getPresentationCards(userId);
@@ -19786,13 +17826,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
                 presentationCardId: activeCard.id,
                 matchScore: 80, // Default score from chatbot
                 matchReasons: ["Sugerido por asistente virtual"],
-            }
+              });
             }
           }
         }
       }
-      
-      res.json(updatedLead);
 
       // Broadcast messages to WebSocket clients
       if (wsClients.has(conversationId)) {
@@ -19805,12 +17843,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
               message: botMessage
             }));
           }
+        });
       }
-      
-      res.json(updatedLead);
-      }
-      
-      res.json(updatedLead);
 
       res.json({
         userMessage,
@@ -19834,8 +17868,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!presentationCardId) {
         return res.status(400).json({ message: "Missing presentationCardId" });
       }
-      
-      res.json(updatedLead);
 
       // Get presentation card
       const [card] = await db
@@ -19846,14 +17878,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!card) {
         return res.status(404).json({ message: "Presentation card not found" });
       }
-      
-      res.json(updatedLead);
 
       if (card.clientId !== userId) {
         return res.status(403).json({ message: "Unauthorized" });
       }
-      
-      res.json(updatedLead);
 
       // Get available properties
       const allProperties = await storage.getProperties({ active: true });
@@ -19881,11 +17909,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
             presentationCardId,
             matchScore: rec.matchScore,
             matchReasons: rec.matchReasons,
-        }
+          });
         }
       }
-      
-      res.json(updatedLead);
 
       res.json({ recommendations });
     } catch (error: any) {
@@ -19902,8 +17928,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!config) {
         return res.status(404).json({ message: "Chatbot configuration not found" });
       }
-      
-      res.json(updatedLead);
 
       // Only return public status information
       res.json({
@@ -19925,16 +17949,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (userRole !== "admin" && userRole !== "master") {
         return res.status(403).json({ message: "Unauthorized" });
       }
-      
-      res.json(updatedLead);
 
       const config = await storage.getChatbotConfig();
       
       if (!config) {
         return res.status(404).json({ message: "Chatbot configuration not found" });
       }
-      
-      res.json(updatedLead);
 
       res.json(config);
     } catch (error: any) {
@@ -19952,8 +17972,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (userRole !== "admin" && userRole !== "master") {
         return res.status(403).json({ message: "Unauthorized" });
       }
-      
-      res.json(updatedLead);
 
       const updates = req.body;
       
@@ -19993,8 +18011,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(401).json({ message: "Usuario no autenticado" });
       }
       
-      res.json(updatedLead);
-      
       const feedbackList = await storage.getAllFeedback({ userId });
       res.json(feedbackList);
     } catch (error: any) {
@@ -20009,8 +18025,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!userId) {
         return res.status(401).json({ message: "Usuario no autenticado" });
       }
-      
-      res.json(updatedLead);
 
       const sanitizedBody = {
         ...req.body,
@@ -20023,12 +18037,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({
           message: "Datos inválidos",
           errors: validationResult.error.errors,
+        });
       }
-      
-      res.json(updatedLead);
-      }
-      
-      res.json(updatedLead);
 
       const newFeedback = await storage.createFeedback({
         ...validationResult.data,
@@ -20059,12 +18069,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({
           message: "Datos inválidos",
           errors: validationResult.error.errors,
+        });
       }
-      
-      res.json(updatedLead);
-      }
-      
-      res.json(updatedLead);
 
       const updatedFeedback = await storage.updateFeedback(id, validationResult.data);
 
@@ -20104,12 +18110,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({
           message: "Datos inválidos",
           errors: validationResult.error.errors,
+        });
       }
-      
-      res.json(updatedLead);
-      }
-      
-      res.json(updatedLead);
 
       const newErrorLog = await storage.createErrorLog(validationResult.data);
 
@@ -20128,12 +18130,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
           relatedEntityType: "error_log",
           relatedEntityId: newErrorLog.id,
           priority: "high",
+        });
       }
-      
-      res.json(updatedLead);
-      }
-      
-      res.json(updatedLead);
 
       res.status(201).json(newErrorLog);
     } catch (error: any) {
@@ -20171,14 +18169,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
         updates.assignedTo = userId;
       }
       
-      res.json(updatedLead);
-      
       // Set resolvedAt if changing to resolved status
       if (updates.status === "resolved" && !updates.resolvedAt) {
         updates.resolvedAt = new Date();
       }
-      
-      res.json(updatedLead);
 
       const updatedErrorLog = await storage.updateErrorLog(id, updates);
 
@@ -20222,8 +18216,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!config) {
         return res.status(404).json({ message: "Commission config not found" });
       }
-      
-      res.json(updatedLead);
       res.json(config);
     } catch (error: any) {
       console.error("Error fetching commission config:", error);
@@ -20243,12 +18235,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({
           message: "Invalid data",
           errors: validationResult.error.errors,
+        });
       }
-      
-      res.json(updatedLead);
-      }
-      
-      res.json(updatedLead);
 
       const config = await storage.createRentalCommissionConfig(validationResult.data);
 
@@ -20274,12 +18262,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({
           message: "Invalid data",
           errors: validationResult.error.errors,
+        });
       }
-      
-      res.json(updatedLead);
-      }
-      
-      res.json(updatedLead);
 
       const updated = await storage.updateRentalCommissionConfig(req.params.id, validationResult.data);
 
@@ -20357,12 +18341,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({
           message: "Invalid data",
           errors: validationResult.error.errors,
+        });
       }
-      
-      res.json(updatedLead);
-      }
-      
-      res.json(updatedLead);
 
       const assignment = await storage.createAccountantAssignment(validationResult.data);
 
@@ -20388,12 +18368,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({
           message: "Invalid data",
           errors: validationResult.error.errors,
+        });
       }
-      
-      res.json(updatedLead);
-      }
-      
-      res.json(updatedLead);
 
       const updated = await storage.updateAccountantAssignment(req.params.id, validationResult.data);
 
@@ -20452,8 +18428,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!batch) {
         return res.status(404).json({ message: "Payout batch not found" });
       }
-      
-      res.json(updatedLead);
       res.json(batch);
     } catch (error: any) {
       console.error("Error fetching payout batch:", error);
@@ -20476,12 +18450,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({
           message: "Invalid data",
           errors: validationResult.error.errors,
+        });
       }
-      
-      res.json(updatedLead);
-      }
-      
-      res.json(updatedLead);
 
       const batch = await storage.createPayoutBatch(validationResult.data);
 
@@ -20507,12 +18477,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({
           message: "Invalid data",
           errors: validationResult.error.errors,
+        });
       }
-      
-      res.json(updatedLead);
-      }
-      
-      res.json(updatedLead);
 
       const updated = await storage.updatePayoutBatch(req.params.id, validationResult.data);
 
@@ -20539,8 +18505,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!status) {
         return res.status(400).json({ message: "Status is required" });
       }
-      
-      res.json(updatedLead);
 
       const updated = await storage.updatePayoutBatchStatus(req.params.id, status, userId, notes);
 
@@ -20583,8 +18547,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (dbUser.role === "accountant") {
         filters.accountantId = userId;
       }
-      
-      res.json(updatedLead);
 
       const transactions = await storage.getIncomeTransactions(filters);
       res.json(transactions);
@@ -20600,8 +18562,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!transaction) {
         return res.status(404).json({ message: "Income transaction not found" });
       }
-      
-      res.json(updatedLead);
       res.json(transaction);
     } catch (error: any) {
       console.error("Error fetching income transaction:", error);
@@ -20621,12 +18581,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({
           message: "Invalid data",
           errors: validationResult.error.errors,
+        });
       }
-      
-      res.json(updatedLead);
-      }
-      
-      res.json(updatedLead);
 
       const transaction = await storage.createIncomeTransaction(validationResult.data);
 
@@ -20652,12 +18608,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({
           message: "Invalid data",
           errors: validationResult.error.errors,
+        });
       }
-      
-      res.json(updatedLead);
-      }
-      
-      res.json(updatedLead);
 
       const updated = await storage.updateIncomeTransaction(req.params.id, validationResult.data);
 
@@ -20684,8 +18636,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!status) {
         return res.status(400).json({ message: "Status is required" });
       }
-      
-      res.json(updatedLead);
 
       if (status === "paid") {
         const transaction = await storage.getIncomeTransaction(req.params.id);
@@ -20703,7 +18653,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
             return res.status(400).json({ 
               message: "El vendedor debe aceptar los términos y condiciones de comisiones antes de recibir pagos",
               error: "TERMS_NOT_ACCEPTED"
-          }
+            });
           }
 
           if (beneficiary.documentApprovalStatus !== "approved") {
@@ -20711,12 +18661,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
               message: "El vendedor debe tener un documento de identificación aprobado antes de recibir pagos",
               error: "DOCUMENT_NOT_APPROVED",
               documentStatus: beneficiary.documentApprovalStatus || "none"
-          }
+            });
           }
         }
       }
-      
-      res.json(updatedLead);
 
       const updated = await storage.updateIncomeTransactionStatus(
         req.params.id,
@@ -20748,8 +18696,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!userId) {
         return res.status(401).json({ message: "Unauthorized" });
       }
-      
-      res.json(updatedLead);
 
       const { category, status, fromDate, toDate } = req.query;
 
@@ -20776,8 +18722,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!userId) {
         return res.status(401).json({ message: "Unauthorized" });
       }
-      
-      res.json(updatedLead);
 
       const transactions = await storage.getIncomeTransactions({
         beneficiaryId: userId,
@@ -20853,8 +18797,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!changelog) {
         return res.status(404).json({ message: "Changelog not found" });
       }
-      
-      res.json(updatedLead);
       res.json(changelog);
     } catch (error: any) {
       console.error("Error fetching changelog:", error);
@@ -20869,12 +18811,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ 
           message: "Invalid changelog data", 
           errors: validationResult.error.errors 
+        });
       }
-      
-      res.json(updatedLead);
-      }
-      
-      res.json(updatedLead);
 
       const changelog = await storage.createChangelog(validationResult.data);
 
@@ -20951,8 +18889,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!config) {
         return res.status(404).json({ message: "SLA configuration not found" });
       }
-      
-      res.json(updatedLead);
       res.json(config);
     } catch (error: any) {
       console.error("Error fetching SLA configuration:", error);
@@ -20966,8 +18902,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!config) {
         return res.status(404).json({ message: "SLA configuration not found for this process" });
       }
-      
-      res.json(updatedLead);
       res.json(config);
     } catch (error: any) {
       console.error("Error fetching SLA configuration:", error);
@@ -20982,12 +18916,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ 
           message: "Invalid SLA configuration data", 
           errors: validationResult.error.errors 
+        });
       }
-      
-      res.json(updatedLead);
-      }
-      
-      res.json(updatedLead);
 
       const config = await storage.createSlaConfiguration(validationResult.data);
 
@@ -21065,12 +18995,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ 
           message: "Invalid lead scoring rule data", 
           errors: validationResult.error.errors 
+        });
       }
-      
-      res.json(updatedLead);
-      }
-      
-      res.json(updatedLead);
 
       const rule = await storage.createLeadScoringRule(validationResult.data);
 
@@ -21134,8 +19060,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!score) {
         return res.status(404).json({ message: "Lead score not found" });
       }
-      
-      res.json(updatedLead);
       res.json(score);
     } catch (error: any) {
       console.error("Error fetching lead score:", error);
@@ -21174,8 +19098,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!template) {
         return res.status(404).json({ message: "Contract checklist template not found" });
       }
-      
-      res.json(updatedLead);
       res.json(template);
     } catch (error: any) {
       console.error("Error fetching contract checklist template:", error);
@@ -21190,12 +19112,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ 
           message: "Invalid contract checklist template data", 
           errors: validationResult.error.errors 
+        });
       }
-      
-      res.json(updatedLead);
-      }
-      
-      res.json(updatedLead);
 
       const template = await storage.createContractChecklistTemplate(validationResult.data);
 
@@ -21270,12 +19188,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ 
           message: "Invalid contract checklist template item data", 
           errors: validationResult.error.errors 
+        });
       }
-      
-      res.json(updatedLead);
-      }
-      
-      res.json(updatedLead);
 
       const item = await storage.createContractChecklistTemplateItem(validationResult.data);
       res.status(201).json(item);
@@ -21322,8 +19236,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!templateId) {
         return res.status(400).json({ message: "Template ID is required" });
       }
-      
-      res.json(updatedLead);
 
       const items = await storage.initializeContractChecklist(req.params.contractId, templateId);
 
@@ -21358,8 +19270,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!userId) {
         return res.status(401).json({ message: "Unauthorized" });
       }
-      
-      res.json(updatedLead);
 
       const { notes } = req.body;
       const item = await storage.completeContractChecklistItem(req.params.id, userId, notes);
@@ -21386,8 +19296,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!score) {
         return res.status(404).json({ message: "Rental health score not found" });
       }
-      
-      res.json(updatedLead);
       res.json(score);
     } catch (error: any) {
       console.error("Error fetching rental health score:", error);
@@ -21438,12 +19346,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ 
           message: "Invalid workflow event data", 
           errors: validationResult.error.errors 
+        });
       }
-      
-      res.json(updatedLead);
-      }
-      
-      res.json(updatedLead);
 
       const event = await storage.createWorkflowEvent(validationResult.data);
       res.status(201).json(event);
@@ -21479,8 +19383,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!userId) {
         return res.status(401).json({ message: "Unauthorized" });
       }
-      
-      res.json(updatedLead);
 
       const alerts = await storage.getUserPendingAlerts(userId);
       res.json(alerts);
@@ -21497,12 +19399,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ 
           message: "Invalid alert data", 
           errors: validationResult.error.errors 
+        });
       }
-      
-      res.json(updatedLead);
-      }
-      
-      res.json(updatedLead);
 
       const alert = await storage.createSystemAlert(validationResult.data);
       res.status(201).json(alert);
@@ -21644,8 +19542,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       } catch (error) {
         console.error("Error checking Gmail status:", error);
       }
-      
-      res.json(updatedLead);
 
       integrations.push({
         id: "gmail",
@@ -21688,8 +19584,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       } catch (error) {
         console.error("Error checking Google Calendar status:", error);
       }
-      
-      res.json(updatedLead);
 
       integrations.push({
         id: "google_calendar",
@@ -21811,8 +19705,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!property) {
         return res.status(404).json({ message: "Property not found" });
       }
-      
-      res.json(updatedLead);
 
       const analysis = await openAIService.analyzeRentalProbability(property);
       
@@ -21839,8 +19731,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!property) {
         return res.status(404).json({ message: "Property not found" });
       }
-      
-      res.json(updatedLead);
 
       const analysis = await openAIService.analyzePriceRecommendation(property);
       
@@ -21882,8 +19772,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!property) {
         return res.status(404).json({ message: "Property not found" });
       }
-      
-      res.json(updatedLead);
 
       const result = await openAIService.generateRentalContract(req.body.parties, {
         address: property.address,
@@ -22112,8 +20000,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!unit) {
         return res.status(404).json({ message: "Unit not found" });
       }
-      
-      res.json(updatedLead);
       res.json(unit);
     } catch (error: any) {
       console.error("Error fetching unit:", error);
@@ -22128,12 +20014,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({
           message: "Invalid data",
           errors: validationResult.error.errors,
+        });
       }
-      
-      res.json(updatedLead);
-      }
-      
-      res.json(updatedLead);
 
       const unit = await storage.createCondominiumUnit(validationResult.data);
 
@@ -22159,19 +20041,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({
           message: "Invalid data",
           errors: validationResult.error.errors,
+        });
       }
-      
-      res.json(updatedLead);
-      }
-      
-      res.json(updatedLead);
 
       const existingUnit = await storage.getCondominiumUnit(req.params.id);
       if (!existingUnit) {
         return res.status(404).json({ message: "Unit not found" });
       }
-      
-      res.json(updatedLead);
 
       const unit = await storage.updateCondominiumUnit(req.params.id, validationResult.data);
 
@@ -22242,12 +20118,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({
           message: "Invalid data",
           errors: validationResult.error.errors,
+        });
       }
-      
-      res.json(updatedLead);
-      }
-      
-      res.json(updatedLead);
 
       const fee = await storage.createCondominiumFee(validationResult.data);
 
@@ -22273,19 +20145,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({
           message: "Invalid data",
           errors: validationResult.error.errors,
+        });
       }
-      
-      res.json(updatedLead);
-      }
-      
-      res.json(updatedLead);
 
       const existingFee = await storage.getCondominiumFee(req.params.id);
       if (!existingFee) {
         return res.status(404).json({ message: "Fee not found" });
       }
-      
-      res.json(updatedLead);
 
       const fee = await storage.updateCondominiumFee(req.params.id, validationResult.data);
 
@@ -22310,8 +20176,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!status) {
         return res.status(400).json({ message: "Status is required" });
       }
-      
-      res.json(updatedLead);
 
       const fee = await storage.updateCondominiumFeeStatus(req.params.id, status);
 
@@ -22354,12 +20218,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({
           message: "Invalid data",
           errors: validationResult.error.errors,
+        });
       }
-      
-      res.json(updatedLead);
-      }
-      
-      res.json(updatedLead);
 
       const payment = await storage.createCondominiumFeePayment(validationResult.data);
 
@@ -22419,8 +20279,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!issue) {
         return res.status(404).json({ message: "Issue not found" });
       }
-      
-      res.json(updatedLead);
       res.json(issue);
     } catch (error: any) {
       console.error("Error fetching issue:", error);
@@ -22440,12 +20298,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({
           message: "Invalid data",
           errors: validationResult.error.errors,
+        });
       }
-      
-      res.json(updatedLead);
-      }
-      
-      res.json(updatedLead);
 
       const issue = await storage.createCondominiumIssue(validationResult.data);
 
@@ -22471,19 +20325,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({
           message: "Invalid data",
           errors: validationResult.error.errors,
+        });
       }
-      
-      res.json(updatedLead);
-      }
-      
-      res.json(updatedLead);
 
       const existingIssue = await storage.getCondominiumIssue(req.params.id);
       if (!existingIssue) {
         return res.status(404).json({ message: "Issue not found" });
       }
-      
-      res.json(updatedLead);
 
       const issue = await storage.updateCondominiumIssue(req.params.id, validationResult.data);
 
@@ -22508,15 +20356,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!status) {
         return res.status(400).json({ message: "Status is required" });
       }
-      
-      res.json(updatedLead);
 
       const existingIssue = await storage.getCondominiumIssue(req.params.id);
       if (!existingIssue) {
         return res.status(404).json({ message: "Issue not found" });
       }
-      
-      res.json(updatedLead);
 
       const issue = await storage.updateCondominiumIssueStatus(req.params.id, status);
 
@@ -22543,15 +20387,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!resolution) {
         return res.status(400).json({ message: "Resolution is required" });
       }
-      
-      res.json(updatedLead);
 
       const existingIssue = await storage.getCondominiumIssue(req.params.id);
       if (!existingIssue) {
         return res.status(404).json({ message: "Issue not found" });
       }
-      
-      res.json(updatedLead);
 
       const issue = await storage.resolveCondominiumIssue(req.params.id, userId, resolution);
 
@@ -22590,12 +20430,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({
           message: "Invalid data",
           errors: validationResult.error.errors,
+        });
       }
-      
-      res.json(updatedLead);
-      }
-      
-      res.json(updatedLead);
 
       // Check if there's already a pending or approved assignment
       const existingAssignments = await storage.getHoaManagerAssignmentsByCondominium(req.body.condominiumId);
@@ -22604,8 +20440,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (hasPendingOrApproved) {
         return res.status(400).json({ message: "You already have a pending or approved assignment for this condominium" });
       }
-      
-      res.json(updatedLead);
 
       const assignment = await storage.createHoaManagerAssignment(validationResult.data);
 
@@ -22704,8 +20538,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!reason) {
         return res.status(400).json({ message: "Approval reason is required" });
       }
-      
-      res.json(updatedLead);
 
       const assignment = await storage.approveHoaManagerAssignment(req.params.id, userId, reason);
 
@@ -22745,8 +20577,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!reason) {
         return res.status(400).json({ message: "Rejection reason is required" });
       }
-      
-      res.json(updatedLead);
 
       const assignment = await storage.rejectHoaManagerAssignment(req.params.id, userId, reason);
 
@@ -22786,8 +20616,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!reason) {
         return res.status(400).json({ message: "Suspension reason is required" });
       }
-      
-      res.json(updatedLead);
 
       const assignment = await storage.suspendHoaManagerAssignment(req.params.id, userId, reason);
 
@@ -22829,8 +20657,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
           return res.status(403).json({ message: "Not authorized to view announcements for this condominium" });
         }
       }
-      
-      res.json(updatedLead);
 
       const announcements = await storage.getHoaAnnouncementsByCondominium(condominiumId);
       res.json(announcements);
@@ -22878,27 +20704,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({
           message: "Invalid data",
           errors: validationResult.error.errors,
+        });
       }
-      
-      res.json(updatedLead);
-      }
-      
-      res.json(updatedLead);
 
       // Check if user is approved HOA manager for this condominium
       const approvedManager = await storage.getApprovedHoaManagerByCondominium(req.body.condominiumId);
       if (!approvedManager || approvedManager.managerId !== userId) {
         return res.status(403).json({ message: "You are not an approved HOA manager for this condominium" });
       }
-      
-      res.json(updatedLead);
 
       // Double-check assignment is not suspended
       if (approvedManager.status === 'suspended') {
         return res.status(403).json({ message: "Your HOA manager assignment is currently suspended" });
       }
-      
-      res.json(updatedLead);
 
       const announcement = await storage.createHoaAnnouncement(validationResult.data);
 
@@ -22927,40 +20745,28 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({
           message: "Invalid data",
           errors: validationResult.error.errors,
+        });
       }
-      
-      res.json(updatedLead);
-      }
-      
-      res.json(updatedLead);
 
       const existingAnnouncement = await storage.getHoaAnnouncement(req.params.id);
       if (!existingAnnouncement) {
         return res.status(404).json({ message: "Announcement not found" });
       }
-      
-      res.json(updatedLead);
 
       // Only the manager who created it can update
       if (existingAnnouncement.managerId !== userId) {
         return res.status(403).json({ message: "Not authorized to update this announcement" });
       }
-      
-      res.json(updatedLead);
 
       // Verify manager is still approved and not suspended
       const approvedManager = await storage.getApprovedHoaManagerByCondominium(existingAnnouncement.condominiumId);
       if (!approvedManager || approvedManager.managerId !== userId) {
         return res.status(403).json({ message: "You are no longer an approved HOA manager for this condominium" });
       }
-      
-      res.json(updatedLead);
 
       if (approvedManager.status === 'suspended') {
         return res.status(403).json({ message: "Your HOA manager assignment is currently suspended" });
       }
-      
-      res.json(updatedLead);
 
       const announcement = await storage.updateHoaAnnouncement(req.params.id, validationResult.data);
 
@@ -22988,29 +20794,21 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!existingAnnouncement) {
         return res.status(404).json({ message: "Announcement not found" });
       }
-      
-      res.json(updatedLead);
 
       // Only the manager who created it can publish
       if (existingAnnouncement.managerId !== userId) {
         return res.status(403).json({ message: "Not authorized to publish this announcement" });
       }
-      
-      res.json(updatedLead);
 
       // Verify manager is still approved and not suspended
       const approvedManager = await storage.getApprovedHoaManagerByCondominium(existingAnnouncement.condominiumId);
       if (!approvedManager || approvedManager.managerId !== userId) {
         return res.status(403).json({ message: "You are no longer an approved HOA manager for this condominium" });
       }
-      
-      res.json(updatedLead);
 
       if (approvedManager.status === 'suspended') {
         return res.status(403).json({ message: "Your HOA manager assignment is currently suspended" });
       }
-      
-      res.json(updatedLead);
 
       const announcement = await storage.publishHoaAnnouncement(req.params.id);
 
@@ -23038,29 +20836,21 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!existingAnnouncement) {
         return res.status(404).json({ message: "Announcement not found" });
       }
-      
-      res.json(updatedLead);
 
       // Only the manager who created it can delete
       if (existingAnnouncement.managerId !== userId) {
         return res.status(403).json({ message: "Not authorized to delete this announcement" });
       }
-      
-      res.json(updatedLead);
 
       // Verify manager is still approved and not suspended
       const approvedManager = await storage.getApprovedHoaManagerByCondominium(existingAnnouncement.condominiumId);
       if (!approvedManager || approvedManager.managerId !== userId) {
         return res.status(403).json({ message: "You are no longer an approved HOA manager for this condominium" });
       }
-      
-      res.json(updatedLead);
 
       if (approvedManager.status === 'suspended') {
         return res.status(403).json({ message: "Your HOA manager assignment is currently suspended" });
       }
-      
-      res.json(updatedLead);
 
       await storage.deleteHoaAnnouncement(req.params.id);
 
@@ -23089,8 +20879,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!announcement) {
         return res.status(404).json({ message: "Announcement not found" });
       }
-      
-      res.json(updatedLead);
 
       // Verify user owns a unit in this condominium
       const units = await storage.getCondominiumUnitsByOwner(userId);
@@ -23099,8 +20887,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!ownsUnitInCondo) {
         return res.status(403).json({ message: "Not authorized to mark this announcement as read" });
       }
-      
-      res.json(updatedLead);
 
       const read = await storage.markHoaAnnouncementAsRead(req.params.id, userId);
       res.json(read);
@@ -23133,8 +20919,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!csvData || !Array.isArray(csvData)) {
         return res.status(400).json({ message: "Datos CSV inválidos" });
       }
-      
-      res.json(updatedLead);
 
       const Papa = await import('papaparse');
       const { parseContactRow, isValidContact, normalizePhoneNumber } = await import('./utils/contactParser.js');
@@ -23162,9 +20946,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           const unitMatch = prop.unitNumber?.toLowerCase() === contact.unitNumber.toLowerCase();
           
           return condoNameMatch && unitMatch;
-      }
-      
-      res.json(updatedLead);
+        });
 
         let matchedProperty = null;
         let matchConfidence = 0;
@@ -23223,8 +21005,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!updates || !Array.isArray(updates)) {
         return res.status(400).json({ message: "Datos de actualización inválidos" });
       }
-      
-      res.json(updatedLead);
 
       const results = {
         success: 0,
@@ -23251,7 +21031,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
             referredByLastName: referredByLastName || null,
             referredByPhone: referredByPhone || null,
             referredByEmail: referredByEmail || null,
-        }
+          });
 
           results.success++;
         } catch (error: any) {
@@ -23259,8 +21039,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
           results.errors.push({ update, error: error.message });
         }
       }
-      
-      res.json(updatedLead);
 
       await createAuditLog(
         req,
@@ -23334,8 +21112,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
           }
         }
       }
-      
-      res.json(updatedLead);
 
       // Get agency details
       const agency = await storage.getExternalAgency(agencyId);
@@ -23348,8 +21124,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
         const admins = await db.select().from(users).where(eq(users.role, 'admin')).limit(1);
         propertyOwnerId = admins[0]?.id || userId;
       }
-      
-      res.json(updatedLead);
 
       // If no condominium was linked, create a generic one for external properties
       if (!condominiumId) {
@@ -23375,8 +21149,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
           condominiumId = newExtCondo.id;
         }
       }
-      
-      res.json(updatedLead);
 
       // Transform includedServices to proper format
       const includedServicesData = unit.includedServices ? {
@@ -23404,8 +21176,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
           };
         }
       }
-      
-      res.json(updatedLead);
 
       const propertyData = {
         title: unit.title || `${unit.unitNumber} - ${condoName || unit.zone || 'Property'}`,
@@ -23495,8 +21265,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (status && status !== 'all') {
         query = query.where(eq(externalPublicationRequests.status, status as any));
       }
-      
-      res.json(updatedLead);
 
       const requests = await query;
 
@@ -23509,8 +21277,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
           .where(inArray(externalCondominiums.id, condoIds));
         condoMap = Object.fromEntries(condos.map(c => [c.id, c.name]));
       }
-      
-      res.json(updatedLead);
 
       const enrichedRequests = requests.map(r => ({
         ...r,
@@ -23536,24 +21302,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!request) {
         return res.status(404).json({ message: "Publication request not found" });
       }
-      
-      res.json(updatedLead);
 
       // Get full unit details
       const unit = await storage.getExternalUnit(request.unitId);
       if (!unit) {
         return res.status(404).json({ message: "Unit not found" });
       }
-      
-      res.json(updatedLead);
 
       // Get condominium if exists
       let condominium = null;
       if (unit.condominiumId) {
         condominium = await storage.getExternalCondominium(unit.condominiumId);
       }
-      
-      res.json(updatedLead);
 
       // Get agency
       const agency = await storage.getExternalAgency(request.agencyId);
@@ -23579,8 +21339,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!agencyId) {
         return res.status(403).json({ message: "No agency access" });
       }
-      
-      res.json(updatedLead);
 
       const { unitId } = req.body;
       
@@ -23589,8 +21347,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!unit || unit.agencyId !== agencyId) {
         return res.status(403).json({ message: "Access denied to this unit" });
       }
-      
-      res.json(updatedLead);
 
       // Check if there's already a pending request for this unit
       const [existingPending] = await db.select()
@@ -23603,8 +21359,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (existingPending) {
         return res.status(400).json({ message: "A pending request already exists for this unit" });
       }
-      
-      res.json(updatedLead);
 
       const userId = req.user?.claims?.sub || req.user?.id;
       
@@ -23633,8 +21387,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
         // Manual approval required
         await storage.updateExternalUnit(unitId, { publishToMain: true, publishStatus: 'pending' });
       }
-      
-      res.json(updatedLead);
 
       res.status(201).json({ ...request, autoApproved: shouldAutoApprove });
     } catch (error) {
@@ -23653,8 +21405,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!['approved', 'rejected'].includes(decision)) {
         return res.status(400).json({ message: "Invalid decision. Must be 'approved' or 'rejected'" });
       }
-      
-      res.json(updatedLead);
 
       const [request] = await db.select()
         .from(externalPublicationRequests)
@@ -23663,22 +21413,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!request) {
         return res.status(404).json({ message: "Publication request not found" });
       }
-      
-      res.json(updatedLead);
 
       if (request.status !== 'pending') {
         return res.status(400).json({ message: "Request has already been reviewed" });
       }
-      
-      res.json(updatedLead);
 
       // Get unit details for syncing
       const unit = await storage.getExternalUnit(request.unitId);
       if (!unit) {
         return res.status(404).json({ message: "Unit not found" });
       }
-      
-      res.json(updatedLead);
 
       let linkedPropertyId: string | null = null;
 
@@ -23820,8 +21564,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
         const property = await storage.createProperty(propertyData);
         linkedPropertyId = property.id;
       }
-      
-      res.json(updatedLead);
 
       // Update the request
       const [updatedRequest] = await db.update(externalPublicationRequests)
@@ -23858,8 +21600,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!agencyId) {
         return res.status(403).json({ message: "No agency access" });
       }
-      
-      res.json(updatedLead);
 
       const [request] = await db.select()
         .from(externalPublicationRequests)
@@ -23868,20 +21608,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!request) {
         return res.status(404).json({ message: "Publication request not found" });
       }
-      
-      res.json(updatedLead);
 
       if (request.agencyId !== agencyId) {
         return res.status(403).json({ message: "Access denied" });
       }
-      
-      res.json(updatedLead);
 
       if (request.status !== 'pending') {
         return res.status(400).json({ message: "Can only withdraw pending requests" });
       }
-      
-      res.json(updatedLead);
 
       // Update to withdrawn status
       await db.update(externalPublicationRequests)
@@ -23906,16 +21640,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!agencyId) {
         return res.status(403).json({ message: "No agency access" });
       }
-      
-      res.json(updatedLead);
 
       // Verify unit belongs to agency
       const unit = await storage.getExternalUnit(unitId);
       if (!unit || unit.agencyId !== agencyId) {
         return res.status(403).json({ message: "Access denied" });
       }
-      
-      res.json(updatedLead);
 
       const requests = await db.select()
         .from(externalPublicationRequests)
@@ -23963,8 +21693,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
         agencies = await storage.getExternalAgencies(filters);
       }
       
-      res.json(updatedLead);
-      
       res.json(agencies);
     } catch (error: any) {
       console.error("Error fetching external agencies:", error);
@@ -23980,8 +21708,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!agency) {
         return res.status(404).json({ message: "Agency not found" });
       }
-      
-      res.json(updatedLead);
       
       res.json(agency);
     } catch (error: any) {
@@ -24003,15 +21729,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ message: "Assigned user not found" });
       }
       
-      res.json(updatedLead);
-      
       // Check if the assigned user already has an agency
       const existingAgencies = await storage.getExternalAgenciesByCreator(assignedUserId);
       if (existingAgencies && existingAgencies.length > 0) {
         return res.status(400).json({ message: "User already has an external agency" });
       }
-      
-      res.json(updatedLead);
       
       // Create agency first
       const agency = await storage.createExternalAgency({
@@ -24026,9 +21748,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           externalAgencyId: agency.id,
           emailVerified: true,
           additionalRole: null  // Clear any additional roles to prevent conflicts
-      }
-      
-      res.json(updatedLead);
+        });
       } catch (roleError) {
         // Rollback: Delete the agency if role update fails
         console.error("Role update failed, attempting rollback:", roleError);
@@ -24042,8 +21762,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
         throw new Error("Failed to assign user role. Please contact support if this persists.");
       }
       
-      res.json(updatedLead);
-      
       await createAuditLog(req, "create", "external_agency", agency.id, `Created external agency for user ${assignedUserId}`);
       res.status(201).json(agency);
     } catch (error: any) {
@@ -24051,8 +21769,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (error.name === "ZodError") {
         return handleZodError(res, error);
       }
-      
-      res.json(updatedLead);
       handleGenericError(res, error);
     }
   });
@@ -24065,8 +21781,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (existingAgencies && existingAgencies.length > 0) {
         return res.status(400).json({ message: "User already has an external agency" });
       }
-      
-      res.json(updatedLead);
 
       const validatedData = insertExternalAgencySchema.parse(req.body);
       const agency = await storage.createExternalAgency({
@@ -24089,8 +21803,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (error.name === "ZodError") {
         return handleZodError(res, error);
       }
-      
-      res.json(updatedLead);
       handleGenericError(res, error);
     }
   });
@@ -24105,8 +21817,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!currentAgency) {
         return res.status(404).json({ message: "Agency not found" });
       }
-      
-      res.json(updatedLead);
       
       // Handle user reassignment if createdBy is changing
       if (newCreatedBy && newCreatedBy !== currentAgency.createdBy) {
@@ -24129,9 +21839,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         const agency = await storage.updateExternalAgency(id, {
           ...updateData,
           createdBy: newCreatedBy,
-      }
-      
-      res.json(updatedLead);
+        });
         
         // Update new user's role to external_agency_admin
         await storage.updateUserRole(newCreatedBy, "external_agency_admin");
@@ -24144,8 +21852,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
         await createAuditLog(req, "update", "external_agency", id, "Updated external agency");
         res.json(agency);
       }
-      
-      res.json(updatedLead);
     } catch (error: any) {
       console.error("Error updating external agency:", error);
       handleGenericError(res, error);
@@ -24194,8 +21900,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (userAgencyId && userAgencyId !== agencyId && !ADMIN_ONLY.includes(req.user.role)) {
         return res.status(403).json({ message: "Access denied" });
       }
-      
-      res.json(updatedLead);
 
       const integration = await storage.getExternalAgencyIntegration(agencyId);
       
@@ -24214,9 +21918,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           openaiConnected: !!(integration.openaiApiKey || integration.openaiUseReplitIntegration),
           openaiUseReplitIntegration: integration.openaiUseReplitIntegration,
           openaiHasCustomKey: !!integration.openaiApiKey,
-      }
-      
-      res.json(updatedLead);
+        });
       } else {
         res.json({
           agencyId,
@@ -24225,12 +21927,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
           openaiConnected: false,
           openaiUseReplitIntegration: true,
           openaiHasCustomKey: false,
+        });
       }
-      
-      res.json(updatedLead);
-      }
-      
-      res.json(updatedLead);
     } catch (error: any) {
       console.error("Error fetching agency integrations:", error);
       handleGenericError(res, error);
@@ -24248,8 +21946,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (userAgencyId && userAgencyId !== agencyId && !ADMIN_ONLY.includes(req.user.role)) {
         return res.status(403).json({ message: "Access denied" });
       }
-      
-      res.json(updatedLead);
 
       const integration = await storage.updateOpenAIConfig(agencyId, {
         apiKey: apiKey || null,
@@ -24279,8 +21975,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (userAgencyId && userAgencyId !== agencyId && !ADMIN_ONLY.includes(req.user.role)) {
         return res.status(403).json({ message: "Access denied" });
       }
-      
-      res.json(updatedLead);
 
       await storage.disconnectGoogleCalendar(agencyId);
       
@@ -24303,8 +21997,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!agencyId) {
         return res.status(403).json({ message: "User is not assigned to any agency" });
       }
-      
-      res.json(updatedLead);
 
       const permissions = await storage.getExternalRolePermissions(agencyId);
       
@@ -24330,15 +22022,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!agencyId) {
         return res.status(403).json({ message: "User is not assigned to any agency" });
       }
-      
-      res.json(updatedLead);
 
       const { permissions } = req.body;
       if (!Array.isArray(permissions)) {
         return res.status(400).json({ message: "permissions must be an array" });
       }
-      
-      res.json(updatedLead);
 
       // Validate and prepare permissions
       const validatedPermissions = permissions.map((p: any) => {
@@ -24348,9 +22036,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           section: p.section,
           action: p.action,
           allowed: p.allowed,
-      }
-      
-      res.json(updatedLead);
+        });
         return validated;
       });
 
@@ -24372,8 +22058,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!agencyId) {
         return res.status(403).json({ message: "User is not assigned to any agency" });
       }
-      
-      res.json(updatedLead);
 
       const permissions = await storage.getExternalUserPermissions(agencyId);
       const agencyUsers = await storage.getUsersByAgency(agencyId);
@@ -24405,8 +22089,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!agencyId) {
         return res.status(403).json({ message: "User is not assigned to any agency" });
       }
-      
-      res.json(updatedLead);
 
       const { userId } = req.params;
       const permissions = await storage.getExternalUserPermissionsByUser(agencyId, userId);
@@ -24425,8 +22107,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!agencyId) {
         return res.status(403).json({ message: "User is not assigned to any agency" });
       }
-      
-      res.json(updatedLead);
 
       const { userId } = req.params;
       const { permissions } = req.body;
@@ -24434,16 +22114,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!Array.isArray(permissions)) {
         return res.status(400).json({ message: "permissions must be an array" });
       }
-      
-      res.json(updatedLead);
 
       // Validate user belongs to agency
       const user = await storage.getUser(userId);
       if (!user || user.externalAgencyId !== agencyId) {
         return res.status(404).json({ message: "User not found in agency" });
       }
-      
-      res.json(updatedLead);
 
       // Validate and prepare permissions
       const validatedPermissions = permissions.map((p: any) => {
@@ -24453,9 +22129,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           section: p.section,
           action: p.action,
           allowed: p.allowed,
-      }
-      
-      res.json(updatedLead);
+        });
         return validated;
       });
 
@@ -24477,8 +22151,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!agencyId) {
         return res.status(403).json({ message: "User is not assigned to any agency" });
       }
-      
-      res.json(updatedLead);
 
       const { userId } = req.params;
       
@@ -24487,8 +22159,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!user || user.externalAgencyId !== agencyId) {
         return res.status(404).json({ message: "User not found in agency" });
       }
-      
-      res.json(updatedLead);
 
       await storage.deleteAllExternalUserPermissions(agencyId, userId);
       
@@ -24512,8 +22182,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!agencyId) {
         return res.status(403).json({ message: "User is not assigned to any agency" });
       }
-      
-      res.json(updatedLead);
 
       const users = await storage.getUsersByAgency(agencyId);
       res.json(users);
@@ -24530,8 +22198,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!agencyId) {
         return res.status(403).json({ message: "User is not assigned to any agency" });
       }
-      
-      res.json(updatedLead);
 
       const bcrypt = await import("bcryptjs");
       const crypto = await import("crypto");
@@ -24560,8 +22226,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (error.name === "ZodError") {
         return handleZodError(res, error);
       }
-      
-      res.json(updatedLead);
       handleGenericError(res, error);
     }
   });
@@ -24574,22 +22238,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!agencyId) {
         return res.status(403).json({ message: "User is not assigned to any agency" });
       }
-      
-      res.json(updatedLead);
 
       // Verify the user belongs to the same agency
       const existingUser = await storage.getUser(id);
       if (!existingUser) {
         return res.status(404).json({ message: "User not found" });
       }
-      
-      res.json(updatedLead);
 
       if (existingUser.externalAgencyId !== agencyId) {
         return res.status(403).json({ message: "Cannot modify users from another agency" });
       }
-      
-      res.json(updatedLead);
 
       // Prevent changing externalAgencyId
       const { externalAgencyId: _, ...updates } = req.body;
@@ -24614,30 +22272,22 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!agencyId) {
         return res.status(403).json({ message: "User is not assigned to any agency" });
       }
-      
-      res.json(updatedLead);
 
       // Verify the user belongs to the same agency
       const existingUser = await storage.getUser(id);
       if (!existingUser) {
         return res.status(404).json({ message: "User not found" });
       }
-      
-      res.json(updatedLead);
 
       if (existingUser.externalAgencyId !== agencyId) {
         return res.status(403).json({ message: "Cannot delete users from another agency" });
       }
-      
-      res.json(updatedLead);
 
       // Prevent deleting yourself
       const userId = req.user?.claims?.sub || req.user?.id;
       if (id === userId) {
         return res.status(400).json({ message: "Cannot delete your own account" });
       }
-      
-      res.json(updatedLead);
 
       await storage.deleteUser(id);
       await createAuditLog(req, "delete", "user", id, `Deleted agency user: ${existingUser.email}`);
@@ -24662,8 +22312,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!agencyId) {
         return res.status(403).json({ message: "No agency assigned" });
       }
-      
-      res.json(updatedLead);
 
       const { status, salespersonId, conciergeId, startDate, endDate, mode, page, limit, search } = req.query;
 
@@ -24683,13 +22331,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
           offset: (parseInt(page) - 1) * parseInt(limit),
           ...filters,
           search: search || undefined,
-      }
-      
-      res.json(updatedLead);
+        });
         return res.json(result);
       }
-      
-      res.json(updatedLead);
 
       const appointments = await storage.getExternalAppointmentsByAgency(agencyId, filters);
       res.json(appointments);
@@ -24707,8 +22351,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!agencyId) {
         return res.status(403).json({ message: "No agency assigned" });
       }
-      
-      res.json(updatedLead);
 
       // Use agency-scoped query to prevent enumeration
       const appointment = await storage.getExternalAppointmentByAgency(id, agencyId);
@@ -24716,16 +22358,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!appointment) {
         return res.status(404).json({ message: "Appointment not found" });
       }
-      
-      res.json(updatedLead);
 
       // Get tour stops if this is a tour
       let tourStops: any[] = [];
       if (appointment.mode === 'tour') {
         tourStops = await storage.getExternalAppointmentUnitsByAppointment(id);
       }
-      
-      res.json(updatedLead);
 
       res.json({ ...appointment, tourStops });
     } catch (error: any) {
@@ -24742,16 +22380,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!agencyId) {
         return res.status(403).json({ message: "No agency assigned" });
       }
-      
-      res.json(updatedLead);
 
       // Verify the unit belongs to the requester's agency
       const unit = await storage.getExternalUnit(unitId);
       if (!unit || unit.agencyId !== agencyId) {
         return res.status(403).json({ message: "Unit not found or not accessible" });
       }
-      
-      res.json(updatedLead);
 
       const appointments = await storage.getExternalAppointmentsByUnit(unitId, agencyId);
       res.json(appointments);
@@ -24768,8 +22402,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!agencyId) {
         return res.status(403).json({ message: "No agency assigned" });
       }
-      
-      res.json(updatedLead);
 
       const userId = req.user?.claims?.sub || req.user?.id;
       const { tourStops, ...appointmentData } = req.body;
@@ -24791,8 +22423,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (validatedData.mode === 'tour' && tourStops && tourStops.length > 3) {
         return res.status(400).json({ message: "Tours can have a maximum of 3 properties" });
       }
-      
-      res.json(updatedLead);
 
       // Calculate end time based on mode
       const startDate = new Date(validatedData.date);
@@ -24806,8 +22436,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
         const propertyCount = tourStops?.length || 1;
         endDate = new Date(startDate.getTime() + propertyCount * 30 * 60 * 1000);
       }
-      
-      res.json(updatedLead);
 
       // Generate tour group ID if this is a tour
       const tourGroupId = validatedData.mode === 'tour' ? crypto.randomUUID() : null;
@@ -24830,8 +22458,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
         await storage.createExternalAppointmentUnits(stopsData);
       }
-      
-      res.json(updatedLead);
 
       await createAuditLog(req, "create", "external_appointment", appointment.id, 
         `Created ${validatedData.mode} appointment for ${validatedData.clientName}`);
@@ -24842,8 +22468,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (error.name === "ZodError") {
         return handleZodError(res, error);
       }
-      
-      res.json(updatedLead);
       handleGenericError(res, error);
     }
   });
@@ -24856,8 +22480,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!agencyId) {
         return res.status(403).json({ message: "No agency assigned" });
       }
-      
-      res.json(updatedLead);
 
       // Use agency-scoped query to prevent enumeration
       const appointment = await storage.getExternalAppointmentByAgency(id, agencyId);
@@ -24865,8 +22487,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!appointment) {
         return res.status(404).json({ message: "Appointment not found" });
       }
-      
-      res.json(updatedLead);
 
       const { tourStops, ...rawUpdateData } = req.body;
 
@@ -24874,8 +22494,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (tourStops && tourStops.length > 3) {
         return res.status(400).json({ message: "Tours can have a maximum of 3 properties" });
       }
-      
-      res.json(updatedLead);
 
       // Filter out undefined values and only include valid updatable fields to prevent NOT NULL violations
       const allowedFields = ['clientId', 'leadId', 'presentationCardId', 'clientName', 'clientEmail', 'clientPhone', 'mode', 'type', 'date', 'unitId', 'notes', 'salespersonId', 'conciergeId', 'status', 'completedAt', 'tourStops', 'feedbackOutcome', 'feedbackNotes', 'feedbackRatingDelta', 'feedbackSubmittedAt', 'feedbackSubmittedBy'];
@@ -24885,8 +22503,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
           updateData[field] = rawUpdateData[field];
         }
       }
-      
-      res.json(updatedLead);
 
       const updated = await storage.updateExternalAppointment(id, updateData);
 
@@ -24905,8 +22521,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
           await storage.createExternalAppointmentUnits(stopsData);
         }
       }
-      
-      res.json(updatedLead);
 
       await createAuditLog(req, "update", "external_appointment", id, "Updated appointment details");
 
@@ -24927,16 +22541,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!agencyId) {
         return res.status(403).json({ message: "No agency assigned" });
       }
-      
-      res.json(updatedLead);
 
       // Use agency-scoped query to prevent enumeration
       const appointment = await storage.getExternalAppointmentByAgency(id, agencyId);
       if (!appointment) {
         return res.status(404).json({ message: "Appointment not found" });
       }
-      
-      res.json(updatedLead);
 
       // Validate status transitions
       const validTransitions: Record<string, string[]> = {
@@ -24952,12 +22562,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ 
           message: 'Invalid status transition',
           allowedTransitions: allowedNextStatuses 
+        });
       }
-      
-      res.json(updatedLead);
-      }
-      
-      res.json(updatedLead);
 
       const additionalData: any = {};
       if (status === 'confirmed') additionalData.confirmedAt = new Date();
@@ -24966,8 +22572,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
         additionalData.cancelledAt = new Date();
         if (cancellationReason) additionalData.cancellationReason = cancellationReason;
       }
-      
-      res.json(updatedLead);
 
       const updated = await storage.updateExternalAppointmentStatus(id, status, additionalData);
 
@@ -24991,35 +22595,25 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!agencyId) {
         return res.status(403).json({ message: "No agency assigned" });
       }
-      
-      res.json(updatedLead);
 
       const appointment = await storage.getExternalAppointmentByAgency(id, agencyId);
       if (!appointment) {
         return res.status(404).json({ message: "Appointment not found" });
       }
-      
-      res.json(updatedLead);
 
 
       // Allow feedback for pending/confirmed appointments - this will also mark them as completed
       if (appointment.status === "cancelled") {
         return res.status(400).json({ message: "Cannot submit feedback for cancelled appointments" });
       }
-      
-      res.json(updatedLead);
 
       // First mark as completed if not already
       if (appointment.status !== "completed") {
         await storage.updateExternalAppointment(id, { 
           status: "completed",
           completedAt: new Date().toISOString(),
+        });
       }
-      
-      res.json(updatedLead);
-      }
-      
-      res.json(updatedLead);
 
       const updated = await storage.submitAppointmentFeedback(id, {
         outcome,
@@ -25039,9 +22633,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           reason: outcome,
           notes,
           createdBy: userId,
-      }
-      
-      res.json(updatedLead);
+        });
 
         // Update cumulative rating on client or lead
         if (appointment.clientId) {
@@ -25052,8 +22644,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
           await storage.updateExternalLead(appointment.leadId, { cumulativeRating: newRating });
         }
       }
-      
-      res.json(updatedLead);
 
       await createAuditLog(req, "update", "external_appointment", id, `Submitted feedback: ${outcome}`);
 
@@ -25083,8 +22673,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!agencyId) {
         return res.status(403).json({ message: "No agency assigned" });
       }
-      
-      res.json(updatedLead);
 
       const userId = req.user?.id || req.session?.user?.id;
       const rating = await storage.createPropertyRating({
@@ -25135,16 +22723,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!agencyId) {
         return res.status(403).json({ message: "No agency assigned" });
       }
-      
-      res.json(updatedLead);
 
       // Use agency-scoped query to prevent enumeration
       const appointment = await storage.getExternalAppointmentByAgency(id, agencyId);
       if (!appointment) {
         return res.status(404).json({ message: "Appointment not found" });
       }
-      
-      res.json(updatedLead);
 
       const updated = await storage.assignExternalAppointmentConcierge(id, conciergeId);
 
@@ -25165,8 +22749,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!agencyId) {
         return res.status(403).json({ message: "No agency assigned" });
       }
-      
-      res.json(updatedLead);
 
       // Use agency-scoped query to prevent enumeration
       const appointment = await storage.getExternalAppointmentByAgency(id, agencyId);
@@ -25174,8 +22756,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!appointment) {
         return res.status(404).json({ message: "Appointment not found" });
       }
-      
-      res.json(updatedLead);
 
       // Delete tour stops first
       await storage.deleteExternalAppointmentUnitsByAppointment(id);
@@ -25210,8 +22790,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ message: "Agency ID is required" });
       }
       
-      res.json(updatedLead);
-      
       const filters = status ? { status } : undefined;
       const properties = await storage.getExternalPropertiesByAgency(agencyId, filters);
       
@@ -25230,8 +22808,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!property) {
         return res.status(404).json({ message: "Property not found" });
       }
-      
-      res.json(updatedLead);
       
       res.json(property);
     } catch (error: any) {
@@ -25255,8 +22831,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (error.name === "ZodError") {
         return handleZodError(res, error);
       }
-      
-      res.json(updatedLead);
       handleGenericError(res, error);
     }
   });
@@ -25282,8 +22856,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!linkedPropertyId) {
         return res.status(400).json({ message: "Linked property ID is required" });
       }
-      
-      res.json(updatedLead);
       
       const property = await storage.linkExternalProperty(id, linkedPropertyId);
       
@@ -25318,13 +22890,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.json(contracts);
       }
       
-      res.json(updatedLead);
-      
       if (!agencyId) {
         return res.status(400).json({ message: "Agency ID or Property ID is required" });
       }
-      
-      res.json(updatedLead);
       
       const filters = status ? { status } : undefined;
       const contracts = await storage.getExternalRentalContractsByAgency(agencyId, filters);
@@ -25344,8 +22912,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!contract) {
         return res.status(404).json({ message: "Contract not found" });
       }
-      
-      res.json(updatedLead);
       
       res.json(contract);
     } catch (error: any) {
@@ -25369,8 +22935,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (error.name === "ZodError") {
         return handleZodError(res, error);
       }
-      
-      res.json(updatedLead);
       handleGenericError(res, error);
     }
   });
@@ -25396,8 +22960,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!status) {
         return res.status(400).json({ message: "Status is required" });
       }
-      
-      res.json(updatedLead);
       
       // Get the contract before updating to check for client
       const existingContract = await storage.getExternalRentalContractById(id);
@@ -25450,7 +23012,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
               convertedBackToLeadId: convertedLead.id,
               convertedBackToLeadAt: new Date(),
               convertedBackReason: 'rental_ended',
-          }
+            });
 
             await createAuditLog(req, "create", "external_lead", convertedLead.id, `Auto-reconverted from client ${client.id} when rental ended`);
             await createAuditLog(req, "update", "external_client", client.id, `Auto-converted back to lead ${convertedLead.id} when rental ended`);
@@ -25460,8 +23022,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
           // Don't fail the main request if conversion fails
         }
       }
-      
-      res.json(updatedLead);
       
       res.json({ 
         ...contract,
@@ -25493,8 +23053,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!agencyId) {
         return res.status(400).json({ message: "No agency assigned to user" });
       }
-      
-      res.json(updatedLead);
 
       // Get all users with external agency roles that belong to this agency
       const externalRoles = ["external_agency_admin", "external_agency_accounting", "external_agency_maintenance", "external_agency_seller", "external_agency_concierge", "external_agency_lawyer"];
@@ -25531,8 +23089,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!agencyId) {
         return res.status(400).json({ message: "No agency assigned to user" });
       }
-      
-      res.json(updatedLead);
 
       // Zod validation schema for create user request
       const createUserSchema = z.object({
@@ -25553,8 +23109,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (existingUser) {
         return res.status(400).json({ message: "User with this email already exists" });
       }
-      
-      res.json(updatedLead);
 
       // Generate temporary password
       const tempPassword = crypto.randomBytes(8).toString('hex');
@@ -25595,8 +23149,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (error.name === "ZodError") {
         return handleZodError(res, error);
       }
-      
-      res.json(updatedLead);
       handleGenericError(res, error);
     }
   });
@@ -25608,8 +23160,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!agencyId) {
         return res.status(400).json({ message: "No agency assigned to user" });
       }
-      
-      res.json(updatedLead);
 
       // Zod validation schema for update user request
       const updateUserSchema = z.object({
@@ -25627,8 +23177,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!user || user.externalAgencyId !== agencyId) {
         return res.status(403).json({ message: "Unauthorized to update this user" });
       }
-      
-      res.json(updatedLead);
 
       // Update user in database
       const updateData: any = {
@@ -25642,8 +23190,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (validatedData.maintenanceSpecialty !== undefined) {
         updateData.maintenanceSpecialty = validatedData.maintenanceSpecialty || null;
       }
-      
-      res.json(updatedLead);
 
       const [updatedUser] = await db.update(users)
         .set(updateData)
@@ -25667,8 +23213,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (error.name === "ZodError") {
         return handleZodError(res, error);
       }
-      
-      res.json(updatedLead);
       handleGenericError(res, error);
     }
   });
@@ -25680,16 +23224,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!agencyId) {
         return res.status(400).json({ message: "No agency assigned to user" });
       }
-      
-      res.json(updatedLead);
 
       // Verify user belongs to this agency
       const user = await storage.getUser(id);
       if (!user || user.externalAgencyId !== agencyId) {
         return res.status(403).json({ message: "Unauthorized to reset password for this user" });
       }
-      
-      res.json(updatedLead);
 
       // Generate new temporary password
       const tempPassword = crypto.randomBytes(8).toString('hex');
@@ -25717,16 +23257,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!agencyId) {
         return res.status(400).json({ message: "No agency assigned to user" });
       }
-      
-      res.json(updatedLead);
 
       // Verify user belongs to this agency
       const user = await storage.getUser(id);
       if (!user || user.externalAgencyId !== agencyId) {
         return res.status(403).json({ message: "Unauthorized to delete this user" });
       }
-      
-      res.json(updatedLead);
 
       await storage.deleteUser(id);
       await createAuditLog(req, "delete", "user", id, "Deleted external agency user");
@@ -25747,22 +23283,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!agencyId) {
         return res.status(400).json({ message: "No agency assigned to user" });
       }
-      
-      res.json(updatedLead);
 
       const user = await storage.getUser(id);
       if (!user || user.externalAgencyId !== agencyId) {
         return res.status(403).json({ message: "Unauthorized to suspend this user" });
       }
-      
-      res.json(updatedLead);
 
       const adminId = req.user?.claims?.sub || req.user?.id;
       if (id === adminId) {
         return res.status(400).json({ message: "No puedes suspender tu propia cuenta" });
       }
-      
-      res.json(updatedLead);
 
       await db
         .update(users)
@@ -25789,15 +23319,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!agencyId) {
         return res.status(400).json({ message: "No agency assigned to user" });
       }
-      
-      res.json(updatedLead);
 
       const user = await storage.getUser(id);
       if (!user || user.externalAgencyId !== agencyId) {
         return res.status(403).json({ message: "Unauthorized to reactivate this user" });
       }
-      
-      res.json(updatedLead);
 
       await db
         .update(users)
@@ -25822,8 +23348,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!agencyId) {
         return res.status(400).json({ message: "No agency assigned to user" });
       }
-      
-      res.json(updatedLead);
 
       // Get all worker assignments for this agency
       const assignments = await db
@@ -25874,12 +23398,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
               unitId: null,
               createdAt: new Date(),
               isGlobal: true, // Flag to indicate this is an automatic global assignment
-          }
+            });
           }
         }
       }
-      
-      res.json(updatedLead);
 
       // Combine real assignments (marked with isGlobal: false) with virtual ones
       const combinedAssignments = [
@@ -25900,8 +23422,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!agencyId) {
         return res.status(400).json({ message: "No agency assigned to user" });
       }
-      
-      res.json(updatedLead);
 
       const assignmentSchema = z.object({
         userId: z.string().min(1),
@@ -25916,8 +23436,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!worker || worker.assignedToUser !== agencyId) {
         return res.status(403).json({ message: "Worker does not belong to this agency" });
       }
-      
-      res.json(updatedLead);
 
       // Verify condominium ownership if provided
       if (data.condominiumId) {
@@ -25934,8 +23452,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
           return res.status(403).json({ message: "Condominium does not belong to this agency" });
         }
       }
-      
-      res.json(updatedLead);
 
       // Verify unit ownership if provided
       if (data.unitId) {
@@ -25952,8 +23468,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
           return res.status(403).json({ message: "Unit does not belong to this agency" });
         }
       }
-      
-      res.json(updatedLead);
 
       // Create assignment
       const [assignment] = await db
@@ -25974,8 +23488,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (error.name === "ZodError") {
         return handleZodError(res, error);
       }
-      
-      res.json(updatedLead);
       handleGenericError(res, error);
     }
   });
@@ -25986,8 +23498,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!agencyId) {
         return res.status(400).json({ message: "No agency assigned to user" });
       }
-      
-      res.json(updatedLead);
 
       const batchSchema = z.object({
         assignments: z.array(z.object({
@@ -26002,8 +23512,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!assignments || assignments.length === 0) {
         return res.status(400).json({ message: "No assignments provided" });
       }
-      
-      res.json(updatedLead);
 
       // Verify all resources belong to this agency
       for (const assignment of assignments) {
@@ -26045,8 +23553,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
           }
         }
       }
-      
-      res.json(updatedLead);
 
       // Create all assignments
       const createdAssignments = [];
@@ -26062,8 +23568,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
           .returning();
         createdAssignments.push(created);
       }
-      
-      res.json(updatedLead);
 
       await createAuditLog(req, "create", "external_worker_assignment", "batch", `Created ${createdAssignments.length} worker assignments`);
 
@@ -26076,8 +23580,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (error.name === "ZodError") {
         return handleZodError(res, error);
       }
-      
-      res.json(updatedLead);
       handleGenericError(res, error);
     }
   });
@@ -26089,8 +23591,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!agencyId) {
         return res.status(400).json({ message: "No agency assigned to user" });
       }
-      
-      res.json(updatedLead);
 
       // Verify assignment belongs to this agency
       const [assignment] = await db
@@ -26102,14 +23602,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!assignment) {
         return res.status(404).json({ message: "Assignment not found" });
       }
-      
-      res.json(updatedLead);
 
       if (assignment.agencyId !== agencyId) {
         return res.status(403).json({ message: "Unauthorized to delete this assignment" });
       }
-      
-      res.json(updatedLead);
 
       await db
         .delete(externalWorkerAssignments)
@@ -26132,8 +23628,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!agencyId) {
         return res.status(400).json({ message: "No agency assigned to user" });
       }
-      
-      res.json(updatedLead);
 
       const sendEmailSchema = z.object({
         accessId: z.string().uuid(),
@@ -26161,8 +23655,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!accessControl) {
         return res.status(404).json({ message: "Access control not found" });
       }
-      
-      res.json(updatedLead);
 
       // Verify unit belongs to agency's condominium
       const [condo] = await db
@@ -26174,8 +23666,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!condo || condo.agencyId !== agencyId) {
         return res.status(403).json({ message: "Access denied" });
       }
-      
-      res.json(updatedLead);
 
       // Get recipient user and verify they belong to the same agency
       const [recipient] = await db
@@ -26187,8 +23677,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!recipient || recipient.assignedToUser !== agencyId) {
         return res.status(404).json({ message: "Recipient user not found or not in your agency" });
       }
-      
-      res.json(updatedLead);
 
       // Send email using Resend
       const { sendAccessCodeEmail } = await import('./resend-service');
@@ -26219,8 +23707,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (error.name === "ZodError") {
         return handleZodError(res, error);
       }
-      
-      res.json(updatedLead);
       handleGenericError(res, error);
     }
   });
@@ -26231,8 +23717,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!agencyId) {
         return res.status(400).json({ message: "No agency assigned to user" });
       }
-      
-      res.json(updatedLead);
 
       // Get all units for this agency
       const units = await storage.getExternalUnitsByAgency(agencyId);
@@ -26241,8 +23725,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (unitIds.length === 0) {
         return res.json([]);
       }
-      
-      res.json(updatedLead);
 
       // Get all access controls for these units
       const accessControls = await db
@@ -26315,8 +23797,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.json(schedules);
       }
       
-      res.json(updatedLead);
-      
       // Get agency ID from authenticated user (admin/master can pass agencyId to view other agencies)
       let agencyId = req.query.agencyId;
       if (!agencyId) {
@@ -26325,8 +23805,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
           return res.status(400).json({ message: "User is not assigned to any agency" });
         }
       }
-      
-      res.json(updatedLead);
       
       const filters = isActive !== undefined ? { isActive: isActive === 'true' } : undefined;
       const schedules = await storage.getExternalPaymentSchedulesByAgency(agencyId, filters);
@@ -26353,8 +23831,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (error.name === "ZodError") {
         return handleZodError(res, error);
       }
-      
-      res.json(updatedLead);
       handleGenericError(res, error);
     }
   });
@@ -26410,8 +23886,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!contract) {
         return res.status(404).json({ message: "Contract not found" });
       }
-      
-      res.json(updatedLead);
       
       const hasAccess = await verifyExternalAgencyOwnership(req, res, contract.agencyId);
       if (!hasAccess) return;
@@ -26508,8 +23982,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
         }
       }
       
-      res.json(updatedLead);
-      
       await createAuditLog(req, "create", "external_payment", "", `Generated ${generatedPayments.length} payments from schedules`);
       res.status(201).json({ 
         generated: generatedPayments.length,
@@ -26532,8 +24004,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.json(payments);
       }
       
-      res.json(updatedLead);
-      
       // Get agency ID from authenticated user (admin/master can pass agencyId to view other agencies)
       let agencyId = req.query.agencyId;
       if (!agencyId) {
@@ -26543,14 +24013,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
         }
       }
       
-      res.json(updatedLead);
-      
       if (upcomingDays) {
         const payments = await storage.getUpcomingExternalPayments(agencyId, parseInt(upcomingDays));
         return res.json(payments);
       }
-      
-      res.json(updatedLead);
       
       const filters: any = {};
       if (status) filters.status = status;
@@ -26574,8 +24040,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ message: "Payment not found" });
       }
       
-      res.json(updatedLead);
-      
       res.json(payment);
     } catch (error: any) {
       console.error("Error fetching external payment:", error);
@@ -26598,8 +24062,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (error.name === "ZodError") {
         return handleZodError(res, error);
       }
-      
-      res.json(updatedLead);
       handleGenericError(res, error);
     }
   });
@@ -26628,15 +24090,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(401).json({ message: "User ID not found in session" });
       }
       
-      res.json(updatedLead);
-      
       // Verify payment exists
       const existingPayment = await storage.getExternalPayment(id);
       if (!existingPayment) {
         return res.status(404).json({ message: "Payment not found" });
       }
-      
-      res.json(updatedLead);
       
       // Verify ownership: master/admin can access all, others must match agency
       let userRole = req.user?.role || req.session?.adminUser?.role;
@@ -26645,8 +24103,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
         const dbUser = await storage.getUser(userId);
         userRole = dbUser?.role;
       }
-      
-      res.json(updatedLead);
       const isMasterOrAdmin = userRole === "master" || userRole === "admin";
       
       if (!isMasterOrAdmin) {
@@ -26655,8 +24111,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
           return res.status(403).json({ message: "Access denied" });
         }
       }
-      
-      res.json(updatedLead);
       
       // Mark payment as paid and create financial transaction
       const result = await storage.markExternalPaymentAsPaid(id, {
@@ -26687,16 +24141,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
         await createAuditLog(req, "update", "external_payment", id, "Marked payment as paid");
       }
       
-      res.json(updatedLead);
-      
       res.json(result);
     } catch (error: any) {
       console.error("Error marking payment as paid:", error);
       if (error.name === "ZodError") {
         return handleZodError(res, error);
       }
-      
-      res.json(updatedLead);
       handleGenericError(res, error);
     }
   });
@@ -26710,15 +24160,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ message: "Status is required" });
       }
       
-      res.json(updatedLead);
-      
       // Verify payment exists
       const existingPayment = await storage.getExternalPayment(id);
       if (!existingPayment) {
         return res.status(404).json({ message: "Payment not found" });
       }
-      
-      res.json(updatedLead);
       
       // Verify ownership: master/admin can access all, others must match agency
       let userRole = req.user?.role || req.session?.adminUser?.role;
@@ -26727,8 +24173,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
         const dbUser = await storage.getUser(userId);
         userRole = dbUser?.role;
       }
-      
-      res.json(updatedLead);
       const isMasterOrAdmin = userRole === "master" || userRole === "admin";
       
       if (!isMasterOrAdmin) {
@@ -26737,8 +24181,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
           return res.status(403).json({ message: "Access denied" });
         }
       }
-      
-      res.json(updatedLead);
       
       const payment = await storage.updateExternalPaymentStatus(id, status, paidDate ? new Date(paidDate) : undefined);
       
@@ -26759,8 +24201,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       } else {
         await createAuditLog(req, "update", "external_payment", id, `Changed payment status to ${status}`);
       }
-      
-      res.json(updatedLead);
       
       res.json(payment);
     } catch (error: any) {
@@ -26791,32 +24231,24 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!payment) {
         return res.status(404).json({ message: "Payment not found" });
       }
-      
-      res.json(updatedLead);
 
       // Get contract details to find tenant email
       const contract = await storage.getExternalRentalContract(payment.contractId);
       if (!contract) {
         return res.status(404).json({ message: "Contract not found for this payment" });
       }
-      
-      res.json(updatedLead);
 
       // Get agency details for sender info
       let agencyId = await getUserAgencyId(req);
       if (!agencyId) {
         return res.status(400).json({ message: "User is not assigned to any agency" });
       }
-      
-      res.json(updatedLead);
       const agency = await storage.getExternalAgency(agencyId);
 
       const tenantEmail = contract.tenantEmail;
       if (!tenantEmail) {
         return res.status(400).json({ message: "Tenant email not found in contract" });
       }
-      
-      res.json(updatedLead);
 
       // Prepare email content
       const dueDate = new Date(payment.dueDate).toLocaleDateString('es-MX', { 
@@ -26964,16 +24396,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (category && typeof category === 'string') {
         categoryConditions.push(sql`category = ${category.trim()}`);
       }
-      
-      res.json(updatedLead);
       if (excludeCategories && typeof excludeCategories === 'string') {
         const excludeList = excludeCategories.split(',').map((c: string) => c.trim()).filter((c: string) => c);
         if (excludeList.length > 0) {
           categoryConditions.push(sql`category NOT IN (${sql.join(excludeList.map((c: string) => sql`${c}`), sql`, `)})`);
         }
       }
-      
-      res.json(updatedLead);
       
       // Query tickets for this agency within the biweekly period using reference date
       // Reference date: for closed/resolved tickets use closed_at, otherwise use scheduled_date or created_at
@@ -27019,8 +24447,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
           WHERE ${whereClause}
         `);
       }
-      
-      res.json(updatedLead);
       
       const row = result.rows[0] as any;
       const actualCost = parseFloat(row.actual_cost_sum || '0');
@@ -27068,14 +24494,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.json(tickets);
       }
       
-      res.json(updatedLead);
-      
       if (assignedTo) {
         const tickets = await storage.getExternalMaintenanceTicketsByAssignee(assignedTo);
         return res.json(tickets);
       }
-      
-      res.json(updatedLead);
       
       // Get agency ID from authenticated user (admin/master can pass agencyId to view other agencies)
       let agencyId = req.query.agencyId;
@@ -27085,8 +24507,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
           return res.status(400).json({ message: "User is not assigned to any agency" });
         }
       }
-      
-      res.json(updatedLead);
       
       // Use paginated query when page/pageSize provided (from main page)
       const pageNum = parseInt(page as string) || 1;
@@ -27147,8 +24567,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!enrichedResult.rows || enrichedResult.rows.length === 0) {
         return res.status(404).json({ message: "Ticket not found" });
       }
-      
-      res.json(updatedLead);
       
       const row = enrichedResult.rows[0] as any;
       
@@ -27220,8 +24638,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (error.name === "ZodError") {
         return handleZodError(res, error);
       }
-      
-      res.json(updatedLead);
       handleGenericError(res, error);
     }
   });
@@ -27237,19 +24653,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
         userRole = dbUser?.role;
       }
       
-      res.json(updatedLead);
-      
       // Only admins and maintenance managers can modify tickets directly
       // Regular users should use POST /updates and POST /photos endpoints
       if (!storage.canModifyMaintenanceTicket(userRole)) {
         return res.status(403).json({ 
           message: "Only administrators and maintenance managers can modify tickets. Use the updates endpoint to add comments." 
+        });
       }
-      
-      res.json(updatedLead);
-      }
-      
-      res.json(updatedLead);
       
       // Verify ticket exists and belongs to user's agency
       const ticket = await storage.getExternalMaintenanceTicket(id);
@@ -27257,14 +24667,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ message: "Ticket not found" });
       }
       
-      res.json(updatedLead);
-      
       const unit = await storage.getExternalUnit(ticket.unitId);
       if (!unit) {
         return res.status(404).json({ message: "Unit not found" });
       }
-      
-      res.json(updatedLead);
       
       const hasAccess = await verifyExternalAgencyOwnership(req, res, unit.agencyId);
       if (!hasAccess) return;
@@ -27291,13 +24697,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
         userRole = dbUser?.role;
       }
       
-      res.json(updatedLead);
-      
       if (!status) {
         return res.status(400).json({ message: "Status is required" });
       }
-      
-      res.json(updatedLead);
       
       // Verify ticket exists and belongs to user's agency
       const ticket = await storage.getExternalMaintenanceTicket(id);
@@ -27305,14 +24707,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ message: "Ticket not found" });
       }
       
-      res.json(updatedLead);
-      
       const unit = await storage.getExternalUnit(ticket.unitId);
       if (!unit) {
         return res.status(404).json({ message: "Unit not found" });
       }
-      
-      res.json(updatedLead);
       
       const hasAccess = await verifyExternalAgencyOwnership(req, res, unit.agencyId);
       if (!hasAccess) return;
@@ -27321,20 +24719,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!storage.canModifyMaintenanceTicket(userRole)) {
         return res.status(403).json({ 
           message: "Only administrators and maintenance managers can modify ticket status" 
+        });
       }
-      
-      res.json(updatedLead);
-      }
-      
-      res.json(updatedLead);
       
       // Prepare update data
       const updateData: any = { status };
       if (resolvedDate) {
         updateData.resolvedDate = new Date(resolvedDate);
       }
-      
-      res.json(updatedLead);
       
       // If closing, add closure metadata
       if (status === 'closed') {
@@ -27344,8 +24736,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
           updateData.completionNotes = completionNotes;
         }
       }
-      
-      res.json(updatedLead);
       
       const updatedTicket = await storage.updateExternalMaintenanceTicket(id, updateData);
       
@@ -27376,7 +24766,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
             maintenanceTicketId: updatedTicket.id,
             description: `Gasto de mantenimiento: ${updatedTicket.title}`,
             notes: updatedTicket.completionNotes || undefined,
-        }
+          });
           
           console.log(`✅ Auto-created financial transaction for ticket ${updatedTicket.id} with cost ${updatedTicket.actualCost}`);
         } catch (finError) {
@@ -27384,8 +24774,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
           console.error('Failed to create financial transaction for ticket:', finError);
         }
       }
-      
-      res.json(updatedLead);
       
       await createAuditLog(req, "update", "external_ticket", id, `Changed ticket status to ${status}`);
       res.json(updatedTicket);
@@ -27416,23 +24804,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
         userRole = dbUser?.role;
       }
       
-      res.json(updatedLead);
-      
       // Verify ticket exists
       const ticket = await storage.getExternalMaintenanceTicket(id);
       if (!ticket) {
         return res.status(404).json({ message: "Ticket not found" });
       }
       
-      res.json(updatedLead);
-      
       // Get unit for agency verification
       const unit = await storage.getExternalUnit(ticket.unitId);
       if (!unit) {
         return res.status(404).json({ message: "Unit not found" });
       }
-      
-      res.json(updatedLead);
       
       const hasAccess = await verifyExternalAgencyOwnership(req, res, unit.agencyId);
       if (!hasAccess) return;
@@ -27441,12 +24823,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!storage.canModifyMaintenanceTicket(userRole)) {
         return res.status(403).json({ 
           message: "Only administrators and maintenance managers can close tickets" 
+        });
       }
-      
-      res.json(updatedLead);
-      }
-      
-      res.json(updatedLead);
       
       // Calculate administrative fee (15%)
       const chargeAmount = parseFloat(finalChargeAmount || '0');
@@ -27501,7 +24879,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
             maintenanceTicketId: updatedTicket.id,
             description: updatedTicket.title,
             notes: closureWorkNotes || completionNotes || undefined,
-        }
+          });
           
           transactionId = transaction.id;
           
@@ -27509,18 +24887,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
           await storage.updateExternalMaintenanceTicket(id, {
             accountingTransactionId: transaction.id,
             accountingSyncStatus: 'synced'
-        }
+          });
           
           console.log(`Created accounting transaction ${transaction.id} for ticket closure ${id} - Total: ${totalChargeAmount}`);
         } catch (finError) {
           console.error('Failed to create financial transaction for ticket closure:', finError);
           await storage.updateExternalMaintenanceTicket(id, {
             accountingSyncStatus: 'error'
-        }
+          });
         }
       }
-      
-      res.json(updatedLead);
       
       await createAuditLog(req, "update", "external_ticket", id, `Closed ticket with report - Charge: ${totalChargeAmount} MXN`);
       
@@ -27546,8 +24922,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!assignedTo) {
         return res.status(400).json({ message: "Assigned To user ID is required" });
       }
-      
-      res.json(updatedLead);
       
       const ticket = await storage.assignExternalTicket(id, assignedTo);
       
@@ -27583,8 +24957,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ message: "Ticket not found" });
       }
       
-      res.json(updatedLead);
-      
       // Verify agency ownership
       const hasAccess = await verifyExternalAgencyOwnership(req, res, ticket.agencyId);
       if (!hasAccess) return;
@@ -27608,8 +24980,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ message: "Ticket not found" });
       }
       
-      res.json(updatedLead);
-      
       // Verify agency ownership
       const hasAccess = await verifyExternalAgencyOwnership(req, res, ticket.agencyId);
       if (!hasAccess) return;
@@ -27632,8 +25002,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (error instanceof z.ZodError) {
         return res.status(400).json({ message: "Invalid data", errors: error.errors });
       }
-      
-      res.json(updatedLead);
       handleGenericError(res, error);
     }
   });
@@ -27649,8 +25017,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!ticket) {
         return res.status(404).json({ message: "Ticket not found" });
       }
-      
-      res.json(updatedLead);
       
       // Verify agency ownership
       const hasAccess = await verifyExternalAgencyOwnership(req, res, ticket.agencyId);
@@ -27679,8 +25045,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ message: "Ticket not found" });
       }
       
-      res.json(updatedLead);
-      
       // Verify agency ownership
       const hasAccess = await verifyExternalAgencyOwnership(req, res, ticket.agencyId);
       if (!hasAccess) return;
@@ -27700,8 +25064,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (error instanceof z.ZodError) {
         return res.status(400).json({ message: "Invalid data", errors: error.errors });
       }
-      
-      res.json(updatedLead);
       handleGenericError(res, error);
     }
   });
@@ -27716,15 +25078,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ message: "Photo not found" });
       }
       
-      res.json(updatedLead);
-      
       // Verify ticket ownership through photo
       const ticket = await storage.getExternalMaintenanceTicket(photo.ticketId);
       if (!ticket) {
         return res.status(404).json({ message: "Associated ticket not found" });
       }
-      
-      res.json(updatedLead);
       
       const hasAccess = await verifyExternalAgencyOwnership(req, res, ticket.agencyId);
       if (!hasAccess) return;
@@ -27745,8 +25103,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (error instanceof z.ZodError) {
         return res.status(400).json({ message: "Invalid data", errors: error.errors });
       }
-      
-      res.json(updatedLead);
       handleGenericError(res, error);
     }
   });
@@ -27777,8 +25133,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
         }
       }
       
-      res.json(updatedLead);
-      
       // Verify ownership
       const hasAccess = await verifyExternalAgencyOwnership(req, res, agencyId);
       if (!hasAccess) return;
@@ -27800,8 +25154,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!agencyId) {
         return res.status(400).json({ message: "User is not assigned to any agency" });
       }
-      
-      res.json(updatedLead);
 
       // Get today's date boundaries
       const today = new Date();
@@ -27934,7 +25286,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       handleGenericError(res, error);
     }
   });
-  // External Condominiums Routes
 
   // Seller Activity Reports - statistics on activities, showings, and conversions
   app.get("/api/external-dashboard/seller-reports", isAuthenticated, requireRole(['external_agency_seller', 'master', 'admin']), async (req: any, res) => {
@@ -27945,8 +25296,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!agencyId) {
         return res.status(400).json({ message: "User is not assigned to any agency" });
       }
-      
-      res.json(updatedLead);
 
       const { period = 'week' } = req.query;
       
@@ -27966,8 +25315,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
           startDate = new Date(today.getFullYear(), today.getMonth(), today.getDate() - 7);
           break;
       }
-      
-      res.json(updatedLead);
 
       const [
         activitiesByType,
@@ -27985,7 +25332,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           .where(and(
             eq(externalLeads.agencyId, agencyId),
             eq(externalLeads.sellerId, userId),
-            sql`\${externalLeadActivities.createdAt} >= \${startDate}`
+            sql`${externalLeadActivities.createdAt} >= ${startDate}`
           ))
           .groupBy(externalLeadActivities.type)
           .then(rows => {
@@ -28004,7 +25351,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           .where(and(
             eq(externalLeads.agencyId, agencyId),
             eq(externalLeads.sellerId, userId),
-            sql`\${externalLeadShowings.scheduledAt} >= \${startDate}`,
+            sql`${externalLeadShowings.scheduledAt} >= ${startDate}`,
             isNotNull(externalLeadShowings.outcome)
           ))
           .groupBy(externalLeadShowings.outcome)
@@ -28012,7 +25359,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
             const counts: Record<string, number> = {};
             rows.forEach(r => { 
               if (r.outcome) counts[r.outcome] = r.count || 0; 
-          }
+            });
             return counts;
           }),
         
@@ -28023,7 +25370,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           .where(and(
             eq(externalLeads.agencyId, agencyId),
             eq(externalLeads.sellerId, userId),
-            sql`\${externalLeadActivities.createdAt} >= \${startDate}`
+            sql`${externalLeadActivities.createdAt} >= ${startDate}`
           ))
           .then(r => r.length),
         
@@ -28034,7 +25381,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
             eq(externalLeads.agencyId, agencyId),
             eq(externalLeads.sellerId, userId),
             isNotNull(externalLeads.convertedToClientId),
-            sql`\${externalLeads.updatedAt} >= \${startDate}`
+            sql`${externalLeads.updatedAt} >= ${startDate}`
           ))
           .then(r => r[0]?.count || 0),
       ]);
@@ -28072,8 +25419,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!agencyId) {
         return res.status(400).json({ message: "User is not assigned to any agency" });
       }
-      
-      res.json(updatedLead);
 
       // For now, return a placeholder structure since goals table may not exist
       const today = new Date();
@@ -28087,7 +25432,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           .where(and(
             eq(externalLeads.agencyId, agencyId),
             eq(externalLeads.sellerId, userId),
-            sql`\${externalLeads.createdAt} >= \${startOfMonth}`
+            sql`${externalLeads.createdAt} >= ${startOfMonth}`
           ))
           .then(r => r[0]?.count || 0),
         
@@ -28097,7 +25442,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
             eq(externalLeads.agencyId, agencyId),
             eq(externalLeads.sellerId, userId),
             isNotNull(externalLeads.convertedToClientId),
-            sql`\${externalLeads.updatedAt} >= \${startOfMonth}`
+            sql`${externalLeads.updatedAt} >= ${startOfMonth}`
           ))
           .then(r => r[0]?.count || 0),
         
@@ -28107,7 +25452,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           .where(and(
             eq(externalLeads.agencyId, agencyId),
             eq(externalLeads.sellerId, userId),
-            sql`\${externalLeadShowings.scheduledAt} >= \${startOfMonth}`
+            sql`${externalLeadShowings.scheduledAt} >= ${startOfMonth}`
           ))
           .then(r => r[0]?.count || 0),
       ]);
@@ -28162,6 +25507,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       handleGenericError(res, error);
     }
   });
+
+  // External Condominiums Routes
   app.get("/api/external-condominiums", isAuthenticated, requireRole(EXTERNAL_ALL_ROLES), async (req: any, res) => {
     try {
       const { isActive, search, zone, sortField, sortOrder, limit, offset } = req.query;
@@ -28174,8 +25521,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
           return res.status(400).json({ message: "User is not assigned to any agency" });
         }
       }
-      
-      res.json(updatedLead);
       
       // Verify ownership
       const hasAccess = await verifyExternalAgencyOwnership(req, res, agencyId);
@@ -28230,8 +25575,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ message: "Condominium not found" });
       }
       
-      res.json(updatedLead);
-      
       // Verify ownership
       const hasAccess = await verifyExternalAgencyOwnership(req, res, condominium.agencyId);
       if (!hasAccess) return; // Response already sent by helper
@@ -28252,8 +25595,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!condominium) {
         return res.status(404).json({ message: "Condominium not found" });
       }
-      
-      res.json(updatedLead);
       
       // Verify ownership
       const hasAccess = await verifyExternalAgencyOwnership(req, res, condominium.agencyId);
@@ -28277,8 +25618,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ message: "User is not assigned to any agency" });
       }
       
-      res.json(updatedLead);
-      
       const validatedData = insertExternalCondominiumSchema.parse(req.body);
       const condominium = await storage.createExternalCondominium({
         ...validatedData,
@@ -28293,8 +25632,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (error.name === "ZodError") {
         return handleZodError(res, error);
       }
-      
-      res.json(updatedLead);
       handleGenericError(res, error);
     }
   });
@@ -28307,8 +25644,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!agencyId) {
         return res.status(400).json({ message: "User is not assigned to any agency" });
       }
-      
-      res.json(updatedLead);
       
       const validatedData = createCondominiumWithUnitsSchema.parse(req.body);
       
@@ -28334,8 +25669,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (error.name === "ZodError") {
         return handleZodError(res, error);
       }
-      
-      res.json(updatedLead);
       handleGenericError(res, error);
     }
   });
@@ -28350,8 +25683,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!agencyId) {
         return res.status(400).json({ message: "User is not assigned to any agency" });
       }
-      
-      res.json(updatedLead);
       
       const validatedData = addUnitsToCondominiumSchema.parse(req.body);
       
@@ -28377,13 +25708,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (error.name === "ZodError") {
         return handleZodError(res, error);
       }
-      
-      res.json(updatedLead);
       if (error.message.includes("not found")) {
         return res.status(404).json({ message: error.message });
       }
-      
-      res.json(updatedLead);
       handleGenericError(res, error);
     }
   });
@@ -28397,8 +25724,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!existing) {
         return res.status(404).json({ message: "Condominium not found" });
       }
-      
-      res.json(updatedLead);
       
       // Verify ownership
       const hasAccess = await verifyExternalAgencyOwnership(req, res, existing.agencyId);
@@ -28421,8 +25746,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (error.name === "ZodError") {
         return handleZodError(res, error);
       }
-      
-      res.json(updatedLead);
       handleGenericError(res, error);
     }
   });
@@ -28436,8 +25759,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ message: "Condominium not found" });
       }
       
-      res.json(updatedLead);
-      
       // Verify ownership
       const hasAccess = await verifyExternalAgencyOwnership(req, res, existing.agencyId);
       if (!hasAccess) return; // Response already sent by helper
@@ -28447,12 +25768,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (units && units.length > 0) {
         return res.status(400).json({ 
           message: `Cannot delete condominium with ${units.length} registered units. Please delete all units first.`
+        });
       }
-      
-      res.json(updatedLead);
-      }
-      
-      res.json(updatedLead);
       
       await storage.deleteExternalCondominium(id);
       
@@ -28477,8 +25794,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
           return res.status(400).json({ message: "User is not assigned to any agency" });
         }
       }
-      
-      res.json(updatedLead);
       
       // Verify ownership
       const hasAccess = await verifyExternalAgencyOwnership(req, res, agencyId);
@@ -28550,15 +25865,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!uuidRegex.test(condominiumId)) {
         return res.json([]);
       }
-      
-      res.json(updatedLead);
       // Verify condominium exists and get its agency
       const condominium = await storage.getExternalCondominium(condominiumId);
       if (!condominium) {
         return res.status(404).json({ message: "Condominium not found" });
       }
-      
-      res.json(updatedLead);
       
       // Verify ownership
       const hasAccess = await verifyExternalAgencyOwnership(req, res, condominium.agencyId);
@@ -28583,30 +25894,22 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(403).json({ message: "No agency access" });
       }
       
-      res.json(updatedLead);
-      
       // Query 1: Get unit
       const unit = await storage.getExternalUnit(id);
       if (!unit) {
         return res.status(404).json({ message: "Unit not found" });
       }
       
-      res.json(updatedLead);
-      
       // Verify ownership via fail-closed pattern
       if (unit.agencyId !== agencyId) {
         return res.status(403).json({ message: "Access denied" });
       }
-      
-      res.json(updatedLead);
       
       // Query 2: Get condominium (if assigned)
       let condominium = null;
       if (unit.condominiumId) {
         condominium = await storage.getExternalCondominium(unit.condominiumId);
       }
-      
-      res.json(updatedLead);
       
       // Query 3: Get rental contracts history (all statuses)
       const rentalContracts = await db.select()
@@ -28696,8 +25999,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ message: "Unit not found" });
       }
       
-      res.json(updatedLead);
-      
       // Verify ownership
       const hasAccess = await verifyExternalAgencyOwnership(req, res, unit.agencyId);
       if (!hasAccess) return;
@@ -28719,8 +26020,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ message: "Condominium not found" });
       }
       
-      res.json(updatedLead);
-      
       // Verify user has access to this agency
       const hasAccess = await verifyExternalAgencyOwnership(req, res, condominium.agencyId);
       if (!hasAccess) return;
@@ -28738,8 +26037,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (error.name === "ZodError") {
         return handleZodError(res, error);
       }
-      
-      res.json(updatedLead);
       handleGenericError(res, error);
     }
   });
@@ -28753,8 +26050,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!existing) {
         return res.status(404).json({ message: "Unit not found" });
       }
-      
-      res.json(updatedLead);
       
       // Verify ownership
       const hasAccess = await verifyExternalAgencyOwnership(req, res, existing.agencyId);
@@ -28792,14 +26087,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
               agencyId: existing.agencyId,
               requestedBy: userId,
               status: 'pending',
-          }
+            });
           
           // Set the publishStatus to pending
           updateData.publishStatus = 'pending';
         }
       }
-      
-      res.json(updatedLead);
       
       const unit = await storage.updateExternalUnit(id, updateData);
       
@@ -28810,8 +26103,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (error.name === "ZodError") {
         return handleZodError(res, error);
       }
-      
-      res.json(updatedLead);
       handleGenericError(res, error);
     }
   });
@@ -28824,8 +26115,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!existing) {
         return res.status(404).json({ message: "Unit not found" });
       }
-      
-      res.json(updatedLead);
       
       // Verify ownership
       const hasAccess = await verifyExternalAgencyOwnership(req, res, existing.agencyId);
@@ -28850,14 +26139,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!spreadsheetId) {
         return res.status(400).json({ message: "Se requiere el ID de la hoja de cálculo (spreadsheetId)" });
       }
-      
-      res.json(updatedLead);
 
       if (!condominiumId) {
         return res.status(400).json({ message: "Se requiere seleccionar un condominio" });
       }
-      
-      res.json(updatedLead);
 
       // Verify ownership
       const hasAccess = await verifyExternalAgencyOwnership(req, res, agencyId);
@@ -28868,8 +26153,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!condominium || condominium.agencyId !== agencyId) {
         return res.status(400).json({ message: "El condominio no pertenece a esta agencia" });
       }
-      
-      res.json(updatedLead);
 
       // Read data from Google Sheets
       const range = sheetRange || 'Sheet1!A2:M';
@@ -28878,8 +26161,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (rows.length === 0) {
         return res.status(400).json({ message: "No se encontraron datos en la hoja de cálculo" });
       }
-      
-      res.json(updatedLead);
 
       const results = {
         imported: 0,
@@ -28920,15 +26201,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
             notes: row.notes || undefined,
             isActive: true,
             createdBy: req.user.id,
-        }
+          });
 
           results.imported++;
         } catch (err: any) {
           results.errors.push(`Error en fila ${row.unitNumber}: ${err.message}`);
         }
       }
-      
-      res.json(updatedLead);
 
       await createAuditLog(req, "import", "external_units", agencyId, `Imported ${results.imported} units from Google Sheets`);
 
@@ -28941,8 +26220,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (error.message?.includes('Google Sheet not connected')) {
         return res.status(400).json({ message: "Google Sheets no está conectado. Por favor, configura la conexión primero." });
       }
-      
-      res.json(updatedLead);
       handleGenericError(res, error);
     }
   });
@@ -28956,8 +26233,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!spreadsheetId) {
         return res.status(400).json({ message: "Se requiere el ID de la hoja de cálculo" });
       }
-      
-      res.json(updatedLead);
 
       // Verify ownership
       const hasAccess = await verifyExternalAgencyOwnership(req, res, agencyId);
@@ -28970,8 +26245,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (error.message?.includes('Google Sheet not connected')) {
         return res.status(400).json({ message: "Google Sheets no está conectado. Por favor, configura la conexión primero." });
       }
-      
-      res.json(updatedLead);
       handleGenericError(res, error);
     }
   });
@@ -28985,8 +26258,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!spreadsheetId) {
         return res.status(400).json({ message: "Se requiere el ID de la hoja de cálculo" });
       }
-      
-      res.json(updatedLead);
 
       // Verify ownership
       const hasAccess = await verifyExternalAgencyOwnership(req, res, agencyId);
@@ -29005,8 +26276,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (error.message?.includes('Google Sheet not connected')) {
         return res.status(400).json({ message: "Google Sheets no está conectado. Por favor, configura la conexión primero." });
       }
-      
-      res.json(updatedLead);
       handleGenericError(res, error);
     }
   });
@@ -29021,8 +26290,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!existing) {
         return res.status(404).json({ message: "Unit not found" });
       }
-      
-      res.json(updatedLead);
       
       // Verify ownership
       const hasAccess = await verifyExternalAgencyOwnership(req, res, existing.agencyId);
@@ -29065,8 +26332,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       } else {
         cb(new Error(`Formato no soportado: ${file.mimetype}. Formatos válidos: JPEG, PNG, WebP, HEIC, AVIF, GIF, TIFF, BMP`));
       }
-      
-      res.json(updatedLead);
     }
   });
 
@@ -29081,8 +26346,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!existing) {
         return res.status(404).json({ message: "Unit not found" });
       }
-      
-      res.json(updatedLead);
 
       const hasAccess = await verifyExternalAgencyOwnership(req, res, existing.agencyId);
       if (!hasAccess) return;
@@ -29091,8 +26354,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!files || files.length === 0) {
         return res.status(400).json({ message: "No images provided" });
       }
-      
-      res.json(updatedLead);
 
       const uploadedImages: Array<{ objectPath: string; publicUrl: string; width: number; height: number }> = [];
       const errors: string[] = [];
@@ -29104,7 +26365,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
             maxDimension: 2000,
             quality: 85,
             outputFormat: 'webp',
-        }
+          });
 
           // Upload to object storage
           const result = await imageProcessor.uploadToStorage(
@@ -29117,7 +26378,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
             publicUrl: result.publicUrl,
             width: result.width,
             height: result.height,
-        }
+          });
 
           console.log(`Image uploaded: ${file.originalname} -> ${result.objectPath} (original: ${result.originalSize}, processed: ${result.processedSize})`);
         } catch (error: any) {
@@ -29125,19 +26386,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
           errors.push(`${file.originalname}: ${error.message}`);
         }
       }
-      
-      res.json(updatedLead);
 
       if (uploadedImages.length === 0) {
         return res.status(400).json({ 
           message: "Failed to process all images",
           errors 
+        });
       }
-      
-      res.json(updatedLead);
-      }
-      
-      res.json(updatedLead);
 
       // Update unit with new images
       const currentPrimary = existing.primaryImages || [];
@@ -29151,8 +26406,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       } else {
         updateData = { secondaryImages: [...currentSecondary, ...newImageUrls] };
       }
-      
-      res.json(updatedLead);
 
       await storage.updateExternalUnit(id, updateData);
 
@@ -29177,16 +26430,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!imageUrl) {
         return res.status(400).json({ message: "Image URL is required" });
       }
-      
-      res.json(updatedLead);
 
       // Verify unit exists and user has access
       const existing = await storage.getExternalUnit(id);
       if (!existing) {
         return res.status(404).json({ message: "Unit not found" });
       }
-      
-      res.json(updatedLead);
 
       const hasAccess = await verifyExternalAgencyOwnership(req, res, existing.agencyId);
       if (!hasAccess) return;
@@ -29200,8 +26449,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
         const filteredImages = (existing.secondaryImages || []).filter(url => url !== imageUrl);
         updateData = { secondaryImages: filteredImages };
       }
-      
-      res.json(updatedLead);
 
       await storage.updateExternalUnit(id, updateData);
 
@@ -29221,16 +26468,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!videoUrls || !Array.isArray(videoUrls)) {
         return res.status(400).json({ message: "Video URLs array is required" });
       }
-      
-      res.json(updatedLead);
 
       // Verify unit exists and user has access
       const existing = await storage.getExternalUnit(id);
       if (!existing) {
         return res.status(404).json({ message: "Unit not found" });
       }
-      
-      res.json(updatedLead);
 
       const hasAccess = await verifyExternalAgencyOwnership(req, res, existing.agencyId);
       if (!hasAccess) return;
@@ -29259,8 +26502,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ message: "Unit not found" });
       }
       
-      res.json(updatedLead);
-      
       // Verify ownership
       const hasAccess = await verifyExternalAgencyOwnership(req, res, unit.agencyId);
       if (!hasAccess) return;
@@ -29274,8 +26515,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!activeContract) {
         return res.json([]);
       }
-      
-      res.json(updatedLead);
       
       // Get payment schedules for the active contract
       const schedules = await storage.getExternalPaymentSchedulesByContract(activeContract.id);
@@ -29294,8 +26533,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!agencyId) {
         return res.status(400).json({ message: "No agency assigned to user" });
       }
-      
-      res.json(updatedLead);
 
       // Optimized: Single query to get all owners with their units for the agency
       const owners = await db.select({
@@ -29342,8 +26579,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!agencyId) {
         return res.status(403).json({ message: "User is not assigned to any agency" });
       }
-      
-      res.json(updatedLead);
 
       const { limit = "100", offset = "0", search, minUnits, condominiumId, isActive } = req.query;
       const limitNum = Math.min(parseInt(limit as string, 10) || 100, 500);
@@ -29385,8 +26620,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (ownersWithUnits.length === 0) {
         return res.json({ data: [], total: 0, page: Math.floor(offsetNum / limitNum) + 1, pageSize: limitNum });
       }
-      
-      res.json(updatedLead);
 
       // Get contracts using raw SQL
       const contractsResult = await db.execute(sql`
@@ -29416,12 +26649,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
             payeeRole: tx.payeeRole,
             payerRole: tx.payerRole,
             totalAmount: 0,
-        }
+          });
         }
         summaryMap.get(key)!.totalAmount += parseFloat(tx.grossAmount || '0');
       }
-      
-      res.json(updatedLead);
       const financialSummary = Array.from(summaryMap.values()).map(s => ({
         ...s,
         totalAmount: s.totalAmount.toFixed(2),
@@ -29469,7 +26700,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
                 totalOccupiedDays += Math.ceil((contractEnd.getTime() - contractStart.getTime()) / (1000 * 60 * 60 * 24));
               }
             }
-        }
+          });
 
           const unitFinancials = financialSummary.filter(fs => fs.unitId === oi.unitId);
           unitFinancials.forEach(uf => {
@@ -29478,10 +26709,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
             } else if (uf.direction === "expense" && uf.payerRole === "owner") {
               totalExpenses += parseFloat(uf.totalAmount);
             }
-        }
-      }
-      
-      res.json(updatedLead);
+          });
+        });
 
         const occupancyRate = ownerInstances.length > 0 && totalYearDays > 0
           ? (totalOccupiedDays / (ownerInstances.length * totalYearDays)) * 100
@@ -29515,9 +26744,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
           typologies: Array.from(typologies),
           condominiums: Array.from(condominiumNames),
           unitNumbers,
-      }
-      
-      res.json(updatedLead);
+        });
+      });
 
       let filteredPortfolios = portfolios;
 
@@ -29529,8 +26757,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
           p.owner.ownerPhone?.includes(search as string)
         );
       }
-      
-      res.json(updatedLead);
 
       if (minUnits) {
         const minUnitsNum = parseInt(minUnits as string, 10);
@@ -29538,23 +26764,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
           filteredPortfolios = filteredPortfolios.filter(p => p.units.length >= minUnitsNum);
         }
       }
-      
-      res.json(updatedLead);
 
       if (condominiumId) {
         filteredPortfolios = filteredPortfolios.filter(p =>
           p.units.some((u: any) => u.condominiumId === condominiumId)
         );
       }
-      
-      res.json(updatedLead);
 
       if (isActive !== undefined) {
         const activeFilter = isActive === 'true';
         filteredPortfolios = filteredPortfolios.filter(p => p.owner.isActive === activeFilter);
       }
-      
-      res.json(updatedLead);
 
       const paginatedPortfolios = filteredPortfolios.slice(offsetNum, offsetNum + limitNum);
 
@@ -29582,8 +26802,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ message: "Unit not found" });
       }
       
-      res.json(updatedLead);
-      
       // Verify ownership
       const hasAccess = await verifyExternalAgencyOwnership(req, res, unit.agencyId);
       if (!hasAccess) return;
@@ -29606,8 +26824,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!unit) {
         return res.status(404).json({ message: "Unit not found" });
       }
-      
-      res.json(updatedLead);
       
       // Verify ownership
       const hasAccess = await verifyExternalAgencyOwnership(req, res, unit.agencyId);
@@ -29633,15 +26849,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ message: "Unit owner not found" });
       }
       
-      res.json(updatedLead);
-      
       // Verify unit ownership through unit
       const unit = await storage.getExternalUnit(owner.unitId);
       if (!unit) {
         return res.status(404).json({ message: "Associated unit not found" });
       }
-      
-      res.json(updatedLead);
       
       // Verify ownership
       const hasAccess = await verifyExternalAgencyOwnership(req, res, unit.agencyId);
@@ -29669,8 +26881,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (error.name === "ZodError") {
         return handleZodError(res, error);
       }
-      
-      res.json(updatedLead);
       handleGenericError(res, error);
     }
   });
@@ -29685,15 +26895,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ message: "Unit owner not found" });
       }
       
-      res.json(updatedLead);
-      
       // Verify unit ownership through unit
       const unit = await storage.getExternalUnit(existing.unitId);
       if (!unit) {
         return res.status(404).json({ message: "Associated unit not found" });
       }
-      
-      res.json(updatedLead);
       
       // Verify ownership
       const hasAccess = await verifyExternalAgencyOwnership(req, res, unit.agencyId);
@@ -29716,8 +26922,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (error.name === "ZodError") {
         return handleZodError(res, error);
       }
-      
-      res.json(updatedLead);
       handleGenericError(res, error);
     }
   });
@@ -29731,8 +26935,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!unit) {
         return res.status(404).json({ message: "Unit not found" });
       }
-      
-      res.json(updatedLead);
       
       // Verify ownership
       const hasAccess = await verifyExternalAgencyOwnership(req, res, unit.agencyId);
@@ -29757,15 +26959,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ message: "Unit owner not found" });
       }
       
-      res.json(updatedLead);
-      
       // Verify unit ownership through unit
       const unit = await storage.getExternalUnit(existing.unitId);
       if (!unit) {
         return res.status(404).json({ message: "Associated unit not found" });
       }
-      
-      res.json(updatedLead);
       
       // Verify ownership
       const hasAccess = await verifyExternalAgencyOwnership(req, res, unit.agencyId);
@@ -29792,8 +26990,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!unit) {
         return res.status(404).json({ message: "Unit not found" });
       }
-      
-      res.json(updatedLead);
       
       // Verify ownership
       const hasAccess = await verifyExternalAgencyOwnership(req, res, unit.agencyId);
@@ -29834,15 +27030,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ message: "Access control not found" });
       }
       
-      res.json(updatedLead);
-      
       // Verify unit ownership through unit
       const unit = await storage.getExternalUnit(control.unitId);
       if (!unit) {
         return res.status(404).json({ message: "Associated unit not found" });
       }
-      
-      res.json(updatedLead);
       
       // Verify ownership
       const hasAccess = await verifyExternalAgencyOwnership(req, res, unit.agencyId);
@@ -29858,8 +27050,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
           controlResponse.accessCode = '';
         }
       }
-      
-      res.json(updatedLead);
       
       res.json(controlResponse);
     } catch (error: any) {
@@ -29879,8 +27069,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ message: "Unit not found" });
       }
       
-      res.json(updatedLead);
-      
       const hasAccess = await verifyExternalAgencyOwnership(req, res, unit.agencyId);
       if (!hasAccess) return;
       // Encrypt sensitive data before storing
@@ -29892,8 +27080,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (dataToStore.accessCode) {
         dataToStore.accessCode = encrypt(dataToStore.accessCode);
       }
-      
-      res.json(updatedLead);
       
       const control = await storage.createExternalUnitAccessControl(dataToStore);
       
@@ -29908,8 +27094,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
         }
       }
       
-      res.json(updatedLead);
-      
       await createAuditLog(req, "create", "external_unit_access_control", control.id, "Created external unit access control", {
         ipAddress: req.ip,
         userAgent: req.headers['user-agent']
@@ -29920,8 +27104,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (error.name === "ZodError") {
         return handleZodError(res, error);
       }
-      
-      res.json(updatedLead);
       handleGenericError(res, error);
     }
   });
@@ -29936,15 +27118,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ message: "Access control not found" });
       }
       
-      res.json(updatedLead);
-      
       // Verify unit ownership through unit
       const unit = await storage.getExternalUnit(existing.unitId);
       if (!unit) {
         return res.status(404).json({ message: "Associated unit not found" });
       }
-      
-      res.json(updatedLead);
       
       // Verify ownership
       const hasAccess = await verifyExternalAgencyOwnership(req, res, unit.agencyId);
@@ -29963,8 +27141,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
         updateData.accessCode = encrypt(updateData.accessCode);
       }
       
-      res.json(updatedLead);
-      
       const control = await storage.updateExternalUnitAccessControl(id, updateData);
       
       // Decrypt for response
@@ -29978,8 +27154,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
         }
       }
       
-      res.json(updatedLead);
-      
       await createAuditLog(req, "update", "external_unit_access_control", id, "Updated external unit access control", {
         ipAddress: req.ip,
         userAgent: req.headers['user-agent']
@@ -29990,8 +27164,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (error.name === "ZodError") {
         return handleZodError(res, error);
       }
-      
-      res.json(updatedLead);
       handleGenericError(res, error);
     }
   });
@@ -30005,15 +27177,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ message: "Access control not found" });
       }
       
-      res.json(updatedLead);
-      
       // Verify unit ownership through unit
       const unit = await storage.getExternalUnit(existing.unitId);
       if (!unit) {
         return res.status(404).json({ message: "Associated unit not found" });
       }
-      
-      res.json(updatedLead);
       
       // Verify ownership
       const hasAccess = await verifyExternalAgencyOwnership(req, res, unit.agencyId);
@@ -30041,8 +27209,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ message: "Contract not found" });
       }
       
-      res.json(updatedLead);
-      
       const hasAccess = await verifyExternalAgencyOwnership(req, res, contract.agencyId);
       if (!hasAccess) return;
       
@@ -30064,8 +27230,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ message: "Checkout report not found" });
       }
       
-      res.json(updatedLead);
-      
       const hasAccess = await verifyExternalAgencyOwnership(req, res, report.agencyId);
       if (!hasAccess) return;
       
@@ -30083,8 +27247,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!agencyId) {
         return res.status(403).json({ message: "No agency access" });
       }
-      
-      res.json(updatedLead);
       
       const { status } = req.query;
       const reports = await storage.getExternalCheckoutReportsByAgency(agencyId, {
@@ -30106,29 +27268,21 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(403).json({ message: "No agency access" });
       }
       
-      res.json(updatedLead);
-      
       // Verify contract exists and belongs to agency
       const contract = await storage.getExternalRentalContract(req.body.contractId);
       if (!contract) {
         return res.status(404).json({ message: "Contract not found" });
       }
       
-      res.json(updatedLead);
-      
       if (contract.agencyId !== agencyId) {
         return res.status(403).json({ message: "Access denied" });
       }
-      
-      res.json(updatedLead);
       
       // Check if checkout report already exists for this contract
       const existing = await storage.getExternalCheckoutReportByContract(req.body.contractId);
       if (existing) {
         return res.status(400).json({ message: "Checkout report already exists for this contract" });
       }
-      
-      res.json(updatedLead);
       
       const report = await storage.createExternalCheckoutReport({
         ...req.body,
@@ -30154,8 +27308,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ message: "Checkout report not found" });
       }
       
-      res.json(updatedLead);
-      
       const hasAccess = await verifyExternalAgencyOwnership(req, res, existing.agencyId);
       if (!hasAccess) return;
       
@@ -30179,8 +27331,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ message: "Checkout report not found" });
       }
       
-      res.json(updatedLead);
-      
       const hasAccess = await verifyExternalAgencyOwnership(req, res, existing.agencyId);
       if (!hasAccess) return;
       
@@ -30203,8 +27353,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!existing) {
         return res.status(404).json({ message: "Checkout report not found" });
       }
-      
-      res.json(updatedLead);
       
       const hasAccess = await verifyExternalAgencyOwnership(req, res, existing.agencyId);
       if (!hasAccess) return;
@@ -30230,8 +27378,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!agencyId) {
         return res.status(403).json({ message: "No agency access" });
       }
-      
-      res.json(updatedLead);
       
       const { status, isVerified, search, sortField, sortOrder, limit = '50', offset = '0' } = req.query;
       
@@ -30284,8 +27430,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ message: "Client not found" });
       }
       
-      res.json(updatedLead);
-      
       const hasAccess = await verifyExternalAgencyOwnership(req, res, client.agencyId);
       if (!hasAccess) return;
       
@@ -30303,8 +27447,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!agencyId) {
         return res.status(403).json({ message: "No agency access" });
       }
-      
-      res.json(updatedLead);
       
       const validatedData = insertExternalClientSchema.parse(req.body);
       
@@ -30327,12 +27469,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
             phone: duplicate.phone,
             email: duplicate.email,
           }
+        });
       }
-      
-      res.json(updatedLead);
-      }
-      
-      res.json(updatedLead);
       
       const client = await storage.createExternalClient({
         ...validatedData,
@@ -30358,8 +27496,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ message: "Client not found" });
       }
       
-      res.json(updatedLead);
-      
       const hasAccess = await verifyExternalAgencyOwnership(req, res, existing.agencyId);
       if (!hasAccess) return;
       
@@ -30384,8 +27520,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ message: "Client not found" });
       }
       
-      res.json(updatedLead);
-      
       const hasAccess = await verifyExternalAgencyOwnership(req, res, existing.agencyId);
       if (!hasAccess) return;
       
@@ -30409,29 +27543,21 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!agencyId) {
         return res.status(403).json({ message: "User is not assigned to any agency" });
       }
-      
-      res.json(updatedLead);
 
       const client = await storage.getExternalClient(id);
       if (!client) {
         return res.status(404).json({ message: "Client not found" });
       }
-      
-      res.json(updatedLead);
 
       // Verify agency ownership
       if (client.agencyId !== agencyId) {
         return res.status(403).json({ message: "No access to this client" });
       }
-      
-      res.json(updatedLead);
 
       // Check if already converted
       if (client.convertedBackToLeadId) {
         return res.status(400).json({ message: "Este cliente ya fue reconvertido a lead" });
       }
-      
-      res.json(updatedLead);
 
       // Get agency name for seller assignment
       const agencyResult = await db.select({
@@ -30492,8 +27618,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(403).json({ message: "No agency access" });
       }
       
-      res.json(updatedLead);
-      
       // Get agency info to include as first seller option
       const agency = await db.select({
         id: externalAgencies.id,
@@ -30547,8 +27671,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(403).json({ message: "No agency access" });
       }
       
-      res.json(updatedLead);
-      
       const { status, registrationType, sellerId, expiringDays, search, sortField, sortOrder, limit = '50', offset = '0' } = req.query;
       
       const limitNum = Math.max(1, Math.min(parseInt(limit as string, 10) || 50, 1000));
@@ -30600,8 +27722,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ message: "Lead not found" });
       }
       
-      res.json(updatedLead);
-      
       const hasAccess = await verifyExternalAgencyOwnership(req, res, lead.agencyId);
       if (!hasAccess) return;
       
@@ -30623,13 +27743,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
         agencyId = req.body.agencyId;
       }
       
-      res.json(updatedLead);
-      
       if (!agencyId) {
         return res.status(403).json({ message: "No agency access. Master/Admin users must specify agencyId." });
       }
-      
-      res.json(updatedLead);
       
       // Transform checkInDate from ISO string to Date before validation
       const requestData = {
@@ -30651,8 +27767,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
         }
         delete requestData.sellerId; // Clear invalid sellerId
       }
-      
-      res.json(updatedLead);
       
       const validatedData = insertExternalLeadSchema.parse(requestData);
       
@@ -30703,12 +27817,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
             daysRemaining,
             timeRemainingText,
           }
+        });
       }
-      
-      res.json(updatedLead);
-      }
-      
-      res.json(updatedLead);
       
       const lead = await storage.createExternalLead({
         ...validatedData,
@@ -30723,8 +27833,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       } catch (cardError) {
         console.error("Error creating initial presentation card:", cardError);
       }
-      
-      res.json(updatedLead);
       
       await createAuditLog(req, "create", "external_lead", lead.id, "Created new lead");
       res.status(201).json(lead);
@@ -30744,8 +27852,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ message: "Lead not found" });
       }
       
-      res.json(updatedLead);
-      
       const hasAccess = await verifyExternalAgencyOwnership(req, res, existing.agencyId);
       if (!hasAccess) return;
       
@@ -30754,13 +27860,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (bodyWithDates.checkInDate && typeof bodyWithDates.checkInDate === 'string') {
         bodyWithDates.checkInDate = new Date(bodyWithDates.checkInDate);
       }
-      
-      res.json(updatedLead);
       if (bodyWithDates.checkOutDate && typeof bodyWithDates.checkOutDate === 'string') {
         bodyWithDates.checkOutDate = new Date(bodyWithDates.checkOutDate);
       }
-      
-      res.json(updatedLead);
       
       const validatedData = updateExternalLeadSchema.parse(bodyWithDates);
       // Track status change for history
@@ -30777,9 +27879,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           fromStatus: oldStatus,
           toStatus: newStatus,
           changedBy: req.user.id,
-      }
-      
-      res.json(updatedLead);
+        });
         
         // Create activity entry for the status change
         await storage.createExternalLeadActivity({
@@ -30788,12 +27888,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
           activityType: "status_change",
           title: `Cambio de estado: ${oldStatus} → ${newStatus}`,
           createdBy: req.user.id,
+        });
       }
-      
-      res.json(updatedLead);
-      }
-      
-      res.json(updatedLead);
       
       await createAuditLog(req, "update", "external_lead", id, "Updated lead");
       res.json(lead);
@@ -30811,8 +27907,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!agencyId) {
         return res.status(403).json({ message: "No agency assigned" });
       }
-      
-      res.json(updatedLead);
 
       // Get all leads for this agency
       const leads = await storage.getExternalLeadsByAgency(agencyId, {});
@@ -30839,8 +27933,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
           errors.push(`Lead ${lead.id}: ${cardError.message}`);
         }
       }
-      
-      res.json(updatedLead);
 
       await createAuditLog(req, "update", "external_presentation_card", "backfill", `Backfilled ${created} initial cards, skipped ${skipped}, errors ${errors.length}`);
 
@@ -30867,15 +27959,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(403).json({ message: "No agency access" });
       }
       
-      res.json(updatedLead);
-      
       // Verify lead belongs to this agency
       const existingLead = await storage.getExternalLead(id);
       if (!existingLead || existingLead.agencyId !== agencyId) {
         return res.status(404).json({ message: "Lead not found" });
       }
-      
-      res.json(updatedLead);
       
       // Determine if reassigning to agency or to a seller
       let updateData: any = {};
@@ -30902,8 +27990,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ message: "New seller ID is required" });
       }
       
-      res.json(updatedLead);
-      
       const updatedLead = await storage.updateExternalLead(id, updateData);
       
       // Log the reassignment
@@ -30925,10 +28011,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
           message: `Se te ha asignado un nuevo lead: ${existingLead.firstName} ${existingLead.lastName}`,
           recipientUserId: newSellerId,
           isRead: false,
+        });
       }
       
       res.json(updatedLead);
-      
     } catch (error: any) {
       console.error("Error reassigning lead:", error);
       handleGenericError(res, error);
@@ -30944,8 +28030,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!existing) {
         return res.status(404).json({ message: "Lead not found" });
       }
-      
-      res.json(updatedLead);
       
       const hasAccess = await verifyExternalAgencyOwnership(req, res, existing.agencyId);
       if (!hasAccess) return;
@@ -30969,23 +28053,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!userId) {
         return res.status(401).json({ message: "Unauthorized: User ID not found" });
       }
-      
-      res.json(updatedLead);
 
       const agencyId = await getUserAgencyId(req);
       if (!agencyId) {
         return res.status(403).json({ message: "User not associated with any agency" });
       }
-      
-      res.json(updatedLead);
 
       const { leads: importData, registrationType = 'seller' } = req.body;
       
       if (!Array.isArray(importData) || importData.length === 0) {
         return res.status(400).json({ message: "No leads to import" });
       }
-      
-      res.json(updatedLead);
 
       // Map status from Excel to system status
       const statusMap: Record<string, string> = {
@@ -31080,7 +28158,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
               .normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9]/g, '');
             const existingPhoneLast4 = (lead.phone || lead.phoneLast4 || '').slice(-4);
             return existingNormalizedName === normalizedName && existingPhoneLast4 === phoneLast4;
-        }
+          });
 
           if (isDuplicate) {
             results.duplicates++;
@@ -31128,11 +28206,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
             row: i + 1,
             name: row.nombre || row.name || 'Unknown',
             error: rowError.message || 'Unknown error',
-        }
+          });
         }
       }
-      
-      res.json(updatedLead);
 
       await createAuditLog(req, "create", "external_lead_import", null, 
         `Imported ${results.imported} leads (${results.duplicates} duplicates skipped, ${results.errors.length} errors)`);
@@ -31161,23 +28237,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(401).json({ message: "Unauthorized: User ID not found" });
       }
       
-      res.json(updatedLead);
-      
       // Obtener agencyId del usuario autenticado
       const agencyId = await getUserAgencyId(req);
       if (!agencyId) {
         return res.status(403).json({ message: "User not associated with any agency" });
       }
       
-      res.json(updatedLead);
-      
       // Obtener nombre de la agencia
       const agency = await storage.getExternalAgency(agencyId);
       if (!agency) {
         return res.status(404).json({ message: "Agency not found" });
       }
-      
-      res.json(updatedLead);
       
       // Generate unique token
       const token = crypto.randomBytes(32).toString('base64url');
@@ -31213,8 +28283,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(403).json({ message: "User not associated with any agency" });
       }
       
-      res.json(updatedLead);
-      
       const links = await storage.getExternalLeadRegistrationTokensByAgency(agencyId);
       res.json(links);
     } catch (error: any) {
@@ -31232,8 +28300,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!existingToken) {
         return res.status(404).json({ message: "Registration link not found" });
       }
-      
-      res.json(updatedLead);
       
       // Verify agency ownership
       const hasAccess = await verifyExternalAgencyOwnership(req, res, existingToken.agencyId);
@@ -31276,8 +28342,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ message: "Registration link not found" });
       }
       
-      res.json(updatedLead);
-      
       // Verify agency ownership
       const hasAccess = await verifyExternalAgencyOwnership(req, res, existingToken.agencyId);
       if (!hasAccess) return;
@@ -31308,8 +28372,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ message: "Lead not found" });
       }
       
-      res.json(updatedLead);
-      
       const hasAccess = await verifyExternalAgencyOwnership(req, res, lead.agencyId);
       if (!hasAccess) return;
       
@@ -31330,8 +28392,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!lead) {
         return res.status(404).json({ message: "Lead not found" });
       }
-      
-      res.json(updatedLead);
       
       const hasAccess = await verifyExternalAgencyOwnership(req, res, lead.agencyId);
       if (!hasAccess) return;
@@ -31364,8 +28424,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ message: "Lead not found" });
       }
       
-      res.json(updatedLead);
-      
       const hasAccess = await verifyExternalAgencyOwnership(req, res, lead.agencyId);
       if (!hasAccess) return;
       
@@ -31387,8 +28445,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ message: "Lead not found" });
       }
       
-      res.json(updatedLead);
-      
       const hasAccess = await verifyExternalAgencyOwnership(req, res, lead.agencyId);
       if (!hasAccess) return;
       
@@ -31409,8 +28465,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!lead) {
         return res.status(404).json({ message: "Lead not found" });
       }
-      
-      res.json(updatedLead);
       
       const hasAccess = await verifyExternalAgencyOwnership(req, res, lead.agencyId);
       if (!hasAccess) return;
@@ -31452,8 +28506,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ message: "Showing not found" });
       }
       
-      res.json(updatedLead);
-      
       const hasAccess = await verifyExternalAgencyOwnership(req, res, showing.agencyId);
       if (!hasAccess) return;
       
@@ -31476,8 +28528,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!showing) {
         return res.status(404).json({ message: "Showing not found" });
       }
-      
-      res.json(updatedLead);
       
       const hasAccess = await verifyExternalAgencyOwnership(req, res, showing.agencyId);
       if (!hasAccess) return;
@@ -31502,8 +28552,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ message: "Client not found" });
       }
       
-      res.json(updatedLead);
-      
       const hasAccess = await verifyExternalAgencyOwnership(req, res, client.agencyId);
       if (!hasAccess) return;
       
@@ -31524,8 +28572,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!client) {
         return res.status(404).json({ message: "Client not found" });
       }
-      
-      res.json(updatedLead);
       
       const hasAccess = await verifyExternalAgencyOwnership(req, res, client.agencyId);
       if (!hasAccess) return;
@@ -31559,8 +28605,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ message: "Client not found" });
       }
       
-      res.json(updatedLead);
-      
       const hasAccess = await verifyExternalAgencyOwnership(req, res, client.agencyId);
       if (!hasAccess) return;
       
@@ -31581,8 +28625,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!client) {
         return res.status(404).json({ message: "Client not found" });
       }
-      
-      res.json(updatedLead);
       
       const hasAccess = await verifyExternalAgencyOwnership(req, res, client.agencyId);
       if (!hasAccess) return;
@@ -31613,8 +28655,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ message: "Client not found" });
       }
       
-      res.json(updatedLead);
-      
       const hasAccess = await verifyExternalAgencyOwnership(req, res, client.agencyId);
       if (!hasAccess) return;
       
@@ -31633,8 +28673,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
         updates.blacklistedBy = null;
         updates.blacklistReason = null;
       }
-      
-      res.json(updatedLead);
       
       const updated = await storage.updateExternalClient(id, updates);
       
@@ -31686,15 +28724,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ message: "Faltan campos requeridos (nombre, apellido, teléfono)" });
       }
       
-      res.json(updatedLead);
-      
       // For now, we'll assign to first available external agency
       const agencies = await storage.getExternalAgencies();
       if (!agencies || agencies.length === 0) {
         return res.status(500).json({ message: "No hay agencias disponibles" });
       }
-      
-      res.json(updatedLead);
       
       const agencyId = agencies[0].id;
       
@@ -31712,12 +28746,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
             sellerName: duplicateCheck.sellerName,
             daysRemaining: duplicateCheck.daysRemaining
           }
+        });
       }
-      
-      res.json(updatedLead);
-      }
-      
-      res.json(updatedLead);
       
       // Create lead
       const lead = await storage.createExternalLead({
@@ -31779,15 +28809,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ message: "Faltan campos requeridos" });
       }
       
-      res.json(updatedLead);
-      
       // For now, we'll assign to first available external agency
       const agencies = await storage.getExternalAgencies();
       if (!agencies || agencies.length === 0) {
         return res.status(500).json({ message: "No hay agencias disponibles" });
       }
-      
-      res.json(updatedLead);
       
       const agencyId = agencies[0].id;
       
@@ -31805,12 +28831,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
             sellerName: duplicateCheck.sellerName,
             daysRemaining: duplicateCheck.daysRemaining
           }
+        });
       }
-      
-      res.json(updatedLead);
-      }
-      
-      res.json(updatedLead);
       // Create lead
       const lead = await storage.createExternalLead({
         agencyId,
@@ -31849,8 +28871,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!agencies || agencies.length === 0) {
         return res.json({ name: "", logoUrl: "" });
       }
-      
-      res.json(updatedLead);
       const agency = agencies[0];
       res.json({
         id: agency.id,
@@ -31870,8 +28890,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!agencies || agencies.length === 0) {
         return res.json([]);
       }
-      
-      res.json(updatedLead);
       const agencyId = agencies[0].id;
       
       // Get all sellers for this agency directly from database
@@ -31907,8 +28925,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!agencies || agencies.length === 0) {
         return res.json([]);
       }
-      
-      res.json(updatedLead);
       const agencyId = agencies[0].id;
       const condominiums = await storage.getExternalCondominiumsByAgency(agencyId);
       const publicCondos = condominiums.map(c => ({
@@ -31932,8 +28948,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!uuidRegex.test(condominiumId)) {
         return res.json([]);
       }
-      
-      res.json(updatedLead);
       const units = await storage.getExternalUnitsByCondominium(condominiumId);
       const publicUnits = units.map(u => ({
         id: u.id,
@@ -31954,14 +28968,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!agencyId || !type) {
         return res.status(400).json({ message: "Agency ID and type (tenant or owner) are required" });
       }
-      
-      res.json(updatedLead);
 
       if (type !== 'tenant' && type !== 'owner') {
         return res.status(400).json({ message: "Type must be 'tenant' or 'owner'" });
       }
-      
-      res.json(updatedLead);
 
       const terms = await storage.getActiveExternalTermsAndConditions(agencyId as string, type as 'tenant' | 'owner');
       res.json(terms || null);
@@ -31981,21 +28991,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ message: "Registration link not found" });
       }
       
-      res.json(updatedLead);
-      
       // Check if expired
       if (new Date() > new Date(registrationToken.expiresAt)) {
         return res.status(410).json({ message: "Registration link has expired" });
       }
       
-      res.json(updatedLead);
-      
       // Check if already completed
       if (registrationToken.completedAt) {
         return res.status(410).json({ message: "Registration link has already been used" });
       }
-      
-      res.json(updatedLead);
       
       // Return only necessary data for form display
       res.json({
@@ -32019,21 +29023,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ message: "Registration link not found" });
       }
       
-      res.json(updatedLead);
-      
       // Check if expired
       if (new Date() > new Date(registrationToken.expiresAt)) {
         return res.status(410).json({ message: "Registration link has expired" });
       }
       
-      res.json(updatedLead);
-      
       // Check if already completed
       if (registrationToken.completedAt) {
         return res.status(410).json({ message: "Registration link has already been used" });
       }
-      
-      res.json(updatedLead);
       
       // Validate form data based on registration type
       const { firstName, lastName, email, phone, phoneLast4, notes } = req.body;
@@ -32042,13 +29040,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ message: "First name is required" });
       }
       
-      res.json(updatedLead);
-      
       if (!lastName || lastName.trim().length === 0) {
         return res.status(400).json({ message: "Last name is required" });
       }
-      
-      res.json(updatedLead);
       
       // Different validation for seller vs broker
       if (registrationToken.registrationType === 'seller') {
@@ -32060,8 +29054,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
           return res.status(400).json({ message: "Broker must provide last 4 digits of phone" });
         }
       }
-      
-      res.json(updatedLead);
       
       // Create lead
       const lead = await storage.createExternalLead({
@@ -32102,8 +29094,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ message: "Client not found" });
       }
       
-      res.json(updatedLead);
-      
       const hasAccess = await verifyExternalAgencyOwnership(req, res, client.agencyId);
       if (!hasAccess) return;
       
@@ -32124,8 +29114,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!client) {
         return res.status(404).json({ message: "Client not found" });
       }
-      
-      res.json(updatedLead);
       
       const hasAccess = await verifyExternalAgencyOwnership(req, res, client.agencyId);
       if (!hasAccess) return;
@@ -32150,8 +29138,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!client) {
         return res.status(404).json({ message: "Client not found" });
       }
-      
-      res.json(updatedLead);
       
       const hasAccess = await verifyExternalAgencyOwnership(req, res, client.agencyId);
       if (!hasAccess) return;
@@ -32187,14 +29173,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ message: "Document not found" });
       }
       
-      res.json(updatedLead);
-      
       const client = await storage.getExternalClient(document.clientId);
       if (!client) {
         return res.status(404).json({ message: "Client not found" });
       }
-      
-      res.json(updatedLead);
       
       const hasAccess = await verifyExternalAgencyOwnership(req, res, client.agencyId);
       if (!hasAccess) return;
@@ -32219,8 +29201,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!client) {
         return res.status(404).json({ message: "Client not found" });
       }
-      
-      res.json(updatedLead);
       
       const hasAccess = await verifyExternalAgencyOwnership(req, res, client.agencyId);
       if (!hasAccess) return;
@@ -32247,8 +29227,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!client) {
         return res.status(404).json({ message: "Client not found" });
       }
-      
-      res.json(updatedLead);
       
       const hasAccess = await verifyExternalAgencyOwnership(req, res, client.agencyId);
       if (!hasAccess) return;
@@ -32279,14 +29257,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ message: "Incident not found" });
       }
       
-      res.json(updatedLead);
-      
       const client = await storage.getExternalClient(incident.clientId);
       if (!client) {
         return res.status(404).json({ message: "Client not found" });
       }
-      
-      res.json(updatedLead);
       
       const hasAccess = await verifyExternalAgencyOwnership(req, res, client.agencyId);
       if (!hasAccess) return;
@@ -32312,14 +29286,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ message: "Incident not found" });
       }
       
-      res.json(updatedLead);
-      
       const client = await storage.getExternalClient(incident.clientId);
       if (!client) {
         return res.status(404).json({ message: "Client not found" });
       }
-      
-      res.json(updatedLead);
       
       const hasAccess = await verifyExternalAgencyOwnership(req, res, client.agencyId);
       if (!hasAccess) return;
@@ -32345,8 +29315,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(403).json({ message: "No agency access" });
       }
       
-      res.json(updatedLead);
-      
       const { status, leadId, clientId } = req.query;
       const filters: { status?: string; leadId?: string; clientId?: string } = {};
       if (status) filters.status = status;
@@ -32370,8 +29338,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ message: "Lead not found" });
       }
       
-      res.json(updatedLead);
-      
       const hasAccess = await verifyExternalAgencyOwnership(req, res, lead.agencyId);
       if (!hasAccess) return;
       
@@ -32391,8 +29357,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!client) {
         return res.status(404).json({ message: "Client not found" });
       }
-      
-      res.json(updatedLead);
       
       const hasAccess = await verifyExternalAgencyOwnership(req, res, client.agencyId);
       if (!hasAccess) return;
@@ -32415,8 +29379,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ message: "Presentation card not found" });
       }
       
-      res.json(updatedLead);
-      
       const hasAccess = await verifyExternalAgencyOwnership(req, res, card.agencyId);
       if (!hasAccess) return;
       
@@ -32435,8 +29397,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(403).json({ message: "No agency access" });
       }
       
-      res.json(updatedLead);
-      
       const cardData = { ...req.body, agencyId, createdBy: req.user.id };
       
       if (cardData.leadId) {
@@ -32445,16 +29405,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
           return res.status(404).json({ message: "Lead not found" });
         }
       }
-      
-      res.json(updatedLead);
       if (cardData.clientId) {
         const client = await storage.getExternalClient(cardData.clientId);
         if (!client || client.agencyId !== agencyId) {
           return res.status(404).json({ message: "Client not found" });
         }
       }
-      
-      res.json(updatedLead);
       
       const card = await storage.createExternalPresentationCard(cardData);
       await createAuditLog(req, "create", "external_presentation_card", card.id, "Created presentation card");
@@ -32475,15 +29431,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(403).json({ message: "No agency access" });
       }
       
-      res.json(updatedLead);
-      
       const card = await storage.getExternalPresentationCard(id);
       
       if (!card) {
         return res.status(404).json({ message: "Presentation card not found" });
       }
-      
-      res.json(updatedLead);
       
       const hasAccess = await verifyExternalAgencyOwnership(req, res, card.agencyId);
       if (!hasAccess) return;
@@ -32500,8 +29452,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
         }
       }
       
-      res.json(updatedLead);
-      
       if (clientId !== undefined && clientId !== card.clientId) {
         if (clientId) {
           const client = await storage.getExternalClient(clientId);
@@ -32510,8 +29460,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
           }
         }
       }
-      
-      res.json(updatedLead);
       
       const updated = await storage.updateExternalPresentationCard(id, req.body);
       await createAuditLog(req, "update", "external_presentation_card", id, "Updated presentation card");
@@ -32532,8 +29480,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!card) {
         return res.status(404).json({ message: "Presentation card not found" });
       }
-      
-      res.json(updatedLead);
       
       const hasAccess = await verifyExternalAgencyOwnership(req, res, card.agencyId);
       if (!hasAccess) return;
@@ -32560,8 +29506,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(403).json({ message: "No agency access" });
       }
       
-      res.json(updatedLead);
-      
       const { outcome, startDate, endDate, leadId, clientId } = req.query;
       const filters: { outcome?: string; startDate?: Date; endDate?: Date; leadId?: string; clientId?: string } = {};
       if (outcome) filters.outcome = outcome;
@@ -32587,8 +29531,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ message: "Presentation card not found" });
       }
       
-      res.json(updatedLead);
-      
       const hasAccess = await verifyExternalAgencyOwnership(req, res, card.agencyId);
       if (!hasAccess) return;
       
@@ -32608,8 +29550,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!unit) {
         return res.status(404).json({ message: "Unit not found" });
       }
-      
-      res.json(updatedLead);
       
       const hasAccess = await verifyExternalAgencyOwnership(req, res, unit.agencyId);
       if (!hasAccess) return;
@@ -32632,8 +29572,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ message: "Property showing not found" });
       }
       
-      res.json(updatedLead);
-      
       const hasAccess = await verifyExternalAgencyOwnership(req, res, showing.agencyId);
       if (!hasAccess) return;
       
@@ -32652,16 +29590,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(403).json({ message: "No agency access" });
       }
       
-      res.json(updatedLead);
-      
       const showingData = { ...req.body, agencyId, recordedBy: req.user.id };
       
       const unit = await storage.getExternalUnit(showingData.unitId);
       if (!unit || unit.agencyId !== agencyId) {
         return res.status(404).json({ message: "Unit not found" });
       }
-      
-      res.json(updatedLead);
       
       // Validate leadId/clientId ownership to prevent cross-tenant tampering
       if (showingData.leadId) {
@@ -32671,16 +29605,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
         }
       }
       
-      res.json(updatedLead);
-      
       if (showingData.clientId) {
         const client = await storage.getExternalClient(showingData.clientId);
         if (!client || client.agencyId !== agencyId) {
           return res.status(403).json({ message: "Cannot link to client from another agency" });
         }
       }
-      
-      res.json(updatedLead);
       
       if (showingData.presentationCardId) {
         const card = await storage.getExternalPresentationCard(showingData.presentationCardId);
@@ -32689,8 +29619,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
         }
         await storage.incrementPresentationCardUsage(showingData.presentationCardId);
       }
-      
-      res.json(updatedLead);
       
       const showing = await storage.createExternalPropertyShowing(showingData);
       await createAuditLog(req, "create", "external_property_showing", showing.id, "Created property showing record");
@@ -32710,15 +29638,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(403).json({ message: "No agency access" });
       }
       
-      res.json(updatedLead);
-      
       const showing = await storage.getExternalPropertyShowing(id);
       
       if (!showing) {
         return res.status(404).json({ message: "Property showing not found" });
       }
-      
-      res.json(updatedLead);
       
       const hasAccess = await verifyExternalAgencyOwnership(req, res, showing.agencyId);
       if (!hasAccess) return;
@@ -32735,8 +29659,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
         }
       }
       
-      res.json(updatedLead);
-      
       if (clientId !== undefined && clientId !== showing.clientId) {
         if (clientId) {
           const client = await storage.getExternalClient(clientId);
@@ -32745,8 +29667,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
           }
         }
       }
-      
-      res.json(updatedLead);
       
       if (presentationCardId !== undefined && presentationCardId !== showing.presentationCardId) {
         if (presentationCardId) {
@@ -32757,8 +29677,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
         }
       }
       
-      res.json(updatedLead);
-      
       if (unitId !== undefined && unitId !== showing.unitId) {
         if (unitId) {
           const unit = await storage.getExternalUnit(unitId);
@@ -32767,8 +29685,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
           }
         }
       }
-      
-      res.json(updatedLead);
       
       const updated = await storage.updateExternalPropertyShowing(id, req.body);
       await createAuditLog(req, "update", "external_property_showing", id, "Updated property showing record");
@@ -32789,8 +29705,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!showing) {
         return res.status(404).json({ message: "Property showing not found" });
       }
-      
-      res.json(updatedLead);
       
       const hasAccess = await verifyExternalAgencyOwnership(req, res, showing.agencyId);
       if (!hasAccess) return;
@@ -32819,8 +29733,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(403).json({ message: "No agency access" });
       }
       
-      res.json(updatedLead);
-      
       // Use optimized single-query method that includes all joined data
       const tokens = await storage.getExternalOfferTokenSummariesByAgency(agencyId);
       res.json(tokens);
@@ -32837,8 +29749,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!agencyId) {
         return res.status(403).json({ message: "No agency access" });
       }
-      
-      res.json(updatedLead);
 
       const { tokenId } = req.params;
       
@@ -32852,8 +29762,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!currentToken) {
         return res.status(404).json({ message: "Token not found" });
       }
-      
-      res.json(updatedLead);
 
       // Validate it belongs to the agency
       if (currentToken.externalUnitId) {
@@ -32862,22 +29770,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
           return res.status(403).json({ message: "Unauthorized" });
         }
       }
-      
-      res.json(updatedLead);
 
       // Cannot regenerate completed tokens
       if (currentToken.isUsed) {
         return res.status(400).json({ message: "Cannot regenerate completed token" });
       }
-      
-      res.json(updatedLead);
 
       const clientId = currentToken.externalClientId;
       if (!clientId) {
         return res.status(400).json({ message: "Invalid token: missing client" });
       }
-      
-      res.json(updatedLead);
 
       // Create new token with same details but new expiration
       const newTokenValue = crypto.randomBytes(32).toString('hex');
@@ -32889,8 +29791,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!userId) {
         return res.status(401).json({ message: "User not authenticated" });
       }
-      
-      res.json(updatedLead);
 
       const [newToken] = await db.insert(offerTokens).values({
         token: newTokenValue,
@@ -32929,8 +29829,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(403).json({ message: "No agency access" });
       }
       
-      res.json(updatedLead);
-      
       // Use optimized single-query method that includes unit, condo, client, owner, creator
       const tokens = await storage.getExternalRentalFormTokenSummariesByAgency(agencyId);
       
@@ -32944,7 +29842,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
             // Find the companion form by linkedTokenId
             const companionForm = await db.query.tenantRentalFormTokens.findFirst({
               where: eq(tenantRentalFormTokens.id, token.linkedTokenId),
-          }
+            });
             
             if (companionForm) {
               dualFormStatus = {
@@ -32978,14 +29876,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!token.isUsed || !token.tenantData) {
         throw { status: 400, message: "El formulario de inquilino aún no ha sido completado" };
       }
-      
-      res.json(updatedLead);
     } else if (token.recipientType === 'owner') {
       if (!token.isUsed || !token.ownerData) {
         throw { status: 400, message: "El formulario de propietario aún no ha sido completado" };
       }
-      
-      res.json(updatedLead);
     } else {
       throw { status: 400, message: "Tipo de formulario inválido" };
     }
@@ -32999,13 +29893,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!unit) {
         throw { status: 404, message: "Unidad no encontrada" };
       }
-      
-      res.json(updatedLead);
       if (unit.agencyId !== agencyId) {
         throw { status: 403, message: "Unauthorized" };
       }
-      
-      res.json(updatedLead);
     } else if (token.externalUnitOwnerId) {
       // Owner token - get unit from owner record
       const owner = await storage.getExternalUnitOwner(token.externalUnitOwnerId);
@@ -33013,21 +29903,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
         throw { status: 404, message: "Propietario no encontrado" };
       }
       
-      res.json(updatedLead);
-      
       // SECURITY: Validate that owner belongs to the correct agency
       // First get the unit to check agency
       unit = await storage.getExternalUnit(owner.unitId);
       if (!unit) {
         throw { status: 404, message: "Unidad no encontrada" };
       }
-      
-      res.json(updatedLead);
       if (unit.agencyId !== agencyId) {
         throw { status: 403, message: "Unauthorized - agency mismatch" };
       }
-      
-      res.json(updatedLead);
     } else {
       throw { status: 400, message: "Este token no es del sistema externo" };
     }
@@ -33048,8 +29932,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
         state: condo?.state || 'Quintana Roo',
         country: condo?.country || 'México',
       }
-      
-      res.json(updatedLead);
     };
   }
   // GET /api/external/rental-forms/:id/pdf - Generate PDF for rental form
@@ -33059,8 +29941,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!agencyId) {
         return res.status(403).json({ message: "No agency access" });
       }
-      
-      res.json(updatedLead);
 
       const { id } = req.params;
 
@@ -33074,8 +29954,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!rentalFormToken) {
         return res.status(404).json({ message: "Formulario de renta no encontrado" });
       }
-      
-      res.json(updatedLead);
 
 
       // Resolve unit context using helper function
@@ -33095,8 +29973,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
         // For owner forms, use owner-specific PDF generator if available
         pdfBuffer = await generateOwnerFormPDF(rentalFormToken.tenantData, propertyForPDF, agencyName, agencyLogoUrl, templateStyle);
       }
-      
-      res.json(updatedLead);
 
       // Set headers for PDF download
       res.setHeader('Content-Type', 'application/pdf');
@@ -33107,8 +29983,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (error.status) {
         return res.status(error.status).json({ message: error.message });
       }
-      
-      res.json(updatedLead);
       res.status(500).json({ message: "Error al generar PDF" });
     }
   });
@@ -33120,8 +29994,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!agencyId) {
         return res.status(403).json({ message: "No agency access" });
       }
-      
-      res.json(updatedLead);
 
       const { id } = req.params;
 
@@ -33135,8 +30007,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!rentalFormToken) {
         return res.status(404).json({ message: "Formulario de renta no encontrado" });
       }
-      
-      res.json(updatedLead);
 
       // Verify token belongs to user's agency
       if (rentalFormToken.externalUnitId) {
@@ -33153,15 +30023,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
       } else {
         return res.status(400).json({ message: "Este token no es del sistema externo" });
       }
-      
-      res.json(updatedLead);
 
       // Must be a completed form to edit
       if (!rentalFormToken.isUsed) {
         return res.status(400).json({ message: "Solo se pueden editar formularios completados" });
       }
-      
-      res.json(updatedLead);
 
       // Define validation schemas for tenant and owner forms
       const tenantFieldsSchema = z.object({
@@ -33257,8 +30123,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (error instanceof z.ZodError) {
         return res.status(400).json({ message: "Datos inválidos", errors: error.errors });
       }
-      
-      res.json(updatedLead);
       res.status(500).json({ message: "Error al actualizar formulario" });
     }
   });
@@ -33270,8 +30134,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!agencyId) {
         return res.status(403).json({ message: "No agency access" });
       }
-      
-      res.json(updatedLead);
 
       const { id } = req.params;
 
@@ -33285,8 +30147,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!offerToken) {
         return res.status(404).json({ message: "Token de oferta no encontrado" });
       }
-      
-      res.json(updatedLead);
 
       // Verify token belongs to user's agency
       if (offerToken.externalUnitId) {
@@ -33297,22 +30157,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
       } else {
         return res.status(400).json({ message: "Este token no es del sistema externo" });
       }
-      
-      res.json(updatedLead);
 
       if (!offerToken.isUsed || !offerToken.offerData) {
         return res.status(400).json({ message: "La oferta aún no ha sido completada" });
       }
-      
-      res.json(updatedLead);
 
       // Get unit info
       const unit = await storage.getExternalUnit(offerToken.externalUnitId);
       if (!unit) {
         return res.status(404).json({ message: "Unidad no encontrada" });
       }
-      
-      res.json(updatedLead);
 
       // Get condominium info
       const condo = await storage.getExternalCondominium(unit.condominiumId);
@@ -33348,8 +30202,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!agencyId) {
         return res.status(403).json({ message: "No agency access" });
       }
-      
-      res.json(updatedLead);
 
       const { id } = req.params;
 
@@ -33363,8 +30215,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!offerToken) {
         return res.status(404).json({ message: "Token de oferta no encontrado" });
       }
-      
-      res.json(updatedLead);
 
       // Verify token belongs to user's agency
       if (offerToken.externalUnitId) {
@@ -33375,15 +30225,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
       } else {
         return res.status(400).json({ message: "Este token no es del sistema externo" });
       }
-      
-      res.json(updatedLead);
 
       // Must be a completed offer to edit
       if (!offerToken.isUsed) {
         return res.status(400).json({ message: "Solo se pueden editar ofertas completadas" });
       }
-      
-      res.json(updatedLead);
 
       // Update offer data
       const [updated] = await db
@@ -33417,8 +30263,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!agencyId) {
         return res.status(403).json({ message: "No agency access" });
       }
-      
-      res.json(updatedLead);
 
       const { tokenId } = req.params;
       
@@ -33431,8 +30275,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!currentToken) {
         return res.status(404).json({ message: "Token not found" });
       }
-      
-      res.json(updatedLead);
 
       // Validate it belongs to the agency
       if (currentToken.externalUnitId) {
@@ -33441,22 +30283,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
           return res.status(403).json({ message: "Unauthorized" });
         }
       }
-      
-      res.json(updatedLead);
 
       // Cannot regenerate completed tokens
       if (currentToken.isUsed) {
         return res.status(400).json({ message: "Cannot regenerate completed token" });
       }
-      
-      res.json(updatedLead);
 
       const clientId = currentToken.externalClientId;
       if (!clientId) {
         return res.status(400).json({ message: "Invalid token: missing client" });
       }
-      
-      res.json(updatedLead);
 
       // Create new token with same details but new expiration
       const newTokenValue = crypto.randomBytes(8).toString('hex');
@@ -33468,8 +30304,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!userId) {
         return res.status(401).json({ message: "User not authenticated" });
       }
-      
-      res.json(updatedLead);
 
       const [newToken] = await db.insert(tenantRentalFormTokens).values({
         token: newTokenValue,
@@ -33509,8 +30343,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(403).json({ message: "No agency access" });
       }
       
-      res.json(updatedLead);
-      
       // Get only id and name for filter dropdowns
       const condominiums = await db.select({
         id: externalCondominiums.id,
@@ -33535,8 +30367,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(403).json({ message: "No agency access" });
       }
       
-      res.json(updatedLead);
-      
       const { condominiumId } = req.query;
       
       // If condominiumId is provided, verify it belongs to the user's agency
@@ -33546,8 +30376,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
           return res.status(403).json({ message: "Condominium not found or access denied" });
         }
       }
-      
-      res.json(updatedLead);
       
       // Build query with optional condominium filter (already validated above)
       const whereConditions = condominiumId
@@ -33582,8 +30410,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(403).json({ message: "No agency access" });
       }
       
-      res.json(updatedLead);
-      
       const { status } = req.query;
       
       // Build conditions for contracts
@@ -33591,8 +30417,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (status && status !== 'all') {
         contractConditions.push(eq(externalRentalContracts.status, status as any));
       }
-      
-      res.json(updatedLead);
       
       // Query 1: Get rental contracts with unit and condominium (single JOIN query)
       const contractsWithDetails = await db.select({
@@ -33646,12 +30470,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
             units: unitsData,
           },
           statistics: stats,
+        });
       }
-      
-      res.json(updatedLead);
-      }
-      
-      res.json(updatedLead);
       
       // Query 5: Bulk fetch active schedules for all contracts
       const contractIds = contractsWithDetails.map(c => c.contract.id);
@@ -33736,8 +30556,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(403).json({ message: "No agency access" });
       }
       
-      res.json(updatedLead);
-      
       const { status, limit, offset } = req.query;
       const filters = status ? { status: status as string } : undefined;
       
@@ -33749,13 +30567,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (isNaN(limitNum) || limitNum < 1 || limitNum > 500) {
         return res.status(400).json({ message: "Invalid limit parameter (must be 1-500)" });
       }
-      
-      res.json(updatedLead);
       if (isNaN(offsetNum) || offsetNum < 0) {
         return res.status(400).json({ message: "Invalid offset parameter (must be >= 0)" });
       }
-      
-      res.json(updatedLead);
       
       // Get rental contracts with unit and condominium information using SQL joins
       const contractsWithDetails = await db.select({
@@ -33781,8 +30595,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (contractsWithDetails.length === 0) {
         return res.json([]);
       }
-      
-      res.json(updatedLead);
       
       // Bulk fetch: Get all active schedules for all contracts in ONE query
       const contractIds = contractsWithDetails.map(c => c.contract.id);
@@ -33862,8 +30674,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ message: "Contract not found" });
       }
       
-      res.json(updatedLead);
-      
       // Verify ownership
       const hasAccess = await verifyExternalAgencyOwnership(req, res, existing.agencyId);
       if (!hasAccess) return;
@@ -33885,8 +30695,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!contract) {
         return res.status(404).json({ message: "Contract not found" });
       }
-      
-      res.json(updatedLead);
       
       // Verify ownership
       const hasAccess = await verifyExternalAgencyOwnership(req, res, contract.agencyId);
@@ -33958,8 +30766,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ message: "Unit not found" });
       }
       
-      res.json(updatedLead);
-      
       // Verify ownership
       const hasAccess = await verifyExternalAgencyOwnership(req, res, unit.agencyId);
       if (!hasAccess) return;
@@ -33982,15 +30788,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ message: "rentalFormGroupId is required" });
       }
       
-      res.json(updatedLead);
-      
       // Get agency ID from user
       const agencyId = await getUserAgencyId(req);
       if (!agencyId) {
         return res.status(403).json({ message: "User not associated with any agency" });
       }
-      
-      res.json(updatedLead);
       
       // Check if contract already exists for this group
       const existingContract = await db.select()
@@ -34002,12 +30804,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ 
           message: "Contract already exists for this rental form group",
           contractId: existingContract[0].id
+        });
       }
-      
-      res.json(updatedLead);
-      }
-      
-      res.json(updatedLead);
       
       // Get both forms (tenant and owner) for this rental group
       const forms = await db.select()
@@ -34017,12 +30815,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (forms.length < 2) {
         return res.status(400).json({ 
           message: "Both tenant and owner forms must exist for this group" 
+        });
       }
-      
-      res.json(updatedLead);
-      }
-      
-      res.json(updatedLead);
       
       const tenantForm = forms.find((f: any) => f.recipient_type === 'tenant');
       const ownerForm = forms.find((f: any) => f.recipient_type === 'owner');
@@ -34030,23 +30824,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!tenantForm || !ownerForm) {
         return res.status(400).json({ 
           message: "Both tenant and owner forms are required" 
+        });
       }
-      
-      res.json(updatedLead);
-      }
-      
-      res.json(updatedLead);
       
       // Verify both forms are completed
       if (!tenantForm.is_used || !ownerForm.is_used) {
         return res.status(400).json({ 
           message: "Both tenant and owner forms must be completed before creating a contract" 
+        });
       }
-      
-      res.json(updatedLead);
-      }
-      
-      res.json(updatedLead);
       
       // Get unit to verify it exists and get agency
       const unit = await storage.getExternalUnit(tenantForm.external_unit_id!);
@@ -34054,14 +30840,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ message: "Unit not found" });
       }
       
-      res.json(updatedLead);
-      
       // Verify agency ownership via unit's agency
       if (unit.agencyId !== agencyId) {
         return res.status(403).json({ message: "Access denied" });
       }
-      
-      res.json(updatedLead);
       
       // Check if there's already an active contract for this unit
       const activeContractForUnit = await db.select()
@@ -34078,12 +30860,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ 
           message: "Ya existe un contrato activo para esta unidad",
           contractId: activeContractForUnit[0].id
+        });
       }
-      
-      res.json(updatedLead);
-      }
-      
-      res.json(updatedLead);
       
       // Extract data from forms
       const tenantData = tenantForm.tenant_data as any;
@@ -34092,12 +30870,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!tenantData || !ownerData) {
         return res.status(400).json({ 
           message: "Form data is incomplete" 
+        });
       }
-      
-      res.json(updatedLead);
-      }
-      
-      res.json(updatedLead);
       
       // Calculate lease dates from tenant data
       const startDate = new Date(tenantData.desiredMoveInDate || tenantData.preferredMoveInDate || Date.now());
@@ -34112,8 +30886,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       } else if (tenantData.leaseDuration) {
         leaseDurationMonths = parseInt(tenantData.leaseDuration) || 12;
       }
-      
-      res.json(updatedLead);
       
       const endDate = new Date(startDate);
       endDate.setMonth(endDate.getMonth() + leaseDurationMonths);
@@ -34158,8 +30930,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (error.name === "ZodError") {
         return handleZodError(res, error);
       }
-      
-      res.json(updatedLead);
       handleGenericError(res, error);
     }
   });
@@ -34172,8 +30942,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!agencyId) {
         return res.status(403).json({ message: "No agency access" });
       }
-      
-      res.json(updatedLead);
       
       // Fetch all data in parallel for maximum performance
       const [offers, rentalForms, contractsRaw] = await Promise.all([
@@ -34203,7 +30971,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           if (form.linkedTokenId) {
             const companion = await db.query.tenantRentalFormTokens.findFirst({
               where: eq(tenantRentalFormTokens.id, form.linkedTokenId),
-          }
+            });
             if (companion) {
               dualFormStatus = {
                 hasDual: true,
@@ -34239,8 +31007,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!agencyId) {
         return res.status(403).json({ message: "User not associated with any agency" });
       }
-      
-      res.json(updatedLead);
       
       const { status, limit = '50', offset = '0' } = req.query;
       const limitNum = parseInt(limit as string, 10);
@@ -34296,8 +31062,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
         whereConditions.push(eq(externalRentalContracts.status, status as any));
       }
       
-      res.json(updatedLead);
-      
       const contracts = await db.select({
         contract: externalRentalContracts,
         unit: externalUnits,
@@ -34329,8 +31093,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!contract) {
         return res.status(404).json({ message: "Contract not found" });
       }
-      
-      res.json(updatedLead);
       
       // Verify ownership
       const hasAccess = await verifyExternalAgencyOwnership(req, res, contract.agencyId);
@@ -34367,8 +31129,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
         } : null;
       }
       
-      res.json(updatedLead);
-      
       res.json({
         contract,
         unit,
@@ -34391,15 +31151,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ message: "documentType must be 'tenant' or 'owner'" });
       }
       
-      res.json(updatedLead);
-      
       // Get contract
       const contract = await storage.getExternalRentalContract(id);
       if (!contract) {
         return res.status(404).json({ message: "Contract not found" });
       }
-      
-      res.json(updatedLead);
       
       // Verify ownership
       const hasAccess = await verifyExternalAgencyOwnership(req, res, contract.agencyId);
@@ -34419,8 +31175,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
         updateData.ownerDocsValidatedAt = now;
       }
       
-      res.json(updatedLead);
-      
       // Check if both are now validated and update status
       const bothValidated = 
         (documentType === 'tenant' && contract.ownerDocsValidated) ||
@@ -34429,8 +31183,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (bothValidated) {
         updateData.status = 'documents_validated';
       }
-      
-      res.json(updatedLead);
       
       const updatedContract = await storage.updateExternalRentalContract(id, updateData);
       
@@ -34459,15 +31211,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ message: "contractUrl is required" });
       }
       
-      res.json(updatedLead);
-      
       // Get contract
       const contract = await storage.getExternalRentalContract(id);
       if (!contract) {
         return res.status(404).json({ message: "Contract not found" });
       }
-      
-      res.json(updatedLead);
       
       // Verify ownership
       const hasAccess = await verifyExternalAgencyOwnership(req, res, contract.agencyId);
@@ -34506,15 +31254,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ message: "tenantData is required" });
       }
       
-      res.json(updatedLead);
-      
       // Get contract
       const contract = await storage.getExternalRentalContract(id);
       if (!contract) {
         return res.status(404).json({ message: "Contract not found" });
       }
-      
-      res.json(updatedLead);
       
       // Verify ownership
       const hasAccess = await verifyExternalAgencyOwnership(req, res, contract.agencyId);
@@ -34525,8 +31269,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ message: "Contract has no associated rental forms" });
       }
       
-      res.json(updatedLead);
-      
       const forms = await db.select()
         .from(tenantRentalFormTokens)
         .where(eq(tenantRentalFormTokens.rentalFormGroupId, contract.rentalFormGroupId));
@@ -34535,8 +31277,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!tenantForm) {
         return res.status(404).json({ message: "Tenant form not found" });
       }
-      
-      res.json(updatedLead);
       
       // Update tenant form data
       await db.update(tenantRentalFormTokens)
@@ -34555,8 +31295,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (Object.keys(updateData).length > 0) {
         await storage.updateExternalRentalContract(id, updateData);
       }
-      
-      res.json(updatedLead);
       
       await createAuditLog(
         req, 
@@ -34583,15 +31321,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ message: "ownerData is required" });
       }
       
-      res.json(updatedLead);
-      
       // Get contract
       const contract = await storage.getExternalRentalContract(id);
       if (!contract) {
         return res.status(404).json({ message: "Contract not found" });
       }
-      
-      res.json(updatedLead);
       
       // Verify ownership
       const hasAccess = await verifyExternalAgencyOwnership(req, res, contract.agencyId);
@@ -34602,8 +31336,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ message: "Contract has no associated rental forms" });
       }
       
-      res.json(updatedLead);
-      
       const forms = await db.select()
         .from(tenantRentalFormTokens)
         .where(eq(tenantRentalFormTokens.rentalFormGroupId, contract.rentalFormGroupId));
@@ -34612,8 +31344,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!ownerForm) {
         return res.status(404).json({ message: "Owner form not found" });
       }
-      
-      res.json(updatedLead);
       
       // Update owner form data
       await db.update(tenantRentalFormTokens)
@@ -34649,8 +31379,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ message: "Contract not found" });
       }
       
-      res.json(updatedLead);
-      
       // Verify ownership
       const hasAccess = await verifyExternalAgencyOwnership(req, res, contract.agencyId);
       if (!hasAccess) return;
@@ -34659,8 +31387,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (contract.cancelledAt) {
         return res.status(400).json({ message: "Contract is already cancelled" });
       }
-      
-      res.json(updatedLead);
       
       // Cancel contract (soft delete)
       // Note: We do NOT update the status - cancelled contracts retain their original status
@@ -34700,15 +31426,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
         contractData = insertExternalRentalContractSchema.parse(req.body);
       }
       
-      res.json(updatedLead);
-      
       // Verify unit exists and get its agency
       const unit = await storage.getExternalUnit(contractData.unitId);
       if (!unit) {
         return res.status(404).json({ message: "Unit not found" });
       }
-      
-      res.json(updatedLead);
       
       // Verify ownership
       const hasAccess = await verifyExternalAgencyOwnership(req, res, unit.agencyId);
@@ -34728,12 +31450,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (existingActiveContract.length > 0) {
         return res.status(400).json({ 
           message: "Esta unidad ya tiene un contrato de renta activo. Solo puede haber una renta activa por unidad a la vez." 
+        });
       }
-      
-      res.json(updatedLead);
-      }
-      
-      res.json(updatedLead);
       
       // Use transaction to atomically create contract + schedules + payments
       const result = await db.transaction(async (tx) => {
@@ -34742,9 +31460,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           ...contractData,
           agencyId: unit.agencyId,
           createdBy: req.user.id,
-      }
-      
-      res.json(updatedLead);
+        });
         
         // 2. Prepare all payment schedules (rent + additional services)
         const startDate = new Date(contractData.startDate);
@@ -34780,7 +31496,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
             ...scheduleData,
             isActive: true,
             createdBy: req.user.id,
-        }
+          });
           createdSchedules.push(schedule);
           
           // 4. Generate first payment for each schedule (next month from start date)
@@ -34806,7 +31522,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
             dueDate: firstPaymentDue,
             status: 'pending',
             createdBy: req.user.id,
-        }
+          });
         }
         
         return { contract, schedules: createdSchedules };
@@ -34830,8 +31546,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (error.name === "ZodError") {
         return handleZodError(res, error);
       }
-      
-      res.json(updatedLead);
       handleGenericError(res, error);
     }
   });
@@ -34845,8 +31559,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!existing) {
         return res.status(404).json({ message: "Contract not found" });
       }
-      
-      res.json(updatedLead);
       
       // Verify ownership
       const hasAccess = await verifyExternalAgencyOwnership(req, res, existing.agencyId);
@@ -34868,8 +31580,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (error.name === "ZodError") {
         return handleZodError(res, error);
       }
-      
-      res.json(updatedLead);
       handleGenericError(res, error);
     }
   });
@@ -34882,8 +31592,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!existing) {
         return res.status(404).json({ message: "Contract not found" });
       }
-      
-      res.json(updatedLead);
       
       // Verify ownership
       const hasAccess = await verifyExternalAgencyOwnership(req, res, existing.agencyId);
@@ -34910,8 +31618,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ message: "Contract not found" });
       }
       
-      res.json(updatedLead);
-      
       // Verify ownership
       const hasAccess = await verifyExternalAgencyOwnership(req, res, existing.agencyId);
       if (!hasAccess) return;
@@ -34920,12 +31626,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (existing.status !== 'active') {
         return res.status(400).json({ 
           message: "Only active contracts can be cancelled" 
+        });
       }
-      
-      res.json(updatedLead);
-      }
-      
-      res.json(updatedLead);
       
       // Update contract status to completed
       await storage.updateExternalRentalContract(id, { status: 'completed' });
@@ -34961,8 +31663,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ message: "Contract not found" });
       }
       
-      res.json(updatedLead);
-      
       const hasAccess = await verifyExternalAgencyOwnership(req, res, contract.agencyId);
       if (!hasAccess) return;
       
@@ -34989,8 +31689,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ message: "Contract not found" });
       }
       
-      res.json(updatedLead);
-      
       const hasAccess = await verifyExternalAgencyOwnership(req, res, contract.agencyId);
       if (!hasAccess) return;
       
@@ -35010,8 +31708,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (error.name === "ZodError") {
         return handleZodError(res, error);
       }
-      
-      res.json(updatedLead);
       handleGenericError(res, error);
     }
   });
@@ -35027,8 +31723,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ message: "Note not found" });
       }
       
-      res.json(updatedLead);
-      
       const hasAccess = await verifyExternalAgencyOwnership(req, res, note.agencyId);
       if (!hasAccess) return;
       
@@ -35042,8 +31736,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (error.name === "ZodError") {
         return handleZodError(res, error);
       }
-      
-      res.json(updatedLead);
       handleGenericError(res, error);
     }
   });
@@ -35059,8 +31751,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!contract) {
         return res.status(404).json({ message: "Contract not found" });
       }
-      
-      res.json(updatedLead);
       
       const hasAccess = await verifyExternalAgencyOwnership(req, res, contract.agencyId);
       if (!hasAccess) return;
@@ -35086,8 +31776,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ message: "Contract not found" });
       }
       
-      res.json(updatedLead);
-      
       // Verify ownership
       const hasAccess = await verifyExternalAgencyOwnership(req, res, contract.agencyId);
       if (!hasAccess) return;
@@ -35110,8 +31798,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (error.name === "ZodError") {
         return handleZodError(res, error);
       }
-      
-      res.json(updatedLead);
       handleGenericError(res, error);
     }
   });
@@ -35126,8 +31812,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ message: "Contract not found" });
       }
       
-      res.json(updatedLead);
-      
       // Verify ownership
       const hasAccess = await verifyExternalAgencyOwnership(req, res, contract.agencyId);
       if (!hasAccess) return;
@@ -35142,13 +31826,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ message: "Payment schedule not found" });
       }
       
-      res.json(updatedLead);
-      
       if (existingSchedule[0].contractId !== contractId) {
         return res.status(400).json({ message: "Schedule does not belong to this contract" });
       }
-      
-      res.json(updatedLead);
       
       // Validate request body
       const validatedData = updateExternalPaymentScheduleSchema.parse(req.body);
@@ -35163,8 +31843,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (error.name === "ZodError") {
         return handleZodError(res, error);
       }
-      
-      res.json(updatedLead);
       handleGenericError(res, error);
     }
   });
@@ -35178,8 +31856,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!contract) {
         return res.status(404).json({ message: "Contract not found" });
       }
-      
-      res.json(updatedLead);
       
       // Verify ownership
       const hasAccess = await verifyExternalAgencyOwnership(req, res, contract.agencyId);
@@ -35195,13 +31871,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ message: "Payment schedule not found" });
       }
       
-      res.json(updatedLead);
-      
       if (existingSchedule[0].contractId !== contractId) {
         return res.status(400).json({ message: "Schedule does not belong to this contract" });
       }
-      
-      res.json(updatedLead);
       
       // Delete schedule
       await storage.deleteExternalPaymentSchedule(scheduleId);
@@ -35221,16 +31893,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!contractId) {
         return res.status(400).json({ message: "contractId query parameter is required" });
       }
-      
-      res.json(updatedLead);
 
       // Verify contract exists and user has access
       const contract = await storage.getExternalRentalContract(contractId as string);
       if (!contract) {
         return res.status(404).json({ message: "Contract not found" });
       }
-      
-      res.json(updatedLead);
 
       const hasAccess = await verifyExternalAgencyOwnership(req, res, contract.agencyId);
       if (!hasAccess) return;
@@ -35256,8 +31924,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!contract) {
         return res.status(404).json({ message: "Contract not found" });
       }
-      
-      res.json(updatedLead);
 
       const hasAccess = await verifyExternalAgencyOwnership(req, res, contract.agencyId);
       if (!hasAccess) return;
@@ -35290,16 +31956,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!existing) {
         return res.status(404).json({ message: "Tenant not found" });
       }
-      
-      res.json(updatedLead);
 
       // Verify contract ownership
       const contract = await storage.getExternalRentalContract(existing.contractId);
       if (!contract) {
         return res.status(404).json({ message: "Contract not found" });
       }
-      
-      res.json(updatedLead);
 
       const hasAccess = await verifyExternalAgencyOwnership(req, res, contract.agencyId);
       if (!hasAccess) return;
@@ -35335,16 +31997,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!existing) {
         return res.status(404).json({ message: "Tenant not found" });
       }
-      
-      res.json(updatedLead);
 
       // Verify contract ownership
       const contract = await storage.getExternalRentalContract(existing.contractId);
       if (!contract) {
         return res.status(404).json({ message: "Contract not found" });
       }
-      
-      res.json(updatedLead);
 
       const hasAccess = await verifyExternalAgencyOwnership(req, res, contract.agencyId);
       if (!hasAccess) return;
@@ -35367,8 +32025,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!agencyId) {
         return res.status(400).json({ message: "No agency assigned to user" });
       }
-      
-      res.json(updatedLead);
 
       // Get all units for this agency
       const units = await db.query.externalUnits.findMany({
@@ -35418,8 +32074,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!agencyId) {
         return res.status(400).json({ message: "No agency assigned to user" });
       }
-      
-      res.json(updatedLead);
 
       const charges = await db.query.externalOwnerCharges.findMany({
         where: eq(externalOwnerCharges.agencyId, agencyId),
@@ -35439,8 +32093,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!agencyId) {
         return res.status(400).json({ message: "No agency assigned to user" });
       }
-      
-      res.json(updatedLead);
 
       const chargeData = insertExternalOwnerChargeSchema.parse(req.body);
 
@@ -35454,8 +32106,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!owner) {
         return res.status(404).json({ message: "Owner not found" });
       }
-      
-      res.json(updatedLead);
 
       // Verify unit belongs to user's agency
       const [unit] = await db
@@ -35467,8 +32117,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!unit || unit.agencyId !== agencyId) {
         return res.status(403).json({ message: "Forbidden: Cannot create charges for other agencies" });
       }
-      
-      res.json(updatedLead);
 
       const [charge] = await db
         .insert(externalOwnerCharges)
@@ -35486,8 +32134,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (error.name === "ZodError") {
         return handleZodError(res, error);
       }
-      
-      res.json(updatedLead);
       handleGenericError(res, error);
     }
   });
@@ -35501,8 +32147,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!agencyId) {
         return res.status(400).json({ message: "No agency assigned to user" });
       }
-      
-      res.json(updatedLead);
 
       const { unreadOnly, limit = "50" } = req.query;
       
@@ -35510,8 +32154,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (unreadOnly === "true") {
         conditions.push(eq(externalNotifications.isRead, false));
       }
-      
-      res.json(updatedLead);
 
       const notifications = await db.query.externalNotifications.findMany({
         where: and(...conditions),
@@ -35532,8 +32174,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!agencyId) {
         return res.status(400).json({ message: "No agency assigned to user" });
       }
-      
-      res.json(updatedLead);
 
       const [result] = await db
         .select({ count: sql<number>`count(*)::int` })
@@ -35556,8 +32196,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!agencyId) {
         return res.status(400).json({ message: "No agency assigned to user" });
       }
-      
-      res.json(updatedLead);
 
       const { id } = req.params;
 
@@ -35570,14 +32208,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!notification) {
         return res.status(404).json({ message: "Notification not found" });
       }
-      
-      res.json(updatedLead);
 
       if (notification.agencyId !== agencyId) {
         return res.status(403).json({ message: "Forbidden" });
       }
-      
-      res.json(updatedLead);
 
       const [updated] = await db
         .update(externalNotifications)
@@ -35598,8 +32232,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!agencyId) {
         return res.status(400).json({ message: "No agency assigned to user" });
       }
-      
-      res.json(updatedLead);
 
       await db
         .update(externalNotifications)
@@ -35622,8 +32254,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!agencyId) {
         return res.status(400).json({ message: "No agency assigned to user" });
       }
-      
-      res.json(updatedLead);
 
       const notifications = await db.query.externalOwnerNotifications.findMany({
         where: eq(externalOwnerNotifications.agencyId, agencyId),
@@ -35643,8 +32273,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!agencyId) {
         return res.status(400).json({ message: "No agency assigned to user" });
       }
-      
-      res.json(updatedLead);
 
       const notificationData = insertExternalOwnerNotificationSchema.parse(req.body);
 
@@ -35666,18 +32294,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
             eq(externalUnits.agencyId, agencyId),
             eq(externalUnits.condominiumId, notificationData.condominiumId)
           ),
-      }
-      
-      res.json(updatedLead);
+        });
 
         const owners = await db.query.externalUnitOwners.findMany({
           where: inArray(
             externalUnitOwners.unitId,
             units.map((u) => u.id)
           ),
-      }
-      
-      res.json(updatedLead);
+        });
 
         // Create notification for each owner
         const notifications = await Promise.all(
@@ -35705,8 +32329,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
         return res.json({ count: notifications.length, notifications: notifications.flat() });
       }
-      
-      res.json(updatedLead);
 
       // Single notification
       // SECURITY: Verify owner/unit belong to user's agency if specified
@@ -35732,8 +32354,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
           return res.status(403).json({ message: "Forbidden: Cannot send notifications for other agencies" });
         }
       }
-      
-      res.json(updatedLead);
 
       const [notification] = await db
         .insert(externalOwnerNotifications)
@@ -35751,8 +32371,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (error.name === "ZodError") {
         return handleZodError(res, error);
       }
-      
-      res.json(updatedLead);
       handleGenericError(res, error);
     }
   });
@@ -35764,8 +32382,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!agencyId) {
         return res.status(400).json({ message: "No agency assigned to user" });
       }
-      
-      res.json(updatedLead);
 
       // Get all maintenance workers for this agency
       const workers = await db
@@ -35798,8 +32414,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!agencyId) {
         return res.status(400).json({ message: "No agency assigned to user" });
       }
-      
-      res.json(updatedLead);
 
       const assignments = await db.query.externalWorkerAssignments.findMany({
         where: eq(externalWorkerAssignments.agencyId, agencyId),
@@ -35819,8 +32433,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!agencyId) {
         return res.status(400).json({ message: "No agency assigned to user" });
       }
-      
-      res.json(updatedLead);
 
       const assignmentData = insertExternalWorkerAssignmentSchema.parse(req.body);
 
@@ -35837,8 +32449,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!worker || worker.assignedToUser !== agencyId) {
         return res.status(403).json({ message: "Forbidden: Worker does not belong to your agency" });
       }
-      
-      res.json(updatedLead);
 
       // SECURITY: If condominium is specified, verify it belongs to user's agency
       if (assignmentData.condominiumId) {
@@ -35852,8 +32462,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
           return res.status(403).json({ message: "Forbidden: Condominium does not belong to your agency" });
         }
       }
-      
-      res.json(updatedLead);
 
       // SECURITY: If unit is specified, verify it belongs to user's agency
       if (assignmentData.unitId) {
@@ -35867,8 +32475,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
           return res.status(403).json({ message: "Forbidden: Unit does not belong to your agency" });
         }
       }
-      
-      res.json(updatedLead);
 
       const [assignment] = await db
         .insert(externalWorkerAssignments)
@@ -35885,8 +32491,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (error.name === "ZodError") {
         return handleZodError(res, error);
       }
-      
-      res.json(updatedLead);
       handleGenericError(res, error);
     }
   });
@@ -35898,8 +32502,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!agencyId) {
         return res.status(400).json({ message: "No agency assigned to user" });
       }
-      
-      res.json(updatedLead);
 
       // SECURITY: Verify assignment belongs to user's agency
       const [assignment] = await db
@@ -35911,8 +32513,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!assignment || assignment.agencyId !== agencyId) {
         return res.status(403).json({ message: "Forbidden: Cannot delete assignments from other agencies" });
       }
-      
-      res.json(updatedLead);
 
       await db.delete(externalWorkerAssignments).where(eq(externalWorkerAssignments.id, id));
       await createAuditLog(req, "delete", "external_worker_assignment", id, "Deleted worker assignment");
@@ -35936,8 +32536,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!agencyId) {
         return res.status(403).json({ message: "No agency access" });
       }
-      
-      res.json(updatedLead);
 
       const { direction, category, status, condominiumId, unitId, startDate, endDate, search, sortField, sortOrder, limit, offset } = req.query;
 
@@ -36067,8 +32665,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
         if (row.direction === 'inflow') totalIncome = amount;
         else if (row.direction === 'outflow') totalExpenses = amount;
       }
-      
-      res.json(updatedLead);
 
       res.json({
         transactions: {
@@ -36106,8 +32702,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!agencyId) {
         return res.status(403).json({ message: "No agency access" });
       }
-      
-      res.json(updatedLead);
 
       const summary = await storage.getExternalAccountingSummary(agencyId);
       res.json(summary);
@@ -36124,8 +32718,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!agencyId) {
         return res.status(403).json({ message: "No agency access" });
       }
-      
-      res.json(updatedLead);
 
       const { direction, category, status, ownerId, contractId, unitId, condominiumId, startDate, endDate, search, sortField, sortOrder, limit, offset, zone, typology } = req.query;
 
@@ -36183,9 +32775,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           limit: parsedLimit,
           offset: parsedOffset,
           hasMore: parsedOffset + transactions.length < total,
-      }
-      
-      res.json(updatedLead);
+        });
       } else {
         // Legacy mode: return simple array (NO pagination - full dataset)
         // Preserve historical behavior: existing filters only, NO sortField/sortOrder
@@ -36197,8 +32787,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
         const transactions = await storage.getExternalFinancialTransactionsByAgency(agencyId, filters);
         res.json(transactions);
       }
-      
-      res.json(updatedLead);
     } catch (error: any) {
       console.error("Error fetching financial transactions:", error);
       handleGenericError(res, error);
@@ -36212,8 +32800,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!agencyId) {
         return res.status(403).json({ message: "No agency access" });
       }
-      
-      res.json(updatedLead);
 
       const { direction, category, status, condominiumId, unitId, startDate, endDate, search } = req.query;
 
@@ -36242,8 +32828,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
           conditions.push(searchCondition);
         }
       }
-      
-      res.json(updatedLead);
 
       // Calculate total income and expenses (all non-cancelled transactions)
       const [financialTotals] = await db
@@ -36336,8 +32920,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!transaction) {
         return res.status(404).json({ message: "Transaction not found" });
       }
-      
-      res.json(updatedLead);
 
       const hasAccess = await verifyExternalAgencyOwnership(req, res, transaction.agencyId);
       if (!hasAccess) return;
@@ -36356,8 +32938,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!agencyId) {
         return res.status(403).json({ message: "No agency access" });
       }
-      
-      res.json(updatedLead);
 
       const transactionData = insertExternalFinancialTransactionSchema.parse({
         ...req.body,
@@ -36374,8 +32954,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (error.name === "ZodError") {
         return handleZodError(res, error);
       }
-      
-      res.json(updatedLead);
       handleGenericError(res, error);
     }
   });
@@ -36389,8 +32967,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!existing) {
         return res.status(404).json({ message: "Transaction not found" });
       }
-      
-      res.json(updatedLead);
 
       const hasAccess = await verifyExternalAgencyOwnership(req, res, existing.agencyId);
       if (!hasAccess) return;
@@ -36405,8 +32981,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (error.name === "ZodError") {
         return handleZodError(res, error);
       }
-      
-      res.json(updatedLead);
       handleGenericError(res, error);
     }
   });
@@ -36420,8 +32994,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!existing) {
         return res.status(404).json({ message: "Transaction not found" });
       }
-      
-      res.json(updatedLead);
 
       const hasAccess = await verifyExternalAgencyOwnership(req, res, existing.agencyId);
       if (!hasAccess) return;
@@ -36446,8 +33018,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!existing) {
         return res.status(404).json({ message: "Transaction not found" });
       }
-      
-      res.json(updatedLead);
 
       const hasAccess = await verifyExternalAgencyOwnership(req, res, existing.agencyId);
       if (!hasAccess) return;
@@ -36465,8 +33035,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
           .set({ accountingSyncStatus: 'synced' })
           .where(eq(externalMaintenanceTickets.id, existing.maintenanceTicketId));
       }
-      
-      res.json(updatedLead);
 
       await createAuditLog(req, "update", "external_financial_transaction", id, "Marked transaction as paid");
       res.json(updatedTransaction);
@@ -36484,8 +33052,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!agencyId) {
         return res.status(403).json({ message: "User is not assigned to any agency" });
       }
-      
-      res.json(updatedLead);
 
       const year = parseInt(req.query.year as string) || new Date().getFullYear();
       const month = parseInt(req.query.month as string) || (new Date().getMonth() + 1);
@@ -36515,8 +33081,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       } else if (category === 'cleaning') {
         conditions.push(eq(externalMaintenanceTickets.category, 'cleaning'));
       }
-      
-      res.json(updatedLead);
 
       if (condominiumId && condominiumId !== 'all') {
         const unitIds = await db.select({ id: externalUnits.id })
@@ -36526,8 +33090,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
           conditions.push(inArray(externalMaintenanceTickets.unitId, unitIds.map(u => u.id)));
         }
       }
-      
-      res.json(updatedLead);
 
       const tickets = await db.select({
         id: externalMaintenanceTickets.id,
@@ -36579,7 +33141,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
             totalActualCost: 0,
             totalAdminFee: 0,
             totalCharge: 0,
-        }
+          });
         }
 
         const payment = workerPayments.get(workerId)!;
@@ -36599,15 +33161,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
           workerPaymentDate: ticket.workerPaymentDate,
           agencyCollectedDate: ticket.agencyCollectedDate,
           accountingTransactionId: ticket.accountingTransactionId,
-      }
-      
-      res.json(updatedLead);
+        });
         payment.totalActualCost += actualCost;
         payment.totalAdminFee += adminFee;
         payment.totalCharge += totalCharge;
       }
-      
-      res.json(updatedLead);
 
       const payments = Array.from(workerPayments.values()).map(p => ({
         id: `payment-${p.workerId}`,
@@ -36643,8 +33201,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!agencyId) {
         return res.status(403).json({ message: "User is not assigned to any agency" });
       }
-      
-      res.json(updatedLead);
 
       const ticketId = req.params.id;
       const { workerPaymentStatus, agencyCollectedStatus } = req.body;
@@ -36660,8 +33216,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!ticket) {
         return res.status(404).json({ message: "Ticket not found" });
       }
-      
-      res.json(updatedLead);
 
       const updateData: any = { updatedAt: new Date() };
       
@@ -36672,16 +33226,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
         }
       }
       
-      res.json(updatedLead);
-      
       if (agencyCollectedStatus !== undefined) {
         updateData.agencyCollectedStatus = agencyCollectedStatus;
         if (agencyCollectedStatus === 'collected') {
           updateData.agencyCollectedDate = new Date();
         }
       }
-      
-      res.json(updatedLead);
 
       const [updated] = await db.update(externalMaintenanceTickets)
         .set(updateData)
@@ -36701,8 +33251,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!agencyId) {
         return res.status(403).json({ message: "User is not assigned to any agency" });
       }
-      
-      res.json(updatedLead);
 
       const year = parseInt(req.query.year as string) || new Date().getFullYear();
       const month = parseInt(req.query.month as string) || (new Date().getMonth() + 1);
@@ -36732,8 +33280,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
           baseConditions.push(inArray(externalMaintenanceTickets.unitId, unitIds.map(u => u.id)));
         }
       }
-      
-      res.json(updatedLead);
 
       const maintenanceTickets = await db.select({
         id: externalMaintenanceTickets.id,
@@ -36774,11 +33320,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
             amount: adminFee,
             date: ticket.closedAt,
             category: 'maintenance',
-        }
+          });
         }
       }
-      
-      res.json(updatedLead);
 
       for (const ticket of cleaningTickets) {
         const adminFee = parseFloat(ticket.adminFeeAmount || '0');
@@ -36791,11 +33335,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
             amount: adminFee,
             date: ticket.closedAt,
             category: 'cleaning',
-        }
+          });
         }
       }
-      
-      res.json(updatedLead);
 
       const totalMaintenanceFees = maintenanceTickets.reduce((sum, t) => sum + parseFloat(t.adminFeeAmount || '0'), 0);
       const totalCleaningFees = cleaningTickets.reduce((sum, t) => sum + parseFloat(t.adminFeeAmount || '0'), 0);
@@ -36826,8 +33368,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!agencyId) {
         return res.status(403).json({ message: "User is not assigned to any agency" });
       }
-      
-      res.json(updatedLead);
 
       const type = req.query.type as 'tenant' | 'owner' | undefined;
       const terms = await storage.getExternalTermsAndConditions(agencyId, type);
@@ -36845,15 +33385,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!agencyId) {
         return res.status(403).json({ message: "User is not assigned to any agency" });
       }
-      
-      res.json(updatedLead);
 
       const type = req.query.type as 'tenant' | 'owner';
       if (!type) {
         return res.status(400).json({ message: "Type (tenant or owner) is required" });
       }
-      
-      res.json(updatedLead);
 
       const terms = await storage.getActiveExternalTermsAndConditions(agencyId, type);
       res.json(terms || null);
@@ -36872,8 +33408,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!terms) {
         return res.status(404).json({ message: "Terms and conditions not found" });
       }
-      
-      res.json(updatedLead);
 
       const hasAccess = await verifyExternalAgencyOwnership(req, res, terms.agencyId);
       if (!hasAccess) return;
@@ -36892,8 +33426,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!agencyId) {
         return res.status(403).json({ message: "User is not assigned to any agency" });
       }
-      
-      res.json(updatedLead);
 
       const termsData = insertExternalTermsAndConditionsSchema.parse({
         ...req.body,
@@ -36910,8 +33442,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (error.name === "ZodError") {
         return handleZodError(res, error);
       }
-      
-      res.json(updatedLead);
       handleGenericError(res, error);
     }
   });
@@ -36925,8 +33455,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!existing) {
         return res.status(404).json({ message: "Terms and conditions not found" });
       }
-      
-      res.json(updatedLead);
 
       const hasAccess = await verifyExternalAgencyOwnership(req, res, existing.agencyId);
       if (!hasAccess) return;
@@ -36941,8 +33469,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (error.name === "ZodError") {
         return handleZodError(res, error);
       }
-      
-      res.json(updatedLead);
       handleGenericError(res, error);
     }
   });
@@ -36956,8 +33482,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!existing) {
         return res.status(404).json({ message: "Terms and conditions not found" });
       }
-      
-      res.json(updatedLead);
 
       const hasAccess = await verifyExternalAgencyOwnership(req, res, existing.agencyId);
       if (!hasAccess) return;
@@ -36981,8 +33505,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!existing) {
         return res.status(404).json({ message: "Terms and conditions not found" });
       }
-      
-      res.json(updatedLead);
 
       const hasAccess = await verifyExternalAgencyOwnership(req, res, existing.agencyId);
       if (!hasAccess) return;
@@ -37006,8 +33528,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!existing) {
         return res.status(404).json({ message: "Terms and conditions not found" });
       }
-      
-      res.json(updatedLead);
 
       const hasAccess = await verifyExternalAgencyOwnership(req, res, existing.agencyId);
       if (!hasAccess) return;
@@ -37038,8 +33558,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!agencyId) {
         return res.status(403).json({ message: "Agency ID not found" });
       }
-      
-      res.json(updatedLead);
 
       let data: any[] = [];
       let filename = '';
@@ -37340,14 +33858,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
         default:
           return res.status(400).json({ message: `Unknown section: ${section}` });
       }
-      
-      res.json(updatedLead);
 
       if (data.length === 0) {
         return res.status(200).json({ message: 'No data to export', csv: '', filename });
       }
-      
-      res.json(updatedLead);
 
       // Generate CSV using papaparse
       const csv = Papa.unparse(data, {
@@ -37375,8 +33889,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!job) {
         return res.status(404).json({ message: "Import job not found" });
       }
-      
-      res.json(updatedLead);
       
       res.json({
         id: job.id,
@@ -37410,13 +33922,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(403).json({ message: "Agency ID not found" });
       }
       
-      res.json(updatedLead);
-      
       if (!csvData || typeof csvData !== 'string') {
         return res.status(400).json({ message: "CSV data is required" });
       }
-      
-      res.json(updatedLead);
 
       // Parse CSV
       const parseResult = Papa.parse(csvData, {
@@ -37429,12 +33937,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ 
           message: "CSV parsing errors", 
           errors: parseResult.errors.slice(0, 5) 
+        });
       }
-      
-      res.json(updatedLead);
-      }
-      
-      res.json(updatedLead);
 
       const rows = parseResult.data as any[];
       
@@ -37502,7 +34006,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
                 isActive: row.is_active !== 'false',
                 createdAt: new Date(),
                 updatedAt: new Date(),
-            }
+              });
               imported++;
             } catch (e: any) {
               errors.push(`Row "${row.name}": ${e.message}`);
@@ -37550,7 +34054,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
                 notes: row.notes?.trim() || null,
                 createdAt: new Date(),
                 updatedAt: new Date(),
-            }
+              });
               imported++;
             } catch (e: any) {
               errors.push(`Row "${row.first_name} ${row.last_name}": ${e.message}`);
@@ -37601,7 +34105,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
                 notes: row.notes?.trim() || null,
                 createdAt: new Date(),
                 updatedAt: new Date(),
-            }
+              });
               imported++;
             } catch (e: any) {
               errors.push(`Row "${row.first_name} ${row.last_name}": ${e.message}`);
@@ -37671,7 +34175,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
                 isActive: row.is_active !== 'false',
                 createdAt: new Date(),
                 updatedAt: new Date(),
-            }
+              });
               imported++;
             } catch (e: any) {
               errors.push(`Row "${row.unit_number}": ${e.message}`);
@@ -37729,7 +34233,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
                 notes: row.notes?.trim() || null,
                 createdAt: new Date(),
                 updatedAt: new Date(),
-            }
+              });
               imported++;
             } catch (e: any) {
               errors.push(`Row "${row.owner_name}": ${e.message}`);
@@ -37773,7 +34277,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
                 currency: row.currency?.trim() || 'USD',
                 createdAt: new Date(),
                 updatedAt: new Date(),
-            }
+              });
               imported++;
             } catch (e: any) {
               errors.push(`Row "${row.unit_number}": ${e.message}`);
@@ -37833,7 +34337,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
                 actualCost: row.actual_cost ? parseFloat(row.actual_cost) : null,
                 createdAt: new Date(),
                 updatedAt: new Date(),
-            }
+              });
               imported++;
             } catch (e: any) {
               errors.push(`Row "${row.title}": ${e.message}`);
@@ -37877,7 +34381,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
                 transactionDate: row.transaction_date ? new Date(row.transaction_date) : new Date(),
                 createdAt: new Date(),
                 updatedAt: new Date(),
-            }
+              });
               imported++;
             } catch (e: any) {
               errors.push(`Row with amount ${row.amount}: ${e.message}`);
@@ -37941,7 +34445,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
                 validUntil: row.valid_until ? new Date(row.valid_until) : null,
                 createdAt: new Date(),
                 updatedAt: new Date(),
-            }
+              });
               imported++;
             } catch (e: any) {
               errors.push(`Row "${row.title}": ${e.message}`);
@@ -37999,7 +34503,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
                 isSuspended: false,
                 createdAt: new Date(),
                 updatedAt: new Date(),
-            }
+              });
               imported++;
             } catch (e: any) {
               errors.push(`Row "${row.email}": ${e.message}`);
@@ -38010,10 +34514,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         default:
           return res.status(400).json({ 
             message: `Import not supported for section: ${section}` 
-        }
+          });
       }
-      
-      res.json(updatedLead);
 
       // Update job status to completed
       updateProgress();
@@ -38032,8 +34534,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
         job.finishedAt = new Date();
         job.message = error.message || 'Import failed';
       }
-      
-      res.json(updatedLead);
     }
   });
   // ============================================================================
@@ -38047,8 +34547,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!agencyId) {
         return res.status(403).json({ message: "Agency ID not found" });
       }
-      
-      res.json(updatedLead);
 
       const zones = await db.select()
         .from(externalAgencyZones)
@@ -38069,8 +34567,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!agencyId) {
         return res.status(403).json({ message: "Agency ID not found" });
       }
-      
-      res.json(updatedLead);
 
       const validated = insertExternalAgencyZoneSchema.parse({
         ...req.body,
@@ -38088,8 +34584,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (error.code === "23505") {
         return res.status(409).json({ message: "A zone with this name already exists for your agency" });
       }
-      
-      res.json(updatedLead);
       handleGenericError(res, error);
     }
   });
@@ -38102,8 +34596,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!agencyId) {
         return res.status(403).json({ message: "Agency ID not found" });
       }
-      
-      res.json(updatedLead);
 
       const [existing] = await db.select()
         .from(externalAgencyZones)
@@ -38112,8 +34604,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!existing) {
         return res.status(404).json({ message: "Zone not found" });
       }
-      
-      res.json(updatedLead);
 
       const { name, isActive, sortOrder } = req.body;
       const updates: any = {};
@@ -38133,8 +34623,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (error.code === "23505") {
         return res.status(409).json({ message: "A zone with this name already exists for your agency" });
       }
-      
-      res.json(updatedLead);
       handleGenericError(res, error);
     }
   });
@@ -38147,8 +34635,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!agencyId) {
         return res.status(403).json({ message: "Agency ID not found" });
       }
-      
-      res.json(updatedLead);
 
       const [existing] = await db.select()
         .from(externalAgencyZones)
@@ -38157,8 +34643,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!existing) {
         return res.status(404).json({ message: "Zone not found" });
       }
-      
-      res.json(updatedLead);
 
       await db.delete(externalAgencyZones).where(eq(externalAgencyZones.id, id));
 
@@ -38181,8 +34665,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!agencyId) {
         return res.status(403).json({ message: "Agency ID not found" });
       }
-      
-      res.json(updatedLead);
 
       const propertyTypes = await db.select()
         .from(externalAgencyPropertyTypes)
@@ -38203,8 +34685,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!agencyId) {
         return res.status(403).json({ message: "Agency ID not found" });
       }
-      
-      res.json(updatedLead);
 
       const validated = insertExternalAgencyPropertyTypeSchema.parse({
         ...req.body,
@@ -38222,8 +34702,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (error.code === "23505") {
         return res.status(409).json({ message: "A property type with this name already exists for your agency" });
       }
-      
-      res.json(updatedLead);
       handleGenericError(res, error);
     }
   });
@@ -38236,8 +34714,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!agencyId) {
         return res.status(403).json({ message: "Agency ID not found" });
       }
-      
-      res.json(updatedLead);
 
       const [existing] = await db.select()
         .from(externalAgencyPropertyTypes)
@@ -38246,8 +34722,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!existing) {
         return res.status(404).json({ message: "Property type not found" });
       }
-      
-      res.json(updatedLead);
 
       const { name, isActive, sortOrder } = req.body;
       const updates: any = {};
@@ -38267,8 +34741,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (error.code === "23505") {
         return res.status(409).json({ message: "A property type with this name already exists for your agency" });
       }
-      
-      res.json(updatedLead);
       handleGenericError(res, error);
     }
   });
@@ -38281,8 +34753,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!agencyId) {
         return res.status(403).json({ message: "Agency ID not found" });
       }
-      
-      res.json(updatedLead);
 
       const [existing] = await db.select()
         .from(externalAgencyPropertyTypes)
@@ -38291,8 +34761,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!existing) {
         return res.status(404).json({ message: "Property type not found" });
       }
-      
-      res.json(updatedLead);
 
       await db.delete(externalAgencyPropertyTypes).where(eq(externalAgencyPropertyTypes.id, id));
 
@@ -38312,8 +34780,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!agencyId) {
         return res.status(403).json({ message: "User is not assigned to any agency" });
       }
-      
-      res.json(updatedLead);
 
       const quotations = await storage.getExternalQuotations(agencyId);
       res.json(quotations);
@@ -38331,15 +34797,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!agencyId) {
         return res.status(403).json({ message: "User is not assigned to any agency" });
       }
-      
-      res.json(updatedLead);
 
       const quotation = await storage.getExternalQuotationById(id, agencyId);
       if (!quotation) {
         return res.status(404).json({ message: "Quotation not found" });
       }
-      
-      res.json(updatedLead);
 
       res.json(quotation);
     } catch (error: any) {
@@ -38355,8 +34817,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!agencyId) {
         return res.status(403).json({ message: "User is not assigned to any agency" });
       }
-      
-      res.json(updatedLead);
 
       const quotationData = insertExternalQuotationSchema.parse({
         ...req.body,
@@ -38373,8 +34833,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (error.name === "ZodError") {
         return handleZodError(res, error);
       }
-      
-      res.json(updatedLead);
       handleGenericError(res, error);
     }
   });
@@ -38387,8 +34845,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!agencyId) {
         return res.status(403).json({ message: "User is not assigned to any agency" });
       }
-      
-      res.json(updatedLead);
 
       const updates = updateExternalQuotationSchema.parse(req.body);
       const quotation = await storage.updateExternalQuotation(id, agencyId, updates);
@@ -38400,13 +34856,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (error.name === "ZodError") {
         return handleZodError(res, error);
       }
-      
-      res.json(updatedLead);
       if (error instanceof NotFoundError) {
         return res.status(404).json({ message: error.message });
       }
-      
-      res.json(updatedLead);
       handleGenericError(res, error);
     }
   });
@@ -38419,8 +34871,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!agencyId) {
         return res.status(403).json({ message: "User is not assigned to any agency" });
       }
-      
-      res.json(updatedLead);
 
       await storage.deleteExternalQuotation(id, agencyId);
 
@@ -38431,8 +34881,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (error instanceof NotFoundError) {
         return res.status(404).json({ message: error.message });
       }
-      
-      res.json(updatedLead);
       handleGenericError(res, error);
     }
   });
@@ -38447,14 +34895,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!agencyId) {
         return res.status(403).json({ message: "User is not assigned to any agency" });
       }
-      
-      res.json(updatedLead);
 
       if (!status || !['draft', 'sent', 'approved', 'rejected', 'converted_to_ticket'].includes(status)) {
         return res.status(400).json({ message: "Invalid status" });
       }
-      
-      res.json(updatedLead);
 
       const quotation = await storage.updateExternalQuotationStatus(id, agencyId, status);
 
@@ -38465,13 +34909,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (error instanceof NotFoundError) {
         return res.status(404).json({ message: error.message });
       }
-      
-      res.json(updatedLead);
       if (error.message?.includes("Invalid status transition")) {
         return res.status(400).json({ message: error.message });
       }
-      
-      res.json(updatedLead);
       handleGenericError(res, error);
     }
   });
@@ -38486,16 +34926,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!agencyId) {
         return res.status(403).json({ message: "User is not assigned to any agency" });
       }
-      
-      res.json(updatedLead);
 
       // Verify quotation exists and belongs to agency
       const quotation = await storage.getExternalQuotationById(id, agencyId);
       if (!quotation) {
         return res.status(404).json({ message: "Quotation not found" });
       }
-      
-      res.json(updatedLead);
 
       // Generate unique token
       const token = crypto.randomBytes(32).toString('hex');
@@ -38533,8 +34969,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!result) {
         return res.status(404).json({ message: "Quotation not found or link has expired" });
       }
-      
-      res.json(updatedLead);
 
       // Increment access count
       await storage.incrementQuotationTokenAccess(result.token.id);
@@ -38555,24 +34989,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!agencyId) {
         return res.status(403).json({ message: "User is not assigned to any agency" });
       }
-      
-      res.json(updatedLead);
 
       // Get quotation
       const quotation = await storage.getExternalQuotationById(id, agencyId);
       if (!quotation) {
         return res.status(404).json({ message: "Quotation not found" });
       }
-      
-      res.json(updatedLead);
 
       // Get agency details
       const agency = await storage.getExternalAgency(agencyId);
       if (!agency) {
         return res.status(404).json({ message: "Agency not found" });
       }
-      
-      res.json(updatedLead);
 
       // Prepare agency data for PDF
       const agencyData = {
@@ -38594,8 +35022,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (error instanceof NotFoundError) {
         return res.status(404).json({ message: error.message });
       }
-      
-      res.json(updatedLead);
       handleGenericError(res, error);
     }
   });
@@ -38609,27 +35035,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!agencyId) {
         return res.status(403).json({ message: "User is not assigned to any agency" });
       }
-      
-      res.json(updatedLead);
 
       const quotation = await storage.getExternalQuotationById(id, agencyId);
       if (!quotation) {
         return res.status(404).json({ message: "Quotation not found" });
       }
-      
-      res.json(updatedLead);
 
       if (quotation.status !== "approved") {
         return res.status(400).json({ message: "Solo se pueden convertir cotizaciones aceptadas" });
       }
-      
-      res.json(updatedLead);
 
       if ((quotation as any).convertedTicketId) {
         return res.status(400).json({ message: "Esta cotización ya fue convertida a ticket" });
       }
-      
-      res.json(updatedLead);
 
       const services = typeof quotation.services === 'string' 
         ? JSON.parse(quotation.services) 
@@ -38675,8 +35093,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (error instanceof NotFoundError) {
         return res.status(404).json({ message: error.message });
       }
-      
-      res.json(updatedLead);
       handleGenericError(res, error);
     }
   });
@@ -38712,8 +35128,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return;
       }
       
-      res.json(updatedLead);
-      
       const parsedCookies = parseCookie(cookies);
       const sessionId = parsedCookies['connect.sid']?.split('.')[0]?.substring(2);
       
@@ -38723,25 +35137,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return;
       }
       
-      res.json(updatedLead);
-      
       // Get session from store
       const sessionStore = (sessionMiddleware as any).store;
       const session: any = await new Promise((resolve, reject) => {
         sessionStore.get(sessionId, (err: any, session: any) => {
           if (err) reject(err);
           else resolve(session);
-      }
-      
-      res.json(updatedLead);
+        });
+      });
       
       if (!session) {
         console.error('WebSocket: Session not found');
         ws.close(1008, 'Unauthorized: Invalid session');
         return;
       }
-      
-      res.json(updatedLead);
       
       // Extract user ID from session
       if (session.adminUser) {
@@ -38752,15 +35161,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
         userId = session.passport.user.claims.sub;
       }
       
-      res.json(updatedLead);
-      
       if (!userId) {
         console.error('WebSocket: No user ID in session');
         ws.close(1008, 'Unauthorized: No user');
         return;
       }
-      
-      res.json(updatedLead);
       
       console.log(`WebSocket: User ${userId} authenticated`);
     } catch (error) {
@@ -38812,8 +35217,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
         console.error('Error processing WebSocket message:', error);
         ws.send(JSON.stringify({ type: 'error', message: 'Invalid message format' }));
       }
-      
-      res.json(updatedLead);
     });
     
     ws.on('close', () => {
@@ -38826,8 +35229,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
           }
         }
       }
-      
-      res.json(updatedLead);
       console.log(`WebSocket: User ${userId} disconnected`);
     });
     
