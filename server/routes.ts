@@ -25579,6 +25579,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         db.select({
           id: externalUnits.id,
           name: externalUnits.title,
+          unitNumber: externalUnits.unitNumber,
           zone: externalUnits.zone,
           unitType: externalUnits.propertyType,
           bedrooms: externalUnits.bedrooms,
@@ -25589,8 +25590,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
           images: externalUnits.primaryImages,
           amenities: externalUnits.amenities,
           condominiumId: externalUnits.condominiumId,
+          condominiumName: externalCondominiums.name,
         })
           .from(externalUnits)
+          .leftJoin(externalCondominiums, eq(externalUnits.condominiumId, externalCondominiums.id))
           .where(and(...conditions))
           .orderBy(desc(externalUnits.createdAt))
           .limit(parseInt(limit as string))

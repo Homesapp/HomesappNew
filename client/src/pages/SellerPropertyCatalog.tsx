@@ -55,6 +55,7 @@ import { SiWhatsapp } from "react-icons/si";
 interface Unit {
   id: string;
   name: string;
+  unitNumber: string | null;
   zone: string | null;
   unitType: string | null;
   bedrooms: number | null;
@@ -65,6 +66,7 @@ interface Unit {
   images: string[] | null;
   amenities: string[] | null;
   condominiumId: string | null;
+  condominiumName: string | null;
 }
 
 interface Lead {
@@ -328,6 +330,11 @@ export default function SellerPropertyCatalog() {
   };
 
   const applyLeadFilters = (lead: Lead) => {
+    // Toggle behavior: if same lead is clicked, deselect it
+    if (selectedLead?.id === lead.id) {
+      clearFilters();
+      return;
+    }
     setSelectedLead(lead);
     const newFilters = {
       minPrice: "",
@@ -943,7 +950,7 @@ export default function SellerPropertyCatalog() {
                       </div>
                     )}
                     <Badge
-                      className="absolute right-2 top-2"
+                      className="absolute left-2 top-2"
                       variant={unit.status === "active" ? "default" : "secondary"}
                     >
                       {unit.status === "active" ? "Disponible" : "Rentada"}
@@ -951,8 +958,15 @@ export default function SellerPropertyCatalog() {
                   </div>
 
                   <CardContent className="p-3">
+                    {/* Condominium and Unit Number */}
+                    <div className="mb-1 flex items-center gap-1 text-xs font-medium">
+                      <Building2 className="h-3 w-3 flex-shrink-0 text-primary" />
+                      <span className="line-clamp-1">
+                        {unit.condominiumName || "Sin condominio"}
+                      </span>
+                    </div>
                     <h3 className="mb-1 line-clamp-1 text-sm font-semibold" data-testid={`text-unit-name-${unit.id}`}>
-                      {unit.name}
+                      {unit.unitNumber ? `Unidad ${unit.unitNumber}` : unit.name}
                     </h3>
                     <div className="mb-2 flex items-center gap-1 text-xs text-muted-foreground">
                       <MapPin className="h-3 w-3 flex-shrink-0" />
