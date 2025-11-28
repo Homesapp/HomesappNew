@@ -1468,12 +1468,90 @@ export default function ExternalConfiguration() {
     );
   };
 
+  const SeedCatalogButton = ({ language, toast }: { language: string; toast: any }) => {
+    const [isSeeding, setIsSeeding] = useState(false);
+
+    const seedMutation = useMutation({
+      mutationFn: async () => {
+        return apiRequest('POST', '/api/external/config/seed-characteristics-amenities');
+      },
+      onSuccess: (data: any) => {
+        queryClient.invalidateQueries({ queryKey: ['/api/external/config/unit-characteristics'] });
+        queryClient.invalidateQueries({ queryKey: ['/api/external/config/amenities'] });
+        toast({
+          title: language === 'es' ? 'Catálogos pre-poblados' : 'Catalogs seeded',
+          description: language === 'es' 
+            ? `Se crearon ${data.characteristicsCreated} características y ${data.amenitiesCreated} amenidades`
+            : `Created ${data.characteristicsCreated} characteristics and ${data.amenitiesCreated} amenities`,
+        });
+        setIsSeeding(false);
+      },
+      onError: (error: any) => {
+        toast({
+          title: 'Error',
+          description: error.message || (language === 'es' ? 'Error al pre-poblar catálogos' : 'Failed to seed catalogs'),
+          variant: 'destructive',
+        });
+        setIsSeeding(false);
+      },
+    });
+
+    return (
+      <Card data-testid="card-seed-catalogs">
+        <CardHeader>
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <Plus className="h-5 w-5" />
+              <div>
+                <CardTitle>
+                  {language === 'es' ? 'Pre-poblar Catálogos' : 'Seed Catalogs'}
+                </CardTitle>
+                <CardDescription>
+                  {language === 'es' 
+                    ? 'Carga automáticamente 40 características de unidad y 40 amenidades comunes'
+                    : 'Automatically load 40 unit characteristics and 40 common amenities'}
+                </CardDescription>
+              </div>
+            </div>
+            <Button 
+              onClick={() => {
+                setIsSeeding(true);
+                seedMutation.mutate();
+              }}
+              disabled={isSeeding || seedMutation.isPending}
+              data-testid="button-seed-catalogs"
+            >
+              {isSeeding || seedMutation.isPending ? (
+                <>
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                  {language === 'es' ? 'Cargando...' : 'Loading...'}
+                </>
+              ) : (
+                <>
+                  <FileSpreadsheet className="h-4 w-4 mr-2" />
+                  {language === 'es' ? 'Cargar Catálogos Iniciales' : 'Load Initial Catalogs'}
+                </>
+              )}
+            </Button>
+          </div>
+        </CardHeader>
+        <CardContent>
+          <p className="text-sm text-muted-foreground">
+            {language === 'es' 
+              ? 'Esta acción cargará características como: Lavadora, Secadora, Aire Acondicionado, Cocina Equipada, etc. Y amenidades como: Alberca, Gimnasio, Seguridad 24/7, Estacionamiento, etc. Si ya existen datos, no se duplicarán.'
+              : 'This action will load characteristics like: Washer, Dryer, Air Conditioning, Equipped Kitchen, etc. And amenities like: Pool, Gym, 24/7 Security, Parking, etc. If data already exists, it will not be duplicated.'}
+          </p>
+        </CardContent>
+      </Card>
+    );
+  };
+
   const ConfigurableCatalogSection = ({ 
     type, 
     language, 
     toast 
   }: { 
-    type: 'zones' | 'property-types', 
+    type: 'zones' | 'property-types' | 'unit-characteristics' | 'amenities', 
     language: string, 
     toast: any 
   }) => {
@@ -1481,26 +1559,43 @@ export default function ExternalConfiguration() {
     const [editingItem, setEditingItem] = useState<any>(null);
     const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
     const [itemToDelete, setItemToDelete] = useState<any>(null);
-    const [formData, setFormData] = useState({ name: '', sortOrder: 0 });
+    const [formData, setFormData] = useState({ name: '', nameEn: '', category: '', sortOrder: 0 });
 
-    const apiEndpoint = type === 'zones' 
-      ? '/api/external/config/zones' 
-      : '/api/external/config/property-types';
+    const apiEndpoints: Record<string, string> = {
+      'zones': '/api/external/config/zones',
+      'property-types': '/api/external/config/property-types',
+      'unit-characteristics': '/api/external/config/unit-characteristics',
+      'amenities': '/api/external/config/amenities',
+    };
 
-    const title = type === 'zones'
-      ? (language === 'es' ? 'Zonas / Colonias' : 'Zones / Neighborhoods')
-      : (language === 'es' ? 'Tipos de Propiedad' : 'Property Types');
+    const apiEndpoint = apiEndpoints[type];
 
-    const description = type === 'zones'
-      ? (language === 'es' ? 'Gestiona las zonas o colonias disponibles para las propiedades' : 'Manage available zones or neighborhoods for properties')
-      : (language === 'es' ? 'Gestiona los tipos de propiedades disponibles' : 'Manage available property types');
+    const titles: Record<string, { es: string; en: string }> = {
+      'zones': { es: 'Zonas / Colonias', en: 'Zones / Neighborhoods' },
+      'property-types': { es: 'Tipos de Propiedad', en: 'Property Types' },
+      'unit-characteristics': { es: 'Características de Unidad', en: 'Unit Characteristics' },
+      'amenities': { es: 'Amenidades', en: 'Amenities' },
+    };
+
+    const descriptions: Record<string, { es: string; en: string }> = {
+      'zones': { es: 'Gestiona las zonas o colonias disponibles para las propiedades', en: 'Manage available zones or neighborhoods for properties' },
+      'property-types': { es: 'Gestiona los tipos de propiedades disponibles', en: 'Manage available property types' },
+      'unit-characteristics': { es: 'Características internas de la unidad (cocina, lavandería, clima, etc.)', en: 'Internal unit features (kitchen, laundry, climate, etc.)' },
+      'amenities': { es: 'Amenidades del desarrollo o edificio (alberca, gimnasio, seguridad, etc.)', en: 'Development or building amenities (pool, gym, security, etc.)' },
+    };
+
+    const title = titles[type][language === 'es' ? 'es' : 'en'];
+    const description = descriptions[type][language === 'es' ? 'es' : 'en'];
+
+    const hasCategory = type === 'unit-characteristics' || type === 'amenities';
+    const hasNameEn = type === 'unit-characteristics' || type === 'amenities';
 
     const { data: items, isLoading } = useQuery({
       queryKey: [apiEndpoint],
     });
 
     const createMutation = useMutation({
-      mutationFn: async (data: { name: string, sortOrder: number }) => {
+      mutationFn: async (data: { name: string, nameEn?: string, category?: string, sortOrder: number }) => {
         return apiRequest('POST', apiEndpoint, data);
       },
       onSuccess: () => {
@@ -1521,7 +1616,7 @@ export default function ExternalConfiguration() {
     });
 
     const updateMutation = useMutation({
-      mutationFn: async ({ id, data }: { id: string, data: { name?: string, sortOrder?: number, isActive?: boolean } }) => {
+      mutationFn: async ({ id, data }: { id: string, data: { name?: string, nameEn?: string, category?: string, sortOrder?: number, isActive?: boolean } }) => {
         return apiRequest('PATCH', `${apiEndpoint}/${id}`, data);
       },
       onSuccess: () => {
@@ -1566,10 +1661,15 @@ export default function ExternalConfiguration() {
     const handleOpenDialog = (item?: any) => {
       if (item) {
         setEditingItem(item);
-        setFormData({ name: item.name, sortOrder: item.sortOrder || 0 });
+        setFormData({ 
+          name: item.name, 
+          nameEn: item.nameEn || '',
+          category: item.category || '',
+          sortOrder: item.sortOrder || 0 
+        });
       } else {
         setEditingItem(null);
-        setFormData({ name: '', sortOrder: 0 });
+        setFormData({ name: '', nameEn: '', category: '', sortOrder: 0 });
       }
       setIsDialogOpen(true);
     };
@@ -1577,7 +1677,7 @@ export default function ExternalConfiguration() {
     const handleCloseDialog = () => {
       setIsDialogOpen(false);
       setEditingItem(null);
-      setFormData({ name: '', sortOrder: 0 });
+      setFormData({ name: '', nameEn: '', category: '', sortOrder: 0 });
     };
 
     const handleSubmit = () => {
@@ -1590,10 +1690,14 @@ export default function ExternalConfiguration() {
         return;
       }
 
+      const dataToSubmit: any = { name: formData.name, sortOrder: formData.sortOrder };
+      if (hasNameEn && formData.nameEn) dataToSubmit.nameEn = formData.nameEn;
+      if (hasCategory && formData.category) dataToSubmit.category = formData.category;
+
       if (editingItem) {
-        updateMutation.mutate({ id: editingItem.id, data: formData });
+        updateMutation.mutate({ id: editingItem.id, data: dataToSubmit });
       } else {
-        createMutation.mutate(formData);
+        createMutation.mutate(dataToSubmit);
       }
     };
 
@@ -1614,10 +1718,44 @@ export default function ExternalConfiguration() {
 
     const sortedItems = useMemo(() => {
       if (!items) return [];
-      return [...items].sort((a: any, b: any) => (a.sortOrder || 0) - (b.sortOrder || 0));
-    }, [items]);
+      return [...items].sort((a: any, b: any) => {
+        // For items with categories, sort by category first, then by sortOrder
+        if (hasCategory) {
+          const catCompare = (a.category || '').localeCompare(b.category || '');
+          if (catCompare !== 0) return catCompare;
+        }
+        return (a.sortOrder || 0) - (b.sortOrder || 0);
+      });
+    }, [items, hasCategory]);
 
-    const Icon = type === 'zones' ? MapPin : Home;
+    const categoryLabels: Record<string, { es: string; en: string }> = {
+      'kitchen': { es: 'Cocina', en: 'Kitchen' },
+      'laundry': { es: 'Lavandería', en: 'Laundry' },
+      'climate': { es: 'Climatización', en: 'Climate' },
+      'bathroom': { es: 'Baño', en: 'Bathroom' },
+      'bedroom': { es: 'Recámara', en: 'Bedroom' },
+      'living': { es: 'Sala/Estar', en: 'Living' },
+      'exterior': { es: 'Exterior', en: 'Exterior' },
+      'common_areas': { es: 'Áreas Comunes', en: 'Common Areas' },
+      'security': { es: 'Seguridad', en: 'Security' },
+      'parking': { es: 'Estacionamiento', en: 'Parking' },
+      'services': { es: 'Servicios', en: 'Services' },
+      'location': { es: 'Ubicación', en: 'Location' },
+    };
+
+    const getCategoryLabel = (cat: string) => {
+      const label = categoryLabels[cat];
+      return label ? label[language === 'es' ? 'es' : 'en'] : cat;
+    };
+
+    const icons: Record<string, any> = {
+      'zones': MapPin,
+      'property-types': Home,
+      'unit-characteristics': List,
+      'amenities': Building2,
+    };
+
+    const Icon = icons[type] || List;
 
     return (
       <Card data-testid={`card-catalog-${type}`}>
@@ -1660,6 +1798,11 @@ export default function ExternalConfiguration() {
                     <th className="p-3 text-left font-medium">
                       {language === 'es' ? 'Nombre' : 'Name'}
                     </th>
+                    {hasCategory && (
+                      <th className="p-3 text-left font-medium w-32">
+                        {language === 'es' ? 'Categoría' : 'Category'}
+                      </th>
+                    )}
                     <th className="p-3 text-left font-medium w-24">
                       {language === 'es' ? 'Orden' : 'Order'}
                     </th>
@@ -1674,7 +1817,23 @@ export default function ExternalConfiguration() {
                 <tbody>
                   {sortedItems.map((item: any) => (
                     <tr key={item.id} className="border-b" data-testid={`row-${type}-${item.id}`}>
-                      <td className="p-3">{item.name}</td>
+                      <td className="p-3">
+                        <div>
+                          <span>{item.name}</span>
+                          {hasNameEn && item.nameEn && (
+                            <span className="text-xs text-muted-foreground ml-2">({item.nameEn})</span>
+                          )}
+                        </div>
+                      </td>
+                      {hasCategory && (
+                        <td className="p-3">
+                          {item.category && (
+                            <Badge variant="outline" className="text-xs">
+                              {getCategoryLabel(item.category)}
+                            </Badge>
+                          )}
+                        </td>
+                      )}
                       <td className="p-3 text-muted-foreground">{item.sortOrder || 0}</td>
                       <td className="p-3">
                         <Badge 
@@ -1744,6 +1903,44 @@ export default function ExternalConfiguration() {
                   data-testid={`input-name-${type}`}
                 />
               </div>
+
+              {hasNameEn && (
+                <div className="space-y-2">
+                  <Label htmlFor={`nameEn-${type}`}>
+                    {language === 'es' ? 'Nombre en Inglés' : 'English Name'}
+                  </Label>
+                  <Input
+                    id={`nameEn-${type}`}
+                    value={formData.nameEn}
+                    onChange={(e) => setFormData({ ...formData, nameEn: e.target.value })}
+                    placeholder={language === 'es' ? 'Ingresa el nombre en inglés' : 'Enter English name'}
+                    data-testid={`input-nameEn-${type}`}
+                  />
+                </div>
+              )}
+
+              {hasCategory && (
+                <div className="space-y-2">
+                  <Label htmlFor={`category-${type}`}>
+                    {language === 'es' ? 'Categoría' : 'Category'}
+                  </Label>
+                  <Select
+                    value={formData.category}
+                    onValueChange={(value) => setFormData({ ...formData, category: value })}
+                  >
+                    <SelectTrigger id={`category-${type}`} data-testid={`select-category-${type}`}>
+                      <SelectValue placeholder={language === 'es' ? 'Selecciona una categoría' : 'Select a category'} />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {Object.entries(categoryLabels).map(([key, labels]) => (
+                        <SelectItem key={key} value={key}>
+                          {labels[language === 'es' ? 'es' : 'en']}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              )}
 
               <div className="space-y-2">
                 <Label htmlFor={`sortOrder-${type}`}>
@@ -1926,6 +2123,17 @@ export default function ExternalConfiguration() {
             />
             <ConfigurableCatalogSection 
               type="property-types" 
+              language={language} 
+              toast={toast} 
+            />
+            <SeedCatalogButton language={language} toast={toast} />
+            <ConfigurableCatalogSection 
+              type="unit-characteristics" 
+              language={language} 
+              toast={toast} 
+            />
+            <ConfigurableCatalogSection 
+              type="amenities" 
               language={language} 
               toast={toast} 
             />
