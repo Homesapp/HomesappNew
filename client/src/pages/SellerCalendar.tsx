@@ -40,7 +40,12 @@ import {
   Route,
   Home,
   ChevronsUpDown,
-  Search
+  Search,
+  Bell,
+  MessageCircle,
+  Mail,
+  FileText,
+  AlertCircle
 } from "lucide-react";
 
 interface Appointment {
@@ -82,6 +87,21 @@ interface Condominium {
   name: string;
 }
 
+interface Reminder {
+  id: string;
+  leadId: string;
+  reminderType: 'follow_up' | 'call' | 'whatsapp' | 'email' | 'meeting' | 'document' | 'other';
+  title: string;
+  description?: string;
+  dueDate: string;
+  priority: 'low' | 'medium' | 'high' | 'urgent';
+  status: 'pending' | 'completed' | 'cancelled';
+  lead?: {
+    firstName: string;
+    lastName: string;
+  };
+}
+
 export default function SellerCalendar() {
   const { language } = useLanguage();
   const { user } = useAuth();
@@ -111,6 +131,11 @@ export default function SellerCalendar() {
   // Fetch appointments
   const { data: appointments = [], isLoading: isLoadingAppointments } = useQuery<Appointment[]>({
     queryKey: ["/api/external-seller/appointments"],
+  });
+
+  // Fetch reminders for calendar (private to seller)
+  const { data: reminders = [] } = useQuery<Reminder[]>({
+    queryKey: ["/api/external-seller/reminders"],
   });
 
   // Fetch leads for dropdown
@@ -243,11 +268,46 @@ export default function SellerCalendar() {
     );
   };
 
+  // Get reminders for a specific day
+  const getRemindersForDay = (date: Date): Reminder[] => {
+    return reminders.filter(rem => 
+      isSameDay(new Date(rem.dueDate), date)
+    );
+  };
+
   // Get appointments for selected date
   const selectedDateAppointments = useMemo(() => {
     if (!selectedDate) return [];
     return getAppointmentsForDay(selectedDate);
   }, [selectedDate, appointments]);
+
+  // Get reminders for selected date
+  const selectedDateReminders = useMemo(() => {
+    if (!selectedDate) return [];
+    return getRemindersForDay(selectedDate);
+  }, [selectedDate, reminders]);
+
+  // Get reminder type icon
+  const getReminderIcon = (type: string) => {
+    switch (type) {
+      case 'call': return Phone;
+      case 'whatsapp': return MessageCircle;
+      case 'email': return Mail;
+      case 'meeting': return User;
+      case 'document': return FileText;
+      default: return Bell;
+    }
+  };
+
+  // Get priority color
+  const getPriorityColor = (priority: string) => {
+    switch (priority) {
+      case 'urgent': return 'bg-red-100 text-red-800 dark:bg-red-900/50 dark:text-red-300';
+      case 'high': return 'bg-orange-100 text-orange-800 dark:bg-orange-900/50 dark:text-orange-300';
+      case 'medium': return 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/50 dark:text-yellow-300';
+      default: return 'bg-gray-100 text-gray-800 dark:bg-gray-900/50 dark:text-gray-300';
+    }
+  };
 
   // Handle lead selection
   const handleLeadSelect = (leadId: string) => {
@@ -480,8 +540,10 @@ export default function SellerCalendar() {
               {/* Day cells */}
               {daysInMonth.map(day => {
                 const dayAppointments = getAppointmentsForDay(day);
+                const dayReminders = getRemindersForDay(day);
                 const isSelected = selectedDate && isSameDay(day, selectedDate);
                 const isPast = isBefore(day, startOfDay(new Date()));
+                const hasItems = dayAppointments.length > 0 || dayReminders.length > 0;
                 
                 return (
                   <button
@@ -497,11 +559,12 @@ export default function SellerCalendar() {
                     data-testid={`day-${format(day, 'yyyy-MM-dd')}`}
                   >
                     <span>{format(day, 'd')}</span>
-                    {dayAppointments.length > 0 && (
+                    {hasItems && (
                       <div className="absolute bottom-0.5 left-1/2 -translate-x-1/2 flex gap-0.5">
-                        {dayAppointments.slice(0, 3).map((apt, i) => (
+                        {/* Appointment dots */}
+                        {dayAppointments.slice(0, 2).map((apt, i) => (
                           <div
-                            key={i}
+                            key={`apt-${i}`}
                             className={cn(
                               "w-1 h-1 rounded-full",
                               apt.status === 'cancelled' ? "bg-red-400" :
@@ -510,8 +573,20 @@ export default function SellerCalendar() {
                             )}
                           />
                         ))}
-                        {dayAppointments.length > 3 && (
-                          <span className="text-[8px] text-muted-foreground">+{dayAppointments.length - 3}</span>
+                        {/* Reminder dots (orange/yellow) */}
+                        {dayReminders.slice(0, 2).map((rem, i) => (
+                          <div
+                            key={`rem-${i}`}
+                            className={cn(
+                              "w-1 h-1 rounded-full",
+                              rem.status === 'completed' ? "bg-green-400" :
+                              rem.priority === 'urgent' ? "bg-red-400" :
+                              rem.priority === 'high' ? "bg-orange-400" : "bg-yellow-400"
+                            )}
+                          />
+                        ))}
+                        {(dayAppointments.length + dayReminders.length) > 4 && (
+                          <span className="text-[8px] text-muted-foreground">+{(dayAppointments.length + dayReminders.length) - 4}</span>
                         )}
                       </div>
                     )}
@@ -522,7 +597,7 @@ export default function SellerCalendar() {
           </CardContent>
         </Card>
 
-        {/* Selected day appointments */}
+        {/* Selected day appointments and reminders */}
         <Card>
           <CardHeader className="pb-3">
             <CardTitle className="text-lg">
@@ -533,6 +608,11 @@ export default function SellerCalendar() {
             {selectedDate && (
               <CardDescription>
                 {selectedDateAppointments.length} {language === "es" ? "citas" : "appointments"}
+                {selectedDateReminders.length > 0 && (
+                  <span className="ml-1">
+                    · {selectedDateReminders.length} {language === "es" ? "recordatorios" : "reminders"}
+                  </span>
+                )}
               </CardDescription>
             )}
           </CardHeader>
@@ -543,69 +623,128 @@ export default function SellerCalendar() {
                 <Skeleton className="h-20 w-full" />
               </div>
             ) : selectedDate ? (
-              selectedDateAppointments.length > 0 ? (
+              (selectedDateAppointments.length > 0 || selectedDateReminders.length > 0) ? (
                 <ScrollArea className="h-[400px]">
                   <div className="space-y-3 pr-4">
-                    {selectedDateAppointments.map(apt => (
-                      <Card 
-                        key={apt.id} 
-                        className={cn(
-                          "cursor-pointer hover-elevate",
-                          apt.isRestricted && "opacity-75"
-                        )}
-                        onClick={() => setSelectedAppointment(apt)}
-                        data-testid={`appointment-${apt.id}`}
-                      >
-                        <CardContent className="p-3">
-                          <div className="flex items-start justify-between gap-2 mb-2">
-                            <div className="flex items-center gap-2">
-                              {apt.mode === 'tour' ? (
-                                <Route className="h-4 w-4 text-primary" />
-                              ) : (
-                                <Home className="h-4 w-4 text-primary" />
-                              )}
-                              <span className="font-medium text-sm">
-                                {apt.mode === 'tour' 
-                                  ? (language === "es" ? "Tour" : "Tour")
-                                  : (language === "es" ? "Cita Individual" : "Individual")}
-                              </span>
-                            </div>
-                            {getStatusBadge(apt.status)}
-                          </div>
-                          
-                          <div className="space-y-1 text-sm">
-                            <div className="flex items-center gap-2">
-                              <Clock className="h-3 w-3 text-muted-foreground" />
-                              <span>{format(new Date(apt.date), 'HH:mm')}</span>
-                              {apt.endTime && (
-                                <span className="text-muted-foreground">
-                                  - {format(new Date(apt.endTime), 'HH:mm')}
-                                </span>
-                              )}
-                            </div>
-                            
-                            <div className="flex items-center gap-2">
-                              <User className="h-3 w-3 text-muted-foreground" />
-                              <span className={apt.isRestricted ? "text-muted-foreground" : ""}>
-                                {apt.clientName}
-                              </span>
-                              {apt.isRestricted && (
-                                <EyeOff className="h-3 w-3 text-muted-foreground" />
-                              )}
-                            </div>
-                            
-                            {apt.condominiumName && (
-                              <div className="flex items-center gap-2">
-                                <Building2 className="h-3 w-3 text-muted-foreground" />
-                                <span className="truncate">
-                                  {apt.condominiumName} {apt.unitNumber && `- ${apt.unitNumber}`}
-                                </span>
-                              </div>
+                    {/* Reminders Section */}
+                    {selectedDateReminders.length > 0 && (
+                      <>
+                        <div className="flex items-center gap-2 text-xs text-muted-foreground uppercase tracking-wide">
+                          <Bell className="h-3 w-3" />
+                          {language === "es" ? "Recordatorios" : "Reminders"}
+                        </div>
+                        {selectedDateReminders.map(rem => {
+                          const ReminderIcon = getReminderIcon(rem.reminderType);
+                          return (
+                            <Card 
+                              key={rem.id} 
+                              className="border-l-4 border-l-yellow-400"
+                              data-testid={`reminder-${rem.id}`}
+                            >
+                              <CardContent className="p-3">
+                                <div className="flex items-start justify-between gap-2 mb-2">
+                                  <div className="flex items-center gap-2">
+                                    <ReminderIcon className="h-4 w-4 text-yellow-600" />
+                                    <span className="font-medium text-sm truncate">{rem.title}</span>
+                                  </div>
+                                  <Badge className={getPriorityColor(rem.priority)} variant="secondary">
+                                    {rem.priority === 'urgent' ? (language === "es" ? "Urgente" : "Urgent") :
+                                     rem.priority === 'high' ? (language === "es" ? "Alta" : "High") :
+                                     rem.priority === 'medium' ? (language === "es" ? "Media" : "Medium") :
+                                     (language === "es" ? "Baja" : "Low")}
+                                  </Badge>
+                                </div>
+                                
+                                <div className="space-y-1 text-sm">
+                                  {rem.lead && (
+                                    <div className="flex items-center gap-2">
+                                      <User className="h-3 w-3 text-muted-foreground" />
+                                      <span>{rem.lead.firstName} {rem.lead.lastName}</span>
+                                    </div>
+                                  )}
+                                  {rem.description && (
+                                    <p className="text-xs text-muted-foreground line-clamp-2">
+                                      {rem.description}
+                                    </p>
+                                  )}
+                                </div>
+                              </CardContent>
+                            </Card>
+                          );
+                        })}
+                        {selectedDateAppointments.length > 0 && <Separator className="my-2" />}
+                      </>
+                    )}
+                    
+                    {/* Appointments Section */}
+                    {selectedDateAppointments.length > 0 && (
+                      <>
+                        <div className="flex items-center gap-2 text-xs text-muted-foreground uppercase tracking-wide">
+                          <CalendarIcon className="h-3 w-3" />
+                          {language === "es" ? "Citas" : "Appointments"}
+                        </div>
+                        {selectedDateAppointments.map(apt => (
+                          <Card 
+                            key={apt.id} 
+                            className={cn(
+                              "cursor-pointer hover-elevate",
+                              apt.isRestricted && "opacity-75"
                             )}
-                          </div>
-                        </CardContent>
-                      </Card>
-                    ))}
+                            onClick={() => setSelectedAppointment(apt)}
+                            data-testid={`appointment-${apt.id}`}
+                          >
+                            <CardContent className="p-3">
+                              <div className="flex items-start justify-between gap-2 mb-2">
+                                <div className="flex items-center gap-2">
+                                  {apt.mode === 'tour' ? (
+                                    <Route className="h-4 w-4 text-primary" />
+                                  ) : (
+                                    <Home className="h-4 w-4 text-primary" />
+                                  )}
+                                  <span className="font-medium text-sm">
+                                    {apt.mode === 'tour' 
+                                      ? (language === "es" ? "Tour" : "Tour")
+                                      : (language === "es" ? "Cita Individual" : "Individual")}
+                                  </span>
+                                </div>
+                                {getStatusBadge(apt.status)}
+                              </div>
+                              
+                              <div className="space-y-1 text-sm">
+                                <div className="flex items-center gap-2">
+                                  <Clock className="h-3 w-3 text-muted-foreground" />
+                                  <span>{format(new Date(apt.date), 'HH:mm')}</span>
+                                  {apt.endTime && (
+                                    <span className="text-muted-foreground">
+                                      - {format(new Date(apt.endTime), 'HH:mm')}
+                                    </span>
+                                  )}
+                                </div>
+                                
+                                <div className="flex items-center gap-2">
+                                  <User className="h-3 w-3 text-muted-foreground" />
+                                  <span className={apt.isRestricted ? "text-muted-foreground" : ""}>
+                                    {apt.clientName}
+                                  </span>
+                                  {apt.isRestricted && (
+                                    <EyeOff className="h-3 w-3 text-muted-foreground" />
+                                  )}
+                                </div>
+                                
+                                {apt.condominiumName && (
+                                  <div className="flex items-center gap-2">
+                                    <Building2 className="h-3 w-3 text-muted-foreground" />
+                                    <span className="truncate">
+                                      {apt.condominiumName} {apt.unitNumber && `- ${apt.unitNumber}`}
+                                    </span>
+                                  </div>
+                                )}
+                              </div>
+                            </CardContent>
+                          </Card>
+                        ))}
+                      </>
+                    )}
                   </div>
                 </ScrollArea>
               ) : (
