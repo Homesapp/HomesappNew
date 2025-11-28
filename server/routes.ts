@@ -224,6 +224,10 @@ import {
   externalAgencyZones,
   insertExternalAgencyZoneSchema,
   externalAgencyPropertyTypes,
+  externalAgencyUnitCharacteristics,
+  insertExternalAgencyUnitCharacteristicSchema,
+  externalAgencyAmenities,
+  insertExternalAgencyAmenitySchema,
   insertExternalAgencyPropertyTypeSchema,
   externalPublicationRequests,
   insertExternalPublicationRequestSchema,
@@ -36045,6 +36049,400 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
   // EXTERNAL MANAGEMENT SYSTEM - QUOTATIONS ROUTES
+
+  // ============================================================================
+  // EXTERNAL MANAGEMENT SYSTEM - CONFIGURABLE UNIT CHARACTERISTICS ROUTES
+  // ============================================================================
+
+  // GET /api/external/config/unit-characteristics - List all unit characteristics for agency
+  app.get("/api/external/config/unit-characteristics", isAuthenticated, requireRole(EXTERNAL_ALL_ROLES), async (req: any, res) => {
+    try {
+      const agencyId = await getUserAgencyId(req);
+      if (!agencyId) {
+        return res.status(403).json({ message: "Agency ID not found" });
+      }
+
+      const characteristics = await db.select()
+        .from(externalAgencyUnitCharacteristics)
+        .where(eq(externalAgencyUnitCharacteristics.agencyId, agencyId))
+        .orderBy(asc(externalAgencyUnitCharacteristics.category), asc(externalAgencyUnitCharacteristics.sortOrder), asc(externalAgencyUnitCharacteristics.name));
+
+      res.json(characteristics);
+    } catch (error: any) {
+      console.error("Error listing unit characteristics:", error);
+      handleGenericError(res, error);
+    }
+  });
+
+  // POST /api/external/config/unit-characteristics - Create new unit characteristic
+  app.post("/api/external/config/unit-characteristics", isAuthenticated, requireRole(EXTERNAL_ADMIN_ROLES), async (req: any, res) => {
+    try {
+      const agencyId = await getUserAgencyId(req);
+      if (!agencyId) {
+        return res.status(403).json({ message: "Agency ID not found" });
+      }
+
+      const validated = insertExternalAgencyUnitCharacteristicSchema.parse({
+        ...req.body,
+        agencyId,
+      });
+
+      const [characteristic] = await db.insert(externalAgencyUnitCharacteristics)
+        .values(validated)
+        .returning();
+
+      await createAuditLog(req, "create", "external_agency_unit_characteristic", characteristic.id, `Created unit characteristic: ${characteristic.name}`);
+      res.status(201).json(characteristic);
+    } catch (error: any) {
+      console.error("Error creating unit characteristic:", error);
+      if (error.code === "23505") {
+        return res.status(409).json({ message: "A unit characteristic with this name already exists for your agency" });
+      }
+      handleGenericError(res, error);
+    }
+  });
+
+  // PATCH /api/external/config/unit-characteristics/:id - Update unit characteristic
+  app.patch("/api/external/config/unit-characteristics/:id", isAuthenticated, requireRole(EXTERNAL_ADMIN_ROLES), async (req: any, res) => {
+    try {
+      const { id } = req.params;
+      const agencyId = await getUserAgencyId(req);
+      if (!agencyId) {
+        return res.status(403).json({ message: "Agency ID not found" });
+      }
+
+      const [existing] = await db.select()
+        .from(externalAgencyUnitCharacteristics)
+        .where(and(eq(externalAgencyUnitCharacteristics.id, id), eq(externalAgencyUnitCharacteristics.agencyId, agencyId)));
+
+      if (!existing) {
+        return res.status(404).json({ message: "Unit characteristic not found" });
+      }
+
+      const { name, nameEn, category, icon, isActive, sortOrder } = req.body;
+      const updates: any = {};
+      if (name !== undefined) updates.name = name;
+      if (nameEn !== undefined) updates.nameEn = nameEn;
+      if (category !== undefined) updates.category = category;
+      if (icon !== undefined) updates.icon = icon;
+      if (isActive !== undefined) updates.isActive = isActive;
+      if (sortOrder !== undefined) updates.sortOrder = sortOrder;
+
+      const [updated] = await db.update(externalAgencyUnitCharacteristics)
+        .set(updates)
+        .where(eq(externalAgencyUnitCharacteristics.id, id))
+        .returning();
+
+      await createAuditLog(req, "update", "external_agency_unit_characteristic", id, `Updated unit characteristic: ${updated.name}`);
+      res.json(updated);
+    } catch (error: any) {
+      console.error("Error updating unit characteristic:", error);
+      if (error.code === "23505") {
+        return res.status(409).json({ message: "A unit characteristic with this name already exists for your agency" });
+      }
+      handleGenericError(res, error);
+    }
+  });
+
+  // DELETE /api/external/config/unit-characteristics/:id - Delete unit characteristic
+  app.delete("/api/external/config/unit-characteristics/:id", isAuthenticated, requireRole(EXTERNAL_ADMIN_ROLES), async (req: any, res) => {
+    try {
+      const { id } = req.params;
+      const agencyId = await getUserAgencyId(req);
+      if (!agencyId) {
+        return res.status(403).json({ message: "Agency ID not found" });
+      }
+
+      const [existing] = await db.select()
+        .from(externalAgencyUnitCharacteristics)
+        .where(and(eq(externalAgencyUnitCharacteristics.id, id), eq(externalAgencyUnitCharacteristics.agencyId, agencyId)));
+
+      if (!existing) {
+        return res.status(404).json({ message: "Unit characteristic not found" });
+      }
+
+      await db.delete(externalAgencyUnitCharacteristics).where(eq(externalAgencyUnitCharacteristics.id, id));
+
+      await createAuditLog(req, "delete", "external_agency_unit_characteristic", id, `Deleted unit characteristic: ${existing.name}`);
+      res.status(204).send();
+    } catch (error: any) {
+      console.error("Error deleting unit characteristic:", error);
+      handleGenericError(res, error);
+    }
+  });
+
+  // ============================================================================
+  // EXTERNAL MANAGEMENT SYSTEM - CONFIGURABLE AMENITIES ROUTES
+  // ============================================================================
+
+  // GET /api/external/config/amenities - List all amenities for agency
+  app.get("/api/external/config/amenities", isAuthenticated, requireRole(EXTERNAL_ALL_ROLES), async (req: any, res) => {
+    try {
+      const agencyId = await getUserAgencyId(req);
+      if (!agencyId) {
+        return res.status(403).json({ message: "Agency ID not found" });
+      }
+
+      const amenities = await db.select()
+        .from(externalAgencyAmenities)
+        .where(eq(externalAgencyAmenities.agencyId, agencyId))
+        .orderBy(asc(externalAgencyAmenities.category), asc(externalAgencyAmenities.sortOrder), asc(externalAgencyAmenities.name));
+
+      res.json(amenities);
+    } catch (error: any) {
+      console.error("Error listing amenities:", error);
+      handleGenericError(res, error);
+    }
+  });
+
+  // POST /api/external/config/amenities - Create new amenity
+  app.post("/api/external/config/amenities", isAuthenticated, requireRole(EXTERNAL_ADMIN_ROLES), async (req: any, res) => {
+    try {
+      const agencyId = await getUserAgencyId(req);
+      if (!agencyId) {
+        return res.status(403).json({ message: "Agency ID not found" });
+      }
+
+      const validated = insertExternalAgencyAmenitySchema.parse({
+        ...req.body,
+        agencyId,
+      });
+
+      const [amenity] = await db.insert(externalAgencyAmenities)
+        .values(validated)
+        .returning();
+
+      await createAuditLog(req, "create", "external_agency_amenity", amenity.id, `Created amenity: ${amenity.name}`);
+      res.status(201).json(amenity);
+    } catch (error: any) {
+      console.error("Error creating amenity:", error);
+      if (error.code === "23505") {
+        return res.status(409).json({ message: "An amenity with this name already exists for your agency" });
+      }
+      handleGenericError(res, error);
+    }
+  });
+
+  // PATCH /api/external/config/amenities/:id - Update amenity
+  app.patch("/api/external/config/amenities/:id", isAuthenticated, requireRole(EXTERNAL_ADMIN_ROLES), async (req: any, res) => {
+    try {
+      const { id } = req.params;
+      const agencyId = await getUserAgencyId(req);
+      if (!agencyId) {
+        return res.status(403).json({ message: "Agency ID not found" });
+      }
+
+      const [existing] = await db.select()
+        .from(externalAgencyAmenities)
+        .where(and(eq(externalAgencyAmenities.id, id), eq(externalAgencyAmenities.agencyId, agencyId)));
+
+      if (!existing) {
+        return res.status(404).json({ message: "Amenity not found" });
+      }
+
+      const { name, nameEn, category, icon, isActive, sortOrder } = req.body;
+      const updates: any = {};
+      if (name !== undefined) updates.name = name;
+      if (nameEn !== undefined) updates.nameEn = nameEn;
+      if (category !== undefined) updates.category = category;
+      if (icon !== undefined) updates.icon = icon;
+      if (isActive !== undefined) updates.isActive = isActive;
+      if (sortOrder !== undefined) updates.sortOrder = sortOrder;
+
+      const [updated] = await db.update(externalAgencyAmenities)
+        .set(updates)
+        .where(eq(externalAgencyAmenities.id, id))
+        .returning();
+
+      await createAuditLog(req, "update", "external_agency_amenity", id, `Updated amenity: ${updated.name}`);
+      res.json(updated);
+    } catch (error: any) {
+      console.error("Error updating amenity:", error);
+      if (error.code === "23505") {
+        return res.status(409).json({ message: "An amenity with this name already exists for your agency" });
+      }
+      handleGenericError(res, error);
+    }
+  });
+
+  // DELETE /api/external/config/amenities/:id - Delete amenity
+  app.delete("/api/external/config/amenities/:id", isAuthenticated, requireRole(EXTERNAL_ADMIN_ROLES), async (req: any, res) => {
+    try {
+      const { id } = req.params;
+      const agencyId = await getUserAgencyId(req);
+      if (!agencyId) {
+        return res.status(403).json({ message: "Agency ID not found" });
+      }
+
+      const [existing] = await db.select()
+        .from(externalAgencyAmenities)
+        .where(and(eq(externalAgencyAmenities.id, id), eq(externalAgencyAmenities.agencyId, agencyId)));
+
+      if (!existing) {
+        return res.status(404).json({ message: "Amenity not found" });
+      }
+
+      await db.delete(externalAgencyAmenities).where(eq(externalAgencyAmenities.id, id));
+
+      await createAuditLog(req, "delete", "external_agency_amenity", id, `Deleted amenity: ${existing.name}`);
+      res.status(204).send();
+    } catch (error: any) {
+      console.error("Error deleting amenity:", error);
+      handleGenericError(res, error);
+    }
+  });
+
+  // POST /api/external/config/seed-characteristics-amenities - Seed default characteristics and amenities
+  app.post("/api/external/config/seed-characteristics-amenities", isAuthenticated, requireRole(EXTERNAL_ADMIN_ROLES), async (req: any, res) => {
+    try {
+      const agencyId = await getUserAgencyId(req);
+      if (!agencyId) {
+        return res.status(403).json({ message: "Agency ID not found" });
+      }
+
+      // Default unit characteristics (40 items)
+      const defaultCharacteristics = [
+        // Cocina (Kitchen)
+        { name: "Cocina Equipada", nameEn: "Equipped Kitchen", category: "kitchen", sortOrder: 1 },
+        { name: "Estufa", nameEn: "Stove", category: "kitchen", sortOrder: 2 },
+        { name: "Horno", nameEn: "Oven", category: "kitchen", sortOrder: 3 },
+        { name: "Microondas", nameEn: "Microwave", category: "kitchen", sortOrder: 4 },
+        { name: "Refrigerador", nameEn: "Refrigerator", category: "kitchen", sortOrder: 5 },
+        { name: "Lavavajillas", nameEn: "Dishwasher", category: "kitchen", sortOrder: 6 },
+        { name: "Tostador", nameEn: "Toaster", category: "kitchen", sortOrder: 7 },
+        { name: "Cafetera", nameEn: "Coffee Maker", category: "kitchen", sortOrder: 8 },
+        { name: "Licuadora", nameEn: "Blender", category: "kitchen", sortOrder: 9 },
+        { name: "Utensilios de Cocina", nameEn: "Kitchen Utensils", category: "kitchen", sortOrder: 10 },
+        // Lavandería (Laundry)
+        { name: "Lavadora", nameEn: "Washing Machine", category: "laundry", sortOrder: 1 },
+        { name: "Secadora", nameEn: "Dryer", category: "laundry", sortOrder: 2 },
+        { name: "Centro de Lavado", nameEn: "Washer/Dryer Combo", category: "laundry", sortOrder: 3 },
+        { name: "Área de Lavado", nameEn: "Laundry Area", category: "laundry", sortOrder: 4 },
+        { name: "Tendedero", nameEn: "Clothesline", category: "laundry", sortOrder: 5 },
+        // Climatización (Climate)
+        { name: "Aire Acondicionado", nameEn: "Air Conditioning", category: "climate", sortOrder: 1 },
+        { name: "Minisplit", nameEn: "Mini Split AC", category: "climate", sortOrder: 2 },
+        { name: "Ventilador de Techo", nameEn: "Ceiling Fan", category: "climate", sortOrder: 3 },
+        { name: "Calentador de Agua", nameEn: "Water Heater", category: "climate", sortOrder: 4 },
+        { name: "Boiler Solar", nameEn: "Solar Water Heater", category: "climate", sortOrder: 5 },
+        { name: "Calefacción", nameEn: "Heating", category: "climate", sortOrder: 6 },
+        // Baño (Bathroom)
+        { name: "Tina/Bañera", nameEn: "Bathtub", category: "bathroom", sortOrder: 1 },
+        { name: "Regadera con Hidromasaje", nameEn: "Shower with Jets", category: "bathroom", sortOrder: 2 },
+        { name: "Baño Completo", nameEn: "Full Bathroom", category: "bathroom", sortOrder: 3 },
+        { name: "Medio Baño", nameEn: "Half Bathroom", category: "bathroom", sortOrder: 4 },
+        // Recámara (Bedroom)
+        { name: "Cama King Size", nameEn: "King Size Bed", category: "bedroom", sortOrder: 1 },
+        { name: "Cama Queen Size", nameEn: "Queen Size Bed", category: "bedroom", sortOrder: 2 },
+        { name: "Closet/Armario", nameEn: "Closet/Wardrobe", category: "bedroom", sortOrder: 3 },
+        { name: "Walk-in Closet", nameEn: "Walk-in Closet", category: "bedroom", sortOrder: 4 },
+        { name: "Vestidor", nameEn: "Dressing Room", category: "bedroom", sortOrder: 5 },
+        // Sala/Estar (Living)
+        { name: "Sala Amueblada", nameEn: "Furnished Living Room", category: "living", sortOrder: 1 },
+        { name: "Comedor", nameEn: "Dining Area", category: "living", sortOrder: 2 },
+        { name: "Smart TV", nameEn: "Smart TV", category: "living", sortOrder: 3 },
+        { name: "Internet/WiFi", nameEn: "Internet/WiFi", category: "living", sortOrder: 4 },
+        { name: "Cable/Streaming", nameEn: "Cable/Streaming", category: "living", sortOrder: 5 },
+        // Exterior
+        { name: "Balcón", nameEn: "Balcony", category: "exterior", sortOrder: 1 },
+        { name: "Terraza", nameEn: "Terrace", category: "exterior", sortOrder: 2 },
+        { name: "Rooftop Privado", nameEn: "Private Rooftop", category: "exterior", sortOrder: 3 },
+        { name: "Jardín Privado", nameEn: "Private Garden", category: "exterior", sortOrder: 4 },
+        { name: "Alberca Privada", nameEn: "Private Pool", category: "exterior", sortOrder: 5 },
+      ];
+
+      // Default amenities (40 items)
+      const defaultAmenities = [
+        // Áreas Comunes (Common Areas)
+        { name: "Alberca", nameEn: "Swimming Pool", category: "common_areas", sortOrder: 1 },
+        { name: "Gimnasio", nameEn: "Gym", category: "common_areas", sortOrder: 2 },
+        { name: "Área de BBQ/Asador", nameEn: "BBQ Area", category: "common_areas", sortOrder: 3 },
+        { name: "Palapa", nameEn: "Palapa", category: "common_areas", sortOrder: 4 },
+        { name: "Rooftop Común", nameEn: "Common Rooftop", category: "common_areas", sortOrder: 5 },
+        { name: "Jardín Común", nameEn: "Common Garden", category: "common_areas", sortOrder: 6 },
+        { name: "Área de Yoga", nameEn: "Yoga Area", category: "common_areas", sortOrder: 7 },
+        { name: "Sala de Eventos", nameEn: "Event Room", category: "common_areas", sortOrder: 8 },
+        { name: "Coworking", nameEn: "Coworking Space", category: "common_areas", sortOrder: 9 },
+        { name: "Business Center", nameEn: "Business Center", category: "common_areas", sortOrder: 10 },
+        { name: "Kids Club", nameEn: "Kids Club", category: "common_areas", sortOrder: 11 },
+        { name: "Área de Juegos Infantiles", nameEn: "Playground", category: "common_areas", sortOrder: 12 },
+        { name: "Cancha de Tenis", nameEn: "Tennis Court", category: "common_areas", sortOrder: 13 },
+        { name: "Cancha de Paddle", nameEn: "Paddle Court", category: "common_areas", sortOrder: 14 },
+        { name: "Pet Friendly", nameEn: "Pet Friendly", category: "common_areas", sortOrder: 15 },
+        // Seguridad (Security)
+        { name: "Seguridad 24/7", nameEn: "24/7 Security", category: "security", sortOrder: 1 },
+        { name: "Caseta de Vigilancia", nameEn: "Security Booth", category: "security", sortOrder: 2 },
+        { name: "Cámaras de Seguridad", nameEn: "Security Cameras", category: "security", sortOrder: 3 },
+        { name: "Control de Acceso", nameEn: "Access Control", category: "security", sortOrder: 4 },
+        { name: "Acceso con Tarjeta/Llave", nameEn: "Key Card Access", category: "security", sortOrder: 5 },
+        { name: "Intercomunicador", nameEn: "Intercom", category: "security", sortOrder: 6 },
+        { name: "Portero/Conserje", nameEn: "Doorman/Concierge", category: "security", sortOrder: 7 },
+        // Estacionamiento (Parking)
+        { name: "Estacionamiento Privado", nameEn: "Private Parking", category: "parking", sortOrder: 1 },
+        { name: "Estacionamiento Techado", nameEn: "Covered Parking", category: "parking", sortOrder: 2 },
+        { name: "Estacionamiento para Visitas", nameEn: "Guest Parking", category: "parking", sortOrder: 3 },
+        { name: "Estacionamiento para Bicicletas", nameEn: "Bicycle Parking", category: "parking", sortOrder: 4 },
+        { name: "Cargador para Auto Eléctrico", nameEn: "EV Charger", category: "parking", sortOrder: 5 },
+        // Servicios (Services)
+        { name: "Elevador", nameEn: "Elevator", category: "services", sortOrder: 1 },
+        { name: "Área de Paquetería", nameEn: "Package Locker", category: "services", sortOrder: 2 },
+        { name: "Lavandería Común", nameEn: "Common Laundry", category: "services", sortOrder: 3 },
+        { name: "Recolección de Basura", nameEn: "Garbage Collection", category: "services", sortOrder: 4 },
+        { name: "Mantenimiento Incluido", nameEn: "Maintenance Included", category: "services", sortOrder: 5 },
+        { name: "Agua Incluida", nameEn: "Water Included", category: "services", sortOrder: 6 },
+        { name: "Gas Incluido", nameEn: "Gas Included", category: "services", sortOrder: 7 },
+        { name: "Internet Incluido", nameEn: "Internet Included", category: "services", sortOrder: 8 },
+        // Ubicación (Location)
+        { name: "Calle Asfaltada", nameEn: "Paved Street", category: "location", sortOrder: 1 },
+        { name: "Cerca de Playa", nameEn: "Near Beach", category: "location", sortOrder: 2 },
+        { name: "Cerca de Centro", nameEn: "Near Downtown", category: "location", sortOrder: 3 },
+        { name: "Cerca de Supermercado", nameEn: "Near Supermarket", category: "location", sortOrder: 4 },
+        { name: "Transporte Público Cercano", nameEn: "Near Public Transit", category: "location", sortOrder: 5 },
+      ];
+
+      // Check if already seeded
+      const existingChars = await db.select()
+        .from(externalAgencyUnitCharacteristics)
+        .where(eq(externalAgencyUnitCharacteristics.agencyId, agencyId))
+        .limit(1);
+
+      const existingAmenities = await db.select()
+        .from(externalAgencyAmenities)
+        .where(eq(externalAgencyAmenities.agencyId, agencyId))
+        .limit(1);
+
+      let charsCreated = 0;
+      let amenitiesCreated = 0;
+
+      if (existingChars.length === 0) {
+        await db.insert(externalAgencyUnitCharacteristics)
+          .values(defaultCharacteristics.map(c => ({ ...c, agencyId })));
+        charsCreated = defaultCharacteristics.length;
+      }
+
+      if (existingAmenities.length === 0) {
+        await db.insert(externalAgencyAmenities)
+          .values(defaultAmenities.map(a => ({ ...a, agencyId })));
+        amenitiesCreated = defaultAmenities.length;
+      }
+
+      await createAuditLog(req, "create", "seed_characteristics_amenities", agencyId, `Seeded ${charsCreated} characteristics and ${amenitiesCreated} amenities`);
+      
+      res.json({
+        message: "Seed completed",
+        characteristicsCreated: charsCreated,
+        amenitiesCreated: amenitiesCreated,
+        alreadyExisted: {
+          characteristics: existingChars.length > 0,
+          amenities: existingAmenities.length > 0,
+        }
+      });
+    } catch (error: any) {
+      console.error("Error seeding characteristics and amenities:", error);
+      handleGenericError(res, error);
+    }
+  });
+
 
   // ============================================================================
   app.get("/api/external/quotations", isAuthenticated, requireRole(EXTERNAL_ALL_ROLES), async (req: any, res) => {

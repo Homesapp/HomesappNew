@@ -6387,6 +6387,11 @@ export const externalLeads = pgTable("external_leads", {
   interestedCondominiumId: varchar("interested_condominium_id"), // Condominio de interés (ID de externalCondominiums)
   interestedUnitId: varchar("interested_unit_id"), // Unidad específica de interés (ID de externalUnits)
   
+  // Preferencias de características y amenidades
+  desiredCharacteristics: text("desired_characteristics").array(), // IDs de características deseadas
+  desiredAmenities: text("desired_amenities").array(), // IDs de amenidades deseadas
+  requiresPavedStreet: boolean("requires_paved_street"), // Requiere calle asfaltada
+  
   // Vendedor (puede ser seleccionado o escrito manualmente)
   sellerId: varchar("seller_id").references(() => users.id), // Vendedor asignado (si es seleccionado)
   sellerName: varchar("seller_name", { length: 200 }), // Nombre del vendedor (si es texto libre)
@@ -7712,6 +7717,50 @@ export const insertExternalAgencyPropertyTypeSchema = createInsertSchema(externa
 });
 export type InsertExternalAgencyPropertyType = z.infer<typeof insertExternalAgencyPropertyTypeSchema>;
 export type ExternalAgencyPropertyType = typeof externalAgencyPropertyTypes.$inferSelect;
+
+// Agency-configurable unit characteristics (features inside the unit)
+export const externalAgencyUnitCharacteristics = pgTable("external_agency_unit_characteristics", {
+  id: varchar("id").primaryKey().$defaultFn(() => crypto.randomUUID()),
+  agencyId: varchar("agency_id").notNull().references(() => externalAgencies.id, { onDelete: "cascade" }),
+  name: varchar("name", { length: 100 }).notNull(),
+  nameEn: varchar("name_en", { length: 100 }), // English translation
+  category: varchar("category", { length: 50 }), // kitchen, bathroom, bedroom, living, etc.
+  icon: varchar("icon", { length: 50 }), // Lucide icon name
+  isActive: boolean("is_active").notNull().default(true),
+  sortOrder: integer("sort_order").default(0),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+}, (table) => [
+  index("idx_agency_unit_characteristics_agency").on(table.agencyId),
+  unique("unique_unit_char_name_per_agency").on(table.agencyId, table.name),
+]);
+
+export const insertExternalAgencyUnitCharacteristicSchema = createInsertSchema(externalAgencyUnitCharacteristics).omit({
+  id: true, createdAt: true,
+});
+export type InsertExternalAgencyUnitCharacteristic = z.infer<typeof insertExternalAgencyUnitCharacteristicSchema>;
+export type ExternalAgencyUnitCharacteristic = typeof externalAgencyUnitCharacteristics.$inferSelect;
+
+// Agency-configurable amenities (condominium/building amenities)
+export const externalAgencyAmenities = pgTable("external_agency_amenities", {
+  id: varchar("id").primaryKey().$defaultFn(() => crypto.randomUUID()),
+  agencyId: varchar("agency_id").notNull().references(() => externalAgencies.id, { onDelete: "cascade" }),
+  name: varchar("name", { length: 100 }).notNull(),
+  nameEn: varchar("name_en", { length: 100 }), // English translation
+  category: varchar("category", { length: 50 }), // common_areas, security, services, etc.
+  icon: varchar("icon", { length: 50 }), // Lucide icon name
+  isActive: boolean("is_active").notNull().default(true),
+  sortOrder: integer("sort_order").default(0),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+}, (table) => [
+  index("idx_agency_amenities_agency").on(table.agencyId),
+  unique("unique_amenity_name_per_agency").on(table.agencyId, table.name),
+]);
+
+export const insertExternalAgencyAmenitySchema = createInsertSchema(externalAgencyAmenities).omit({
+  id: true, createdAt: true,
+});
+export type InsertExternalAgencyAmenity = z.infer<typeof insertExternalAgencyAmenitySchema>;
+export type ExternalAgencyAmenity = typeof externalAgencyAmenities.$inferSelect;
 
 // External Appointments Relations
 export const externalAppointmentsRelations = relations(externalAppointments, ({ one, many }) => ({
