@@ -31577,12 +31577,36 @@ ${{precio}}/mes
         if (!lead || lead.agencyId !== agencyId) {
           return res.status(404).json({ message: "Lead not found" });
         }
+        // Check limit of 3 cards per lead
+        const existingCards = await db.select({ count: sql`count(*)` })
+          .from(externalPresentationCards)
+          .where(and(
+            eq(externalPresentationCards.leadId, cardData.leadId),
+            eq(externalPresentationCards.agencyId, agencyId)
+          ));
+        const cardCount = Number(existingCards[0]?.count || 0);
+        if (cardCount >= 3) {
+          return res.status(400).json({ message: "Maximum 3 presentation cards per lead allowed" });
+        }
+        cardData.cardNumber = cardCount + 1;
       }
       if (cardData.clientId) {
         const client = await storage.getExternalClient(cardData.clientId);
         if (!client || client.agencyId !== agencyId) {
           return res.status(404).json({ message: "Client not found" });
         }
+        // Check limit of 3 cards per client
+        const existingClientCards = await db.select({ count: sql`count(*)` })
+          .from(externalPresentationCards)
+          .where(and(
+            eq(externalPresentationCards.clientId, cardData.clientId),
+            eq(externalPresentationCards.agencyId, agencyId)
+          ));
+        const clientCardCount = Number(existingClientCards[0]?.count || 0);
+        if (clientCardCount >= 3) {
+          return res.status(400).json({ message: "Maximum 3 presentation cards per client allowed" });
+        }
+        cardData.cardNumber = clientCardCount + 1;
       }
       
       const card = await storage.createExternalPresentationCard(cardData);
