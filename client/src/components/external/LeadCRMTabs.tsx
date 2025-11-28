@@ -51,6 +51,9 @@ import {
   Building2,
   Eye,
   ThumbsUp,
+  FileText,
+  Send,
+  Lock,
 } from "lucide-react";
 import { SiWhatsapp } from "react-icons/si";
 import { useLanguage } from "@/contexts/LanguageContext";
@@ -221,10 +224,12 @@ export default function LeadCRMTabs({ lead }: LeadCRMTabsProps) {
     return variants[outcome] || "outline";
   };
 
+  const isInterestedStatus = ["interesado", "oferta_enviada", "proceso_renta", "renta_concretada"].includes(lead.status);
+
   return (
     <div className="mt-4">
       <Tabs defaultValue="cards" className="w-full">
-        <TabsList className="w-full grid grid-cols-5 mb-4">
+        <TabsList className="w-full grid grid-cols-6 mb-4">
           <TabsTrigger value="cards" className="flex items-center gap-2" data-testid="tab-lead-cards">
             <CreditCard className="h-4 w-4" />
             <span className="hidden sm:inline">{language === "es" ? "Tarjetas" : "Cards"}</span>
@@ -232,6 +237,19 @@ export default function LeadCRMTabs({ lead }: LeadCRMTabsProps) {
           <TabsTrigger value="offers" className="flex items-center gap-2" data-testid="tab-lead-offers">
             <Share2 className="h-4 w-4" />
             <span className="hidden sm:inline">{language === "es" ? "Enviadas" : "Sent"}</span>
+          </TabsTrigger>
+          <TabsTrigger 
+            value="rental-offers" 
+            className="flex items-center gap-2" 
+            disabled={!isInterestedStatus}
+            data-testid="tab-lead-rental-offers"
+          >
+            {isInterestedStatus ? (
+              <FileText className="h-4 w-4" />
+            ) : (
+              <Lock className="h-3 w-3 text-muted-foreground" />
+            )}
+            <span className="hidden sm:inline">{language === "es" ? "Ofertas" : "Offers"}</span>
           </TabsTrigger>
           <TabsTrigger value="activities" className="flex items-center gap-2" data-testid="tab-lead-activities">
             <Activity className="h-4 w-4" />
@@ -357,6 +375,47 @@ export default function LeadCRMTabs({ lead }: LeadCRMTabsProps) {
                 {language === "es" 
                   ? "Envía propiedades desde el catálogo para verlas aquí" 
                   : "Send properties from the catalog to see them here"}
+              </p>
+            </div>
+          )}
+        </TabsContent>
+
+        <TabsContent value="rental-offers" className="space-y-4">
+          {isInterestedStatus ? (
+            <>
+              <div className="flex justify-between items-center">
+                <h4 className="font-medium text-sm">
+                  {language === "es" ? "Ofertas de Renta" : "Rental Offers"}
+                </h4>
+                <Button size="sm" data-testid="button-create-rental-offer">
+                  <Plus className="h-4 w-4 mr-1" />
+                  {language === "es" ? "Nueva Oferta" : "New Offer"}
+                </Button>
+              </div>
+              <div className="text-center py-8 text-muted-foreground">
+                <FileText className="h-8 w-8 mx-auto mb-2 opacity-50" />
+                <p className="font-medium">{language === "es" ? "Sistema de Ofertas de Renta" : "Rental Offer System"}</p>
+                <p className="text-xs mt-1 max-w-sm mx-auto">
+                  {language === "es" 
+                    ? "Aquí podrás generar y enviar ofertas formales de renta para propiedades en las que el lead está interesado" 
+                    : "Here you can generate and send formal rental offers for properties the lead is interested in"}
+                </p>
+                <div className="mt-4 flex flex-col gap-2 items-center">
+                  <Button variant="outline" size="sm" className="gap-2">
+                    <Send className="h-4 w-4" />
+                    {language === "es" ? "Enviar Oferta vía WhatsApp" : "Send Offer via WhatsApp"}
+                  </Button>
+                </div>
+              </div>
+            </>
+          ) : (
+            <div className="text-center py-8 text-muted-foreground">
+              <Lock className="h-8 w-8 mx-auto mb-2 opacity-50" />
+              <p className="font-medium">{language === "es" ? "Pestaña Bloqueada" : "Tab Locked"}</p>
+              <p className="text-xs mt-1">
+                {language === "es" 
+                  ? "El lead debe estar en estado 'Interesado' o superior para acceder a las ofertas de renta" 
+                  : "Lead must be in 'Interested' status or higher to access rental offers"}
               </p>
             </div>
           )}
