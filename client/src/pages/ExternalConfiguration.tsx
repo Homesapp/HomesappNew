@@ -1468,84 +1468,6 @@ export default function ExternalConfiguration() {
     );
   };
 
-  const SeedCatalogButton = ({ language, toast }: { language: string; toast: any }) => {
-    const [isSeeding, setIsSeeding] = useState(false);
-
-    const seedMutation = useMutation({
-      mutationFn: async () => {
-        return apiRequest('POST', '/api/external/config/seed-characteristics-amenities');
-      },
-      onSuccess: (data: any) => {
-        queryClient.invalidateQueries({ queryKey: ['/api/external/config/unit-characteristics'] });
-        queryClient.invalidateQueries({ queryKey: ['/api/external/config/amenities'] });
-        toast({
-          title: language === 'es' ? 'Catálogos pre-poblados' : 'Catalogs seeded',
-          description: language === 'es' 
-            ? `Se crearon ${data.characteristicsCreated} características y ${data.amenitiesCreated} amenidades`
-            : `Created ${data.characteristicsCreated} characteristics and ${data.amenitiesCreated} amenities`,
-        });
-        setIsSeeding(false);
-      },
-      onError: (error: any) => {
-        toast({
-          title: 'Error',
-          description: error.message || (language === 'es' ? 'Error al pre-poblar catálogos' : 'Failed to seed catalogs'),
-          variant: 'destructive',
-        });
-        setIsSeeding(false);
-      },
-    });
-
-    return (
-      <Card data-testid="card-seed-catalogs">
-        <CardHeader>
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <Plus className="h-5 w-5" />
-              <div>
-                <CardTitle>
-                  {language === 'es' ? 'Pre-poblar Catálogos' : 'Seed Catalogs'}
-                </CardTitle>
-                <CardDescription>
-                  {language === 'es' 
-                    ? 'Carga automáticamente 40 características de unidad y 40 amenidades comunes'
-                    : 'Automatically load 40 unit characteristics and 40 common amenities'}
-                </CardDescription>
-              </div>
-            </div>
-            <Button 
-              onClick={() => {
-                setIsSeeding(true);
-                seedMutation.mutate();
-              }}
-              disabled={isSeeding || seedMutation.isPending}
-              data-testid="button-seed-catalogs"
-            >
-              {isSeeding || seedMutation.isPending ? (
-                <>
-                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                  {language === 'es' ? 'Cargando...' : 'Loading...'}
-                </>
-              ) : (
-                <>
-                  <FileSpreadsheet className="h-4 w-4 mr-2" />
-                  {language === 'es' ? 'Cargar Catálogos Iniciales' : 'Load Initial Catalogs'}
-                </>
-              )}
-            </Button>
-          </div>
-        </CardHeader>
-        <CardContent>
-          <p className="text-sm text-muted-foreground">
-            {language === 'es' 
-              ? 'Esta acción cargará características como: Lavadora, Secadora, Aire Acondicionado, Cocina Equipada, etc. Y amenidades como: Alberca, Gimnasio, Seguridad 24/7, Estacionamiento, etc. Si ya existen datos, no se duplicarán.'
-              : 'This action will load characteristics like: Washer, Dryer, Air Conditioning, Equipped Kitchen, etc. And amenities like: Pool, Gym, 24/7 Security, Parking, etc. If data already exists, it will not be duplicated.'}
-          </p>
-        </CardContent>
-      </Card>
-    );
-  };
-
   const ConfigurableCatalogSection = ({ 
     type, 
     language, 
@@ -2195,7 +2117,6 @@ export default function ExternalConfiguration() {
               language={language} 
               toast={toast} 
             />
-            <SeedCatalogButton language={language} toast={toast} />
             <ConfigurableCatalogSection 
               type="unit-characteristics" 
               language={language} 
