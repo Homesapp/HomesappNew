@@ -171,6 +171,7 @@ import PortalLogin from "@/pages/PortalLogin";
 import TenantPortal from "@/pages/TenantPortal";
 import OwnerPortal from "@/pages/OwnerPortal";
 import { PortalAuthProvider } from "@/contexts/PortalAuthContext";
+import { ProtectedRoute, ROLE_GROUPS } from "@/components/ProtectedRoute";
 import NotFound from "@/pages/not-found";
 
 function AuthenticatedApp() {
@@ -442,7 +443,13 @@ function AuthenticatedApp() {
               <Route path="/presupuestos" component={Budgets} />
               <Route path="/tareas" component={Tasks} />
               <Route path="/backoffice" component={Backoffice} />
-              <Route path="/admin/users" component={UserManagement} />
+              <Route path="/admin/users">
+                {() => (
+                  <ProtectedRoute allowedRoles={ROLE_GROUPS.mainAdmins}>
+                    <UserManagement />
+                  </ProtectedRoute>
+                )}
+              </Route>
               <Route path="/users" component={Users} />
               <Route path="/clientes" component={Clients} />
               <Route path="/notificaciones" component={Notifications} />
@@ -458,7 +465,13 @@ function AuthenticatedApp() {
               <Route path="/admin/role-requests" component={RoleRequests} />
               <Route path="/admin/sla-config" component={AdminSLAConfig} />
               <Route path="/admin/lead-scoring" component={AdminLeadScoring} />
-              <Route path="/permissions" component={Permissions} />
+              <Route path="/permissions">
+                {() => (
+                  <ProtectedRoute allowedRoles={ROLE_GROUPS.mainAdmins}>
+                    <Permissions />
+                  </ProtectedRoute>
+                )}
+              </Route>
               <Route path="/contratos" component={Contracts} />
               <Route path="/seller/commissions" component={SellerCommissions} />
               <Route path="/seller/appointments" component={SellerAppointmentManagement} />
@@ -476,7 +489,13 @@ function AuthenticatedApp() {
               <Route path="/admin/rental-opportunity-requests" component={AdminRentalOpportunityRequests} />
               <Route path="/admin/offers" component={AdminOfferManagement} />
               <Route path="/admin/rental-forms" component={AdminRentalFormManagement} />
-              <Route path="/admin/external-agencies" component={AdminExternalAgencies} />
+              <Route path="/admin/external-agencies">
+                {() => (
+                  <ProtectedRoute allowedRoles={ROLE_GROUPS.mainAdmins}>
+                    <AdminExternalAgencies />
+                  </ProtectedRoute>
+                )}
+              </Route>
               <Route path="/admin/external-publication-requests" component={AdminExternalPublicationRequests} />
               <Route path="/external/dashboard" component={ExternalDashboard} />
               <Route path="/external/agency" component={ExternalAgencyConfig} />
@@ -494,7 +513,13 @@ function AuthenticatedApp() {
               <Route path="/external/maintenance/:id" component={ExternalMaintenanceDetail} />
               <Route path="/external/maintenance" component={ExternalMaintenance} />
               <Route path="/external/calendar" component={ExternalCalendar} />
-              <Route path="/external/configuration" component={ExternalConfiguration} />
+              <Route path="/external/configuration">
+                {() => (
+                  <ProtectedRoute allowedRoles={ROLE_GROUPS.externalAdmins}>
+                    <ExternalConfiguration />
+                  </ProtectedRoute>
+                )}
+              </Route>
               <Route path="/external/owners/portfolio" component={ExternalOwnerPortfolio} />
               <Route path="/external/owners" component={ExternalOwners} />
               <Route path="/external/maintenance-workers" component={ExternalMaintenanceWorkers} />
@@ -502,7 +527,13 @@ function AuthenticatedApp() {
               <Route path="/external/clients/:id" component={ExternalClientEdit} />
               <Route path="/external/clients" component={ExternalClients} />
               <Route path="/external/contracts" component={ExternalContracts} />
-              <Route path="/external/users" component={ExternalAgencyUsers} />
+              <Route path="/external/users">
+                {() => (
+                  <ProtectedRoute allowedRoles={ROLE_GROUPS.externalAdmins}>
+                    <ExternalAgencyUsers />
+                  </ProtectedRoute>
+                )}
+              </Route>
               <Route path="/ayuda" component={Help} />
               <Route path="/terminos" component={Terms} />
               <Route path="/privacidad" component={Privacy} />
