@@ -698,6 +698,7 @@ const translations: Record<Language, Record<string, string>> = {
     "sidebar.sellerReports": "Mis Reportes",
     "sidebar.sellerCommissions": "Mis Comisiones",
     "sidebar.sellerGoals": "Mis Metas",
+    "sidebar.sellerLeads": "Mis Leads",
     "sidebar.configuration": "Configuración",
     
     // Configuration Page
@@ -2008,6 +2009,7 @@ const translations: Record<Language, Record<string, string>> = {
     "sidebar.sellerReports": "My Reports",
     "sidebar.sellerCommissions": "My Commissions",
     "sidebar.sellerGoals": "My Goals",
+    "sidebar.sellerLeads": "My Leads",
     "sidebar.configuration": "Configuration",
     
     // Configuration Page

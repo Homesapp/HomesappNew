@@ -209,7 +209,7 @@ function AuthenticatedApp() {
   // Redirect external agency users to their dashboard when on home page
   useEffect(() => {
     const isExternalAgencyUser = user?.role && 
-      ["external_agency_admin", "external_agency_accounting", "external_agency_maintenance", "external_agency_staff"].includes(user.role);
+      ["external_agency_admin", "external_agency_accounting", "external_agency_maintenance", "external_agency_staff", "external_agency_seller"].includes(user.role);
     
     if (isExternalAgencyUser && location === "/" && !needsPasswordChange) {
       setLocation("/external/dashboard");
@@ -325,6 +325,7 @@ function AuthenticatedApp() {
       case "external_agency_accounting":
       case "external_agency_maintenance":
       case "external_agency_staff":
+      case "external_agency_seller":
         return ExternalDashboard;
       case "management":
       case "concierge":

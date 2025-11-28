@@ -142,7 +142,7 @@ export default function ExternalClients() {
   const isMobile = useMobile();
   const [, navigate] = useLocation();
 
-  const [activeTab, setActiveTab] = useState<"clients" | "leads">("clients");
+  const [activeTab, setActiveTab] = useState<"clients" | "leads">(user?.role === 'external_agency_seller' ? "leads" : "clients");
   const [viewMode, setViewMode] = useState<"cards" | "table" | "kanban">(isMobile ? "cards" : "table");
   const [searchTerm, setSearchTerm] = useState("");
   const debouncedSearchTerm = useDebounce(searchTerm, 400);
@@ -172,6 +172,7 @@ export default function ExternalClients() {
   
   // Check if user is master/admin (needs agency selection)
   const isMasterOrAdmin = user?.role === 'master' || user?.role === 'admin';
+  const isSeller = user?.role === 'external_agency_seller';
   const [leadSearchTerm, setLeadSearchTerm] = useState("");
   const debouncedLeadSearchTerm = useDebounce(leadSearchTerm, 400);
   const [leadStatusFilter, setLeadStatusFilter] = useState<string>("all");
@@ -1194,10 +1195,12 @@ export default function ExternalClients() {
       {/* Tabs */}
       <Tabs value={activeTab} onValueChange={(value) => setActiveTab(value as "clients" | "leads")}>
         <div className="flex items-center justify-between gap-4">
-          <TabsList className="grid grid-cols-2" style={{ width: "fit-content" }}>
-            <TabsTrigger value="clients" data-testid="tab-clients">
-              {language === "es" ? "Clientes" : "Clients"}
-            </TabsTrigger>
+          <TabsList className={`grid ${isSeller ? 'grid-cols-1' : 'grid-cols-2'}`} style={{ width: "fit-content" }}>
+            {!isSeller && (
+              <TabsTrigger value="clients" data-testid="tab-clients">
+                {language === "es" ? "Clientes" : "Clients"}
+              </TabsTrigger>
+            )}
             <TabsTrigger value="leads" data-testid="tab-leads">
               {language === "es" ? "Leads" : "Leads"}
             </TabsTrigger>
@@ -4469,7 +4472,7 @@ export default function ExternalClients() {
               <Pencil className="h-4 w-4 mr-2" />
               {language === "es" ? "Editar" : "Edit"}
             </Button>
-            {selectedLead && selectedLead.registrationType === "seller" && selectedLead.status !== "renta_concretada" && (
+            {selectedLead && selectedLead.registrationType === "seller" && selectedLead.status !== "renta_concretada" && !isSeller && (
               <Button
                 onClick={() => convertLeadToClientMutation.mutate(selectedLead)}
                 disabled={convertLeadToClientMutation.isPending}
