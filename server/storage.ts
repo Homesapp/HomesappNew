@@ -382,6 +382,10 @@ import {
   type ExternalLeadShowing,
   type InsertExternalLeadShowing,
   type UpdateExternalLeadShowing,
+  externalLeadPropertySent,
+  type ExternalLeadPropertySent,
+  type InsertExternalLeadPropertySent,
+  type UpdateExternalLeadPropertySent,
   externalClientActivities,
   type ExternalClientActivity,
   type InsertExternalClientActivity,
@@ -1552,6 +1556,12 @@ export interface IStorage {
   createExternalLeadShowing(showing: InsertExternalLeadShowing): Promise<ExternalLeadShowing>;
   updateExternalLeadShowing(id: string, updates: UpdateExternalLeadShowing): Promise<ExternalLeadShowing>;
   deleteExternalLeadShowing(id: string): Promise<void>;
+
+  // CRM - Lead Properties Sent
+  getExternalLeadPropertiesSent(leadId: string): Promise<ExternalLeadPropertySent[]>;
+  getExternalLeadPropertySent(id: string): Promise<ExternalLeadPropertySent | undefined>;
+  createExternalLeadPropertySent(data: InsertExternalLeadPropertySent): Promise<ExternalLeadPropertySent>;
+  updateExternalLeadPropertySent(id: string, updates: UpdateExternalLeadPropertySent): Promise<ExternalLeadPropertySent>;
   
   // CRM - Client Activities
   getExternalClientActivities(clientId: string): Promise<ExternalClientActivity[]>;
@@ -10770,6 +10780,37 @@ export class DatabaseStorage implements IStorage {
   async deleteExternalLeadShowing(id: string): Promise<void> {
     await db.delete(externalLeadShowings)
       .where(eq(externalLeadShowings.id, id));
+  }
+
+  // CRM - Lead Properties Sent
+  async getExternalLeadPropertiesSent(leadId: string): Promise<ExternalLeadPropertySent[]> {
+    const results = await db.select()
+      .from(externalLeadPropertySent)
+      .where(eq(externalLeadPropertySent.leadId, leadId))
+      .orderBy(desc(externalLeadPropertySent.sentAt));
+    return results;
+  }
+  
+  async getExternalLeadPropertySent(id: string): Promise<ExternalLeadPropertySent | undefined> {
+    const [result] = await db.select()
+      .from(externalLeadPropertySent)
+      .where(eq(externalLeadPropertySent.id, id));
+    return result;
+  }
+  
+  async createExternalLeadPropertySent(data: InsertExternalLeadPropertySent): Promise<ExternalLeadPropertySent> {
+    const [result] = await db.insert(externalLeadPropertySent)
+      .values(data)
+      .returning();
+    return result;
+  }
+  
+  async updateExternalLeadPropertySent(id: string, updates: UpdateExternalLeadPropertySent): Promise<ExternalLeadPropertySent> {
+    const [result] = await db.update(externalLeadPropertySent)
+      .set(updates)
+      .where(eq(externalLeadPropertySent.id, id))
+      .returning();
+    return result;
   }
 
   // CRM - Client Activities

@@ -6635,6 +6635,57 @@ export type InsertExternalLeadShowing = z.infer<typeof insertExternalLeadShowing
 export type UpdateExternalLeadShowing = z.infer<typeof updateExternalLeadShowingSchema>;
 export type ExternalLeadShowing = typeof externalLeadShowings.$inferSelect;
 
+// Lead Property Sent - Track properties sent/shared with leads
+export const externalLeadPropertySent = pgTable("external_lead_property_sent", {
+  id: varchar("id").primaryKey().$defaultFn(() => crypto.randomUUID()),
+  leadId: varchar("lead_id").notNull().references(() => externalLeads.id, { onDelete: "cascade" }),
+  agencyId: varchar("agency_id").notNull().references(() => externalAgencies.id, { onDelete: "cascade" }),
+  propertyId: varchar("property_id").references(() => externalProperties.id, { onDelete: "set null" }),
+  unitId: varchar("unit_id").references(() => externalUnits.id, { onDelete: "set null" }),
+  
+  // Property snapshot (in case property is deleted)
+  propertyName: varchar("property_name", { length: 255 }),
+  unitNumber: varchar("unit_number", { length: 50 }),
+  rentPrice: decimal("rent_price", { precision: 12, scale: 2 }),
+  currency: varchar("currency", { length: 3 }).default("MXN"),
+  bedrooms: integer("bedrooms"),
+  zone: varchar("zone", { length: 100 }),
+  
+  // Sharing details
+  sharedVia: varchar("shared_via", { length: 50 }).notNull().default("whatsapp"), // whatsapp, email, in_person, catalog
+  message: text("message"), // Custom message sent with property
+  templateUsed: varchar("template_used", { length: 100 }), // Template name if used
+  
+  // Lead response
+  leadResponse: varchar("lead_response", { length: 50 }), // interested, not_interested, pending, visited
+  responseNotes: text("response_notes"),
+  respondedAt: timestamp("responded_at"),
+  
+  // If this led to a rental offer
+  rentalOfferId: varchar("rental_offer_id"),
+  
+  // Metadata
+  sentBy: varchar("sent_by").notNull().references(() => users.id),
+  sentAt: timestamp("sent_at").defaultNow().notNull(),
+}, (table) => [
+  index("idx_lead_property_sent_lead").on(table.leadId),
+  index("idx_lead_property_sent_agency").on(table.agencyId),
+  index("idx_lead_property_sent_property").on(table.propertyId),
+  index("idx_lead_property_sent_at").on(table.sentAt),
+  index("idx_lead_property_sent_response").on(table.leadResponse),
+]);
+
+export const insertExternalLeadPropertySentSchema = createInsertSchema(externalLeadPropertySent).omit({
+  id: true,
+  sentAt: true,
+});
+
+export const updateExternalLeadPropertySentSchema = insertExternalLeadPropertySentSchema.partial();
+
+export type InsertExternalLeadPropertySent = z.infer<typeof insertExternalLeadPropertySentSchema>;
+export type UpdateExternalLeadPropertySent = z.infer<typeof updateExternalLeadPropertySentSchema>;
+export type ExternalLeadPropertySent = typeof externalLeadPropertySent.$inferSelect;
+
 // Client Activities - Track all interactions with clients
 export const externalClientActivities = pgTable("external_client_activities", {
   id: varchar("id").primaryKey().$defaultFn(() => crypto.randomUUID()),

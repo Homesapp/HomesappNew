@@ -29402,6 +29402,121 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // ================== LEAD PROPERTY SENT ENDPOINTS ==================
+  
+  // GET /api/external-leads/:id/properties-sent - Get all properties sent to a lead
+  app.get("/api/external-leads/:id/properties-sent", isAuthenticated, requireRole([...EXTERNAL_ADMIN_ROLES, 'external_agency_seller']), async (req: any, res) => {
+    try {
+      const { id } = req.params;
+      const lead = await storage.getExternalLead(id);
+      
+      if (!lead) {
+        return res.status(404).json({ message: "Lead not found" });
+      }
+      
+      const hasAccess = await verifyExternalAgencyOwnership(req, res, lead.agencyId);
+      if (!hasAccess) return;
+      
+      const propertiesSent = await storage.getExternalLeadPropertiesSent(id);
+      res.json(propertiesSent);
+    } catch (error: any) {
+      console.error("Error fetching lead properties sent:", error);
+      handleGenericError(res, error);
+    }
+  });
+  
+  // POST /api/external-leads/:id/properties-sent - Send/share property to a lead
+  app.post("/api/external-leads/:id/properties-sent", isAuthenticated, requireRole([...EXTERNAL_ADMIN_ROLES, 'external_agency_seller']), async (req: any, res) => {
+    try {
+      const { id } = req.params;
+      const lead = await storage.getExternalLead(id);
+      
+      if (!lead) {
+        return res.status(404).json({ message: "Lead not found" });
+      }
+      
+      const hasAccess = await verifyExternalAgencyOwnership(req, res, lead.agencyId);
+      if (!hasAccess) return;
+      
+      // Get property details for snapshot
+      let propertySnapshot: any = {};
+      if (req.body.unitId) {
+        const unit = await storage.getExternalUnit(req.body.unitId);
+        if (unit) {
+          const property = await storage.getExternalProperty(unit.propertyId);
+          propertySnapshot = {
+            propertyName: property?.name || '',
+            unitNumber: unit.unitNumber,
+            rentPrice: unit.rentPrice?.toString(),
+            bedrooms: unit.bedrooms,
+            zone: property?.zone || '',
+          };
+        }
+      } else if (req.body.propertyId) {
+        const property = await storage.getExternalProperty(req.body.propertyId);
+        if (property) {
+          propertySnapshot = {
+            propertyName: property.name,
+            zone: property.zone || '',
+          };
+        }
+      }
+      
+      const propertySent = await storage.createExternalLeadPropertySent({
+        ...req.body,
+        ...propertySnapshot,
+        leadId: id,
+        agencyId: lead.agencyId,
+        sentBy: req.user.id,
+      });
+      
+      // Create activity entry
+      await storage.createExternalLeadActivity({
+        leadId: id,
+        agencyId: lead.agencyId,
+        activityType: 'whatsapp',
+        title: `Propiedad enviada: ${propertySnapshot.propertyName || 'Propiedad'}${propertySnapshot.unitNumber ? ' - ' + propertySnapshot.unitNumber : ''}`,
+        description: req.body.message || 'Se compartió información de propiedad',
+        relatedPropertyId: req.body.propertyId,
+        relatedUnitId: req.body.unitId,
+        createdBy: req.user.id,
+      });
+      
+      await createAuditLog(req, "create", "external_lead_property_sent", propertySent.id, "Sent property to lead");
+      res.status(201).json(propertySent);
+    } catch (error: any) {
+      console.error("Error sending property to lead:", error);
+      handleGenericError(res, error);
+    }
+  });
+  
+  // PATCH /api/external-lead-properties-sent/:id - Update property sent (e.g., lead response)
+  app.patch("/api/external-lead-properties-sent/:id", isAuthenticated, requireRole([...EXTERNAL_ADMIN_ROLES, 'external_agency_seller']), async (req: any, res) => {
+    try {
+      const { id } = req.params;
+      const propertySent = await storage.getExternalLeadPropertySent(id);
+      
+      if (!propertySent) {
+        return res.status(404).json({ message: "Property sent record not found" });
+      }
+      
+      const hasAccess = await verifyExternalAgencyOwnership(req, res, propertySent.agencyId);
+      if (!hasAccess) return;
+      
+      const updated = await storage.updateExternalLeadPropertySent(id, {
+        ...req.body,
+        respondedAt: req.body.leadResponse ? new Date() : undefined,
+      });
+      
+      await createAuditLog(req, "update", "external_lead_property_sent", id, "Updated lead property sent");
+      res.json(updated);
+    } catch (error: any) {
+      console.error("Error updating lead property sent:", error);
+      handleGenericError(res, error);
+    }
+  });
+
+
   // GET /api/external-clients/:id/activities - Get all activities for a client
   app.get("/api/external-clients/:id/activities", isAuthenticated, requireRole([...EXTERNAL_ADMIN_ROLES, 'external_agency_seller']), async (req: any, res) => {
     try {
