@@ -4614,8 +4614,10 @@ export const offerTokens = pgTable("offer_tokens", {
   propertyId: varchar("property_id").references(() => properties.id, { onDelete: "cascade" }), // Para sistema interno
   externalUnitId: varchar("external_unit_id").references(() => externalUnits.id, { onDelete: "cascade" }), // Para sistema externo
   externalClientId: varchar("external_client_id").references(() => externalClients.id, { onDelete: "cascade" }), // Cliente externo (opcional)
-  leadId: varchar("lead_id").references(() => leads.id, { onDelete: "set null" }), // Lead asociado al token (opcional)
+  externalLeadId: varchar("external_lead_id").references(() => externalLeads.id, { onDelete: "set null" }), // Lead externo asociado (opcional)
+  leadId: varchar("lead_id").references(() => leads.id, { onDelete: "set null" }), // Lead interno asociado al token (opcional)
   createdBy: varchar("created_by").notNull().references(() => users.id, { onDelete: "cascade" }), // Vendedor o admin que creó el link
+  createdByName: varchar("created_by_name", { length: 255 }), // Nombre del creador (desnormalizado para consultas)
   expiresAt: timestamp("expires_at").notNull(), // 24 horas después de creación
   isUsed: boolean("is_used").notNull().default(false),
   offerData: jsonb("offer_data").$type<{
@@ -4676,6 +4678,10 @@ export const offerTokensRelations = relations(offerTokens, ({ one }) => ({
   externalClient: one(externalClients, {
     fields: [offerTokens.externalClientId],
     references: [externalClients.id],
+  }),
+  externalLead: one(externalLeads, {
+    fields: [offerTokens.externalLeadId],
+    references: [externalLeads.id],
   }),
   lead: one(leads, {
     fields: [offerTokens.leadId],
