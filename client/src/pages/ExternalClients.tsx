@@ -1185,7 +1185,7 @@ export default function ExternalClients() {
                   : "Manage client and tenant registration")}
           </p>
         </div>
-        {isSeller && (
+        {isSeller && !isMobile && (
           <Button 
             onClick={() => setIsCreateLeadDialogOpen(true)}
             data-testid="button-create-lead-header"
@@ -2532,15 +2532,15 @@ export default function ExternalClients() {
         <TabsContent value="leads" className="space-y-6 mt-6">
           {/* Search and Filters for Leads */}
           <Card>
-            <CardContent className="pt-6 space-y-4">
-              <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
+            <CardContent className="pt-4 pb-3 space-y-3">
+              <div className="flex items-center gap-2">
                 <div className="relative flex-1">
                   <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
                   <Input
-                    placeholder={language === "es" ? "Buscar por nombre, email o teléfono..." : "Search by name, email or phone..."}
+                    placeholder={language === "es" ? "Buscar..." : "Search..."}
                     value={leadSearchTerm}
                     onChange={(e) => setLeadSearchTerm(e.target.value)}
-                    className="pl-10"
+                    className="pl-10 h-10"
                     data-testid="input-lead-search"
                   />
                 </div>
@@ -2584,7 +2584,7 @@ export default function ExternalClients() {
                     <Button
                       variant="outline"
                       size="icon"
-                      className="flex-shrink-0 relative"
+                      className="flex-shrink-0 relative h-10 w-10"
                       data-testid="button-lead-filter-toggle"
                     >
                       <Filter className="h-4 w-4" />
@@ -2593,7 +2593,7 @@ export default function ExternalClients() {
                       )}
                     </Button>
                   </PopoverTrigger>
-                  <PopoverContent className="w-auto p-4 space-y-4" align="end">
+                  <PopoverContent className="w-72 p-3 space-y-3" align="end">
                     <div className="flex items-center justify-between">
                       <h4 className="font-medium text-sm">
                         {language === "es" ? "Filtrar por" : "Filter by"}
@@ -3102,11 +3102,13 @@ export default function ExternalClients() {
                       <CardContent className="space-y-3 text-sm pt-0">
                         {/* Key Info Grid */}
                         <div className="grid grid-cols-2 gap-2 text-xs">
-                          <div className="flex items-center gap-1.5">
-                            <User className="h-3.5 w-3.5 text-muted-foreground" />
-                            <span className="text-muted-foreground">{language === "es" ? "Vendedor:" : "Seller:"}</span>
-                            <span className="font-medium truncate">{lead.sellerName || (lead.sellerId && sellers.find(s => s.id === lead.sellerId)?.firstName ? `${sellers.find(s => s.id === lead.sellerId)?.firstName} ${sellers.find(s => s.id === lead.sellerId)?.lastName || ""}`.trim() : "-")}</span>
-                          </div>
+                          {!isSeller && (
+                            <div className="flex items-center gap-1.5">
+                              <User className="h-3.5 w-3.5 text-muted-foreground" />
+                              <span className="text-muted-foreground">{language === "es" ? "Vendedor:" : "Seller:"}</span>
+                              <span className="font-medium truncate">{lead.sellerName || (lead.sellerId && sellers.find(s => s.id === lead.sellerId)?.firstName ? `${sellers.find(s => s.id === lead.sellerId)?.firstName} ${sellers.find(s => s.id === lead.sellerId)?.lastName || ""}`.trim() : "-")}</span>
+                            </div>
+                          )}
                           <div className="flex items-center gap-1.5">
                             <DollarSign className="h-3.5 w-3.5 text-muted-foreground" />
                             <span className="text-muted-foreground">{language === "es" ? "Presup.:" : "Budget:"}</span>
