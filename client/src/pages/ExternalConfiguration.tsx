@@ -1791,87 +1791,148 @@ export default function ExternalConfiguration() {
               </p>
             </div>
           ) : (
-            <div className="overflow-x-auto">
-              <table className="w-full text-sm">
-                <thead>
-                  <tr className="border-b bg-muted/50">
-                    <th className="p-3 text-left font-medium">
-                      {language === 'es' ? 'Nombre' : 'Name'}
-                    </th>
-                    {hasCategory && (
-                      <th className="p-3 text-left font-medium w-32">
-                        {language === 'es' ? 'Categoría' : 'Category'}
-                      </th>
-                    )}
-                    <th className="p-3 text-left font-medium w-24">
-                      {language === 'es' ? 'Orden' : 'Order'}
-                    </th>
-                    <th className="p-3 text-left font-medium w-24">
-                      {language === 'es' ? 'Estado' : 'Status'}
-                    </th>
-                    <th className="p-3 text-right font-medium w-32">
-                      {language === 'es' ? 'Acciones' : 'Actions'}
-                    </th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {sortedItems.map((item: any) => (
-                    <tr key={item.id} className="border-b" data-testid={`row-${type}-${item.id}`}>
-                      <td className="p-3">
-                        <div>
-                          <span>{item.name}</span>
-                          {hasNameEn && item.nameEn && (
-                            <span className="text-xs text-muted-foreground ml-2">({item.nameEn})</span>
-                          )}
-                        </div>
-                      </td>
-                      {hasCategory && (
-                        <td className="p-3">
-                          {item.category && (
-                            <Badge variant="outline" className="text-xs">
-                              {getCategoryLabel(item.category)}
-                            </Badge>
-                          )}
-                        </td>
-                      )}
-                      <td className="p-3 text-muted-foreground">{item.sortOrder || 0}</td>
-                      <td className="p-3">
-                        <Badge 
-                          variant={item.isActive ? 'default' : 'secondary'}
-                          className="cursor-pointer"
-                          onClick={() => handleToggleActive(item)}
-                          data-testid={`badge-status-${type}-${item.id}`}
-                        >
-                          {item.isActive 
-                            ? (language === 'es' ? 'Activo' : 'Active')
-                            : (language === 'es' ? 'Inactivo' : 'Inactive')}
+            <>
+              {/* Mobile Card View */}
+              <div className="sm:hidden space-y-3">
+                {sortedItems.map((item: any) => (
+                  <div 
+                    key={item.id} 
+                    className="p-4 border rounded-lg bg-card"
+                    data-testid={`card-${type}-${item.id}`}
+                  >
+                    <div className="flex items-start justify-between gap-2 mb-2">
+                      <div className="flex-1 min-w-0">
+                        <p className="font-medium">{item.name}</p>
+                        {hasNameEn && item.nameEn && (
+                          <p className="text-sm text-muted-foreground">{item.nameEn}</p>
+                        )}
+                      </div>
+                      <Badge 
+                        variant={item.isActive ? 'default' : 'secondary'}
+                        className="cursor-pointer flex-shrink-0"
+                        onClick={() => handleToggleActive(item)}
+                        data-testid={`badge-status-${type}-${item.id}`}
+                      >
+                        {item.isActive 
+                          ? (language === 'es' ? 'Activo' : 'Active')
+                          : (language === 'es' ? 'Inactivo' : 'Inactive')}
+                      </Badge>
+                    </div>
+                    <div className="flex items-center gap-2 text-sm text-muted-foreground mb-3">
+                      {hasCategory && item.category && (
+                        <Badge variant="outline" className="text-xs">
+                          {getCategoryLabel(item.category)}
                         </Badge>
-                      </td>
-                      <td className="p-3 text-right">
-                        <div className="flex justify-end gap-1">
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            onClick={() => handleOpenDialog(item)}
-                            data-testid={`button-edit-${type}-${item.id}`}
-                          >
-                            <Edit className="h-4 w-4" />
-                          </Button>
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            onClick={() => handleDeleteClick(item)}
-                            data-testid={`button-delete-${type}-${item.id}`}
-                          >
-                            <Trash2 className="h-4 w-4" />
-                          </Button>
-                        </div>
-                      </td>
+                      )}
+                      <span>{language === 'es' ? 'Orden:' : 'Order:'} {item.sortOrder || 0}</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <Button
+                        variant="outline"
+                        className="flex-1 h-10"
+                        onClick={() => handleOpenDialog(item)}
+                        data-testid={`button-edit-${type}-${item.id}`}
+                      >
+                        <Edit className="h-4 w-4 mr-2" />
+                        {language === 'es' ? 'Editar' : 'Edit'}
+                      </Button>
+                      <Button
+                        variant="outline"
+                        className="h-10"
+                        size="icon"
+                        onClick={() => handleDeleteClick(item)}
+                        data-testid={`button-delete-${type}-${item.id}`}
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+              
+              {/* Desktop Table View */}
+              <div className="hidden sm:block overflow-x-auto">
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="border-b bg-muted/50">
+                      <th className="p-3 text-left font-medium">
+                        {language === 'es' ? 'Nombre' : 'Name'}
+                      </th>
+                      {hasCategory && (
+                        <th className="p-3 text-left font-medium w-32">
+                          {language === 'es' ? 'Categoría' : 'Category'}
+                        </th>
+                      )}
+                      <th className="p-3 text-left font-medium w-24">
+                        {language === 'es' ? 'Orden' : 'Order'}
+                      </th>
+                      <th className="p-3 text-left font-medium w-24">
+                        {language === 'es' ? 'Estado' : 'Status'}
+                      </th>
+                      <th className="p-3 text-right font-medium w-32">
+                        {language === 'es' ? 'Acciones' : 'Actions'}
+                      </th>
                     </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
+                  </thead>
+                  <tbody>
+                    {sortedItems.map((item: any) => (
+                      <tr key={item.id} className="border-b" data-testid={`row-${type}-${item.id}`}>
+                        <td className="p-3">
+                          <div>
+                            <span>{item.name}</span>
+                            {hasNameEn && item.nameEn && (
+                              <span className="text-xs text-muted-foreground ml-2">({item.nameEn})</span>
+                            )}
+                          </div>
+                        </td>
+                        {hasCategory && (
+                          <td className="p-3">
+                            {item.category && (
+                              <Badge variant="outline" className="text-xs">
+                                {getCategoryLabel(item.category)}
+                              </Badge>
+                            )}
+                          </td>
+                        )}
+                        <td className="p-3 text-muted-foreground">{item.sortOrder || 0}</td>
+                        <td className="p-3">
+                          <Badge 
+                            variant={item.isActive ? 'default' : 'secondary'}
+                            className="cursor-pointer"
+                            onClick={() => handleToggleActive(item)}
+                            data-testid={`badge-status-${type}-${item.id}`}
+                          >
+                            {item.isActive 
+                              ? (language === 'es' ? 'Activo' : 'Active')
+                              : (language === 'es' ? 'Inactivo' : 'Inactive')}
+                          </Badge>
+                        </td>
+                        <td className="p-3 text-right">
+                          <div className="flex justify-end gap-1">
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              onClick={() => handleOpenDialog(item)}
+                              data-testid={`button-edit-${type}-${item.id}`}
+                            >
+                              <Edit className="h-4 w-4" />
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              onClick={() => handleDeleteClick(item)}
+                              data-testid={`button-delete-${type}-${item.id}`}
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          </div>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </>
           )}
         </CardContent>
 
@@ -2033,18 +2094,19 @@ export default function ExternalConfiguration() {
   };
 
   return (
-    <div className="container mx-auto p-6 max-w-6xl" data-testid="page-external-configuration">
-      <div className="flex items-center justify-between mb-6">
+    <div className="container mx-auto p-4 sm:p-6 max-w-6xl" data-testid="page-external-configuration">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
         <div>
-          <h1 className="text-3xl font-bold flex items-center gap-2">
-            <Settings className="h-8 w-8" />
+          <h1 className="text-2xl sm:text-3xl font-bold flex items-center gap-2">
+            <Settings className="h-6 w-6 sm:h-8 sm:w-8" />
             {t("configuration.title")}
           </h1>
-          <p className="text-muted-foreground mt-1">{t("configuration.subtitle")}</p>
+          <p className="text-muted-foreground mt-1 text-sm sm:text-base">{t("configuration.subtitle")}</p>
         </div>
         <Button
           onClick={() => handleOpenDialog()}
           data-testid="button-create-terms"
+          className="w-full sm:w-auto h-11"
         >
           <Plus className="h-4 w-4 mr-2" />
           {t("configuration.createTerms")}
@@ -2052,28 +2114,35 @@ export default function ExternalConfiguration() {
       </div>
 
       <Tabs value={activeTab} onValueChange={(value: any) => setActiveTab(value)} className="w-full">
-        <TabsList className="grid w-full max-w-4xl grid-cols-5">
-          <TabsTrigger value="terms" data-testid="tab-terms">
-            <FileText className="h-4 w-4 mr-2" />
-            {language === "es" ? "Términos" : "Terms"}
-          </TabsTrigger>
-          <TabsTrigger value="catalogs" data-testid="tab-catalogs">
-            <List className="h-4 w-4 mr-2" />
-            {language === "es" ? "Catálogos" : "Catalogs"}
-          </TabsTrigger>
-          <TabsTrigger value="designs" data-testid="tab-pdf-designs">
-            <Eye className="h-4 w-4 mr-2" />
-            {language === "es" ? "Diseños PDF" : "PDF Designs"}
-          </TabsTrigger>
-          <TabsTrigger value="integrations" data-testid="tab-integrations">
-            <Plug className="h-4 w-4 mr-2" />
-            {language === "es" ? "Integraciones" : "Integrations"}
-          </TabsTrigger>
-          <TabsTrigger value="data" data-testid="tab-data-import">
-            <FileSpreadsheet className="h-4 w-4 mr-2" />
-            {language === "es" ? "Datos" : "Data"}
-          </TabsTrigger>
-        </TabsList>
+        <div className="overflow-x-auto pb-2 -mx-1 px-1">
+          <TabsList className="inline-flex w-auto min-w-full sm:w-full sm:max-w-4xl sm:grid sm:grid-cols-5 gap-1">
+            <TabsTrigger value="terms" data-testid="tab-terms" className="min-w-fit px-3 sm:px-4">
+              <FileText className="h-4 w-4 sm:mr-2" />
+              <span className="hidden sm:inline">{language === "es" ? "Términos" : "Terms"}</span>
+              <span className="sm:hidden text-xs">{language === "es" ? "Térm." : "Terms"}</span>
+            </TabsTrigger>
+            <TabsTrigger value="catalogs" data-testid="tab-catalogs" className="min-w-fit px-3 sm:px-4">
+              <List className="h-4 w-4 sm:mr-2" />
+              <span className="hidden sm:inline">{language === "es" ? "Catálogos" : "Catalogs"}</span>
+              <span className="sm:hidden text-xs">{language === "es" ? "Cat." : "Cat."}</span>
+            </TabsTrigger>
+            <TabsTrigger value="designs" data-testid="tab-pdf-designs" className="min-w-fit px-3 sm:px-4">
+              <Eye className="h-4 w-4 sm:mr-2" />
+              <span className="hidden sm:inline">{language === "es" ? "Diseños PDF" : "PDF Designs"}</span>
+              <span className="sm:hidden text-xs">PDF</span>
+            </TabsTrigger>
+            <TabsTrigger value="integrations" data-testid="tab-integrations" className="min-w-fit px-3 sm:px-4">
+              <Plug className="h-4 w-4 sm:mr-2" />
+              <span className="hidden sm:inline">{language === "es" ? "Integraciones" : "Integrations"}</span>
+              <span className="sm:hidden text-xs">{language === "es" ? "Integ." : "Integ."}</span>
+            </TabsTrigger>
+            <TabsTrigger value="data" data-testid="tab-data-import" className="min-w-fit px-3 sm:px-4">
+              <FileSpreadsheet className="h-4 w-4 sm:mr-2" />
+              <span className="hidden sm:inline">{language === "es" ? "Datos" : "Data"}</span>
+              <span className="sm:hidden text-xs">{language === "es" ? "Datos" : "Data"}</span>
+            </TabsTrigger>
+          </TabsList>
+        </div>
 
         <TabsContent value="terms" className="mt-6">
           <div className="space-y-6">

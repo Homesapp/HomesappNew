@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import {
   DndContext,
   DragEndEvent,
@@ -6,6 +6,7 @@ import {
   DragStartEvent,
   PointerSensor,
   KeyboardSensor,
+  TouchSensor,
   useSensor,
   useSensors,
   closestCorners,
@@ -23,18 +24,46 @@ import {
   Pencil,
   Trash2,
   Calendar as CalendarIcon,
+  ChevronDown,
+  ChevronRight,
 } from "lucide-react";
+import { SiWhatsapp } from "react-icons/si";
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger,
+} from "@/components/ui/collapsible";
 import type { ExternalLead } from "@shared/schema";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { format } from "date-fns";
 import { es } from "date-fns/locale";
 import { cn } from "@/lib/utils";
+
+function useIsMobile() {
+  const [isMobile, setIsMobile] = useState(false);
+  
+  useEffect(() => {
+    const checkMobile = () => setIsMobile(window.innerWidth < 768);
+    checkMobile();
+    window.addEventListener('resize', checkMobile);
+    return () => window.removeEventListener('resize', checkMobile);
+  }, []);
+  
+  return isMobile;
+}
 
 type LeadStatus =
   | "nuevo_lead"
@@ -218,6 +247,166 @@ function DraggableLeadCard({
   );
 }
 
+function MobileLeadCard({
+  lead,
+  onEdit,
+  onDelete,
+  onUpdateStatus,
+}: {
+  lead: ExternalLead;
+  onEdit: (lead: ExternalLead) => void;
+  onDelete: (lead: ExternalLead) => void;
+  onUpdateStatus: (leadId: string, newStatus: LeadStatus) => void;
+}) {
+  const { language } = useLanguage();
+
+  return (
+    <Card className="hover-elevate" data-testid={`mobile-lead-card-${lead.id}`}>
+      <CardHeader className="pb-2">
+        <div className="flex items-start justify-between gap-2">
+          <div className="flex-1 min-w-0">
+            <CardTitle className="text-base font-medium">
+              {lead.firstName} {lead.lastName}
+            </CardTitle>
+            <Badge variant="outline" className="mt-1 text-xs">
+              {lead.registrationType === "broker" 
+                ? "Broker" 
+                : (language === "es" ? "Vendedor" : "Seller")}
+            </Badge>
+          </div>
+        </div>
+      </CardHeader>
+      <CardContent className="space-y-3 pt-0">
+        {lead.phone && (
+          <div className="flex items-center gap-2 text-sm text-muted-foreground">
+            <Phone className="h-4 w-4 flex-shrink-0" />
+            <span>{lead.phone}</span>
+          </div>
+        )}
+        {lead.phoneLast4 && !lead.phone && (
+          <div className="flex items-center gap-2 text-sm text-muted-foreground">
+            <Phone className="h-4 w-4 flex-shrink-0" />
+            <span>*** {lead.phoneLast4}</span>
+          </div>
+        )}
+        
+        {/* Status Selector for Mobile */}
+        <div className="pt-2 border-t">
+          <label className="text-xs text-muted-foreground mb-1 block">
+            {language === "es" ? "Cambiar Estado" : "Change Status"}
+          </label>
+          <Select
+            value={lead.status}
+            onValueChange={(value) => onUpdateStatus(lead.id, value as LeadStatus)}
+          >
+            <SelectTrigger className="h-10 text-sm" data-testid={`select-status-${lead.id}`}>
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {KANBAN_COLUMNS.map((col) => (
+                <SelectItem key={col.id} value={col.id}>
+                  {language === "es" ? col.labelEs : col.labelEn}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+
+        {/* Mobile Action Buttons */}
+        <div className="flex items-center gap-2 pt-2">
+          {lead.phone && lead.registrationType !== "broker" && (
+            <Button
+              className="flex-1 h-11 bg-green-600 hover:bg-green-700 text-white"
+              onClick={() => {
+                const phone = lead.phone?.replace(/\D/g, '');
+                window.open(`https://wa.me/${phone}`, '_blank');
+              }}
+              data-testid={`button-whatsapp-mobile-${lead.id}`}
+            >
+              <SiWhatsapp className="h-5 w-5 mr-2" />
+              WhatsApp
+            </Button>
+          )}
+          <Button
+            variant="outline"
+            className="h-11 min-w-11"
+            size="icon"
+            onClick={() => onEdit(lead)}
+            data-testid={`button-edit-mobile-${lead.id}`}
+          >
+            <Pencil className="h-5 w-5" />
+          </Button>
+          <Button
+            variant="outline"
+            className="h-11 min-w-11"
+            size="icon"
+            onClick={() => onDelete(lead)}
+            data-testid={`button-delete-mobile-${lead.id}`}
+          >
+            <Trash2 className="h-5 w-5" />
+          </Button>
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
+function MobileKanbanColumn({
+  column,
+  leads,
+  onEdit,
+  onDelete,
+  onUpdateStatus,
+  language,
+}: {
+  column: KanbanColumnDef;
+  leads: ExternalLead[];
+  onEdit: (lead: ExternalLead) => void;
+  onDelete: (lead: ExternalLead) => void;
+  onUpdateStatus: (leadId: string, newStatus: LeadStatus) => void;
+  language: string;
+}) {
+  const [isOpen, setIsOpen] = useState(leads.length > 0);
+  const label = language === "es" ? column.labelEs : column.labelEn;
+
+  return (
+    <Collapsible open={isOpen} onOpenChange={setIsOpen}>
+      <CollapsibleTrigger asChild>
+        <Button
+          variant="ghost"
+          className="w-full justify-between h-12 px-4 rounded-lg bg-muted/50 hover:bg-muted"
+          data-testid={`mobile-column-trigger-${column.id}`}
+        >
+          <div className="flex items-center gap-2">
+            {isOpen ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
+            <span className="font-medium">{label}</span>
+          </div>
+          <Badge variant={leads.length > 0 ? "default" : "secondary"} className="text-xs">
+            {leads.length}
+          </Badge>
+        </Button>
+      </CollapsibleTrigger>
+      <CollapsibleContent className="space-y-3 pt-3">
+        {leads.length === 0 ? (
+          <p className="text-sm text-muted-foreground text-center py-4">
+            {language === "es" ? "Sin leads en esta etapa" : "No leads in this stage"}
+          </p>
+        ) : (
+          leads.map((lead) => (
+            <MobileLeadCard
+              key={lead.id}
+              lead={lead}
+              onEdit={onEdit}
+              onDelete={onDelete}
+              onUpdateStatus={onUpdateStatus}
+            />
+          ))
+        )}
+      </CollapsibleContent>
+    </Collapsible>
+  );
+}
+
 export default function LeadKanbanView({
   leads,
   onUpdateStatus,
@@ -226,6 +415,7 @@ export default function LeadKanbanView({
 }: LeadKanbanViewProps) {
   const { language } = useLanguage();
   const [activeId, setActiveId] = useState<string | null>(null);
+  const isMobile = useIsMobile();
 
   const sensors = useSensors(
     useSensor(PointerSensor, {
@@ -260,6 +450,29 @@ export default function LeadKanbanView({
 
   const activeLead = activeId ? leads.find((l) => l.id === activeId) : null;
 
+  // Mobile view: Collapsible columns with optimized cards
+  if (isMobile) {
+    return (
+      <div className="space-y-3 pb-20">
+        {KANBAN_COLUMNS.map((column) => {
+          const columnLeads = getLeadsByStatus(column.id);
+          return (
+            <MobileKanbanColumn
+              key={column.id}
+              column={column}
+              leads={columnLeads}
+              onEdit={onEdit}
+              onDelete={onDelete}
+              onUpdateStatus={onUpdateStatus}
+              language={language}
+            />
+          );
+        })}
+      </div>
+    );
+  }
+
+  // Desktop view: Horizontal drag-and-drop columns
   return (
     <DndContext
       sensors={sensors}

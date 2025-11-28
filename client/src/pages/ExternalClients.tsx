@@ -33,6 +33,15 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import {
+  Drawer,
+  DrawerClose,
+  DrawerContent,
+  DrawerDescription,
+  DrawerFooter,
+  DrawerHeader,
+  DrawerTitle,
+} from "@/components/ui/drawer";
+import {
   Popover,
   PopoverContent,
   PopoverTrigger,
@@ -3029,48 +3038,51 @@ export default function ExternalClients() {
                               </Badge>
                             </div>
                           </div>
-                          <div className="flex gap-1" onClick={(e) => e.stopPropagation()}>
-                            {lead.phone && (
-                              <Button
-                                variant="ghost"
-                                size="icon"
-                                className="text-green-600 hover:text-green-700 hover:bg-green-50 dark:hover:bg-green-950"
-                                onClick={() => {
-                                  const phone = lead.phone?.replace(/\D/g, '');
-                                  window.open(`https://wa.me/${phone}`, '_blank');
-                                }}
-                                data-testid={`button-whatsapp-lead-card-${lead.id}`}
-                              >
-                                <SiWhatsapp className="h-4 w-4" />
+                          {/* Menu icon for quick access - hidden on mobile as we have footer buttons */}
+                          <DropdownMenu>
+                            <DropdownMenuTrigger asChild onClick={(e) => e.stopPropagation()}>
+                              <Button variant="ghost" size="icon" className="h-8 w-8 hidden sm:flex" data-testid={`button-menu-lead-${lead.id}`}>
+                                <MoreVertical className="h-4 w-4" />
                               </Button>
-                            )}
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              onClick={() => {
-                                setSelectedLead(lead);
-                                editLeadForm.reset(lead);
-                                setEditCondominiumId(lead.interestedCondominiumId || "");
-                                setSelectedEditCharacteristics((lead as any).desiredCharacteristics || []);
-                                setSelectedEditAmenities((lead as any).desiredAmenities || []);
-                                setIsEditLeadDialogOpen(true);
-                              }}
-                              data-testid={`button-edit-lead-${lead.id}`}
-                            >
-                              <Edit2 className="h-4 w-4" />
-                            </Button>
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              onClick={() => {
-                                setSelectedLead(lead);
-                                setIsDeleteLeadDialogOpen(true);
-                              }}
-                              data-testid={`button-delete-lead-${lead.id}`}
-                            >
-                              <Trash2 className="h-4 w-4" />
-                            </Button>
-                          </div>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end" onClick={(e) => e.stopPropagation()}>
+                              {lead.phone && lead.registrationType !== "broker" && (
+                                <DropdownMenuItem
+                                  className="text-green-600"
+                                  onClick={() => {
+                                    const phone = lead.phone?.replace(/\D/g, '');
+                                    window.open(`https://wa.me/${phone}`, '_blank');
+                                  }}
+                                >
+                                  <SiWhatsapp className="h-4 w-4 mr-2" />
+                                  WhatsApp
+                                </DropdownMenuItem>
+                              )}
+                              <DropdownMenuItem
+                                onClick={() => {
+                                  setSelectedLead(lead);
+                                  editLeadForm.reset(lead);
+                                  setEditCondominiumId(lead.interestedCondominiumId || "");
+                                  setSelectedEditCharacteristics((lead as any).desiredCharacteristics || []);
+                                  setSelectedEditAmenities((lead as any).desiredAmenities || []);
+                                  setIsEditLeadDialogOpen(true);
+                                }}
+                              >
+                                <Edit2 className="h-4 w-4 mr-2" />
+                                {language === "es" ? "Editar" : "Edit"}
+                              </DropdownMenuItem>
+                              <DropdownMenuItem
+                                className="text-destructive"
+                                onClick={() => {
+                                  setSelectedLead(lead);
+                                  setIsDeleteLeadDialogOpen(true);
+                                }}
+                              >
+                                <Trash2 className="h-4 w-4 mr-2" />
+                                {language === "es" ? "Eliminar" : "Delete"}
+                              </DropdownMenuItem>
+                            </DropdownMenuContent>
+                          </DropdownMenu>
                         </div>
                       </CardHeader>
                       <CardContent className="space-y-3 text-sm pt-0">
@@ -3124,6 +3136,51 @@ export default function ExternalClients() {
                           <CalendarDays className="h-3 w-3" />
                           {lead.createdAt ? format(new Date(lead.createdAt), "dd MMM yyyy", { locale: language === "es" ? es : enUS }) : "-"}
                         </div>
+                        
+                        {/* Mobile-optimized action footer */}
+                        <div className="pt-3 mt-2 border-t flex items-center gap-2" onClick={(e) => e.stopPropagation()}>
+                          {lead.phone && lead.registrationType !== "broker" && (
+                            <Button
+                              className="flex-1 h-11 bg-green-600 hover:bg-green-700 text-white"
+                              onClick={() => {
+                                const phone = lead.phone?.replace(/\D/g, '');
+                                window.open(`https://wa.me/${phone}`, '_blank');
+                              }}
+                              data-testid={`button-whatsapp-lead-footer-${lead.id}`}
+                            >
+                              <SiWhatsapp className="h-5 w-5 mr-2" />
+                              WhatsApp
+                            </Button>
+                          )}
+                          <Button
+                            variant="outline"
+                            className="h-11 min-w-11"
+                            size="icon"
+                            onClick={() => {
+                              setSelectedLead(lead);
+                              editLeadForm.reset(lead);
+                              setEditCondominiumId(lead.interestedCondominiumId || "");
+                              setSelectedEditCharacteristics((lead as any).desiredCharacteristics || []);
+                              setSelectedEditAmenities((lead as any).desiredAmenities || []);
+                              setIsEditLeadDialogOpen(true);
+                            }}
+                            data-testid={`button-edit-lead-footer-${lead.id}`}
+                          >
+                            <Edit2 className="h-5 w-5" />
+                          </Button>
+                          <Button
+                            variant="outline"
+                            className="h-11 min-w-11"
+                            size="icon"
+                            onClick={() => {
+                              setSelectedLead(lead);
+                              setIsDeleteLeadDialogOpen(true);
+                            }}
+                            data-testid={`button-delete-lead-footer-${lead.id}`}
+                          >
+                            <Trash2 className="h-5 w-5" />
+                          </Button>
+                        </div>
                       </CardContent>
                     </Card>
                   ))}
@@ -3135,9 +3192,21 @@ export default function ExternalClients() {
         </TabsContent>
       </Tabs>
 
-      {/* Create Lead Dialog */}
+      {/* Mobile FAB for New Lead - Only visible on mobile for leads tab */}
+      {isMobile && activeTab === "leads" && (
+        <Button
+          className="fixed bottom-6 right-6 h-14 w-14 rounded-full shadow-lg z-50"
+          size="icon"
+          onClick={() => setIsCreateLeadDialogOpen(true)}
+          data-testid="fab-create-lead"
+        >
+          <Plus className="h-6 w-6" />
+        </Button>
+      )}
+
+      {/* Create Lead Dialog - Full screen on mobile */}
       <Dialog open={isCreateLeadDialogOpen} onOpenChange={setIsCreateLeadDialogOpen}>
-        <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
+        <DialogContent className="sm:max-w-3xl max-h-[100dvh] sm:max-h-[90vh] overflow-y-auto w-full h-full sm:h-auto sm:w-auto fixed sm:relative inset-0 sm:inset-auto rounded-none sm:rounded-lg">
           <DialogHeader className="pb-4 border-b">
             <div className="flex items-center gap-3">
               <div className="p-2 rounded-lg bg-primary/10">
@@ -3892,7 +3961,7 @@ export default function ExternalClients() {
         </DialogContent>
       </Dialog>
 
-      {/* Edit Lead Dialog */}
+      {/* Edit Lead Dialog - Full screen on mobile */}
       <Dialog open={isEditLeadDialogOpen} onOpenChange={(open) => {
         setIsEditLeadDialogOpen(open);
         if (!open) {
@@ -3900,7 +3969,7 @@ export default function ExternalClients() {
           setSelectedEditAmenities([]);
         }
       }}>
-        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+        <DialogContent className="sm:max-w-2xl max-h-[100dvh] sm:max-h-[90vh] overflow-y-auto w-full h-full sm:h-auto sm:w-auto fixed sm:relative inset-0 sm:inset-auto rounded-none sm:rounded-lg">
           <DialogHeader className="pb-4 border-b">
             <div className="flex items-center gap-3">
               <div className="p-2 rounded-lg bg-primary/10">
