@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { useTranslation } from "@/hooks/useTranslation";
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
@@ -13,6 +13,8 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { Textarea } from "@/components/ui/textarea";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { 
@@ -39,7 +41,14 @@ import {
   PawPrint,
   ChevronRight,
   CheckCircle2,
-  Phone
+  Phone,
+  LayoutGrid,
+  LayoutList,
+  FileText,
+  Sparkles,
+  Send,
+  ChevronDown,
+  ChevronUp
 } from "lucide-react";
 import { SiWhatsapp } from "react-icons/si";
 
@@ -73,6 +82,7 @@ interface Lead {
   desiredNeighborhood: string | null;
   contractDuration: string | null;
   hasPets: string | null;
+  createdAt?: string;
 }
 
 interface MatchingLead {
@@ -84,11 +94,85 @@ interface MatchingLead {
   matchReasons: string[];
 }
 
+interface MessageTemplate {
+  id: string;
+  name: string;
+  content: string;
+  isDefault?: boolean;
+}
+
+const singlePropertyTemplates: MessageTemplate[] = [
+  {
+    id: "single-1",
+    name: "Presentacion inicial",
+    content: `Hola {nombre}! Te comparto esta propiedad que puede interesarte:
+
+Propiedad: {propiedad}
+Ubicacion: {zona}
+Recamaras: {recamaras}, Banos: {banos}
+Precio: ${"{precio}"} {moneda}/mes
+
+Te gustaria agendar una visita?`,
+    isDefault: true
+  },
+  {
+    id: "single-2",
+    name: "Seguimiento",
+    content: `Hola {nombre}! Que tal? Te comparto otra opcion que acaba de entrar disponible:
+
+Propiedad: {propiedad}
+Ubicacion: {zona}
+Recamaras: {recamaras}
+Precio: ${"{precio}"} {moneda}/mes
+
+Esta propiedad cumple con lo que buscas. Te interesa verla?`,
+    isDefault: true
+  },
+  {
+    id: "single-3",
+    name: "Oferta especial",
+    content: `Hola {nombre}! Tengo excelentes noticias.
+
+Esta propiedad tiene una promocion especial disponible:
+
+Propiedad: {propiedad}
+Ubicacion: {zona}
+Precio: ${"{precio}"} {moneda}/mes
+
+Te gustaria aprovechar esta oportunidad?`,
+    isDefault: true
+  }
+];
+
+const multiPropertyTemplates: MessageTemplate[] = [
+  {
+    id: "multi-1", 
+    name: "Listado de propiedades",
+    content: `Hola {nombre}! Encontre estas propiedades perfectas para ti:
+
+{propiedades_lista}
+
+Cual te gustaria visitar primero?`,
+    isDefault: true
+  },
+  {
+    id: "multi-2",
+    name: "Opciones destacadas",
+    content: `Hola {nombre}! Te comparto varias opciones que se ajustan a lo que buscas:
+
+{propiedades_lista}
+
+Cualquier pregunta estoy a tus ordenes.`,
+    isDefault: true
+  }
+];
+
 export default function SellerPropertyCatalog() {
   const { t } = useTranslation();
   const { toast } = useToast();
 
   const [search, setSearch] = useState("");
+  const [leadSearch, setLeadSearch] = useState("");
   const [filters, setFilters] = useState({
     minPrice: "",
     maxPrice: "",
@@ -104,6 +188,14 @@ export default function SellerPropertyCatalog() {
   const [customMessage, setCustomMessage] = useState("");
   const [selectedLead, setSelectedLead] = useState<Lead | null>(null);
   const [showLeadPanel, setShowLeadPanel] = useState(true);
+  const [viewMode, setViewMode] = useState<"grid" | "table">("grid");
+  const [selectedUnits, setSelectedUnits] = useState<Set<string>>(new Set());
+  const [bulkShareDialogOpen, setBulkShareDialogOpen] = useState(false);
+  const [selectedTemplateId, setSelectedTemplateId] = useState<string>("single-1");
+  const [selectedBulkTemplateId, setSelectedBulkTemplateId] = useState<string>("multi-1");
+  const [leadsPanelExpanded, setLeadsPanelExpanded] = useState(true);
+  const [leadStatusFilter, setLeadStatusFilter] = useState<string>("all");
+  const [previousDataLength, setPreviousDataLength] = useState<number>(0);
 
   const buildQueryString = () => {
     const params = new URLSearchParams();
@@ -128,9 +220,9 @@ export default function SellerPropertyCatalog() {
   });
 
   const { data: leadsData, isLoading: leadsLoading } = useQuery<{ data: Lead[] }>({
-    queryKey: ["/api/external-seller/my-leads"],
+    queryKey: ["/api/external/leads"],
     queryFn: async () => {
-      const res = await fetch("/api/external-seller/my-leads?limit=50");
+      const res = await fetch("/api/external/leads?limit=100");
       if (!res.ok) throw new Error("Failed to fetch leads");
       return res.json();
     },
@@ -169,8 +261,10 @@ export default function SellerPropertyCatalog() {
         description: t("sellerCatalog.shareSuccess", "Se abrió WhatsApp para enviar el mensaje"),
       });
       setShareDialogOpen(false);
+      setBulkShareDialogOpen(false);
       setSelectedLead(null);
       setCustomMessage("");
+      setSelectedUnits(new Set());
       queryClient.invalidateQueries({ queryKey: ["/api/external-seller/metrics"] });
     },
     onError: () => {
@@ -183,7 +277,40 @@ export default function SellerPropertyCatalog() {
   });
 
   const units = catalogData?.data || [];
-  const leads = leadsData?.data || [];
+  const allLeads = leadsData?.data || [];
+  
+  useEffect(() => {
+    if (units.length !== previousDataLength) {
+      setSelectedUnits(new Set());
+      setPreviousDataLength(units.length);
+    }
+  }, [units.length, previousDataLength]);
+  
+  const filteredLeads = useMemo(() => {
+    let result = [...allLeads];
+    
+    if (leadSearch) {
+      const searchLower = leadSearch.toLowerCase();
+      result = result.filter(lead => 
+        lead.firstName?.toLowerCase().includes(searchLower) ||
+        lead.lastName?.toLowerCase().includes(searchLower) ||
+        lead.phone?.includes(leadSearch)
+      );
+    }
+    
+    if (leadStatusFilter !== "all") {
+      result = result.filter(lead => lead.status === leadStatusFilter);
+    }
+    
+    result.sort((a, b) => {
+      if (a.createdAt && b.createdAt) {
+        return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
+      }
+      return 0;
+    });
+    
+    return result;
+  }, [allLeads, leadSearch, leadStatusFilter]);
 
   const hasActiveFilters = Object.values(filters).some((v) => v && v !== "active");
 
@@ -228,21 +355,35 @@ export default function SellerPropertyCatalog() {
     setFilters(newFilters);
   };
 
-  const generateDefaultMessage = (unit: Unit, lead?: Lead | null) => {
-    const greeting = lead ? `¡Hola ${lead.firstName}!` : "¡Hola!";
-    return (
-      `${greeting} Te comparto esta propiedad que puede interesarte:\n\n` +
-      `🏠 ${unit.name}\n` +
-      `📍 ${unit.zone || ""}\n` +
-      `🛏️ ${unit.bedrooms || 0} recámaras, ${unit.bathrooms || 0} baños\n` +
-      `💰 $${unit.monthlyRent?.toLocaleString() || "Consultar"} ${unit.currency || "MXN"}/mes\n\n` +
-      `¿Te gustaría agendar una visita?`
-    );
+  const generateMessageFromTemplate = (template: MessageTemplate, unit: Unit, lead?: Lead | null) => {
+    let message = template.content;
+    message = message.replace(/{nombre}/g, lead?.firstName || "");
+    message = message.replace(/{propiedad}/g, unit.name);
+    message = message.replace(/{zona}/g, unit.zone || "");
+    message = message.replace(/{recamaras}/g, String(unit.bedrooms || 0));
+    message = message.replace(/{banos}/g, String(unit.bathrooms || 0));
+    message = message.replace(/{precio}/g, unit.monthlyRent?.toLocaleString() || "Consultar");
+    message = message.replace(/{moneda}/g, unit.currency || "MXN");
+    return message;
+  };
+
+  const generateBulkMessage = (template: MessageTemplate, unitsList: Unit[], lead?: Lead | null) => {
+    let message = template.content;
+    message = message.replace(/{nombre}/g, lead?.firstName || "");
+    
+    const propertiesList = unitsList.map((unit, i) => 
+      `${i + 1}. ${unit.name}\n   Ubicacion: ${unit.zone || "Sin zona"}\n   ${unit.bedrooms || 0} rec. | $${unit.monthlyRent?.toLocaleString() || "—"} ${unit.currency || "MXN"}/mes`
+    ).join("\n\n");
+    
+    message = message.replace(/{propiedades_lista}/g, propertiesList);
+    
+    return message;
   };
 
   const handleShareClick = (unit: Unit) => {
     setSelectedUnit(unit);
-    setCustomMessage(generateDefaultMessage(unit, selectedLead));
+    const template = singlePropertyTemplates.find(t => t.id === selectedTemplateId) || singlePropertyTemplates[0];
+    setCustomMessage(generateMessageFromTemplate(template, unit, selectedLead));
     setShareDialogOpen(true);
   };
 
@@ -257,7 +398,8 @@ export default function SellerPropertyCatalog() {
     }
     setSelectedUnit(unit);
     setSelectedLead(lead);
-    setCustomMessage(generateDefaultMessage(unit, lead));
+    const template = singlePropertyTemplates.find(t => t.id === selectedTemplateId) || singlePropertyTemplates[0];
+    setCustomMessage(generateMessageFromTemplate(template, unit, lead));
     setShareDialogOpen(true);
   };
 
@@ -267,12 +409,13 @@ export default function SellerPropertyCatalog() {
   };
 
   const handleShareWithLead = (lead: MatchingLead) => {
-    const fullLead = leads.find(l => l.id === lead.id);
+    const fullLead = allLeads.find(l => l.id === lead.id);
     if (fullLead) {
       setSelectedLead(fullLead);
     }
     if (selectedUnit) {
-      setCustomMessage(generateDefaultMessage(selectedUnit, fullLead));
+      const template = singlePropertyTemplates.find(t => t.id === selectedTemplateId) || singlePropertyTemplates[0];
+      setCustomMessage(generateMessageFromTemplate(template, selectedUnit, fullLead));
     }
     setMatchingLeadsOpen(false);
     setShareDialogOpen(true);
@@ -285,6 +428,66 @@ export default function SellerPropertyCatalog() {
       unitId: selectedUnit.id,
       message: customMessage,
     });
+  };
+
+  const handleBulkShare = () => {
+    if (selectedUnits.size === 0 || !selectedLead) return;
+    
+    const phone = selectedLead.phone?.replace(/\D/g, "") || "";
+    if (!phone) {
+      toast({
+        title: "Error",
+        description: "El lead no tiene teléfono registrado",
+        variant: "destructive",
+      });
+      return;
+    }
+    
+    const whatsappUrl = `https://wa.me/${phone}?text=${encodeURIComponent(customMessage)}`;
+    window.open(whatsappUrl, "_blank");
+    
+    toast({
+      title: "Propiedades compartidas",
+      description: `Se abrió WhatsApp con ${selectedUnits.size} propiedades`,
+    });
+    
+    setBulkShareDialogOpen(false);
+    setSelectedUnits(new Set());
+    setCustomMessage("");
+  };
+
+  const handleOpenBulkShare = () => {
+    if (selectedUnits.size === 0) {
+      toast({
+        title: "Selecciona propiedades",
+        description: "Primero selecciona las propiedades que quieres compartir",
+        variant: "destructive",
+      });
+      return;
+    }
+    
+    const selectedUnitsList = units.filter(u => selectedUnits.has(u.id));
+    const template = multiPropertyTemplates.find(t => t.id === selectedBulkTemplateId) || multiPropertyTemplates[0];
+    setCustomMessage(generateBulkMessage(template, selectedUnitsList, selectedLead));
+    setBulkShareDialogOpen(true);
+  };
+
+  const toggleUnitSelection = (unitId: string) => {
+    const newSet = new Set(selectedUnits);
+    if (newSet.has(unitId)) {
+      newSet.delete(unitId);
+    } else {
+      newSet.add(unitId);
+    }
+    setSelectedUnits(newSet);
+  };
+
+  const selectAllUnits = () => {
+    if (selectedUnits.size === units.length) {
+      setSelectedUnits(new Set());
+    } else {
+      setSelectedUnits(new Set(units.map(u => u.id)));
+    }
   };
 
   const copyToClipboard = () => {
@@ -305,198 +508,235 @@ export default function SellerPropertyCatalog() {
     }
   };
 
+  const getStatusLabel = (status: string) => {
+    const labels: Record<string, string> = {
+      nuevo: "Nuevo",
+      contactado: "Contactado",
+      en_negociacion: "En Negociación",
+      cita_agendada: "Cita Agendada",
+      proceso_renta: "En Proceso",
+      perdido: "Perdido",
+      descartado: "Descartado"
+    };
+    return labels[status] || status;
+  };
+
   return (
-    <div className="flex h-[calc(100vh-4rem)] gap-0">
+    <div className="flex h-[calc(100vh-4rem)] flex-col sm:flex-row gap-0">
       {showLeadPanel && (
-        <div className="w-80 flex-shrink-0 border-r bg-muted/30">
-          <div className="flex h-14 items-center justify-between border-b px-4">
+        <div className="w-full sm:w-80 flex-shrink-0 border-b sm:border-b-0 sm:border-r bg-muted/30">
+          <div className="flex h-12 sm:h-14 items-center justify-between border-b px-3 sm:px-4">
             <div className="flex items-center gap-2">
-              <Users className="h-5 w-5 text-primary" />
-              <h2 className="font-semibold">{t("sellerCatalog.myLeads", "Mis Leads")}</h2>
-              <Badge variant="secondary" className="ml-1">{leads.length}</Badge>
+              <Users className="h-4 w-4 sm:h-5 sm:w-5 text-primary" />
+              <h2 className="font-semibold text-sm sm:text-base">{t("sellerCatalog.myLeads", "Mis Leads")}</h2>
+              <Badge variant="secondary" className="ml-1">{filteredLeads.length}</Badge>
             </div>
-            <Button 
-              variant="ghost" 
-              size="icon" 
-              onClick={() => setShowLeadPanel(false)}
-              data-testid="button-hide-leads"
-            >
-              <X className="h-4 w-4" />
-            </Button>
+            <div className="flex items-center gap-1">
+              <Button 
+                variant="ghost" 
+                size="icon"
+                className="sm:hidden h-9 w-9"
+                onClick={() => setLeadsPanelExpanded(!leadsPanelExpanded)}
+                data-testid="button-toggle-leads-mobile"
+              >
+                {leadsPanelExpanded ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+              </Button>
+              <Button 
+                variant="ghost" 
+                size="icon" 
+                className="h-9 w-9"
+                onClick={() => setShowLeadPanel(false)}
+                data-testid="button-hide-leads"
+              >
+                <X className="h-4 w-4" />
+              </Button>
+            </div>
           </div>
           
-          <ScrollArea className="h-[calc(100%-3.5rem)]">
-            <div className="space-y-2 p-3">
-              {leadsLoading ? (
-                Array.from({ length: 5 }).map((_, i) => (
-                  <Skeleton key={i} className="h-32 w-full rounded-lg" />
-                ))
-              ) : leads.length === 0 ? (
-                <div className="py-8 text-center">
-                  <Users className="mx-auto mb-2 h-10 w-10 text-muted-foreground/50" />
-                  <p className="text-sm text-muted-foreground">
-                    {t("sellerCatalog.noLeads", "No tienes leads asignados")}
-                  </p>
-                </div>
-              ) : (
-                leads.map((lead) => (
-                  <Card 
-                    key={lead.id} 
-                    className={`cursor-pointer transition-all hover-elevate ${
-                      selectedLead?.id === lead.id 
-                        ? "ring-2 ring-primary" 
-                        : ""
-                    }`}
-                    onClick={() => applyLeadFilters(lead)}
-                    data-testid={`card-lead-${lead.id}`}
-                  >
-                    <CardContent className="p-3">
-                      <div className="mb-2 flex items-start justify-between">
-                        <div className="flex items-center gap-2">
-                          <div className="flex h-8 w-8 items-center justify-center rounded-full bg-primary/10">
-                            <User className="h-4 w-4 text-primary" />
-                          </div>
-                          <div>
-                            <p className="font-medium leading-tight">
-                              {lead.firstName} {lead.lastName}
-                            </p>
-                            {lead.phone && (
-                              <p className="text-xs text-muted-foreground">{lead.phone}</p>
-                            )}
-                          </div>
-                        </div>
-                        {selectedLead?.id === lead.id && (
-                          <CheckCircle2 className="h-5 w-5 text-primary" />
-                        )}
-                      </div>
-                      
-                      <Separator className="my-2" />
-                      
-                      <div className="space-y-1.5 text-xs">
-                        <div className="flex items-center gap-1.5 text-muted-foreground">
-                          <Wallet className="h-3 w-3" />
-                          <span className="font-medium text-foreground">
-                            {lead.estimatedRentCost 
-                              ? `$${lead.estimatedRentCost.toLocaleString()} MXN` 
-                              : lead.estimatedRentCostText || "Sin definir"}
-                          </span>
-                        </div>
-                        
-                        <div className="flex items-center gap-1.5 text-muted-foreground">
-                          <Bed className="h-3 w-3" />
-                          <span className="font-medium text-foreground">
-                            {lead.bedroomsText || lead.bedrooms || "—"} recámaras
-                          </span>
-                        </div>
-                        
-                        <div className="flex items-center gap-1.5 text-muted-foreground">
-                          <MapPin className="h-3 w-3" />
-                          <span className="font-medium text-foreground">
-                            {lead.desiredNeighborhood || "Cualquier zona"}
-                          </span>
-                        </div>
-                        
-                        <div className="flex items-center gap-1.5 text-muted-foreground">
-                          <Home className="h-3 w-3" />
-                          <span className="font-medium text-foreground">
-                            {lead.desiredUnitType || "Cualquier tipo"}
-                          </span>
-                        </div>
-                        
-                        {lead.hasPets && lead.hasPets !== "No" && (
-                          <div className="flex items-center gap-1.5 text-muted-foreground">
-                            <PawPrint className="h-3 w-3" />
-                            <span className="font-medium text-foreground">
-                              {lead.hasPets}
-                            </span>
-                          </div>
-                        )}
-                        
-                        {lead.contractDuration && (
-                          <div className="flex items-center gap-1.5 text-muted-foreground">
-                            <Calendar className="h-3 w-3" />
-                            <span className="font-medium text-foreground">
-                              {lead.contractDuration}
-                            </span>
-                          </div>
-                        )}
-                      </div>
-                      
-                      <div className="mt-2 flex items-center justify-between">
-                        <Badge className={`text-xs ${getStatusColor(lead.status)}`}>
-                          {lead.status.replace(/_/g, " ")}
-                        </Badge>
-                        <Button 
-                          variant="ghost" 
-                          size="sm" 
-                          className="h-7 gap-1 px-2 text-xs"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            applyLeadFilters(lead);
-                          }}
-                        >
-                          <Target className="h-3 w-3" />
-                          Buscar
-                        </Button>
-                      </div>
-                    </CardContent>
-                  </Card>
-                ))
-              )}
+          <div className={`${leadsPanelExpanded ? 'block' : 'hidden'} sm:block`}>
+            <div className="p-2 sm:p-3 space-y-2 border-b">
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                <Input
+                  placeholder="Buscar lead..."
+                  value={leadSearch}
+                  onChange={(e) => setLeadSearch(e.target.value)}
+                  className="pl-9 h-10"
+                  data-testid="input-lead-search"
+                />
+              </div>
+              <Select value={leadStatusFilter} onValueChange={setLeadStatusFilter}>
+                <SelectTrigger className="h-10" data-testid="select-lead-status-filter">
+                  <SelectValue placeholder="Todos los estados" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Todos los estados</SelectItem>
+                  <SelectItem value="nuevo">Nuevo</SelectItem>
+                  <SelectItem value="contactado">Contactado</SelectItem>
+                  <SelectItem value="en_negociacion">En Negociación</SelectItem>
+                  <SelectItem value="cita_agendada">Cita Agendada</SelectItem>
+                </SelectContent>
+              </Select>
             </div>
-          </ScrollArea>
+            
+            <ScrollArea className="h-[200px] sm:h-[calc(100vh-14rem)]">
+              <div className="space-y-2 p-2 sm:p-3">
+                {leadsLoading ? (
+                  Array.from({ length: 5 }).map((_, i) => (
+                    <Skeleton key={i} className="h-24 w-full rounded-lg" />
+                  ))
+                ) : filteredLeads.length === 0 ? (
+                  <div className="py-8 text-center">
+                    <Users className="mx-auto mb-2 h-10 w-10 text-muted-foreground/50" />
+                    <p className="text-sm text-muted-foreground">
+                      {leadSearch ? "No se encontraron leads" : "No tienes leads asignados"}
+                    </p>
+                  </div>
+                ) : (
+                  filteredLeads.map((lead) => (
+                    <Card 
+                      key={lead.id} 
+                      className={`cursor-pointer transition-all hover-elevate ${
+                        selectedLead?.id === lead.id 
+                          ? "ring-2 ring-primary" 
+                          : ""
+                      }`}
+                      onClick={() => applyLeadFilters(lead)}
+                      data-testid={`card-lead-${lead.id}`}
+                    >
+                      <CardContent className="p-2 sm:p-3">
+                        <div className="mb-2 flex items-start justify-between">
+                          <div className="flex items-center gap-2">
+                            <div className="flex h-7 w-7 sm:h-8 sm:w-8 items-center justify-center rounded-full bg-primary/10">
+                              <User className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-primary" />
+                            </div>
+                            <div>
+                              <p className="font-medium leading-tight text-sm">
+                                {lead.firstName} {lead.lastName}
+                              </p>
+                              {lead.phone && (
+                                <p className="text-xs text-muted-foreground">{lead.phone}</p>
+                              )}
+                            </div>
+                          </div>
+                          {selectedLead?.id === lead.id && (
+                            <CheckCircle2 className="h-5 w-5 text-primary" />
+                          )}
+                        </div>
+                        
+                        <div className="grid grid-cols-2 gap-1 text-xs mb-2">
+                          <div className="flex items-center gap-1 text-muted-foreground">
+                            <Wallet className="h-3 w-3" />
+                            <span className="font-medium text-foreground truncate">
+                              {lead.estimatedRentCost 
+                                ? `$${lead.estimatedRentCost.toLocaleString()}` 
+                                : "—"}
+                            </span>
+                          </div>
+                          <div className="flex items-center gap-1 text-muted-foreground">
+                            <Bed className="h-3 w-3" />
+                            <span className="font-medium text-foreground">
+                              {lead.bedrooms || "—"} rec.
+                            </span>
+                          </div>
+                        </div>
+                        
+                        <div className="flex items-center justify-between gap-2">
+                          <Badge className={`text-xs ${getStatusColor(lead.status)}`}>
+                            {getStatusLabel(lead.status)}
+                          </Badge>
+                          <Button 
+                            variant="default" 
+                            size="sm" 
+                            className="h-8 gap-1 px-2 text-xs"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              applyLeadFilters(lead);
+                            }}
+                          >
+                            <Target className="h-3 w-3" />
+                            Filtrar
+                          </Button>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  ))
+                )}
+              </div>
+            </ScrollArea>
+          </div>
         </div>
       )}
 
       <div className="flex flex-1 flex-col overflow-hidden">
-        <div className="flex-shrink-0 border-b bg-background p-4">
-          <div className="mb-4 flex flex-wrap items-center justify-between gap-4">
+        <div className="flex-shrink-0 border-b bg-background p-3 sm:p-4">
+          <div className="mb-3 sm:mb-4 flex flex-wrap items-center justify-between gap-2 sm:gap-4">
             <div className="flex items-center gap-2">
               {!showLeadPanel && (
                 <Button 
                   variant="outline" 
                   size="sm" 
                   onClick={() => setShowLeadPanel(true)}
-                  className="gap-1"
+                  className="gap-1 h-9"
                   data-testid="button-show-leads"
                 >
                   <Users className="h-4 w-4" />
-                  Leads
+                  <span className="hidden sm:inline">Leads</span>
                 </Button>
               )}
               <div>
-                <h1 className="text-xl font-bold" data-testid="text-page-title">
+                <h1 className="text-lg sm:text-xl font-bold" data-testid="text-page-title">
                   {t("sellerCatalog.title", "Catálogo de Propiedades")}
                 </h1>
                 {selectedLead && (
-                  <p className="text-sm text-muted-foreground">
-                    Mostrando propiedades para <span className="font-medium text-primary">{selectedLead.firstName} {selectedLead.lastName}</span>
+                  <p className="text-xs sm:text-sm text-muted-foreground">
+                    Propiedades para <span className="font-medium text-primary">{selectedLead.firstName} {selectedLead.lastName}</span>
                   </p>
                 )}
               </div>
             </div>
-            <Badge variant="secondary" className="text-sm">
-              {catalogData?.total || 0} propiedades
-            </Badge>
+            <div className="flex items-center gap-2">
+              <Badge variant="secondary" className="text-xs sm:text-sm">
+                {catalogData?.total || 0} propiedades
+              </Badge>
+              <div className="flex border rounded-md overflow-hidden">
+                <Button 
+                  variant={viewMode === "grid" ? "default" : "ghost"} 
+                  size="icon" 
+                  className="h-9 w-9 rounded-none"
+                  onClick={() => setViewMode("grid")}
+                >
+                  <LayoutGrid className="h-4 w-4" />
+                </Button>
+                <Button 
+                  variant={viewMode === "table" ? "default" : "ghost"} 
+                  size="icon" 
+                  className="h-9 w-9 rounded-none"
+                  onClick={() => setViewMode("table")}
+                >
+                  <LayoutList className="h-4 w-4" />
+                </Button>
+              </div>
+            </div>
           </div>
 
-          <div className="flex flex-wrap items-center gap-3">
-            <div className="relative flex-1 min-w-[200px]">
+          <div className="flex flex-wrap items-center gap-2 sm:gap-3">
+            <div className="relative flex-1 min-w-[150px] sm:min-w-[200px]">
               <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
               <Input
-                placeholder={t("sellerCatalog.searchPlaceholder", "Buscar por nombre, zona, tipo...")}
+                placeholder={t("sellerCatalog.searchPlaceholder", "Buscar propiedad...")}
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
-                className="pl-10"
+                className="pl-10 h-10"
                 data-testid="input-search"
               />
             </div>
 
             <Popover open={filtersOpen} onOpenChange={setFiltersOpen}>
               <PopoverTrigger asChild>
-                <Button variant="outline" className="gap-2" data-testid="button-filters">
+                <Button variant="outline" className="gap-2 h-10" data-testid="button-filters">
                   <SlidersHorizontal className="h-4 w-4" />
-                  Filtros
+                  <span className="hidden sm:inline">Filtros</span>
                   {hasActiveFilters && (
                     <Badge variant="default" className="ml-1 h-5 w-5 rounded-full p-0 text-xs">
                       {Object.values(filters).filter((v) => v && v !== "active").length}
@@ -617,7 +857,7 @@ export default function SellerPropertyCatalog() {
                     </div>
                   </div>
 
-                  <Button onClick={() => setFiltersOpen(false)} className="w-full">
+                  <Button onClick={() => setFiltersOpen(false)} className="w-full h-10">
                     Aplicar filtros
                   </Button>
                 </div>
@@ -625,33 +865,54 @@ export default function SellerPropertyCatalog() {
             </Popover>
 
             {selectedLead && (
-              <Button variant="outline" size="sm" onClick={clearFilters} className="gap-1">
+              <Button variant="outline" size="sm" onClick={clearFilters} className="gap-1 h-10">
                 <X className="h-3 w-3" />
-                Quitar filtros de {selectedLead.firstName}
+                <span className="hidden sm:inline">Quitar filtros de {selectedLead.firstName}</span>
+                <span className="sm:hidden">Limpiar</span>
+              </Button>
+            )}
+
+            {viewMode === "table" && selectedUnits.size > 0 && (
+              <Button 
+                onClick={handleOpenBulkShare} 
+                className="gap-2 h-10"
+                data-testid="button-bulk-share"
+              >
+                <SiWhatsapp className="h-4 w-4" />
+                <span className="hidden sm:inline">Enviar {selectedUnits.size} propiedades</span>
+                <span className="sm:hidden">{selectedUnits.size}</span>
               </Button>
             )}
           </div>
         </div>
 
-        <ScrollArea className="flex-1 p-4">
+        <ScrollArea className="flex-1 p-3 sm:p-4">
           {isLoading ? (
-            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-              {Array.from({ length: 8 }).map((_, i) => (
-                <Card key={i}>
-                  <Skeleton className="h-40 w-full rounded-t-lg" />
-                  <CardContent className="p-4">
-                    <Skeleton className="mb-2 h-5 w-3/4" />
-                    <Skeleton className="mb-4 h-4 w-1/2" />
-                    <div className="flex gap-2">
-                      <Skeleton className="h-6 w-16" />
-                      <Skeleton className="h-6 w-16" />
-                    </div>
-                  </CardContent>
-                </Card>
-              ))}
-            </div>
+            viewMode === "grid" ? (
+              <div className="grid gap-3 sm:gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+                {Array.from({ length: 8 }).map((_, i) => (
+                  <Card key={i}>
+                    <Skeleton className="h-36 sm:h-40 w-full rounded-t-lg" />
+                    <CardContent className="p-3 sm:p-4">
+                      <Skeleton className="mb-2 h-5 w-3/4" />
+                      <Skeleton className="mb-4 h-4 w-1/2" />
+                      <div className="flex gap-2">
+                        <Skeleton className="h-6 w-16" />
+                        <Skeleton className="h-6 w-16" />
+                      </div>
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
+            ) : (
+              <div className="space-y-2">
+                {Array.from({ length: 8 }).map((_, i) => (
+                  <Skeleton key={i} className="h-16 w-full rounded-lg" />
+                ))}
+              </div>
+            )
           ) : units.length === 0 ? (
-            <Card className="p-12 text-center">
+            <Card className="p-8 sm:p-12 text-center">
               <Building2 className="mx-auto mb-4 h-12 w-12 text-muted-foreground" />
               <h3 className="text-lg font-medium">
                 No se encontraron propiedades
@@ -660,16 +921,16 @@ export default function SellerPropertyCatalog() {
                 Intenta ajustar los filtros de búsqueda
               </p>
               {selectedLead && (
-                <Button variant="outline" className="mt-4" onClick={clearFilters}>
+                <Button variant="outline" className="mt-4 h-10" onClick={clearFilters}>
                   Quitar filtros de {selectedLead.firstName}
                 </Button>
               )}
             </Card>
-          ) : (
-            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+          ) : viewMode === "grid" ? (
+            <div className="grid gap-3 sm:gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
               {units.map((unit) => (
                 <Card key={unit.id} className="group overflow-hidden" data-testid={`card-property-${unit.id}`}>
-                  <div className="relative h-40 bg-muted">
+                  <div className="relative h-36 sm:h-40 bg-muted">
                     {unit.images && unit.images.length > 0 ? (
                       <img
                         src={unit.images[0]}
@@ -694,7 +955,7 @@ export default function SellerPropertyCatalog() {
                       {unit.name}
                     </h3>
                     <div className="mb-2 flex items-center gap-1 text-xs text-muted-foreground">
-                      <MapPin className="h-3 w-3" />
+                      <MapPin className="h-3 w-3 flex-shrink-0" />
                       <span className="line-clamp-1">{unit.zone || "Sin zona"}</span>
                     </div>
 
@@ -734,19 +995,19 @@ export default function SellerPropertyCatalog() {
                     {selectedLead ? (
                       <Button
                         size="sm"
-                        className="flex-1 gap-1"
+                        className="flex-1 gap-1 h-10"
                         onClick={() => handleDirectWhatsApp(unit, selectedLead)}
                         data-testid={`button-whatsapp-${unit.id}`}
                       >
                         <SiWhatsapp className="h-4 w-4" />
-                        WhatsApp a {selectedLead.firstName}
+                        <span className="truncate">WhatsApp a {selectedLead.firstName}</span>
                       </Button>
                     ) : (
                       <>
                         <Button
                           variant="outline"
                           size="sm"
-                          className="flex-1 gap-1"
+                          className="flex-1 gap-1 h-10"
                           onClick={() => handleFindMatches(unit)}
                           data-testid={`button-find-matches-${unit.id}`}
                         >
@@ -755,7 +1016,7 @@ export default function SellerPropertyCatalog() {
                         </Button>
                         <Button
                           size="sm"
-                          className="flex-1 gap-1"
+                          className="flex-1 gap-1 h-10"
                           onClick={() => handleShareClick(unit)}
                           data-testid={`button-share-${unit.id}`}
                         >
@@ -768,12 +1029,115 @@ export default function SellerPropertyCatalog() {
                 </Card>
               ))}
             </div>
+          ) : (
+            <div className="space-y-2">
+              <div className="flex items-center gap-2 mb-3 p-2 bg-muted/50 rounded-lg">
+                <Checkbox 
+                  checked={selectedUnits.size === units.length && units.length > 0}
+                  onCheckedChange={selectAllUnits}
+                  data-testid="checkbox-select-all"
+                />
+                <span className="text-sm font-medium">
+                  {selectedUnits.size > 0 
+                    ? `${selectedUnits.size} de ${units.length} seleccionadas` 
+                    : "Seleccionar todas"}
+                </span>
+              </div>
+              
+              {units.map((unit) => (
+                <Card 
+                  key={unit.id} 
+                  className={`overflow-hidden ${selectedUnits.has(unit.id) ? 'ring-2 ring-primary' : ''}`}
+                  data-testid={`row-property-${unit.id}`}
+                >
+                  <div className="flex items-center p-3 gap-3">
+                    <Checkbox 
+                      checked={selectedUnits.has(unit.id)}
+                      onCheckedChange={() => toggleUnitSelection(unit.id)}
+                      data-testid={`checkbox-unit-${unit.id}`}
+                    />
+                    
+                    <div className="w-16 h-12 sm:w-20 sm:h-14 flex-shrink-0 rounded overflow-hidden bg-muted">
+                      {unit.images && unit.images.length > 0 ? (
+                        <img
+                          src={unit.images[0]}
+                          alt={unit.name}
+                          className="h-full w-full object-cover"
+                        />
+                      ) : (
+                        <div className="flex h-full items-center justify-center">
+                          <Home className="h-6 w-6 text-muted-foreground/30" />
+                        </div>
+                      )}
+                    </div>
+                    
+                    <div className="flex-1 min-w-0">
+                      <h3 className="font-medium text-sm line-clamp-1">{unit.name}</h3>
+                      <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                        <span className="flex items-center gap-1">
+                          <MapPin className="h-3 w-3" />
+                          {unit.zone || "—"}
+                        </span>
+                        <span className="flex items-center gap-1">
+                          <Bed className="h-3 w-3" />
+                          {unit.bedrooms || "—"}
+                        </span>
+                        <span className="flex items-center gap-1">
+                          <Bath className="h-3 w-3" />
+                          {unit.bathrooms || "—"}
+                        </span>
+                      </div>
+                    </div>
+                    
+                    <div className="flex-shrink-0 text-right">
+                      <p className="font-bold text-primary">
+                        ${unit.monthlyRent?.toLocaleString() || "—"}
+                      </p>
+                      <p className="text-xs text-muted-foreground">{unit.currency || "MXN"}/mes</p>
+                    </div>
+                    
+                    <div className="flex-shrink-0 flex gap-1">
+                      {selectedLead ? (
+                        <Button
+                          size="icon"
+                          className="h-10 w-10"
+                          onClick={() => handleDirectWhatsApp(unit, selectedLead)}
+                          data-testid={`button-whatsapp-table-${unit.id}`}
+                        >
+                          <SiWhatsapp className="h-4 w-4" />
+                        </Button>
+                      ) : (
+                        <>
+                          <Button
+                            variant="outline"
+                            size="icon"
+                            className="h-10 w-10"
+                            onClick={() => handleFindMatches(unit)}
+                            data-testid={`button-find-matches-table-${unit.id}`}
+                          >
+                            <Users className="h-4 w-4" />
+                          </Button>
+                          <Button
+                            size="icon"
+                            className="h-10 w-10"
+                            onClick={() => handleShareClick(unit)}
+                            data-testid={`button-share-table-${unit.id}`}
+                          >
+                            <SiWhatsapp className="h-4 w-4" />
+                          </Button>
+                        </>
+                      )}
+                    </div>
+                  </div>
+                </Card>
+              ))}
+            </div>
           )}
         </ScrollArea>
       </div>
 
       <Dialog open={matchingLeadsOpen} onOpenChange={setMatchingLeadsOpen}>
-        <DialogContent className="max-w-md">
+        <DialogContent className="max-w-md sm:max-w-lg">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <Users className="h-5 w-5" />
@@ -835,7 +1199,7 @@ export default function SellerPropertyCatalog() {
       </Dialog>
 
       <Dialog open={shareDialogOpen} onOpenChange={setShareDialogOpen}>
-        <DialogContent className="max-w-md">
+        <DialogContent className="max-w-md sm:max-w-lg">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <SiWhatsapp className="h-5 w-5 text-green-600" />
@@ -856,7 +1220,7 @@ export default function SellerPropertyCatalog() {
                 <Button
                   variant="outline"
                   size="sm"
-                  className="mt-2"
+                  className="mt-2 h-10"
                   onClick={() => {
                     setShareDialogOpen(false);
                     setMatchingLeadsOpen(true);
@@ -867,6 +1231,31 @@ export default function SellerPropertyCatalog() {
                 </Button>
               </div>
             )}
+
+            <div>
+              <Label className="flex items-center gap-2 mb-2">
+                <FileText className="h-4 w-4" />
+                Plantilla de mensaje
+              </Label>
+              <Select value={selectedTemplateId} onValueChange={(v) => {
+                setSelectedTemplateId(v);
+                const template = singlePropertyTemplates.find(t => t.id === v);
+                if (template && selectedUnit) {
+                  setCustomMessage(generateMessageFromTemplate(template, selectedUnit, selectedLead));
+                }
+              }}>
+                <SelectTrigger data-testid="select-template">
+                  <SelectValue placeholder="Selecciona una plantilla" />
+                </SelectTrigger>
+                <SelectContent>
+                  {singlePropertyTemplates.map((template) => (
+                    <SelectItem key={template.id} value={template.id}>
+                      {template.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
 
             <div>
               <Label>Mensaje</Label>
@@ -880,7 +1269,7 @@ export default function SellerPropertyCatalog() {
             </div>
 
             <div className="flex gap-2">
-              <Button variant="outline" size="sm" onClick={copyToClipboard} className="gap-1">
+              <Button variant="outline" size="sm" onClick={copyToClipboard} className="gap-1 h-10">
                 <Copy className="h-4 w-4" />
                 Copiar
               </Button>
@@ -888,8 +1277,11 @@ export default function SellerPropertyCatalog() {
                 <Button
                   variant="outline"
                   size="sm"
-                  onClick={() => setCustomMessage(generateDefaultMessage(selectedUnit, selectedLead))}
-                  className="gap-1"
+                  onClick={() => {
+                    const template = singlePropertyTemplates.find(t => t.id === selectedTemplateId) || singlePropertyTemplates[0];
+                    setCustomMessage(generateMessageFromTemplate(template, selectedUnit, selectedLead));
+                  }}
+                  className="gap-1 h-10"
                 >
                   Restaurar
                 </Button>
@@ -897,20 +1289,115 @@ export default function SellerPropertyCatalog() {
             </div>
           </div>
 
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setShareDialogOpen(false)}>
+          <DialogFooter className="flex-col sm:flex-row gap-2">
+            <Button variant="outline" onClick={() => setShareDialogOpen(false)} className="w-full sm:w-auto h-10">
               Cancelar
             </Button>
             <Button
               onClick={handleSendShare}
               disabled={!selectedLead || sharePropertyMutation.isPending}
-              className="gap-2"
+              className="gap-2 w-full sm:w-auto h-10"
               data-testid="button-send-share"
             >
               <SiWhatsapp className="h-4 w-4" />
               {sharePropertyMutation.isPending
                 ? "Enviando..."
                 : "Abrir WhatsApp"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={bulkShareDialogOpen} onOpenChange={setBulkShareDialogOpen}>
+        <DialogContent className="max-w-md sm:max-w-lg">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <SiWhatsapp className="h-5 w-5 text-green-600" />
+              Enviar {selectedUnits.size} propiedades
+            </DialogTitle>
+            <DialogDescription>
+              {selectedLead 
+                ? `Enviar a ${selectedLead.firstName} ${selectedLead.lastName}` 
+                : "Selecciona un lead para enviar las propiedades"}
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-4">
+            {!selectedLead && (
+              <div className="rounded-lg border border-amber-200 bg-amber-50 p-3 dark:border-amber-800 dark:bg-amber-950">
+                <p className="text-sm text-amber-800 dark:text-amber-200">
+                  Selecciona un lead desde el panel lateral para poder enviar las propiedades
+                </p>
+              </div>
+            )}
+
+            <div className="max-h-32 overflow-y-auto rounded-lg border p-2">
+              {units.filter(u => selectedUnits.has(u.id)).map((unit) => (
+                <div key={unit.id} className="flex items-center gap-2 py-1 text-sm">
+                  <Home className="h-4 w-4 text-muted-foreground" />
+                  <span className="truncate">{unit.name}</span>
+                  <span className="text-muted-foreground ml-auto">${unit.monthlyRent?.toLocaleString() || "—"}</span>
+                </div>
+              ))}
+            </div>
+
+            <div>
+              <Label className="flex items-center gap-2 mb-2">
+                <FileText className="h-4 w-4" />
+                Plantilla de mensaje
+              </Label>
+              <Select value={selectedBulkTemplateId} onValueChange={(v) => {
+                setSelectedBulkTemplateId(v);
+                const template = multiPropertyTemplates.find(t => t.id === v);
+                if (template) {
+                  const selectedUnitsList = units.filter(u => selectedUnits.has(u.id));
+                  setCustomMessage(generateBulkMessage(template, selectedUnitsList, selectedLead));
+                }
+              }}>
+                <SelectTrigger data-testid="select-bulk-template">
+                  <SelectValue placeholder="Selecciona una plantilla" />
+                </SelectTrigger>
+                <SelectContent>
+                  {multiPropertyTemplates.map((template) => (
+                    <SelectItem key={template.id} value={template.id}>
+                      {template.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div>
+              <Label>Mensaje</Label>
+              <Textarea
+                value={customMessage}
+                onChange={(e) => setCustomMessage(e.target.value)}
+                rows={10}
+                className="font-mono text-sm"
+                data-testid="textarea-bulk-message"
+              />
+            </div>
+
+            <div className="flex gap-2">
+              <Button variant="outline" size="sm" onClick={copyToClipboard} className="gap-1 h-10">
+                <Copy className="h-4 w-4" />
+                Copiar
+              </Button>
+            </div>
+          </div>
+
+          <DialogFooter className="flex-col sm:flex-row gap-2">
+            <Button variant="outline" onClick={() => setBulkShareDialogOpen(false)} className="w-full sm:w-auto h-10">
+              Cancelar
+            </Button>
+            <Button
+              onClick={handleBulkShare}
+              disabled={!selectedLead}
+              className="gap-2 w-full sm:w-auto h-10"
+              data-testid="button-send-bulk-share"
+            >
+              <SiWhatsapp className="h-4 w-4" />
+              Abrir WhatsApp
             </Button>
           </DialogFooter>
         </DialogContent>
