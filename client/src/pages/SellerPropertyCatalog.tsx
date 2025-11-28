@@ -391,6 +391,17 @@ export default function SellerPropertyCatalog() {
   const [page, setPage] = useState(1);
   const ITEMS_PER_PAGE = 50;
 
+  // Create stable filter key for useEffect dependency
+  const filterKey = useMemo(() => JSON.stringify({
+    search,
+    minPrice: filters.minPrice,
+    maxPrice: filters.maxPrice,
+    bedrooms: filters.bedrooms,
+    zone: filters.zone,
+    propertyType: filters.propertyType,
+    status: filters.status,
+  }), [search, filters.minPrice, filters.maxPrice, filters.bedrooms, filters.zone, filters.propertyType, filters.status]);
+
   const buildQueryString = (pageNum: number = page) => {
     const params = new URLSearchParams();
     if (search) params.append("search", search);
@@ -405,10 +416,14 @@ export default function SellerPropertyCatalog() {
     return params.toString();
   };
 
-  // Reset page when filters change
+  // Reset page when filters change (use stable filterKey)
+  const prevFilterKeyRef = useRef(filterKey);
   useEffect(() => {
-    setPage(1);
-  }, [search, filters]);
+    if (prevFilterKeyRef.current !== filterKey) {
+      prevFilterKeyRef.current = filterKey;
+      setPage(1);
+    }
+  }, [filterKey]);
   
   const { data: catalogData, isLoading, isFetching } = useQuery<{ data: any[]; total: number }>({
     queryKey: ["/api/external-seller/property-catalog", search, filters, page],
@@ -1656,19 +1671,18 @@ export default function SellerPropertyCatalog() {
             </div>
           )}
 
-          {/* Pagination Controls */}
+          {/* Pagination Controls - 44px min touch targets for mobile */}
           {totalPages > 1 && !isLoading && (
             <div className="flex flex-col sm:flex-row items-center justify-between gap-4 py-6 px-2">
               <span className="text-sm text-muted-foreground">
                 Mostrando {((page - 1) * ITEMS_PER_PAGE) + 1} - {Math.min(page * ITEMS_PER_PAGE, totalUnits)} de {totalUnits} propiedades
               </span>
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-2 flex-wrap justify-center">
                 <Button
                   variant="outline"
-                  size="sm"
                   onClick={() => setPage(1)}
                   disabled={page === 1 || isFetching}
-                  className="h-10 px-3"
+                  className="min-h-11 min-w-11 px-3"
                   data-testid="button-first-page"
                 >
                   Primera
@@ -1678,12 +1692,12 @@ export default function SellerPropertyCatalog() {
                   size="icon"
                   onClick={() => setPage(p => Math.max(1, p - 1))}
                   disabled={page === 1 || isFetching}
-                  className="h-10 w-10"
+                  className="min-h-11 min-w-11"
                   data-testid="button-prev-page"
                 >
-                  <ChevronLeft className="h-4 w-4" />
+                  <ChevronLeft className="h-5 w-5" />
                 </Button>
-                <div className="flex items-center gap-1 px-2">
+                <div className="flex items-center gap-1 px-1">
                   {[...Array(Math.min(5, totalPages))].map((_, idx) => {
                     let pageNum: number;
                     if (totalPages <= 5) {
@@ -1699,10 +1713,9 @@ export default function SellerPropertyCatalog() {
                       <Button
                         key={pageNum}
                         variant={page === pageNum ? "default" : "outline"}
-                        size="sm"
                         onClick={() => setPage(pageNum)}
                         disabled={isFetching}
-                        className="h-10 w-10"
+                        className="min-h-11 min-w-11"
                         data-testid={`button-page-${pageNum}`}
                       >
                         {pageNum}
@@ -1715,17 +1728,16 @@ export default function SellerPropertyCatalog() {
                   size="icon"
                   onClick={() => setPage(p => Math.min(totalPages, p + 1))}
                   disabled={page === totalPages || isFetching}
-                  className="h-10 w-10"
+                  className="min-h-11 min-w-11"
                   data-testid="button-next-page"
                 >
-                  <ChevronRight className="h-4 w-4" />
+                  <ChevronRight className="h-5 w-5" />
                 </Button>
                 <Button
                   variant="outline"
-                  size="sm"
                   onClick={() => setPage(totalPages)}
                   disabled={page === totalPages || isFetching}
-                  className="h-10 px-3"
+                  className="min-h-11 min-w-11 px-3"
                   data-testid="button-last-page"
                 >
                   Última
