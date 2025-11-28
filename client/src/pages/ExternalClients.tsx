@@ -1101,6 +1101,20 @@ export default function ExternalClients() {
     return "secondary";
   };
 
+  const getLeadStatusColor = (status: string): string => {
+    const colors: Record<string, string> = {
+      nuevo_lead: "bg-blue-100 text-blue-700 border-blue-200 dark:bg-blue-900/40 dark:text-blue-300 dark:border-blue-800",
+      cita_coordinada: "bg-purple-100 text-purple-700 border-purple-200 dark:bg-purple-900/40 dark:text-purple-300 dark:border-purple-800",
+      interesado: "bg-amber-100 text-amber-700 border-amber-200 dark:bg-amber-900/40 dark:text-amber-300 dark:border-amber-800",
+      oferta_enviada: "bg-indigo-100 text-indigo-700 border-indigo-200 dark:bg-indigo-900/40 dark:text-indigo-300 dark:border-indigo-800",
+      proceso_renta: "bg-cyan-100 text-cyan-700 border-cyan-200 dark:bg-cyan-900/40 dark:text-cyan-300 dark:border-cyan-800",
+      renta_concretada: "bg-green-100 text-green-700 border-green-200 dark:bg-green-900/40 dark:text-green-300 dark:border-green-800",
+      perdido: "bg-red-100 text-red-700 border-red-200 dark:bg-red-900/40 dark:text-red-300 dark:border-red-800",
+      muerto: "bg-gray-100 text-gray-600 border-gray-200 dark:bg-gray-800 dark:text-gray-400 dark:border-gray-700",
+    };
+    return colors[status] || colors.nuevo_lead;
+  };
+
   return (
     <div className="container mx-auto p-6 space-y-6">
       {/* Header */}
@@ -2744,13 +2758,14 @@ export default function ExternalClients() {
                     <Table>
                       <TableHeader>
                         <TableRow>
+                          <TableHead>{language === "es" ? "Estado" : "Status"}</TableHead>
                           <TableHead>{language === "es" ? "Nombre" : "Name"}</TableHead>
-                          <TableHead>{language === "es" ? "Vendedor" : "Seller"}</TableHead>
+                          <TableHead>{language === "es" ? "Contacto" : "Contact"}</TableHead>
                           <TableHead>{language === "es" ? "Presupuesto" : "Budget"}</TableHead>
                           <TableHead>{language === "es" ? "Tipo Unidad" : "Unit Type"}</TableHead>
                           <TableHead>{language === "es" ? "Mascota" : "Pet"}</TableHead>
-                          <TableHead>{language === "es" ? "Estado" : "Status"}</TableHead>
-                          <TableHead>{language === "es" ? "Contacto" : "Contact"}</TableHead>
+                          <TableHead>{language === "es" ? "Oferta" : "Offer"}</TableHead>
+                          <TableHead>{language === "es" ? "Formato" : "Form"}</TableHead>
                           <TableHead className="text-right">{language === "es" ? "Acciones" : "Actions"}</TableHead>
                         </TableRow>
                       </TableHeader>
@@ -2761,57 +2776,67 @@ export default function ExternalClients() {
                             className="cursor-pointer hover:bg-muted/50"
                             onClick={() => handleLeadClick(lead)}
                           >
+                            {/* Estado */}
                             <TableCell>
-                              <div className="space-y-0.5">
-                                <div className="flex items-center gap-2">
-                                  <span className="font-medium">{`${lead.firstName} ${lead.lastName}`}</span>
-                                  {(() => {
-                                    const followUpDate = lead.followUpDate ? new Date(lead.followUpDate) : null;
-                                    const today = new Date();
-                                    today.setHours(0, 0, 0, 0);
-                                    const tomorrow = new Date(today);
-                                    tomorrow.setDate(tomorrow.getDate() + 1);
-                                    if (followUpDate) {
-                                      followUpDate.setHours(0, 0, 0, 0);
-                                      if (followUpDate < today) {
-                                        return (
-                                          <span 
-                                            className="flex items-center text-red-600" 
-                                            title={language === "es" ? "Seguimiento vencido" : "Follow-up overdue"}
-                                          >
-                                            <AlertTriangle className="h-4 w-4" />
-                                          </span>
-                                        );
-                                      } else if (followUpDate.getTime() === today.getTime()) {
-                                        return (
-                                          <span 
-                                            className="flex items-center text-amber-600" 
-                                            title={language === "es" ? "Seguimiento hoy" : "Follow-up today"}
-                                          >
-                                            <Clock className="h-4 w-4" />
-                                          </span>
-                                        );
-                                      }
+                              <Badge className={`text-xs border ${getLeadStatusColor(lead.status)}`}>
+                                {getLeadStatusLabel(lead.status)}
+                              </Badge>
+                            </TableCell>
+                            {/* Nombre */}
+                            <TableCell>
+                              <div className="flex items-center gap-2">
+                                <span className="font-medium">{`${lead.firstName} ${lead.lastName}`}</span>
+                                {(() => {
+                                  const followUpDate = lead.followUpDate ? new Date(lead.followUpDate) : null;
+                                  const today = new Date();
+                                  today.setHours(0, 0, 0, 0);
+                                  if (followUpDate) {
+                                    followUpDate.setHours(0, 0, 0, 0);
+                                    if (followUpDate < today) {
+                                      return (
+                                        <span 
+                                          className="flex items-center text-red-600" 
+                                          title={language === "es" ? "Seguimiento vencido" : "Follow-up overdue"}
+                                        >
+                                          <AlertTriangle className="h-4 w-4" />
+                                        </span>
+                                      );
+                                    } else if (followUpDate.getTime() === today.getTime()) {
+                                      return (
+                                        <span 
+                                          className="flex items-center text-amber-600" 
+                                          title={language === "es" ? "Seguimiento hoy" : "Follow-up today"}
+                                        >
+                                          <Clock className="h-4 w-4" />
+                                        </span>
+                                      );
                                     }
-                                    return null;
-                                  })()}
-                                </div>
-                                <Badge variant={lead.registrationType === "broker" ? "default" : "secondary"} className="text-xs">
-                                  {lead.registrationType === "broker" ? "Broker" : (language === "es" ? "Vendedor" : "Seller")}
-                                </Badge>
+                                  }
+                                  return null;
+                                })()}
                               </div>
                             </TableCell>
-                            <TableCell className="text-sm">
-                              {lead.sellerName || (lead.sellerId && sellers.find(s => s.id === lead.sellerId)?.firstName ? `${sellers.find(s => s.id === lead.sellerId)?.firstName} ${sellers.find(s => s.id === lead.sellerId)?.lastName || ""}`.trim() : "-")}
+                            {/* Contacto */}
+                            <TableCell>
+                              <div className="text-sm">
+                                {lead.registrationType === "broker" ? (
+                                  <span className="text-muted-foreground">****{lead.phoneLast4}</span>
+                                ) : (
+                                  <span>{lead.phone || "-"}</span>
+                                )}
+                              </div>
                             </TableCell>
+                            {/* Presupuesto */}
                             <TableCell className="text-sm">
                               {lead.budgetMin || lead.budgetMax 
                                 ? `$${lead.budgetMin ? Number(lead.budgetMin).toLocaleString() : '0'} - $${lead.budgetMax ? Number(lead.budgetMax).toLocaleString() : '∞'}`
                                 : (lead.estimatedRentCostText || (lead.estimatedRentCost ? `$${lead.estimatedRentCost.toLocaleString()}` : "-"))}
                             </TableCell>
+                            {/* Tipo Unidad */}
                             <TableCell className="text-sm">
                               {lead.desiredUnitType || "-"}
                             </TableCell>
+                            {/* Mascota */}
                             <TableCell className="text-sm">
                               {lead.hasPets ? (
                                 <div className="flex items-center gap-1">
@@ -2822,22 +2847,39 @@ export default function ExternalClients() {
                                 <span className="text-muted-foreground">No</span>
                               )}
                             </TableCell>
-                            <TableCell>
-                              <Badge variant={getLeadStatusVariant(lead.status)}>
-                                {getLeadStatusLabel(lead.status)}
-                              </Badge>
-                            </TableCell>
-                            <TableCell>
-                              <div className="space-y-0.5 text-sm">
-                                {lead.registrationType === "broker" ? (
-                                  <div className="text-muted-foreground">****{lead.phoneLast4}</div>
+                            {/* Oferta */}
+                            <TableCell className="text-sm">
+                              {lead.offerSentAt ? (
+                                lead.offerCompletedAt ? (
+                                  <Badge className="bg-green-100 text-green-700 border-green-200 dark:bg-green-900/40 dark:text-green-300 text-xs">
+                                    {language === "es" ? "Completada" : "Completed"}
+                                  </Badge>
                                 ) : (
-                                  <>
-                                    {lead.phone && <div>{lead.phone}</div>}
-                                  </>
-                                )}
-                              </div>
+                                  <Badge className="bg-blue-100 text-blue-700 border-blue-200 dark:bg-blue-900/40 dark:text-blue-300 text-xs">
+                                    {language === "es" ? "Enviada" : "Sent"}
+                                  </Badge>
+                                )
+                              ) : (
+                                <span className="text-muted-foreground">-</span>
+                              )}
                             </TableCell>
+                            {/* Formato */}
+                            <TableCell className="text-sm">
+                              {lead.formSentAt ? (
+                                lead.formCompletedAt ? (
+                                  <Badge className="bg-green-100 text-green-700 border-green-200 dark:bg-green-900/40 dark:text-green-300 text-xs">
+                                    {language === "es" ? "Completada" : "Completed"}
+                                  </Badge>
+                                ) : (
+                                  <Badge className="bg-blue-100 text-blue-700 border-blue-200 dark:bg-blue-900/40 dark:text-blue-300 text-xs">
+                                    {language === "es" ? "Enviada" : "Sent"}
+                                  </Badge>
+                                )
+                              ) : (
+                                <span className="text-muted-foreground">-</span>
+                              )}
+                            </TableCell>
+                            {/* Acciones */}
                             <TableCell className="text-right">
                               <div className="flex justify-end gap-2" onClick={(e) => e.stopPropagation()}>
                                 {lead.phone && (

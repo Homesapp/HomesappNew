@@ -6405,6 +6405,12 @@ export const externalLeads = pgTable("external_leads", {
   convertedToClientId: varchar("converted_to_client_id"), // ID del cliente creado (si fue convertido)
   convertedAt: timestamp("converted_at"), // Fecha de conversión
   
+  // Offer & Form tracking
+  offerSentAt: timestamp("offer_sent_at"), // Cuando se envió la oferta de renta
+  offerCompletedAt: timestamp("offer_completed_at"), // Cuando el lead completó la oferta
+  formSentAt: timestamp("form_sent_at"), // Cuando se envió el formato de inquilino
+  formCompletedAt: timestamp("form_completed_at"), // Cuando el lead completó el formato
+  
   // Metadata
   createdBy: varchar("created_by").references(() => users.id),
   originalCreatedAt: timestamp("original_created_at"), // Fecha original del registro (para importaciones)
