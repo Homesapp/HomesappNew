@@ -29216,6 +29216,7 @@ ${{precio}}/mes
       // Security: Force seller scoping for seller users - they can only see their own leads
       const isSeller = req.user?.role === 'external_agency_seller';
       const effectiveSellerId = isSeller ? req.user.id : (sellerId as string | undefined);
+      console.log("[DEBUG] external-leads filter:", { userId: req.user?.id, userRole: req.user?.role, isSeller, effectiveSellerId, agencyId });
       
       const filters = {
         status: status as string | undefined,
