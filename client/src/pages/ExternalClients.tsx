@@ -2818,6 +2818,9 @@ export default function ExternalClients() {
                           <TableHead>{language === "es" ? "Mascota" : "Pet"}</TableHead>
                           <TableHead>{language === "es" ? "Oferta" : "Offer"}</TableHead>
                           <TableHead>{language === "es" ? "Formato" : "Form"}</TableHead>
+                          {!isSeller && (
+                            <TableHead>{language === "es" ? "Vendedor" : "Seller"}</TableHead>
+                          )}
                           <TableHead className="text-right">{language === "es" ? "Acciones" : "Actions"}</TableHead>
                         </TableRow>
                       </TableHeader>
@@ -2931,6 +2934,19 @@ export default function ExternalClients() {
                                 <span className="text-muted-foreground">-</span>
                               )}
                             </TableCell>
+                            {/* Vendedor - only for admin */}
+                            {!isSeller && (
+                              <TableCell className="text-sm">
+                                <div className="flex items-center gap-1.5">
+                                  <User className="h-3.5 w-3.5 text-muted-foreground" />
+                                  <span className="truncate max-w-[120px]">
+                                    {lead.sellerName || (lead.sellerId && sellers.find(s => s.id === lead.sellerId) 
+                                      ? `${sellers.find(s => s.id === lead.sellerId)?.firstName} ${sellers.find(s => s.id === lead.sellerId)?.lastName || ""}`.trim() 
+                                      : "-")}
+                                  </span>
+                                </div>
+                              </TableCell>
+                            )}
                             {/* Acciones */}
                             <TableCell className="text-right">
                               <div className="flex justify-end gap-2" onClick={(e) => e.stopPropagation()}>

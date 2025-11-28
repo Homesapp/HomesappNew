@@ -66,6 +66,8 @@ import {
   Building2,
   RefreshCw,
   CheckCircle2,
+  Loader2,
+  Plus,
 } from "lucide-react";
 import { SiWhatsapp } from "react-icons/si";
 import { useLanguage } from "@/contexts/LanguageContext";
@@ -184,6 +186,44 @@ export default function ExternalLeadDetail() {
         title: language === "es" ? "Lead eliminado" : "Lead deleted",
       });
       navigate("/external/leads");
+    },
+  });
+
+  const createCardFromPreferencesMutation = useMutation({
+    mutationFn: async () => {
+      if (!lead) throw new Error("No lead data");
+      const cardData = {
+        leadId: lead.id,
+        title: `${language === "es" ? "Preferencias de" : "Preferences of"} ${lead.firstName} ${lead.lastName}`,
+        propertyType: lead.desiredUnitType ?? undefined,
+        zone: lead.desiredNeighborhood ?? undefined,
+        minBudget: lead.budgetMin ?? undefined,
+        maxBudget: lead.budgetMax ?? undefined,
+        bedrooms: lead.desiredBedrooms ?? undefined,
+        rentalDuration: lead.contractDuration ?? undefined,
+        hasPets: lead.hasPets ?? undefined,
+        desiredAmenities: lead.desiredAmenities ?? [],
+        desiredCharacteristics: lead.desiredCharacteristics ?? [],
+        isDefault: true,
+      };
+      const res = await apiRequest("POST", "/api/external/presentation-cards", cardData);
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/external/presentation-cards/lead", leadId] });
+      toast({
+        title: language === "es" ? "Tarjeta creada" : "Card created",
+        description: language === "es" 
+          ? "Se creó una tarjeta desde las preferencias del lead"
+          : "A card was created from the lead's preferences",
+      });
+    },
+    onError: (error: any) => {
+      toast({
+        title: language === "es" ? "Error" : "Error",
+        description: error.message,
+        variant: "destructive",
+      });
     },
   });
 
@@ -535,10 +575,29 @@ export default function ExternalLeadDetail() {
                   </CardContent>
                 </Card>
               ) : (
-                <div className="text-sm text-muted-foreground text-center py-4 border rounded-lg border-dashed">
-                  {language === "es" 
-                    ? "Sin tarjeta de presentación" 
-                    : "No presentation card"}
+                <div className="text-center py-4 border rounded-lg border-dashed space-y-3">
+                  <p className="text-sm text-muted-foreground">
+                    {language === "es" 
+                      ? "Sin tarjeta de presentación" 
+                      : "No presentation card"}
+                  </p>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => createCardFromPreferencesMutation.mutate()}
+                    disabled={createCardFromPreferencesMutation.isPending}
+                    className="min-h-[44px]"
+                    data-testid="button-create-card-from-preferences"
+                  >
+                    {createCardFromPreferencesMutation.isPending ? (
+                      <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                    ) : (
+                      <Plus className="h-4 w-4 mr-2" />
+                    )}
+                    {language === "es" 
+                      ? "Crear Tarjeta desde Preferencias" 
+                      : "Create Card from Preferences"}
+                  </Button>
                 </div>
               )}
             </div>
