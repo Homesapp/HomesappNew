@@ -31282,6 +31282,43 @@ ${{precio}}/mes
     }
   });
 
+  // GET /api/public/external-units/:id - Public endpoint to view external unit details
+  app.get("/api/public/external-units/:id", async (req, res) => {
+    try {
+      const { id } = req.params;
+      const unit = await storage.getExternalUnit(id);
+      
+      if (!unit) {
+        return res.status(404).json({ message: "Unit not found" });
+      }
+      
+      // Return only public-safe information
+      res.json({
+        id: unit.id,
+        name: unit.name,
+        unitNumber: unit.unitNumber,
+        zone: unit.zone,
+        unitType: unit.unitType,
+        bedrooms: unit.bedrooms,
+        bathrooms: unit.bathrooms,
+        monthlyRent: unit.monthlyRent,
+        currency: unit.currency,
+        status: unit.status,
+        images: unit.images,
+        amenities: unit.amenities,
+        condominiumName: unit.condominiumName,
+        squareMeters: unit.squareMeters,
+        hasFurniture: unit.hasFurniture,
+        hasParking: unit.hasParking,
+        petsAllowed: unit.petsAllowed,
+        description: unit.description,
+      });
+    } catch (error: any) {
+      console.error("Error fetching public unit:", error);
+      res.status(500).json({ message: "Internal server error" });
+    }
+  });
+
   // GET /api/public/sellers - Get public list of sellers for lead registration dropdown
   app.get("/api/public/sellers", async (req, res) => {
     try {

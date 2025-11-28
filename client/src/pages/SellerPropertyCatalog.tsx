@@ -662,7 +662,7 @@ export default function SellerPropertyCatalog() {
     let message = template.content;
     
     const propertyName = unit.name || unit.condominiumName || unit.unitNumber || "Propiedad";
-    const propertyLink = `${window.location.origin}/propiedad/${unit.id}/completo`;
+    const propertyLink = `${window.location.origin}/unidad/${unit.id}`;
     
     message = message.replace(/\{\{?nombre\}\}?/g, lead?.firstName || "");
     message = message.replace(/\{\{?propiedad\}\}?/g, propertyName);
@@ -683,7 +683,7 @@ export default function SellerPropertyCatalog() {
     
     const propertiesList = unitsList.map((unit, i) => {
       const propertyName = unit.name || unit.condominiumName || unit.unitNumber || "Propiedad";
-      const propertyLink = `${window.location.origin}/propiedad/${unit.id}/completo`;
+      const propertyLink = `${window.location.origin}/unidad/${unit.id}`;
       return `${i + 1}. ${propertyName}\n   Ubicacion: ${unit.zone || "Sin zona"}\n   ${unit.bedrooms || 0} rec. | $${unit.monthlyRent?.toLocaleString() || "—"} ${unit.currency || "MXN"}/mes\n   Ver: ${propertyLink}`;
     }).join("\n\n");
     
