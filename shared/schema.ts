@@ -8368,3 +8368,53 @@ export const insertSellerGoalSchema = createInsertSchema(sellerGoals).omit({
 });
 export type InsertSellerGoal = z.infer<typeof insertSellerGoalSchema>;
 export type SellerGoal = typeof sellerGoals.$inferSelect;
+
+// =====================================================
+// Public Chatbot Conversations - For homepage AI assistant
+// =====================================================
+
+export const publicChatbotConversations = pgTable("public_chatbot_conversations", {
+  id: varchar("id").primaryKey().$defaultFn(() => crypto.randomUUID()),
+  agencyId: varchar("agency_id").notNull().references(() => externalAgencies.id, { onDelete: "cascade" }),
+  sessionId: varchar("session_id", { length: 100 }).notNull(),
+  
+  visitorName: varchar("visitor_name", { length: 200 }),
+  visitorEmail: varchar("visitor_email", { length: 255 }),
+  visitorPhone: varchar("visitor_phone", { length: 50 }),
+  
+  messages: jsonb("messages").notNull().default(sql`'[]'::jsonb`),
+  
+  convertedToLeadId: varchar("converted_to_lead_id").references(() => externalLeads.id, { onDelete: "set null" }),
+  appointmentId: varchar("appointment_id").references(() => externalAppointments.id, { onDelete: "set null" }),
+  presentationCardId: varchar("presentation_card_id").references(() => presentationCards.id, { onDelete: "set null" }),
+  
+  status: varchar("status", { length: 20 }).notNull().default("active"),
+  metadata: jsonb("metadata"),
+  
+  lastMessageAt: timestamp("last_message_at"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+}, (table) => [
+  index("idx_public_chatbot_agency").on(table.agencyId),
+  index("idx_public_chatbot_session").on(table.sessionId),
+  index("idx_public_chatbot_email").on(table.visitorEmail),
+]);
+
+export const insertPublicChatbotConversationSchema = createInsertSchema(publicChatbotConversations).omit({
+  id: true, createdAt: true, updatedAt: true,
+});
+export type InsertPublicChatbotConversation = z.infer<typeof insertPublicChatbotConversationSchema>;
+export type PublicChatbotConversation = typeof publicChatbotConversations.$inferSelect;
+
+export interface ChatbotMessage {
+  role: "user" | "assistant" | "system";
+  content: string;
+  timestamp: string;
+  metadata?: {
+    action?: "recommend_properties" | "capture_lead" | "schedule_appointment" | "generate_card";
+    propertyIds?: number[];
+    leadId?: string;
+    appointmentId?: string;
+    cardId?: string;
+  };
+}
