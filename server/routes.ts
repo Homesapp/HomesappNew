@@ -10,7 +10,7 @@ import { setupAuth, isAuthenticated, requireRole, getSession } from "./replitAut
 import { requireResourceOwnership } from "./middleware/resourceOwnership";
 import { createGoogleMeetEvent, deleteGoogleMeetEvent, checkGoogleCalendarConnection, listEvents, createCalendarEvent } from "./googleCalendar";
 import { syncMaintenanceTicketToGoogleCalendar, deleteMaintenanceTicketFromGoogleCalendar } from "./googleCalendarService";
-import { calculateRentalCommissions } from "./commissionCalculator";
+import { calculateRentalCommissions, calculateExternalCommission } from "./commissionCalculator";
 import { sendVerificationEmail, sendLeadVerificationEmail, sendDuplicateLeadNotification, sendOwnerReferralVerificationEmail, sendOwnerReferralApprovedNotification, sendOfferLinkEmail } from "./gmail";
 import { readUnitsFromSheet, getSpreadsheetInfo, readTRHUnitsFromSheet, parseTRHRow, getTRHSheetStats } from "./googleSheets";
 import { imageProcessor } from "./imageProcessor";
@@ -27784,6 +27784,58 @@ ${{precio}}/mes
       });
     } catch (error: any) {
       console.error("Error fetching unit overview:", error);
+      handleGenericError(res, error);
+    }
+  });
+
+  // POST /api/external-units/:id/calculate-commission - Calculate commission for a unit
+  app.post("/api/external-units/:id/calculate-commission", isAuthenticated, requireRole(EXTERNAL_ALL_ROLES), async (req: any, res) => {
+    try {
+      const { id } = req.params;
+      const { leaseDurationMonths } = req.body;
+      
+      const agencyId = await getUserAgencyId(req);
+      if (!agencyId) {
+        return res.status(403).json({ message: "No agency access" });
+      }
+      
+      const unit = await storage.getExternalUnit(id);
+      if (!unit) {
+        return res.status(404).json({ message: "Unit not found" });
+      }
+      
+      if (unit.agencyId !== agencyId) {
+        return res.status(403).json({ message: "Access denied" });
+      }
+      
+      const monthlyRent = unit.monthlyRent12 || 0;
+      if (monthlyRent <= 0) {
+        return res.status(400).json({ message: "Unit has no valid monthly rent" });
+      }
+      
+      const duration = leaseDurationMonths || 12;
+      if (duration < 6 || duration > 60) {
+        return res.status(400).json({ message: "Lease duration must be between 6 and 60 months" });
+      }
+      
+      const commissionResult = calculateExternalCommission({
+        monthlyRent,
+        leaseDurationMonths: duration,
+        commissionType: unit.commissionType,
+        referrerName: unit.referrerName,
+        referrerPhone: unit.referrerPhone,
+        referrerEmail: unit.referrerEmail,
+      });
+      
+      res.json({
+        unitId: id,
+        unitName: unit.unitNumber,
+        monthlyRent,
+        leaseDurationMonths: duration,
+        ...commissionResult,
+      });
+    } catch (error: any) {
+      console.error("Error calculating commission:", error);
       handleGenericError(res, error);
     }
   });

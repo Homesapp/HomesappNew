@@ -94,3 +94,90 @@ export function calculateRentalCommissions(input: CommissionCalculationInput): C
     homesappCommissionAmount: homesappAmount,
   };
 }
+
+export type ExternalCommissionType = 'completa' | 'referido';
+
+export function normalizeCommissionType(value: string | null | undefined): ExternalCommissionType {
+  if (!value) return 'completa';
+  const normalized = value.toLowerCase().trim();
+  if (normalized.includes('referido') || normalized.includes('referid')) {
+    return 'referido';
+  }
+  return 'completa';
+}
+
+export interface ExternalCommissionInput {
+  monthlyRent: number;
+  leaseDurationMonths: number;
+  commissionType: string | null | undefined;
+  referrerName?: string | null;
+  referrerPhone?: string | null;
+  referrerEmail?: string | null;
+}
+
+export interface ExternalCommissionResult {
+  commissionMonths: number;
+  totalCommissionAmount: number;
+  agencyPercent: number;
+  referrerPercent: number;
+  agencyAmount: number;
+  referrerAmount: number;
+  commissionTypeNormalized: ExternalCommissionType;
+  referrer?: {
+    name: string | null;
+    phone: string | null;
+    email: string | null;
+  };
+}
+
+export function calculateExternalCommission(input: ExternalCommissionInput): ExternalCommissionResult {
+  const { monthlyRent, leaseDurationMonths, commissionType, referrerName, referrerPhone, referrerEmail } = input;
+  
+  const normalizedType = normalizeCommissionType(commissionType);
+  
+  let totalCommissionAmount: number;
+  let commissionMonths: number;
+  
+  if (leaseDurationMonths < 6) {
+    const totalReservationAmount = monthlyRent * leaseDurationMonths;
+    totalCommissionAmount = totalReservationAmount * 0.15;
+    commissionMonths = 0.15 * leaseDurationMonths;
+  } else {
+    commissionMonths = calculateCommissionMonths(leaseDurationMonths);
+    totalCommissionAmount = monthlyRent * commissionMonths;
+  }
+  
+  let agencyPercent: number;
+  let referrerPercent: number;
+  
+  if (normalizedType === 'referido') {
+    agencyPercent = 80;
+    referrerPercent = 20;
+  } else {
+    agencyPercent = 100;
+    referrerPercent = 0;
+  }
+  
+  const agencyAmount = (totalCommissionAmount * agencyPercent) / 100;
+  const referrerAmount = (totalCommissionAmount * referrerPercent) / 100;
+  
+  const result: ExternalCommissionResult = {
+    commissionMonths,
+    totalCommissionAmount,
+    agencyPercent,
+    referrerPercent,
+    agencyAmount,
+    referrerAmount,
+    commissionTypeNormalized: normalizedType,
+  };
+  
+  if (normalizedType === 'referido') {
+    result.referrer = {
+      name: referrerName ?? null,
+      phone: referrerPhone ?? null,
+      email: referrerEmail ?? null,
+    };
+  }
+  
+  return result;
+}
