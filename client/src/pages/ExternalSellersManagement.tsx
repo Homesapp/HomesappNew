@@ -153,13 +153,15 @@ const GOAL_TYPE_LABELS: Record<string, Record<string, string>> = {
     leads: "Leads",
     conversions: "Conversiones",
     revenue: "Ingresos",
-    showings: "Visitas"
+    showings: "Visitas",
+    contracts: "Contratos"
   },
   en: {
     leads: "Leads",
     conversions: "Conversions",
     revenue: "Revenue",
-    showings: "Showings"
+    showings: "Showings",
+    contracts: "Contracts"
   }
 };
 
@@ -574,6 +576,15 @@ export default function ExternalSellersManagement() {
   const [isDetailDialogOpen, setIsDetailDialogOpen] = useState(false);
   const [isPayoutDialogOpen, setIsPayoutDialogOpen] = useState(false);
   const [isGoalDialogOpen, setIsGoalDialogOpen] = useState(false);
+  const [editingGoal, setEditingGoal] = useState<SellerGoal | null>(null);
+  const [goalFormData, setGoalFormData] = useState({
+    sellerId: "",
+    goalType: "leads",
+    target: 10,
+    startDate: format(startOfMonth(new Date()), "yyyy-MM-dd"),
+    endDate: format(endOfMonth(new Date()), "yyyy-MM-dd"),
+    isActive: true
+  });
 
   useLayoutEffect(() => {
     setViewMode(isMobile ? "cards" : "table");
@@ -660,7 +671,133 @@ export default function ExternalSellersManagement() {
     }
   });
 
-  const filteredSellers = useMemo(() => {
+  // Goal mutations
+  const createGoalMutation = useMutation({
+    mutationFn: async (data: any) => {
+      const response = await apiRequest("POST", "/api/external/goals", data);
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.message || "Error creating goal");
+      }
+      return response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/external/goals"] });
+      toast({
+        title: language === "es" ? "Meta creada" : "Goal created",
+        description: language === "es" 
+          ? "La meta ha sido creada exitosamente"
+          : "The goal has been created successfully"
+      });
+      resetGoalForm();
+      setIsGoalDialogOpen(false);
+    },
+    onError: (error: any) => {
+      toast({
+        variant: "destructive",
+        title: language === "es" ? "Error" : "Error",
+        description: error.message
+      });
+    }
+  });
+
+  const updateGoalMutation = useMutation({
+    mutationFn: async ({ id, ...data }: any) => {
+      const response = await apiRequest("PATCH", `/api/external/goals/${id}`, data);
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.message || "Error updating goal");
+      }
+      return response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/external/goals"] });
+      toast({
+        title: language === "es" ? "Meta actualizada" : "Goal updated",
+        description: language === "es" 
+          ? "La meta ha sido actualizada exitosamente"
+          : "The goal has been updated successfully"
+      });
+      resetGoalForm();
+      setIsGoalDialogOpen(false);
+    },
+    onError: (error: any) => {
+      toast({
+        variant: "destructive",
+        title: language === "es" ? "Error" : "Error",
+        description: error.message
+      });
+    }
+  });
+
+  const deleteGoalMutation = useMutation({
+    mutationFn: async (id: string) => {
+      const response = await apiRequest("DELETE", `/api/external/goals/${id}`);
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.message || "Error deleting goal");
+      }
+      return response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/external/goals"] });
+      toast({
+        title: language === "es" ? "Meta eliminada" : "Goal deleted",
+        description: language === "es" 
+          ? "La meta ha sido eliminada"
+          : "The goal has been deleted"
+      });
+    },
+    onError: (error: any) => {
+      toast({
+        variant: "destructive",
+        title: language === "es" ? "Error" : "Error",
+        description: error.message
+      });
+    }
+  });
+
+  const resetGoalForm = () => {
+    setEditingGoal(null);
+    setGoalFormData({
+      sellerId: "",
+      goalType: "leads",
+      target: 10,
+      startDate: format(startOfMonth(new Date()), "yyyy-MM-dd"),
+      endDate: format(endOfMonth(new Date()), "yyyy-MM-dd"),
+      isActive: true
+    });
+  };
+
+  const handleEditGoal = (goal: SellerGoal) => {
+    setEditingGoal(goal);
+    setGoalFormData({
+      sellerId: goal.sellerId || "",
+      goalType: goal.goalType,
+      target: goal.target,
+      startDate: goal.startDate.split("T")[0],
+      endDate: goal.endDate.split("T")[0],
+      isActive: goal.isActive
+    });
+    setIsGoalDialogOpen(true);
+  };
+
+  const handleSubmitGoal = () => {
+    if (editingGoal) {
+      updateGoalMutation.mutate({
+        id: editingGoal.id,
+        ...goalFormData,
+        sellerId: goalFormData.sellerId || undefined
+      });
+    } else {
+      createGoalMutation.mutate({
+        ...goalFormData,
+        sellerId: goalFormData.sellerId || undefined
+      });
+    }
+  };
+
+    const filteredSellers = useMemo(() => {
     return sellers.filter(seller => {
       const name = seller.user ? `${seller.user.firstName} ${seller.user.lastName}`.toLowerCase() : "";
       const email = seller.user?.email?.toLowerCase() || "";
@@ -1515,6 +1652,30 @@ export default function ExternalSellersManagement() {
                     </span>
                   </div>
                 </CardContent>
+                <CardFooter className="pt-0 pb-3 gap-2 flex-wrap justify-end">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => handleEditGoal(goal)}
+                    data-testid={`button-edit-goal-${goal.id}`}
+                  >
+                    <Edit className="h-4 w-4 mr-1" />
+                    {language === "es" ? "Editar" : "Edit"}
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => {
+                      if (confirm(language === "es" ? "¿Eliminar esta meta?" : "Delete this goal?")) {
+                        deleteGoalMutation.mutate(goal.id);
+                      }
+                    }}
+                    data-testid={`button-delete-goal-${goal.id}`}
+                  >
+                    <Trash2 className="h-4 w-4 mr-1 text-red-500" />
+                    {language === "es" ? "Eliminar" : "Delete"}
+                  </Button>
+                </CardFooter>
               </Card>
             );
           })}
@@ -1783,6 +1944,145 @@ export default function ExternalSellersManagement() {
           <DialogFooter>
             <Button variant="outline" onClick={() => setIsDetailDialogOpen(false)}>
               {language === "es" ? "Cerrar" : "Close"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Goal Creation/Edit Dialog */}
+      <Dialog open={isGoalDialogOpen} onOpenChange={(open) => {
+        if (!open) resetGoalForm();
+        setIsGoalDialogOpen(open);
+      }}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>
+              {editingGoal 
+                ? (language === "es" ? "Editar Meta" : "Edit Goal")
+                : (language === "es" ? "Nueva Meta" : "New Goal")
+              }
+            </DialogTitle>
+            <DialogDescription>
+              {editingGoal 
+                ? (language === "es" ? "Actualiza los detalles de la meta" : "Update goal details")
+                : (language === "es" ? "Crea una nueva meta para un vendedor" : "Create a new goal for a seller")
+              }
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-4">
+            <div className="space-y-2">
+              <Label>{language === "es" ? "Vendedor" : "Seller"}</Label>
+              <Select
+                value={goalFormData.sellerId || "_team"}
+                onValueChange={(value) => setGoalFormData(prev => ({ 
+                  ...prev, 
+                  sellerId: value === "_team" ? "" : value 
+                }))}
+              >
+                <SelectTrigger data-testid="select-goal-seller">
+                  <SelectValue placeholder={language === "es" ? "Seleccionar vendedor" : "Select seller"} />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="_team">
+                    {language === "es" ? "Meta de Equipo" : "Team Goal"}
+                  </SelectItem>
+                  {sellers.map(seller => (
+                    <SelectItem key={seller.userId} value={seller.userId}>
+                      {seller.user ? `${seller.user.firstName} ${seller.user.lastName}` : seller.userId}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="space-y-2">
+              <Label>{language === "es" ? "Tipo de Meta" : "Goal Type"}</Label>
+              <Select
+                value={goalFormData.goalType}
+                onValueChange={(value) => setGoalFormData(prev => ({ ...prev, goalType: value }))}
+              >
+                <SelectTrigger data-testid="select-goal-type">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="leads">{language === "es" ? "Leads" : "Leads"}</SelectItem>
+                  <SelectItem value="conversions">{language === "es" ? "Conversiones" : "Conversions"}</SelectItem>
+                  <SelectItem value="revenue">{language === "es" ? "Ingresos" : "Revenue"}</SelectItem>
+                  <SelectItem value="showings">{language === "es" ? "Visitas" : "Showings"}</SelectItem>
+                  <SelectItem value="contracts">{language === "es" ? "Contratos" : "Contracts"}</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="space-y-2">
+              <Label>{language === "es" ? "Objetivo" : "Target"}</Label>
+              <Input
+                type="number"
+                min={1}
+                value={goalFormData.target}
+                onChange={(e) => setGoalFormData(prev => ({ ...prev, target: parseInt(e.target.value) || 0 }))}
+                data-testid="input-goal-target"
+              />
+            </div>
+
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-2">
+                <Label>{language === "es" ? "Fecha Inicio" : "Start Date"}</Label>
+                <Input
+                  type="date"
+                  value={goalFormData.startDate}
+                  onChange={(e) => setGoalFormData(prev => ({ ...prev, startDate: e.target.value }))}
+                  data-testid="input-goal-start-date"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label>{language === "es" ? "Fecha Fin" : "End Date"}</Label>
+                <Input
+                  type="date"
+                  value={goalFormData.endDate}
+                  onChange={(e) => setGoalFormData(prev => ({ ...prev, endDate: e.target.value }))}
+                  data-testid="input-goal-end-date"
+                />
+              </div>
+            </div>
+
+            <div className="flex items-center gap-2">
+              <input
+                type="checkbox"
+                id="goalActive"
+                checked={goalFormData.isActive}
+                onChange={(e) => setGoalFormData(prev => ({ ...prev, isActive: e.target.checked }))}
+                className="h-4 w-4 rounded border-input"
+              />
+              <Label htmlFor="goalActive" className="cursor-pointer">
+                {language === "es" ? "Meta Activa" : "Active Goal"}
+              </Label>
+            </div>
+          </div>
+
+          <DialogFooter className="gap-2 sm:gap-0">
+            <Button 
+              variant="outline" 
+              onClick={() => {
+                resetGoalForm();
+                setIsGoalDialogOpen(false);
+              }}
+            >
+              {language === "es" ? "Cancelar" : "Cancel"}
+            </Button>
+            <Button 
+              onClick={handleSubmitGoal}
+              disabled={createGoalMutation.isPending || updateGoalMutation.isPending || goalFormData.target < 1}
+              data-testid="button-submit-goal"
+            >
+              {(createGoalMutation.isPending || updateGoalMutation.isPending) && (
+                <RefreshCw className="mr-2 h-4 w-4 animate-spin" />
+              )}
+              {editingGoal 
+                ? (language === "es" ? "Actualizar" : "Update")
+                : (language === "es" ? "Crear" : "Create")
+              }
             </Button>
           </DialogFooter>
         </DialogContent>
