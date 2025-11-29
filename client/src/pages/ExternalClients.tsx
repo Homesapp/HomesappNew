@@ -313,30 +313,54 @@ export default function ExternalClients() {
   });
   const condominiums = condominiumsData?.data || [];
 
-  // Fetch units for selected condominium (for lead create form)
+  // State for multi-select condominiums and units in forms (must be declared before queries that use them)
+  const [selectedCreateCondominiums, setSelectedCreateCondominiums] = useState<string[]>([]);
+  const [selectedCreateUnits, setSelectedCreateUnits] = useState<string[]>([]);
+  const [selectedEditCondominiums, setSelectedEditCondominiums] = useState<string[]>([]);
+  const [selectedEditUnits, setSelectedEditUnits] = useState<string[]>([]);
+
+  // State for pet quantity
+  const [createPetQuantity, setCreatePetQuantity] = useState<number>(1);
+  const [editPetQuantity, setEditPetQuantity] = useState<number>(1);
+
+  // Fetch units for selected condominiums (for lead create form - now supports multi-select)
   const [createCondominiumId, setCreateCondominiumId] = useState<string>("");
-  const { data: createUnitsData } = useQuery<{ id: string; unitNumber: string; type?: string }[]>({
-    queryKey: ["/api/external-condominiums", createCondominiumId, "units"],
+  const { data: createUnitsData } = useQuery<{ id: string; unitNumber: string; type?: string; condominiumId?: string }[]>({
+    queryKey: ["/api/external-condominiums/units-for-leads", selectedCreateCondominiums],
     queryFn: async () => {
-      const response = await fetch(`/api/external-condominiums/${createCondominiumId}/units`, { credentials: 'include' });
-      if (!response.ok) throw new Error('Failed to fetch units');
-      return response.json();
+      if (selectedCreateCondominiums.length === 0) return [];
+      const allUnits: { id: string; unitNumber: string; type?: string; condominiumId?: string }[] = [];
+      for (const condoId of selectedCreateCondominiums) {
+        const response = await fetch(`/api/external-condominiums/${condoId}/units`, { credentials: 'include' });
+        if (response.ok) {
+          const units = await response.json();
+          allUnits.push(...units.map((u: any) => ({ ...u, condominiumId: condoId })));
+        }
+      }
+      return allUnits;
     },
-    enabled: !!createCondominiumId,
+    enabled: selectedCreateCondominiums.length > 0,
     staleTime: 5 * 60 * 1000,
   });
   const createUnits = createUnitsData || [];
 
-  // Fetch units for selected condominium (for lead edit form - separate state)
+  // Fetch units for selected condominiums (for lead edit form - supports multi-select)
   const [editCondominiumId, setEditCondominiumId] = useState<string>("");
-  const { data: editUnitsData } = useQuery<{ id: string; unitNumber: string; type?: string }[]>({
-    queryKey: ["/api/external-condominiums", editCondominiumId, "units"],
+  const { data: editUnitsData } = useQuery<{ id: string; unitNumber: string; type?: string; condominiumId?: string }[]>({
+    queryKey: ["/api/external-condominiums/units-for-leads-edit", selectedEditCondominiums],
     queryFn: async () => {
-      const response = await fetch(`/api/external-condominiums/${editCondominiumId}/units`, { credentials: 'include' });
-      if (!response.ok) throw new Error('Failed to fetch units');
-      return response.json();
+      if (selectedEditCondominiums.length === 0) return [];
+      const allUnits: { id: string; unitNumber: string; type?: string; condominiumId?: string }[] = [];
+      for (const condoId of selectedEditCondominiums) {
+        const response = await fetch(`/api/external-condominiums/${condoId}/units`, { credentials: 'include' });
+        if (response.ok) {
+          const units = await response.json();
+          allUnits.push(...units.map((u: any) => ({ ...u, condominiumId: condoId })));
+        }
+      }
+      return allUnits;
     },
-    enabled: !!editCondominiumId,
+    enabled: selectedEditCondominiums.length > 0,
     staleTime: 5 * 60 * 1000,
   });
   const editUnits = editUnitsData || [];
@@ -609,6 +633,12 @@ export default function ExternalClients() {
         desiredAmenities: selectedCreateAmenities,
         desiredUnitType: selectedCreatePropertyTypes.join(", ") || null,
         desiredNeighborhood: selectedCreateZones.join(", ") || null,
+        interestedCondominiumIds: selectedCreateCondominiums.length > 0 ? selectedCreateCondominiums : null,
+        interestedUnitIds: selectedCreateUnits.length > 0 ? selectedCreateUnits : null,
+        petQuantity: createPetQuantity > 0 ? createPetQuantity : null,
+        // Convert budget values to strings for API (decimal fields)
+        budgetMin: processedData.budgetMin ? String(processedData.budgetMin) : undefined,
+        budgetMax: processedData.budgetMax ? String(processedData.budgetMax) : undefined,
       };
       
       // For master/admin users, include the selected agencyId
@@ -632,6 +662,9 @@ export default function ExternalClients() {
       setSelectedCreateAmenities([]);
       setSelectedCreatePropertyTypes([]);
       setSelectedCreateZones([]);
+      setSelectedCreateCondominiums([]);
+      setSelectedCreateUnits([]);
+      setCreatePetQuantity(1);
       leadForm.reset();
     },
     onError: (error: any) => {
@@ -671,6 +704,12 @@ export default function ExternalClients() {
         desiredAmenities: selectedEditAmenities,
         desiredUnitType: selectedEditPropertyTypes.join(", ") || null,
         desiredNeighborhood: selectedEditZones.join(", ") || null,
+        interestedCondominiumIds: selectedEditCondominiums.length > 0 ? selectedEditCondominiums : null,
+        interestedUnitIds: selectedEditUnits.length > 0 ? selectedEditUnits : null,
+        petQuantity: editPetQuantity > 0 ? editPetQuantity : null,
+        // Convert budget values to strings for API (decimal fields)
+        budgetMin: data.budgetMin ? String(data.budgetMin) : undefined,
+        budgetMax: data.budgetMax ? String(data.budgetMax) : undefined,
       };
       const res = await apiRequest("PATCH", `/api/external-leads/${id}`, dataWithSelections);
       return res.json();
@@ -689,6 +728,9 @@ export default function ExternalClients() {
       setSelectedEditAmenities([]);
       setSelectedEditPropertyTypes([]);
       setSelectedEditZones([]);
+      setSelectedEditCondominiums([]);
+      setSelectedEditUnits([]);
+      setEditPetQuantity(1);
       editLeadForm.reset();
     },
     onError: (error: any) => {
@@ -2895,6 +2937,11 @@ export default function ExternalClients() {
                     // Initialize property types and zones from comma-separated string
                     setSelectedEditPropertyTypes(lead.desiredUnitType ? lead.desiredUnitType.split(", ").filter(Boolean) : []);
                     setSelectedEditZones(lead.desiredNeighborhood ? lead.desiredNeighborhood.split(", ").filter(Boolean) : []);
+                    // Initialize multi-select condominiums and units
+                    setSelectedEditCondominiums((lead as any).interestedCondominiumIds || []);
+                    setSelectedEditUnits((lead as any).interestedUnitIds || []);
+                    // Initialize pet quantity
+                    setEditPetQuantity((lead as any).petQuantity || 1);
                     setIsEditLeadDialogOpen(true);
                   }}
                   onDelete={(lead) => {
@@ -3074,6 +3121,9 @@ export default function ExternalClients() {
                                     setSelectedEditAmenities((lead as any).desiredAmenities || []);
                                     setSelectedEditPropertyTypes(lead.desiredUnitType ? lead.desiredUnitType.split(", ").filter(Boolean) : []);
                                     setSelectedEditZones(lead.desiredNeighborhood ? lead.desiredNeighborhood.split(", ").filter(Boolean) : []);
+                                    setSelectedEditCondominiums((lead as any).interestedCondominiumIds || []);
+                                    setSelectedEditUnits((lead as any).interestedUnitIds || []);
+                                    setEditPetQuantity((lead as any).petQuantity || 1);
                                     setIsEditLeadDialogOpen(true);
                                   }}
                                   data-testid={`button-edit-lead-${lead.id}`}
@@ -3169,6 +3219,9 @@ export default function ExternalClients() {
                                     setSelectedEditAmenities((lead as any).desiredAmenities || []);
                                     setSelectedEditPropertyTypes(lead.desiredUnitType ? lead.desiredUnitType.split(", ").filter(Boolean) : []);
                                     setSelectedEditZones(lead.desiredNeighborhood ? lead.desiredNeighborhood.split(", ").filter(Boolean) : []);
+                                    setSelectedEditCondominiums((lead as any).interestedCondominiumIds || []);
+                                    setSelectedEditUnits((lead as any).interestedUnitIds || []);
+                                    setEditPetQuantity((lead as any).petQuantity || 1);
                                     setIsEditLeadDialogOpen(true);
                                   }}
                                 >
@@ -3248,6 +3301,9 @@ export default function ExternalClients() {
                                   setSelectedEditAmenities((lead as any).desiredAmenities || []);
                                   setSelectedEditPropertyTypes(lead.desiredUnitType ? lead.desiredUnitType.split(", ").filter(Boolean) : []);
                                   setSelectedEditZones(lead.desiredNeighborhood ? lead.desiredNeighborhood.split(", ").filter(Boolean) : []);
+                                  setSelectedEditCondominiums((lead as any).interestedCondominiumIds || []);
+                                  setSelectedEditUnits((lead as any).interestedUnitIds || []);
+                                  setEditPetQuantity((lead as any).petQuantity || 1);
                                   setIsEditLeadDialogOpen(true);
                                 }}
                                 data-testid={`button-edit-lead-footer-${lead.id}`}
@@ -3716,7 +3772,14 @@ export default function ExternalClients() {
                           <PawPrint className="h-3.5 w-3.5 text-muted-foreground" />
                           {language === "es" ? "¿Tiene Mascotas?" : "Has Pets?"}
                         </FormLabel>
-                        <Select onValueChange={field.onChange} value={field.value || ""}>
+                        <Select onValueChange={(value) => {
+                          field.onChange(value);
+                          if (value === "No") {
+                            setCreatePetQuantity(0);
+                          } else if (createPetQuantity === 0) {
+                            setCreatePetQuantity(1);
+                          }
+                        }} value={field.value || ""}>
                           <FormControl>
                             <SelectTrigger data-testid="select-create-lead-pets">
                               <SelectValue placeholder={language === "es" ? "Seleccionar" : "Select"} />
@@ -3733,87 +3796,109 @@ export default function ExternalClients() {
                       </FormItem>
                     )}
                   />
+                  {leadForm.watch("hasPets") && leadForm.watch("hasPets") !== "No" && (
+                    <FormItem>
+                      <FormLabel className="flex items-center gap-2">
+                        <PawPrint className="h-3.5 w-3.5 text-muted-foreground" />
+                        {language === "es" ? "Cantidad de Mascotas" : "Number of Pets"}
+                      </FormLabel>
+                      <FormControl>
+                        <Input 
+                          type="number" 
+                          min={1} 
+                          max={10}
+                          value={createPetQuantity}
+                          onChange={(e) => setCreatePetQuantity(parseInt(e.target.value) || 1)}
+                          data-testid="input-create-lead-pet-quantity"
+                        />
+                      </FormControl>
+                    </FormItem>
+                  )}
                 </div>
                 
-                {/* Property Interest Selectors */}
-                <div className="grid gap-4 sm:grid-cols-2">
-                  <FormField
-                    control={leadForm.control}
-                    name="interestedCondominiumId"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel className="flex items-center gap-2">
-                          <Building2 className="h-3.5 w-3.5 text-muted-foreground" />
-                          {language === "es" ? "Condominio de Interés" : "Interested Condominium"}
-                        </FormLabel>
-                        <Select 
-                          onValueChange={(value) => {
-                            field.onChange(value);
-                            setCreateCondominiumId(value);
-                            leadForm.setValue("interestedUnitId", undefined);
-                          }} 
-                          value={field.value || ""}
-                        >
-                          <FormControl>
-                            <SelectTrigger data-testid="select-create-lead-condominium">
-                              <SelectValue placeholder={language === "es" ? "Seleccionar condominio" : "Select condominium"} />
-                            </SelectTrigger>
-                          </FormControl>
-                          <SelectContent>
-                            {condominiums.map((condo) => (
-                              <SelectItem key={condo.id} value={condo.id}>
-                                {condo.name} {condo.neighborhood ? `(${condo.neighborhood})` : ""}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                        <FormDescription className="text-xs">
-                          {language === "es" ? "Opcional: Seleccione un condominio específico" : "Optional: Select a specific condominium"}
-                        </FormDescription>
-                        <FormMessage />
-                      </FormItem>
+                {/* Property Interest Selectors - Multi-select */}
+                <div className="space-y-4">
+                  <FormItem>
+                    <FormLabel className="flex items-center gap-2">
+                      <Building2 className="h-3.5 w-3.5 text-muted-foreground" />
+                      {language === "es" ? "Condominios de Interés (múltiple)" : "Interested Condominiums (multiple)"}
+                    </FormLabel>
+                    <ScrollArea className="h-32 rounded-md border p-2">
+                      <div className="flex flex-wrap gap-1.5" data-testid="multiselect-create-lead-condominiums">
+                        {condominiums.map((condo) => (
+                          <Badge
+                            key={condo.id}
+                            variant={selectedCreateCondominiums.includes(condo.id) ? "default" : "outline"}
+                            className="cursor-pointer min-h-[28px] px-2"
+                            onClick={() => {
+                              setSelectedCreateCondominiums(prev => 
+                                prev.includes(condo.id) 
+                                  ? prev.filter(c => c !== condo.id) 
+                                  : [...prev, condo.id]
+                              );
+                            }}
+                            data-testid={`badge-create-condo-${condo.id}`}
+                          >
+                            {condo.name} {condo.neighborhood ? `(${condo.neighborhood})` : ""}
+                          </Badge>
+                        ))}
+                      </div>
+                    </ScrollArea>
+                    {selectedCreateCondominiums.length > 0 && (
+                      <p className="text-xs text-muted-foreground">
+                        {selectedCreateCondominiums.length} {language === "es" ? "seleccionado(s)" : "selected"}
+                      </p>
                     )}
-                  />
-                  <FormField
-                    control={leadForm.control}
-                    name="interestedUnitId"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel className="flex items-center gap-2">
-                          <Home className="h-3.5 w-3.5 text-muted-foreground" />
-                          {language === "es" ? "Unidad Específica" : "Specific Unit"}
-                        </FormLabel>
-                        <Select 
-                          onValueChange={field.onChange} 
-                          value={field.value || ""}
-                          disabled={!createCondominiumId || createUnits.length === 0}
-                        >
-                          <FormControl>
-                            <SelectTrigger data-testid="select-create-lead-unit">
-                              <SelectValue placeholder={
-                                !createCondominiumId 
-                                  ? (language === "es" ? "Primero seleccione condominio" : "First select condominium")
-                                  : createUnits.length === 0
-                                    ? (language === "es" ? "Sin unidades disponibles" : "No units available")
-                                    : (language === "es" ? "Seleccionar unidad" : "Select unit")
-                              } />
-                            </SelectTrigger>
-                          </FormControl>
-                          <SelectContent>
-                            {createUnits.map((unit) => (
-                              <SelectItem key={unit.id} value={unit.id}>
-                                {unit.unitNumber} {unit.type ? `(${unit.type})` : ""}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                        <FormDescription className="text-xs">
-                          {language === "es" ? "Opcional: Seleccione una unidad específica" : "Optional: Select a specific unit"}
-                        </FormDescription>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
+                    <FormDescription className="text-xs">
+                      {language === "es" ? "Opcional: Seleccione uno o más condominios de interés" : "Optional: Select one or more interested condominiums"}
+                    </FormDescription>
+                  </FormItem>
+                  
+                  {selectedCreateCondominiums.length > 0 && (
+                    <FormItem>
+                      <FormLabel className="flex items-center gap-2">
+                        <Home className="h-3.5 w-3.5 text-muted-foreground" />
+                        {language === "es" ? "Unidades Específicas (múltiple)" : "Specific Units (multiple)"}
+                      </FormLabel>
+                      <ScrollArea className="h-32 rounded-md border p-2">
+                        <div className="flex flex-wrap gap-1.5" data-testid="multiselect-create-lead-units">
+                          {createUnits.map((unit) => {
+                            const condo = condominiums.find(c => c.id === unit.condominiumId);
+                            return (
+                              <Badge
+                                key={unit.id}
+                                variant={selectedCreateUnits.includes(unit.id) ? "default" : "outline"}
+                                className="cursor-pointer min-h-[28px] px-2"
+                                onClick={() => {
+                                  setSelectedCreateUnits(prev => 
+                                    prev.includes(unit.id) 
+                                      ? prev.filter(u => u !== unit.id) 
+                                      : [...prev, unit.id]
+                                  );
+                                }}
+                                data-testid={`badge-create-unit-${unit.id}`}
+                              >
+                                {condo?.name || ''} - {unit.unitNumber}
+                              </Badge>
+                            );
+                          })}
+                          {createUnits.length === 0 && (
+                            <p className="text-xs text-muted-foreground p-2">
+                              {language === "es" ? "Cargando unidades..." : "Loading units..."}
+                            </p>
+                          )}
+                        </div>
+                      </ScrollArea>
+                      {selectedCreateUnits.length > 0 && (
+                        <p className="text-xs text-muted-foreground">
+                          {selectedCreateUnits.length} {language === "es" ? "seleccionado(s)" : "selected"}
+                        </p>
+                      )}
+                      <FormDescription className="text-xs">
+                        {language === "es" ? "Opcional: Seleccione una o más unidades específicas" : "Optional: Select one or more specific units"}
+                      </FormDescription>
+                    </FormItem>
+                  )}
                 </div>
               </div>
 
@@ -4564,7 +4649,14 @@ export default function ExternalClients() {
                           <PawPrint className="h-3.5 w-3.5 text-muted-foreground" />
                           {language === "es" ? "¿Tiene Mascotas?" : "Has Pets?"}
                         </FormLabel>
-                        <Select onValueChange={field.onChange} value={field.value || ""}>
+                        <Select onValueChange={(value) => {
+                          field.onChange(value);
+                          if (value === "No") {
+                            setEditPetQuantity(0);
+                          } else if (editPetQuantity === 0) {
+                            setEditPetQuantity(1);
+                          }
+                        }} value={field.value || ""}>
                           <FormControl>
                             <SelectTrigger data-testid="select-edit-lead-pets">
                               <SelectValue placeholder={language === "es" ? "Seleccionar" : "Select"} />
@@ -4581,7 +4673,114 @@ export default function ExternalClients() {
                       </FormItem>
                     )}
                   />
+                  {editLeadForm.watch("hasPets") && editLeadForm.watch("hasPets") !== "No" && (
+                    <FormItem>
+                      <FormLabel className="flex items-center gap-2">
+                        <PawPrint className="h-3.5 w-3.5 text-muted-foreground" />
+                        {language === "es" ? "Cantidad de Mascotas" : "Number of Pets"}
+                      </FormLabel>
+                      <FormControl>
+                        <Input 
+                          type="number" 
+                          min={1} 
+                          max={10}
+                          value={editPetQuantity}
+                          onChange={(e) => setEditPetQuantity(parseInt(e.target.value) || 1)}
+                          data-testid="input-edit-lead-pet-quantity"
+                        />
+                      </FormControl>
+                    </FormItem>
+                  )}
                 </div>
+              </div>
+
+              {/* Property Interest Selectors - Multi-select */}
+              <div className="space-y-4 pt-4 border-t">
+                <h3 className="text-sm font-semibold flex items-center gap-2">
+                  <Building2 className="h-4 w-4" />
+                  {language === "es" ? "Propiedades de Interés" : "Interested Properties"}
+                </h3>
+                <FormItem>
+                  <FormLabel className="flex items-center gap-2">
+                    <Building2 className="h-3.5 w-3.5 text-muted-foreground" />
+                    {language === "es" ? "Condominios de Interés (múltiple)" : "Interested Condominiums (multiple)"}
+                  </FormLabel>
+                  <ScrollArea className="h-32 rounded-md border p-2">
+                    <div className="flex flex-wrap gap-1.5" data-testid="multiselect-edit-lead-condominiums">
+                      {condominiums.map((condo) => (
+                        <Badge
+                          key={condo.id}
+                          variant={selectedEditCondominiums.includes(condo.id) ? "default" : "outline"}
+                          className="cursor-pointer min-h-[28px] px-2"
+                          onClick={() => {
+                            setSelectedEditCondominiums(prev => 
+                              prev.includes(condo.id) 
+                                ? prev.filter(c => c !== condo.id) 
+                                : [...prev, condo.id]
+                            );
+                          }}
+                          data-testid={`badge-edit-condo-${condo.id}`}
+                        >
+                          {condo.name} {condo.neighborhood ? `(${condo.neighborhood})` : ""}
+                        </Badge>
+                      ))}
+                    </div>
+                  </ScrollArea>
+                  {selectedEditCondominiums.length > 0 && (
+                    <p className="text-xs text-muted-foreground">
+                      {selectedEditCondominiums.length} {language === "es" ? "seleccionado(s)" : "selected"}
+                    </p>
+                  )}
+                  <FormDescription className="text-xs">
+                    {language === "es" ? "Opcional: Seleccione uno o más condominios de interés" : "Optional: Select one or more interested condominiums"}
+                  </FormDescription>
+                </FormItem>
+                
+                {selectedEditCondominiums.length > 0 && (
+                  <FormItem>
+                    <FormLabel className="flex items-center gap-2">
+                      <Home className="h-3.5 w-3.5 text-muted-foreground" />
+                      {language === "es" ? "Unidades Específicas (múltiple)" : "Specific Units (multiple)"}
+                    </FormLabel>
+                    <ScrollArea className="h-32 rounded-md border p-2">
+                      <div className="flex flex-wrap gap-1.5" data-testid="multiselect-edit-lead-units">
+                        {editUnits.map((unit) => {
+                          const condo = condominiums.find(c => c.id === unit.condominiumId);
+                          return (
+                            <Badge
+                              key={unit.id}
+                              variant={selectedEditUnits.includes(unit.id) ? "default" : "outline"}
+                              className="cursor-pointer min-h-[28px] px-2"
+                              onClick={() => {
+                                setSelectedEditUnits(prev => 
+                                  prev.includes(unit.id) 
+                                    ? prev.filter(u => u !== unit.id) 
+                                    : [...prev, unit.id]
+                                );
+                              }}
+                              data-testid={`badge-edit-unit-${unit.id}`}
+                            >
+                              {condo?.name || ''} - {unit.unitNumber}
+                            </Badge>
+                          );
+                        })}
+                        {editUnits.length === 0 && (
+                          <p className="text-xs text-muted-foreground p-2">
+                            {language === "es" ? "Cargando unidades..." : "Loading units..."}
+                          </p>
+                        )}
+                      </div>
+                    </ScrollArea>
+                    {selectedEditUnits.length > 0 && (
+                      <p className="text-xs text-muted-foreground">
+                        {selectedEditUnits.length} {language === "es" ? "seleccionado(s)" : "selected"}
+                      </p>
+                    )}
+                    <FormDescription className="text-xs">
+                      {language === "es" ? "Opcional: Seleccione una o más unidades específicas" : "Optional: Select one or more specific units"}
+                    </FormDescription>
+                  </FormItem>
+                )}
               </div>
 
               {/* Characteristics & Amenities Section */}
@@ -5089,6 +5288,9 @@ export default function ExternalClients() {
                   setSelectedEditAmenities((selectedLead as any).desiredAmenities || []);
                   setSelectedEditPropertyTypes(selectedLead.desiredUnitType ? selectedLead.desiredUnitType.split(", ").filter(Boolean) : []);
                   setSelectedEditZones(selectedLead.desiredNeighborhood ? selectedLead.desiredNeighborhood.split(", ").filter(Boolean) : []);
+                  setSelectedEditCondominiums((selectedLead as any).interestedCondominiumIds || []);
+                  setSelectedEditUnits((selectedLead as any).interestedUnitIds || []);
+                  setEditPetQuantity((selectedLead as any).petQuantity || 1);
                   setIsEditLeadDialogOpen(true);
                 }
               }}
