@@ -10,7 +10,7 @@ import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
-import { Eye, EyeOff } from "lucide-react";
+import { Eye, EyeOff, ArrowLeft } from "lucide-react";
 import { userLoginSchema } from "@shared/schema";
 import logoIcon from "@assets/H mes (500 x 300 px)_1759672952263.png";
 import { useLanguage } from "@/contexts/LanguageContext";
@@ -80,12 +80,24 @@ export default function Login() {
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-background via-background to-accent/10 p-4">
+      <div className="absolute top-4 left-4">
+        <Button
+          variant="ghost"
+          size="sm"
+          className="gap-2"
+          onClick={() => setLocation("/")}
+          data-testid="button-back-home"
+        >
+          <ArrowLeft className="h-4 w-4" />
+          <span className="hidden sm:inline">{t("login.backToHome") || "Inicio"}</span>
+        </Button>
+      </div>
       <div className="absolute top-4 right-4">
         <LanguageToggle />
       </div>
       <Card className="w-full max-w-md">
         <CardHeader className="space-y-2 text-center">
-          <div className="flex justify-center mb-4">
+          <div className="flex justify-center mb-4 cursor-pointer" onClick={() => setLocation("/")}>
             <img src={logoIcon} alt="HomesApp" className="h-16 w-auto" data-testid="img-logo" />
           </div>
           <CardTitle className="text-2xl">{t("login.title")}</CardTitle>
