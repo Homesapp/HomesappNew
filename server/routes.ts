@@ -31379,13 +31379,13 @@ ${{precio}}/mes
         let location = "Tulum, Quintana Roo";
         if (unit.condominiumId) {
           const condos = await db
-            .select({ name: externalCondominiums.name, neighborhood: externalCondominiums.neighborhood })
+            .select({ name: externalCondominiums.name, zone: externalCondominiums.zone })
             .from(externalCondominiums)
             .where(eq(externalCondominiums.id, unit.condominiumId))
             .limit(1);
           if (condos.length > 0) {
             const condo = condos[0];
-            location = condo.neighborhood ? `${condo.name}, ${condo.neighborhood}` : condo.name;
+            location = condo.zone ? `${condo.name}, ${condo.zone}` : condo.name;
           }
         }
         
