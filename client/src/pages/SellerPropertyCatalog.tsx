@@ -1,6 +1,7 @@
 import { useState, useMemo, useEffect, useRef } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { useTranslation } from "@/hooks/useTranslation";
+import { useMobile } from "@/hooks/use-mobile";
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -363,6 +364,7 @@ const SAMPLE_UNITS: Unit[] = [
 export default function SellerPropertyCatalog() {
   const { t } = useTranslation();
   const { toast } = useToast();
+  const isMobile = useMobile();
 
   const [search, setSearch] = useState("");
   const [leadSearch, setLeadSearch] = useState("");
@@ -380,7 +382,7 @@ export default function SellerPropertyCatalog() {
   const [matchingLeadsOpen, setMatchingLeadsOpen] = useState(false);
   const [customMessage, setCustomMessage] = useState("");
   const [selectedLead, setSelectedLead] = useState<Lead | null>(null);
-  const [showLeadPanel, setShowLeadPanel] = useState(true);
+  const [showLeadPanel, setShowLeadPanel] = useState(false);
   const [viewMode, setViewMode] = useState<"grid" | "table">("grid");
   const [selectedUnits, setSelectedUnits] = useState<Set<string>>(new Set());
   const [bulkShareDialogOpen, setBulkShareDialogOpen] = useState(false);
@@ -1075,81 +1077,71 @@ export default function SellerPropertyCatalog() {
 
       <div className="flex flex-1 flex-col overflow-hidden">
         <div className="flex-shrink-0 border-b bg-background p-3 sm:p-4">
-          <div className="mb-3 sm:mb-4 flex flex-wrap items-center justify-between gap-2 sm:gap-4">
-            <div className="flex items-center gap-2">
-              {!showLeadPanel && (
-                <Button 
-                  variant="outline" 
-                  size="sm" 
-                  onClick={() => setShowLeadPanel(true)}
-                  className="gap-1 h-9"
-                  data-testid="button-show-leads"
-                >
-                  <Users className="h-4 w-4" />
-                  <span className="hidden sm:inline">Leads</span>
-                </Button>
-              )}
-              <div>
-                <h1 className="text-lg sm:text-xl font-bold" data-testid="text-page-title">
-                  {t("sellerCatalog.title", "Catálogo de Propiedades")}
-                </h1>
-                {selectedLead && (
-                  <p className="text-xs sm:text-sm text-muted-foreground">
-                    Propiedades para <span className="font-medium text-primary">{selectedLead.firstName} {selectedLead.lastName}</span>
-                  </p>
-                )}
+          {/* Mobile: Compact header with title and controls in one row */}
+          {isMobile ? (
+            <div className="space-y-3">
+              {/* Title row with leads toggle */}
+              <div className="flex items-center justify-between gap-2">
+                <div className="flex items-center gap-2 min-w-0">
+                  <Button 
+                    variant={showLeadPanel ? "default" : "outline"} 
+                    size="icon" 
+                    className="h-9 w-9 flex-shrink-0"
+                    onClick={() => setShowLeadPanel(!showLeadPanel)}
+                    data-testid="button-toggle-leads"
+                  >
+                    <Users className="h-4 w-4" />
+                  </Button>
+                  <h1 className="text-base font-bold truncate" data-testid="text-page-title">
+                    Catálogo
+                  </h1>
+                  <Badge variant="secondary" className="text-xs flex-shrink-0">
+                    {catalogData?.total || 0}
+                  </Badge>
+                </div>
+                {/* View mode toggle */}
+                <div className="flex border rounded-md overflow-hidden flex-shrink-0">
+                  <Button 
+                    variant={viewMode === "grid" ? "default" : "ghost"} 
+                    size="icon" 
+                    className="h-9 w-9 rounded-none"
+                    onClick={() => setViewMode("grid")}
+                  >
+                    <LayoutGrid className="h-4 w-4" />
+                  </Button>
+                  <Button 
+                    variant={viewMode === "table" ? "default" : "ghost"} 
+                    size="icon" 
+                    className="h-9 w-9 rounded-none"
+                    onClick={() => setViewMode("table")}
+                  >
+                    <LayoutList className="h-4 w-4" />
+                  </Button>
+                </div>
               </div>
-            </div>
-            <div className="flex items-center gap-2">
-              <Badge variant="secondary" className="text-xs sm:text-sm">
-                {catalogData?.total || 0} propiedades
-              </Badge>
-              <div className="flex border rounded-md overflow-hidden">
-                <Button 
-                  variant={viewMode === "grid" ? "default" : "ghost"} 
-                  size="icon" 
-                  className="h-9 w-9 rounded-none"
-                  onClick={() => setViewMode("grid")}
-                >
-                  <LayoutGrid className="h-4 w-4" />
-                </Button>
-                <Button 
-                  variant={viewMode === "table" ? "default" : "ghost"} 
-                  size="icon" 
-                  className="h-9 w-9 rounded-none"
-                  onClick={() => setViewMode("table")}
-                >
-                  <LayoutList className="h-4 w-4" />
-                </Button>
-              </div>
-            </div>
-          </div>
 
-          <div className="flex flex-wrap items-center gap-2 sm:gap-3">
-            <div className="relative flex-1 min-w-[150px] sm:min-w-[200px]">
-              <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-              <Input
-                placeholder={t("sellerCatalog.searchPlaceholder", "Buscar propiedad...")}
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
-                className="pl-10 h-10"
-                data-testid="input-search"
-              />
-            </div>
-
-            <Popover open={filtersOpen} onOpenChange={setFiltersOpen}>
-              <PopoverTrigger asChild>
-                <Button variant="outline" className="gap-2 h-10" data-testid="button-filters">
-                  <SlidersHorizontal className="h-4 w-4" />
-                  <span className="hidden sm:inline">Filtros</span>
-                  {hasActiveFilters && (
-                    <Badge variant="default" className="ml-1 h-5 w-5 rounded-full p-0 text-xs">
-                      {Object.values(filters).filter((v) => v && v !== "active").length}
-                    </Badge>
-                  )}
-                </Button>
-              </PopoverTrigger>
-              <PopoverContent className="w-80" align="end">
+              {/* Search + Filter row */}
+              <div className="flex items-center gap-2">
+                <div className="relative flex-1">
+                  <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                  <Input
+                    placeholder="Buscar..."
+                    value={search}
+                    onChange={(e) => setSearch(e.target.value)}
+                    className="pl-10 h-10"
+                    data-testid="input-search"
+                  />
+                </div>
+                <Popover open={filtersOpen} onOpenChange={setFiltersOpen}>
+                  <PopoverTrigger asChild>
+                    <Button variant="outline" size="icon" className="h-10 w-10 relative flex-shrink-0" data-testid="button-filters">
+                      <SlidersHorizontal className="h-4 w-4" />
+                      {hasActiveFilters && (
+                        <span className="absolute -top-1 -right-1 h-3 w-3 bg-primary rounded-full" />
+                      )}
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-72" align="end">
                 <div className="space-y-4">
                   <div className="flex items-center justify-between">
                     <h4 className="font-medium">Filtrar propiedades</h4>
@@ -1288,62 +1280,308 @@ export default function SellerPropertyCatalog() {
                 <span className="sm:hidden">{selectedUnits.size}</span>
               </Button>
             )}
-          </div>
-        </div>
-
-        {/* Pagination Controls - Admin Style at Top */}
-        {!isLoading && totalUnits > 0 && (
-          <div className="flex flex-col sm:flex-row items-center justify-between gap-3 px-3 sm:px-4 py-3 border-b bg-muted/30">
-            <div className="flex items-center gap-2">
-              <span className="text-sm text-muted-foreground">Mostrar</span>
-              <Select
-                value={String(itemsPerPage)}
-                onValueChange={(val) => {
-                  setItemsPerPage(Number(val));
-                  setPage(1);
-                }}
-              >
-                <SelectTrigger className="w-[70px] h-9" data-testid="select-items-per-page">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="10">10</SelectItem>
-                  <SelectItem value="20">20</SelectItem>
-                  <SelectItem value="30">30</SelectItem>
-                  <SelectItem value="50">50</SelectItem>
-                </SelectContent>
-              </Select>
-              <span className="text-sm text-muted-foreground">por página</span>
-            </div>
-            
-            <div className="flex items-center gap-2">
-              <span className="text-sm text-muted-foreground">
-                Página {page} de {totalPages || 1}
-              </span>
-              <div className="flex items-center">
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  onClick={() => setPage(p => Math.max(1, p - 1))}
-                  disabled={page === 1 || isFetching}
-                  className="h-9 w-9"
-                  data-testid="button-prev-page"
-                >
-                  <ChevronLeft className="h-4 w-4" />
-                </Button>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  onClick={() => setPage(p => Math.min(totalPages || 1, p + 1))}
-                  disabled={page === totalPages || totalPages === 0 || isFetching}
-                  className="h-9 w-9"
-                  data-testid="button-next-page"
-                >
-                  <ChevronRight className="h-4 w-4" />
-                </Button>
               </div>
             </div>
-          </div>
+          ) : (
+            <>
+              {/* Desktop: Original layout */}
+              <div className="mb-3 sm:mb-4 flex flex-wrap items-center justify-between gap-2 sm:gap-4">
+                <div className="flex items-center gap-2">
+                  {!showLeadPanel && (
+                    <Button 
+                      variant="outline" 
+                      size="sm" 
+                      onClick={() => setShowLeadPanel(true)}
+                      className="gap-1 h-9"
+                      data-testid="button-show-leads"
+                    >
+                      <Users className="h-4 w-4" />
+                      <span>Leads</span>
+                    </Button>
+                  )}
+                  <div>
+                    <h1 className="text-lg sm:text-xl font-bold" data-testid="text-page-title">
+                      {t("sellerCatalog.title", "Catálogo de Propiedades")}
+                    </h1>
+                    {selectedLead && (
+                      <p className="text-xs sm:text-sm text-muted-foreground">
+                        Propiedades para <span className="font-medium text-primary">{selectedLead.firstName} {selectedLead.lastName}</span>
+                      </p>
+                    )}
+                  </div>
+                </div>
+                <div className="flex items-center gap-2">
+                  <Badge variant="secondary" className="text-xs sm:text-sm">
+                    {catalogData?.total || 0} propiedades
+                  </Badge>
+                  <div className="flex border rounded-md overflow-hidden">
+                    <Button 
+                      variant={viewMode === "grid" ? "default" : "ghost"} 
+                      size="icon" 
+                      className="h-9 w-9 rounded-none"
+                      onClick={() => setViewMode("grid")}
+                    >
+                      <LayoutGrid className="h-4 w-4" />
+                    </Button>
+                    <Button 
+                      variant={viewMode === "table" ? "default" : "ghost"} 
+                      size="icon" 
+                      className="h-9 w-9 rounded-none"
+                      onClick={() => setViewMode("table")}
+                    >
+                      <LayoutList className="h-4 w-4" />
+                    </Button>
+                  </div>
+                </div>
+              </div>
+
+              <div className="flex flex-wrap items-center gap-2 sm:gap-3">
+                <div className="relative flex-1 min-w-[150px] sm:min-w-[200px]">
+                  <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                  <Input
+                    placeholder={t("sellerCatalog.searchPlaceholder", "Buscar propiedad...")}
+                    value={search}
+                    onChange={(e) => setSearch(e.target.value)}
+                    className="pl-10 h-10"
+                    data-testid="input-search"
+                  />
+                </div>
+
+                <Popover open={filtersOpen} onOpenChange={setFiltersOpen}>
+                  <PopoverTrigger asChild>
+                    <Button variant="outline" className="gap-2 h-10" data-testid="button-filters">
+                      <SlidersHorizontal className="h-4 w-4" />
+                      <span>Filtros</span>
+                      {hasActiveFilters && (
+                        <Badge variant="default" className="ml-1 h-5 w-5 rounded-full p-0 text-xs">
+                          {Object.values(filters).filter((v) => v && v !== "active").length}
+                        </Badge>
+                      )}
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-80" align="end">
+                    <div className="space-y-4">
+                      <div className="flex items-center justify-between">
+                        <h4 className="font-medium">Filtrar propiedades</h4>
+                        {hasActiveFilters && (
+                          <Button variant="ghost" size="sm" onClick={clearFilters}>
+                            <X className="mr-1 h-3 w-3" />
+                            Limpiar
+                          </Button>
+                        )}
+                      </div>
+
+                      <div className="space-y-3">
+                        <div className="grid grid-cols-2 gap-2">
+                          <div>
+                            <Label className="text-xs">Precio mín</Label>
+                            <Input
+                              type="number"
+                              placeholder="0"
+                              value={filters.minPrice}
+                              onChange={(e) => setFilters({ ...filters, minPrice: e.target.value })}
+                              data-testid="input-min-price"
+                            />
+                          </div>
+                          <div>
+                            <Label className="text-xs">Precio máx</Label>
+                            <Input
+                              type="number"
+                              placeholder="100000"
+                              value={filters.maxPrice}
+                              onChange={(e) => setFilters({ ...filters, maxPrice: e.target.value })}
+                              data-testid="input-max-price"
+                            />
+                          </div>
+                        </div>
+
+                        <div>
+                          <Label className="text-xs">Recámaras</Label>
+                          <Select
+                            value={filters.bedrooms}
+                            onValueChange={(v) => setFilters({ ...filters, bedrooms: v })}
+                          >
+                            <SelectTrigger data-testid="select-bedrooms">
+                              <SelectValue placeholder="Cualquiera" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="_all">Cualquiera</SelectItem>
+                              <SelectItem value="1">1</SelectItem>
+                              <SelectItem value="2">2</SelectItem>
+                              <SelectItem value="3">3</SelectItem>
+                              <SelectItem value="4">4+</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        </div>
+
+                        <div>
+                          <Label className="text-xs">Zona</Label>
+                          <Select
+                            value={filters.zone}
+                            onValueChange={(v) => setFilters({ ...filters, zone: v })}
+                          >
+                            <SelectTrigger data-testid="select-zone">
+                              <SelectValue placeholder="Todas las zonas" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="_all">Todas las zonas</SelectItem>
+                              {zones?.map((zone) => (
+                                <SelectItem key={zone.id} value={zone.name}>
+                                  {zone.name}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        </div>
+
+                        <div>
+                          <Label className="text-xs">Tipo de propiedad</Label>
+                          <Select
+                            value={filters.propertyType}
+                            onValueChange={(v) => setFilters({ ...filters, propertyType: v })}
+                          >
+                            <SelectTrigger data-testid="select-property-type">
+                              <SelectValue placeholder="Todos los tipos" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="_all">Todos los tipos</SelectItem>
+                              {propertyTypes?.map((type) => (
+                                <SelectItem key={type.id} value={type.name}>
+                                  {type.name}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        </div>
+
+                        <div>
+                          <Label className="text-xs">Estado</Label>
+                          <Select
+                            value={filters.status}
+                            onValueChange={(v) => setFilters({ ...filters, status: v })}
+                          >
+                            <SelectTrigger data-testid="select-status">
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="active">Disponible</SelectItem>
+                              <SelectItem value="rented">Rentada</SelectItem>
+                              <SelectItem value="_all">Todas</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        </div>
+                      </div>
+
+                      <Button onClick={() => setFiltersOpen(false)} className="w-full h-10">
+                        Aplicar filtros
+                      </Button>
+                    </div>
+                  </PopoverContent>
+                </Popover>
+
+                {selectedLead && (
+                  <Button variant="outline" size="sm" onClick={clearFilters} className="gap-1 h-10">
+                    <X className="h-3 w-3" />
+                    <span>Quitar filtros de {selectedLead.firstName}</span>
+                  </Button>
+                )}
+
+                {viewMode === "table" && selectedUnits.size > 0 && (
+                  <Button 
+                    onClick={handleOpenBulkShare} 
+                    className="gap-2 h-10"
+                    data-testid="button-bulk-share"
+                  >
+                    <SiWhatsapp className="h-4 w-4" />
+                    <span>Enviar {selectedUnits.size} propiedades</span>
+                  </Button>
+                )}
+              </div>
+            </>
+          )}
+        </div>
+
+        {/* Pagination Controls - Compact for Mobile */}
+        {!isLoading && totalUnits > 0 && (
+          isMobile ? (
+            <div className="flex items-center justify-between px-3 py-2 border-b bg-muted/30">
+              <Button
+                variant="outline"
+                size="icon"
+                onClick={() => setPage(p => Math.max(1, p - 1))}
+                disabled={page === 1 || isFetching}
+                className="h-9 w-9"
+                data-testid="button-prev-page"
+              >
+                <ChevronLeft className="h-4 w-4" />
+              </Button>
+              <span className="text-xs text-muted-foreground">
+                {page}/{totalPages || 1}
+              </span>
+              <Button
+                variant="outline"
+                size="icon"
+                onClick={() => setPage(p => Math.min(totalPages || 1, p + 1))}
+                disabled={page === totalPages || totalPages === 0 || isFetching}
+                className="h-9 w-9"
+                data-testid="button-next-page"
+              >
+                <ChevronRight className="h-4 w-4" />
+              </Button>
+            </div>
+          ) : (
+            <div className="flex flex-col sm:flex-row items-center justify-between gap-3 px-3 sm:px-4 py-3 border-b bg-muted/30">
+              <div className="flex items-center gap-2">
+                <span className="text-sm text-muted-foreground">Mostrar</span>
+                <Select
+                  value={String(itemsPerPage)}
+                  onValueChange={(val) => {
+                    setItemsPerPage(Number(val));
+                    setPage(1);
+                  }}
+                >
+                  <SelectTrigger className="w-[70px] h-9" data-testid="select-items-per-page">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="10">10</SelectItem>
+                    <SelectItem value="20">20</SelectItem>
+                    <SelectItem value="30">30</SelectItem>
+                    <SelectItem value="50">50</SelectItem>
+                  </SelectContent>
+                </Select>
+                <span className="text-sm text-muted-foreground">por página</span>
+              </div>
+              
+              <div className="flex items-center gap-2">
+                <span className="text-sm text-muted-foreground">
+                  Página {page} de {totalPages || 1}
+                </span>
+                <div className="flex items-center">
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    onClick={() => setPage(p => Math.max(1, p - 1))}
+                    disabled={page === 1 || isFetching}
+                    className="h-9 w-9"
+                    data-testid="button-prev-page"
+                  >
+                    <ChevronLeft className="h-4 w-4" />
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    onClick={() => setPage(p => Math.min(totalPages || 1, p + 1))}
+                    disabled={page === totalPages || totalPages === 0 || isFetching}
+                    className="h-9 w-9"
+                    data-testid="button-next-page"
+                  >
+                    <ChevronRight className="h-4 w-4" />
+                  </Button>
+                </div>
+              </div>
+            </div>
+          )
         )}
 
         <ScrollArea className="flex-1 p-3 sm:p-4">
