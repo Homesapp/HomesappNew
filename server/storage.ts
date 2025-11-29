@@ -11034,8 +11034,8 @@ export class DatabaseStorage implements IStorage {
         condoName: externalCondominiums.name,
         clientFirstName: externalClients.firstName,
         clientLastName: externalClients.lastName,
-        ownerFirstName: externalOwners.firstName,
-        ownerLastName: externalOwners.lastName,
+        ownerFirstName: externalUnitOwners.firstName,
+        ownerLastName: externalUnitOwners.lastName,
         creatorFirstName: users.firstName,
         creatorLastName: users.lastName,
       })
@@ -11043,7 +11043,7 @@ export class DatabaseStorage implements IStorage {
       .innerJoin(externalUnits, eq(tenantRentalFormTokens.externalUnitId, externalUnits.id))
       .innerJoin(externalCondominiums, eq(externalUnits.condominiumId, externalCondominiums.id))
       .leftJoin(externalClients, eq(tenantRentalFormTokens.externalClientId, externalClients.id))
-      .leftJoin(externalOwners, eq(tenantRentalFormTokens.externalOwnerId, externalOwners.id))
+      .leftJoin(externalUnitOwners, eq(tenantRentalFormTokens.externalOwnerId, externalUnitOwners.id))
       .leftJoin(users, eq(tenantRentalFormTokens.createdBy, users.id))
       .where(eq(externalCondominiums.agencyId, agencyId));
 
@@ -11066,15 +11066,15 @@ export class DatabaseStorage implements IStorage {
         condoName: sql<string | null>`NULL`.as('condoName'),
         clientFirstName: externalClients.firstName,
         clientLastName: externalClients.lastName,
-        ownerFirstName: externalOwners.firstName,
-        ownerLastName: externalOwners.lastName,
+        ownerFirstName: externalUnitOwners.firstName,
+        ownerLastName: externalUnitOwners.lastName,
         creatorFirstName: users.firstName,
         creatorLastName: users.lastName,
       })
       .from(tenantRentalFormTokens)
       .innerJoin(users, eq(tenantRentalFormTokens.createdBy, users.id))
       .leftJoin(externalClients, eq(tenantRentalFormTokens.externalClientId, externalClients.id))
-      .leftJoin(externalOwners, eq(tenantRentalFormTokens.externalOwnerId, externalOwners.id))
+      .leftJoin(externalUnitOwners, eq(tenantRentalFormTokens.externalOwnerId, externalUnitOwners.id))
       .where(
         and(
           isNull(tenantRentalFormTokens.externalUnitId),
