@@ -143,6 +143,8 @@ import { ExternalPaginationControls } from "@/components/external/ExternalPagina
 import LeadKanbanView from "@/components/external/LeadKanbanView";
 import LeadCRMTabs from "@/components/external/LeadCRMTabs";
 import ClientCRMTabs from "@/components/external/ClientCRMTabs";
+import { SearchableSelect, type SelectOption } from "@/components/ui/searchable-select";
+import { SearchableMultiSelect, type MultiSelectOption } from "@/components/ui/searchable-multi-select";
 
 type ClientFormData = z.infer<typeof insertExternalClientSchema>;
 
@@ -3767,45 +3769,22 @@ export default function ExternalClients() {
                       <Home className="h-3.5 w-3.5 text-muted-foreground" />
                       {language === "es" ? "Tipo de Propiedad" : "Property Type"}
                     </FormLabel>
-                    <Popover>
-                      <PopoverTrigger asChild>
-                        <Button variant="outline" className="w-full justify-between" data-testid="multiselect-create-lead-unittype">
-                          {selectedCreatePropertyTypes.length > 0 
-                            ? `${selectedCreatePropertyTypes.length} ${language === "es" ? "seleccionado(s)" : "selected"}`
-                            : (language === "es" ? "Seleccionar tipos..." : "Select types...")}
-                          <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
-                        </Button>
-                      </PopoverTrigger>
-                      <PopoverContent className="w-[250px] p-2" align="start">
-                        <div className="space-y-1">
-                          {(activePropertyTypes.length > 0 ? activePropertyTypes : [
-                            { id: "dept", name: language === "es" ? "Departamento" : "Apartment" },
-                            { id: "casa", name: language === "es" ? "Casa" : "House" },
-                            { id: "estudio", name: language === "es" ? "Estudio" : "Studio" },
-                            { id: "ph", name: "PH / Penthouse" },
-                            { id: "villa", name: "Villa" },
-                          ]).map((pt) => (
-                            <div
-                              key={pt.id}
-                              className="flex items-center gap-2 p-2 rounded hover:bg-muted cursor-pointer"
-                              onClick={() => {
-                                setSelectedCreatePropertyTypes(prev => 
-                                  prev.includes(pt.name) 
-                                    ? prev.filter(t => t !== pt.name) 
-                                    : [...prev, pt.name]
-                                );
-                              }}
-                              data-testid={`checkbox-create-propertytype-${pt.name.toLowerCase().replace(/[^a-z]/g, '-')}`}
-                            >
-                              <div className={cn("h-4 w-4 rounded border flex items-center justify-center", selectedCreatePropertyTypes.includes(pt.name) ? "bg-primary border-primary" : "border-input")}>
-                                {selectedCreatePropertyTypes.includes(pt.name) && <Check className="h-3 w-3 text-primary-foreground" />}
-                              </div>
-                              <span className="text-sm">{pt.name}</span>
-                            </div>
-                          ))}
-                        </div>
-                      </PopoverContent>
-                    </Popover>
+                    <SearchableMultiSelect
+                      value={selectedCreatePropertyTypes}
+                      onValueChange={setSelectedCreatePropertyTypes}
+                      options={(activePropertyTypes.length > 0 ? activePropertyTypes : [
+                        { id: "dept", name: language === "es" ? "Departamento" : "Apartment" },
+                        { id: "casa", name: language === "es" ? "Casa" : "House" },
+                        { id: "estudio", name: language === "es" ? "Estudio" : "Studio" },
+                        { id: "ph", name: "PH / Penthouse" },
+                        { id: "villa", name: "Villa" },
+                      ]).map((pt) => ({ value: pt.name, label: pt.name }))}
+                      placeholder={language === "es" ? "Seleccionar tipos..." : "Select types..."}
+                      searchPlaceholder={language === "es" ? "Buscar tipo..." : "Search type..."}
+                      emptyMessage={language === "es" ? "No se encontraron tipos." : "No types found."}
+                      showSelectedBelow={false}
+                      data-testid="multiselect-create-lead-unittype"
+                    />
                   </FormItem>
                 </div>
 
@@ -3815,44 +3794,21 @@ export default function ExternalClients() {
                       <MapPin className="h-3.5 w-3.5 text-muted-foreground" />
                       {language === "es" ? "Zona / Colonia" : "Area"}
                     </FormLabel>
-                    <Popover>
-                      <PopoverTrigger asChild>
-                        <Button variant="outline" className="w-full justify-between" data-testid="multiselect-create-lead-neighborhood">
-                          {selectedCreateZones.length > 0 
-                            ? `${selectedCreateZones.length} ${language === "es" ? "seleccionado(s)" : "selected"}`
-                            : (language === "es" ? "Seleccionar zonas..." : "Select areas...")}
-                          <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
-                        </Button>
-                      </PopoverTrigger>
-                      <PopoverContent className="w-[250px] p-2" align="start">
-                        <div className="space-y-1">
-                          {(activeZones.length > 0 ? activeZones : [
-                            { id: "aldea", name: "Aldea Zama" },
-                            { id: "veleta", name: "La Veleta" },
-                            { id: "centro", name: "Centro" },
-                            { id: "otro", name: language === "es" ? "Otro" : "Other" },
-                          ]).map((zone) => (
-                            <div
-                              key={zone.id}
-                              className="flex items-center gap-2 p-2 rounded hover:bg-muted cursor-pointer"
-                              onClick={() => {
-                                setSelectedCreateZones(prev => 
-                                  prev.includes(zone.name) 
-                                    ? prev.filter(z => z !== zone.name) 
-                                    : [...prev, zone.name]
-                                );
-                              }}
-                              data-testid={`checkbox-create-zone-${zone.name.toLowerCase().replace(/[^a-z]/g, '-')}`}
-                            >
-                              <div className={cn("h-4 w-4 rounded border flex items-center justify-center", selectedCreateZones.includes(zone.name) ? "bg-primary border-primary" : "border-input")}>
-                                {selectedCreateZones.includes(zone.name) && <Check className="h-3 w-3 text-primary-foreground" />}
-                              </div>
-                              <span className="text-sm">{zone.name}</span>
-                            </div>
-                          ))}
-                        </div>
-                      </PopoverContent>
-                    </Popover>
+                    <SearchableMultiSelect
+                      value={selectedCreateZones}
+                      onValueChange={setSelectedCreateZones}
+                      options={(activeZones.length > 0 ? activeZones : [
+                        { id: "aldea", name: "Aldea Zama" },
+                        { id: "veleta", name: "La Veleta" },
+                        { id: "centro", name: "Centro" },
+                        { id: "otro", name: language === "es" ? "Otro" : "Other" },
+                      ]).map((zone) => ({ value: zone.name, label: zone.name }))}
+                      placeholder={language === "es" ? "Seleccionar zonas..." : "Select areas..."}
+                      searchPlaceholder={language === "es" ? "Buscar zona..." : "Search area..."}
+                      emptyMessage={language === "es" ? "No se encontraron zonas." : "No areas found."}
+                      showSelectedBelow={false}
+                      data-testid="multiselect-create-lead-neighborhood"
+                    />
                   </FormItem>
                   <FormField
                     control={leadForm.control}
@@ -3863,19 +3819,20 @@ export default function ExternalClients() {
                           <Clock className="h-3.5 w-3.5 text-muted-foreground" />
                           {language === "es" ? "Duración del Contrato" : "Contract Duration"}
                         </FormLabel>
-                        <Select onValueChange={field.onChange} value={field.value || ""}>
-                          <FormControl>
-                            <SelectTrigger data-testid="select-create-lead-duration">
-                              <SelectValue placeholder={language === "es" ? "Seleccionar" : "Select"} />
-                            </SelectTrigger>
-                          </FormControl>
-                          <SelectContent>
-                            <SelectItem value="6 meses">6 {language === "es" ? "meses" : "months"}</SelectItem>
-                            <SelectItem value="1 año">1 {language === "es" ? "año" : "year"}</SelectItem>
-                            <SelectItem value="2 años">2 {language === "es" ? "años" : "years"}</SelectItem>
-                            <SelectItem value="3+ años">3+ {language === "es" ? "años" : "years"}</SelectItem>
-                          </SelectContent>
-                        </Select>
+                        <SearchableSelect
+                          value={field.value || ""}
+                          onValueChange={field.onChange}
+                          options={[
+                            { value: "6 meses", label: `6 ${language === "es" ? "meses" : "months"}` },
+                            { value: "1 año", label: `1 ${language === "es" ? "año" : "year"}` },
+                            { value: "2 años", label: `2 ${language === "es" ? "años" : "years"}` },
+                            { value: "3+ años", label: `3+ ${language === "es" ? "años" : "years"}` },
+                          ]}
+                          placeholder={language === "es" ? "Seleccionar" : "Select"}
+                          searchPlaceholder={language === "es" ? "Buscar duración..." : "Search duration..."}
+                          emptyMessage={language === "es" ? "No encontrado." : "Not found."}
+                          data-testid="select-create-lead-duration"
+                        />
                         <FormMessage />
                       </FormItem>
                     )}
@@ -3936,26 +3893,27 @@ export default function ExternalClients() {
                           <PawPrint className="h-3.5 w-3.5 text-muted-foreground" />
                           {language === "es" ? "¿Tiene Mascotas?" : "Has Pets?"}
                         </FormLabel>
-                        <Select onValueChange={(value) => {
-                          field.onChange(value);
-                          if (value === "No") {
-                            setCreatePetQuantity(0);
-                          } else if (createPetQuantity === 0) {
-                            setCreatePetQuantity(1);
-                          }
-                        }} value={field.value || ""}>
-                          <FormControl>
-                            <SelectTrigger data-testid="select-create-lead-pets">
-                              <SelectValue placeholder={language === "es" ? "Seleccionar" : "Select"} />
-                            </SelectTrigger>
-                          </FormControl>
-                          <SelectContent>
-                            <SelectItem value="No">No</SelectItem>
-                            <SelectItem value="Sí - Perro">{language === "es" ? "Sí - Perro" : "Yes - Dog"}</SelectItem>
-                            <SelectItem value="Sí - Gato">{language === "es" ? "Sí - Gato" : "Yes - Cat"}</SelectItem>
-                            <SelectItem value="Sí - Otro">{language === "es" ? "Sí - Otro" : "Yes - Other"}</SelectItem>
-                          </SelectContent>
-                        </Select>
+                        <SearchableSelect
+                          value={field.value || ""}
+                          onValueChange={(value) => {
+                            field.onChange(value);
+                            if (value === "No") {
+                              setCreatePetQuantity(0);
+                            } else if (createPetQuantity === 0) {
+                              setCreatePetQuantity(1);
+                            }
+                          }}
+                          options={[
+                            { value: "No", label: "No" },
+                            { value: "Sí - Perro", label: language === "es" ? "Sí - Perro" : "Yes - Dog" },
+                            { value: "Sí - Gato", label: language === "es" ? "Sí - Gato" : "Yes - Cat" },
+                            { value: "Sí - Otro", label: language === "es" ? "Sí - Otro" : "Yes - Other" },
+                          ]}
+                          placeholder={language === "es" ? "Seleccionar" : "Select"}
+                          searchPlaceholder={language === "es" ? "Buscar..." : "Search..."}
+                          emptyMessage={language === "es" ? "No encontrado." : "Not found."}
+                          data-testid="select-create-lead-pets"
+                        />
                         <FormMessage />
                       </FormItem>
                     )}
@@ -4151,93 +4109,49 @@ export default function ExternalClients() {
                     </p>
 
                     <div className="grid gap-4 sm:grid-cols-2">
-                      {/* Unit Characteristics - Popover */}
+                      {/* Unit Characteristics - Searchable Multi-select */}
                       {activeCharacteristics.length > 0 && (
                         <FormItem>
                           <FormLabel className="flex items-center gap-2">
                             <Home className="h-3.5 w-3.5 text-muted-foreground" />
                             {language === "es" ? "Características" : "Characteristics"}
                           </FormLabel>
-                          <Popover>
-                            <PopoverTrigger asChild>
-                              <Button variant="outline" className="w-full justify-between" data-testid="multiselect-create-characteristics">
-                                {selectedCreateCharacteristics.length > 0 
-                                  ? `${selectedCreateCharacteristics.length} ${language === "es" ? "seleccionado(s)" : "selected"}`
-                                  : (language === "es" ? "Seleccionar..." : "Select...")}
-                                <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
-                              </Button>
-                            </PopoverTrigger>
-                            <PopoverContent className="w-[280px] p-2" align="start">
-                              <ScrollArea className="h-[200px]">
-                                <div className="space-y-1">
-                                  {activeCharacteristics.map((char) => (
-                                    <div
-                                      key={char.id}
-                                      className="flex items-center gap-2 p-2 rounded hover:bg-muted cursor-pointer"
-                                      onClick={() => {
-                                        setSelectedCreateCharacteristics(prev => 
-                                          prev.includes(char.id) 
-                                            ? prev.filter(id => id !== char.id)
-                                            : [...prev, char.id]
-                                        );
-                                      }}
-                                      data-testid={`checkbox-create-char-${char.id}`}
-                                    >
-                                      <div className={cn("h-4 w-4 rounded border flex items-center justify-center", selectedCreateCharacteristics.includes(char.id) ? "bg-primary border-primary" : "border-input")}>
-                                        {selectedCreateCharacteristics.includes(char.id) && <Check className="h-3 w-3 text-primary-foreground" />}
-                                      </div>
-                                      <span className="text-sm">{language === "es" ? char.name : (char.nameEn || char.name)}</span>
-                                    </div>
-                                  ))}
-                                </div>
-                              </ScrollArea>
-                            </PopoverContent>
-                          </Popover>
+                          <SearchableMultiSelect
+                            value={selectedCreateCharacteristics}
+                            onValueChange={setSelectedCreateCharacteristics}
+                            options={activeCharacteristics.map((char) => ({
+                              value: char.id,
+                              label: language === "es" ? char.name : (char.nameEn || char.name)
+                            }))}
+                            placeholder={language === "es" ? "Seleccionar..." : "Select..."}
+                            searchPlaceholder={language === "es" ? "Buscar característica..." : "Search characteristic..."}
+                            emptyMessage={language === "es" ? "No encontrado." : "Not found."}
+                            showSelectedBelow={false}
+                            data-testid="multiselect-create-characteristics"
+                          />
                         </FormItem>
                       )}
 
-                      {/* Amenities - Popover */}
+                      {/* Amenities - Searchable Multi-select */}
                       {activeAmenities.length > 0 && (
                         <FormItem>
                           <FormLabel className="flex items-center gap-2">
                             <Building2 className="h-3.5 w-3.5 text-muted-foreground" />
                             {language === "es" ? "Amenidades" : "Amenities"}
                           </FormLabel>
-                          <Popover>
-                            <PopoverTrigger asChild>
-                              <Button variant="outline" className="w-full justify-between" data-testid="multiselect-create-amenities">
-                                {selectedCreateAmenities.length > 0 
-                                  ? `${selectedCreateAmenities.length} ${language === "es" ? "seleccionado(s)" : "selected"}`
-                                  : (language === "es" ? "Seleccionar..." : "Select...")}
-                                <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
-                              </Button>
-                            </PopoverTrigger>
-                            <PopoverContent className="w-[280px] p-2" align="start">
-                              <ScrollArea className="h-[200px]">
-                                <div className="space-y-1">
-                                  {activeAmenities.map((amenity) => (
-                                    <div
-                                      key={amenity.id}
-                                      className="flex items-center gap-2 p-2 rounded hover:bg-muted cursor-pointer"
-                                      onClick={() => {
-                                        setSelectedCreateAmenities(prev => 
-                                          prev.includes(amenity.id) 
-                                            ? prev.filter(id => id !== amenity.id)
-                                            : [...prev, amenity.id]
-                                        );
-                                      }}
-                                      data-testid={`checkbox-create-amenity-${amenity.id}`}
-                                    >
-                                      <div className={cn("h-4 w-4 rounded border flex items-center justify-center", selectedCreateAmenities.includes(amenity.id) ? "bg-primary border-primary" : "border-input")}>
-                                        {selectedCreateAmenities.includes(amenity.id) && <Check className="h-3 w-3 text-primary-foreground" />}
-                                      </div>
-                                      <span className="text-sm">{language === "es" ? amenity.name : (amenity.nameEn || amenity.name)}</span>
-                                    </div>
-                                  ))}
-                                </div>
-                              </ScrollArea>
-                            </PopoverContent>
-                          </Popover>
+                          <SearchableMultiSelect
+                            value={selectedCreateAmenities}
+                            onValueChange={setSelectedCreateAmenities}
+                            options={activeAmenities.map((amenity) => ({
+                              value: amenity.id,
+                              label: language === "es" ? amenity.name : (amenity.nameEn || amenity.name)
+                            }))}
+                            placeholder={language === "es" ? "Seleccionar..." : "Select..."}
+                            searchPlaceholder={language === "es" ? "Buscar amenidad..." : "Search amenity..."}
+                            emptyMessage={language === "es" ? "No encontrado." : "Not found."}
+                            showSelectedBelow={false}
+                            data-testid="multiselect-create-amenities"
+                          />
                         </FormItem>
                       )}
                     </div>
@@ -4262,23 +4176,24 @@ export default function ExternalClients() {
                           <Activity className="h-3.5 w-3.5 text-muted-foreground" />
                           {language === "es" ? "Estado del Lead" : "Lead Status"}
                         </FormLabel>
-                        <Select onValueChange={field.onChange} value={field.value}>
-                          <FormControl>
-                            <SelectTrigger data-testid="select-create-lead-status">
-                              <SelectValue />
-                            </SelectTrigger>
-                          </FormControl>
-                          <SelectContent>
-                            <SelectItem value="nuevo_lead">{language === "es" ? "Nuevo Lead" : "New Lead"}</SelectItem>
-                            <SelectItem value="cita_coordinada">{language === "es" ? "Cita Coordinada" : "Appointment Scheduled"}</SelectItem>
-                            <SelectItem value="interesado">{language === "es" ? "Interesado" : "Interested"}</SelectItem>
-                            <SelectItem value="oferta_enviada">{language === "es" ? "Oferta Enviada" : "Offer Sent"}</SelectItem>
-                            <SelectItem value="proceso_renta">{language === "es" ? "Proceso de Renta" : "Rental Process"}</SelectItem>
-                            <SelectItem value="renta_concretada">{language === "es" ? "Renta Concretada" : "Rental Completed"}</SelectItem>
-                            <SelectItem value="perdido">{language === "es" ? "Perdido" : "Lost"}</SelectItem>
-                            <SelectItem value="muerto">{language === "es" ? "Muerto" : "Dead"}</SelectItem>
-                          </SelectContent>
-                        </Select>
+                        <SearchableSelect
+                          value={field.value}
+                          onValueChange={field.onChange}
+                          options={[
+                            { value: "nuevo_lead", label: language === "es" ? "Nuevo Lead" : "New Lead" },
+                            { value: "cita_coordinada", label: language === "es" ? "Cita Coordinada" : "Appointment Scheduled" },
+                            { value: "interesado", label: language === "es" ? "Interesado" : "Interested" },
+                            { value: "oferta_enviada", label: language === "es" ? "Oferta Enviada" : "Offer Sent" },
+                            { value: "proceso_renta", label: language === "es" ? "Proceso de Renta" : "Rental Process" },
+                            { value: "renta_concretada", label: language === "es" ? "Renta Concretada" : "Rental Completed" },
+                            { value: "perdido", label: language === "es" ? "Perdido" : "Lost" },
+                            { value: "muerto", label: language === "es" ? "Muerto" : "Dead" },
+                          ]}
+                          placeholder={language === "es" ? "Seleccionar estado" : "Select status"}
+                          searchPlaceholder={language === "es" ? "Buscar estado..." : "Search status..."}
+                          emptyMessage={language === "es" ? "No encontrado." : "Not found."}
+                          data-testid="select-create-lead-status"
+                        />
                         <FormMessage />
                       </FormItem>
                     )}
@@ -4292,22 +4207,23 @@ export default function ExternalClients() {
                           <Globe className="h-3.5 w-3.5 text-muted-foreground" />
                           {language === "es" ? "Fuente / Origen" : "Source"}
                         </FormLabel>
-                        <Select onValueChange={field.onChange} value={field.value || ""}>
-                          <FormControl>
-                            <SelectTrigger data-testid="select-create-lead-source">
-                              <SelectValue placeholder={language === "es" ? "¿Cómo llegó?" : "How did they find us?"} />
-                            </SelectTrigger>
-                          </FormControl>
-                          <SelectContent>
-                            <SelectItem value="WhatsApp">WhatsApp</SelectItem>
-                            <SelectItem value="Web">Web</SelectItem>
-                            <SelectItem value="Referido">{language === "es" ? "Referido" : "Referral"}</SelectItem>
-                            <SelectItem value="Redes Sociales">{language === "es" ? "Redes Sociales" : "Social Media"}</SelectItem>
-                            <SelectItem value="Llamada">{language === "es" ? "Llamada" : "Phone Call"}</SelectItem>
-                            <SelectItem value="Evento">{language === "es" ? "Evento" : "Event"}</SelectItem>
-                            <SelectItem value="Otro">{language === "es" ? "Otro" : "Other"}</SelectItem>
-                          </SelectContent>
-                        </Select>
+                        <SearchableSelect
+                          value={field.value || ""}
+                          onValueChange={field.onChange}
+                          options={[
+                            { value: "WhatsApp", label: "WhatsApp" },
+                            { value: "Web", label: "Web" },
+                            { value: "Referido", label: language === "es" ? "Referido" : "Referral" },
+                            { value: "Redes Sociales", label: language === "es" ? "Redes Sociales" : "Social Media" },
+                            { value: "Llamada", label: language === "es" ? "Llamada" : "Phone Call" },
+                            { value: "Evento", label: language === "es" ? "Evento" : "Event" },
+                            { value: "Otro", label: language === "es" ? "Otro" : "Other" },
+                          ]}
+                          placeholder={language === "es" ? "¿Cómo llegó?" : "How did they find us?"}
+                          searchPlaceholder={language === "es" ? "Buscar fuente..." : "Search source..."}
+                          emptyMessage={language === "es" ? "No encontrado." : "Not found."}
+                          data-testid="select-create-lead-source"
+                        />
                         <FormMessage />
                       </FormItem>
                     )}
@@ -4323,24 +4239,21 @@ export default function ExternalClients() {
                         <UserCheck className="h-3.5 w-3.5 text-muted-foreground" />
                         {language === "es" ? "Vendedor Asignado" : "Assigned Seller"}
                       </FormLabel>
-                      <Select onValueChange={field.onChange} value={field.value || ""}>
-                        <FormControl>
-                          <SelectTrigger data-testid="select-create-lead-seller">
-                            <SelectValue placeholder={language === "es" ? "Seleccionar vendedor" : "Select seller"} />
-                          </SelectTrigger>
-                        </FormControl>
-                        <SelectContent>
-                          {sellers.length === 0 ? (
-                            <SelectItem value="none" disabled>{language === "es" ? "No hay vendedores disponibles" : "No sellers available"}</SelectItem>
-                          ) : (
-                            sellers.map((seller) => (
-                              <SelectItem key={seller.id} value={seller.id}>
-                                {seller.firstName} {seller.lastName}
-                              </SelectItem>
-                            ))
-                          )}
-                        </SelectContent>
-                      </Select>
+                      <SearchableSelect
+                        value={field.value || ""}
+                        onValueChange={field.onChange}
+                        options={sellers.length === 0 
+                          ? [{ value: "none", label: language === "es" ? "No hay vendedores disponibles" : "No sellers available" }]
+                          : sellers.map((seller) => ({
+                              value: seller.id,
+                              label: `${seller.firstName} ${seller.lastName}`
+                            }))
+                        }
+                        placeholder={language === "es" ? "Seleccionar vendedor" : "Select seller"}
+                        searchPlaceholder={language === "es" ? "Buscar vendedor..." : "Search seller..."}
+                        emptyMessage={language === "es" ? "No encontrado." : "Not found."}
+                        data-testid="select-create-lead-seller"
+                      />
                       <FormMessage />
                     </FormItem>
                   )}
