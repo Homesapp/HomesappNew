@@ -38343,7 +38343,7 @@ const generateSlug = (str: string) => str.toLowerCase().normalize("NFD").replace
         ));
       
       const matchedUnit = units.find(u => {
-        const unitTitle = u.title || `\${u.propertyType || 'propiedad'}-\${u.unitNumber}`;
+        const unitTitle = u.title || `${u.propertyType || 'propiedad'}-${u.unitNumber}`;
         const slug = u.slug || generateSlug(unitTitle);
         return slug === unitSlug;
       });
