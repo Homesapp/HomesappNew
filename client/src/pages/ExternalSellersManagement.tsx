@@ -18,7 +18,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { apiRequest, queryClient } from "@/lib/queryClient";
-import { format, startOfMonth, endOfMonth, subMonths } from "date-fns";
+import { format, startOfMonth, endOfMonth, subMonths, Locale } from "date-fns";
 import { es, enUS } from "date-fns/locale";
 import { useMobile } from "@/hooks/use-mobile";
 import { ExternalPaginationControls } from "@/components/external/ExternalPaginationControls";
@@ -177,6 +177,383 @@ const PAYOUT_STATUS_LABELS: Record<string, Record<string, string>> = {
     rejected: "Rejected"
   }
 };
+
+
+
+// =====================================================
+// SELLER DETAIL TAB COMPONENTS
+// =====================================================
+
+type TimelineItem = {
+  id: string;
+  type: "commission" | "payout" | "goal";
+  title: string;
+  description: string;
+  amount?: string;
+  date: string;
+  status?: string;
+};
+
+function SellerTimelineContent({ 
+  sellerId, 
+  language, 
+  dateLocale,
+  formatCurrency 
+}: { 
+  sellerId: string; 
+  language: string; 
+  dateLocale: Locale;
+  formatCurrency: (amount: number) => string;
+}) {
+  const { data: sellerDetail, isLoading } = useQuery<{
+    commissions: SellerCommission[];
+    payouts: SellerPayout[];
+    goals: SellerGoal[];
+  }>({
+    queryKey: ["/api/external/sellers", sellerId, "detail"],
+    queryFn: async () => {
+      const res = await fetch(`/api/external/sellers/${sellerId}`);
+      if (!res.ok) throw new Error("Failed to fetch seller details");
+      return res.json();
+    },
+    enabled: !!sellerId,
+  });
+
+  const timelineItems = useMemo(() => {
+    if (!sellerDetail) return [];
+    
+    const items: TimelineItem[] = [];
+    
+    // Add commissions
+    sellerDetail.commissions?.forEach(c => {
+      items.push({
+        id: `commission-${c.id}`,
+        type: "commission",
+        title: language === "es" ? "Comisión Registrada" : "Commission Recorded",
+        description: c.description || (c.commissionType === "sale" 
+          ? (language === "es" ? "Venta" : "Sale")
+          : (language === "es" ? "Renta" : "Rental")),
+        amount: c.amount,
+        date: c.createdAt,
+        status: c.isPaid ? "paid" : "pending"
+      });
+    });
+    
+    // Add payouts
+    sellerDetail.payouts?.forEach(p => {
+      items.push({
+        id: `payout-${p.id}`,
+        type: "payout",
+        title: language === "es" ? "Pago Procesado" : "Payout Processed",
+        description: p.paymentMethod || (language === "es" ? "Transferencia" : "Transfer"),
+        amount: p.amount,
+        date: p.createdAt,
+        status: p.status
+      });
+    });
+    
+    // Sort by date descending
+    return items.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+  }, [sellerDetail, language]);
+
+  if (isLoading) {
+    return (
+      <div className="space-y-3">
+        {[1, 2, 3].map(i => (
+          <Skeleton key={i} className="h-16 w-full" />
+        ))}
+      </div>
+    );
+  }
+
+  if (timelineItems.length === 0) {
+    return (
+      <div className="text-center py-8 text-muted-foreground">
+        <Clock className="h-12 w-12 mx-auto mb-2 opacity-50" />
+        <p>{language === "es" ? "Sin actividad registrada" : "No activity recorded"}</p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-3 max-h-[400px] overflow-y-auto">
+      {timelineItems.map((item, index) => (
+        <div 
+          key={item.id}
+          className="flex gap-3 p-3 rounded-lg border bg-card"
+          data-testid={`timeline-item-${index}`}
+        >
+          <div className={`h-10 w-10 rounded-full flex items-center justify-center shrink-0 ${
+            item.type === "commission" 
+              ? "bg-green-100 dark:bg-green-900/30" 
+              : "bg-blue-100 dark:bg-blue-900/30"
+          }`}>
+            {item.type === "commission" ? (
+              <DollarSign className="h-5 w-5 text-green-600 dark:text-green-400" />
+            ) : (
+              <Wallet className="h-5 w-5 text-blue-600 dark:text-blue-400" />
+            )}
+          </div>
+          <div className="flex-1 min-w-0">
+            <div className="flex items-center justify-between gap-2">
+              <p className="font-medium text-sm truncate">{item.title}</p>
+              <span className="text-xs text-muted-foreground shrink-0">
+                {format(new Date(item.date), "d MMM", { locale: dateLocale })}
+              </span>
+            </div>
+            <p className="text-sm text-muted-foreground truncate">{item.description}</p>
+            {item.amount && (
+              <div className="flex items-center justify-between mt-1">
+                <span className="font-semibold text-sm">
+                  {formatCurrency(parseFloat(item.amount))}
+                </span>
+                {item.status && (
+                  <Badge variant={item.status === "paid" ? "default" : "secondary"} className="text-xs">
+                    {item.status === "paid" 
+                      ? (language === "es" ? "Pagado" : "Paid")
+                      : (language === "es" ? "Pendiente" : "Pending")
+                    }
+                  </Badge>
+                )}
+              </div>
+            )}
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function SellerGoalsContent({ 
+  sellerId,
+  userId, 
+  language, 
+  dateLocale 
+}: { 
+  sellerId: string;
+  userId: string; 
+  language: string; 
+  dateLocale: Locale;
+}) {
+  const { data: sellerDetail, isLoading } = useQuery<{
+    goals: SellerGoal[];
+  }>({
+    queryKey: ["/api/external/sellers", sellerId, "detail"],
+    queryFn: async () => {
+      const res = await fetch(`/api/external/sellers/${sellerId}`);
+      if (!res.ok) throw new Error("Failed to fetch seller details");
+      return res.json();
+    },
+    enabled: !!sellerId,
+  });
+
+  const goals = sellerDetail?.goals || [];
+
+  if (isLoading) {
+    return (
+      <div className="space-y-3">
+        {[1, 2].map(i => (
+          <Skeleton key={i} className="h-24 w-full" />
+        ))}
+      </div>
+    );
+  }
+
+  if (goals.length === 0) {
+    return (
+      <div className="text-center py-8 text-muted-foreground">
+        <Target className="h-12 w-12 mx-auto mb-2 opacity-50" />
+        <p>{language === "es" ? "Sin metas activas" : "No active goals"}</p>
+      </div>
+    );
+  }
+
+  const goalTypeLabels: Record<string, string> = {
+    leads: language === "es" ? "Leads" : "Leads",
+    conversions: language === "es" ? "Conversiones" : "Conversions",
+    revenue: language === "es" ? "Ingresos" : "Revenue",
+    showings: language === "es" ? "Visitas" : "Showings",
+    contracts: language === "es" ? "Contratos" : "Contracts"
+  };
+
+  return (
+    <div className="space-y-4 max-h-[400px] overflow-y-auto">
+      {goals.map((goal, index) => (
+        <Card key={goal.id} data-testid={`goal-card-${index}`}>
+          <CardHeader className="pb-2">
+            <div className="flex items-center justify-between">
+              <CardTitle className="text-sm font-medium flex items-center gap-2">
+                <Target className="h-4 w-4" />
+                {goalTypeLabels[goal.goalType] || goal.goalType}
+              </CardTitle>
+              <Badge variant={goal.isActive ? "default" : "secondary"}>
+                {goal.isActive 
+                  ? (language === "es" ? "Activa" : "Active")
+                  : (language === "es" ? "Inactiva" : "Inactive")
+                }
+              </Badge>
+            </div>
+            <CardDescription className="text-xs">
+              {format(new Date(goal.startDate), "d MMM", { locale: dateLocale })} - {format(new Date(goal.endDate), "d MMM yyyy", { locale: dateLocale })}
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-2">
+              <div className="flex justify-between text-sm">
+                <span>{language === "es" ? "Progreso" : "Progress"}</span>
+                <span className="font-semibold">
+                  {goal.progress || 0} / {goal.target}
+                </span>
+              </div>
+              <Progress value={goal.progressPercent || 0} className="h-2" />
+              <p className="text-xs text-muted-foreground text-right">
+                {Math.round(goal.progressPercent || 0)}%
+              </p>
+            </div>
+          </CardContent>
+        </Card>
+      ))}
+    </div>
+  );
+}
+
+function SellerCommissionsContent({ 
+  sellerId,
+  userId, 
+  language, 
+  dateLocale,
+  formatCurrency 
+}: { 
+  sellerId: string;
+  userId: string; 
+  language: string; 
+  dateLocale: Locale;
+  formatCurrency: (amount: number) => string;
+}) {
+  const { data: sellerDetail, isLoading } = useQuery<{
+    commissions: SellerCommission[];
+  }>({
+    queryKey: ["/api/external/sellers", sellerId, "detail"],
+    queryFn: async () => {
+      const res = await fetch(`/api/external/sellers/${sellerId}`);
+      if (!res.ok) throw new Error("Failed to fetch seller details");
+      return res.json();
+    },
+    enabled: !!sellerId,
+  });
+
+  const commissions = sellerDetail?.commissions || [];
+
+  if (isLoading) {
+    return (
+      <div className="space-y-3">
+        {[1, 2, 3].map(i => (
+          <Skeleton key={i} className="h-12 w-full" />
+        ))}
+      </div>
+    );
+  }
+
+  if (commissions.length === 0) {
+    return (
+      <div className="text-center py-8 text-muted-foreground">
+        <DollarSign className="h-12 w-12 mx-auto mb-2 opacity-50" />
+        <p>{language === "es" ? "Sin comisiones registradas" : "No commissions recorded"}</p>
+      </div>
+    );
+  }
+
+  const totalPaid = commissions
+    .filter(c => c.isPaid)
+    .reduce((sum, c) => sum + parseFloat(c.amount || "0"), 0);
+  
+  const totalPending = commissions
+    .filter(c => !c.isPaid)
+    .reduce((sum, c) => sum + parseFloat(c.amount || "0"), 0);
+
+  return (
+    <div className="space-y-4">
+      {/* Summary Cards */}
+      <div className="grid grid-cols-2 gap-3">
+        <Card>
+          <CardContent className="pt-4">
+            <div className="flex items-center gap-2">
+              <CheckCircle2 className="h-4 w-4 text-green-500" />
+              <span className="text-xs text-muted-foreground">
+                {language === "es" ? "Pagado" : "Paid"}
+              </span>
+            </div>
+            <div className="text-lg font-bold mt-1">{formatCurrency(totalPaid)}</div>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="pt-4">
+            <div className="flex items-center gap-2">
+              <Clock className="h-4 w-4 text-amber-500" />
+              <span className="text-xs text-muted-foreground">
+                {language === "es" ? "Pendiente" : "Pending"}
+              </span>
+            </div>
+            <div className="text-lg font-bold mt-1 text-amber-600">{formatCurrency(totalPending)}</div>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Commission List */}
+      <div className="border rounded-lg overflow-hidden">
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead>{language === "es" ? "Fecha" : "Date"}</TableHead>
+              <TableHead>{language === "es" ? "Tipo" : "Type"}</TableHead>
+              <TableHead className="text-right">{language === "es" ? "Monto" : "Amount"}</TableHead>
+              <TableHead>{language === "es" ? "Estado" : "Status"}</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {commissions.slice(0, 10).map((commission, index) => (
+              <TableRow key={commission.id} data-testid={`commission-row-${index}`}>
+                <TableCell className="text-sm">
+                  {format(new Date(commission.createdAt), "d MMM", { locale: dateLocale })}
+                </TableCell>
+                <TableCell className="text-sm">
+                  {commission.commissionType === "sale" 
+                    ? (language === "es" ? "Venta" : "Sale")
+                    : commission.commissionType === "rental"
+                      ? (language === "es" ? "Renta" : "Rental")
+                      : commission.commissionType
+                  }
+                </TableCell>
+                <TableCell className="text-right font-semibold">
+                  {formatCurrency(parseFloat(commission.amount || "0"))}
+                </TableCell>
+                <TableCell>
+                  <Badge 
+                    variant={commission.isPaid ? "default" : "secondary"}
+                    className="text-xs"
+                  >
+                    {commission.isPaid 
+                      ? (language === "es" ? "Pagado" : "Paid")
+                      : (language === "es" ? "Pendiente" : "Pending")
+                    }
+                  </Badge>
+                </TableCell>
+              </TableRow>
+            ))}
+          </TableBody>
+        </Table>
+        {commissions.length > 10 && (
+          <div className="p-2 text-center text-sm text-muted-foreground border-t">
+            {language === "es" 
+              ? `+ ${commissions.length - 10} más`
+              : `+ ${commissions.length - 10} more`
+            }
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
 
 export default function ExternalSellersManagement() {
   const { language } = useLanguage();
@@ -1222,111 +1599,185 @@ export default function ExternalSellersManagement() {
         </TabsContent>
       </Tabs>
 
+      {/* Enhanced Seller Detail Dialog with Tabs */}
       <Dialog open={isDetailDialogOpen} onOpenChange={setIsDetailDialogOpen}>
-        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle>
-              {selectedSeller?.user 
-                ? `${selectedSeller.user.firstName} ${selectedSeller.user.lastName}`
-                : language === "es" ? "Detalles del Vendedor" : "Seller Details"
-              }
+            <DialogTitle className="flex items-center gap-3">
+              <Avatar className="h-10 w-10">
+                <AvatarImage src={selectedSeller?.user?.profileImageUrl || undefined} />
+                <AvatarFallback>
+                  {selectedSeller?.user 
+                    ? `${selectedSeller.user.firstName?.[0] || ""}${selectedSeller.user.lastName?.[0] || ""}`.toUpperCase()
+                    : "?"
+                  }
+                </AvatarFallback>
+              </Avatar>
+              <div>
+                {selectedSeller?.user 
+                  ? `${selectedSeller.user.firstName} ${selectedSeller.user.lastName}`
+                  : language === "es" ? "Detalles del Vendedor" : "Seller Details"
+                }
+              </div>
+              {selectedSeller && getStatusBadge(selectedSeller.status)}
             </DialogTitle>
-            <DialogDescription>
+            <DialogDescription className="flex items-center gap-2">
               {selectedSeller?.user?.email}
+              {selectedSeller?.hireDate && (
+                <span className="text-xs">
+                  • {language === "es" ? "Desde" : "Since"}: {format(new Date(selectedSeller.hireDate), "MMM yyyy", { locale: dateLocale })}
+                </span>
+              )}
             </DialogDescription>
           </DialogHeader>
           
           {selectedSeller && (
-            <div className="space-y-6">
-              <div className="flex items-center gap-4">
-                <Avatar className="h-16 w-16">
-                  <AvatarImage src={selectedSeller.user?.profileImageUrl || undefined} />
-                  <AvatarFallback className="text-lg">
-                    {selectedSeller.user 
-                      ? `${selectedSeller.user.firstName?.[0] || ""}${selectedSeller.user.lastName?.[0] || ""}`.toUpperCase()
-                      : "?"
-                    }
-                  </AvatarFallback>
-                </Avatar>
-                <div>
-                  <div className="flex items-center gap-2">
-                    <h3 className="text-lg font-semibold">
-                      {selectedSeller.user 
-                        ? `${selectedSeller.user.firstName} ${selectedSeller.user.lastName}`
-                        : language === "es" ? "Sin nombre" : "No name"
-                      }
-                    </h3>
-                    {getStatusBadge(selectedSeller.status)}
-                  </div>
-                  <p className="text-sm text-muted-foreground">{selectedSeller.user?.email}</p>
-                  {selectedSeller.hireDate && (
-                    <p className="text-xs text-muted-foreground mt-1">
-                      {language === "es" ? "Desde" : "Since"}: {format(new Date(selectedSeller.hireDate), "d MMM yyyy", { locale: dateLocale })}
-                    </p>
-                  )}
+            <Tabs defaultValue="overview" className="w-full">
+              <TabsList className="grid w-full grid-cols-4">
+                <TabsTrigger value="overview" data-testid="tab-seller-overview">
+                  <BarChart3 className="h-4 w-4 mr-2" />
+                  {language === "es" ? "Resumen" : "Overview"}
+                </TabsTrigger>
+                <TabsTrigger value="timeline" data-testid="tab-seller-timeline">
+                  <Clock className="h-4 w-4 mr-2" />
+                  {language === "es" ? "Historial" : "Timeline"}
+                </TabsTrigger>
+                <TabsTrigger value="goals" data-testid="tab-seller-goals">
+                  <Target className="h-4 w-4 mr-2" />
+                  {language === "es" ? "Metas" : "Goals"}
+                </TabsTrigger>
+                <TabsTrigger value="commissions" data-testid="tab-seller-commissions">
+                  <DollarSign className="h-4 w-4 mr-2" />
+                  {language === "es" ? "Comisiones" : "Commissions"}
+                </TabsTrigger>
+              </TabsList>
+              
+              {/* Overview Tab */}
+              <TabsContent value="overview" className="mt-4 space-y-4">
+                <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                  <Card>
+                    <CardContent className="pt-4">
+                      <div className="text-2xl font-bold">{selectedSeller.stats.totalLeads}</div>
+                      <p className="text-xs text-muted-foreground">
+                        {language === "es" ? "Total Leads" : "Total Leads"}
+                      </p>
+                    </CardContent>
+                  </Card>
+                  <Card>
+                    <CardContent className="pt-4">
+                      <div className="text-2xl font-bold">{selectedSeller.stats.convertedLeads}</div>
+                      <p className="text-xs text-muted-foreground">
+                        {language === "es" ? "Convertidos" : "Converted"}
+                      </p>
+                    </CardContent>
+                  </Card>
+                  <Card>
+                    <CardContent className="pt-4">
+                      <div className="text-2xl font-bold">{selectedSeller.stats.totalContracts}</div>
+                      <p className="text-xs text-muted-foreground">
+                        {language === "es" ? "Contratos" : "Contracts"}
+                      </p>
+                    </CardContent>
+                  </Card>
+                  <Card>
+                    <CardContent className="pt-4">
+                      <div className="text-2xl font-bold">{formatCurrency(selectedSeller.stats.totalRevenue)}</div>
+                      <p className="text-xs text-muted-foreground">
+                        {language === "es" ? "Ingresos" : "Revenue"}
+                      </p>
+                    </CardContent>
+                  </Card>
+                  <Card>
+                    <CardContent className="pt-4">
+                      <div className="text-2xl font-bold">{formatCurrency(selectedSeller.stats.totalCommissions)}</div>
+                      <p className="text-xs text-muted-foreground">
+                        {language === "es" ? "Comisiones" : "Commissions"}
+                      </p>
+                    </CardContent>
+                  </Card>
+                  <Card>
+                    <CardContent className="pt-4">
+                      <div className={`text-2xl font-bold ${selectedSeller.stats.unpaidCommissions > 0 ? "text-amber-600" : ""}`}>
+                        {formatCurrency(selectedSeller.stats.unpaidCommissions)}
+                      </div>
+                      <p className="text-xs text-muted-foreground">
+                        {language === "es" ? "Por Pagar" : "Unpaid"}
+                      </p>
+                    </CardContent>
+                  </Card>
                 </div>
-              </div>
-
-              <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
+                
+                {/* Conversion Rate */}
                 <Card>
-                  <CardContent className="pt-4">
-                    <div className="text-2xl font-bold">{selectedSeller.stats.totalLeads}</div>
-                    <p className="text-xs text-muted-foreground">
-                      {language === "es" ? "Total Leads" : "Total Leads"}
-                    </p>
-                  </CardContent>
-                </Card>
-                <Card>
-                  <CardContent className="pt-4">
-                    <div className="text-2xl font-bold">{selectedSeller.stats.convertedLeads}</div>
-                    <p className="text-xs text-muted-foreground">
-                      {language === "es" ? "Convertidos" : "Converted"}
-                    </p>
-                  </CardContent>
-                </Card>
-                <Card>
-                  <CardContent className="pt-4">
-                    <div className="text-2xl font-bold">{selectedSeller.stats.totalContracts}</div>
-                    <p className="text-xs text-muted-foreground">
-                      {language === "es" ? "Contratos" : "Contracts"}
-                    </p>
-                  </CardContent>
-                </Card>
-                <Card>
-                  <CardContent className="pt-4">
-                    <div className="text-2xl font-bold">{formatCurrency(selectedSeller.stats.totalRevenue)}</div>
-                    <p className="text-xs text-muted-foreground">
-                      {language === "es" ? "Ingresos" : "Revenue"}
-                    </p>
-                  </CardContent>
-                </Card>
-                <Card>
-                  <CardContent className="pt-4">
-                    <div className="text-2xl font-bold">{formatCurrency(selectedSeller.stats.totalCommissions)}</div>
-                    <p className="text-xs text-muted-foreground">
-                      {language === "es" ? "Comisiones" : "Commissions"}
-                    </p>
-                  </CardContent>
-                </Card>
-                <Card>
-                  <CardContent className="pt-4">
-                    <div className={`text-2xl font-bold ${selectedSeller.stats.unpaidCommissions > 0 ? "text-amber-600" : ""}`}>
-                      {formatCurrency(selectedSeller.stats.unpaidCommissions)}
+                  <CardHeader className="pb-2">
+                    <CardTitle className="text-sm font-medium">
+                      {language === "es" ? "Tasa de Conversión" : "Conversion Rate"}
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="flex items-center gap-4">
+                      <Progress 
+                        value={selectedSeller.stats.totalLeads > 0 
+                          ? (selectedSeller.stats.convertedLeads / selectedSeller.stats.totalLeads) * 100 
+                          : 0
+                        } 
+                        className="flex-1"
+                      />
+                      <span className="text-lg font-bold">
+                        {selectedSeller.stats.totalLeads > 0 
+                          ? Math.round((selectedSeller.stats.convertedLeads / selectedSeller.stats.totalLeads) * 100)
+                          : 0
+                        }%
+                      </span>
                     </div>
-                    <p className="text-xs text-muted-foreground">
-                      {language === "es" ? "Por Pagar" : "Unpaid"}
-                    </p>
                   </CardContent>
                 </Card>
-              </div>
 
-              {selectedSeller.notes && (
-                <div>
-                  <h4 className="font-medium mb-2">{language === "es" ? "Notas" : "Notes"}</h4>
-                  <p className="text-sm text-muted-foreground">{selectedSeller.notes}</p>
-                </div>
-              )}
-            </div>
+                {selectedSeller.notes && (
+                  <Card>
+                    <CardHeader className="pb-2">
+                      <CardTitle className="text-sm font-medium">
+                        {language === "es" ? "Notas" : "Notes"}
+                      </CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                      <p className="text-sm text-muted-foreground">{selectedSeller.notes}</p>
+                    </CardContent>
+                  </Card>
+                )}
+              </TabsContent>
+              
+              {/* Timeline Tab */}
+              <TabsContent value="timeline" className="mt-4">
+                <SellerTimelineContent 
+                  sellerId={selectedSeller.id}
+                  language={language}
+                  dateLocale={dateLocale}
+                  formatCurrency={formatCurrency}
+                />
+              </TabsContent>
+              
+              {/* Goals Tab */}
+              <TabsContent value="goals" className="mt-4">
+                <SellerGoalsContent 
+                  sellerId={selectedSeller.id}
+                  userId={selectedSeller.userId}
+                  language={language}
+                  dateLocale={dateLocale}
+                />
+              </TabsContent>
+              
+              {/* Commissions Tab */}
+              <TabsContent value="commissions" className="mt-4">
+                <SellerCommissionsContent 
+                  sellerId={selectedSeller.id}
+                  userId={selectedSeller.userId}
+                  language={language}
+                  dateLocale={dateLocale}
+                  formatCurrency={formatCurrency}
+                />
+              </TabsContent>
+            </Tabs>
           )}
 
           <DialogFooter>
