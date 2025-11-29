@@ -134,6 +134,8 @@ import HoaManagement from "@/pages/HoaManagement";
 import OwnerHoaPortal from "@/pages/OwnerHoaPortal";
 import PublicOfferForm from "@/pages/PublicOfferForm";
 import PublicRentalForm from "@/pages/PublicRentalForm";
+import PublicOfferBySlug from "@/pages/PublicOfferBySlug";
+import PublicRentalFormBySlug from "@/pages/PublicRentalFormBySlug";
 import PublicOwnerForm from "@/pages/PublicOwnerForm";
 import PublicLeadRegistration from "@/pages/PublicLeadRegistration";
 import PublicPropertySubmission from "@/pages/PublicPropertySubmission";
@@ -256,6 +258,8 @@ function AuthenticatedApp() {
         <Route path="/offer/:token" component={PublicOfferForm} />
         <Route path="/public-rental-form/:token" component={PublicRentalForm} />
         <Route path="/public-owner-form/:token" component={PublicOwnerForm} />
+        <Route path="/:agencySlug/oferta/:unitSlug" component={PublicOfferBySlug} />
+        <Route path="/:agencySlug/formato-renta/:unitSlug" component={PublicRentalFormBySlug} />
         <Route path="/leads/vendedor" component={LeadRegistrationVendedor} />
         <Route path="/leads/broker" component={LeadRegistrationBroker} />
         <Route path="/leads/:token" component={PublicLeadRegistration} />
