@@ -3,13 +3,14 @@ import { useQuery, useMutation } from "@tanstack/react-query";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Plus, ExternalLink, RefreshCw, FileDown, Eye, Pencil, ArrowUpDown, ArrowUp, ArrowDown } from "lucide-react";
+import { Plus, ExternalLink, RefreshCw, Eye, Pencil, ArrowUpDown, ArrowUp, ArrowDown } from "lucide-react";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { format, formatDistanceToNow } from "date-fns";
 import { es, enUS } from "date-fns/locale";
 import ExternalGenerateOfferLinkDialog from "./ExternalGenerateOfferLinkDialog";
 import ExternalEditOfferDialog from "./ExternalEditOfferDialog";
+import ExternalOfferDetailView from "./ExternalOfferDetailView";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { ExternalPaginationControls } from "@/components/external/ExternalPaginationControls";
@@ -25,6 +26,8 @@ export default function ExternalOfferLinks({ searchTerm, statusFilter, viewMode 
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editDialogOpen, setEditDialogOpen] = useState(false);
   const [editingOffer, setEditingOffer] = useState<any>(null);
+  const [viewingOffer, setViewingOffer] = useState<any>(null);
+  const [viewDetailOpen, setViewDetailOpen] = useState(false);
   const { toast } = useToast();
   
   // Pagination state
@@ -35,71 +38,24 @@ export default function ExternalOfferLinks({ searchTerm, statusFilter, viewMode 
   const [sortColumn, setSortColumn] = useState<string>("");
   const [sortDirection, setSortDirection] = useState<"asc" | "desc">("asc");
 
-  // Helper function to download PDF with authentication
-  const downloadOfferPDF = async (offerId: string) => {
-    try {
-      const response = await fetch(`/api/external/offers/${offerId}/pdf`, {
-        method: 'GET',
-        credentials: 'include', // Include cookies for authentication
-      });
-
-      if (!response.ok) {
-        throw new Error('Failed to download PDF');
-      }
-
-      // Convert response to blob
-      const blob = await response.blob();
-      
-      // Create download link
-      const url = window.URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = `oferta-${offerId}.pdf`;
-      document.body.appendChild(a);
-      a.click();
-      
-      // Cleanup
-      window.URL.revokeObjectURL(url);
-      document.body.removeChild(a);
-    } catch (error) {
-      toast({
-        title: language === "es" ? "Error" : "Error",
-        description: language === "es" ? "No se pudo descargar el PDF" : "Could not download PDF",
-        variant: "destructive",
-      });
-    }
-  };
-
-  // Helper function to view PDF with authentication
-  const viewOfferPDF = async (offerId: string) => {
-    try {
-      const response = await fetch(`/api/external/offers/${offerId}/pdf`, {
-        method: 'GET',
-        credentials: 'include', // Include cookies for authentication
-      });
-
-      if (!response.ok) {
-        throw new Error('Failed to load PDF');
-      }
-
-      // Convert response to blob
-      const blob = await response.blob();
-      
-      // Create blob URL and open in new tab
-      const url = window.URL.createObjectURL(blob);
-      window.open(url, '_blank');
-      
-      // Cleanup after a delay to ensure the PDF loads
-      setTimeout(() => {
-        window.URL.revokeObjectURL(url);
-      }, 1000);
-    } catch (error) {
-      toast({
-        title: language === "es" ? "Error" : "Error",
-        description: language === "es" ? "No se pudo visualizar el PDF" : "Could not view PDF",
-        variant: "destructive",
-      });
-    }
+  // Helper function to view offer details
+  const handleViewOffer = (token: any) => {
+    setViewingOffer({
+      id: token.id,
+      propertyTitle: token.propertyTitle,
+      propertyAddress: token.propertyAddress,
+      condominiumName: token.condominiumName,
+      unitNumber: token.unitNumber,
+      monthlyRent: token.monthlyRent,
+      currency: token.currency || "MXN",
+      offerData: token.offerData,
+      createdAt: token.createdAt,
+      createdByName: token.creatorName || token.createdByName,
+      clientName: token.clientName,
+      isUsed: token.isUsed,
+      expiresAt: token.expiresAt,
+    });
+    setViewDetailOpen(true);
   };
 
   const { data: offerTokens, isLoading, refetch } = useQuery({
@@ -331,24 +287,14 @@ export default function ExternalOfferLinks({ searchTerm, statusFilter, viewMode 
                           {language === "es" ? "Editar" : "Edit"}
                         </Button>
                         <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => viewOfferPDF(token.id)}
-                          className="flex-1"
-                          data-testid="button-view-offer-pdf"
-                        >
-                          <Eye className="h-4 w-4 mr-2" />
-                          {language === "es" ? "Ver" : "View"}
-                        </Button>
-                        <Button
                           variant="default"
                           size="sm"
-                          onClick={() => downloadOfferPDF(token.id)}
+                          onClick={() => handleViewOffer(token)}
                           className="flex-1"
-                          data-testid="button-download-offer-pdf"
+                          data-testid="button-view-offer-detail"
                         >
-                          <FileDown className="h-4 w-4 mr-2" />
-                          {language === "es" ? "Descargar" : "Download"}
+                          <Eye className="h-4 w-4 mr-2" />
+                          {language === "es" ? "Ver Detalle" : "View Detail"}
                         </Button>
                       </>
                     )}
@@ -495,20 +441,11 @@ export default function ExternalOfferLinks({ searchTerm, statusFilter, viewMode 
                             <Button
                               variant="ghost"
                               size="sm"
-                              onClick={() => viewOfferPDF(token.id)}
-                              title={language === "es" ? "Ver PDF" : "View PDF"}
-                              data-testid="button-view-offer-pdf"
+                              onClick={() => handleViewOffer(token)}
+                              title={language === "es" ? "Ver detalle" : "View detail"}
+                              data-testid="button-view-offer-detail"
                             >
                               <Eye className="h-4 w-4" />
-                            </Button>
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              onClick={() => downloadOfferPDF(token.id)}
-                              title={language === "es" ? "Descargar PDF" : "Download PDF"}
-                              data-testid="button-download-offer-pdf"
-                            >
-                              <FileDown className="h-4 w-4" />
                             </Button>
                           </>
                         )}
@@ -549,6 +486,11 @@ export default function ExternalOfferLinks({ searchTerm, statusFilter, viewMode 
         open={editDialogOpen} 
         onOpenChange={setEditDialogOpen}
         offerToken={editingOffer}
+      />
+      <ExternalOfferDetailView
+        open={viewDetailOpen}
+        onOpenChange={setViewDetailOpen}
+        offer={viewingOffer}
       />
     </>
   );

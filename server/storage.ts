@@ -10981,6 +10981,8 @@ export class DatabaseStorage implements IStorage {
       externalUnitId: r.externalUnitId,
       externalClientId: r.externalClientId,
       createdBy: r.createdBy,
+      unitNumber: r.unitNumber,
+      condominiumName: r.condoName,
       propertyTitle: r.unitNumber 
         ? (r.condoName ? `${r.condoName} - Unidad ${r.unitNumber}` : `Unidad ${r.unitNumber}`)
         : 'Sin unidad asignada',
