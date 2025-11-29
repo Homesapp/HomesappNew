@@ -1543,8 +1543,8 @@ ${language === "es" ? "ACCESOS" : "ACCESSES"}:
         </Card>
       </div>
 
-      {/* Row 2: Owner (Left) + Access Control (Right) */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+      {/* Row 2: Owner + Referrer (if applicable) + Access Control */}
+      <div className={`grid grid-cols-1 gap-4 ${unit?.commissionType === 'referido' ? 'lg:grid-cols-3' : 'lg:grid-cols-2'}`}>
         {/* Owner Information */}
         <Card data-testid="card-owner-info">
           <CardHeader className="pb-3">
@@ -1637,6 +1637,48 @@ ${language === "es" ? "ACCESOS" : "ACCESSES"}:
             )}
           </CardContent>
         </Card>
+
+        {/* Referrer Information - Only show if commission type is 'referido' */}
+        {unit?.commissionType === 'referido' && (
+          <Card data-testid="card-referrer-info">
+            <CardHeader className="pb-3">
+              <CardTitle className="flex items-center gap-2">
+                <Users className="h-5 w-5" />
+                {language === "es" ? "Referido" : "Referrer"}
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="pt-0">
+              {unit?.referrerName ? (
+                <div className="p-2.5 rounded-lg border border-primary/30 bg-primary/5">
+                  <div className="space-y-1.5">
+                    <div className="flex items-center gap-2">
+                      <p className="text-sm font-medium" data-testid="text-referrer-name">
+                        {unit.referrerName}
+                      </p>
+                      <Badge variant="secondary" className="h-5 text-[10px]">
+                        20%
+                      </Badge>
+                    </div>
+                    {unit.referrerEmail && (
+                      <p className="text-xs text-muted-foreground" data-testid="text-referrer-email">
+                        {unit.referrerEmail}
+                      </p>
+                    )}
+                    {unit.referrerPhone && (
+                      <p className="text-xs text-muted-foreground" data-testid="text-referrer-phone">
+                        {unit.referrerPhone}
+                      </p>
+                    )}
+                  </div>
+                </div>
+              ) : (
+                <div className="text-center py-6 text-muted-foreground text-sm" data-testid="text-no-referrer">
+                  {language === "es" ? "Sin información del referido" : "No referrer information"}
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        )}
 
         {/* Access Control */}
         <Card data-testid="card-access-controls">

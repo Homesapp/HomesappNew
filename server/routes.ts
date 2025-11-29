@@ -32248,6 +32248,91 @@ const generateSlug = (str: string) => str.toLowerCase().normalize("NFD").replace
     }
   });
   // ==============================
+
+  // ==============================
+  // External Referral Network Routes
+  // ==============================
+
+  // GET /api/external/referral-network - Get referral network for agency
+  app.get("/api/external/referral-network", isAuthenticated, requireRole(EXTERNAL_ADMIN_ROLES), async (req: any, res) => {
+    try {
+      const agencyId = await getUserAgencyId(req);
+      if (!agencyId) {
+        return res.status(403).json({ message: "No agency access" });
+      }
+
+      // Get all units with referido commission type and group by referrer
+      const result = await db.execute(sql`
+        SELECT 
+          u.id,
+          u.unit_number as "unitNumber",
+          u.referrer_name as "referrerName",
+          u.referrer_phone as "referrerPhone",
+          u.referrer_email as "referrerEmail",
+          u.monthly_rent_12 as "monthlyRent12",
+          u.status,
+          c.name as "condominiumName"
+        FROM external_units u
+        LEFT JOIN external_condominiums c ON u.condominium_id = c.id
+        WHERE u.agency_id = ${agencyId}
+          AND u.commission_type = 'referido'
+          AND u.referrer_name IS NOT NULL
+          AND u.referrer_name != ''
+        ORDER BY u.referrer_name, u.unit_number
+      `);
+
+      const units = result.rows as any[];
+
+      // Group units by referrer
+      const referrerMap = new Map<string, {
+        referrerName: string;
+        referrerPhone: string | null;
+        referrerEmail: string | null;
+        units: any[];
+        totalUnits: number;
+        estimatedCommission: number;
+      }>();
+
+      for (const unit of units) {
+        const referrerName = unit.referrerName;
+        
+        if (!referrerMap.has(referrerName)) {
+          referrerMap.set(referrerName, {
+            referrerName,
+            referrerPhone: unit.referrerPhone,
+            referrerEmail: unit.referrerEmail,
+            units: [],
+            totalUnits: 0,
+            estimatedCommission: 0,
+          });
+        }
+
+        const referrer = referrerMap.get(referrerName)!;
+        referrer.units.push({
+          id: unit.id,
+          unitNumber: unit.unitNumber,
+          condominiumName: unit.condominiumName,
+          monthlyRent12: unit.monthlyRent12,
+          status: unit.status,
+        });
+        referrer.totalUnits++;
+        
+        // Calculate estimated commission (20% of monthly rent)
+        if (unit.monthlyRent12) {
+          referrer.estimatedCommission += Number(unit.monthlyRent12) * 0.20;
+        }
+      }
+
+      const referrers = Array.from(referrerMap.values()).sort((a, b) => 
+        b.totalUnits - a.totalUnits
+      );
+
+      res.json(referrers);
+    } catch (error) {
+      console.error("Error fetching referral network:", error);
+      handleGenericError(res, error);
+    }
+  });
   // External Presentation Cards Routes
   // ==============================
 

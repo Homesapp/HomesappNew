@@ -302,6 +302,7 @@ export function AppSidebar({ userRole, userId }: AppSidebarProps) {
     { titleKey: "sidebar.externalAccounts", url: "/external/accounts", icon: Users, roles: ["master", "admin", "external_agency_admin"] },
     { titleKey: "sidebar.externalAccesses", url: "/external/accesses", icon: Key, roles: ["master", "admin", "external_agency_admin", "external_agency_maintenance", "external_agency_staff"] },
     { titleKey: "sidebar.externalCondominiums", url: "/external/condominiums", icon: Building2, roles: ["master", "admin", "external_agency_admin", "external_agency_maintenance", "external_agency_staff"] },
+    { titleKey: "sidebar.externalReferralNetwork", url: "/external/referral-network", icon: Share2, roles: ["master", "admin", "external_agency_admin"] },
     { titleKey: "sidebar.externalContracts", url: "/external/contracts", icon: ScrollText, roles: ["master", "admin", "external_agency_admin", "external_agency_staff", "external_agency_lawyer"] },
     { titleKey: "sidebar.externalRentals", url: "/external/rentals", icon: FileText, roles: ["master", "admin", "external_agency_admin", "external_agency_accounting"] },
     { titleKey: "sidebar.externalAccounting", url: "/external/accounting", icon: DollarSign, roles: ["master", "admin", "external_agency_admin", "external_agency_accounting"] },
