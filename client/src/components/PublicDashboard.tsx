@@ -25,9 +25,10 @@ export default function PublicDashboard() {
   const { t } = useLanguage();
 
   // Load external approved properties for homepage
-  const { data: externalProperties = [] } = useQuery<any[]>({
+  const { data: externalPropertiesResponse } = useQuery<{ data: any[]; totalCount: number }>({
     queryKey: ["/api/public/external-properties?limit=12"],
   });
+  const externalProperties = externalPropertiesResponse?.data || [];
 
   const { data: colonies = [] } = useQuery<Colony[]>({
     queryKey: ["/api/colonies/approved"],
