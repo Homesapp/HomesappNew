@@ -33010,10 +33010,13 @@ const generateSlug = (str: string) => str.toLowerCase().normalize("NFD").replace
   // GET /api/external/rental-form-tokens - Get rental form tokens for agency (optimized)
   app.get("/api/external/rental-form-tokens", isAuthenticated, requireRole(EXTERNAL_ALL_ROLES), async (req: any, res) => {
     try {
+      console.log("[Rental Form Tokens] Request from user:", req.user?.claims?.sub || req.user?.id, "cachedAgencyId:", req.user?.cachedAgencyId);
       const agencyId = await getUserAgencyId(req);
       if (!agencyId) {
+        console.log("[Rental Form Tokens] AgencyId resolved (null):", agencyId);
         return res.status(403).json({ message: "No agency access" });
       }
+      console.log("[Rental Form Tokens] AgencyId resolved:", agencyId);
       
       // Use optimized single-query method that includes unit, condo, client, owner, creator
       const tokens = await storage.getExternalRentalFormTokenSummariesByAgency(agencyId);
