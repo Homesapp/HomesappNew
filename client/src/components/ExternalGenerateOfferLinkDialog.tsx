@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -22,9 +22,11 @@ import {
 } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
-import { Loader2, Copy, Check, MessageCircle, Mail, Link as LinkIcon, ExternalLink } from "lucide-react";
+import { Loader2, Copy, Check, MessageCircle, Mail, Link as LinkIcon, ExternalLink, Building2, Home, User, Clock } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Card } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { Separator } from "@/components/ui/separator";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { useAuth } from "@/hooks/useAuth";
 import type { ExternalUnitWithCondominium, ExternalClient, PaginatedResponse } from "@shared/schema";
@@ -56,12 +58,12 @@ export default function ExternalGenerateOfferLinkDialog({
   const { language } = useLanguage();
   const { user } = useAuth();
   const agencyId = user?.externalAgencyId;
+  const [selectedCondominiumId, setSelectedCondominiumId] = useState<string>("");
   const [selectedUnitId, setSelectedUnitId] = useState<string>("");
   const [selectedClientId, setSelectedClientId] = useState<string>(clientId?.toString() || "");
   const [generatedToken, setGeneratedToken] = useState<any>(null);
   const [copiedLink, setCopiedLink] = useState(false);
   const [copiedWhatsApp, setCopiedWhatsApp] = useState(false);
-  const [unitSearchTerm, setUnitSearchTerm] = useState<string>("");
 
   const { data: unitsResponse, isLoading: isLoadingUnits } = useQuery<{ data: ExternalUnitWithCondominium[], total: number }>({
     queryKey: ["/api/external-units", "all-for-dialog"],
@@ -70,22 +72,48 @@ export default function ExternalGenerateOfferLinkDialog({
       if (!response.ok) throw new Error('Failed to fetch units');
       return response.json();
     },
-    staleTime: 5 * 60 * 1000, // Consider data fresh for 5 minutes
+    staleTime: 5 * 60 * 1000,
   });
   const units = unitsResponse?.data || [];
 
+  const condominiums = useMemo(() => {
+    const condoMap = new Map<string, { id: string; name: string; unitCount: number }>();
+    units.forEach(unit => {
+      if (unit.condominiumId && unit.condominium?.name) {
+        const existing = condoMap.get(unit.condominiumId);
+        if (existing) {
+          existing.unitCount++;
+        } else {
+          condoMap.set(unit.condominiumId, {
+            id: unit.condominiumId,
+            name: unit.condominium.name,
+            unitCount: 1
+          });
+        }
+      }
+    });
+    return Array.from(condoMap.values()).sort((a, b) => a.name.localeCompare(b.name));
+  }, [units]);
+
+  const filteredUnits = useMemo(() => {
+    if (!selectedCondominiumId) return [];
+    return units
+      .filter(unit => unit.condominiumId === selectedCondominiumId)
+      .sort((a, b) => (a.unitNumber || '').localeCompare(b.unitNumber || '', undefined, { numeric: true }));
+  }, [units, selectedCondominiumId]);
+
   const { data: clientsResponse, isLoading: isLoadingClients } = useQuery<PaginatedResponse<ExternalClient>>({
-    queryKey: ["/api/external-clients", { limit: 10000 }], // Get all clients for selection
+    queryKey: ["/api/external-clients", { limit: 10000 }],
     queryFn: async () => {
       const params = new URLSearchParams();
-      params.append("limit", "10000"); // High limit to get all clients
+      params.append("limit", "10000");
       params.append("offset", "0");
       const response = await fetch(`/api/external-clients?${params.toString()}`, { credentials: 'include' });
       if (!response.ok) throw new Error('Failed to fetch clients');
       return response.json();
     },
-    enabled: !clientId, // Only load if no client is pre-selected
-    staleTime: 5 * 60 * 1000, // Consider data fresh for 5 minutes
+    enabled: !clientId,
+    staleTime: 5 * 60 * 1000,
   });
   
   const clients = clientsResponse?.data || [];
@@ -100,7 +128,6 @@ export default function ExternalGenerateOfferLinkDialog({
 
   const generateTokenMutation = useMutation({
     mutationFn: async ({ unitId, clientId }: { unitId: string; clientId: string }) => {
-      // Ensure IDs are strings and not undefined/null
       if (!unitId || !clientId) {
         throw new Error("Unit ID and Client ID are required");
       }
@@ -152,6 +179,11 @@ export default function ExternalGenerateOfferLinkDialog({
       });
     },
   });
+
+  const handleCondominiumChange = (value: string) => {
+    setSelectedCondominiumId(value);
+    setSelectedUnitId("");
+  };
 
   const handleGenerateLink = () => {
     if (!selectedUnitId) {
@@ -218,17 +250,17 @@ export default function ExternalGenerateOfferLinkDialog({
       : "unidad";
     const offerLink = getOfferLink();
     return language === "es"
-      ? `¡Hola! 👋
+      ? `Hola,
 
-Te envío el enlace para que puedas generar tu oferta de renta para *${unitTitle}*.
+Te envio el enlace para que puedas generar tu oferta de renta para *${unitTitle}*.
 
-Este es un enlace privado y seguro, válido por 24 horas:
+Este es un enlace privado y seguro, valido por 24 horas:
 ${offerLink}
 
-El proceso es rápido y sencillo. Solo necesitas completar tus datos y la información de tu oferta.
+El proceso es rapido y sencillo. Solo necesitas completar tus datos y la informacion de tu oferta.
 
-¿Tienes alguna pregunta? ¡Estoy aquí para ayudarte! 😊`
-      : `Hi! 👋
+Tienes alguna pregunta? Estoy aqui para ayudarte.`
+      : `Hi,
 
 I'm sending you the link to generate your rental offer for *${unitTitle}*.
 
@@ -237,7 +269,7 @@ ${offerLink}
 
 The process is quick and simple. You just need to complete your data and offer information.
 
-Any questions? I'm here to help! 😊`;
+Any questions? I'm here to help.`;
   };
 
   const openWhatsApp = () => {
@@ -247,6 +279,7 @@ Any questions? I'm here to help! 😊`;
 
   const handleClose = () => {
     if (onOpenChange) onOpenChange(false);
+    setSelectedCondominiumId("");
     setSelectedUnitId("");
     if (!clientId) setSelectedClientId("");
     setGeneratedToken(null);
@@ -260,253 +293,374 @@ Any questions? I'm here to help! 😊`;
   };
 
   const selectedUnit = units?.find((u) => String(u.id) === selectedUnitId);
+  const selectedCondominium = condominiums?.find((c) => c.id === selectedCondominiumId);
   const selectedClient = clients?.find((c) => String(c.id) === selectedClientId) || 
     (clientInfo && { firstName: clientInfo.name.split(" ")[0], lastName: clientInfo.name.split(" ").slice(1).join(" ") || "" });
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
-        <DialogHeader>
-          <DialogTitle>
-            {language === "es" ? "Generar Link de Oferta Privado" : "Generate Private Offer Link"}
-          </DialogTitle>
-          <DialogDescription>
-            {language === "es"
-              ? "Crea un link privado de 24 horas para que un cliente pueda enviar su oferta de renta."
-              : "Create a 24-hour private link for a client to send their rental offer."}
-          </DialogDescription>
-        </DialogHeader>
-
-        {!generatedToken ? (
-          <div className="space-y-4">
-            {!clientId && (
+      <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto p-0">
+        <div className="bg-gradient-to-r from-primary/10 via-primary/5 to-transparent p-6 pb-4 border-b">
+          <DialogHeader className="space-y-2">
+            <div className="flex items-center gap-3">
+              <div className="p-2 bg-primary/10 rounded-lg">
+                <LinkIcon className="h-5 w-5 text-primary" />
+              </div>
               <div>
-                <Label htmlFor="client">
-                  {language === "es" ? "Selecciona el Cliente" : "Select Client"}
-                </Label>
+                <DialogTitle className="text-lg">
+                  {language === "es" ? "Generar Link de Oferta" : "Generate Offer Link"}
+                </DialogTitle>
+                <DialogDescription className="text-sm mt-0.5">
+                  {language === "es"
+                    ? "Link privado de 24 horas para recibir oferta de renta"
+                    : "24-hour private link to receive rental offer"}
+                </DialogDescription>
+              </div>
+            </div>
+          </DialogHeader>
+        </div>
+
+        <div className="p-6 pt-4">
+          {!generatedToken ? (
+            <div className="space-y-5">
+              {!clientId && (
+                <div className="space-y-2">
+                  <div className="flex items-center gap-2">
+                    <User className="h-4 w-4 text-muted-foreground" />
+                    <Label className="font-medium">
+                      {language === "es" ? "Cliente" : "Client"}
+                    </Label>
+                  </div>
+                  <Select
+                    value={selectedClientId}
+                    onValueChange={setSelectedClientId}
+                  >
+                    <SelectTrigger className="min-h-[44px]" data-testid="select-client">
+                      <SelectValue placeholder={language === "es" ? "Selecciona un cliente..." : "Select a client..."} />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {isLoadingClients ? (
+                        <div className="flex items-center justify-center p-4">
+                          <Loader2 className="h-4 w-4 animate-spin" />
+                        </div>
+                      ) : (
+                        clients?.map((client) => (
+                          <SelectItem key={client.id} value={client.id}>
+                            <span className="font-medium">{client.firstName} {client.lastName}</span>
+                            {client.email && (
+                              <span className="ml-2 text-muted-foreground text-xs">({client.email})</span>
+                            )}
+                          </SelectItem>
+                        ))
+                      )}
+                    </SelectContent>
+                  </Select>
+                </div>
+              )}
+
+              <Separator />
+
+              <div className="space-y-2">
+                <div className="flex items-center gap-2">
+                  <Building2 className="h-4 w-4 text-muted-foreground" />
+                  <Label className="font-medium">
+                    {language === "es" ? "Condominio" : "Condominium"}
+                  </Label>
+                </div>
                 <Select
-                  value={selectedClientId}
-                  onValueChange={setSelectedClientId}
+                  value={selectedCondominiumId}
+                  onValueChange={handleCondominiumChange}
                 >
-                  <SelectTrigger data-testid="select-client">
-                    <SelectValue placeholder={language === "es" ? "Selecciona un cliente" : "Select a client"} />
+                  <SelectTrigger className="min-h-[44px]" data-testid="select-condominium">
+                    <SelectValue placeholder={language === "es" ? "Selecciona un condominio..." : "Select a condominium..."} />
                   </SelectTrigger>
                   <SelectContent>
-                    {isLoadingClients ? (
+                    {isLoadingUnits ? (
                       <div className="flex items-center justify-center p-4">
                         <Loader2 className="h-4 w-4 animate-spin" />
                       </div>
                     ) : (
-                      clients?.map((client) => (
-                        <SelectItem key={client.id} value={client.id}>
-                          {client.firstName} {client.lastName}
+                      condominiums.map((condo) => (
+                        <SelectItem key={condo.id} value={condo.id}>
+                          <div className="flex items-center justify-between w-full gap-3">
+                            <span className="font-medium">{condo.name}</span>
+                            <Badge variant="secondary" className="text-xs">
+                              {condo.unitCount} {language === "es" ? "unidades" : "units"}
+                            </Badge>
+                          </div>
                         </SelectItem>
                       ))
                     )}
                   </SelectContent>
                 </Select>
               </div>
-            )}
 
-            <div className="space-y-2">
-              <Label htmlFor="unit">
-                {language === "es" ? "Selecciona la Unidad" : "Select Unit"}
-              </Label>
-              <Input
-                placeholder={language === "es" ? "Buscar por condominio o número de unidad..." : "Search by condominium or unit number..."}
-                value={unitSearchTerm}
-                onChange={(e) => setUnitSearchTerm(e.target.value)}
-                data-testid="input-search-unit"
-                className="mb-2"
-              />
-              <Select
-                value={selectedUnitId}
-                onValueChange={setSelectedUnitId}
-              >
-                <SelectTrigger data-testid="select-unit">
-                  <SelectValue placeholder={language === "es" ? "Selecciona una unidad" : "Select a unit"} />
-                </SelectTrigger>
-                <SelectContent>
-                  {isLoadingUnits ? (
-                    <div className="flex items-center justify-center p-4">
-                      <Loader2 className="h-4 w-4 animate-spin" />
-                    </div>
-                  ) : (
-                    units
-                      ?.filter((unit) => {
-                        if (!unitSearchTerm) return true;
-                        const searchLower = unitSearchTerm.toLowerCase();
-                        const condominiumName = unit.condominium?.name?.toLowerCase() || "";
-                        const unitNumber = unit.unitNumber?.toLowerCase() || "";
-                        return condominiumName.includes(searchLower) || unitNumber.includes(searchLower);
-                      })
-                      ?.map((unit) => (
+              <div className="space-y-2">
+                <div className="flex items-center gap-2">
+                  <Home className="h-4 w-4 text-muted-foreground" />
+                  <Label className="font-medium">
+                    {language === "es" ? "Unidad" : "Unit"}
+                  </Label>
+                </div>
+                <Select
+                  value={selectedUnitId}
+                  onValueChange={setSelectedUnitId}
+                  disabled={!selectedCondominiumId}
+                >
+                  <SelectTrigger className="min-h-[44px]" data-testid="select-unit">
+                    <SelectValue placeholder={
+                      !selectedCondominiumId 
+                        ? (language === "es" ? "Primero selecciona un condominio" : "First select a condominium")
+                        : (language === "es" ? "Selecciona una unidad..." : "Select a unit...")
+                    } />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {filteredUnits.length === 0 ? (
+                      <div className="p-4 text-center text-sm text-muted-foreground">
+                        {language === "es" ? "No hay unidades en este condominio" : "No units in this condominium"}
+                      </div>
+                    ) : (
+                      filteredUnits.map((unit) => (
                         <SelectItem key={unit.id} value={unit.id}>
-                          {unit.condominium?.name} - {unit.unitNumber}
+                          <div className="flex items-center gap-2">
+                            <span className="font-medium">{unit.unitNumber}</span>
+                            {unit.propertyType && (
+                              <Badge variant="outline" className="text-xs capitalize">
+                                {unit.propertyType}
+                              </Badge>
+                            )}
+                            {unit.bedrooms !== null && unit.bedrooms !== undefined && (
+                              <span className="text-muted-foreground text-xs">
+                                {unit.bedrooms} {language === "es" ? "rec." : "bed"}
+                              </span>
+                            )}
+                          </div>
                         </SelectItem>
                       ))
-                  )}
-                </SelectContent>
-              </Select>
-            </div>
-
-            <Button
-              onClick={handleGenerateLink}
-              disabled={!selectedUnitId || !selectedClientId || generateTokenMutation.isPending}
-              className="w-full"
-              data-testid="button-create-token"
-            >
-              {generateTokenMutation.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-              {language === "es" ? "Generar Link" : "Generate Link"}
-            </Button>
-          </div>
-        ) : (
-          <div className="space-y-6">
-            <Card className="p-4 bg-blue-50 dark:bg-blue-950 border-blue-200 dark:border-blue-800">
-              <div className="space-y-2">
-                <p className="text-sm font-medium">
-                  {language === "es" ? "Cliente:" : "Client:"} {selectedClient?.firstName} {selectedClient?.lastName}
-                </p>
-                <p className="text-sm font-medium">
-                  {language === "es" ? "Unidad:" : "Unit:"} {selectedUnit?.condominium?.name} - {selectedUnit?.unitNumber}
-                </p>
-                <p className="text-xs text-muted-foreground mt-1">
-                  {language === "es" ? "Válido hasta:" : "Valid until:"} {new Date(generatedToken.expiresAt).toLocaleString(language === "es" ? "es-MX" : "en-US")}
-                </p>
+                    )}
+                  </SelectContent>
+                </Select>
               </div>
-            </Card>
 
-            <Tabs defaultValue="link" className="w-full">
-              <TabsList className="grid w-full grid-cols-3">
-                <TabsTrigger value="link" data-testid="tab-link">
-                  <LinkIcon className="h-4 w-4 mr-2" />
-                  Link
-                </TabsTrigger>
-                <TabsTrigger value="whatsapp" data-testid="tab-whatsapp">
-                  <MessageCircle className="h-4 w-4 mr-2" />
-                  WhatsApp
-                </TabsTrigger>
-                <TabsTrigger value="email" data-testid="tab-email">
-                  <Mail className="h-4 w-4 mr-2" />
-                  Email
-                </TabsTrigger>
-              </TabsList>
+              {selectedUnit && (
+                <Card className="bg-muted/50 border-dashed">
+                  <CardContent className="p-4">
+                    <div className="flex items-start gap-3">
+                      <div className="p-2 bg-background rounded-lg border">
+                        <Home className="h-4 w-4 text-primary" />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="font-medium text-sm truncate">
+                          {selectedUnit.condominium?.name} - {selectedUnit.unitNumber}
+                        </p>
+                        <p className="text-xs text-muted-foreground mt-0.5">
+                          {selectedUnit.propertyType && (
+                            <span className="capitalize">{selectedUnit.propertyType}</span>
+                          )}
+                          {selectedUnit.bedrooms !== null && selectedUnit.bedrooms !== undefined && (
+                            <span> • {selectedUnit.bedrooms} {language === "es" ? "recámaras" : "bedrooms"}</span>
+                          )}
+                          {selectedUnit.bathrooms !== null && selectedUnit.bathrooms !== undefined && (
+                            <span> • {selectedUnit.bathrooms} {language === "es" ? "baños" : "bathrooms"}</span>
+                          )}
+                        </p>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              )}
 
-              <TabsContent value="link" className="space-y-4">
-                <div>
-                  <Label>{language === "es" ? "Link de Oferta" : "Offer Link"}</Label>
-                  <div className="flex gap-2 mt-2">
-                    <Input
-                      value={getOfferLink()}
-                      readOnly
-                      className="font-mono text-sm"
-                      data-testid="input-offer-link"
-                    />
-                    <Button
-                      onClick={() => copyToClipboard(getOfferLink(), "link")}
-                      variant="outline"
-                      size="icon"
-                      data-testid="button-copy-link"
-                    >
-                      {copiedLink ? (
-                        <Check className="h-4 w-4 text-green-600" />
-                      ) : (
-                        <Copy className="h-4 w-4" />
-                      )}
-                    </Button>
-                    <Button
-                      onClick={() => window.open(getOfferLink(), "_blank")}
-                      variant="outline"
-                      size="icon"
-                    >
-                      <ExternalLink className="h-4 w-4" />
-                    </Button>
+              <Button
+                onClick={handleGenerateLink}
+                disabled={!selectedUnitId || !selectedClientId || generateTokenMutation.isPending}
+                className="w-full min-h-[44px]"
+                size="lg"
+                data-testid="button-create-token"
+              >
+                {generateTokenMutation.isPending ? (
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                ) : (
+                  <LinkIcon className="mr-2 h-4 w-4" />
+                )}
+                {language === "es" ? "Generar Link" : "Generate Link"}
+              </Button>
+            </div>
+          ) : (
+            <div className="space-y-5">
+              <Card className="bg-green-50 dark:bg-green-950/30 border-green-200 dark:border-green-800">
+                <CardContent className="p-4">
+                  <div className="flex items-start gap-3">
+                    <div className="p-2 bg-green-100 dark:bg-green-900 rounded-lg">
+                      <Check className="h-4 w-4 text-green-600 dark:text-green-400" />
+                    </div>
+                    <div className="flex-1 space-y-2">
+                      <p className="font-medium text-green-800 dark:text-green-200">
+                        {language === "es" ? "Link generado exitosamente" : "Link generated successfully"}
+                      </p>
+                      <div className="text-sm space-y-1">
+                        <div className="flex items-center gap-2">
+                          <User className="h-3.5 w-3.5 text-muted-foreground" />
+                          <span>{selectedClient?.firstName} {selectedClient?.lastName}</span>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <Building2 className="h-3.5 w-3.5 text-muted-foreground" />
+                          <span>{selectedUnit?.condominium?.name} - {selectedUnit?.unitNumber}</span>
+                        </div>
+                        <div className="flex items-center gap-2 text-muted-foreground">
+                          <Clock className="h-3.5 w-3.5" />
+                          <span className="text-xs">
+                            {language === "es" ? "Válido hasta:" : "Valid until:"} {new Date(generatedToken.expiresAt).toLocaleString(language === "es" ? "es-MX" : "en-US")}
+                          </span>
+                        </div>
+                      </div>
+                    </div>
                   </div>
-                </div>
-              </TabsContent>
+                </CardContent>
+              </Card>
 
-              <TabsContent value="whatsapp" className="space-y-4">
-                <div>
-                  <Label>{language === "es" ? "Mensaje para WhatsApp" : "WhatsApp Message"}</Label>
-                  <div className="flex gap-2 mt-2">
+              <Tabs defaultValue="link" className="w-full">
+                <TabsList className="grid w-full grid-cols-3 h-auto p-1">
+                  <TabsTrigger value="link" className="min-h-[44px] gap-1.5" data-testid="tab-link">
+                    <LinkIcon className="h-4 w-4" />
+                    <span className="hidden sm:inline">Link</span>
+                  </TabsTrigger>
+                  <TabsTrigger value="whatsapp" className="min-h-[44px] gap-1.5" data-testid="tab-whatsapp">
+                    <MessageCircle className="h-4 w-4" />
+                    <span className="hidden sm:inline">WhatsApp</span>
+                  </TabsTrigger>
+                  <TabsTrigger value="email" className="min-h-[44px] gap-1.5" data-testid="tab-email">
+                    <Mail className="h-4 w-4" />
+                    <span className="hidden sm:inline">Email</span>
+                  </TabsTrigger>
+                </TabsList>
+
+                <TabsContent value="link" className="space-y-4 pt-4">
+                  <div>
+                    <Label className="text-xs text-muted-foreground mb-2 block">
+                      {language === "es" ? "Link de Oferta" : "Offer Link"}
+                    </Label>
+                    <div className="flex gap-2">
+                      <Input
+                        value={getOfferLink()}
+                        readOnly
+                        className="font-mono text-xs min-h-[44px]"
+                        data-testid="input-offer-link"
+                      />
+                      <Button
+                        onClick={() => copyToClipboard(getOfferLink(), "link")}
+                        variant="outline"
+                        size="icon"
+                        className="min-w-[44px] min-h-[44px]"
+                        data-testid="button-copy-link"
+                      >
+                        {copiedLink ? (
+                          <Check className="h-4 w-4 text-green-600" />
+                        ) : (
+                          <Copy className="h-4 w-4" />
+                        )}
+                      </Button>
+                      <Button
+                        onClick={() => window.open(getOfferLink(), "_blank")}
+                        variant="outline"
+                        size="icon"
+                        className="min-w-[44px] min-h-[44px]"
+                        data-testid="button-open-link"
+                      >
+                        <ExternalLink className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  </div>
+                </TabsContent>
+
+                <TabsContent value="whatsapp" className="space-y-4 pt-4">
+                  <div>
+                    <Label className="text-xs text-muted-foreground mb-2 block">
+                      {language === "es" ? "Mensaje para WhatsApp" : "WhatsApp Message"}
+                    </Label>
                     <textarea
                       value={getWhatsAppMessage()}
                       readOnly
-                      className="flex-1 min-h-[200px] text-sm rounded-md border border-input bg-background px-3 py-2 font-mono"
+                      className="w-full min-h-[150px] text-xs rounded-md border border-input bg-muted/50 px-3 py-2 font-mono resize-none"
                     />
+                    <div className="flex gap-2 mt-3">
+                      <Button
+                        onClick={() => copyToClipboard(getWhatsAppMessage(), "whatsapp")}
+                        variant="outline"
+                        className="flex-1 min-h-[44px]"
+                      >
+                        {copiedWhatsApp ? (
+                          <Check className="h-4 w-4 mr-2 text-green-600" />
+                        ) : (
+                          <Copy className="h-4 w-4 mr-2" />
+                        )}
+                        {language === "es" ? "Copiar" : "Copy"}
+                      </Button>
+                      <Button onClick={openWhatsApp} className="flex-1 min-h-[44px] bg-green-600 hover:bg-green-700">
+                        <MessageCircle className="h-4 w-4 mr-2" />
+                        {language === "es" ? "Abrir WhatsApp" : "Open WhatsApp"}
+                      </Button>
+                    </div>
                   </div>
-                  <div className="flex gap-2 mt-2">
-                    <Button
-                      onClick={() => copyToClipboard(getWhatsAppMessage(), "whatsapp")}
-                      variant="outline"
-                      className="flex-1"
-                    >
-                      {copiedWhatsApp ? (
-                        <Check className="h-4 w-4 mr-2 text-green-600" />
-                      ) : (
-                        <Copy className="h-4 w-4 mr-2" />
+                </TabsContent>
+
+                <TabsContent value="email" className="space-y-4 pt-4">
+                  <form onSubmit={form.handleSubmit(onSubmitEmail)} className="space-y-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="clientName" className="text-xs">
+                        {language === "es" ? "Nombre del Cliente" : "Client Name"}
+                      </Label>
+                      <Input
+                        id="clientName"
+                        {...form.register("clientName")}
+                        placeholder={language === "es" ? "Nombre completo" : "Full name"}
+                        className="min-h-[44px]"
+                      />
+                      {form.formState.errors.clientName && (
+                        <p className="text-xs text-destructive">
+                          {form.formState.errors.clientName.message}
+                        </p>
                       )}
-                      {language === "es" ? "Copiar Mensaje" : "Copy Message"}
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label htmlFor="clientEmail" className="text-xs">
+                        {language === "es" ? "Email del Cliente" : "Client Email"}
+                      </Label>
+                      <Input
+                        id="clientEmail"
+                        type="email"
+                        {...form.register("clientEmail")}
+                        placeholder={language === "es" ? "correo@ejemplo.com" : "email@example.com"}
+                        className="min-h-[44px]"
+                      />
+                      {form.formState.errors.clientEmail && (
+                        <p className="text-xs text-destructive">
+                          {form.formState.errors.clientEmail.message}
+                        </p>
+                      )}
+                    </div>
+
+                    <Button
+                      type="submit"
+                      className="w-full min-h-[44px]"
+                      disabled={sendEmailMutation.isPending}
+                    >
+                      {sendEmailMutation.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                      <Mail className="h-4 w-4 mr-2" />
+                      {language === "es" ? "Enviar por Email" : "Send by Email"}
                     </Button>
-                    <Button onClick={openWhatsApp} className="flex-1">
-                      <MessageCircle className="h-4 w-4 mr-2" />
-                      {language === "es" ? "Abrir WhatsApp" : "Open WhatsApp"}
-                    </Button>
-                  </div>
-                </div>
-              </TabsContent>
+                  </form>
+                </TabsContent>
+              </Tabs>
 
-              <TabsContent value="email" className="space-y-4">
-                <form onSubmit={form.handleSubmit(onSubmitEmail)} className="space-y-4">
-                  <div>
-                    <Label htmlFor="clientName">{language === "es" ? "Nombre del Cliente" : "Client Name"}</Label>
-                    <Input
-                      id="clientName"
-                      {...form.register("clientName")}
-                      placeholder={language === "es" ? "Nombre completo" : "Full name"}
-                    />
-                    {form.formState.errors.clientName && (
-                      <p className="text-sm text-destructive mt-1">
-                        {form.formState.errors.clientName.message}
-                      </p>
-                    )}
-                  </div>
+              <Separator />
 
-                  <div>
-                    <Label htmlFor="clientEmail">{language === "es" ? "Email del Cliente" : "Client Email"}</Label>
-                    <Input
-                      id="clientEmail"
-                      type="email"
-                      {...form.register("clientEmail")}
-                      placeholder={language === "es" ? "correo@ejemplo.com" : "email@example.com"}
-                    />
-                    {form.formState.errors.clientEmail && (
-                      <p className="text-sm text-destructive mt-1">
-                        {form.formState.errors.clientEmail.message}
-                      </p>
-                    )}
-                  </div>
-
-                  <Button
-                    type="submit"
-                    className="w-full"
-                    disabled={sendEmailMutation.isPending}
-                  >
-                    {sendEmailMutation.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                    <Mail className="h-4 w-4 mr-2" />
-                    {language === "es" ? "Enviar por Email" : "Send by Email"}
-                  </Button>
-                </form>
-              </TabsContent>
-            </Tabs>
-
-            <div className="flex gap-2">
-              <Button variant="outline" onClick={handleClose} className="flex-1">
+              <Button variant="outline" onClick={handleClose} className="w-full min-h-[44px]">
                 {language === "es" ? "Cerrar" : "Close"}
               </Button>
             </div>
-          </div>
-        )}
+          )}
+        </div>
       </DialogContent>
     </Dialog>
   );
