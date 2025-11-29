@@ -311,17 +311,17 @@ export default function ExternalClients() {
   });
   const sellers = sellersData || [];
 
-  // Fetch condominiums for property interest selection in leads
-  const { data: condominiumsData } = useQuery<{ data: { id: string; name: string; neighborhood?: string }[] }>({
-    queryKey: ["/api/external-condominiums"],
+  // Fetch ALL condominiums for property interest selection in leads (no pagination limit)
+  const { data: condominiumsData } = useQuery<{ id: string; name: string }[]>({
+    queryKey: ["/api/external-condominiums-for-filters"],
     queryFn: async () => {
-      const response = await fetch(`/api/external-condominiums`, { credentials: 'include' });
+      const response = await fetch(`/api/external-condominiums-for-filters`, { credentials: 'include' });
       if (!response.ok) throw new Error('Failed to fetch condominiums');
       return response.json();
     },
     staleTime: 10 * 60 * 1000,
   });
-  const condominiums = condominiumsData?.data || [];
+  const condominiums = condominiumsData || [];
 
   // State for added properties (list of {condominiumId, condominiumName, unitId?, unitNumber?})
   interface PropertySelection {
