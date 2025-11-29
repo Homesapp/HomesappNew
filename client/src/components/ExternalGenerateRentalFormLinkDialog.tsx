@@ -324,6 +324,11 @@ export default function ExternalGenerateRentalFormLinkDialog({
   const getFormLink = () => {
     if (!generatedToken) return "";
     const baseUrl = window.location.origin;
+    // Use friendly URL for tenant forms only when both slugs are available
+    if (recipientType === "tenant" && generatedToken.agencySlug && generatedToken.unitSlug) {
+      return `${baseUrl}/${generatedToken.agencySlug}/formato-renta/${generatedToken.unitSlug}`;
+    }
+    // Fallback to token-based URL (also used for owner forms)
     return `${baseUrl}/public-rental-form/${generatedToken.token}`;
   };
 

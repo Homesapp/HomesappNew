@@ -240,6 +240,11 @@ export default function ExternalGenerateOfferLinkDialog({
   const getOfferLink = () => {
     if (!generatedToken) return "";
     const baseUrl = window.location.origin;
+    // Use friendly URL if both agency slug and unit slug are available
+    if (generatedToken.agencySlug && generatedToken.unitSlug) {
+      return `${baseUrl}/${generatedToken.agencySlug}/oferta/${generatedToken.unitSlug}`;
+    }
+    // Fallback to token-based URL
     return `${baseUrl}/offer/${generatedToken.token}`;
   };
 

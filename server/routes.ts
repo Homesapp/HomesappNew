@@ -13869,12 +13869,26 @@ export async function registerRoutes(app: Express): Promise<Server> {
         auditMessage
       );
 
-      // Return token with property or unit info
+      // Get agency info for friendly URL generation
+      let agencySlug = null;
+      if (externalUnit?.agencyId) {
+        const agency = await db.select({ slug: externalAgencies.slug })
+          .from(externalAgencies)
+          .where(eq(externalAgencies.id, externalUnit.agencyId))
+          .limit(1);
+        if (agency.length) {
+          agencySlug = agency[0].slug;
+        }
+      }
+
+      // Return token with property or unit info and slugs for friendly URLs
       res.status(201).json({
         ...offerToken[0],
         property,
         externalUnit,
         externalClient,
+        agencySlug,
+        unitSlug: externalUnit?.slug,
       });
     } catch (error: any) {
       console.error("Error creating offer token:", error);
@@ -14363,12 +14377,26 @@ export async function registerRoutes(app: Express): Promise<Server> {
         auditMessage
       );
 
+      // Get agency info for friendly URL generation
+      let agencySlug = null;
+      if (externalUnit?.agencyId) {
+        const agency = await db.select({ slug: externalAgencies.slug })
+          .from(externalAgencies)
+          .where(eq(externalAgencies.id, externalUnit.agencyId))
+          .limit(1);
+        if (agency.length) {
+          agencySlug = agency[0].slug;
+        }
+      }
+
       res.json({
         ...rentalFormToken,
         property,
         externalUnit,
         externalClient,
         externalUnitOwner,
+        agencySlug,
+        unitSlug: externalUnit?.slug,
       });
     } catch (error: any) {
       console.error("Error creating rental form token:", error);
