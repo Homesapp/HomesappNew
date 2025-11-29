@@ -111,15 +111,36 @@ export default function PropertySearch() {
     return params.toString();
   };
 
-  const { data: properties = [], isLoading } = useQuery<Property[]>({
-    queryKey: ["/api/properties/search", filters, selectedAmenities],
+  const { data: properties = [], isLoading } = useQuery<any[]>({
+    queryKey: ["/api/public/external-properties", filters, selectedAmenities],
     queryFn: async () => {
-      const queryString = buildQueryString(filters);
-      const response = await fetch(`/api/properties/search?${queryString}`);
+      const response = await fetch(`/api/public/external-properties?limit=50`);
       if (!response.ok) {
         throw new Error("Error al buscar propiedades");
       }
-      return response.json();
+      const allProperties = await response.json();
+      
+      return allProperties.filter((prop: any) => {
+        if (filters.status && filters.status !== "all") {
+          if (filters.status === "rent" && prop.status !== "rent") return false;
+          if (filters.status === "sale" && prop.status !== "sale") return false;
+        }
+        if (filters.minPrice && prop.price < filters.minPrice) return false;
+        if (filters.maxPrice && prop.price > filters.maxPrice) return false;
+        if (filters.bedrooms && prop.bedrooms < filters.bedrooms) return false;
+        if (filters.bathrooms && prop.bathrooms < filters.bathrooms) return false;
+        if (filters.location) {
+          const searchLocation = filters.location.toLowerCase();
+          const propLocation = (prop.location || "").toLowerCase();
+          if (!propLocation.includes(searchLocation)) return false;
+        }
+        if (filters.petFriendly && !prop.amenities?.includes("Mascotas permitidas")) return false;
+        if (selectedAmenities.length > 0) {
+          const propAmenities = prop.amenities || [];
+          if (!selectedAmenities.every(a => propAmenities.includes(a))) return false;
+        }
+        return true;
+      });
     },
   });
 
@@ -513,18 +534,12 @@ export default function PropertySearch() {
       {/* Footer - Minimalist */}
       {!isAuthenticated && (
         <footer className="border-t bg-muted/30 mt-12">
-          <div className="container mx-auto px-4 py-8">
-            <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
-              <div className="flex items-center gap-2">
-                <div className="h-7 w-7 rounded-full bg-foreground flex items-center justify-center">
-                  <Home className="h-3.5 w-3.5 text-background" />
-                </div>
-                <span className="font-medium text-sm">homes</span>
-              </div>
-              <p className="text-xs text-muted-foreground">
+          <div className="container mx-auto px-4 py-6">
+            <div className="flex flex-col sm:flex-row items-center justify-center sm:justify-between gap-3">
+              <p className="text-[10px] sm:text-xs text-muted-foreground text-center">
                 © {new Date().getFullYear()} Tulum Rental Homes
               </p>
-              <div className="flex items-center gap-4 text-xs">
+              <div className="flex items-center gap-4 text-[10px] sm:text-xs">
                 <button 
                   onClick={() => setLocation("/terminos")}
                   className="text-muted-foreground hover:text-foreground transition-colors"

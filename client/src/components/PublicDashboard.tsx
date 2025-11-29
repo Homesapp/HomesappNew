@@ -71,6 +71,9 @@ export default function PublicDashboard() {
     { name: "Holistika", query: "Holistika" },
     { name: "Centro", query: "Centro" },
     { name: "Región 15", query: "Región 15" },
+    { name: "Selvazama", query: "Selvazama" },
+    { name: "Tulum Centro", query: "Tulum Centro" },
+    { name: "Aldea Corazón", query: "Aldea Corazón" },
   ];
 
   return (
@@ -244,18 +247,20 @@ export default function PublicDashboard() {
               </div>
             )}
             
-            {/* Popular Zones - Compact Pills */}
-            <div className="mt-3 flex flex-wrap justify-center gap-1.5">
-              {popularZones.map((zone) => (
-                <Badge
-                  key={zone.name}
-                  variant="secondary"
-                  className="rounded-full px-2.5 py-1 text-[11px] cursor-pointer hover-elevate"
-                  onClick={() => setLocation(`/buscar-propiedades?location=${encodeURIComponent(zone.query)}`)}
-                >
-                  {zone.name}
-                </Badge>
-              ))}
+            {/* Popular Zones - Horizontal Scroll */}
+            <div className="mt-3 overflow-x-auto scrollbar-hide">
+              <div className="flex gap-2 justify-center min-w-max px-2">
+                {popularZones.map((zone) => (
+                  <Badge
+                    key={zone.name}
+                    variant="secondary"
+                    className="rounded-full px-3 py-1.5 text-xs cursor-pointer hover-elevate flex-shrink-0 whitespace-nowrap"
+                    onClick={() => setLocation(`/buscar-propiedades?location=${encodeURIComponent(zone.query)}`)}
+                  >
+                    {zone.name}
+                  </Badge>
+                ))}
+              </div>
             </div>
           </div>
         </div>
