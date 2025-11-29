@@ -46,7 +46,13 @@ export default function ExternalMessages() {
   const { language } = useLanguage();
   const { user } = useAuth();
   const { toast } = useToast();
-  const [activeTab, setActiveTab] = useState("chatbot");
+  
+  // Check if user is a seller (not admin) - sellers only see team tab
+  const isSeller = user?.role === "external_agency_seller";
+  const isAdmin = user?.role === "external_agency_admin";
+  
+  // Set default tab based on role - sellers default to team, admins to chatbot
+  const [activeTab, setActiveTab] = useState(isSeller ? "team" : "chatbot");
   const [chatInput, setChatInput] = useState("");
   const [chatMessages, setChatMessages] = useState<Message[]>([]);
   const [isTyping, setIsTyping] = useState(false);
@@ -60,6 +66,13 @@ export default function ExternalMessages() {
   useEffect(() => {
     scrollToBottom();
   }, [chatMessages]);
+  
+  // Ensure sellers can only access team tab
+  useEffect(() => {
+    if (isSeller && activeTab !== "team") {
+      setActiveTab("team");
+    }
+  }, [isSeller, activeTab]);
 
   const chatMutation = useMutation({
     mutationFn: async (message: string) => {
@@ -149,33 +162,43 @@ export default function ExternalMessages() {
         </div>
 
         <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-          <TabsList className="grid w-full grid-cols-2 md:grid-cols-5 h-auto gap-1">
-            <TabsTrigger value="chatbot" className="min-h-[44px] flex items-center gap-2" data-testid="tab-chatbot">
-              <Bot className="h-4 w-4" />
-              <span className="hidden sm:inline">{language === "es" ? "Chatbot IA" : "AI Chatbot"}</span>
-              <span className="sm:hidden">IA</span>
-            </TabsTrigger>
-            <TabsTrigger value="team" className="min-h-[44px] flex items-center gap-2" data-testid="tab-team">
-              <Users className="h-4 w-4" />
-              <span className="hidden sm:inline">{language === "es" ? "Equipo" : "Team"}</span>
-              <span className="sm:hidden">{language === "es" ? "Equipo" : "Team"}</span>
-            </TabsTrigger>
-            <TabsTrigger value="owners" className="min-h-[44px] flex items-center gap-2" data-testid="tab-owners">
-              <Building2 className="h-4 w-4" />
-              <span className="hidden sm:inline">{language === "es" ? "Propietarios" : "Owners"}</span>
-              <span className="sm:hidden">{language === "es" ? "Props" : "Owners"}</span>
-            </TabsTrigger>
-            <TabsTrigger value="tenants" className="min-h-[44px] flex items-center gap-2" data-testid="tab-tenants">
-              <User className="h-4 w-4" />
-              <span className="hidden sm:inline">{language === "es" ? "Inquilinos" : "Tenants"}</span>
-              <span className="sm:hidden">{language === "es" ? "Inq" : "Ten"}</span>
-            </TabsTrigger>
-            <TabsTrigger value="maintenance" className="min-h-[44px] flex items-center gap-2" data-testid="tab-maintenance">
-              <Wrench className="h-4 w-4" />
-              <span className="hidden sm:inline">{language === "es" ? "Servicios" : "Services"}</span>
-              <span className="sm:hidden">{language === "es" ? "Serv" : "Serv"}</span>
-            </TabsTrigger>
-          </TabsList>
+          {/* Sellers only see the Team tab, admins see all tabs */}
+          {isSeller ? (
+            <TabsList className="grid w-full grid-cols-1 h-auto gap-1">
+              <TabsTrigger value="team" className="min-h-[44px] flex items-center gap-2" data-testid="tab-team">
+                <Users className="h-4 w-4" />
+                <span>{language === "es" ? "Equipo" : "Team"}</span>
+              </TabsTrigger>
+            </TabsList>
+          ) : (
+            <TabsList className="grid w-full grid-cols-2 md:grid-cols-5 h-auto gap-1">
+              <TabsTrigger value="chatbot" className="min-h-[44px] flex items-center gap-2" data-testid="tab-chatbot">
+                <Bot className="h-4 w-4" />
+                <span className="hidden sm:inline">{language === "es" ? "Chatbot IA" : "AI Chatbot"}</span>
+                <span className="sm:hidden">IA</span>
+              </TabsTrigger>
+              <TabsTrigger value="team" className="min-h-[44px] flex items-center gap-2" data-testid="tab-team">
+                <Users className="h-4 w-4" />
+                <span className="hidden sm:inline">{language === "es" ? "Equipo" : "Team"}</span>
+                <span className="sm:hidden">{language === "es" ? "Equipo" : "Team"}</span>
+              </TabsTrigger>
+              <TabsTrigger value="owners" className="min-h-[44px] flex items-center gap-2" data-testid="tab-owners">
+                <Building2 className="h-4 w-4" />
+                <span className="hidden sm:inline">{language === "es" ? "Propietarios" : "Owners"}</span>
+                <span className="sm:hidden">{language === "es" ? "Props" : "Owners"}</span>
+              </TabsTrigger>
+              <TabsTrigger value="tenants" className="min-h-[44px] flex items-center gap-2" data-testid="tab-tenants">
+                <User className="h-4 w-4" />
+                <span className="hidden sm:inline">{language === "es" ? "Inquilinos" : "Tenants"}</span>
+                <span className="sm:hidden">{language === "es" ? "Inq" : "Ten"}</span>
+              </TabsTrigger>
+              <TabsTrigger value="maintenance" className="min-h-[44px] flex items-center gap-2" data-testid="tab-maintenance">
+                <Wrench className="h-4 w-4" />
+                <span className="hidden sm:inline">{language === "es" ? "Servicios" : "Services"}</span>
+                <span className="sm:hidden">{language === "es" ? "Serv" : "Serv"}</span>
+              </TabsTrigger>
+            </TabsList>
+          )}
 
           <TabsContent value="chatbot" className="mt-6">
             <Card className="h-[600px] flex flex-col">
