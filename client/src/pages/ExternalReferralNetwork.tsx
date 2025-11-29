@@ -73,10 +73,8 @@ export default function ExternalReferralNetwork() {
 
   const bulkAssignMutation = useMutation({
     mutationFn: async (data: { referrerName: string; referrerEmail: string | null; referrerPhone: string | null; unitIds: string[] }) => {
-      return apiRequest('/api/external/referral-network/bulk-assign', {
-        method: 'POST',
-        body: JSON.stringify(data),
-      });
+      const response = await apiRequest('POST', '/api/external/referral-network/bulk-assign', data);
+      return response.json();
     },
     onSuccess: (result: any) => {
       queryClient.invalidateQueries({ queryKey: ['/api/external/referral-network'] });
@@ -235,6 +233,46 @@ export default function ExternalReferralNetwork() {
     u.unitNumber.toLowerCase().includes(unitSearchQuery.toLowerCase()) ||
     u.condominiumName?.toLowerCase().includes(unitSearchQuery.toLowerCase())
   );
+
+  // Group units by condominium
+  const groupedUnits = filteredAvailableUnits.reduce((groups, unit) => {
+    const condoName = unit.condominiumName || (language === "es" ? "Sin Condominio" : "No Condominium");
+    if (!groups[condoName]) {
+      groups[condoName] = [];
+    }
+    groups[condoName].push(unit);
+    return groups;
+  }, {} as Record<string, AvailableUnit[]>);
+
+  const sortedCondoNames = Object.keys(groupedUnits).sort();
+
+  const [expandedCondos, setExpandedCondos] = useState<Set<string>>(new Set());
+
+  const toggleCondo = (condoName: string) => {
+    const newSet = new Set(expandedCondos);
+    if (newSet.has(condoName)) {
+      newSet.delete(condoName);
+    } else {
+      newSet.add(condoName);
+    }
+    setExpandedCondos(newSet);
+  };
+
+  const selectAllInCondo = (condoName: string) => {
+    const newSet = new Set(selectedUnits);
+    groupedUnits[condoName].forEach(u => newSet.add(u.id));
+    setSelectedUnits(newSet);
+  };
+
+  const clearAllInCondo = (condoName: string) => {
+    const newSet = new Set(selectedUnits);
+    groupedUnits[condoName].forEach(u => newSet.delete(u.id));
+    setSelectedUnits(newSet);
+  };
+
+  const getCondoSelectedCount = (condoName: string) => {
+    return groupedUnits[condoName].filter(u => selectedUnits.has(u.id)).length;
+  };
 
   return (
     <div className="min-h-screen bg-background">
@@ -580,37 +618,87 @@ export default function ExternalReferralNetwork() {
                   data-testid="input-search-units"
                 />
               </div>
-              <ScrollArea className="flex-1 border rounded-lg">
-                <div className="p-2 space-y-1">
-                  {filteredAvailableUnits.map((unit) => (
-                    <div
-                      key={unit.id}
-                      className={`flex items-center gap-3 p-2 rounded-md cursor-pointer transition-colors ${
-                        selectedUnits.has(unit.id) ? 'bg-primary/10' : 'hover-elevate'
-                      }`}
-                      onClick={() => toggleUnit(unit.id)}
-                      data-testid={`unit-option-${unit.id}`}
-                    >
-                      <Checkbox 
-                        checked={selectedUnits.has(unit.id)} 
-                        onCheckedChange={() => toggleUnit(unit.id)}
-                        className="shrink-0"
-                      />
-                      <div className="flex-1 min-w-0">
-                        <p className="text-sm font-medium truncate">
-                          {unit.condominiumName ? `${unit.condominiumName} - ` : ''}{unit.unitNumber}
-                        </p>
-                        {unit.currentReferrer && (
-                          <p className="text-xs text-muted-foreground">
-                            {text.currentReferrer}: {unit.currentReferrer}
-                          </p>
-                        )}
-                      </div>
-                      {selectedUnits.has(unit.id) && (
-                        <Check className="h-4 w-4 text-primary shrink-0" />
-                      )}
-                    </div>
-                  ))}
+              <ScrollArea className="h-[300px] border rounded-lg">
+                <div className="p-2 space-y-2">
+                  {sortedCondoNames.map((condoName) => {
+                    const condoUnits = groupedUnits[condoName];
+                    const selectedCount = getCondoSelectedCount(condoName);
+                    const isExpanded = expandedCondos.has(condoName);
+                    
+                    return (
+                      <Collapsible key={condoName} open={isExpanded} onOpenChange={() => toggleCondo(condoName)}>
+                        <div className="border rounded-lg overflow-hidden">
+                          <CollapsibleTrigger asChild>
+                            <div className="flex items-center justify-between p-2 bg-muted/50 cursor-pointer hover-elevate">
+                              <div className="flex items-center gap-2">
+                                {isExpanded ? (
+                                  <ChevronDown className="h-4 w-4 text-muted-foreground" />
+                                ) : (
+                                  <ChevronRight className="h-4 w-4 text-muted-foreground" />
+                                )}
+                                <Building2 className="h-4 w-4 text-primary" />
+                                <span className="font-medium text-sm">{condoName}</span>
+                                <Badge variant="outline" className="h-5 text-[10px]">
+                                  {selectedCount}/{condoUnits.length}
+                                </Badge>
+                              </div>
+                              <div className="flex items-center gap-1">
+                                <Button 
+                                  variant="ghost" 
+                                  size="sm" 
+                                  className="h-6 px-2 text-[10px]"
+                                  onClick={(e) => { e.stopPropagation(); selectAllInCondo(condoName); }}
+                                  data-testid={`button-select-condo-${condoName.replace(/\s+/g, '-').toLowerCase()}`}
+                                >
+                                  {language === "es" ? "Todas" : "All"}
+                                </Button>
+                                <Button 
+                                  variant="ghost" 
+                                  size="sm" 
+                                  className="h-6 px-2 text-[10px]"
+                                  onClick={(e) => { e.stopPropagation(); clearAllInCondo(condoName); }}
+                                  data-testid={`button-clear-condo-${condoName.replace(/\s+/g, '-').toLowerCase()}`}
+                                >
+                                  {language === "es" ? "Ninguna" : "None"}
+                                </Button>
+                              </div>
+                            </div>
+                          </CollapsibleTrigger>
+                          <CollapsibleContent>
+                            <div className="p-2 space-y-1 bg-background">
+                              {condoUnits.map((unit) => (
+                                <div
+                                  key={unit.id}
+                                  className={`flex items-center gap-3 p-2 rounded-md cursor-pointer transition-colors ${
+                                    selectedUnits.has(unit.id) ? 'bg-primary/10' : 'hover-elevate'
+                                  }`}
+                                  onClick={() => toggleUnit(unit.id)}
+                                  data-testid={`unit-option-${unit.id}`}
+                                >
+                                  <Checkbox 
+                                    checked={selectedUnits.has(unit.id)} 
+                                    onCheckedChange={() => toggleUnit(unit.id)}
+                                    className="shrink-0"
+                                  />
+                                  <div className="flex-1 min-w-0">
+                                    <p className="text-sm font-medium truncate">{unit.unitNumber}</p>
+                                    {unit.currentReferrer && (
+                                      <p className="text-xs text-muted-foreground">
+                                        {text.currentReferrer}: {unit.currentReferrer}
+                                      </p>
+                                    )}
+                                  </div>
+                                  {selectedUnits.has(unit.id) && (
+                                    <Check className="h-4 w-4 text-primary shrink-0" />
+                                  )}
+                                </div>
+                              ))}
+                            </div>
+                          </CollapsibleContent>
+                        </div>
+                      </Collapsible>
+                    );
+                  })}
                 </div>
               </ScrollArea>
             </div>
