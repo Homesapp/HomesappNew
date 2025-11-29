@@ -23,8 +23,9 @@ export default function PublicDashboard() {
   const [allowsSubleasing, setAllowsSubleasing] = useState(false);
   const { t } = useLanguage();
 
-  const { data: properties = [] } = useQuery<Property[]>({
-    queryKey: ["/api/properties/search?limit=8"],
+  // Load external approved properties for homepage
+  const { data: externalProperties = [] } = useQuery<any[]>({
+    queryKey: ["/api/public/external-properties?limit=12"],
   });
 
   const { data: colonies = [] } = useQuery<Colony[]>({
@@ -37,8 +38,8 @@ export default function PublicDashboard() {
     enabled: showFilters,
   });
 
-  const featuredProperties = properties.filter(p => p.featured).slice(0, 4);
-  const popularProperties = properties.slice(0, 6);
+  const featuredProperties = externalProperties.slice(0, 4);
+  const popularProperties = externalProperties.slice(0, 8);
 
   const handleSearch = () => {
     const params = new URLSearchParams();
@@ -242,13 +243,13 @@ export default function PublicDashboard() {
               </div>
             )}
             
-            {/* Popular Zones - Pills */}
-            <div className="mt-4 sm:mt-6 flex flex-wrap justify-center gap-2">
+            {/* Popular Zones - Compact Pills */}
+            <div className="mt-3 flex flex-wrap justify-center gap-1.5">
               {popularZones.map((zone) => (
                 <Badge
                   key={zone.name}
                   variant="secondary"
-                  className="rounded-full px-3 py-1.5 text-xs cursor-pointer hover-elevate"
+                  className="rounded-full px-2.5 py-1 text-[11px] cursor-pointer hover-elevate"
                   onClick={() => setLocation(`/buscar-propiedades?location=${encodeURIComponent(zone.query)}`)}
                 >
                   {zone.name}
@@ -259,7 +260,7 @@ export default function PublicDashboard() {
         </div>
       </div>
 
-      <div className="container mx-auto px-4 py-8 sm:py-12">
+      <div className="container mx-auto px-4 py-6 sm:py-8">
         {/* Featured Properties - Clean Cards */}
         {featuredProperties.length > 0 && (
           <div className="mb-10 sm:mb-14">
@@ -280,14 +281,14 @@ export default function PublicDashboard() {
                 <div
                   key={property.id}
                   className="group cursor-pointer rounded-2xl overflow-hidden border bg-card hover-elevate"
-                  onClick={() => setLocation(`/propiedad/${property.id}/completo`)}
+                  onClick={() => setLocation(property.isExternal ? `/propiedad-externa/${property.id}` : `/propiedad/${property.id}/completo`)}
                   data-testid={`card-property-${property.id}`}
                 >
                   <div className="relative aspect-[4/3] overflow-hidden bg-muted">
                     {property.primaryImages && property.primaryImages[0] ? (
                       <img
                         src={property.primaryImages[0]}
-                        alt={getPropertyTitle(property)}
+                        alt={property.title || "Propiedad"}
                         className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-105"
                         data-testid={`img-property-${property.id}`}
                       />
@@ -309,7 +310,7 @@ export default function PublicDashboard() {
                   <div className="p-3 sm:p-4">
                     <div className="flex items-start justify-between gap-2 mb-1">
                       <h3 className="font-medium text-sm sm:text-base truncate" data-testid={`text-title-${property.id}`}>
-                        {getPropertyTitle(property)}
+                        {property.title || "Propiedad"}
                       </h3>
                     </div>
                     <p className="text-xs sm:text-sm text-muted-foreground mb-2 truncate flex items-center gap-1" data-testid={`text-location-${property.id}`}>
@@ -318,13 +319,13 @@ export default function PublicDashboard() {
                     </p>
                     <div className="flex items-center justify-between">
                       <p className="font-semibold text-sm sm:text-base" data-testid={`text-price-${property.id}`}>
-                        ${property.price.toLocaleString()} 
+                        ${(property.price || 0).toLocaleString()} 
                         <span className="font-normal text-xs text-muted-foreground ml-1">
                           USD{property.status === "rent" ? "/mes" : ""}
                         </span>
                       </p>
                       <div className="text-xs text-muted-foreground">
-                        {property.bedrooms} rec · {property.bathrooms} baños
+                        {property.bedrooms || 0} rec · {property.bathrooms || 0} baños
                       </div>
                     </div>
                   </div>
@@ -335,9 +336,9 @@ export default function PublicDashboard() {
         )}
 
         {/* Popular Now - Grid */}
-        <div className="mb-10 sm:mb-14">
+        <div className="mb-8 sm:mb-10">
           <div className="flex items-center justify-between mb-4 sm:mb-6">
-            <h2 className="text-xl sm:text-2xl font-semibold">{t("public.explore.title") || "Populares ahora"}</h2>
+            <h2 className="text-xl sm:text-2xl font-semibold">{t("public.explore.title") || "Propiedades Destacadas"}</h2>
             <Button
               variant="ghost"
               size="sm"
@@ -353,14 +354,14 @@ export default function PublicDashboard() {
               <div
                 key={property.id}
                 className="group cursor-pointer rounded-2xl overflow-hidden border bg-card hover-elevate"
-                onClick={() => setLocation(`/propiedad/${property.id}/completo`)}
+                onClick={() => setLocation(property.isExternal ? `/propiedad-externa/${property.id}` : `/propiedad/${property.id}/completo`)}
                 data-testid={`card-all-property-${property.id}`}
               >
                 <div className="relative aspect-video overflow-hidden bg-muted">
                   {property.primaryImages && property.primaryImages[0] ? (
                     <img
                       src={property.primaryImages[0]}
-                      alt={getPropertyTitle(property)}
+                      alt={property.title || "Propiedad"}
                       className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-105"
                       data-testid={`img-all-property-${property.id}`}
                     />
@@ -369,11 +370,9 @@ export default function PublicDashboard() {
                       <Building2 className="h-12 w-12 text-muted-foreground" />
                     </div>
                   )}
-                  {property.featured && (
-                    <Badge className="absolute top-3 left-3 bg-foreground text-background text-[10px] rounded-full px-2">
-                      Popular
-                    </Badge>
-                  )}
+                  <Badge className="absolute top-3 left-3 bg-foreground text-background text-[10px] rounded-full px-2">
+                    {property.status === "rent" ? "Renta" : "Venta"}
+                  </Badge>
                   <button 
                     className="absolute top-3 right-3 h-8 w-8 rounded-full bg-background/80 backdrop-blur flex items-center justify-center hover:bg-background transition-colors"
                     onClick={(e) => e.stopPropagation()}
@@ -384,22 +383,22 @@ export default function PublicDashboard() {
                 <div className="p-4">
                   <div className="flex items-start justify-between gap-2 mb-1">
                     <h3 className="font-medium truncate" data-testid={`text-all-title-${property.id}`}>
-                      {getPropertyTitle(property)}
+                      {property.title || "Propiedad"}
                     </h3>
                   </div>
                   <p className="text-sm text-muted-foreground mb-3 truncate flex items-center gap-1" data-testid={`text-all-location-${property.id}`}>
                     <MapPin className="h-3 w-3 shrink-0" />
-                    {property.location}, Tulum
+                    {property.location}
                   </p>
                   <div className="flex items-center justify-between pt-3 border-t">
                     <p className="font-bold" data-testid={`text-all-price-${property.id}`}>
-                      ${property.price.toLocaleString()} 
+                      ${(property.price || 0).toLocaleString()} 
                       <span className="font-normal text-sm text-muted-foreground ml-1">
                         USD{property.status === "rent" ? "/mes" : ""}
                       </span>
                     </p>
                     <div className="text-sm text-muted-foreground">
-                      {property.bedrooms} rec · {property.bathrooms} baños · {property.area}m²
+                      {property.bedrooms || 0} rec · {property.bathrooms || 0} baños
                     </div>
                   </div>
                 </div>
