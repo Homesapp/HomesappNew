@@ -2,6 +2,7 @@ import { useState, useMemo } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { useAuth } from "@/hooks/useAuth";
+import { useMobile } from "@/hooks/use-mobile";
 import { format, isSameDay, startOfMonth, endOfMonth, eachDayOfInterval, getDay, addMonths, subMonths, isToday, isBefore, startOfDay } from "date-fns";
 import { es, enUS } from "date-fns/locale";
 import { cn } from "@/lib/utils";
@@ -106,6 +107,7 @@ export default function SellerCalendar() {
   const { language } = useLanguage();
   const { user } = useAuth();
   const { toast } = useToast();
+  const isMobile = useMobile();
   const locale = language === "es" ? es : enUS;
   
   const [currentMonth, setCurrentMonth] = useState(new Date());
@@ -467,14 +469,16 @@ export default function SellerCalendar() {
               : "Manage your client appointments"}
           </p>
         </div>
-        <Button 
-          onClick={() => openCreateDialog()}
-          className="min-h-[44px]"
-          data-testid="button-create-appointment"
-        >
-          <Plus className="mr-2 h-4 w-4" />
-          {language === "es" ? "Nueva Cita" : "New Appointment"}
-        </Button>
+        {!isMobile && (
+          <Button 
+            onClick={() => openCreateDialog()}
+            className="min-h-[44px]"
+            data-testid="button-create-appointment"
+          >
+            <Plus className="mr-2 h-4 w-4" />
+            {language === "es" ? "Nueva Cita" : "New Appointment"}
+          </Button>
+        )}
       </div>
 
       <div className="grid gap-6 lg:grid-cols-3">
@@ -1273,6 +1277,20 @@ export default function SellerCalendar() {
           )}
         </DialogContent>
       </Dialog>
+
+      {/* Mobile FAB for New Appointment - Fixed position, always visible when scrolling */}
+      {isMobile && (
+        <div className="fixed bottom-6 right-6 z-[9999]">
+          <Button
+            className="h-14 w-14 rounded-full shadow-xl"
+            size="icon"
+            onClick={() => openCreateDialog()}
+            data-testid="fab-create-appointment"
+          >
+            <Plus className="h-6 w-6" />
+          </Button>
+        </div>
+      )}
     </div>
   );
 }
