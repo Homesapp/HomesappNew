@@ -80,6 +80,23 @@ Private link system for property owners to fill in property information:
 - Copy link button for easy sharing via WhatsApp or email
 - Displays owner contact information (email, phone) for reference
 
+## Unit Pricing System
+The external units now support dual pricing for rent and sale:
+- `price` field: Monthly rent price (12-month term)
+- `salePrice` field: Sale price when applicable
+- `listingType` field: Indicates listing purpose - "rent", "sale", or "both"
+- Price column displayed in units table with sorting capability
+- Price shown in unit cards when available
+- Currency defaults to MXN with support for other currencies
+
+## Referral System
+Commission system for property referrals (exclusive to Tulum Rental Homes):
+- `commissionType`: "completa" (100% agency) or "referido" (80% agency, 20% referrer)
+- Referrer information card always visible in unit details
+- Add/Edit referrer dialog with name, email, and phone fields
+- Automatic commission type change when adding/removing referrer
+- Referral network page showing all units with referrers
+
 ## External Dependencies
 *   Google Calendar API
 *   Google OAuth 2.0

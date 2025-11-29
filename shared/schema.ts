@@ -7102,7 +7102,9 @@ export const externalUnits = pgTable("external_units", {
   
   // Precios
   price: decimal("price", { precision: 12, scale: 2 }), // Precio de renta mensual (12 meses)
+  salePrice: decimal("sale_price", { precision: 12, scale: 2 }), // Precio de venta (para cuando aplique)
   currency: varchar("currency", { length: 3 }).default("MXN"), // Moneda
+  listingType: varchar("listing_type", { length: 20 }).default("rent"), // rent, sale, both
   
   // Estado de disponibilidad y términos
   minimumTerm: varchar("minimum_term", { length: 50 }).default("6 meses"), // Plazo mínimo: 6 meses
@@ -7181,6 +7183,8 @@ export const insertExternalUnitSchema = createInsertSchema(externalUnits).omit({
   bathrooms: z.union([z.string(), z.number(), z.null()]).transform(val => (val === undefined || val === null || val === '') ? undefined : String(val)).optional().nullable(),
   area: z.union([z.string(), z.number(), z.null()]).transform(val => (val === undefined || val === null || val === '') ? undefined : String(val)).optional().nullable(),
   price: z.union([z.string(), z.number(), z.null()]).transform(val => (val === undefined || val === null || val === '') ? undefined : String(val)).optional().nullable(),
+  salePrice: z.union([z.string(), z.number(), z.null()]).transform(val => (val === undefined || val === null || val === '') ? undefined : String(val)).optional().nullable(),
+  listingType: z.enum(["rent", "sale", "both"]).optional(),
   latitude: z.union([z.string(), z.number(), z.null()]).transform(val => (val === undefined || val === null || val === '') ? undefined : String(val)).optional().nullable(),
   longitude: z.union([z.string(), z.number(), z.null()]).transform(val => (val === undefined || val === null || val === '') ? undefined : String(val)).optional().nullable(),
   primaryImages: z.array(z.string()).optional(),

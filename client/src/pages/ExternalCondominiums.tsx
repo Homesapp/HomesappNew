@@ -2109,8 +2109,18 @@ export default function ExternalCondominiums() {
                             <div className="font-medium">{unit.bathrooms ?? '-'}</div>
                           </div>
                         </div>
+
+                        {/* Price display */}
+                        {unit.price && (
+                          <div className="flex items-center justify-between py-2 border-t">
+                            <span className="text-muted-foreground text-sm">{language === "es" ? "Precio Renta:" : "Rent Price:"}</span>
+                            <span className="font-semibold text-green-600 dark:text-green-400">
+                              ${Number(unit.price).toLocaleString(language === "es" ? "es-MX" : "en-US")} MXN
+                            </span>
+                          </div>
+                        )}
                         
-                        <div className="flex items-center justify-between gap-2 pt-2 border-t">
+                        <div className={`flex items-center justify-between gap-2 pt-2 ${!unit.price ? 'border-t' : ''}`}>
                           <div className="flex items-center gap-2">
                             {hasRental === undefined ? (
                               contractsLoading ? (
@@ -2195,6 +2205,9 @@ export default function ExternalCondominiums() {
                             <TableHead className="h-10 px-3 min-w-[80px] cursor-pointer hover:bg-muted" onClick={() => handleUnitsSort('squareMeters')}>
                               {language === "es" ? "m²" : "sqm"} {getUnitsSortIcon('squareMeters')}
                             </TableHead>
+                            <TableHead className="h-10 px-3 min-w-[120px] cursor-pointer hover:bg-muted" onClick={() => handleUnitsSort('price')}>
+                              {language === "es" ? "Precio Renta" : "Rent Price"} {getUnitsSortIcon('price')}
+                            </TableHead>
                             <TableHead className="h-10 px-3 min-w-[120px] cursor-pointer hover:bg-muted" onClick={() => handleUnitsSort('isActive')}>
                               {language === "es" ? "Estado Unidad" : "Unit Status"} {getUnitsSortIcon('isActive')}
                             </TableHead>
@@ -2206,7 +2219,7 @@ export default function ExternalCondominiums() {
                   <TableBody>
                     {(unitsPageTransition || unitsFetching) && !unitsLoading ? (
                       <TableRow>
-                        <TableCell colSpan={8} className="h-[300px] p-0">
+                        <TableCell colSpan={12} className="h-[300px] p-0">
                           <TableLoading minHeight="300px" />
                         </TableCell>
                       </TableRow>
@@ -2245,6 +2258,15 @@ export default function ExternalCondominiums() {
                           <TableCell>{unit.bedrooms ?? '-'}</TableCell>
                           <TableCell>{unit.bathrooms ?? '-'}</TableCell>
                           <TableCell>{unit.squareMeters ?? '-'}</TableCell>
+                          <TableCell>
+                            {unit.price ? (
+                              <span className="font-medium text-green-600 dark:text-green-400">
+                                ${Number(unit.price).toLocaleString(language === "es" ? "es-MX" : "en-US")}
+                              </span>
+                            ) : (
+                              <span className="text-muted-foreground">-</span>
+                            )}
+                          </TableCell>
                           <TableCell>
                             {unit.isActive ? (
                               <Badge variant="outline" className="bg-green-50 dark:bg-green-950/20 text-green-700 dark:text-green-300 border-green-200 dark:border-green-800" data-testid={`badge-unit-active-${unit.id}`}>
