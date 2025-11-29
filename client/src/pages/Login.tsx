@@ -42,7 +42,19 @@ export default function Login() {
       
       if (userData && typeof userData === 'object' && 'role' in userData) {
         const role = (userData as any).role;
-        if (role === "owner") {
+        
+        const externalAgencyRoles = [
+          "external_agency_admin", 
+          "external_agency_accounting", 
+          "external_agency_maintenance", 
+          "external_agency_staff", 
+          "external_agency_seller", 
+          "external_agency_seller_assistant"
+        ];
+        
+        if (externalAgencyRoles.includes(role)) {
+          setLocation("/external/dashboard");
+        } else if (role === "owner") {
           setLocation("/owner/dashboard");
         } else if (role === "master" || role === "admin" || role === "admin_jr") {
           setLocation("/admin/dashboard");
