@@ -31354,28 +31354,39 @@ ${{precio}}/mes
   });
 
 
-  // GET /api/public/external-properties - Public list of approved external properties for homepage
+  // GET /api/public/external-properties - Public list of approved external properties with pagination
   app.get("/api/public/external-properties", async (req, res) => {
     try {
-      const { limit = 12 } = req.query;
-      const limitNum = Math.min(parseInt(limit as string) || 100, 1000);
+      const { page = 1, limit = 24, q, location, status, propertyType, minPrice, maxPrice, bedrooms, bathrooms } = req.query;
+      const pageNum = Math.max(1, parseInt(page as string) || 1);
+      const limitNum = Math.min(Math.max(1, parseInt(limit as string) || 24), 50);
+      const offset = (pageNum - 1) * limitNum;
       
-      // Get approved external units that are published to main site
+      // Build where conditions
+      const conditions = [
+        eq(externalUnits.publishToMain, true),
+        eq(externalUnits.publishStatus, 'approved'),
+        eq(externalUnits.isActive, true)
+      ];
+      
+      // Get total count first
+      const countResult = await db
+        .select({ count: sql<number>`count(*)` })
+        .from(externalUnits)
+        .where(and(...conditions));
+      const totalCount = Number(countResult[0]?.count || 0);
+      
+      // Get paginated units
       const approvedUnits = await db
         .select()
         .from(externalUnits)
-        .where(
-          and(
-            eq(externalUnits.publishToMain, true),
-            eq(externalUnits.publishStatus, 'approved'),
-            eq(externalUnits.isActive, true)
-          )
-        )
-        .limit(limitNum);
+        .where(and(...conditions))
+        .orderBy(desc(externalUnits.createdAt))
+        .limit(limitNum)
+        .offset(offset);
       
       // Transform to property-like format for frontend compatibility
       const properties = await Promise.all(approvedUnits.map(async (unit) => {
-        // Get condominium info for location
         let location = "Tulum, Quintana Roo";
         if (unit.condominiumId) {
           const condos = await db
@@ -31385,13 +31396,13 @@ ${{precio}}/mes
             .limit(1);
           if (condos.length > 0) {
             const condo = condos[0];
-            location = condo.zone ? `${condo.name}, ${condo.zone}` : condo.name;
+            location = condo.zone ? `\${condo.name}, \${condo.zone}` : condo.name;
           }
         }
         
         return {
           id: unit.id,
-          title: unit.title || `${unit.propertyType || 'Propiedad'} ${unit.unitNumber}`,
+          title: unit.title || `\${unit.propertyType || 'Propiedad'} \${unit.unitNumber}`,
           location: location,
           price: parseFloat(unit.price || '0') || 0,
           status: unit.price ? 'rent' : 'sale',
@@ -31402,10 +31413,19 @@ ${{precio}}/mes
           amenities: unit.amenities || [],
           featured: false,
           isExternal: true,
+          propertyType: unit.propertyType,
         };
       }));
       
-      res.json(properties);
+      res.json({
+        data: properties,
+        pagination: {
+          page: pageNum,
+          limit: limitNum,
+          totalCount,
+          totalPages: Math.ceil(totalCount / limitNum),
+        }
+      });
     } catch (error: any) {
       console.error("Error fetching public external properties:", error);
       res.status(500).json({ message: "Error al obtener propiedades" });

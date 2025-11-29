@@ -7,7 +7,7 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Search, SlidersHorizontal, MapPin, Bed, Bath, Square, X, Heart, PawPrint, Home, Building2, ChevronRight, Star } from "lucide-react";
+import { Search, SlidersHorizontal, MapPin, Bed, Bath, Square, X, Heart, PawPrint, Home, Building2, ChevronRight, Star, ChevronLeft } from "lucide-react";
 import { type Property } from "@shared/schema";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
@@ -73,6 +73,8 @@ export default function PropertySearch() {
   const [filters, setFilters] = useState<SearchFilters>({ location: "Tulum" });
   const [showFilters, setShowFilters] = useState(false);
   const [selectedAmenities, setSelectedAmenities] = useState<string[]>([]);
+  const [currentPage, setCurrentPage] = useState(1);
+  const ITEMS_PER_PAGE = 24;
 
   const { data: favorites = [] } = useQuery({
     queryKey: ["/api/favorites"],
@@ -81,89 +83,62 @@ export default function PropertySearch() {
 
   const favoriteIds = new Set((favorites as any[]).map((fav: any) => fav.propertyId));
 
-  const buildQueryString = (filters: SearchFilters) => {
-    const params = new URLSearchParams();
-    
-    if (filters.query) params.append("q", filters.query);
-    if (filters.minPrice !== undefined) params.append("minPrice", filters.minPrice.toString());
-    if (filters.maxPrice !== undefined) params.append("maxPrice", filters.maxPrice.toString());
-    if (filters.bedrooms !== undefined) params.append("bedrooms", filters.bedrooms.toString());
-    if (filters.bathrooms !== undefined) params.append("bathrooms", filters.bathrooms.toString());
-    if (filters.minArea !== undefined) params.append("minArea", filters.minArea.toString());
-    if (filters.maxArea !== undefined) params.append("maxArea", filters.maxArea.toString());
-    if (filters.location) params.append("location", filters.location);
-    if (filters.status) params.append("status", filters.status);
-    if (filters.minRating !== undefined) params.append("minRating", filters.minRating.toString());
-    if (filters.featured !== undefined) params.append("featured", filters.featured.toString());
-    if (filters.propertyType) params.append("propertyType", filters.propertyType);
-    if (filters.colonyName) params.append("colonyName", filters.colonyName);
-    if (filters.petFriendly) {
-      params.append("amenities", "Mascotas permitidas");
-    }
-    if (selectedAmenities.length > 0) {
-      const amenitiesStr = params.get("amenities");
-      const allAmenities = amenitiesStr 
-        ? [amenitiesStr, ...selectedAmenities].join(",")
-        : selectedAmenities.join(",");
-      params.set("amenities", allAmenities);
-    }
-    
-    return params.toString();
-  };
-
-  const { data: properties = [], isLoading } = useQuery<any[]>({
-    queryKey: ["/api/public/external-properties", filters, selectedAmenities],
+  const { data: apiResponse, isLoading } = useQuery<{ data: any[], pagination: { page: number, limit: number, totalCount: number, totalPages: number } }>({
+    queryKey: ["/api/public/external-properties", currentPage],
     queryFn: async () => {
-      const response = await fetch(`/api/public/external-properties?limit=100`);
+      const response = await fetch(`/api/public/external-properties?page=${currentPage}&limit=${ITEMS_PER_PAGE}`);
       if (!response.ok) {
         throw new Error("Error al buscar propiedades");
       }
-      const allProperties = await response.json();
-      
-      return allProperties.filter((prop: any) => {
-        if (filters.query) {
-          const searchQuery = filters.query.toLowerCase();
-          const title = (prop.title || "").toLowerCase();
-          const description = (prop.description || "").toLowerCase();
-          const location = (prop.location || "").toLowerCase();
-          if (!title.includes(searchQuery) && !description.includes(searchQuery) && !location.includes(searchQuery)) {
-            return false;
-          }
-        }
-        if (filters.status && filters.status !== "all") {
-          if (filters.status === "rent" && prop.status !== "rent") return false;
-          if (filters.status === "sale" && prop.status !== "sale") return false;
-        }
-        if (filters.propertyType && filters.propertyType !== "all") {
-          if (prop.propertyType?.toLowerCase() !== filters.propertyType.toLowerCase()) return false;
-        }
-        if (filters.minPrice && prop.price < filters.minPrice) return false;
-        if (filters.maxPrice && prop.price > filters.maxPrice) return false;
-        if (filters.bedrooms && prop.bedrooms < filters.bedrooms) return false;
-        if (filters.bathrooms && prop.bathrooms < filters.bathrooms) return false;
-        if (filters.minArea && prop.area && prop.area < filters.minArea) return false;
-        if (filters.maxArea && prop.area && prop.area > filters.maxArea) return false;
-        if (filters.location) {
-          const searchLocation = filters.location.toLowerCase();
-          const propLocation = (prop.location || "").toLowerCase();
-          const propTitle = (prop.title || "").toLowerCase();
-          if (!propLocation.includes(searchLocation) && !propTitle.includes(searchLocation)) return false;
-        }
-        if (filters.colonyName) {
-          const searchColony = filters.colonyName.toLowerCase();
-          const propLocation = (prop.location || "").toLowerCase();
-          if (!propLocation.includes(searchColony)) return false;
-        }
-        if (filters.petFriendly && !prop.amenities?.includes("Mascotas permitidas")) return false;
-        if (filters.featured && !prop.featured) return false;
-        if (filters.minRating && prop.rating && prop.rating < filters.minRating) return false;
-        if (selectedAmenities.length > 0) {
-          const propAmenities = prop.amenities || [];
-          if (!selectedAmenities.every(a => propAmenities.includes(a))) return false;
-        }
-        return true;
-      });
+      return response.json();
     },
+  });
+
+  const allProperties = apiResponse?.data || [];
+  const pagination = apiResponse?.pagination || { page: 1, limit: ITEMS_PER_PAGE, totalCount: 0, totalPages: 1 };
+
+  const properties = allProperties.filter((prop: any) => {
+    if (filters.query) {
+      const searchQuery = filters.query.toLowerCase();
+      const title = (prop.title || "").toLowerCase();
+      const description = (prop.description || "").toLowerCase();
+      const location = (prop.location || "").toLowerCase();
+      if (!title.includes(searchQuery) && !description.includes(searchQuery) && !location.includes(searchQuery)) {
+        return false;
+      }
+    }
+    if (filters.status && filters.status !== "all") {
+      if (filters.status === "rent" && prop.status !== "rent") return false;
+      if (filters.status === "sale" && prop.status !== "sale") return false;
+    }
+    if (filters.propertyType && filters.propertyType !== "all") {
+      if (prop.propertyType?.toLowerCase() !== filters.propertyType.toLowerCase()) return false;
+    }
+    if (filters.minPrice && prop.price < filters.minPrice) return false;
+    if (filters.maxPrice && prop.price > filters.maxPrice) return false;
+    if (filters.bedrooms && prop.bedrooms < filters.bedrooms) return false;
+    if (filters.bathrooms && prop.bathrooms < filters.bathrooms) return false;
+    if (filters.minArea && prop.area && prop.area < filters.minArea) return false;
+    if (filters.maxArea && prop.area && prop.area > filters.maxArea) return false;
+    if (filters.location) {
+      const searchLocation = filters.location.toLowerCase();
+      const propLocation = (prop.location || "").toLowerCase();
+      const propTitle = (prop.title || "").toLowerCase();
+      if (!propLocation.includes(searchLocation) && !propTitle.includes(searchLocation)) return false;
+    }
+    if (filters.colonyName) {
+      const searchColony = filters.colonyName.toLowerCase();
+      const propLocation = (prop.location || "").toLowerCase();
+      if (!propLocation.includes(searchColony)) return false;
+    }
+    if (filters.petFriendly && !prop.amenities?.includes("Mascotas permitidas")) return false;
+    if (filters.featured && !prop.featured) return false;
+    if (filters.minRating && prop.rating && prop.rating < filters.minRating) return false;
+    if (selectedAmenities.length > 0) {
+      const propAmenities = prop.amenities || [];
+      if (!selectedAmenities.every(a => propAmenities.includes(a))) return false;
+    }
+    return true;
   });
 
   const toggleAmenity = (amenity: string) => {
@@ -526,7 +501,7 @@ export default function PropertySearch() {
                     <p className="font-semibold text-sm sm:text-base" data-testid={`text-price-${property.id}`}>
                       ${property.price.toLocaleString()}
                       <span className="font-normal text-xs text-muted-foreground ml-1">
-                        USD{property.status === "rent" ? "/mes" : ""}
+                        MXN{property.status === "rent" ? "/mes" : ""}
                       </span>
                     </p>
                     <div className="text-xs text-muted-foreground flex items-center gap-2">
@@ -549,6 +524,65 @@ export default function PropertySearch() {
                 </div>
               </div>
             ))}
+          </div>
+        )}
+
+        {/* Pagination Controls */}
+        {pagination.totalPages > 1 && (
+          <div className="flex items-center justify-center gap-2 mt-8 pb-4">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+              disabled={currentPage === 1 || isLoading}
+              className="min-h-[44px] min-w-[44px]"
+              data-testid="button-prev-page"
+            >
+              <ChevronLeft className="h-4 w-4" />
+            </Button>
+            
+            <div className="flex items-center gap-1">
+              {Array.from({ length: Math.min(5, pagination.totalPages) }, (_, i) => {
+                let pageNum;
+                if (pagination.totalPages <= 5) {
+                  pageNum = i + 1;
+                } else if (currentPage <= 3) {
+                  pageNum = i + 1;
+                } else if (currentPage >= pagination.totalPages - 2) {
+                  pageNum = pagination.totalPages - 4 + i;
+                } else {
+                  pageNum = currentPage - 2 + i;
+                }
+                return (
+                  <Button
+                    key={pageNum}
+                    variant={currentPage === pageNum ? "default" : "outline"}
+                    size="sm"
+                    onClick={() => setCurrentPage(pageNum)}
+                    disabled={isLoading}
+                    className="min-h-[44px] min-w-[44px]"
+                    data-testid={`button-page-${pageNum}`}
+                  >
+                    {pageNum}
+                  </Button>
+                );
+              })}
+            </div>
+            
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setCurrentPage(p => Math.min(pagination.totalPages, p + 1))}
+              disabled={currentPage === pagination.totalPages || isLoading}
+              className="min-h-[44px] min-w-[44px]"
+              data-testid="button-next-page"
+            >
+              <ChevronRight className="h-4 w-4" />
+            </Button>
+            
+            <span className="text-sm text-muted-foreground ml-2">
+              Página {currentPage} de {pagination.totalPages} ({pagination.totalCount} propiedades)
+            </span>
           </div>
         )}
       </div>
