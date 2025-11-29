@@ -40,7 +40,7 @@ export default function PublicDashboard() {
   });
 
   const featuredProperties = externalProperties.slice(0, 4);
-  const popularProperties = externalProperties.slice(0, 8);
+  const popularProperties = externalProperties.slice(0, 9);
 
   const handleSearch = () => {
     const params = new URLSearchParams();
@@ -248,8 +248,8 @@ export default function PublicDashboard() {
             )}
             
             {/* Popular Zones - Horizontal Scroll */}
-            <div className="mt-3 overflow-x-auto scrollbar-hide">
-              <div className="flex gap-2 justify-center min-w-max px-2">
+            <div className="mt-3 overflow-x-auto scrollbar-hide pb-2">
+              <div className="flex gap-2 justify-center min-w-max px-4">
                 {popularZones.map((zone) => (
                   <Badge
                     key={zone.name}
