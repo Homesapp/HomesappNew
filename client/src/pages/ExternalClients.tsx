@@ -1188,24 +1188,26 @@ export default function ExternalClients() {
   };
 
   return (
-    <div className="container mx-auto p-6 space-y-6">
-      {/* Header */}
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-        <div>
-          <h1 className="text-3xl font-bold" data-testid="text-page-title">
+    <div className="container mx-auto p-4 sm:p-6 space-y-3 sm:space-y-4">
+      {/* Header - Compact */}
+      <div className="flex items-center justify-between gap-2">
+        <div className="min-w-0">
+          <h1 className="text-xl sm:text-2xl font-bold truncate" data-testid="text-page-title">
             {isSeller 
               ? (language === "es" ? "Mis Leads" : "My Leads")
               : (language === "es" ? "Clientes" : "Clients")}
           </h1>
-          <p className="text-muted-foreground">
-            {isSeller
-              ? (language === "es" 
-                  ? "Gestiona tus prospectos y da seguimiento a tus oportunidades"
-                  : "Manage your prospects and track your opportunities")
-              : (language === "es" 
-                  ? "Gestiona el registro de clientes e inquilinos"
-                  : "Manage client and tenant registration")}
-          </p>
+          {!isMobile && (
+            <p className="text-sm text-muted-foreground">
+              {isSeller
+                ? (language === "es" 
+                    ? "Gestiona tus prospectos y da seguimiento a tus oportunidades"
+                    : "Manage your prospects and track your opportunities")
+                : (language === "es" 
+                    ? "Gestiona el registro de clientes e inquilinos"
+                    : "Manage client and tenant registration")}
+            </p>
+          )}
         </div>
         {isSeller && !isMobile && (
           <Button 
@@ -2551,10 +2553,10 @@ export default function ExternalClients() {
         </TabsContent>
 
         {/* Leads Tab Content */}
-        <TabsContent value="leads" className="space-y-6 mt-6">
+        <TabsContent value="leads" className="space-y-3 mt-3">
           {/* Search and Filters for Leads */}
-          <Card>
-            <CardContent className="pt-4 pb-3 space-y-3">
+          <Card className="shadow-none border">
+            <CardContent className="py-2.5 px-3">
               <div className="flex items-center gap-2">
                 <div className="relative flex-1">
                   <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
@@ -2775,15 +2777,15 @@ export default function ExternalClients() {
                 </Popover>
               </div>
               
-              {/* Active Filters Display */}
+              {/* Active Filters Display - Compact inline */}
               {(leadStatusFilter !== "all" || leadRegistrationTypeFilter !== "all" || leadSellerFilter !== "all" || leadHasPetsFilter !== "all" || leadFollowUpFilter !== "all") && (
-                <div className="flex flex-wrap gap-2 items-center">
-                  <span className="text-xs text-muted-foreground">
-                    {language === "es" ? "Filtros activos:" : "Active filters:"}
+                <div className="flex flex-wrap gap-1.5 items-center mt-2">
+                  <span className="text-[10px] text-muted-foreground">
+                    {language === "es" ? "Filtros:" : "Filters:"}
                   </span>
                   {leadStatusFilter !== "all" && (
-                    <Badge variant="secondary" className="gap-1">
-                      {language === "es" ? "Estado:" : "Status:"} {
+                    <Badge variant="secondary" className="gap-0.5 text-[10px] h-5 px-1.5">
+                      {
                         [
                           { value: "nuevo_lead", label: { es: "Nuevo", en: "New" } },
                           { value: "cita_coordinada", label: { es: "Cita", en: "Appt" } },
@@ -2802,43 +2804,27 @@ export default function ExternalClients() {
                     </Badge>
                   )}
                   {leadRegistrationTypeFilter !== "all" && (
-                    <Badge variant="secondary" className="gap-1">
-                      {language === "es" ? "Tipo:" : "Type:"} {leadRegistrationTypeFilter === "broker" ? "Broker" : (language === "es" ? "Vendedor" : "Seller")}
-                      <X 
-                        className="h-3 w-3 cursor-pointer" 
-                        onClick={() => setLeadRegistrationTypeFilter("all")}
-                      />
+                    <Badge variant="secondary" className="gap-0.5 text-[10px] h-5 px-1.5">
+                      {leadRegistrationTypeFilter === "broker" ? "Broker" : (language === "es" ? "Vendedor" : "Seller")}
+                      <X className="h-2.5 w-2.5 cursor-pointer" onClick={() => setLeadRegistrationTypeFilter("all")} />
                     </Badge>
                   )}
                   {!isSeller && leadSellerFilter !== "all" && (
-                    <Badge variant="secondary" className="gap-1">
-                      {language === "es" ? "Vendedor:" : "Seller:"} {sellers.find(s => s.id === leadSellerFilter)?.firstName || ""}
-                      <X 
-                        className="h-3 w-3 cursor-pointer" 
-                        onClick={() => setLeadSellerFilter("all")}
-                      />
+                    <Badge variant="secondary" className="gap-0.5 text-[10px] h-5 px-1.5">
+                      {sellers.find(s => s.id === leadSellerFilter)?.firstName || ""}
+                      <X className="h-2.5 w-2.5 cursor-pointer" onClick={() => setLeadSellerFilter("all")} />
                     </Badge>
                   )}
                   {leadHasPetsFilter !== "all" && (
-                    <Badge variant="secondary" className="gap-1">
-                      {leadHasPetsFilter === "yes" 
-                        ? (language === "es" ? "Con mascota" : "With pet") 
-                        : (language === "es" ? "Sin mascota" : "No pet")}
-                      <X 
-                        className="h-3 w-3 cursor-pointer" 
-                        onClick={() => setLeadHasPetsFilter("all")}
-                      />
+                    <Badge variant="secondary" className="gap-0.5 text-[10px] h-5 px-1.5">
+                      {leadHasPetsFilter === "yes" ? (language === "es" ? "Mascota" : "Pet") : (language === "es" ? "Sin mascota" : "No pet")}
+                      <X className="h-2.5 w-2.5 cursor-pointer" onClick={() => setLeadHasPetsFilter("all")} />
                     </Badge>
                   )}
                   {leadFollowUpFilter !== "all" && (
-                    <Badge variant="secondary" className="gap-1">
-                      {leadFollowUpFilter === "overdue" 
-                        ? (language === "es" ? "Seg. vencido" : "Overdue") 
-                        : (language === "es" ? "Seg. hoy" : "Today")}
-                      <X 
-                        className="h-3 w-3 cursor-pointer" 
-                        onClick={() => setLeadFollowUpFilter("all")}
-                      />
+                    <Badge variant="secondary" className="gap-0.5 text-[10px] h-5 px-1.5">
+                      {leadFollowUpFilter === "overdue" ? (language === "es" ? "Vencido" : "Overdue") : (language === "es" ? "Hoy" : "Today")}
+                      <X className="h-2.5 w-2.5 cursor-pointer" onClick={() => setLeadFollowUpFilter("all")} />
                     </Badge>
                   )}
                 </div>
@@ -3093,80 +3079,144 @@ export default function ExternalClients() {
                   </CardContent>
                 </Card>
               ) : (
-                <div className="grid gap-4 md:grid-cols-2">
-                  {paginatedLeads.map((lead) => (
-                    <Card 
-                      key={lead.id} 
-                      className="hover-elevate cursor-pointer"
-                      onClick={() => handleLeadClick(lead)}
-                    >
-                      <CardHeader className="pb-3">
-                        <div className="flex items-start justify-between">
-                          <div className="space-y-1">
-                            <div className="flex items-center gap-2">
-                              <CardTitle className="text-base">{`${lead.firstName} ${lead.lastName}`}</CardTitle>
-                              {(() => {
-                                const followUpDate = lead.followUpDate ? new Date(lead.followUpDate) : null;
-                                const today = new Date();
-                                today.setHours(0, 0, 0, 0);
-                                if (followUpDate) {
-                                  followUpDate.setHours(0, 0, 0, 0);
-                                  if (followUpDate < today) {
-                                    return (
-                                      <span 
-                                        className="flex items-center text-red-600" 
-                                        title={language === "es" ? "Seguimiento vencido" : "Follow-up overdue"}
-                                      >
-                                        <AlertTriangle className="h-4 w-4" />
-                                      </span>
-                                    );
-                                  } else if (followUpDate.getTime() === today.getTime()) {
-                                    return (
-                                      <span 
-                                        className="flex items-center text-amber-600" 
-                                        title={language === "es" ? "Seguimiento hoy" : "Follow-up today"}
-                                      >
-                                        <Clock className="h-4 w-4" />
-                                      </span>
-                                    );
-                                  }
-                                }
-                                return null;
-                              })()}
+                <div className="grid gap-2 sm:gap-3 md:grid-cols-2">
+                  {paginatedLeads.map((lead) => {
+                    const followUpDate = lead.followUpDate ? new Date(lead.followUpDate) : null;
+                    const today = new Date();
+                    today.setHours(0, 0, 0, 0);
+                    let followUpIndicator = null;
+                    if (followUpDate) {
+                      followUpDate.setHours(0, 0, 0, 0);
+                      if (followUpDate < today) {
+                        followUpIndicator = <AlertTriangle className="h-3.5 w-3.5 text-red-600" />;
+                      } else if (followUpDate.getTime() === today.getTime()) {
+                        followUpIndicator = <Clock className="h-3.5 w-3.5 text-amber-600" />;
+                      }
+                    }
+                    
+                    return (
+                      <Card 
+                        key={lead.id} 
+                        className="hover-elevate cursor-pointer border shadow-none"
+                        onClick={() => handleLeadClick(lead)}
+                      >
+                        <CardContent className="p-3">
+                          {/* Header Row: Name + Status + Actions */}
+                          <div className="flex items-start justify-between gap-2 mb-2">
+                            <div className="min-w-0 flex-1">
+                              <div className="flex items-center gap-1.5 mb-1">
+                                <span className="font-semibold text-sm truncate">{`${lead.firstName} ${lead.lastName}`}</span>
+                                {followUpIndicator}
+                              </div>
+                              <div className="flex gap-1.5 flex-wrap">
+                                <Badge variant={lead.registrationType === "broker" ? "default" : "secondary"} className="text-[10px] px-1.5 py-0">
+                                  {lead.registrationType === "broker" ? "Broker" : (language === "es" ? "Vendedor" : "Seller")}
+                                </Badge>
+                                <Badge 
+                                  className={`text-[10px] px-1.5 py-0 border ${getLeadStatusColor(lead.status)}`}
+                                >
+                                  {getLeadStatusLabel(lead.status)}
+                                </Badge>
+                              </div>
                             </div>
-                            <div className="flex gap-2 flex-wrap">
-                              <Badge variant={lead.registrationType === "broker" ? "default" : "secondary"} className="text-xs">
-                                {lead.registrationType === "broker" ? "Broker" : (language === "es" ? "Vendedor" : "Seller")}
-                              </Badge>
-                              <Badge 
-                                variant={getLeadStatusVariant(lead.status)}
-                                className="text-xs"
-                              >
-                                {getLeadStatusLabel(lead.status)}
-                              </Badge>
+                            {/* Desktop Menu */}
+                            <DropdownMenu>
+                              <DropdownMenuTrigger asChild onClick={(e) => e.stopPropagation()}>
+                                <Button variant="ghost" size="icon" className="h-7 w-7 hidden sm:flex" data-testid={`button-menu-lead-${lead.id}`}>
+                                  <MoreVertical className="h-4 w-4" />
+                                </Button>
+                              </DropdownMenuTrigger>
+                              <DropdownMenuContent align="end" onClick={(e) => e.stopPropagation()}>
+                                {lead.phone && lead.registrationType !== "broker" && (
+                                  <DropdownMenuItem
+                                    className="text-green-600"
+                                    onClick={() => {
+                                      const phone = lead.phone?.replace(/\D/g, '');
+                                      window.open(`https://wa.me/${phone}`, '_blank');
+                                    }}
+                                  >
+                                    <SiWhatsapp className="h-4 w-4 mr-2" />
+                                    WhatsApp
+                                  </DropdownMenuItem>
+                                )}
+                                <DropdownMenuItem
+                                  onClick={() => {
+                                    setSelectedLead(lead);
+                                    editLeadForm.reset(lead);
+                                    setEditCondominiumId(lead.interestedCondominiumId || "");
+                                    setSelectedEditCharacteristics((lead as any).desiredCharacteristics || []);
+                                    setSelectedEditAmenities((lead as any).desiredAmenities || []);
+                                    setIsEditLeadDialogOpen(true);
+                                  }}
+                                >
+                                  <Edit2 className="h-4 w-4 mr-2" />
+                                  {language === "es" ? "Editar" : "Edit"}
+                                </DropdownMenuItem>
+                                <DropdownMenuItem
+                                  className="text-destructive"
+                                  onClick={() => {
+                                    setSelectedLead(lead);
+                                    setIsDeleteLeadDialogOpen(true);
+                                  }}
+                                >
+                                  <Trash2 className="h-4 w-4 mr-2" />
+                                  {language === "es" ? "Eliminar" : "Delete"}
+                                </DropdownMenuItem>
+                              </DropdownMenuContent>
+                            </DropdownMenu>
+                          </div>
+                          
+                          {/* Info Grid - Compact 2 columns */}
+                          <div className="grid grid-cols-2 gap-x-3 gap-y-1 text-xs mb-2">
+                            <div className="flex items-center gap-1 text-muted-foreground">
+                              <DollarSign className="h-3 w-3 flex-shrink-0" />
+                              <span className="truncate">
+                                {lead.budgetMin || lead.budgetMax 
+                                  ? `$${lead.budgetMin ? Number(lead.budgetMin).toLocaleString() : '0'}-$${lead.budgetMax ? Number(lead.budgetMax).toLocaleString() : '∞'}`
+                                  : "-"}
+                              </span>
+                            </div>
+                            <div className="flex items-center gap-1 text-muted-foreground">
+                              <Home className="h-3 w-3 flex-shrink-0" />
+                              <span className="truncate">{lead.desiredUnitType || "-"}</span>
+                            </div>
+                            <div className="flex items-center gap-1 text-muted-foreground">
+                              <PawPrint className={`h-3 w-3 flex-shrink-0 ${lead.hasPets ? "text-amber-600" : ""}`} />
+                              <span>{lead.hasPets || "No"}</span>
+                            </div>
+                            <div className="flex items-center gap-1 text-muted-foreground">
+                              <CalendarDays className="h-3 w-3 flex-shrink-0" />
+                              <span>{lead.createdAt ? format(new Date(lead.createdAt), "dd/MM/yy", { locale: language === "es" ? es : enUS }) : "-"}</span>
                             </div>
                           </div>
-                          {/* Menu icon for quick access - hidden on mobile as we have footer buttons */}
-                          <DropdownMenu>
-                            <DropdownMenuTrigger asChild onClick={(e) => e.stopPropagation()}>
-                              <Button variant="ghost" size="icon" className="h-8 w-8 hidden sm:flex" data-testid={`button-menu-lead-${lead.id}`}>
-                                <MoreVertical className="h-4 w-4" />
-                              </Button>
-                            </DropdownMenuTrigger>
-                            <DropdownMenuContent align="end" onClick={(e) => e.stopPropagation()}>
+                          
+                          {/* Contact + Actions Row */}
+                          <div className="flex items-center justify-between gap-2 pt-2 border-t">
+                            <div className="flex items-center gap-1.5 text-xs text-muted-foreground min-w-0">
+                              <Phone className="h-3 w-3 flex-shrink-0" />
+                              <span className="truncate">
+                                {lead.registrationType === "broker" ? `****${lead.phoneLast4}` : (lead.phone || "-")}
+                              </span>
+                            </div>
+                            <div className="flex items-center gap-1" onClick={(e) => e.stopPropagation()}>
                               {lead.phone && lead.registrationType !== "broker" && (
-                                <DropdownMenuItem
-                                  className="text-green-600"
+                                <Button
+                                  size="sm"
+                                  className="h-8 px-2 sm:px-3 bg-green-600 hover:bg-green-700 text-white"
                                   onClick={() => {
                                     const phone = lead.phone?.replace(/\D/g, '');
                                     window.open(`https://wa.me/${phone}`, '_blank');
                                   }}
+                                  data-testid={`button-whatsapp-lead-footer-${lead.id}`}
                                 >
-                                  <SiWhatsapp className="h-4 w-4 mr-2" />
-                                  WhatsApp
-                                </DropdownMenuItem>
+                                  <SiWhatsapp className="h-4 w-4" />
+                                  <span className="hidden sm:inline ml-1.5">WhatsApp</span>
+                                </Button>
                               )}
-                              <DropdownMenuItem
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                className="h-8 w-8 p-0"
                                 onClick={() => {
                                   setSelectedLead(lead);
                                   editLeadForm.reset(lead);
@@ -3175,125 +3225,28 @@ export default function ExternalClients() {
                                   setSelectedEditAmenities((lead as any).desiredAmenities || []);
                                   setIsEditLeadDialogOpen(true);
                                 }}
+                                data-testid={`button-edit-lead-footer-${lead.id}`}
                               >
-                                <Edit2 className="h-4 w-4 mr-2" />
-                                {language === "es" ? "Editar" : "Edit"}
-                              </DropdownMenuItem>
-                              <DropdownMenuItem
-                                className="text-destructive"
+                                <Edit2 className="h-4 w-4" />
+                              </Button>
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                className="h-8 w-8 p-0 text-destructive hover:text-destructive"
                                 onClick={() => {
                                   setSelectedLead(lead);
                                   setIsDeleteLeadDialogOpen(true);
                                 }}
+                                data-testid={`button-delete-lead-footer-${lead.id}`}
                               >
-                                <Trash2 className="h-4 w-4 mr-2" />
-                                {language === "es" ? "Eliminar" : "Delete"}
-                              </DropdownMenuItem>
-                            </DropdownMenuContent>
-                          </DropdownMenu>
-                        </div>
-                      </CardHeader>
-                      <CardContent className="space-y-3 text-sm pt-0">
-                        {/* Key Info Grid */}
-                        <div className="grid grid-cols-2 gap-2 text-xs">
-                          {!isSeller && (
-                            <div className="flex items-center gap-1.5">
-                              <User className="h-3.5 w-3.5 text-muted-foreground" />
-                              <span className="text-muted-foreground">{language === "es" ? "Vendedor:" : "Seller:"}</span>
-                              <span className="font-medium truncate">{lead.sellerName || (lead.sellerId && sellers.find(s => s.id === lead.sellerId)?.firstName ? `${sellers.find(s => s.id === lead.sellerId)?.firstName} ${sellers.find(s => s.id === lead.sellerId)?.lastName || ""}`.trim() : "-")}</span>
+                                <Trash2 className="h-4 w-4" />
+                              </Button>
                             </div>
-                          )}
-                          <div className="flex items-center gap-1.5">
-                            <DollarSign className="h-3.5 w-3.5 text-muted-foreground" />
-                            <span className="text-muted-foreground">{language === "es" ? "Presup.:" : "Budget:"}</span>
-                            <span className="font-medium">{lead.budgetMin || lead.budgetMax 
-                              ? `$${lead.budgetMin ? Number(lead.budgetMin).toLocaleString() : '0'} - $${lead.budgetMax ? Number(lead.budgetMax).toLocaleString() : '∞'}`
-                              : (lead.estimatedRentCostText || (lead.estimatedRentCost ? `$${lead.estimatedRentCost.toLocaleString()}` : "-"))}</span>
                           </div>
-                          <div className="flex items-center gap-1.5">
-                            <Home className="h-3.5 w-3.5 text-muted-foreground" />
-                            <span className="text-muted-foreground">{language === "es" ? "Tipo:" : "Type:"}</span>
-                            <span className="font-medium truncate">{lead.desiredUnitType || "-"}</span>
-                          </div>
-                          <div className="flex items-center gap-1.5">
-                            <PawPrint className={`h-3.5 w-3.5 ${lead.hasPets ? "text-amber-600" : "text-muted-foreground"}`} />
-                            <span className="text-muted-foreground">{language === "es" ? "Mascota:" : "Pet:"}</span>
-                            <span className="font-medium">{lead.hasPets || "No"}</span>
-                          </div>
-                        </div>
-                        
-                        {/* Contact Info */}
-                        <div className="pt-2 border-t space-y-1">
-                          {lead.registrationType === "broker" ? (
-                            <div className="flex items-center gap-2 text-muted-foreground">
-                              <Phone className="h-3 w-3" />
-                              <span>****{lead.phoneLast4}</span>
-                            </div>
-                          ) : (
-                            <>
-                              {lead.phone && (
-                                <div className="flex items-center gap-2">
-                                  <Phone className="h-3 w-3 text-muted-foreground" />
-                                  <span>{lead.phone}</span>
-                                </div>
-                              )}
-                            </>
-                          )}
-                        </div>
-                        
-                        {/* Date */}
-                        <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
-                          <CalendarDays className="h-3 w-3" />
-                          {lead.createdAt ? format(new Date(lead.createdAt), "dd MMM yyyy", { locale: language === "es" ? es : enUS }) : "-"}
-                        </div>
-                        
-                        {/* Mobile-optimized action footer */}
-                        <div className="pt-3 mt-2 border-t flex items-center gap-2" onClick={(e) => e.stopPropagation()}>
-                          {lead.phone && lead.registrationType !== "broker" && (
-                            <Button
-                              className="flex-1 h-11 bg-green-600 hover:bg-green-700 text-white"
-                              onClick={() => {
-                                const phone = lead.phone?.replace(/\D/g, '');
-                                window.open(`https://wa.me/${phone}`, '_blank');
-                              }}
-                              data-testid={`button-whatsapp-lead-footer-${lead.id}`}
-                            >
-                              <SiWhatsapp className="h-5 w-5 mr-2" />
-                              WhatsApp
-                            </Button>
-                          )}
-                          <Button
-                            variant="outline"
-                            className="h-11 min-w-11"
-                            size="icon"
-                            onClick={() => {
-                              setSelectedLead(lead);
-                              editLeadForm.reset(lead);
-                              setEditCondominiumId(lead.interestedCondominiumId || "");
-                              setSelectedEditCharacteristics((lead as any).desiredCharacteristics || []);
-                              setSelectedEditAmenities((lead as any).desiredAmenities || []);
-                              setIsEditLeadDialogOpen(true);
-                            }}
-                            data-testid={`button-edit-lead-footer-${lead.id}`}
-                          >
-                            <Edit2 className="h-5 w-5" />
-                          </Button>
-                          <Button
-                            variant="outline"
-                            className="h-11 min-w-11"
-                            size="icon"
-                            onClick={() => {
-                              setSelectedLead(lead);
-                              setIsDeleteLeadDialogOpen(true);
-                            }}
-                            data-testid={`button-delete-lead-footer-${lead.id}`}
-                          >
-                            <Trash2 className="h-5 w-5" />
-                          </Button>
-                        </div>
-                      </CardContent>
-                    </Card>
-                  ))}
+                        </CardContent>
+                      </Card>
+                    );
+                  })}
                 </div>
               )}
 
