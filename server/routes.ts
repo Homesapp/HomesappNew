@@ -28280,7 +28280,7 @@ ${{precio}}/mes
   // POST /api/external-units/import-from-sheet - Import units from Google Sheets (TRH specific)
   app.post("/api/external-units/import-from-sheet", isAuthenticated, requireRole(EXTERNAL_ADMIN_ROLES), async (req: any, res) => {
     try {
-      const agencyId = req.user.externalAgencyId;
+      const agencyId = await getUserAgencyId(req);
       if (!agencyId) {
         return res.status(403).json({ message: "No agency access" });
       }
