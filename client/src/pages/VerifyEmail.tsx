@@ -130,8 +130,9 @@ export default function VerifyEmail() {
       </div>
       <Card className="w-full max-w-md">
         <CardHeader className="space-y-2 text-center">
-          <div className="flex justify-center mb-4">
+          <div className="flex flex-col items-center justify-center mb-4">
             <img src={logoIcon} alt="HomesApp" className="h-16 w-auto" data-testid="img-logo" />
+            <span className="text-xs text-muted-foreground mt-1 font-medium tracking-wide">Smart Real Estate</span>
           </div>
           <CardTitle className="text-2xl">Verifica tu email</CardTitle>
           <CardDescription>

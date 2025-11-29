@@ -779,7 +779,7 @@ export default function PublicRentalForm() {
                 className="h-16 md:h-20"
                 data-testid="img-homesapp-logo"
               />
-              <p className="text-xs text-muted-foreground mt-1">Tulum Rental Homes ™</p>
+              <p className="text-xs text-muted-foreground mt-1 font-medium tracking-wide">Smart Real Estate</p>
             </div>
             
             {/* Agency Logo - Right */}

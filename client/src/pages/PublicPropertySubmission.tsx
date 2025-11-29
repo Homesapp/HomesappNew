@@ -23,13 +23,14 @@ function LanguageHeader({ language, setLanguage }: { language: Language; setLang
     <header className="w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 sticky top-0 z-50">
       <div className="container max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3 sm:py-4 flex items-center justify-between gap-4">
         {/* Logo */}
-        <div className="flex items-center min-w-0">
+        <div className="flex flex-col items-start min-w-0">
           <img 
             src={logoUrl} 
             alt="HomesApp" 
             className="h-12 sm:h-14 md:h-16 w-auto object-contain"
             data-testid="img-logo"
           />
+          <span className="text-xs text-muted-foreground mt-1 font-medium tracking-wide">Smart Real Estate</span>
         </div>
         
         {/* Language Toggle */}

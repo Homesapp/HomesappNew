@@ -558,12 +558,15 @@ export default function PropertySubmissionWizard({
           onEscapeKeyDown={(e) => e.preventDefault()}
         >
           <div className="flex flex-col items-center justify-center gap-6 py-8">
-            <img 
-              src={logoPath} 
-              alt="HomesApp" 
-              className="h-20 w-auto animate-pulse-color"
-              data-testid="img-saving-logo"
-            />
+            <div className="flex flex-col items-center">
+              <img 
+                src={logoPath} 
+                alt="HomesApp" 
+                className="h-20 w-auto animate-pulse-color"
+                data-testid="img-saving-logo"
+              />
+              <span className="text-xs text-muted-foreground mt-1 font-medium tracking-wide">Smart Real Estate</span>
+            </div>
             <div className="text-center space-y-2">
               <h3 className="text-lg font-semibold" data-testid="text-saving-title">
                 {language === "es" ? "Guardando información..." : "Saving information..."}

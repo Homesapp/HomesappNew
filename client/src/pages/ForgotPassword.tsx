@@ -65,8 +65,9 @@ export default function ForgotPassword() {
             >
               <ArrowLeft className="h-5 w-5" />
             </Button>
-            <div className="flex justify-center flex-1">
+            <div className="flex flex-col items-center justify-center flex-1">
               <img src={logoIcon} alt="HomesApp" className="h-12 w-auto" data-testid="img-logo" />
+              <span className="text-xs text-muted-foreground mt-1 font-medium tracking-wide">Smart Real Estate</span>
             </div>
             <div className="w-10" />
           </div>

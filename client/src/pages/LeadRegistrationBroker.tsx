@@ -207,11 +207,14 @@ export default function LeadRegistrationBroker() {
       <Card className="w-full max-w-2xl">
         <CardHeader className="text-center">
           <div className="flex justify-center items-center gap-4 mb-4">
-            <img 
-              src={logoPath} 
-              alt="HomesApp Logo" 
-              className="h-12 w-auto"
-            />
+            <div className="flex flex-col items-center">
+              <img 
+                src={logoPath} 
+                alt="HomesApp Logo" 
+                className="h-12 w-auto"
+              />
+              <span className="text-xs text-muted-foreground mt-1 font-medium tracking-wide">Smart Real Estate</span>
+            </div>
             {agencyData?.logoUrl && (
               <>
                 <span className="text-muted-foreground">x</span>

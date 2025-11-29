@@ -62,8 +62,9 @@ export default function ResetPassword() {
       <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-background via-background to-accent/10 p-4">
         <Card className="w-full max-w-md">
           <CardHeader className="space-y-2">
-            <div className="flex justify-center mb-4">
+            <div className="flex flex-col items-center justify-center mb-4">
               <img src={logoIcon} alt="HomesApp" className="h-12 w-auto" data-testid="img-logo" />
+              <span className="text-xs text-muted-foreground mt-1 font-medium tracking-wide">Smart Real Estate</span>
             </div>
             <CardTitle className="text-2xl text-center">Token inválido</CardTitle>
             <CardDescription className="text-center">
@@ -89,8 +90,9 @@ export default function ResetPassword() {
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-background via-background to-accent/10 p-4">
       <Card className="w-full max-w-md">
         <CardHeader className="space-y-2">
-          <div className="flex justify-center mb-4">
+          <div className="flex flex-col items-center justify-center mb-4">
             <img src={logoIcon} alt="HomesApp" className="h-12 w-auto" data-testid="img-logo" />
+            <span className="text-xs text-muted-foreground mt-1 font-medium tracking-wide">Smart Real Estate</span>
           </div>
           <CardTitle className="text-2xl text-center">Restablecer contraseña</CardTitle>
           <CardDescription className="text-center">

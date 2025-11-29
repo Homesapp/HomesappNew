@@ -620,11 +620,14 @@ export default function PublicOwnerForm() {
           <CardHeader>
             <div className="flex items-center justify-between mb-4">
               <div className="flex items-center gap-3">
-                <img
-                  src={logoPath}
-                  alt="HomesApp Logo"
-                  className="h-12 object-contain"
-                />
+                <div className="flex flex-col">
+                  <img
+                    src={logoPath}
+                    alt="HomesApp Logo"
+                    className="h-12 object-contain"
+                  />
+                  <span className="text-xs text-muted-foreground mt-1 font-medium tracking-wide">Smart Real Estate</span>
+                </div>
                 {tokenData?.externalAgency?.profileImageUrl && (
                   <img
                     src={tokenData.externalAgency.profileImageUrl}

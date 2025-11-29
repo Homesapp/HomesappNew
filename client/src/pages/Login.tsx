@@ -121,8 +121,9 @@ export default function Login() {
       </div>
       <Card className="w-full max-w-md">
         <CardHeader className="space-y-2 text-center">
-          <div className="flex justify-center mb-4 cursor-pointer" onClick={() => setLocation("/")}>
+          <div className="flex flex-col items-center justify-center mb-4 cursor-pointer" onClick={() => setLocation("/")}>
             <img src={logoIcon} alt="HomesApp" className="h-16 w-auto" data-testid="img-logo" />
+            <span className="text-xs text-muted-foreground mt-1 font-medium tracking-wide">Smart Real Estate</span>
           </div>
           <CardTitle className="text-2xl">{t("login.title")}</CardTitle>
           <CardDescription>

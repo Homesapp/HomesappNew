@@ -710,7 +710,7 @@ export default function PublicOfferForm() {
                   className="h-16 md:h-20"
                   data-testid="img-homesapp-logo"
                 />
-                <p className="text-xs text-slate-600 dark:text-slate-400 mt-1">{text.tradeMark}</p>
+                <p className="text-xs text-muted-foreground mt-1 font-medium tracking-wide">Smart Real Estate</p>
               </div>
               {agencyLogo && (
                 <div className="flex-shrink-0 text-right">
@@ -869,7 +869,7 @@ export default function PublicOfferForm() {
                 className="h-16 md:h-20"
                 data-testid="img-homesapp-logo"
               />
-              <p className="text-xs text-slate-600 dark:text-slate-400 mt-1">{text.tradeMark}</p>
+              <p className="text-xs text-muted-foreground mt-1 font-medium tracking-wide">Smart Real Estate</p>
             </div>
             
             {/* Agency Logo - Right */}
