@@ -7101,8 +7101,31 @@ export const externalUnits = pgTable("external_units", {
   description: text("description"), // Descripción completa
   
   // Precios
-  price: decimal("price", { precision: 12, scale: 2 }), // Precio de renta mensual
+  price: decimal("price", { precision: 12, scale: 2 }), // Precio de renta mensual (12 meses)
+  price6Months: decimal("price_6_months", { precision: 12, scale: 2 }), // Precio renta 6 meses
   currency: varchar("currency", { length: 3 }).default("MXN"), // Moneda
+  
+  // Estado de disponibilidad y términos
+  availabilityStatus: varchar("availability_status", { length: 50 }), // Disponible, No Disponible, Baja de listing
+  minimumTerm: varchar("minimum_term", { length: 50 }), // Plazo mínimo: 6 meses, 12 meses, 6/12 meses
+  availableFrom: date("available_from"), // Disponible desde
+  checkoutDate: date("checkout_date"), // Fecha de checkout actual
+  allowsSublease: boolean("allows_sublease").default(false), // Acepta subarriendo
+  
+  // Sistema de comisiones y referidos (exclusivo para TRH)
+  commissionType: varchar("commission_type", { length: 30 }), // completa, compartida_50, referido
+  referrerName: varchar("referrer_name", { length: 255 }), // Nombre de quien refirió la propiedad
+  referrerPhone: varchar("referrer_phone", { length: 50 }), // Teléfono del referido
+  referrerEmail: varchar("referrer_email", { length: 255 }), // Email del referido
+  referrerCommissionPercent: decimal("referrer_commission_percent", { precision: 5, scale: 2 }), // % comisión para referido (ej: 20.00)
+  
+  // Datos de sincronización con sheet
+  sheetRowId: varchar("sheet_row_id", { length: 20 }), // ID de la fila en Google Sheets para sincronización
+  syncedFromSheet: boolean("synced_from_sheet").default(false), // Si fue importado del sheet
+  lastSheetSync: timestamp("last_sheet_sync"), // Última sincronización
+  
+  // Links externos (Easybroker, Tokko, etc)
+  externalLinks: jsonb("external_links"), // {easybroker: true, tokko: true, fichaUrl: "...", driveUrl: "..."}
   
   // Medios
   primaryImages: text("primary_images").array().default(sql`ARRAY[]::text[]`), // 5 fotos principales max
