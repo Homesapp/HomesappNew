@@ -65,42 +65,70 @@ export default function ExternalGenerateOfferLinkDialog({
   const [copiedLink, setCopiedLink] = useState(false);
   const [copiedWhatsApp, setCopiedWhatsApp] = useState(false);
 
-  const { data: unitsResponse, isLoading: isLoadingUnits } = useQuery<{ data: ExternalUnitWithCondominium[], total: number }>({
-    queryKey: ["/api/external-units", "all-for-dialog"],
+  // Load all condominiums directly from the condominiums endpoint
+  const { data: condominiumsResponse, isLoading: isLoadingCondominiums } = useQuery<{ data: any[], total: number }>({
+    queryKey: ["/api/external-condominiums", "all-for-dialog"],
     queryFn: async () => {
-      const response = await fetch('/api/external-units?limit=1000', { credentials: 'include' });
-      if (!response.ok) throw new Error('Failed to fetch units');
-      return response.json();
+      // Fetch all condominiums in batches to bypass 100 limit
+      let allCondos: any[] = [];
+      let offset = 0;
+      const batchSize = 100;
+      let hasMore = true;
+      
+      while (hasMore) {
+        const response = await fetch(`/api/external-condominiums?limit=${batchSize}&offset=${offset}`, { credentials: 'include' });
+        if (!response.ok) throw new Error('Failed to fetch condominiums');
+        const result = await response.json();
+        allCondos = [...allCondos, ...(result.data || [])];
+        hasMore = result.data?.length === batchSize;
+        offset += batchSize;
+      }
+      
+      return { data: allCondos, total: allCondos.length };
     },
     staleTime: 5 * 60 * 1000,
   });
-  const units = unitsResponse?.data || [];
 
   const condominiums = useMemo(() => {
-    const condoMap = new Map<string, { id: string; name: string; unitCount: number }>();
-    units.forEach(unit => {
-      if (unit.condominiumId && unit.condominium?.name) {
-        const existing = condoMap.get(unit.condominiumId);
-        if (existing) {
-          existing.unitCount++;
-        } else {
-          condoMap.set(unit.condominiumId, {
-            id: unit.condominiumId,
-            name: unit.condominium.name,
-            unitCount: 1
-          });
-        }
+    const condos = condominiumsResponse?.data || [];
+    return condos
+      .map(condo => ({
+        id: condo.id,
+        name: condo.name,
+        unitCount: condo.unitCount || 0
+      }))
+      .sort((a, b) => a.name.localeCompare(b.name));
+  }, [condominiumsResponse]);
+
+  // Load units only for selected condominium
+  const { data: unitsResponse, isLoading: isLoadingUnits } = useQuery<{ data: ExternalUnitWithCondominium[], total: number }>({
+    queryKey: ["/api/external-units", "by-condominium", selectedCondominiumId],
+    queryFn: async () => {
+      // Fetch all units for the selected condominium in batches
+      let allUnits: ExternalUnitWithCondominium[] = [];
+      let offset = 0;
+      const batchSize = 100;
+      let hasMore = true;
+      
+      while (hasMore) {
+        const response = await fetch(`/api/external-units?condominiumId=${selectedCondominiumId}&limit=${batchSize}&offset=${offset}`, { credentials: 'include' });
+        if (!response.ok) throw new Error('Failed to fetch units');
+        const result = await response.json();
+        allUnits = [...allUnits, ...(result.data || [])];
+        hasMore = result.data?.length === batchSize;
+        offset += batchSize;
       }
-    });
-    return Array.from(condoMap.values()).sort((a, b) => a.name.localeCompare(b.name));
-  }, [units]);
+      
+      return { data: allUnits, total: allUnits.length };
+    },
+    enabled: !!selectedCondominiumId,
+    staleTime: 5 * 60 * 1000,
+  });
 
   const filteredUnits = useMemo(() => {
-    if (!selectedCondominiumId) return [];
-    return units
-      .filter(unit => unit.condominiumId === selectedCondominiumId)
-      .sort((a, b) => (a.unitNumber || '').localeCompare(b.unitNumber || '', undefined, { numeric: true }));
-  }, [units, selectedCondominiumId]);
+    if (!selectedCondominiumId || !unitsResponse?.data) return [];
+    return unitsResponse.data.sort((a, b) => (a.unitNumber || '').localeCompare(b.unitNumber || '', undefined, { numeric: true }));
+  }, [unitsResponse, selectedCondominiumId]);
 
   const { data: clientsResponse, isLoading: isLoadingClients } = useQuery<PaginatedResponse<ExternalClient>>({
     queryKey: ["/api/external-clients", { limit: 10000 }],
@@ -244,7 +272,7 @@ export default function ExternalGenerateOfferLinkDialog({
 
   const getWhatsAppMessage = () => {
     if (!generatedToken) return "";
-    const selectedUnit = units?.find((u) => String(u.id) === selectedUnitId);
+    const selectedUnit = filteredUnits?.find((u) => String(u.id) === selectedUnitId);
     const unitTitle = selectedUnit 
       ? `${selectedUnit.condominium?.name} - ${selectedUnit.unitNumber}`
       : "unidad";
@@ -292,7 +320,7 @@ Any questions? I'm here to help.`;
     sendEmailMutation.mutate(data);
   };
 
-  const selectedUnit = units?.find((u) => String(u.id) === selectedUnitId);
+  const selectedUnit = filteredUnits?.find((u) => String(u.id) === selectedUnitId);
   const selectedCondominium = condominiums?.find((c) => c.id === selectedCondominiumId);
   const selectedClient = clients?.find((c) => String(c.id) === selectedClientId) || 
     (clientInfo && { firstName: clientInfo.name.split(" ")[0], lastName: clientInfo.name.split(" ").slice(1).join(" ") || "" });
@@ -375,7 +403,7 @@ Any questions? I'm here to help.`;
                     <SelectValue placeholder={language === "es" ? "Selecciona un condominio..." : "Select a condominium..."} />
                   </SelectTrigger>
                   <SelectContent className="max-h-[300px]">
-                    {isLoadingUnits ? (
+                    {isLoadingCondominiums ? (
                       <div className="flex items-center justify-center p-4">
                         <Loader2 className="h-4 w-4 animate-spin" />
                       </div>
@@ -415,7 +443,11 @@ Any questions? I'm here to help.`;
                     } />
                   </SelectTrigger>
                   <SelectContent className="max-h-[300px]">
-                    {filteredUnits.length === 0 ? (
+                    {isLoadingUnits ? (
+                      <div className="flex items-center justify-center p-4">
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                      </div>
+                    ) : filteredUnits.length === 0 ? (
                       <div className="p-4 text-center text-sm text-muted-foreground">
                         {language === "es" ? "No hay unidades en este condominio" : "No units in this condominium"}
                       </div>

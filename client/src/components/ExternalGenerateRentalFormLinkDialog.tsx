@@ -69,43 +69,71 @@ export default function ExternalGenerateRentalFormLinkDialog({
   const [copiedWhatsApp, setCopiedWhatsApp] = useState(false);
   const [clientSearchTerm, setClientSearchTerm] = useState<string>("");
 
-  const { data: unitsResponse, isLoading: isLoadingUnits } = useQuery<{ data: ExternalUnitWithCondominium[], total: number }>({
-    queryKey: ["/api/external-units", "for-rental-form-dialog"],
+  // Load all condominiums directly from the condominiums endpoint
+  const { data: condominiumsResponse, isLoading: isLoadingCondominiums } = useQuery<{ data: any[], total: number }>({
+    queryKey: ["/api/external-condominiums", "for-rental-form-dialog"],
     queryFn: async () => {
-      const response = await fetch('/api/external-units?limit=1000', { credentials: 'include' });
-      if (!response.ok) throw new Error('Failed to fetch units');
-      return response.json();
+      // Fetch all condominiums in batches to bypass 100 limit
+      let allCondos: any[] = [];
+      let offset = 0;
+      const batchSize = 100;
+      let hasMore = true;
+      
+      while (hasMore) {
+        const response = await fetch(`/api/external-condominiums?limit=${batchSize}&offset=${offset}`, { credentials: 'include' });
+        if (!response.ok) throw new Error('Failed to fetch condominiums');
+        const result = await response.json();
+        allCondos = [...allCondos, ...(result.data || [])];
+        hasMore = result.data?.length === batchSize;
+        offset += batchSize;
+      }
+      
+      return { data: allCondos, total: allCondos.length };
     },
     enabled: open,
     staleTime: 5 * 60 * 1000,
   });
-  const units = unitsResponse?.data || [];
 
   const condominiums = useMemo(() => {
-    const condoMap = new Map<string, { id: string; name: string; unitCount: number }>();
-    units.forEach(unit => {
-      if (unit.condominiumId && unit.condominium?.name) {
-        const existing = condoMap.get(unit.condominiumId);
-        if (existing) {
-          existing.unitCount++;
-        } else {
-          condoMap.set(unit.condominiumId, {
-            id: unit.condominiumId,
-            name: unit.condominium.name,
-            unitCount: 1
-          });
-        }
+    const condos = condominiumsResponse?.data || [];
+    return condos
+      .map(condo => ({
+        id: condo.id,
+        name: condo.name,
+        unitCount: condo.unitCount || 0
+      }))
+      .sort((a, b) => a.name.localeCompare(b.name));
+  }, [condominiumsResponse]);
+
+  // Load units only for selected condominium
+  const { data: unitsResponse, isLoading: isLoadingUnits } = useQuery<{ data: ExternalUnitWithCondominium[], total: number }>({
+    queryKey: ["/api/external-units", "by-condominium-rental", selectedCondominiumId],
+    queryFn: async () => {
+      // Fetch all units for the selected condominium in batches
+      let allUnits: ExternalUnitWithCondominium[] = [];
+      let offset = 0;
+      const batchSize = 100;
+      let hasMore = true;
+      
+      while (hasMore) {
+        const response = await fetch(`/api/external-units?condominiumId=${selectedCondominiumId}&limit=${batchSize}&offset=${offset}`, { credentials: 'include' });
+        if (!response.ok) throw new Error('Failed to fetch units');
+        const result = await response.json();
+        allUnits = [...allUnits, ...(result.data || [])];
+        hasMore = result.data?.length === batchSize;
+        offset += batchSize;
       }
-    });
-    return Array.from(condoMap.values()).sort((a, b) => a.name.localeCompare(b.name));
-  }, [units]);
+      
+      return { data: allUnits, total: allUnits.length };
+    },
+    enabled: open && !!selectedCondominiumId,
+    staleTime: 5 * 60 * 1000,
+  });
 
   const filteredUnits = useMemo(() => {
-    if (!selectedCondominiumId) return [];
-    return units
-      .filter(unit => unit.condominiumId === selectedCondominiumId)
-      .sort((a, b) => (a.unitNumber || '').localeCompare(b.unitNumber || '', undefined, { numeric: true }));
-  }, [units, selectedCondominiumId]);
+    if (!selectedCondominiumId || !unitsResponse?.data) return [];
+    return unitsResponse.data.sort((a, b) => (a.unitNumber || '').localeCompare(b.unitNumber || '', undefined, { numeric: true }));
+  }, [unitsResponse, selectedCondominiumId]);
 
   const { data: clientsResponse, isLoading: isLoadingClients } = useQuery<PaginatedResponse<ExternalClient>>({
     queryKey: ["/api/external-clients", { limit: 10000 }], // Get all clients for selection
@@ -508,7 +536,7 @@ Need help? I'm available for any questions! 😊`;
                     <SelectValue placeholder={language === "es" ? "Selecciona un condominio" : "Select a condominium"} />
                   </SelectTrigger>
                   <SelectContent className="max-h-[300px] overflow-y-auto">
-                    {isLoadingUnits ? (
+                    {isLoadingCondominiums ? (
                       <div className="flex items-center justify-center p-8">
                         <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
                       </div>
@@ -571,7 +599,11 @@ Need help? I'm available for any questions! 😊`;
                         <SelectValue placeholder={language === "es" ? "Selecciona una unidad" : "Select a unit"} />
                       </SelectTrigger>
                       <SelectContent className="max-h-[300px] overflow-y-auto">
-                        {filteredUnits && filteredUnits.length > 0 ? (
+                        {isLoadingUnits ? (
+                          <div className="flex items-center justify-center p-8">
+                            <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
+                          </div>
+                        ) : filteredUnits && filteredUnits.length > 0 ? (
                           filteredUnits.map((unit) => (
                             <SelectItem key={unit.id} value={unit.id}>
                               <div className="flex items-center gap-2">
