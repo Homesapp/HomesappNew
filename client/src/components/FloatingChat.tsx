@@ -157,15 +157,28 @@ export function FloatingChat() {
   const chatContent = (
     <div className="fixed bottom-6 right-6 z-[9999]" style={{ position: 'fixed' }}>
       {!isOpen && (
-        <button
-          onClick={handleOpen}
-          className="flex items-center justify-center w-14 h-14 rounded-full bg-primary text-primary-foreground shadow-2xl hover-elevate active-elevate-2 transition-transform"
-          style={{ boxShadow: '0 4px 20px rgba(0,0,0,0.3)' }}
-          data-testid="button-open-chat"
-          aria-label="Abrir chat"
-        >
-          <MessageCircle className="w-6 h-6" />
-        </button>
+        <div className="relative">
+          {/* Speech bubble with animation */}
+          <div 
+            className="absolute bottom-full right-0 mb-2 animate-bounce-gentle"
+            style={{ animationDuration: '2s' }}
+          >
+            <div className="bg-white dark:bg-gray-800 text-foreground px-3 py-2 rounded-lg shadow-lg text-sm whitespace-nowrap border">
+              <span>Hola, escríbeme</span>
+              {/* Triangle pointer */}
+              <div className="absolute top-full right-5 w-0 h-0 border-l-[6px] border-l-transparent border-r-[6px] border-r-transparent border-t-[6px] border-t-white dark:border-t-gray-800" />
+            </div>
+          </div>
+          <button
+            onClick={handleOpen}
+            className="flex items-center justify-center w-14 h-14 rounded-full bg-primary text-primary-foreground shadow-2xl hover-elevate active-elevate-2 transition-transform animate-pulse-subtle"
+            style={{ boxShadow: '0 4px 20px rgba(0,0,0,0.3)' }}
+            data-testid="button-open-chat"
+            aria-label="Abrir chat"
+          >
+            <MessageCircle className="w-6 h-6" />
+          </button>
+        </div>
       )}
 
       {isOpen && (

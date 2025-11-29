@@ -31396,13 +31396,13 @@ ${{precio}}/mes
             .limit(1);
           if (condos.length > 0) {
             const condo = condos[0];
-            location = condo.zone ? `\${condo.name}, \${condo.zone}` : condo.name;
+            location = condo.zone ? `${condo.name}, ${condo.zone}` : condo.name;
           }
         }
         
         return {
           id: unit.id,
-          title: unit.title || `\${unit.propertyType || 'Propiedad'} \${unit.unitNumber}`,
+          title: unit.title || `${unit.propertyType || 'Propiedad'} ${unit.unitNumber}`,
           location: location,
           price: parseFloat(unit.price || '0') || 0,
           status: unit.price ? 'rent' : 'sale',
