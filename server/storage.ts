@@ -11032,6 +11032,19 @@ export class DatabaseStorage implements IStorage {
   // Optimized: Get all rental form token summaries with unit, condo, client, creator
   // Uses two separate queries for security: one for tokens with units (INNER JOINs), one for tokens without units
   async getExternalRentalFormTokenSummariesByAgency(agencyId: string): Promise<any[]> {
+    // First, get the agency info for the response
+    const agencyInfo = await db
+      .select({
+        name: externalAgencies.name,
+        logoUrl: externalAgencies.agencyLogoUrl,
+      })
+      .from(externalAgencies)
+      .where(eq(externalAgencies.id, agencyId))
+      .limit(1);
+    
+    const agencyName = agencyInfo[0]?.name || null;
+    const agencyLogoUrl = agencyInfo[0]?.logoUrl || null;
+
     // Query 1: Tokens WITH units - filter by unit's agencyId directly (handles units with or without condo)
     const tokensWithUnits = await db
       .select({
@@ -11116,12 +11129,22 @@ export class DatabaseStorage implements IStorage {
       externalUnitOwnerId: r.externalUnitOwnerId,
       linkedTokenId: r.linkedTokenId,
       createdBy: r.createdBy,
+      unitNumber: r.unitNumber,
+      condoName: r.condoName,
+      clientFirstName: r.clientFirstName,
+      clientLastName: r.clientLastName,
+      ownerFirstName: r.ownerFirstName,
+      ownerLastName: r.ownerLastName,
+      creatorFirstName: r.creatorFirstName,
+      creatorLastName: r.creatorLastName,
       propertyTitle: r.unitNumber 
         ? (r.condoName ? `${r.condoName} - Unidad ${r.unitNumber}` : `Unidad ${r.unitNumber}`)
         : 'Sin unidad asignada',
       clientName: r.clientFirstName ? `${r.clientFirstName} ${r.clientLastName || ''}`.trim() : 
                   (r.ownerFirstName ? `${r.ownerFirstName} ${r.ownerLastName || ''}`.trim() : ''),
       creatorName: r.creatorFirstName ? `${r.creatorFirstName} ${r.creatorLastName || ''}`.trim() : '',
+      agencyName,
+      agencyLogoUrl,
     }));
   }
 

@@ -10,6 +10,7 @@ import { format } from "date-fns";
 import { es, enUS } from "date-fns/locale";
 import ExternalGenerateRentalFormLinkDialog from "./ExternalGenerateRentalFormLinkDialog";
 import ExternalEditRentalFormDialog from "./ExternalEditRentalFormDialog";
+import ExternalRentalFormDetailView from "./ExternalRentalFormDetailView";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { ExternalPaginationControls } from "@/components/external/ExternalPaginationControls";
@@ -26,6 +27,8 @@ export default function ExternalRentalFormLinks({ searchTerm, statusFilter, view
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editDialogOpen, setEditDialogOpen] = useState(false);
   const [editingRentalForm, setEditingRentalForm] = useState<any>(null);
+  const [viewDetailOpen, setViewDetailOpen] = useState(false);
+  const [viewingRentalForm, setViewingRentalForm] = useState<any>(null);
   
   // Pagination state
   const [currentPage, setCurrentPage] = useState(1);
@@ -363,24 +366,17 @@ export default function ExternalRentalFormLinks({ searchTerm, statusFilter, view
                           {language === "es" ? "Editar" : "Edit"}
                         </Button>
                         <Button
-                          variant="outline"
+                          variant="default"
                           size="sm"
-                          onClick={() => viewRentalFormPDF(token.id)}
+                          onClick={() => {
+                            setViewingRentalForm(token);
+                            setViewDetailOpen(true);
+                          }}
                           className="flex-1"
-                          data-testid="button-view-rental-form-pdf"
+                          data-testid="button-view-rental-form"
                         >
                           <Eye className="h-4 w-4 mr-2" />
                           {language === "es" ? "Ver" : "View"}
-                        </Button>
-                        <Button
-                          variant="default"
-                          size="sm"
-                          onClick={() => downloadRentalFormPDF(token.id)}
-                          className="flex-1"
-                          data-testid="button-download-rental-form-pdf"
-                        >
-                          <FileDown className="h-4 w-4 mr-2" />
-                          {language === "es" ? "Descargar" : "Download"}
                         </Button>
                       </>
                     )}
@@ -538,20 +534,14 @@ export default function ExternalRentalFormLinks({ searchTerm, statusFilter, view
                             <Button
                               variant="ghost"
                               size="sm"
-                              onClick={() => viewRentalFormPDF(token.id)}
-                              title={language === "es" ? "Ver PDF" : "View PDF"}
-                              data-testid="button-view-rental-form-pdf"
+                              onClick={() => {
+                                setViewingRentalForm(token);
+                                setViewDetailOpen(true);
+                              }}
+                              title={language === "es" ? "Ver formulario" : "View form"}
+                              data-testid="button-view-rental-form"
                             >
                               <Eye className="h-4 w-4" />
-                            </Button>
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              onClick={() => downloadRentalFormPDF(token.id)}
-                              title={language === "es" ? "Descargar PDF" : "Download PDF"}
-                              data-testid="button-download-rental-form-pdf"
-                            >
-                              <FileDown className="h-4 w-4" />
                             </Button>
                           </>
                         )}
@@ -597,6 +587,32 @@ export default function ExternalRentalFormLinks({ searchTerm, statusFilter, view
         open={editDialogOpen} 
         onOpenChange={setEditDialogOpen}
         rentalFormToken={editingRentalForm}
+      />
+      <ExternalRentalFormDetailView
+        open={viewDetailOpen}
+        onOpenChange={setViewDetailOpen}
+        rentalForm={viewingRentalForm ? {
+          id: viewingRentalForm.id,
+          propertyTitle: viewingRentalForm.propertyTitle,
+          condominiumName: viewingRentalForm.condoName,
+          unitNumber: viewingRentalForm.unitNumber,
+          recipientType: viewingRentalForm.recipientType,
+          formData: viewingRentalForm.formData,
+          createdAt: viewingRentalForm.createdAt,
+          createdByName: viewingRentalForm.creatorFirstName && viewingRentalForm.creatorLastName 
+            ? `${viewingRentalForm.creatorFirstName} ${viewingRentalForm.creatorLastName}`
+            : viewingRentalForm.createdByName,
+          clientName: viewingRentalForm.clientFirstName && viewingRentalForm.clientLastName
+            ? `${viewingRentalForm.clientFirstName} ${viewingRentalForm.clientLastName}`
+            : viewingRentalForm.clientName,
+          ownerName: viewingRentalForm.ownerFirstName && viewingRentalForm.ownerLastName
+            ? `${viewingRentalForm.ownerFirstName} ${viewingRentalForm.ownerLastName}`
+            : undefined,
+          isUsed: viewingRentalForm.isUsed,
+          expiresAt: viewingRentalForm.expiresAt,
+          agencyName: viewingRentalForm.agencyName,
+          agencyLogoUrl: viewingRentalForm.agencyLogoUrl,
+        } : null}
       />
     </>
   );
