@@ -141,15 +141,25 @@ export default function SellerCalendar() {
   });
 
   // Fetch leads for dropdown
-  const { data: leadsResponse } = useQuery<{ data: Lead[] }>({
+  const { data: leadsResponse, isLoading: isLoadingLeads, error: leadsError } = useQuery<{ data: Lead[] }>({
     queryKey: ["/api/external-leads", { limit: 1000 }],
     queryFn: async () => {
       const response = await fetch('/api/external-leads?limit=1000', { credentials: 'include' });
       if (!response.ok) throw new Error('Failed to fetch leads');
       return response.json();
     },
+    staleTime: 0, // Always fetch fresh data
   });
   const leads = leadsResponse?.data || [];
+  
+  // Debug leads
+  console.log("[SellerCalendar] Leads response:", { 
+    leadsResponse, 
+    leadsCount: leads.length, 
+    isLoadingLeads, 
+    leadsError,
+    sampleLead: leads[0]
+  });
 
   // Fetch units for property selection
   const { data: unitsResponse } = useQuery<{ data: Unit[], total: number }>({
@@ -828,19 +838,52 @@ export default function SellerCalendar() {
             {/* Lead Selection */}
             <div className="space-y-2">
               <Label>{language === "es" ? "Lead / Cliente" : "Lead / Client"}</Label>
-              <Select value={formData.leadId} onValueChange={handleLeadSelect}>
+              <Select value={formData.leadId} onValueChange={handleLeadSelect} disabled={isLoadingLeads}>
                 <SelectTrigger className="min-h-[44px]" data-testid="select-lead">
-                  <SelectValue placeholder={language === "es" ? "Seleccionar lead..." : "Select lead..."} />
+                  <SelectValue placeholder={
+                    isLoadingLeads 
+                      ? (language === "es" ? "Cargando leads..." : "Loading leads...")
+                      : leads.length === 0
+                        ? (language === "es" ? "No hay leads disponibles" : "No leads available")
+                        : (language === "es" ? "Seleccionar lead..." : "Select lead...")
+                  } />
                 </SelectTrigger>
                 <SelectContent>
-                  {leads.map(lead => (
-                    <SelectItem key={lead.id} value={lead.id} className="min-h-[44px]">
-                      {lead.firstName} {lead.lastName}
-                      {lead.phone && <span className="text-muted-foreground ml-2">({lead.phone})</span>}
-                    </SelectItem>
-                  ))}
+                  {isLoadingLeads ? (
+                    <div className="flex items-center justify-center py-4">
+                      <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                      <span className="text-muted-foreground text-sm">
+                        {language === "es" ? "Cargando..." : "Loading..."}
+                      </span>
+                    </div>
+                  ) : leads.length === 0 ? (
+                    <div className="flex flex-col items-center justify-center py-4 px-2">
+                      <User className="h-8 w-8 text-muted-foreground/40 mb-2" />
+                      <span className="text-muted-foreground text-sm text-center">
+                        {language === "es" 
+                          ? "No tienes leads asignados. Registra nuevos leads desde la sección de Leads."
+                          : "You have no assigned leads. Register new leads from the Leads section."
+                        }
+                      </span>
+                    </div>
+                  ) : (
+                    leads.map(lead => (
+                      <SelectItem key={lead.id} value={lead.id} className="min-h-[44px]">
+                        {lead.firstName} {lead.lastName}
+                        {lead.phone && <span className="text-muted-foreground ml-2">({lead.phone})</span>}
+                      </SelectItem>
+                    ))
+                  )}
                 </SelectContent>
               </Select>
+              {leads.length > 0 && (
+                <p className="text-xs text-muted-foreground">
+                  {language === "es" 
+                    ? `${leads.length} lead(s) disponible(s)`
+                    : `${leads.length} lead(s) available`
+                  }
+                </p>
+              )}
             </div>
 
             {/* Date and Time */}
