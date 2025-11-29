@@ -12,7 +12,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { ArrowLeft, Home, User, Key, Plus, Edit, Trash2, Eye, EyeOff, Copy, Check, FileText, Upload, Clock, Calendar, Wrench, Users, MapPin, Shield, ShieldCheck, ShieldX, ExternalLink, Link2, XCircle, Send, UserCircle } from "lucide-react";
+import { ArrowLeft, Home, User, Key, Plus, Edit, Trash2, Eye, EyeOff, Copy, Check, FileText, Upload, Clock, Calendar, Wrench, Users, MapPin, Shield, ShieldCheck, ShieldX, ExternalLink, Link2, XCircle, Send, UserCircle, Building2, Maximize, DollarSign, Sparkles, PawPrint, Megaphone, Image, Scale, FileArchive } from "lucide-react";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { useAuth } from "@/hooks/useAuth";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -27,6 +27,7 @@ import type {
   ExternalCondominium, 
   ExternalUnitOwner, 
   ExternalUnitAccessControl,
+  ExternalUnitDocument,
   InsertExternalUnitOwner,
   InsertExternalUnitAccessControl,
   ExternalRentalContract,
@@ -184,8 +185,10 @@ export default function ExternalUnitDetail() {
   const [showOwnerLinkDialog, setShowOwnerLinkDialog] = useState(false);
   const [showUnpublishDialog, setShowUnpublishDialog] = useState(false);
   const [showReferrerDialog, setShowReferrerDialog] = useState(false);
+  const [showDocumentDialog, setShowDocumentDialog] = useState(false);
   const [editingOwner, setEditingOwner] = useState<ExternalUnitOwner | null>(null);
   const [editingAccess, setEditingAccess] = useState<ExternalUnitAccessControl | null>(null);
+  const [editingDocument, setEditingDocument] = useState<ExternalUnitDocument | null>(null);
   const [visiblePasswords, setVisiblePasswords] = useState<Set<string>>(new Set());
   const [copiedUnitInfo, setCopiedUnitInfo] = useState(false);
   const [copiedAccessInfo, setCopiedAccessInfo] = useState(false);
@@ -218,6 +221,11 @@ export default function ExternalUnitDetail() {
 
   const { data: accessControls, isLoading: accessLoading } = useQuery<ExternalUnitAccessControl[]>({
     queryKey: [`/api/external-unit-access-controls/by-unit/${id}`],
+    enabled: !!id,
+  });
+
+  const { data: unitDocuments, isLoading: documentsLoading } = useQuery<ExternalUnitDocument[]>({
+    queryKey: [`/api/external-unit-documents/by-unit/${id}`],
     enabled: !!id,
   });
 
@@ -508,6 +516,71 @@ export default function ExternalUnitDetail() {
       toast({
         title: language === "es" ? "Control eliminado" : "Access control deleted",
         description: language === "es" ? "El control de acceso se eliminó exitosamente" : "The access control was deleted successfully",
+      });
+    },
+    onError: (error: Error) => {
+      toast({
+        title: language === "es" ? "Error" : "Error",
+        description: error.message,
+        variant: "destructive",
+      });
+    },
+  });
+
+  // Document mutations
+  const createDocumentMutation = useMutation({
+    mutationFn: async (data: { documentType: string; documentName: string; documentUrl: string; description?: string; expirationDate?: string }) => {
+      return await apiRequest('POST', '/api/external-unit-documents', { ...data, unitId: id });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: [`/api/external-unit-documents/by-unit/${id}`] });
+      setShowDocumentDialog(false);
+      setEditingDocument(null);
+      toast({
+        title: language === "es" ? "Documento agregado" : "Document added",
+        description: language === "es" ? "El documento se agregó exitosamente" : "The document was added successfully",
+      });
+    },
+    onError: (error: Error) => {
+      toast({
+        title: language === "es" ? "Error" : "Error",
+        description: error.message,
+        variant: "destructive",
+      });
+    },
+  });
+
+  const updateDocumentMutation = useMutation({
+    mutationFn: async ({ id: docId, data }: { id: string; data: Partial<{ documentType: string; documentName: string; documentUrl: string; description?: string; expirationDate?: string; isActive?: boolean }> }) => {
+      return await apiRequest('PATCH', `/api/external-unit-documents/${docId}`, data);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: [`/api/external-unit-documents/by-unit/${id}`] });
+      setShowDocumentDialog(false);
+      setEditingDocument(null);
+      toast({
+        title: language === "es" ? "Documento actualizado" : "Document updated",
+        description: language === "es" ? "El documento se actualizó exitosamente" : "The document was updated successfully",
+      });
+    },
+    onError: (error: Error) => {
+      toast({
+        title: language === "es" ? "Error" : "Error",
+        description: error.message,
+        variant: "destructive",
+      });
+    },
+  });
+
+  const deleteDocumentMutation = useMutation({
+    mutationFn: async (docId: string) => {
+      return await apiRequest('DELETE', `/api/external-unit-documents/${docId}`);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: [`/api/external-unit-documents/by-unit/${id}`] });
+      toast({
+        title: language === "es" ? "Documento eliminado" : "Document deleted",
+        description: language === "es" ? "El documento se eliminó exitosamente" : "The document was deleted successfully",
       });
     },
     onError: (error: Error) => {
@@ -1126,180 +1199,246 @@ ${language === "es" ? "ACCESOS" : "ACCESSES"}:
               </div>
             </div>
           </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <Label className="text-xs text-muted-foreground">
-                  {language === "es" ? "Número de Unidad" : "Unit Number"}
-                </Label>
-                <p className="text-sm font-medium mt-1" data-testid="text-unit-number">{unit.unitNumber}</p>
-              </div>
-              {unit.propertyType && (
+          <CardContent className="space-y-5">
+            {/* Section 1: Basic Info */}
+            <div className="space-y-3">
+              <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide flex items-center gap-1.5">
+                <Building2 className="h-3.5 w-3.5" />
+                {language === "es" ? "Información Básica" : "Basic Info"}
+              </p>
+              <div className="grid grid-cols-2 gap-3">
                 <div>
                   <Label className="text-xs text-muted-foreground">
-                    {language === "es" ? "Tipo de Propiedad" : "Property Type"}
+                    {language === "es" ? "Número de Unidad" : "Unit Number"}
                   </Label>
-                  <p className="text-sm font-medium mt-1" data-testid="text-property-type">{unit.propertyType}</p>
+                  <p className="text-sm font-medium mt-0.5" data-testid="text-unit-number">{unit.unitNumber}</p>
                 </div>
-              )}
-            </div>
-
-            {(unit.zone || unit.city) && (
-              <div className="grid grid-cols-2 gap-4">
-                {unit.zone && (
+                {unit.propertyType && (
                   <div>
                     <Label className="text-xs text-muted-foreground">
-                      {language === "es" ? "Zona / Colonia" : "Zone / Neighborhood"}
+                      {language === "es" ? "Tipo de Propiedad" : "Property Type"}
                     </Label>
-                    <p className="text-sm font-medium mt-1 flex items-center gap-1" data-testid="text-zone">
-                      <MapPin className="h-3 w-3 text-muted-foreground" />
-                      {unit.zone}
-                    </p>
+                    <p className="text-sm font-medium mt-0.5" data-testid="text-property-type">{unit.propertyType}</p>
                   </div>
                 )}
-                {unit.city && (
+                {unit.floor && (
                   <div>
                     <Label className="text-xs text-muted-foreground">
-                      {language === "es" ? "Ciudad" : "City"}
+                      {language === "es" ? "Piso" : "Floor"}
                     </Label>
-                    <p className="text-sm font-medium mt-1" data-testid="text-city">{unit.city}</p>
+                    <p className="text-sm font-medium mt-0.5" data-testid="text-floor">{formatFloor(unit.floor, language)}</p>
                   </div>
                 )}
-              </div>
-            )}
-            
-            {unit.floor && (
-              <div>
-                <Label className="text-xs text-muted-foreground">
-                  {language === "es" ? "Piso" : "Floor"}
-                </Label>
-                <p className="text-sm font-medium mt-1" data-testid="text-floor">{formatFloor(unit.floor, language)}</p>
-              </div>
-            )}
-
-            <div className="grid grid-cols-3 gap-4">
-              {unit.bedrooms != null && unit.bedrooms > 0 && (
                 <div>
                   <Label className="text-xs text-muted-foreground">
-                    {language === "es" ? "Recámaras" : "Bedrooms"}
+                    {language === "es" ? "Estado" : "Status"}
                   </Label>
-                  <p className="text-sm font-medium mt-1" data-testid="text-bedrooms">{unit.bedrooms}</p>
+                  <div className="mt-0.5">
+                    <Badge variant={unit.isActive ? "default" : "secondary"} data-testid="badge-status">
+                      {unit.isActive ? (language === "es" ? "Activa" : "Active") : (language === "es" ? "Inactiva" : "Inactive")}
+                    </Badge>
+                  </div>
                 </div>
-              )}
-              {unit.bathrooms != null && Number(unit.bathrooms) > 0 && (
-                <div>
-                  <Label className="text-xs text-muted-foreground">
-                    {language === "es" ? "Baños" : "Bathrooms"}
-                  </Label>
-                  <p className="text-sm font-medium mt-1" data-testid="text-bathrooms">{unit.bathrooms}</p>
-                </div>
-              )}
-              {unit.area != null && Number(unit.area) > 0 && (
-                <div>
-                  <Label className="text-xs text-muted-foreground">
-                    {language === "es" ? "Área (m²)" : "Area (m²)"}
-                  </Label>
-                  <p className="text-sm font-medium mt-1" data-testid="text-area">{unit.area}</p>
+              </div>
+              {(unit.zone || unit.city) && (
+                <div className="grid grid-cols-2 gap-3">
+                  {unit.zone && (
+                    <div>
+                      <Label className="text-xs text-muted-foreground">
+                        {language === "es" ? "Zona / Colonia" : "Zone / Neighborhood"}
+                      </Label>
+                      <p className="text-sm font-medium mt-0.5 flex items-center gap-1" data-testid="text-zone">
+                        <MapPin className="h-3 w-3 text-muted-foreground" />
+                        {unit.zone}
+                      </p>
+                    </div>
+                  )}
+                  {unit.city && (
+                    <div>
+                      <Label className="text-xs text-muted-foreground">
+                        {language === "es" ? "Ciudad" : "City"}
+                      </Label>
+                      <p className="text-sm font-medium mt-0.5" data-testid="text-city">{unit.city}</p>
+                    </div>
+                  )}
                 </div>
               )}
             </div>
-            
-            <div>
-              <Label className="text-xs text-muted-foreground">
-                {language === "es" ? "Estado" : "Status"}
-              </Label>
-              <div className="mt-1">
-                <Badge variant={unit.isActive ? "default" : "secondary"} data-testid="badge-status">
-                  {unit.isActive ? (language === "es" ? "Activa" : "Active") : (language === "es" ? "Inactiva" : "Inactive")}
-                </Badge>
-              </div>
-            </div>
 
-            {unit.photosDriveLink && (
-              <div>
-                <Label className="text-xs text-muted-foreground">
-                  {language === "es" ? "Link Fotos" : "Photos Link"}
-                </Label>
-                <a 
-                  href={unit.photosDriveLink} 
-                  target="_blank" 
-                  rel="noopener noreferrer" 
-                  className="text-sm text-primary hover:underline block mt-1 truncate" 
-                  data-testid="link-photos"
-                  title={unit.photosDriveLink}
-                >
-                  {language === "es" ? "Ver fotos →" : "View photos →"}
-                </a>
-              </div>
-            )}
-            
-            {unit.notes && (
-              <div>
-                <Label className="text-xs text-muted-foreground">
-                  {language === "es" ? "Notas" : "Notes"}
-                </Label>
-                <p className="text-sm mt-1 text-muted-foreground" data-testid="text-notes">{unit.notes}</p>
-              </div>
-            )}
+            <Separator />
 
-            {/* Included Services */}
-            {unit.includedServices && Object.values(unit.includedServices).some(v => v) && (
-              <div>
-                <Label className="text-xs text-muted-foreground mb-1.5 block">
-                  {language === "es" ? "Servicios Incluidos" : "Included Services"}
-                </Label>
-                <div className="flex flex-wrap gap-1.5">
-                  {(unit.includedServices as any).water && (
-                    <Badge variant="outline" className="text-xs" data-testid="badge-service-water">
-                      {language === "es" ? "Agua" : "Water"}
-                    </Badge>
-                  )}
-                  {(unit.includedServices as any).electricity && (
-                    <Badge variant="outline" className="text-xs" data-testid="badge-service-electricity">
-                      {language === "es" ? "Electricidad" : "Electricity"}
-                    </Badge>
-                  )}
-                  {(unit.includedServices as any).internet && (
-                    <Badge variant="outline" className="text-xs" data-testid="badge-service-internet">
-                      Internet
-                    </Badge>
-                  )}
-                  {(unit.includedServices as any).gas && (
-                    <Badge variant="outline" className="text-xs" data-testid="badge-service-gas">
-                      Gas
-                    </Badge>
-                  )}
-                </div>
-              </div>
-            )}
-
-            {/* Amenities */}
-            {unit.amenities && unit.amenities.length > 0 && (
-              <div>
-                <Label className="text-xs text-muted-foreground mb-1.5 block">
-                  {language === "es" ? "Amenidades" : "Amenities"}
-                </Label>
-                <div className="flex flex-wrap gap-1.5 max-w-full overflow-hidden">
-                  {unit.amenities.slice(0, 8).map((amenity: string) => (
-                    <Badge key={amenity} variant="secondary" className="text-xs max-w-[120px] truncate" data-testid={`badge-amenity-${amenity}`}>
-                      {amenity}
-                    </Badge>
-                  ))}
-                  {unit.amenities.length > 8 && (
-                    <Badge variant="secondary" className="text-xs shrink-0">
-                      +{unit.amenities.length - 8}
-                    </Badge>
-                  )}
-                </div>
-              </div>
-            )}
-
-            {/* Marketing & Pricing Section */}
-            {(unit.title || unit.description || unit.price || unit.address) && (
+            {/* Section 2: Dimensions */}
+            {(unit.bedrooms != null || unit.bathrooms != null || unit.area != null) && (
               <>
-                <Separator className="my-4" />
                 <div className="space-y-3">
-                  <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+                  <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide flex items-center gap-1.5">
+                    <Maximize className="h-3.5 w-3.5" />
+                    {language === "es" ? "Dimensiones" : "Dimensions"}
+                  </p>
+                  <div className="grid grid-cols-3 gap-3">
+                    {unit.bedrooms != null && unit.bedrooms > 0 && (
+                      <div className="text-center p-2 rounded-md bg-muted/50">
+                        <p className="text-lg font-semibold" data-testid="text-bedrooms">{unit.bedrooms}</p>
+                        <Label className="text-xs text-muted-foreground">
+                          {language === "es" ? "Recámaras" : "Bedrooms"}
+                        </Label>
+                      </div>
+                    )}
+                    {unit.bathrooms != null && Number(unit.bathrooms) > 0 && (
+                      <div className="text-center p-2 rounded-md bg-muted/50">
+                        <p className="text-lg font-semibold" data-testid="text-bathrooms">{unit.bathrooms}</p>
+                        <Label className="text-xs text-muted-foreground">
+                          {language === "es" ? "Baños" : "Bathrooms"}
+                        </Label>
+                      </div>
+                    )}
+                    {unit.area != null && Number(unit.area) > 0 && (
+                      <div className="text-center p-2 rounded-md bg-muted/50">
+                        <p className="text-lg font-semibold" data-testid="text-area">{unit.area}</p>
+                        <Label className="text-xs text-muted-foreground">m²</Label>
+                      </div>
+                    )}
+                  </div>
+                </div>
+                <Separator />
+              </>
+            )}
+
+            {/* Section 3: Pricing */}
+            {(unit.price || (unit as any).salePrice) && (
+              <>
+                <div className="space-y-3">
+                  <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide flex items-center gap-1.5">
+                    <DollarSign className="h-3.5 w-3.5" />
+                    {language === "es" ? "Precios" : "Pricing"}
+                  </p>
+                  
+                  {/* Listing Type Badge */}
+                  {(unit as any).listingType && (
+                    <div className="flex items-center gap-2">
+                      <Badge 
+                        variant="outline" 
+                        className={
+                          (unit as any).listingType === "sale" 
+                            ? "border-green-500 text-green-600 dark:text-green-400" 
+                            : (unit as any).listingType === "both" 
+                              ? "border-purple-500 text-purple-600 dark:text-purple-400" 
+                              : "border-blue-500 text-blue-600 dark:text-blue-400"
+                        }
+                        data-testid="badge-listing-type"
+                      >
+                        {(unit as any).listingType === "rent" && (language === "es" ? "Solo Renta" : "Rent Only")}
+                        {(unit as any).listingType === "sale" && (language === "es" ? "Solo Venta" : "Sale Only")}
+                        {(unit as any).listingType === "both" && (language === "es" ? "Renta y Venta" : "Rent & Sale")}
+                      </Badge>
+                    </div>
+                  )}
+
+                  <div className="grid grid-cols-2 gap-3">
+                    {unit.price && (
+                      <div className="p-3 rounded-md border bg-card">
+                        <Label className="text-xs text-muted-foreground">
+                          {language === "es" ? "Precio Mensual (Renta)" : "Monthly Rent"}
+                        </Label>
+                        <p className="text-base font-semibold text-blue-600 dark:text-blue-400 mt-0.5" data-testid="text-price">
+                          ${Number(unit.price).toLocaleString()} {unit.currency || "MXN"}
+                        </p>
+                      </div>
+                    )}
+                    {(unit as any).salePrice && Number((unit as any).salePrice) > 0 && (
+                      <div className="p-3 rounded-md border bg-card">
+                        <Label className="text-xs text-muted-foreground">
+                          {language === "es" ? "Precio de Venta" : "Sale Price"}
+                        </Label>
+                        <p className="text-base font-semibold text-green-600 dark:text-green-400 mt-0.5" data-testid="text-sale-price">
+                          ${Number((unit as any).salePrice).toLocaleString()} {(unit as any).salePriceCurrency || unit.currency || "MXN"}
+                        </p>
+                      </div>
+                    )}
+                  </div>
+                </div>
+                <Separator />
+              </>
+            )}
+
+            {/* Section 4: Amenities & Services */}
+            {((unit.includedServices && Object.values(unit.includedServices).some(v => v)) || (unit.amenities && unit.amenities.length > 0)) && (
+              <>
+                <div className="space-y-3">
+                  <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide flex items-center gap-1.5">
+                    <Sparkles className="h-3.5 w-3.5" />
+                    {language === "es" ? "Amenidades y Servicios" : "Amenities & Services"}
+                  </p>
+                  
+                  {/* Included Services */}
+                  {unit.includedServices && Object.values(unit.includedServices).some(v => v) && (
+                    <div>
+                      <Label className="text-xs text-muted-foreground mb-1.5 block">
+                        {language === "es" ? "Servicios Incluidos" : "Included Services"}
+                      </Label>
+                      <div className="flex flex-wrap gap-1.5">
+                        {(unit.includedServices as any).water && (
+                          <Badge variant="outline" className="text-xs" data-testid="badge-service-water">
+                            {language === "es" ? "Agua" : "Water"}
+                          </Badge>
+                        )}
+                        {(unit.includedServices as any).electricity && (
+                          <Badge variant="outline" className="text-xs" data-testid="badge-service-electricity">
+                            {language === "es" ? "Electricidad" : "Electricity"}
+                          </Badge>
+                        )}
+                        {(unit.includedServices as any).internet && (
+                          <Badge variant="outline" className="text-xs" data-testid="badge-service-internet">
+                            Internet
+                          </Badge>
+                        )}
+                        {(unit.includedServices as any).gas && (
+                          <Badge variant="outline" className="text-xs" data-testid="badge-service-gas">
+                            Gas
+                          </Badge>
+                        )}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Amenities */}
+                  {unit.amenities && unit.amenities.length > 0 && (
+                    <div>
+                      <Label className="text-xs text-muted-foreground mb-1.5 block">
+                        {language === "es" ? "Amenidades" : "Amenities"}
+                      </Label>
+                      <div className="flex flex-wrap gap-1.5 max-w-full overflow-hidden">
+                        {unit.amenities.slice(0, 8).map((amenity: string) => (
+                          <Badge key={amenity} variant="secondary" className="text-xs max-w-[120px] truncate" data-testid={`badge-amenity-${amenity}`}>
+                            {amenity}
+                          </Badge>
+                        ))}
+                        {unit.amenities.length > 8 && (
+                          <Badge variant="secondary" className="text-xs shrink-0">
+                            +{unit.amenities.length - 8}
+                          </Badge>
+                        )}
+                      </div>
+                    </div>
+                  )}
+
+                  {unit.petFriendly && (
+                    <Badge variant="outline" className="text-xs" data-testid="badge-pet-friendly">
+                      <PawPrint className="h-3 w-3 mr-1" />
+                      {language === "es" ? "Acepta Mascotas" : "Pet Friendly"}
+                    </Badge>
+                  )}
+                </div>
+                <Separator />
+              </>
+            )}
+
+            {/* Section 5: Marketing Info */}
+            {(unit.title || unit.description || unit.address) && (
+              <>
+                <div className="space-y-3">
+                  <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide flex items-center gap-1.5">
+                    <Megaphone className="h-3.5 w-3.5" />
                     {language === "es" ? "Información de Marketing" : "Marketing Information"}
                   </p>
                   
@@ -1308,7 +1447,7 @@ ${language === "es" ? "ACCESOS" : "ACCESSES"}:
                       <Label className="text-xs text-muted-foreground">
                         {language === "es" ? "Título del Listado" : "Listing Title"}
                       </Label>
-                      <p className="text-sm font-medium mt-1" data-testid="text-title">{unit.title}</p>
+                      <p className="text-sm font-medium mt-0.5" data-testid="text-title">{unit.title}</p>
                     </div>
                   )}
                   
@@ -1317,20 +1456,7 @@ ${language === "es" ? "ACCESOS" : "ACCESSES"}:
                       <Label className="text-xs text-muted-foreground">
                         {language === "es" ? "Descripción" : "Description"}
                       </Label>
-                      <p className="text-sm mt-1 text-muted-foreground" data-testid="text-description">{unit.description}</p>
-                    </div>
-                  )}
-                  
-                  {unit.price && (
-                    <div className="grid grid-cols-2 gap-4">
-                      <div>
-                        <Label className="text-xs text-muted-foreground">
-                          {language === "es" ? "Precio Mensual" : "Monthly Price"}
-                        </Label>
-                        <p className="text-sm font-medium mt-1" data-testid="text-price">
-                          ${Number(unit.price).toLocaleString()} {unit.currency || "MXN"}
-                        </p>
-                      </div>
+                      <p className="text-sm mt-0.5 text-muted-foreground line-clamp-3" data-testid="text-description">{unit.description}</p>
                     </div>
                   )}
                   
@@ -1339,55 +1465,70 @@ ${language === "es" ? "ACCESOS" : "ACCESSES"}:
                       <Label className="text-xs text-muted-foreground">
                         {language === "es" ? "Dirección" : "Address"}
                       </Label>
-                      <p className="text-sm mt-1 flex items-center gap-1" data-testid="text-address">
+                      <p className="text-sm mt-0.5 flex items-center gap-1" data-testid="text-address">
                         <MapPin className="h-3 w-3 text-muted-foreground shrink-0" />
                         {unit.address}
                       </p>
                     </div>
                   )}
 
-                  {unit.googleMapsUrl && (
-                    <div>
+                  <div className="flex flex-wrap gap-2">
+                    {unit.googleMapsUrl && (
                       <a 
                         href={unit.googleMapsUrl} 
                         target="_blank" 
                         rel="noopener noreferrer" 
-                        className="text-sm text-primary hover:underline inline-flex items-center gap-1" 
+                        className="text-xs text-primary hover:underline inline-flex items-center gap-1" 
                         data-testid="link-google-maps"
                       >
                         <MapPin className="h-3 w-3" />
-                        {language === "es" ? "Ver en Google Maps →" : "View on Google Maps →"}
+                        {language === "es" ? "Google Maps" : "Google Maps"}
                       </a>
-                    </div>
-                  )}
-
-                  {unit.virtualTourUrl && (
-                    <div>
+                    )}
+                    {unit.virtualTourUrl && (
                       <a 
                         href={unit.virtualTourUrl} 
                         target="_blank" 
                         rel="noopener noreferrer" 
-                        className="text-sm text-primary hover:underline inline-flex items-center gap-1" 
+                        className="text-xs text-primary hover:underline inline-flex items-center gap-1" 
                         data-testid="link-virtual-tour"
                       >
                         <Eye className="h-3 w-3" />
-                        {language === "es" ? "Tour Virtual 360° →" : "Virtual Tour 360° →"}
+                        {language === "es" ? "Tour Virtual 360°" : "Virtual Tour 360°"}
                       </a>
-                    </div>
-                  )}
-
-                  <div className="flex flex-wrap gap-2 mt-2">
-                    {unit.petFriendly && (
-                      <Badge variant="outline" data-testid="badge-pet-friendly">
-                        🐕 {language === "es" ? "Acepta Mascotas" : "Pet Friendly"}
-                      </Badge>
                     )}
-                    {unit.publishToMain && (
-                      <Badge variant="default" className="bg-blue-600 dark:bg-blue-700" data-testid="badge-publish-main">
-                        {language === "es" ? "Publicar en HomesApp" : "Publish to HomesApp"}
-                      </Badge>
+                    {unit.photosDriveLink && (
+                      <a 
+                        href={unit.photosDriveLink} 
+                        target="_blank" 
+                        rel="noopener noreferrer" 
+                        className="text-xs text-primary hover:underline inline-flex items-center gap-1" 
+                        data-testid="link-photos"
+                      >
+                        <Image className="h-3 w-3" />
+                        {language === "es" ? "Fotos Drive" : "Photos Drive"}
+                      </a>
                     )}
                   </div>
+
+                  {unit.publishToMain && (
+                    <Badge variant="default" className="bg-blue-600 dark:bg-blue-700" data-testid="badge-publish-main">
+                      {language === "es" ? "Publicar en HomesApp" : "Publish to HomesApp"}
+                    </Badge>
+                  )}
+                </div>
+              </>
+            )}
+            
+            {/* Notes */}
+            {unit.notes && (
+              <>
+                <Separator />
+                <div>
+                  <Label className="text-xs text-muted-foreground">
+                    {language === "es" ? "Notas Internas" : "Internal Notes"}
+                  </Label>
+                  <p className="text-sm mt-0.5 text-muted-foreground" data-testid="text-notes">{unit.notes}</p>
                 </div>
               </>
             )}
@@ -1807,6 +1948,120 @@ ${language === "es" ? "ACCESOS" : "ACCESSES"}:
           </CardContent>
         </Card>
       </div>
+
+      {/* Row 3: Legal Documents */}
+      <Card data-testid="card-legal-documents">
+        <CardHeader className="pb-3">
+          <div className="flex justify-between items-center gap-2">
+            <CardTitle className="flex items-center gap-2">
+              <Scale className="h-5 w-5" />
+              {language === "es" ? "Legales" : "Legal Documents"}
+            </CardTitle>
+            <Button
+              size="sm"
+              onClick={() => {
+                setEditingDocument(null);
+                setShowDocumentDialog(true);
+              }}
+              disabled={isLoadingAuth || !user}
+              data-testid="button-add-document"
+            >
+              <Plus className="h-4 w-4 mr-1" />
+              {language === "es" ? "Agregar" : "Add"}
+            </Button>
+          </div>
+        </CardHeader>
+        <CardContent className="pt-0">
+          {documentsLoading ? (
+            <div className="space-y-2">
+              <Skeleton className="h-16 w-full" />
+              <Skeleton className="h-16 w-full" />
+            </div>
+          ) : !unitDocuments || unitDocuments.length === 0 ? (
+            <div className="text-center py-8 text-muted-foreground" data-testid="text-no-documents">
+              <FileArchive className="h-10 w-10 mx-auto mb-2 opacity-40" />
+              <p className="text-sm">{language === "es" ? "No hay documentos legales registrados" : "No legal documents registered"}</p>
+              <p className="text-xs mt-1">{language === "es" ? "Agrega escrituras, permisos, contratos u otros documentos legales" : "Add deeds, permits, contracts or other legal documents"}</p>
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+              {unitDocuments.map(doc => (
+                <div
+                  key={doc.id}
+                  className={`p-3 rounded-lg border ${doc.isActive ? "border-border" : "border-border opacity-50"}`}
+                  data-testid={`document-card-${doc.id}`}
+                >
+                  <div className="flex justify-between items-start gap-2 mb-2">
+                    <div className="flex items-center gap-2 min-w-0 flex-1">
+                      <Badge variant="outline" className="text-[10px] shrink-0" data-testid={`badge-doc-type-${doc.id}`}>
+                        {doc.documentType === 'deed' && (language === "es" ? "Escritura" : "Deed")}
+                        {doc.documentType === 'permit' && (language === "es" ? "Permiso" : "Permit")}
+                        {doc.documentType === 'contract' && (language === "es" ? "Contrato" : "Contract")}
+                        {doc.documentType === 'certificate' && (language === "es" ? "Certificado" : "Certificate")}
+                        {doc.documentType === 'insurance' && (language === "es" ? "Seguro" : "Insurance")}
+                        {doc.documentType === 'tax' && (language === "es" ? "Fiscal" : "Tax")}
+                        {doc.documentType === 'other' && (language === "es" ? "Otro" : "Other")}
+                        {!['deed', 'permit', 'contract', 'certificate', 'insurance', 'tax', 'other'].includes(doc.documentType) && doc.documentType}
+                      </Badge>
+                      {!doc.isActive && (
+                        <Badge variant="secondary" className="text-[10px] shrink-0">
+                          {language === "es" ? "Inactivo" : "Inactive"}
+                        </Badge>
+                      )}
+                    </div>
+                    <div className="flex gap-0.5 shrink-0">
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-6 w-6"
+                        onClick={() => {
+                          setEditingDocument(doc);
+                          setShowDocumentDialog(true);
+                        }}
+                        disabled={isLoadingAuth || !user}
+                        data-testid={`button-edit-document-${doc.id}`}
+                      >
+                        <Edit className="h-3 w-3" />
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-6 w-6"
+                        onClick={() => deleteDocumentMutation.mutate(doc.id)}
+                        disabled={deleteDocumentMutation.isPending || isLoadingAuth || !user}
+                        data-testid={`button-delete-document-${doc.id}`}
+                      >
+                        <Trash2 className="h-3 w-3" />
+                      </Button>
+                    </div>
+                  </div>
+                  <a 
+                    href={doc.documentUrl} 
+                    target="_blank" 
+                    rel="noopener noreferrer"
+                    className="text-sm font-medium text-primary hover:underline block truncate"
+                    data-testid={`link-document-${doc.id}`}
+                    title={doc.documentName}
+                  >
+                    {doc.documentName}
+                  </a>
+                  {doc.description && (
+                    <p className="text-xs text-muted-foreground mt-1 line-clamp-2" data-testid={`text-doc-description-${doc.id}`}>
+                      {doc.description}
+                    </p>
+                  )}
+                  {doc.expirationDate && (
+                    <p className="text-xs text-muted-foreground mt-1 flex items-center gap-1">
+                      <Calendar className="h-3 w-3" />
+                      {language === "es" ? "Vence:" : "Expires:"} {new Date(doc.expirationDate).toLocaleDateString(language === "es" ? "es-MX" : "en-US")}
+                    </p>
+                  )}
+                </div>
+              ))}
+            </div>
+          )}
+        </CardContent>
+      </Card>
 
       {/* Unit Edit Dialog */}
       <Dialog open={showUnitEditDialog} onOpenChange={setShowUnitEditDialog}>
@@ -2737,6 +2992,146 @@ ${language === "es" ? "ACCESOS" : "ACCESSES"}:
               </DialogFooter>
             </form>
           </Form>
+        </DialogContent>
+      </Dialog>
+
+      {/* Document Dialog */}
+      <Dialog open={showDocumentDialog} onOpenChange={(open) => {
+        setShowDocumentDialog(open);
+        if (!open) setEditingDocument(null);
+      }}>
+        <DialogContent className="max-w-md" data-testid="dialog-document">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Scale className="h-5 w-5" />
+              {editingDocument 
+                ? (language === "es" ? "Editar Documento" : "Edit Document")
+                : (language === "es" ? "Agregar Documento Legal" : "Add Legal Document")
+              }
+            </DialogTitle>
+            <DialogDescription>
+              {language === "es" 
+                ? "Agregue o modifique documentos legales de la propiedad" 
+                : "Add or modify property legal documents"
+              }
+            </DialogDescription>
+          </DialogHeader>
+          <form 
+            onSubmit={(e) => {
+              e.preventDefault();
+              const formData = new FormData(e.currentTarget);
+              const data = {
+                documentType: formData.get('documentType') as string,
+                documentName: formData.get('documentName') as string,
+                documentUrl: formData.get('documentUrl') as string,
+                description: formData.get('description') as string || undefined,
+                expirationDate: formData.get('expirationDate') as string || undefined,
+              };
+              if (editingDocument) {
+                updateDocumentMutation.mutate({ id: editingDocument.id, data });
+              } else {
+                createDocumentMutation.mutate(data);
+              }
+            }} 
+            className="space-y-4"
+          >
+            <div className="space-y-4">
+              <div>
+                <Label htmlFor="documentType">{language === "es" ? "Tipo de Documento" : "Document Type"} *</Label>
+                <Select 
+                  name="documentType" 
+                  defaultValue={editingDocument?.documentType || "deed"}
+                >
+                  <SelectTrigger className="mt-1" data-testid="select-document-type">
+                    <SelectValue placeholder={language === "es" ? "Seleccionar tipo..." : "Select type..."} />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="deed">{language === "es" ? "Escritura" : "Deed"}</SelectItem>
+                    <SelectItem value="permit">{language === "es" ? "Permiso" : "Permit"}</SelectItem>
+                    <SelectItem value="contract">{language === "es" ? "Contrato" : "Contract"}</SelectItem>
+                    <SelectItem value="certificate">{language === "es" ? "Certificado" : "Certificate"}</SelectItem>
+                    <SelectItem value="insurance">{language === "es" ? "Seguro" : "Insurance"}</SelectItem>
+                    <SelectItem value="tax">{language === "es" ? "Fiscal" : "Tax Document"}</SelectItem>
+                    <SelectItem value="other">{language === "es" ? "Otro" : "Other"}</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div>
+                <Label htmlFor="documentName">{language === "es" ? "Nombre del Documento" : "Document Name"} *</Label>
+                <Input 
+                  id="documentName"
+                  name="documentName" 
+                  defaultValue={editingDocument?.documentName || ""}
+                  placeholder={language === "es" ? "Ej: Escritura Pública #12345" : "Ex: Public Deed #12345"}
+                  required
+                  className="mt-1"
+                  data-testid="input-document-name"
+                />
+              </div>
+              <div>
+                <Label htmlFor="documentUrl">{language === "es" ? "URL del Documento" : "Document URL"} *</Label>
+                <Input 
+                  id="documentUrl"
+                  name="documentUrl" 
+                  type="url"
+                  defaultValue={editingDocument?.documentUrl || ""}
+                  placeholder="https://drive.google.com/..."
+                  required
+                  className="mt-1"
+                  data-testid="input-document-url"
+                />
+                <p className="text-xs text-muted-foreground mt-1">
+                  {language === "es" ? "Enlace a Google Drive, Dropbox, etc." : "Link to Google Drive, Dropbox, etc."}
+                </p>
+              </div>
+              <div>
+                <Label htmlFor="description">{language === "es" ? "Descripción" : "Description"}</Label>
+                <Textarea 
+                  id="description"
+                  name="description" 
+                  defaultValue={editingDocument?.description || ""}
+                  placeholder={language === "es" ? "Notas adicionales..." : "Additional notes..."}
+                  className="mt-1"
+                  rows={2}
+                  data-testid="input-document-description"
+                />
+              </div>
+              <div>
+                <Label htmlFor="expirationDate">{language === "es" ? "Fecha de Vencimiento" : "Expiration Date"}</Label>
+                <Input 
+                  id="expirationDate"
+                  name="expirationDate" 
+                  type="date"
+                  defaultValue={editingDocument?.expirationDate ? new Date(editingDocument.expirationDate).toISOString().split('T')[0] : ""}
+                  className="mt-1"
+                  data-testid="input-document-expiration"
+                />
+              </div>
+            </div>
+            <DialogFooter className="gap-2">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => {
+                  setShowDocumentDialog(false);
+                  setEditingDocument(null);
+                }}
+                data-testid="button-cancel-document"
+              >
+                {language === "es" ? "Cancelar" : "Cancel"}
+              </Button>
+              <Button
+                type="submit"
+                disabled={createDocumentMutation.isPending || updateDocumentMutation.isPending}
+                data-testid="button-submit-document"
+              >
+                {(createDocumentMutation.isPending || updateDocumentMutation.isPending)
+                  ? (language === "es" ? "Guardando..." : "Saving...")
+                  : (editingDocument ? (language === "es" ? "Actualizar" : "Update") : (language === "es" ? "Agregar" : "Add"))
+                }
+              </Button>
+            </DialogFooter>
+          </form>
         </DialogContent>
       </Dialog>
 
