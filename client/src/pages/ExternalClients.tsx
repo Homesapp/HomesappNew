@@ -375,6 +375,12 @@ export default function ExternalClients() {
   const [selectedEditCharacteristics, setSelectedEditCharacteristics] = useState<string[]>([]);
   const [selectedEditAmenities, setSelectedEditAmenities] = useState<string[]>([]);
 
+  // State for multi-select property types and zones in forms
+  const [selectedCreatePropertyTypes, setSelectedCreatePropertyTypes] = useState<string[]>([]);
+  const [selectedCreateZones, setSelectedCreateZones] = useState<string[]>([]);
+  const [selectedEditPropertyTypes, setSelectedEditPropertyTypes] = useState<string[]>([]);
+  const [selectedEditZones, setSelectedEditZones] = useState<string[]>([]);
+
   useEffect(() => {
     if (totalLeadPages > 0 && leadCurrentPage > totalLeadPages) {
       setLeadCurrentPage(totalLeadPages);
@@ -595,11 +601,14 @@ export default function ExternalClients() {
         budgetMax: data.budgetMax,
         bedrooms: data.bedrooms || parseBedroomsText(data.bedroomsText),
       };
-      // Include selected characteristics and amenities
+      // Include selected characteristics, amenities, property types, and zones
+      // Always use badge state directly (empty array = no selection)
       const dataWithSelections = {
         ...processedData,
         desiredCharacteristics: selectedCreateCharacteristics,
         desiredAmenities: selectedCreateAmenities,
+        desiredUnitType: selectedCreatePropertyTypes.join(", ") || null,
+        desiredNeighborhood: selectedCreateZones.join(", ") || null,
       };
       
       // For master/admin users, include the selected agencyId
@@ -621,6 +630,8 @@ export default function ExternalClients() {
       setSelectedAgencyIdForLead(""); // Reset agency selection
       setSelectedCreateCharacteristics([]); // Reset selections
       setSelectedCreateAmenities([]);
+      setSelectedCreatePropertyTypes([]);
+      setSelectedCreateZones([]);
       leadForm.reset();
     },
     onError: (error: any) => {
@@ -652,11 +663,14 @@ export default function ExternalClients() {
 
   const updateLeadMutation = useMutation({
     mutationFn: async ({ id, data }: { id: string; data: EditLeadFormData }) => {
-      // Include selected characteristics and amenities
+      // Include selected characteristics, amenities, property types, and zones
+      // Always use badge state directly (empty array = no selection)
       const dataWithSelections = {
         ...data,
         desiredCharacteristics: selectedEditCharacteristics,
         desiredAmenities: selectedEditAmenities,
+        desiredUnitType: selectedEditPropertyTypes.join(", ") || null,
+        desiredNeighborhood: selectedEditZones.join(", ") || null,
       };
       const res = await apiRequest("PATCH", `/api/external-leads/${id}`, dataWithSelections);
       return res.json();
@@ -673,6 +687,8 @@ export default function ExternalClients() {
       setSelectedLead(null);
       setSelectedEditCharacteristics([]); // Reset selections
       setSelectedEditAmenities([]);
+      setSelectedEditPropertyTypes([]);
+      setSelectedEditZones([]);
       editLeadForm.reset();
     },
     onError: (error: any) => {
@@ -2876,6 +2892,9 @@ export default function ExternalClients() {
                     setEditCondominiumId(lead.interestedCondominiumId || "");
                     setSelectedEditCharacteristics((lead as any).desiredCharacteristics || []);
                     setSelectedEditAmenities((lead as any).desiredAmenities || []);
+                    // Initialize property types and zones from comma-separated string
+                    setSelectedEditPropertyTypes(lead.desiredUnitType ? lead.desiredUnitType.split(", ").filter(Boolean) : []);
+                    setSelectedEditZones(lead.desiredNeighborhood ? lead.desiredNeighborhood.split(", ").filter(Boolean) : []);
                     setIsEditLeadDialogOpen(true);
                   }}
                   onDelete={(lead) => {
@@ -3053,6 +3072,8 @@ export default function ExternalClients() {
                                     setEditCondominiumId(lead.interestedCondominiumId || "");
                                     setSelectedEditCharacteristics((lead as any).desiredCharacteristics || []);
                                     setSelectedEditAmenities((lead as any).desiredAmenities || []);
+                                    setSelectedEditPropertyTypes(lead.desiredUnitType ? lead.desiredUnitType.split(", ").filter(Boolean) : []);
+                                    setSelectedEditZones(lead.desiredNeighborhood ? lead.desiredNeighborhood.split(", ").filter(Boolean) : []);
                                     setIsEditLeadDialogOpen(true);
                                   }}
                                   data-testid={`button-edit-lead-${lead.id}`}
@@ -3146,6 +3167,8 @@ export default function ExternalClients() {
                                     setEditCondominiumId(lead.interestedCondominiumId || "");
                                     setSelectedEditCharacteristics((lead as any).desiredCharacteristics || []);
                                     setSelectedEditAmenities((lead as any).desiredAmenities || []);
+                                    setSelectedEditPropertyTypes(lead.desiredUnitType ? lead.desiredUnitType.split(", ").filter(Boolean) : []);
+                                    setSelectedEditZones(lead.desiredNeighborhood ? lead.desiredNeighborhood.split(", ").filter(Boolean) : []);
                                     setIsEditLeadDialogOpen(true);
                                   }}
                                 >
@@ -3223,6 +3246,8 @@ export default function ExternalClients() {
                                   setEditCondominiumId(lead.interestedCondominiumId || "");
                                   setSelectedEditCharacteristics((lead as any).desiredCharacteristics || []);
                                   setSelectedEditAmenities((lead as any).desiredAmenities || []);
+                                  setSelectedEditPropertyTypes(lead.desiredUnitType ? lead.desiredUnitType.split(", ").filter(Boolean) : []);
+                                  setSelectedEditZones(lead.desiredNeighborhood ? lead.desiredNeighborhood.split(", ").filter(Boolean) : []);
                                   setIsEditLeadDialogOpen(true);
                                 }}
                                 data-testid={`button-edit-lead-footer-${lead.id}`}
@@ -3535,78 +3560,80 @@ export default function ExternalClients() {
                       </FormItem>
                     )}
                   />
-                  <FormField
-                    control={leadForm.control}
-                    name="desiredUnitType"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel className="flex items-center gap-2">
-                          <Home className="h-3.5 w-3.5 text-muted-foreground" />
-                          {language === "es" ? "Tipo de Propiedad" : "Property Type"}
-                        </FormLabel>
-                        <Select onValueChange={field.onChange} value={field.value || ""}>
-                          <FormControl>
-                            <SelectTrigger data-testid="select-create-lead-unittype">
-                              <SelectValue placeholder={language === "es" ? "Seleccionar" : "Select"} />
-                            </SelectTrigger>
-                          </FormControl>
-                          <SelectContent>
-                            {activePropertyTypes.length > 0 ? (
-                              activePropertyTypes.map((pt) => (
-                                <SelectItem key={pt.id} value={pt.name}>{pt.name}</SelectItem>
-                              ))
-                            ) : (
-                              <>
-                                <SelectItem value="Departamento">{language === "es" ? "Departamento" : "Apartment"}</SelectItem>
-                                <SelectItem value="Casa">{language === "es" ? "Casa" : "House"}</SelectItem>
-                                <SelectItem value="Estudio">{language === "es" ? "Estudio" : "Studio"}</SelectItem>
-                                <SelectItem value="PH">PH / Penthouse</SelectItem>
-                                <SelectItem value="Villa">Villa</SelectItem>
-                              </>
-                            )}
-                          </SelectContent>
-                        </Select>
-                        <FormMessage />
-                      </FormItem>
+                  <FormItem>
+                    <FormLabel className="flex items-center gap-2">
+                      <Home className="h-3.5 w-3.5 text-muted-foreground" />
+                      {language === "es" ? "Tipo de Propiedad (múltiple)" : "Property Type (multiple)"}
+                    </FormLabel>
+                    <div className="flex flex-wrap gap-1.5" data-testid="multiselect-create-lead-unittype">
+                      {(activePropertyTypes.length > 0 ? activePropertyTypes : [
+                        { id: "dept", name: language === "es" ? "Departamento" : "Apartment" },
+                        { id: "casa", name: language === "es" ? "Casa" : "House" },
+                        { id: "estudio", name: language === "es" ? "Estudio" : "Studio" },
+                        { id: "ph", name: "PH / Penthouse" },
+                        { id: "villa", name: "Villa" },
+                      ]).map((pt) => (
+                        <Badge
+                          key={pt.id}
+                          variant={selectedCreatePropertyTypes.includes(pt.name) ? "default" : "outline"}
+                          className="cursor-pointer min-h-[32px] px-3"
+                          onClick={() => {
+                            setSelectedCreatePropertyTypes(prev => 
+                              prev.includes(pt.name) 
+                                ? prev.filter(t => t !== pt.name) 
+                                : [...prev, pt.name]
+                            );
+                          }}
+                          data-testid={`badge-create-propertytype-${pt.name.toLowerCase().replace(/[^a-z]/g, '-')}`}
+                        >
+                          {pt.name}
+                        </Badge>
+                      ))}
+                    </div>
+                    {selectedCreatePropertyTypes.length > 0 && (
+                      <p className="text-xs text-muted-foreground">
+                        {selectedCreatePropertyTypes.length} {language === "es" ? "seleccionado(s)" : "selected"}
+                      </p>
                     )}
-                  />
+                  </FormItem>
                 </div>
 
                 <div className="grid gap-4 sm:grid-cols-2">
-                  <FormField
-                    control={leadForm.control}
-                    name="desiredNeighborhood"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel className="flex items-center gap-2">
-                          <MapPin className="h-3.5 w-3.5 text-muted-foreground" />
-                          {language === "es" ? "Zona / Colonia Preferida" : "Preferred Area"}
-                        </FormLabel>
-                        <Select onValueChange={field.onChange} value={field.value || ""}>
-                          <FormControl>
-                            <SelectTrigger data-testid="select-create-lead-neighborhood">
-                              <SelectValue placeholder={language === "es" ? "Seleccione zona" : "Select area"} />
-                            </SelectTrigger>
-                          </FormControl>
-                          <SelectContent>
-                            {activeZones.length > 0 ? (
-                              activeZones.map((zone) => (
-                                <SelectItem key={zone.id} value={zone.name}>{zone.name}</SelectItem>
-                              ))
-                            ) : (
-                              <>
-                                <SelectItem value="Aldea Zama">Aldea Zama</SelectItem>
-                                <SelectItem value="La Veleta">La Veleta</SelectItem>
-                                <SelectItem value="Centro">Centro</SelectItem>
-                                <SelectItem value="Otro">{language === "es" ? "Otro" : "Other"}</SelectItem>
-                              </>
-                            )}
-                          </SelectContent>
-                        </Select>
-                        <FormMessage />
-                      </FormItem>
+                  <FormItem>
+                    <FormLabel className="flex items-center gap-2">
+                      <MapPin className="h-3.5 w-3.5 text-muted-foreground" />
+                      {language === "es" ? "Zona / Colonia (múltiple)" : "Area (multiple)"}
+                    </FormLabel>
+                    <div className="flex flex-wrap gap-1.5" data-testid="multiselect-create-lead-neighborhood">
+                      {(activeZones.length > 0 ? activeZones : [
+                        { id: "aldea", name: "Aldea Zama" },
+                        { id: "veleta", name: "La Veleta" },
+                        { id: "centro", name: "Centro" },
+                        { id: "otro", name: language === "es" ? "Otro" : "Other" },
+                      ]).map((zone) => (
+                        <Badge
+                          key={zone.id}
+                          variant={selectedCreateZones.includes(zone.name) ? "default" : "outline"}
+                          className="cursor-pointer min-h-[32px] px-3"
+                          onClick={() => {
+                            setSelectedCreateZones(prev => 
+                              prev.includes(zone.name) 
+                                ? prev.filter(z => z !== zone.name) 
+                                : [...prev, zone.name]
+                            );
+                          }}
+                          data-testid={`badge-create-zone-${zone.name.toLowerCase().replace(/[^a-z]/g, '-')}`}
+                        >
+                          {zone.name}
+                        </Badge>
+                      ))}
+                    </div>
+                    {selectedCreateZones.length > 0 && (
+                      <p className="text-xs text-muted-foreground">
+                        {selectedCreateZones.length} {language === "es" ? "seleccionado(s)" : "selected"}
+                      </p>
                     )}
-                  />
+                  </FormItem>
                   <FormField
                     control={leadForm.control}
                     name="contractDuration"
@@ -4383,77 +4410,79 @@ export default function ExternalClients() {
                       />
                     </div>
                   </div>
-                  <FormField
-                    control={editLeadForm.control}
-                    name="desiredUnitType"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel className="flex items-center gap-2">
-                          <Home className="h-3.5 w-3.5 text-muted-foreground" />
-                          {language === "es" ? "Tipo de Propiedad" : "Property Type"}
-                        </FormLabel>
-                        <Select onValueChange={field.onChange} value={field.value || ""}>
-                          <FormControl>
-                            <SelectTrigger data-testid="select-edit-lead-unittype">
-                              <SelectValue placeholder={language === "es" ? "Seleccionar" : "Select"} />
-                            </SelectTrigger>
-                          </FormControl>
-                          <SelectContent>
-                            {activePropertyTypes.length > 0 ? (
-                              activePropertyTypes.map((pt) => (
-                                <SelectItem key={pt.id} value={pt.name}>{pt.name}</SelectItem>
-                              ))
-                            ) : (
-                              <>
-                                <SelectItem value="Departamento">{language === "es" ? "Departamento" : "Apartment"}</SelectItem>
-                                <SelectItem value="Casa">{language === "es" ? "Casa" : "House"}</SelectItem>
-                                <SelectItem value="Estudio">{language === "es" ? "Estudio" : "Studio"}</SelectItem>
-                                <SelectItem value="PH">PH / Penthouse</SelectItem>
-                                <SelectItem value="Villa">Villa</SelectItem>
-                              </>
-                            )}
-                          </SelectContent>
-                        </Select>
-                        <FormMessage />
-                      </FormItem>
+                  <FormItem>
+                    <FormLabel className="flex items-center gap-2">
+                      <Home className="h-3.5 w-3.5 text-muted-foreground" />
+                      {language === "es" ? "Tipo de Propiedad (múltiple)" : "Property Type (multiple)"}
+                    </FormLabel>
+                    <div className="flex flex-wrap gap-1.5" data-testid="multiselect-edit-lead-unittype">
+                      {(activePropertyTypes.length > 0 ? activePropertyTypes : [
+                        { id: "dept", name: language === "es" ? "Departamento" : "Apartment" },
+                        { id: "casa", name: language === "es" ? "Casa" : "House" },
+                        { id: "estudio", name: language === "es" ? "Estudio" : "Studio" },
+                        { id: "ph", name: "PH / Penthouse" },
+                        { id: "villa", name: "Villa" },
+                      ]).map((pt) => (
+                        <Badge
+                          key={pt.id}
+                          variant={selectedEditPropertyTypes.includes(pt.name) ? "default" : "outline"}
+                          className="cursor-pointer min-h-[32px] px-3"
+                          onClick={() => {
+                            setSelectedEditPropertyTypes(prev => 
+                              prev.includes(pt.name) 
+                                ? prev.filter(t => t !== pt.name) 
+                                : [...prev, pt.name]
+                            );
+                          }}
+                          data-testid={`badge-edit-propertytype-${pt.name.toLowerCase().replace(/[^a-z]/g, '-')}`}
+                        >
+                          {pt.name}
+                        </Badge>
+                      ))}
+                    </div>
+                    {selectedEditPropertyTypes.length > 0 && (
+                      <p className="text-xs text-muted-foreground">
+                        {selectedEditPropertyTypes.length} {language === "es" ? "seleccionado(s)" : "selected"}
+                      </p>
                     )}
-                  />
+                  </FormItem>
                 </div>
                 <div className="grid gap-4 sm:grid-cols-2">
-                  <FormField
-                    control={editLeadForm.control}
-                    name="desiredNeighborhood"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel className="flex items-center gap-2">
-                          <MapPin className="h-3.5 w-3.5 text-muted-foreground" />
-                          {language === "es" ? "Zona / Colonia Preferida" : "Preferred Area"}
-                        </FormLabel>
-                        <Select onValueChange={field.onChange} value={field.value || ""}>
-                          <FormControl>
-                            <SelectTrigger data-testid="select-edit-lead-neighborhood">
-                              <SelectValue placeholder={language === "es" ? "Seleccione zona" : "Select area"} />
-                            </SelectTrigger>
-                          </FormControl>
-                          <SelectContent>
-                            {activeZones.length > 0 ? (
-                              activeZones.map((zone) => (
-                                <SelectItem key={zone.id} value={zone.name}>{zone.name}</SelectItem>
-                              ))
-                            ) : (
-                              <>
-                                <SelectItem value="Aldea Zama">Aldea Zama</SelectItem>
-                                <SelectItem value="La Veleta">La Veleta</SelectItem>
-                                <SelectItem value="Centro">Centro</SelectItem>
-                                <SelectItem value="Otro">{language === "es" ? "Otro" : "Other"}</SelectItem>
-                              </>
-                            )}
-                          </SelectContent>
-                        </Select>
-                        <FormMessage />
-                      </FormItem>
+                  <FormItem>
+                    <FormLabel className="flex items-center gap-2">
+                      <MapPin className="h-3.5 w-3.5 text-muted-foreground" />
+                      {language === "es" ? "Zona / Colonia (múltiple)" : "Area (multiple)"}
+                    </FormLabel>
+                    <div className="flex flex-wrap gap-1.5" data-testid="multiselect-edit-lead-neighborhood">
+                      {(activeZones.length > 0 ? activeZones : [
+                        { id: "aldea", name: "Aldea Zama" },
+                        { id: "veleta", name: "La Veleta" },
+                        { id: "centro", name: "Centro" },
+                        { id: "otro", name: language === "es" ? "Otro" : "Other" },
+                      ]).map((zone) => (
+                        <Badge
+                          key={zone.id}
+                          variant={selectedEditZones.includes(zone.name) ? "default" : "outline"}
+                          className="cursor-pointer min-h-[32px] px-3"
+                          onClick={() => {
+                            setSelectedEditZones(prev => 
+                              prev.includes(zone.name) 
+                                ? prev.filter(z => z !== zone.name) 
+                                : [...prev, zone.name]
+                            );
+                          }}
+                          data-testid={`badge-edit-zone-${zone.name.toLowerCase().replace(/[^a-z]/g, '-')}`}
+                        >
+                          {zone.name}
+                        </Badge>
+                      ))}
+                    </div>
+                    {selectedEditZones.length > 0 && (
+                      <p className="text-xs text-muted-foreground">
+                        {selectedEditZones.length} {language === "es" ? "seleccionado(s)" : "selected"}
+                      </p>
                     )}
-                  />
+                  </FormItem>
                   <FormField
                     control={editLeadForm.control}
                     name="contractDuration"
@@ -5058,6 +5087,8 @@ export default function ExternalClients() {
                   setEditCondominiumId(selectedLead.interestedCondominiumId || "");
                   setSelectedEditCharacteristics((selectedLead as any).desiredCharacteristics || []);
                   setSelectedEditAmenities((selectedLead as any).desiredAmenities || []);
+                  setSelectedEditPropertyTypes(selectedLead.desiredUnitType ? selectedLead.desiredUnitType.split(", ").filter(Boolean) : []);
+                  setSelectedEditZones(selectedLead.desiredNeighborhood ? selectedLead.desiredNeighborhood.split(", ").filter(Boolean) : []);
                   setIsEditLeadDialogOpen(true);
                 }
               }}
