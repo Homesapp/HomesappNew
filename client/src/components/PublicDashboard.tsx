@@ -12,6 +12,7 @@ import { LanguageToggle } from "@/components/LanguageToggle";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { getPropertyTitle } from "@/lib/propertyHelpers";
 import logoIcon from "@assets/H mes (500 x 300 px)_1759672952263.png";
+import { FloatingChat } from "@/components/FloatingChat";
 
 export default function PublicDashboard() {
   const [, setLocation] = useLocation();
@@ -589,6 +590,8 @@ export default function PublicDashboard() {
           </div>
         </div>
       </footer>
+
+      <FloatingChat />
     </div>
   );
 }
