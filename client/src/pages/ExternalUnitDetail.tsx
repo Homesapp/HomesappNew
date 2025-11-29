@@ -107,6 +107,9 @@ const unitEditSchema = z.object({
   description: z.string().nullable(),
   price: z.union([z.string(), z.number()]).transform(val => val === "" ? null : String(val)).nullable(),
   currency: z.string().nullable(),
+  salePrice: z.union([z.string(), z.number()]).transform(val => val === "" ? null : String(val)).nullable(),
+  salePriceCurrency: z.string().nullable(),
+  listingType: z.enum(["rent", "sale", "both"]).default("rent"),
   address: z.string().nullable(),
   googleMapsUrl: z.string().nullable(),
   virtualTourUrl: z.string().nullable(),
@@ -667,6 +670,9 @@ export default function ExternalUnitDetail() {
       description: unit.description ?? null,
       price: unit.price ?? null,
       currency: unit.currency ?? "MXN",
+      salePrice: unit.salePrice ?? null,
+      salePriceCurrency: unit.salePriceCurrency ?? "MXN",
+      listingType: unit.listingType ?? "rent",
       address: unit.address ?? null,
       googleMapsUrl: unit.googleMapsUrl ?? null,
       virtualTourUrl: unit.virtualTourUrl ?? null,
@@ -2370,13 +2376,38 @@ ${language === "es" ? "ACCESOS" : "ACCESSES"}:
                 )}
               />
 
+              {/* Listing Type */}
+              <FormField
+                control={unitEditForm.control}
+                name="listingType"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>{language === "es" ? "Tipo de Listado" : "Listing Type"}</FormLabel>
+                    <Select onValueChange={field.onChange} value={field.value || "rent"}>
+                      <FormControl>
+                        <SelectTrigger data-testid="select-edit-listing-type">
+                          <SelectValue placeholder={language === "es" ? "Seleccionar..." : "Select..."} />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        <SelectItem value="rent">{language === "es" ? "Solo Renta" : "Rent Only"}</SelectItem>
+                        <SelectItem value="sale">{language === "es" ? "Solo Venta" : "Sale Only"}</SelectItem>
+                        <SelectItem value="both">{language === "es" ? "Renta y Venta" : "Rent & Sale"}</SelectItem>
+                      </SelectContent>
+                    </Select>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              {/* Monthly Rent Price */}
               <div className="grid grid-cols-2 gap-4">
                 <FormField
                   control={unitEditForm.control}
                   name="price"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>{language === "es" ? "Precio Mensual" : "Monthly Price"}</FormLabel>
+                      <FormLabel>{language === "es" ? "Precio Mensual (Renta)" : "Monthly Price (Rent)"}</FormLabel>
                       <FormControl>
                         <Input 
                           {...field} 
@@ -2398,10 +2429,58 @@ ${language === "es" ? "ACCESOS" : "ACCESSES"}:
                   name="currency"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>{language === "es" ? "Moneda" : "Currency"}</FormLabel>
+                      <FormLabel>{language === "es" ? "Moneda Renta" : "Rent Currency"}</FormLabel>
                       <Select onValueChange={field.onChange} value={field.value || "MXN"}>
                         <FormControl>
                           <SelectTrigger data-testid="select-edit-currency">
+                            <SelectValue placeholder="MXN" />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          <SelectItem value="MXN">MXN (Peso Mexicano)</SelectItem>
+                          <SelectItem value="USD">USD (Dólar)</SelectItem>
+                          <SelectItem value="EUR">EUR (Euro)</SelectItem>
+                        </SelectContent>
+                      </Select>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              </div>
+
+              {/* Sale Price */}
+              <div className="grid grid-cols-2 gap-4">
+                <FormField
+                  control={unitEditForm.control}
+                  name="salePrice"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>{language === "es" ? "Precio de Venta" : "Sale Price"}</FormLabel>
+                      <FormControl>
+                        <Input 
+                          {...field} 
+                          type="number" 
+                          step="0.01" 
+                          min="0"
+                          value={field.value ?? ""} 
+                          onChange={e => field.onChange(e.target.value)}
+                          placeholder="2500000"
+                          data-testid="input-edit-sale-price" 
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={unitEditForm.control}
+                  name="salePriceCurrency"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>{language === "es" ? "Moneda Venta" : "Sale Currency"}</FormLabel>
+                      <Select onValueChange={field.onChange} value={field.value || "MXN"}>
+                        <FormControl>
+                          <SelectTrigger data-testid="select-edit-sale-currency">
                             <SelectValue placeholder="MXN" />
                           </SelectTrigger>
                         </FormControl>
