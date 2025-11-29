@@ -32410,7 +32410,7 @@ const generateSlug = (str: string) => str.toLowerCase().normalize("NFD").replace
         FROM external_units u
         LEFT JOIN external_condominiums c ON u.condominium_id = c.id
         WHERE u.agency_id = ${agencyId}
-          AND u.commission_type = 'referido'
+          -- Removed: AND u.commission_type = 'referido' (show all referrers)
           AND u.referrer_name IS NOT NULL
           AND u.referrer_name != ''
         ORDER BY u.referrer_name, u.unit_number
@@ -32466,6 +32466,104 @@ const generateSlug = (str: string) => str.toLowerCase().normalize("NFD").replace
     } catch (error) {
       console.error("Error fetching referral network:", error);
       handleGenericError(res, error);
+    }
+  });
+
+  // POST /api/external/referral-network/bulk-assign - Bulk assign referrer to multiple units
+  app.post("/api/external/referral-network/bulk-assign", isAuthenticated, requireRole(EXTERNAL_ADMIN_ROLES), async (req: any, res) => {
+    try {
+      const agencyId = await getUserAgencyId(req);
+      if (!agencyId) {
+        return res.status(403).json({ message: "No agency access" });
+      }
+
+      const { referrerName, referrerEmail, referrerPhone, unitIds, commissionType } = req.body;
+
+      // Validate and sanitize referrer name
+      const sanitizedName = typeof referrerName === 'string' ? referrerName.trim() : '';
+      if (!sanitizedName || sanitizedName.length > 200) {
+        return res.status(400).json({ message: "Valid referrer name is required (max 200 characters)" });
+      }
+
+      // Validate unitIds is an array of valid UUIDs
+      if (!unitIds || !Array.isArray(unitIds) || unitIds.length === 0) {
+        return res.status(400).json({ message: "At least one unit ID is required" });
+      }
+      
+      const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+      const validUnitIds = unitIds.filter((id: any) => typeof id === 'string' && uuidRegex.test(id));
+      if (validUnitIds.length !== unitIds.length) {
+        return res.status(400).json({ message: "Invalid unit ID format detected" });
+      }
+
+      // Sanitize optional fields
+      const sanitizedEmail = typeof referrerEmail === 'string' ? referrerEmail.trim().slice(0, 254) : null;
+      const sanitizedPhone = typeof referrerPhone === 'string' ? referrerPhone.trim().slice(0, 50) : null;
+      const validCommissionType = ['completa', 'referido'].includes(commissionType) ? commissionType : 'referido';
+
+      // Verify all units belong to this agency before updating
+      const verifyResult = await db.execute(sql`
+        SELECT COUNT(*) as count FROM external_units 
+        WHERE id = ANY(${validUnitIds}) AND agency_id = ${agencyId}
+      `);
+      const verifiedCount = parseInt((verifyResult.rows[0] as any)?.count || '0', 10);
+      if (verifiedCount !== validUnitIds.length) {
+        return res.status(403).json({ message: "Some units do not belong to your agency" });
+      }
+
+      // Update all verified units with referrer info using parameterized query
+      await db.execute(sql`
+        UPDATE external_units 
+        SET referrer_name = ${sanitizedName}, 
+            referrer_email = ${sanitizedEmail}, 
+            referrer_phone = ${sanitizedPhone}, 
+            commission_type = ${validCommissionType}, 
+            updated_at = NOW() 
+        WHERE id = ANY(${validUnitIds}) AND agency_id = ${agencyId}
+      `);
+
+      res.json({ 
+        success: true, 
+        message: `Referrer assigned to ${validUnitIds.length} unit(s)`, 
+        updatedCount: validUnitIds.length 
+      });
+    } catch (error: any) {
+      console.error("Error bulk assigning referrer:", error);
+      res.status(500).json({ message: "An error occurred while assigning referrer" });
+    }
+  });
+
+  // GET /api/external/referral-network/referrers - Get list of unique referrers
+  app.get("/api/external/referral-network/referrers", isAuthenticated, requireRole(EXTERNAL_ADMIN_ROLES), async (req: any, res) => {
+    try {
+      const agencyId = await getUserAgencyId(req);
+      if (!agencyId) {
+        return res.status(403).json({ message: "No agency access" });
+      }
+
+      const result = await db.execute(sql`SELECT DISTINCT referrer_name as "name", referrer_email as "email", referrer_phone as "phone" FROM external_units WHERE agency_id = ${agencyId} AND referrer_name IS NOT NULL AND referrer_name != '' ORDER BY referrer_name`);
+
+      res.json(result.rows);
+    } catch (error: any) {
+      console.error("Error fetching referrers:", error);
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  // GET /api/external/referral-network/available-units - Get units available for referral assignment
+  app.get("/api/external/referral-network/available-units", isAuthenticated, requireRole(EXTERNAL_ADMIN_ROLES), async (req: any, res) => {
+    try {
+      const agencyId = await getUserAgencyId(req);
+      if (!agencyId) {
+        return res.status(403).json({ message: "No agency access" });
+      }
+
+      const result = await db.execute(sql`SELECT u.id, u.unit_number as "unitNumber", c.name as "condominiumName", u.referrer_name as "currentReferrer" FROM external_units u LEFT JOIN external_condominiums c ON u.condominium_id = c.id WHERE u.agency_id = ${agencyId} ORDER BY c.name, u.unit_number`);
+
+      res.json(result.rows);
+    } catch (error: any) {
+      console.error("Error fetching available units:", error);
+      res.status(500).json({ message: error.message });
     }
   });
   // External Presentation Cards Routes
