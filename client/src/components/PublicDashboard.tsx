@@ -66,21 +66,6 @@ export default function PublicDashboard() {
     setLocation(queryString ? `/buscar-propiedades?${queryString}` : "/buscar-propiedades");
   };
 
-  const popularZones = [
-    { name: "Aldea Zamá", query: "Aldea Zamá" },
-    { name: "La Veleta", query: "La Veleta" },
-    { name: "Holistika", query: "Holistika" },
-    { name: "Centro", query: "Centro" },
-    { name: "Región 15", query: "Región 15" },
-    { name: "Selvazama", query: "Selvazama" },
-    { name: "Kukulkán", query: "Kukulkán" },
-    { name: "Aldea Corazón", query: "Aldea Corazón" },
-    { name: "Selvamar", query: "Selvamar" },
-    { name: "Tulum Beach", query: "Tulum Beach" },
-    { name: "Luum Zamá", query: "Luum Zamá" },
-    { name: "Ejido Sur", query: "Ejido Sur" },
-  ];
-
   return (
     <div className="min-h-screen bg-background">
       {/* Minimalist Header */}
@@ -252,23 +237,32 @@ export default function PublicDashboard() {
               </div>
             )}
             
-            {/* Popular Zones - Scrollable */}
-            <div className="mt-3 relative">
-              <div className="overflow-x-auto scrollbar-hide pb-2 -mx-4 px-4">
-                <div className="flex gap-2 w-max">
-                  {popularZones.map((zone) => (
-                    <Badge
-                      key={zone.name}
-                      variant="secondary"
-                      className="rounded-full px-3 py-1.5 text-xs cursor-pointer hover-elevate flex-shrink-0 whitespace-nowrap"
-                      onClick={() => setLocation(`/buscar-propiedades?location=${encodeURIComponent(zone.query)}`)}
-                    >
-                      {zone.name}
-                    </Badge>
-                  ))}
-                </div>
-              </div>
-              <div className="absolute right-0 top-0 bottom-2 w-8 bg-gradient-to-l from-background to-transparent pointer-events-none sm:hidden" />
+            {/* Quick Filter Buttons - Centered */}
+            <div className="mt-4 flex justify-center gap-3">
+              <Button
+                variant="outline"
+                className="rounded-full px-6 min-h-[44px]"
+                onClick={() => setLocation("/buscar-propiedades?status=rent")}
+                data-testid="button-filter-rent"
+              >
+                Renta
+              </Button>
+              <Button
+                variant="outline"
+                className="rounded-full px-6 min-h-[44px]"
+                onClick={() => setLocation("/buscar-propiedades?status=sale")}
+                data-testid="button-filter-sale"
+              >
+                Venta
+              </Button>
+              <Button
+                variant="outline"
+                className="rounded-full px-6 min-h-[44px]"
+                onClick={() => setLocation("/buscar-propiedades?featured=true")}
+                data-testid="button-filter-featured"
+              >
+                Destacados
+              </Button>
             </div>
           </div>
         </div>
