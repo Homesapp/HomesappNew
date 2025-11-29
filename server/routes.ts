@@ -27049,7 +27049,7 @@ ${{precio}}/mes
         .from(externalUnits)
         .where(and(
           eq(externalUnits.agencyId, agencyId),
-          eq(externalUnits.status, 'active')
+          eq(externalUnits.isActive, true)
         ))
         .limit(100);
 
@@ -31368,7 +31368,7 @@ ${{precio}}/mes
           and(
             eq(externalUnits.publishToMain, true),
             eq(externalUnits.publishStatus, 'approved'),
-            eq(externalUnits.status, 'active')
+            eq(externalUnits.isActive, true)
           )
         )
         .limit(limitNum);
