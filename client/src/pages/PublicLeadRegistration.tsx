@@ -6,16 +6,11 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
-import { Checkbox } from "@/components/ui/checkbox";
 import { Badge } from "@/components/ui/badge";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import {
-  Tabs,
-  TabsContent,
-  TabsList,
-  TabsTrigger,
-} from "@/components/ui/tabs";
-import { CheckCircle2, AlertCircle, Building2, Calendar as CalendarIcon, Home, Sparkles } from "lucide-react";
+import { CheckCircle2, AlertCircle, Building2, Calendar as CalendarIcon, Home, Sparkles, MapPin, Clock, PawPrint } from "lucide-react";
+import { SearchableSelect } from "@/components/ui/searchable-select";
+import { SearchableMultiSelect } from "@/components/ui/searchable-multi-select";
 
 export default function PublicLeadRegistration() {
   const params = useParams<{ token: string }>();
@@ -27,15 +22,19 @@ export default function PublicLeadRegistration() {
     phone: "",
     phoneLast4: "",
     checkInDate: "",
-    allowsPets: false,
+    hasPets: "",
+    petQuantity: 1,
     estimatedRentCost: "",
     bedroomsDesired: "",
+    contractDuration: "",
     notes: "",
   });
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [submitSuccess, setSubmitSuccess] = useState(false);
   const [selectedCharacteristics, setSelectedCharacteristics] = useState<string[]>([]);
   const [selectedAmenities, setSelectedAmenities] = useState<string[]>([]);
+  const [selectedPropertyTypes, setSelectedPropertyTypes] = useState<string[]>([]);
+  const [selectedZones, setSelectedZones] = useState<string[]>([]);
 
   // Fetch registration form data
   const { data: formInfo, isLoading, error } = useQuery<{
@@ -79,6 +78,46 @@ export default function PublicLeadRegistration() {
   });
   const activeAmenities = amenitiesData.filter(a => a.isActive);
 
+  // Fetch property types for the agency
+  const { data: propertyTypesData = [] } = useQuery<Array<{id: string; name: string; nameEn?: string; isActive: boolean}>>({
+    queryKey: [`/api/leads/${token}/property-types`],
+    queryFn: async () => {
+      const response = await fetch(`/api/leads/${token}/property-types`);
+      if (!response.ok) return [];
+      return response.json();
+    },
+    enabled: !!token && !!formInfo,
+  });
+  const activePropertyTypes = propertyTypesData.filter(pt => pt.isActive);
+
+  // Fetch zones for the agency
+  const { data: zonesData = [] } = useQuery<Array<{id: string; name: string; nameEn?: string; isActive: boolean}>>({
+    queryKey: [`/api/leads/${token}/zones`],
+    queryFn: async () => {
+      const response = await fetch(`/api/leads/${token}/zones`);
+      if (!response.ok) return [];
+      return response.json();
+    },
+    enabled: !!token && !!formInfo,
+  });
+  const activeZones = zonesData.filter(z => z.isActive);
+
+  // Default options when API doesn't return data
+  const defaultPropertyTypes = [
+    { value: "Departamento", label: "Apartment" },
+    { value: "Casa", label: "House" },
+    { value: "Estudio", label: "Studio" },
+    { value: "PH / Penthouse", label: "PH / Penthouse" },
+    { value: "Villa", label: "Villa" },
+  ];
+
+  const defaultZones = [
+    { value: "Aldea Zama", label: "Aldea Zama" },
+    { value: "La Veleta", label: "La Veleta" },
+    { value: "Centro", label: "Centro" },
+    { value: "Otro", label: "Other" },
+  ];
+
   const submitMutation = useMutation({
     mutationFn: async (data: typeof formData) => {
       // Helper: parse budget text to extract numeric value (in pesos)
@@ -116,6 +155,14 @@ export default function PublicLeadRegistration() {
           // Numeric fields for filtering (parsed from text)
           estimatedRentCost: numericBudget,
           bedrooms: numericBedrooms,
+          // Contract duration
+          contractDuration: data.contractDuration,
+          // Pets information
+          hasPets: data.hasPets,
+          petQuantity: data.hasPets && data.hasPets !== "No" ? data.petQuantity : null,
+          // Property preferences
+          desiredUnitType: selectedPropertyTypes.join(", "),
+          desiredNeighborhood: selectedZones.join(", "),
           // Selected characteristics and amenities
           desiredCharacteristics: selectedCharacteristics,
           desiredAmenities: selectedAmenities,
@@ -321,51 +368,162 @@ export default function PublicLeadRegistration() {
               </div>
             )}
 
-            {/* Optional fields */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label htmlFor="estimatedRentCost">Rent Budget (MXN)</Label>
-                <Input
-                  id="estimatedRentCost"
-                  value={formData.estimatedRentCost}
-                  onChange={(e) => setFormData({ ...formData, estimatedRentCost: e.target.value })}
-                  placeholder="E.g: 18-25 mil"
-                  data-testid="input-rent-budget"
-                />
+            {/* Search Preferences Section */}
+            <div className="space-y-4 pt-2 border-t">
+              <div className="flex items-center gap-2 text-sm font-medium">
+                <Home className="h-4 w-4 text-muted-foreground" />
+                <span>Search Preferences</span>
               </div>
-              <div className="space-y-2">
-                <Label htmlFor="bedroomsDesired">Bedrooms</Label>
-                <Input
-                  id="bedroomsDesired"
-                  value={formData.bedroomsDesired}
-                  onChange={(e) => setFormData({ ...formData, bedroomsDesired: e.target.value })}
-                  placeholder="E.g: 1-2, 2+"
-                  data-testid="input-bedrooms"
-                />
+
+              {/* Property Type & Zone */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label className="flex items-center gap-2">
+                    <Home className="h-3.5 w-3.5 text-muted-foreground" />
+                    Property Type
+                  </Label>
+                  <SearchableMultiSelect
+                    value={selectedPropertyTypes}
+                    onValueChange={setSelectedPropertyTypes}
+                    options={activePropertyTypes.length > 0 
+                      ? activePropertyTypes.map(pt => ({ value: pt.name, label: pt.nameEn || pt.name }))
+                      : defaultPropertyTypes
+                    }
+                    placeholder="Select types..."
+                    searchPlaceholder="Search type..."
+                    emptyMessage="No types found."
+                    showSelectedBelow={false}
+                    data-testid="multiselect-property-type"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label className="flex items-center gap-2">
+                    <MapPin className="h-3.5 w-3.5 text-muted-foreground" />
+                    Zone / Area
+                  </Label>
+                  <SearchableMultiSelect
+                    value={selectedZones}
+                    onValueChange={setSelectedZones}
+                    options={activeZones.length > 0 
+                      ? activeZones.map(z => ({ value: z.name, label: z.nameEn || z.name }))
+                      : defaultZones
+                    }
+                    placeholder="Select areas..."
+                    searchPlaceholder="Search area..."
+                    emptyMessage="No areas found."
+                    showSelectedBelow={false}
+                    data-testid="multiselect-zone"
+                  />
+                </div>
               </div>
-            </div>
 
-            <div className="space-y-2">
-              <Label htmlFor="checkInDate">Desired Check-in Date</Label>
-              <Input
-                id="checkInDate"
-                type="date"
-                value={formData.checkInDate}
-                onChange={(e) => setFormData({ ...formData, checkInDate: e.target.value })}
-                data-testid="input-check-in-date"
-              />
-            </div>
+              {/* Budget & Bedrooms */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="estimatedRentCost">Rent Budget (MXN)</Label>
+                  <Input
+                    id="estimatedRentCost"
+                    value={formData.estimatedRentCost}
+                    onChange={(e) => setFormData({ ...formData, estimatedRentCost: e.target.value })}
+                    placeholder="E.g: 18-25 mil"
+                    data-testid="input-rent-budget"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="bedroomsDesired">Bedrooms</Label>
+                  <Input
+                    id="bedroomsDesired"
+                    value={formData.bedroomsDesired}
+                    onChange={(e) => setFormData({ ...formData, bedroomsDesired: e.target.value })}
+                    placeholder="E.g: 1-2, 2+"
+                    data-testid="input-bedrooms"
+                  />
+                </div>
+              </div>
 
-            <div className="flex items-center space-x-2">
-              <Checkbox
-                id="allowsPets"
-                checked={formData.allowsPets}
-                onCheckedChange={(checked) => setFormData({ ...formData, allowsPets: checked as boolean })}
-                data-testid="checkbox-allows-pets"
-              />
-              <Label htmlFor="allowsPets" className="font-normal">
-                I have pets
-              </Label>
+              {/* Contract Duration & Check-in Date */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label className="flex items-center gap-2">
+                    <Clock className="h-3.5 w-3.5 text-muted-foreground" />
+                    Contract Duration
+                  </Label>
+                  <SearchableSelect
+                    value={formData.contractDuration}
+                    onValueChange={(value) => setFormData({ ...formData, contractDuration: value })}
+                    options={[
+                      { value: "6 meses", label: "6 months" },
+                      { value: "1 año", label: "1 year" },
+                      { value: "2 años", label: "2 years" },
+                      { value: "3+ años", label: "3+ years" },
+                    ]}
+                    placeholder="Select duration..."
+                    searchPlaceholder="Search..."
+                    emptyMessage="Not found."
+                    data-testid="select-contract-duration"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="checkInDate" className="flex items-center gap-2">
+                    <CalendarIcon className="h-3.5 w-3.5 text-muted-foreground" />
+                    Desired Check-in Date
+                  </Label>
+                  <Input
+                    id="checkInDate"
+                    type="date"
+                    value={formData.checkInDate}
+                    onChange={(e) => setFormData({ ...formData, checkInDate: e.target.value })}
+                    data-testid="input-check-in-date"
+                  />
+                </div>
+              </div>
+
+              {/* Pets */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label className="flex items-center gap-2">
+                    <PawPrint className="h-3.5 w-3.5 text-muted-foreground" />
+                    Has Pets?
+                  </Label>
+                  <SearchableSelect
+                    value={formData.hasPets}
+                    onValueChange={(value) => {
+                      setFormData({ 
+                        ...formData, 
+                        hasPets: value,
+                        petQuantity: value === "No" ? 0 : (formData.petQuantity === 0 ? 1 : formData.petQuantity)
+                      });
+                    }}
+                    options={[
+                      { value: "No", label: "No" },
+                      { value: "Sí - Perro", label: "Yes - Dog" },
+                      { value: "Sí - Gato", label: "Yes - Cat" },
+                      { value: "Sí - Otro", label: "Yes - Other" },
+                    ]}
+                    placeholder="Select..."
+                    searchPlaceholder="Search..."
+                    emptyMessage="Not found."
+                    data-testid="select-pets"
+                  />
+                </div>
+                {formData.hasPets && formData.hasPets !== "No" && (
+                  <div className="space-y-2">
+                    <Label htmlFor="petQuantity" className="flex items-center gap-2">
+                      <PawPrint className="h-3.5 w-3.5 text-muted-foreground" />
+                      Number of Pets
+                    </Label>
+                    <Input
+                      id="petQuantity"
+                      type="number"
+                      min={1}
+                      max={10}
+                      value={formData.petQuantity}
+                      onChange={(e) => setFormData({ ...formData, petQuantity: parseInt(e.target.value) || 1 })}
+                      data-testid="input-pet-quantity"
+                    />
+                  </div>
+                )}
+              </div>
             </div>
 
             {/* Property Characteristics & Amenities */}

@@ -1430,6 +1430,45 @@ export default function ExternalClients() {
         )}
       </div>
 
+      {/* Broker Link Section for Sellers - Responsive */}
+      {isSeller && (
+        <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 p-3 rounded-lg bg-muted/50 border border-dashed border-primary/20">
+          <div className="flex items-center gap-3 flex-1 min-w-0">
+            <div className="p-2 rounded-lg bg-primary/10 shrink-0">
+              <Handshake className="h-4 w-4 text-primary" />
+            </div>
+            <div className="min-w-0 flex-1">
+              <div className="flex items-center gap-2">
+                <span className="font-medium text-sm truncate">
+                  {language === "es" ? "Link de Broker" : "Broker Link"}
+                </span>
+              </div>
+              <p className="text-xs text-muted-foreground truncate hidden sm:block">
+                {language === "es" 
+                  ? "Comparte para que brokers registren leads"
+                  : "Share so brokers can register leads"}
+              </p>
+            </div>
+          </div>
+          <Button
+            variant="outline"
+            size="sm"
+            className="shrink-0"
+            onClick={() => {
+              navigator.clipboard.writeText(`${window.location.origin}/leads/broker`);
+              toast({
+                title: language === "es" ? "Link copiado" : "Link copied",
+                description: language === "es" ? "El link ha sido copiado al portapapeles" : "The link has been copied to clipboard",
+              });
+            }}
+            data-testid="button-copy-broker-link-seller"
+          >
+            <Copy className="h-4 w-4 mr-2" />
+            {language === "es" ? "Copiar Link" : "Copy Link"}
+          </Button>
+        </div>
+      )}
+
       {/* Public Registration Links Section - Hide for sellers */}
       {!isSeller && (
       <Collapsible open={isPublicLinksExpanded} onOpenChange={setIsPublicLinksExpanded}>
