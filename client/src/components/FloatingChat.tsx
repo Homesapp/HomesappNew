@@ -22,8 +22,14 @@ export function FloatingChat() {
   const [isLoading, setIsLoading] = useState(false);
   const [conversationId, setConversationId] = useState<number | null>(null);
   const [sessionId] = useState(() => crypto.randomUUID());
+  const [isMounted, setIsMounted] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    setIsMounted(true);
+    return () => setIsMounted(false);
+  }, []);
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -146,12 +152,14 @@ export function FloatingChat() {
     }
   };
 
+  if (!isMounted) return null;
+
   const chatContent = (
-    <>
+    <div className="fixed bottom-6 right-6 z-[9999]" style={{ position: 'fixed' }}>
       {!isOpen && (
         <button
           onClick={handleOpen}
-          className="fixed bottom-6 right-6 z-[9999] flex items-center justify-center w-14 h-14 rounded-full bg-primary text-primary-foreground shadow-2xl hover-elevate active-elevate-2 transition-transform"
+          className="flex items-center justify-center w-14 h-14 rounded-full bg-primary text-primary-foreground shadow-2xl hover-elevate active-elevate-2 transition-transform"
           style={{ boxShadow: '0 4px 20px rgba(0,0,0,0.3)' }}
           data-testid="button-open-chat"
           aria-label="Abrir chat"
@@ -162,7 +170,7 @@ export function FloatingChat() {
 
       {isOpen && (
         <div 
-          className="fixed bottom-6 right-6 z-[9999] w-[350px] max-w-[calc(100vw-48px)] h-[480px] max-h-[calc(100vh-100px)] bg-background border rounded-xl shadow-2xl flex flex-col overflow-hidden"
+          className="w-[350px] max-w-[calc(100vw-48px)] h-[480px] max-h-[calc(100vh-100px)] bg-background border rounded-xl shadow-2xl flex flex-col overflow-hidden"
           data-testid="container-chat"
         >
           <div className="flex items-center justify-between p-3 border-b bg-primary text-primary-foreground">
@@ -241,7 +249,7 @@ export function FloatingChat() {
           </div>
         </div>
       )}
-    </>
+    </div>
   );
 
   return createPortal(chatContent, document.body);
