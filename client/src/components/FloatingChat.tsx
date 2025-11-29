@@ -97,7 +97,7 @@ export function FloatingChat() {
       setMessages([{
         id: "welcome",
         role: "assistant",
-        content: "¡Hola! Soy tu asistente virtual de Tulum Rental Homes. ¿Cómo puedo ayudarte hoy? Puedo recomendarte propiedades, programar citas o responder tus preguntas sobre el mercado inmobiliario en Tulum.",
+        content: "¡Hola! Soy tu asistente virtual de HomesApp. ¿Cómo puedo ayudarte hoy? Puedo recomendarte propiedades, programar citas o responder tus preguntas sobre el mercado inmobiliario en Tulum.",
         timestamp: new Date(),
       }]);
     } finally {
@@ -218,7 +218,7 @@ export function FloatingChat() {
                 <MessageCircle className="w-4 h-4" />
               </div>
               <div>
-                <h3 className="font-semibold text-sm">Tulum Rental Homes</h3>
+                <h3 className="font-semibold text-sm">HomesApp</h3>
                 <p className="text-xs opacity-80">Asistente Virtual</p>
               </div>
             </div>
