@@ -311,17 +311,17 @@ export default function ExternalClients() {
   });
   const sellers = sellersData || [];
 
-  // Fetch ALL condominiums for property interest selection in leads (no pagination limit)
-  const { data: condominiumsData } = useQuery<{ id: string; name: string }[]>({
-    queryKey: ["/api/external-condominiums-for-filters"],
+  // Fetch condominiums for property interest selection in leads
+  const { data: condominiumsData } = useQuery<{ data: { id: string; name: string; neighborhood?: string }[] }>({
+    queryKey: ["/api/external-condominiums"],
     queryFn: async () => {
-      const response = await fetch(`/api/external-condominiums-for-filters`, { credentials: 'include' });
+      const response = await fetch(`/api/external-condominiums`, { credentials: 'include' });
       if (!response.ok) throw new Error('Failed to fetch condominiums');
       return response.json();
     },
     staleTime: 10 * 60 * 1000,
   });
-  const condominiums = condominiumsData || [];
+  const condominiums = condominiumsData?.data || [];
 
   // State for added properties (list of {condominiumId, condominiumName, unitId?, unitNumber?})
   interface PropertySelection {
@@ -3804,75 +3804,36 @@ export default function ExternalClients() {
                   <FormItem>
                     <FormLabel className="flex items-center gap-2">
                       <MapPin className="h-3.5 w-3.5 text-muted-foreground" />
-                      {language === "es" ? "Zona / Colonia" : "Area"}
+                      {language === "es" ? "Zona / Colonia (múltiple)" : "Area (multiple)"}
                     </FormLabel>
-                    <Popover>
-                      <PopoverTrigger asChild>
-                        <Button
-                          variant="outline"
-                          role="combobox"
-                          className="w-full justify-between h-9 font-normal"
-                          data-testid="popover-create-zones"
+                    <div className="flex flex-wrap gap-1.5" data-testid="multiselect-create-lead-neighborhood">
+                      {(activeZones.length > 0 ? activeZones : [
+                        { id: "aldea", name: "Aldea Zama" },
+                        { id: "veleta", name: "La Veleta" },
+                        { id: "centro", name: "Centro" },
+                        { id: "otro", name: language === "es" ? "Otro" : "Other" },
+                      ]).map((zone) => (
+                        <Badge
+                          key={zone.id}
+                          variant={selectedCreateZones.includes(zone.name) ? "default" : "outline"}
+                          className="cursor-pointer min-h-[32px] px-3"
+                          onClick={() => {
+                            setSelectedCreateZones(prev => 
+                              prev.includes(zone.name) 
+                                ? prev.filter(z => z !== zone.name) 
+                                : [...prev, zone.name]
+                            );
+                          }}
+                          data-testid={`badge-create-zone-${zone.name.toLowerCase().replace(/[^a-z]/g, '-')}`}
                         >
-                          <span className="truncate">
-                            {selectedCreateZones.length > 0 
-                              ? `${selectedCreateZones.length} ${language === "es" ? "zona(s)" : "zone(s)"}`
-                              : language === "es" ? "Seleccionar zonas..." : "Select zones..."}
-                          </span>
-                          <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
-                        </Button>
-                      </PopoverTrigger>
-                      <PopoverContent className="w-[280px] p-0" align="start">
-                        <Command>
-                          <CommandInput placeholder={language === "es" ? "Buscar zona..." : "Search zone..."} />
-                          <CommandList>
-                            <CommandEmpty>{language === "es" ? "No se encontraron zonas" : "No zones found"}</CommandEmpty>
-                            <CommandGroup>
-                              {(activeZones.length > 0 ? activeZones : [
-                                { id: "aldea", name: "Aldea Zama" },
-                                { id: "veleta", name: "La Veleta" },
-                                { id: "centro", name: "Centro" },
-                                { id: "otro", name: language === "es" ? "Otro" : "Other" },
-                              ]).map((zone) => (
-                                <CommandItem
-                                  key={zone.id}
-                                  value={zone.name}
-                                  onSelect={() => {
-                                    setSelectedCreateZones(prev => 
-                                      prev.includes(zone.name) 
-                                        ? prev.filter(z => z !== zone.name) 
-                                        : [...prev, zone.name]
-                                    );
-                                  }}
-                                  className="cursor-pointer"
-                                  data-testid={`cmd-zone-${zone.name.toLowerCase().replace(/[^a-z]/g, '-')}`}
-                                >
-                                  <div className={`mr-2 flex h-4 w-4 items-center justify-center rounded-sm border ${selectedCreateZones.includes(zone.name) ? 'bg-primary border-primary' : 'border-muted-foreground/40'}`}>
-                                    {selectedCreateZones.includes(zone.name) && <Check className="h-3 w-3 text-primary-foreground" />}
-                                  </div>
-                                  {zone.name}
-                                </CommandItem>
-                              ))}
-                            </CommandGroup>
-                          </CommandList>
-                        </Command>
-                      </PopoverContent>
-                    </Popover>
+                          {zone.name}
+                        </Badge>
+                      ))}
+                    </div>
                     {selectedCreateZones.length > 0 && (
-                      <div className="flex flex-wrap gap-1 mt-1.5">
-                        {selectedCreateZones.map(zone => (
-                          <Badge key={zone} variant="secondary" className="text-xs py-0 h-5">
-                            {zone}
-                            <button
-                              type="button"
-                              className="ml-1 hover:text-destructive"
-                              onClick={() => setSelectedCreateZones(prev => prev.filter(z => z !== zone))}
-                            >
-                              <X className="h-3 w-3" />
-                            </button>
-                          </Badge>
-                        ))}
-                      </div>
+                      <p className="text-xs text-muted-foreground">
+                        {selectedCreateZones.length} {language === "es" ? "seleccionado(s)" : "selected"}
+                      </p>
                     )}
                   </FormItem>
                   <FormField
@@ -4162,159 +4123,67 @@ export default function ExternalClients() {
                       : "Select the characteristics and amenities the client is looking for (optional)"}
                   </p>
 
-                  <div className="grid gap-4 sm:grid-cols-2">
-                    {/* Unit Characteristics - Compact Popover */}
-                    {activeCharacteristics.length > 0 && (
-                      <FormItem>
-                        <FormLabel className="flex items-center gap-2">
-                          <Home className="h-3.5 w-3.5 text-muted-foreground" />
-                          {language === "es" ? "Características" : "Characteristics"}
-                        </FormLabel>
-                        <Popover>
-                          <PopoverTrigger asChild>
-                            <Button
-                              variant="outline"
-                              role="combobox"
-                              className="w-full justify-between h-9 font-normal"
-                              data-testid="popover-create-characteristics"
-                            >
-                              <span className="truncate">
-                                {selectedCreateCharacteristics.length > 0 
-                                  ? `${selectedCreateCharacteristics.length} ${language === "es" ? "seleccionada(s)" : "selected"}`
-                                  : language === "es" ? "Seleccionar..." : "Select..."}
-                              </span>
-                              <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
-                            </Button>
-                          </PopoverTrigger>
-                          <PopoverContent className="w-[280px] p-0" align="start">
-                            <Command>
-                              <CommandInput placeholder={language === "es" ? "Buscar..." : "Search..."} />
-                              <CommandList>
-                                <CommandEmpty>{language === "es" ? "No encontrado" : "Not found"}</CommandEmpty>
-                                <CommandGroup>
-                                  {activeCharacteristics.map((char) => (
-                                    <CommandItem
-                                      key={char.id}
-                                      value={language === "es" ? char.name : (char.nameEn || char.name)}
-                                      onSelect={() => {
-                                        setSelectedCreateCharacteristics(prev => 
-                                          prev.includes(char.id) 
-                                            ? prev.filter(id => id !== char.id)
-                                            : [...prev, char.id]
-                                        );
-                                      }}
-                                      className="cursor-pointer"
-                                      data-testid={`cmd-char-${char.id}`}
-                                    >
-                                      <div className={`mr-2 flex h-4 w-4 items-center justify-center rounded-sm border ${selectedCreateCharacteristics.includes(char.id) ? 'bg-primary border-primary' : 'border-muted-foreground/40'}`}>
-                                        {selectedCreateCharacteristics.includes(char.id) && <Check className="h-3 w-3 text-primary-foreground" />}
-                                      </div>
-                                      {language === "es" ? char.name : (char.nameEn || char.name)}
-                                    </CommandItem>
-                                  ))}
-                                </CommandGroup>
-                              </CommandList>
-                            </Command>
-                          </PopoverContent>
-                        </Popover>
-                        {selectedCreateCharacteristics.length > 0 && (
-                          <div className="flex flex-wrap gap-1 mt-1.5">
-                            {selectedCreateCharacteristics.map(charId => {
-                              const char = activeCharacteristics.find(c => c.id === charId);
-                              return char ? (
-                                <Badge key={charId} variant="secondary" className="text-xs py-0 h-5">
-                                  {language === "es" ? char.name : (char.nameEn || char.name)}
-                                  <button
-                                    type="button"
-                                    className="ml-1 hover:text-destructive"
-                                    onClick={() => setSelectedCreateCharacteristics(prev => prev.filter(id => id !== charId))}
-                                  >
-                                    <X className="h-3 w-3" />
-                                  </button>
-                                </Badge>
-                              ) : null;
-                            })}
-                          </div>
-                        )}
-                      </FormItem>
-                    )}
+                  {/* Unit Characteristics */}
+                  {activeCharacteristics.length > 0 && (
+                    <div className="space-y-3">
+                      <Label className="flex items-center gap-2 text-sm font-medium">
+                        <Home className="h-3.5 w-3.5 text-muted-foreground" />
+                        {language === "es" ? "Características de Unidad" : "Unit Characteristics"}
+                      </Label>
+                      <div className="flex flex-wrap gap-2">
+                        {activeCharacteristics.map((char) => (
+                          <Button
+                            key={char.id}
+                            type="button"
+                            variant={selectedCreateCharacteristics.includes(char.id) ? "default" : "outline"}
+                            size="sm"
+                            className="h-7 text-xs"
+                            onClick={() => {
+                              setSelectedCreateCharacteristics(prev => 
+                                prev.includes(char.id) 
+                                  ? prev.filter(id => id !== char.id)
+                                  : [...prev, char.id]
+                              );
+                            }}
+                            data-testid={`toggle-create-char-${char.id}`}
+                          >
+                            {language === "es" ? char.name : (char.nameEn || char.name)}
+                          </Button>
+                        ))}
+                      </div>
+                    </div>
+                  )}
 
-                    {/* Amenities - Compact Popover */}
-                    {activeAmenities.length > 0 && (
-                      <FormItem>
-                        <FormLabel className="flex items-center gap-2">
-                          <Building2 className="h-3.5 w-3.5 text-muted-foreground" />
-                          {language === "es" ? "Amenidades" : "Amenities"}
-                        </FormLabel>
-                        <Popover>
-                          <PopoverTrigger asChild>
-                            <Button
-                              variant="outline"
-                              role="combobox"
-                              className="w-full justify-between h-9 font-normal"
-                              data-testid="popover-create-amenities"
-                            >
-                              <span className="truncate">
-                                {selectedCreateAmenities.length > 0 
-                                  ? `${selectedCreateAmenities.length} ${language === "es" ? "seleccionada(s)" : "selected"}`
-                                  : language === "es" ? "Seleccionar..." : "Select..."}
-                              </span>
-                              <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
-                            </Button>
-                          </PopoverTrigger>
-                          <PopoverContent className="w-[280px] p-0" align="start">
-                            <Command>
-                              <CommandInput placeholder={language === "es" ? "Buscar..." : "Search..."} />
-                              <CommandList>
-                                <CommandEmpty>{language === "es" ? "No encontrado" : "Not found"}</CommandEmpty>
-                                <CommandGroup>
-                                  {activeAmenities.map((amenity) => (
-                                    <CommandItem
-                                      key={amenity.id}
-                                      value={language === "es" ? amenity.name : (amenity.nameEn || amenity.name)}
-                                      onSelect={() => {
-                                        setSelectedCreateAmenities(prev => 
-                                          prev.includes(amenity.id) 
-                                            ? prev.filter(id => id !== amenity.id)
-                                            : [...prev, amenity.id]
-                                        );
-                                      }}
-                                      className="cursor-pointer"
-                                      data-testid={`cmd-amenity-${amenity.id}`}
-                                    >
-                                      <div className={`mr-2 flex h-4 w-4 items-center justify-center rounded-sm border ${selectedCreateAmenities.includes(amenity.id) ? 'bg-primary border-primary' : 'border-muted-foreground/40'}`}>
-                                        {selectedCreateAmenities.includes(amenity.id) && <Check className="h-3 w-3 text-primary-foreground" />}
-                                      </div>
-                                      {language === "es" ? amenity.name : (amenity.nameEn || amenity.name)}
-                                    </CommandItem>
-                                  ))}
-                                </CommandGroup>
-                              </CommandList>
-                            </Command>
-                          </PopoverContent>
-                        </Popover>
-                        {selectedCreateAmenities.length > 0 && (
-                          <div className="flex flex-wrap gap-1 mt-1.5">
-                            {selectedCreateAmenities.map(amenityId => {
-                              const amenity = activeAmenities.find(a => a.id === amenityId);
-                              return amenity ? (
-                                <Badge key={amenityId} variant="secondary" className="text-xs py-0 h-5">
-                                  {language === "es" ? amenity.name : (amenity.nameEn || amenity.name)}
-                                  <button
-                                    type="button"
-                                    className="ml-1 hover:text-destructive"
-                                    onClick={() => setSelectedCreateAmenities(prev => prev.filter(id => id !== amenityId))}
-                                  >
-                                    <X className="h-3 w-3" />
-                                  </button>
-                                </Badge>
-                              ) : null;
-                            })}
-                          </div>
-                        )}
-                      </FormItem>
-                    )}
-                  </div>
+                  {/* Amenities */}
+                  {activeAmenities.length > 0 && (
+                    <div className="space-y-3">
+                      <Label className="flex items-center gap-2 text-sm font-medium">
+                        <Building2 className="h-3.5 w-3.5 text-muted-foreground" />
+                        {language === "es" ? "Amenidades del Desarrollo" : "Development Amenities"}
+                      </Label>
+                      <div className="flex flex-wrap gap-2">
+                        {activeAmenities.map((amenity) => (
+                          <Button
+                            key={amenity.id}
+                            type="button"
+                            variant={selectedCreateAmenities.includes(amenity.id) ? "default" : "outline"}
+                            size="sm"
+                            className="h-7 text-xs"
+                            onClick={() => {
+                              setSelectedCreateAmenities(prev => 
+                                prev.includes(amenity.id) 
+                                  ? prev.filter(id => id !== amenity.id)
+                                  : [...prev, amenity.id]
+                              );
+                            }}
+                            data-testid={`toggle-create-amenity-${amenity.id}`}
+                          >
+                            {language === "es" ? amenity.name : (amenity.nameEn || amenity.name)}
+                          </Button>
+                        ))}
+                      </div>
+                    </div>
+                  )}
                 </div>
               )}
 
@@ -4875,75 +4744,36 @@ export default function ExternalClients() {
                   <FormItem>
                     <FormLabel className="flex items-center gap-2">
                       <MapPin className="h-3.5 w-3.5 text-muted-foreground" />
-                      {language === "es" ? "Zona / Colonia" : "Area"}
+                      {language === "es" ? "Zona / Colonia (múltiple)" : "Area (multiple)"}
                     </FormLabel>
-                    <Popover>
-                      <PopoverTrigger asChild>
-                        <Button
-                          variant="outline"
-                          role="combobox"
-                          className="w-full justify-between h-9 font-normal"
-                          data-testid="popover-edit-zones"
+                    <div className="flex flex-wrap gap-1.5" data-testid="multiselect-edit-lead-neighborhood">
+                      {(activeZones.length > 0 ? activeZones : [
+                        { id: "aldea", name: "Aldea Zama" },
+                        { id: "veleta", name: "La Veleta" },
+                        { id: "centro", name: "Centro" },
+                        { id: "otro", name: language === "es" ? "Otro" : "Other" },
+                      ]).map((zone) => (
+                        <Badge
+                          key={zone.id}
+                          variant={selectedEditZones.includes(zone.name) ? "default" : "outline"}
+                          className="cursor-pointer min-h-[32px] px-3"
+                          onClick={() => {
+                            setSelectedEditZones(prev => 
+                              prev.includes(zone.name) 
+                                ? prev.filter(z => z !== zone.name) 
+                                : [...prev, zone.name]
+                            );
+                          }}
+                          data-testid={`badge-edit-zone-${zone.name.toLowerCase().replace(/[^a-z]/g, '-')}`}
                         >
-                          <span className="truncate">
-                            {selectedEditZones.length > 0 
-                              ? `${selectedEditZones.length} ${language === "es" ? "zona(s)" : "zone(s)"}`
-                              : language === "es" ? "Seleccionar zonas..." : "Select zones..."}
-                          </span>
-                          <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
-                        </Button>
-                      </PopoverTrigger>
-                      <PopoverContent className="w-[280px] p-0" align="start">
-                        <Command>
-                          <CommandInput placeholder={language === "es" ? "Buscar zona..." : "Search zone..."} />
-                          <CommandList>
-                            <CommandEmpty>{language === "es" ? "No se encontraron zonas" : "No zones found"}</CommandEmpty>
-                            <CommandGroup>
-                              {(activeZones.length > 0 ? activeZones : [
-                                { id: "aldea", name: "Aldea Zama" },
-                                { id: "veleta", name: "La Veleta" },
-                                { id: "centro", name: "Centro" },
-                                { id: "otro", name: language === "es" ? "Otro" : "Other" },
-                              ]).map((zone) => (
-                                <CommandItem
-                                  key={zone.id}
-                                  value={zone.name}
-                                  onSelect={() => {
-                                    setSelectedEditZones(prev => 
-                                      prev.includes(zone.name) 
-                                        ? prev.filter(z => z !== zone.name) 
-                                        : [...prev, zone.name]
-                                    );
-                                  }}
-                                  className="cursor-pointer"
-                                  data-testid={`cmd-edit-zone-${zone.name.toLowerCase().replace(/[^a-z]/g, '-')}`}
-                                >
-                                  <div className={`mr-2 flex h-4 w-4 items-center justify-center rounded-sm border ${selectedEditZones.includes(zone.name) ? 'bg-primary border-primary' : 'border-muted-foreground/40'}`}>
-                                    {selectedEditZones.includes(zone.name) && <Check className="h-3 w-3 text-primary-foreground" />}
-                                  </div>
-                                  {zone.name}
-                                </CommandItem>
-                              ))}
-                            </CommandGroup>
-                          </CommandList>
-                        </Command>
-                      </PopoverContent>
-                    </Popover>
+                          {zone.name}
+                        </Badge>
+                      ))}
+                    </div>
                     {selectedEditZones.length > 0 && (
-                      <div className="flex flex-wrap gap-1 mt-1.5">
-                        {selectedEditZones.map(zone => (
-                          <Badge key={zone} variant="secondary" className="text-xs py-0 h-5">
-                            {zone}
-                            <button
-                              type="button"
-                              className="ml-1 hover:text-destructive"
-                              onClick={() => setSelectedEditZones(prev => prev.filter(z => z !== zone))}
-                            >
-                              <X className="h-3 w-3" />
-                            </button>
-                          </Badge>
-                        ))}
-                      </div>
+                      <p className="text-xs text-muted-foreground">
+                        {selectedEditZones.length} {language === "es" ? "seleccionado(s)" : "selected"}
+                      </p>
                     )}
                   </FormItem>
                   <FormField
@@ -5232,159 +5062,67 @@ export default function ExternalClients() {
                       : "Select the characteristics and amenities the client is looking for (optional)"}
                   </p>
 
-                  <div className="grid gap-4 sm:grid-cols-2">
-                    {/* Unit Characteristics - Compact Popover */}
-                    {activeCharacteristics.length > 0 && (
-                      <FormItem>
-                        <FormLabel className="flex items-center gap-2">
-                          <Home className="h-3.5 w-3.5 text-muted-foreground" />
-                          {language === "es" ? "Características" : "Characteristics"}
-                        </FormLabel>
-                        <Popover>
-                          <PopoverTrigger asChild>
-                            <Button
-                              variant="outline"
-                              role="combobox"
-                              className="w-full justify-between h-9 font-normal"
-                              data-testid="popover-edit-characteristics"
-                            >
-                              <span className="truncate">
-                                {selectedEditCharacteristics.length > 0 
-                                  ? `${selectedEditCharacteristics.length} ${language === "es" ? "seleccionada(s)" : "selected"}`
-                                  : language === "es" ? "Seleccionar..." : "Select..."}
-                              </span>
-                              <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
-                            </Button>
-                          </PopoverTrigger>
-                          <PopoverContent className="w-[280px] p-0" align="start">
-                            <Command>
-                              <CommandInput placeholder={language === "es" ? "Buscar..." : "Search..."} />
-                              <CommandList>
-                                <CommandEmpty>{language === "es" ? "No encontrado" : "Not found"}</CommandEmpty>
-                                <CommandGroup>
-                                  {activeCharacteristics.map((char) => (
-                                    <CommandItem
-                                      key={char.id}
-                                      value={language === "es" ? char.name : (char.nameEn || char.name)}
-                                      onSelect={() => {
-                                        setSelectedEditCharacteristics(prev => 
-                                          prev.includes(char.id) 
-                                            ? prev.filter(id => id !== char.id)
-                                            : [...prev, char.id]
-                                        );
-                                      }}
-                                      className="cursor-pointer"
-                                      data-testid={`cmd-edit-char-${char.id}`}
-                                    >
-                                      <div className={`mr-2 flex h-4 w-4 items-center justify-center rounded-sm border ${selectedEditCharacteristics.includes(char.id) ? 'bg-primary border-primary' : 'border-muted-foreground/40'}`}>
-                                        {selectedEditCharacteristics.includes(char.id) && <Check className="h-3 w-3 text-primary-foreground" />}
-                                      </div>
-                                      {language === "es" ? char.name : (char.nameEn || char.name)}
-                                    </CommandItem>
-                                  ))}
-                                </CommandGroup>
-                              </CommandList>
-                            </Command>
-                          </PopoverContent>
-                        </Popover>
-                        {selectedEditCharacteristics.length > 0 && (
-                          <div className="flex flex-wrap gap-1 mt-1.5">
-                            {selectedEditCharacteristics.map(charId => {
-                              const char = activeCharacteristics.find(c => c.id === charId);
-                              return char ? (
-                                <Badge key={charId} variant="secondary" className="text-xs py-0 h-5">
-                                  {language === "es" ? char.name : (char.nameEn || char.name)}
-                                  <button
-                                    type="button"
-                                    className="ml-1 hover:text-destructive"
-                                    onClick={() => setSelectedEditCharacteristics(prev => prev.filter(id => id !== charId))}
-                                  >
-                                    <X className="h-3 w-3" />
-                                  </button>
-                                </Badge>
-                              ) : null;
-                            })}
-                          </div>
-                        )}
-                      </FormItem>
-                    )}
+                  {/* Unit Characteristics */}
+                  {activeCharacteristics.length > 0 && (
+                    <div className="space-y-3">
+                      <Label className="flex items-center gap-2 text-sm font-medium">
+                        <Home className="h-3.5 w-3.5 text-muted-foreground" />
+                        {language === "es" ? "Características de Unidad" : "Unit Characteristics"}
+                      </Label>
+                      <div className="flex flex-wrap gap-2">
+                        {activeCharacteristics.map((char) => (
+                          <Button
+                            key={char.id}
+                            type="button"
+                            variant={selectedEditCharacteristics.includes(char.id) ? "default" : "outline"}
+                            size="sm"
+                            className="h-7 text-xs"
+                            onClick={() => {
+                              setSelectedEditCharacteristics(prev => 
+                                prev.includes(char.id) 
+                                  ? prev.filter(id => id !== char.id)
+                                  : [...prev, char.id]
+                              );
+                            }}
+                            data-testid={`toggle-edit-char-${char.id}`}
+                          >
+                            {language === "es" ? char.name : (char.nameEn || char.name)}
+                          </Button>
+                        ))}
+                      </div>
+                    </div>
+                  )}
 
-                    {/* Amenities - Compact Popover */}
-                    {activeAmenities.length > 0 && (
-                      <FormItem>
-                        <FormLabel className="flex items-center gap-2">
-                          <Building2 className="h-3.5 w-3.5 text-muted-foreground" />
-                          {language === "es" ? "Amenidades" : "Amenities"}
-                        </FormLabel>
-                        <Popover>
-                          <PopoverTrigger asChild>
-                            <Button
-                              variant="outline"
-                              role="combobox"
-                              className="w-full justify-between h-9 font-normal"
-                              data-testid="popover-edit-amenities"
-                            >
-                              <span className="truncate">
-                                {selectedEditAmenities.length > 0 
-                                  ? `${selectedEditAmenities.length} ${language === "es" ? "seleccionada(s)" : "selected"}`
-                                  : language === "es" ? "Seleccionar..." : "Select..."}
-                              </span>
-                              <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
-                            </Button>
-                          </PopoverTrigger>
-                          <PopoverContent className="w-[280px] p-0" align="start">
-                            <Command>
-                              <CommandInput placeholder={language === "es" ? "Buscar..." : "Search..."} />
-                              <CommandList>
-                                <CommandEmpty>{language === "es" ? "No encontrado" : "Not found"}</CommandEmpty>
-                                <CommandGroup>
-                                  {activeAmenities.map((amenity) => (
-                                    <CommandItem
-                                      key={amenity.id}
-                                      value={language === "es" ? amenity.name : (amenity.nameEn || amenity.name)}
-                                      onSelect={() => {
-                                        setSelectedEditAmenities(prev => 
-                                          prev.includes(amenity.id) 
-                                            ? prev.filter(id => id !== amenity.id)
-                                            : [...prev, amenity.id]
-                                        );
-                                      }}
-                                      className="cursor-pointer"
-                                      data-testid={`cmd-edit-amenity-${amenity.id}`}
-                                    >
-                                      <div className={`mr-2 flex h-4 w-4 items-center justify-center rounded-sm border ${selectedEditAmenities.includes(amenity.id) ? 'bg-primary border-primary' : 'border-muted-foreground/40'}`}>
-                                        {selectedEditAmenities.includes(amenity.id) && <Check className="h-3 w-3 text-primary-foreground" />}
-                                      </div>
-                                      {language === "es" ? amenity.name : (amenity.nameEn || amenity.name)}
-                                    </CommandItem>
-                                  ))}
-                                </CommandGroup>
-                              </CommandList>
-                            </Command>
-                          </PopoverContent>
-                        </Popover>
-                        {selectedEditAmenities.length > 0 && (
-                          <div className="flex flex-wrap gap-1 mt-1.5">
-                            {selectedEditAmenities.map(amenityId => {
-                              const amenity = activeAmenities.find(a => a.id === amenityId);
-                              return amenity ? (
-                                <Badge key={amenityId} variant="secondary" className="text-xs py-0 h-5">
-                                  {language === "es" ? amenity.name : (amenity.nameEn || amenity.name)}
-                                  <button
-                                    type="button"
-                                    className="ml-1 hover:text-destructive"
-                                    onClick={() => setSelectedEditAmenities(prev => prev.filter(id => id !== amenityId))}
-                                  >
-                                    <X className="h-3 w-3" />
-                                  </button>
-                                </Badge>
-                              ) : null;
-                            })}
-                          </div>
-                        )}
-                      </FormItem>
-                    )}
-                  </div>
+                  {/* Amenities */}
+                  {activeAmenities.length > 0 && (
+                    <div className="space-y-3">
+                      <Label className="flex items-center gap-2 text-sm font-medium">
+                        <Building2 className="h-3.5 w-3.5 text-muted-foreground" />
+                        {language === "es" ? "Amenidades del Desarrollo" : "Development Amenities"}
+                      </Label>
+                      <div className="flex flex-wrap gap-2">
+                        {activeAmenities.map((amenity) => (
+                          <Button
+                            key={amenity.id}
+                            type="button"
+                            variant={selectedEditAmenities.includes(amenity.id) ? "default" : "outline"}
+                            size="sm"
+                            className="h-7 text-xs"
+                            onClick={() => {
+                              setSelectedEditAmenities(prev => 
+                                prev.includes(amenity.id) 
+                                  ? prev.filter(id => id !== amenity.id)
+                                  : [...prev, amenity.id]
+                              );
+                            }}
+                            data-testid={`toggle-edit-amenity-${amenity.id}`}
+                          >
+                            {language === "es" ? amenity.name : (amenity.nameEn || amenity.name)}
+                          </Button>
+                        ))}
+                      </div>
+                    </div>
+                  )}
                 </div>
               )}
 
