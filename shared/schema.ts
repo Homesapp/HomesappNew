@@ -8403,6 +8403,157 @@ export type InsertSellerGoal = z.infer<typeof insertSellerGoalSchema>;
 export type SellerGoal = typeof sellerGoals.$inferSelect;
 
 // =====================================================
+// SELLER PROFILES & COMMISSIONS - Admin management of sellers
+// =====================================================
+
+export const sellerStatusEnum = pgEnum("seller_status", [
+  "active",
+  "inactive",
+  "on_leave",
+  "terminated"
+]);
+
+export const commissionTypeEnum = pgEnum("commission_type", [
+  "percentage",
+  "fixed",
+  "tiered"
+]);
+
+// Note: payoutStatusEnum already exists at line 568
+
+// External Seller Profiles - Admin-managed seller information
+export const externalSellerProfiles = pgTable("external_seller_profiles", {
+  id: varchar("id").primaryKey().$defaultFn(() => crypto.randomUUID()),
+  agencyId: varchar("agency_id").notNull().references(() => externalAgencies.id, { onDelete: "cascade" }),
+  userId: varchar("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  
+  // Employment info
+  employeeCode: varchar("employee_code", { length: 50 }), // Internal code
+  hireDate: timestamp("hire_date"),
+  terminationDate: timestamp("termination_date"),
+  status: sellerStatusEnum("status").notNull().default("active"),
+  
+  // Commission configuration
+  commissionType: commissionTypeEnum("commission_type").notNull().default("percentage"),
+  commissionRate: decimal("commission_rate", { precision: 5, scale: 2 }).default("10.00"), // Default 10%
+  commissionTiers: jsonb("commission_tiers"), // For tiered: [{min: 0, max: 5, rate: 10}, {min: 6, max: 10, rate: 12}]
+  
+  // Contact overrides
+  personalPhone: varchar("personal_phone", { length: 50 }),
+  personalEmail: varchar("personal_email", { length: 255 }),
+  emergencyContact: varchar("emergency_contact", { length: 255 }),
+  
+  // Notes
+  adminNotes: text("admin_notes"),
+  
+  // Audit
+  createdBy: varchar("created_by").references(() => users.id),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+}, (table) => [
+  index("idx_seller_profiles_agency").on(table.agencyId),
+  index("idx_seller_profiles_user").on(table.userId),
+  index("idx_seller_profiles_status").on(table.status),
+  unique("unique_seller_user_per_agency").on(table.agencyId, table.userId),
+]);
+
+export const insertExternalSellerProfileSchema = createInsertSchema(externalSellerProfiles).omit({
+  id: true, createdAt: true, updatedAt: true,
+});
+export type InsertExternalSellerProfile = z.infer<typeof insertExternalSellerProfileSchema>;
+export type ExternalSellerProfile = typeof externalSellerProfiles.$inferSelect;
+
+// External Seller Commissions - Individual commission records
+export const externalSellerCommissions = pgTable("external_seller_commissions", {
+  id: varchar("id").primaryKey().$defaultFn(() => crypto.randomUUID()),
+  agencyId: varchar("agency_id").notNull().references(() => externalAgencies.id, { onDelete: "cascade" }),
+  sellerId: varchar("seller_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  sellerProfileId: varchar("seller_profile_id").references(() => externalSellerProfiles.id, { onDelete: "set null" }),
+  
+  // Source of commission
+  contractId: varchar("contract_id").references(() => externalRentalContracts.id, { onDelete: "set null" }),
+  leadId: varchar("lead_id").references(() => externalLeads.id, { onDelete: "set null" }),
+  unitId: varchar("unit_id").references(() => externalUnits.id, { onDelete: "set null" }),
+  
+  // Commission details
+  baseAmount: decimal("base_amount", { precision: 12, scale: 2 }).notNull(), // Contract value
+  commissionRate: decimal("commission_rate", { precision: 5, scale: 2 }).notNull(), // Rate applied
+  commissionAmount: decimal("commission_amount", { precision: 12, scale: 2 }).notNull(), // Calculated amount
+  currency: varchar("currency", { length: 10 }).notNull().default("MXN"),
+  
+  // Description
+  description: varchar("description", { length: 500 }),
+  
+  // Payout reference (added later after payout is made)
+  payoutId: varchar("payout_id"), // Will link to externalSellerPayouts
+  isPaid: boolean("is_paid").notNull().default(false),
+  paidAt: timestamp("paid_at"),
+  
+  // Audit
+  earnedAt: timestamp("earned_at").defaultNow().notNull(),
+  createdBy: varchar("created_by").references(() => users.id),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+}, (table) => [
+  index("idx_seller_commissions_agency").on(table.agencyId),
+  index("idx_seller_commissions_seller").on(table.sellerId),
+  index("idx_seller_commissions_contract").on(table.contractId),
+  index("idx_seller_commissions_payout").on(table.payoutId),
+  index("idx_seller_commissions_earned").on(table.earnedAt),
+  index("idx_seller_commissions_paid").on(table.isPaid),
+]);
+
+export const insertExternalSellerCommissionSchema = createInsertSchema(externalSellerCommissions).omit({
+  id: true, createdAt: true, earnedAt: true,
+});
+export type InsertExternalSellerCommission = z.infer<typeof insertExternalSellerCommissionSchema>;
+export type ExternalSellerCommission = typeof externalSellerCommissions.$inferSelect;
+
+// External Seller Payouts - Payout records for sellers
+export const externalSellerPayouts = pgTable("external_seller_payouts", {
+  id: varchar("id").primaryKey().$defaultFn(() => crypto.randomUUID()),
+  agencyId: varchar("agency_id").notNull().references(() => externalAgencies.id, { onDelete: "cascade" }),
+  sellerId: varchar("seller_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  sellerProfileId: varchar("seller_profile_id").references(() => externalSellerProfiles.id, { onDelete: "set null" }),
+  
+  // Payout details
+  amount: decimal("amount", { precision: 12, scale: 2 }).notNull(),
+  currency: varchar("currency", { length: 10 }).notNull().default("MXN"),
+  
+  status: payoutStatusEnum("status").notNull().default("pending"),
+  
+  // Period covered
+  periodStart: timestamp("period_start").notNull(),
+  periodEnd: timestamp("period_end").notNull(),
+  
+  // Payment info
+  paymentMethod: varchar("payment_method", { length: 50 }), // transfer, cash, check
+  paymentReference: varchar("payment_reference", { length: 200 }), // Transaction ID, check number, etc.
+  
+  approvedBy: varchar("approved_by").references(() => users.id),
+  approvedAt: timestamp("approved_at"),
+  paidBy: varchar("paid_by").references(() => users.id),
+  paidAt: timestamp("paid_at"),
+  
+  notes: text("notes"),
+  
+  // Audit
+  createdBy: varchar("created_by").references(() => users.id),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+}, (table) => [
+  index("idx_seller_payouts_agency").on(table.agencyId),
+  index("idx_seller_payouts_seller").on(table.sellerId),
+  index("idx_seller_payouts_status").on(table.status),
+  index("idx_seller_payouts_period").on(table.periodStart, table.periodEnd),
+]);
+
+export const insertExternalSellerPayoutSchema = createInsertSchema(externalSellerPayouts).omit({
+  id: true, createdAt: true, updatedAt: true,
+});
+export type InsertExternalSellerPayout = z.infer<typeof insertExternalSellerPayoutSchema>;
+export type ExternalSellerPayout = typeof externalSellerPayouts.$inferSelect;
+
+// =====================================================
 // Public Chatbot Conversations - For homepage AI assistant
 // =====================================================
 

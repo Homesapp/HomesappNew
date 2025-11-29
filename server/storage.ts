@@ -458,6 +458,18 @@ import {
   publicChatbotConversations,
   type PublicChatbotConversation,
   type InsertPublicChatbotConversation,
+  externalSellerProfiles,
+  type ExternalSellerProfile,
+  type InsertExternalSellerProfile,
+  externalSellerCommissions,
+  type ExternalSellerCommission,
+  type InsertExternalSellerCommission,
+  externalSellerPayouts,
+  type ExternalSellerPayout,
+  type InsertExternalSellerPayout,
+  sellerGoals,
+  type SellerGoal,
+  type InsertSellerGoal,
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, and, or, gte, lte, ilike, asc, desc, sql, isNull, isNotNull, count, inArray, SQL, between, not, notInArray } from "drizzle-orm";
@@ -1716,6 +1728,49 @@ export interface IStorage {
     limit?: number;
     offset?: number;
   }): Promise<{ data: ExternalUnit[]; total: number }>;
+
+  // External Seller Profiles
+  getExternalSellerProfiles(agencyId: string, filters?: { status?: string }): Promise<ExternalSellerProfile[]>;
+  getExternalSellerProfile(id: string): Promise<ExternalSellerProfile | undefined>;
+  getExternalSellerProfileByUser(agencyId: string, userId: string): Promise<ExternalSellerProfile | undefined>;
+  createExternalSellerProfile(profile: InsertExternalSellerProfile): Promise<ExternalSellerProfile>;
+  updateExternalSellerProfile(id: string, updates: Partial<InsertExternalSellerProfile>): Promise<ExternalSellerProfile>;
+  deleteExternalSellerProfile(id: string): Promise<void>;
+
+  // External Seller Commissions
+  getExternalSellerCommissions(agencyId: string, filters?: { sellerId?: string; isPaid?: boolean; startDate?: Date; endDate?: Date }): Promise<ExternalSellerCommission[]>;
+  getExternalSellerCommission(id: string): Promise<ExternalSellerCommission | undefined>;
+  createExternalSellerCommission(commission: InsertExternalSellerCommission): Promise<ExternalSellerCommission>;
+  updateExternalSellerCommission(id: string, updates: Partial<InsertExternalSellerCommission>): Promise<ExternalSellerCommission>;
+  deleteExternalSellerCommission(id: string): Promise<void>;
+  getUnpaidCommissionsForSeller(agencyId: string, sellerId: string): Promise<ExternalSellerCommission[]>;
+
+  // External Seller Payouts
+  getExternalSellerPayouts(agencyId: string, filters?: { sellerId?: string; status?: string; startDate?: Date; endDate?: Date }): Promise<ExternalSellerPayout[]>;
+  getExternalSellerPayout(id: string): Promise<ExternalSellerPayout | undefined>;
+  createExternalSellerPayout(payout: InsertExternalSellerPayout): Promise<ExternalSellerPayout>;
+  updateExternalSellerPayout(id: string, updates: Partial<InsertExternalSellerPayout>): Promise<ExternalSellerPayout>;
+  deleteExternalSellerPayout(id: string): Promise<void>;
+
+  // Seller Goals (already defined in schema)
+  getSellerGoals(agencyId: string, filters?: { sellerId?: string; goalType?: string; isActive?: boolean }): Promise<SellerGoal[]>;
+  getSellerGoal(id: string): Promise<SellerGoal | undefined>;
+  createSellerGoal(goal: InsertSellerGoal): Promise<SellerGoal>;
+  updateSellerGoal(id: string, updates: Partial<InsertSellerGoal>): Promise<SellerGoal>;
+  deleteSellerGoal(id: string): Promise<void>;
+
+  // Seller Analytics
+  getSellerStats(agencyId: string, sellerId: string, startDate?: Date, endDate?: Date): Promise<{
+    totalLeads: number;
+    qualifiedLeads: number;
+    convertedLeads: number;
+    totalShowings: number;
+    totalContracts: number;
+    totalRevenue: number;
+    totalCommissions: number;
+    paidCommissions: number;
+    unpaidCommissions: number;
+  }>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -12320,6 +12375,275 @@ export class DatabaseStorage implements IStorage {
     return {
       data,
       total: Number(countResult?.count) || 0
+    };
+  }
+
+  // External Seller Profiles
+  async getExternalSellerProfiles(agencyId: string, filters?: { status?: string }): Promise<ExternalSellerProfile[]> {
+    const conditions = [eq(externalSellerProfiles.agencyId, agencyId)];
+    if (filters?.status) {
+      conditions.push(eq(externalSellerProfiles.status, filters.status as any));
+    }
+    return await db.select().from(externalSellerProfiles).where(and(...conditions)).orderBy(desc(externalSellerProfiles.createdAt));
+  }
+
+  async getExternalSellerProfile(id: string): Promise<ExternalSellerProfile | undefined> {
+    const [result] = await db.select().from(externalSellerProfiles).where(eq(externalSellerProfiles.id, id)).limit(1);
+    return result;
+  }
+
+  async getExternalSellerProfileByUser(agencyId: string, userId: string): Promise<ExternalSellerProfile | undefined> {
+    const [result] = await db.select().from(externalSellerProfiles)
+      .where(and(eq(externalSellerProfiles.agencyId, agencyId), eq(externalSellerProfiles.userId, userId)))
+      .limit(1);
+    return result;
+  }
+
+  async createExternalSellerProfile(profile: InsertExternalSellerProfile): Promise<ExternalSellerProfile> {
+    const [result] = await db.insert(externalSellerProfiles).values(profile).returning();
+    return result;
+  }
+
+  async updateExternalSellerProfile(id: string, updates: Partial<InsertExternalSellerProfile>): Promise<ExternalSellerProfile> {
+    const [result] = await db.update(externalSellerProfiles)
+      .set({ ...updates, updatedAt: new Date() })
+      .where(eq(externalSellerProfiles.id, id))
+      .returning();
+    return result;
+  }
+
+  async deleteExternalSellerProfile(id: string): Promise<void> {
+    await db.delete(externalSellerProfiles).where(eq(externalSellerProfiles.id, id));
+  }
+
+  // External Seller Commissions
+  async getExternalSellerCommissions(agencyId: string, filters?: { sellerId?: string; isPaid?: boolean; startDate?: Date; endDate?: Date }): Promise<ExternalSellerCommission[]> {
+    const conditions = [eq(externalSellerCommissions.agencyId, agencyId)];
+    if (filters?.sellerId) {
+      conditions.push(eq(externalSellerCommissions.sellerId, filters.sellerId));
+    }
+    if (filters?.isPaid !== undefined) {
+      conditions.push(eq(externalSellerCommissions.isPaid, filters.isPaid));
+    }
+    if (filters?.startDate) {
+      conditions.push(gte(externalSellerCommissions.earnedAt, filters.startDate));
+    }
+    if (filters?.endDate) {
+      conditions.push(lte(externalSellerCommissions.earnedAt, filters.endDate));
+    }
+    return await db.select().from(externalSellerCommissions).where(and(...conditions)).orderBy(desc(externalSellerCommissions.earnedAt));
+  }
+
+  async getExternalSellerCommission(id: string): Promise<ExternalSellerCommission | undefined> {
+    const [result] = await db.select().from(externalSellerCommissions).where(eq(externalSellerCommissions.id, id)).limit(1);
+    return result;
+  }
+
+  async createExternalSellerCommission(commission: InsertExternalSellerCommission): Promise<ExternalSellerCommission> {
+    const [result] = await db.insert(externalSellerCommissions).values(commission).returning();
+    return result;
+  }
+
+  async updateExternalSellerCommission(id: string, updates: Partial<InsertExternalSellerCommission>): Promise<ExternalSellerCommission> {
+    const [result] = await db.update(externalSellerCommissions)
+      .set(updates)
+      .where(eq(externalSellerCommissions.id, id))
+      .returning();
+    return result;
+  }
+
+  async deleteExternalSellerCommission(id: string): Promise<void> {
+    await db.delete(externalSellerCommissions).where(eq(externalSellerCommissions.id, id));
+  }
+
+  async getUnpaidCommissionsForSeller(agencyId: string, sellerId: string): Promise<ExternalSellerCommission[]> {
+    return await db.select().from(externalSellerCommissions)
+      .where(and(
+        eq(externalSellerCommissions.agencyId, agencyId),
+        eq(externalSellerCommissions.sellerId, sellerId),
+        eq(externalSellerCommissions.isPaid, false)
+      ))
+      .orderBy(desc(externalSellerCommissions.earnedAt));
+  }
+
+  // External Seller Payouts
+  async getExternalSellerPayouts(agencyId: string, filters?: { sellerId?: string; status?: string; startDate?: Date; endDate?: Date }): Promise<ExternalSellerPayout[]> {
+    const conditions = [eq(externalSellerPayouts.agencyId, agencyId)];
+    if (filters?.sellerId) {
+      conditions.push(eq(externalSellerPayouts.sellerId, filters.sellerId));
+    }
+    if (filters?.status) {
+      conditions.push(eq(externalSellerPayouts.status, filters.status as any));
+    }
+    if (filters?.startDate) {
+      conditions.push(gte(externalSellerPayouts.periodStart, filters.startDate));
+    }
+    if (filters?.endDate) {
+      conditions.push(lte(externalSellerPayouts.periodEnd, filters.endDate));
+    }
+    return await db.select().from(externalSellerPayouts).where(and(...conditions)).orderBy(desc(externalSellerPayouts.createdAt));
+  }
+
+  async getExternalSellerPayout(id: string): Promise<ExternalSellerPayout | undefined> {
+    const [result] = await db.select().from(externalSellerPayouts).where(eq(externalSellerPayouts.id, id)).limit(1);
+    return result;
+  }
+
+  async createExternalSellerPayout(payout: InsertExternalSellerPayout): Promise<ExternalSellerPayout> {
+    const [result] = await db.insert(externalSellerPayouts).values(payout).returning();
+    return result;
+  }
+
+  async updateExternalSellerPayout(id: string, updates: Partial<InsertExternalSellerPayout>): Promise<ExternalSellerPayout> {
+    const [result] = await db.update(externalSellerPayouts)
+      .set({ ...updates, updatedAt: new Date() })
+      .where(eq(externalSellerPayouts.id, id))
+      .returning();
+    return result;
+  }
+
+  async deleteExternalSellerPayout(id: string): Promise<void> {
+    await db.delete(externalSellerPayouts).where(eq(externalSellerPayouts.id, id));
+  }
+
+  // Seller Goals
+  async getSellerGoals(agencyId: string, filters?: { sellerId?: string; goalType?: string; isActive?: boolean }): Promise<SellerGoal[]> {
+    const conditions = [eq(sellerGoals.agencyId, agencyId)];
+    if (filters?.sellerId) {
+      conditions.push(eq(sellerGoals.sellerId, filters.sellerId));
+    }
+    if (filters?.goalType) {
+      conditions.push(eq(sellerGoals.goalType, filters.goalType as any));
+    }
+    if (filters?.isActive !== undefined) {
+      conditions.push(eq(sellerGoals.isActive, filters.isActive));
+    }
+    return await db.select().from(sellerGoals).where(and(...conditions)).orderBy(desc(sellerGoals.createdAt));
+  }
+
+  async getSellerGoal(id: string): Promise<SellerGoal | undefined> {
+    const [result] = await db.select().from(sellerGoals).where(eq(sellerGoals.id, id)).limit(1);
+    return result;
+  }
+
+  async createSellerGoal(goal: InsertSellerGoal): Promise<SellerGoal> {
+    const [result] = await db.insert(sellerGoals).values(goal).returning();
+    return result;
+  }
+
+  async updateSellerGoal(id: string, updates: Partial<InsertSellerGoal>): Promise<SellerGoal> {
+    const [result] = await db.update(sellerGoals)
+      .set({ ...updates, updatedAt: new Date() })
+      .where(eq(sellerGoals.id, id))
+      .returning();
+    return result;
+  }
+
+  async deleteSellerGoal(id: string): Promise<void> {
+    await db.delete(sellerGoals).where(eq(sellerGoals.id, id));
+  }
+
+  // Seller Analytics
+  async getSellerStats(agencyId: string, sellerId: string, startDate?: Date, endDate?: Date): Promise<{
+    totalLeads: number;
+    qualifiedLeads: number;
+    convertedLeads: number;
+    totalShowings: number;
+    totalContracts: number;
+    totalRevenue: number;
+    totalCommissions: number;
+    paidCommissions: number;
+    unpaidCommissions: number;
+  }> {
+    const dateConditions: SQL[] = [];
+    if (startDate) dateConditions.push(gte(externalLeads.createdAt, startDate));
+    if (endDate) dateConditions.push(lte(externalLeads.createdAt, endDate));
+
+    // Count leads registered by this seller
+    const [leadsResult] = await db.select({ count: sql<number>`count(*)` })
+      .from(externalLeads)
+      .where(and(
+        eq(externalLeads.agencyId, agencyId),
+        eq(externalLeads.sellerId, sellerId),
+        ...dateConditions
+      ));
+    const totalLeads = Number(leadsResult?.count) || 0;
+
+    // Count qualified leads
+    const [qualifiedResult] = await db.select({ count: sql<number>`count(*)` })
+      .from(externalLeads)
+      .where(and(
+        eq(externalLeads.agencyId, agencyId),
+        eq(externalLeads.sellerId, sellerId),
+        eq(externalLeads.status, 'qualified'),
+        ...dateConditions
+      ));
+    const qualifiedLeads = Number(qualifiedResult?.count) || 0;
+
+    // Count converted leads (those with convertedToClientId)
+    const [convertedResult] = await db.select({ count: sql<number>`count(*)` })
+      .from(externalLeads)
+      .where(and(
+        eq(externalLeads.agencyId, agencyId),
+        eq(externalLeads.sellerId, sellerId),
+        isNotNull(externalLeads.convertedToClientId),
+        ...dateConditions
+      ));
+    const convertedLeads = Number(convertedResult?.count) || 0;
+
+    // Count showings for leads of this seller
+    const [showingsResult] = await db.select({ count: sql<number>`count(*)` })
+      .from(externalLeadShowings)
+      .innerJoin(externalLeads, eq(externalLeadShowings.leadId, externalLeads.id))
+      .where(and(
+        eq(externalLeads.agencyId, agencyId),
+        eq(externalLeads.sellerId, sellerId)
+      ));
+    const totalShowings = Number(showingsResult?.count) || 0;
+
+    // Count contracts created by this seller
+    const [contractsResult] = await db.select({ count: sql<number>`count(*)` })
+      .from(externalRentalContracts)
+      .where(and(
+        eq(externalRentalContracts.agencyId, agencyId),
+        eq(externalRentalContracts.createdBy, sellerId)
+      ));
+    const totalContracts = Number(contractsResult?.count) || 0;
+
+    // Calculate revenue from contracts (sum of monthly rent * duration)
+    const [revenueResult] = await db.select({ 
+      total: sql<number>`COALESCE(SUM(CAST(${externalRentalContracts.monthlyRent} AS DECIMAL) * ${externalRentalContracts.leaseDurationMonths}), 0)` 
+    })
+      .from(externalRentalContracts)
+      .where(and(
+        eq(externalRentalContracts.agencyId, agencyId),
+        eq(externalRentalContracts.createdBy, sellerId)
+      ));
+    const totalRevenue = Number(revenueResult?.total) || 0;
+
+    // Get commission totals
+    const [commissionsResult] = await db.select({ 
+      total: sql<number>`COALESCE(SUM(CAST(${externalSellerCommissions.commissionAmount} AS DECIMAL)), 0)`,
+      paid: sql<number>`COALESCE(SUM(CASE WHEN ${externalSellerCommissions.isPaid} = true THEN CAST(${externalSellerCommissions.commissionAmount} AS DECIMAL) ELSE 0 END), 0)`
+    })
+      .from(externalSellerCommissions)
+      .where(and(
+        eq(externalSellerCommissions.agencyId, agencyId),
+        eq(externalSellerCommissions.sellerId, sellerId)
+      ));
+    const totalCommissions = Number(commissionsResult?.total) || 0;
+    const paidCommissions = Number(commissionsResult?.paid) || 0;
+
+    return {
+      totalLeads,
+      qualifiedLeads,
+      convertedLeads,
+      totalShowings,
+      totalContracts,
+      totalRevenue,
+      totalCommissions,
+      paidCommissions,
+      unpaidCommissions: totalCommissions - paidCommissions
     };
   }
 }

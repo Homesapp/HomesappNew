@@ -38911,5 +38911,615 @@ const generateSlug = (str: string) => str.toLowerCase().normalize("NFD").replace
       res.status(500).json({ error: error.message || "Error resolving property URL" });
     }
   });
+
+
+  // =====================================================
+  // SELLER MANAGEMENT VALIDATION SCHEMAS
+  // =====================================================
+  const createSellerProfileSchema = z.object({
+    userId: z.string().trim().min(1),
+    status: z.string().trim().min(1).optional(),
+    commissionRate: z.string().trim().optional(),
+    hireDate: z.string().trim().optional(),
+    notes: z.string().trim().optional(),
+  });
+
+  const updateSellerProfileSchema = z.object({
+    status: z.string().trim().optional(),
+    commissionRate: z.string().trim().optional(),
+    hireDate: z.string().trim().optional(),
+    terminationDate: z.string().trim().optional(),
+    notes: z.string().trim().optional(),
+  });
+
+  const createCommissionSchema = z.object({
+    sellerId: z.string().trim().min(1),
+    amount: z.string().trim().min(1),
+    commissionType: z.string().trim().min(1),
+    description: z.string().trim().optional(),
+    contractId: z.string().trim().optional(),
+  });
+
+  const updateCommissionSchema = z.object({
+    amount: z.string().trim().optional(),
+    commissionType: z.string().trim().optional(),
+    description: z.string().trim().optional(),
+    isPaid: z.boolean().optional(),
+    paidAt: z.string().trim().optional(),
+    payoutId: z.string().trim().optional(),
+  });
+
+  const createPayoutSchema = z.object({
+    sellerId: z.string().trim().min(1),
+    amount: z.string().trim().min(1),
+    paymentMethod: z.string().trim().optional(),
+    notes: z.string().trim().optional(),
+    commissionIds: z.array(z.string().trim().min(1)).optional(),
+  });
+
+  const updatePayoutSchema = z.object({
+    amount: z.string().trim().optional(),
+    paymentMethod: z.string().trim().optional(),
+    notes: z.string().trim().optional(),
+    status: z.string().trim().optional(),
+    paymentReference: z.string().trim().optional(),
+  });
+
+  const createGoalSchema = z.object({
+    sellerId: z.string().trim().min(1).optional(),
+    goalType: z.string().trim().min(1),
+    target: z.coerce.number().finite(),
+    startDate: z.string().trim().min(1),
+    endDate: z.string().trim().min(1),
+    isActive: z.boolean().optional(),
+  });
+
+  const updateGoalSchema = z.object({
+    goalType: z.string().trim().optional(),
+    target: z.coerce.number().finite().optional(),
+    startDate: z.string().trim().optional(),
+    endDate: z.string().trim().optional(),
+    isActive: z.boolean().optional(),
+  });
+
+  // =====================================================
+  // SELLER MANAGEMENT ENDPOINTS (Admin Dashboard)
+  // =====================================================
+
+  // GET /api/external/sellers - Get all sellers for agency with stats
+  app.get("/api/external/sellers", isAuthenticated, requireRole(EXTERNAL_ADMIN_ROLES), async (req: any, res) => {
+    try {
+      const agencyId = await getUserAgencyId(req);
+      if (!agencyId) return res.status(403).json({ message: "No agency access" });
+
+      // Get all seller profiles for this agency
+      const profiles = await storage.getExternalSellerProfiles(agencyId, {
+        status: req.query.status as string | undefined
+      });
+
+      // Get user info and stats for each seller
+      const sellersWithStats = await Promise.all(profiles.map(async (profile) => {
+        const user = await storage.getUser(profile.userId);
+        const stats = await storage.getSellerStats(agencyId, profile.userId);
+        
+        return {
+          ...profile,
+          user: user ? {
+            id: user.id,
+            firstName: user.firstName,
+            lastName: user.lastName,
+            email: user.email,
+            profileImageUrl: user.profileImageUrl
+          } : null,
+          stats
+        };
+      }));
+
+      res.json(sellersWithStats);
+    } catch (error: any) {
+      console.error("Error fetching sellers:", error);
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  // GET /api/external/sellers/:id - Get specific seller with details
+  app.get("/api/external/sellers/:id", isAuthenticated, requireRole(EXTERNAL_ADMIN_ROLES), async (req: any, res) => {
+    try {
+      const agencyId = await getUserAgencyId(req);
+      if (!agencyId) return res.status(403).json({ message: "No agency access" });
+
+      const profile = await storage.getExternalSellerProfile(req.params.id);
+      if (!profile || profile.agencyId !== agencyId) {
+        return res.status(404).json({ message: "Seller not found" });
+      }
+
+      const user = await storage.getUser(profile.userId);
+      const stats = await storage.getSellerStats(agencyId, profile.userId);
+      const goals = await storage.getSellerGoals(agencyId, { sellerId: profile.userId, isActive: true });
+      const commissions = await storage.getExternalSellerCommissions(agencyId, { sellerId: profile.userId });
+      const payouts = await storage.getExternalSellerPayouts(agencyId, { sellerId: profile.userId });
+
+      res.json({
+        ...profile,
+        user: user ? {
+          id: user.id,
+          firstName: user.firstName,
+          lastName: user.lastName,
+          email: user.email,
+          phone: user.phone,
+          profileImageUrl: user.profileImageUrl
+        } : null,
+        stats,
+        goals,
+        commissions,
+        payouts
+      });
+    } catch (error: any) {
+      console.error("Error fetching seller:", error);
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  // POST /api/external/sellers - Create seller profile
+  app.post("/api/external/sellers", isAuthenticated, requireRole(EXTERNAL_ADMIN_ROLES), async (req: any, res) => {
+    try {
+      const agencyId = await getUserAgencyId(req);
+      if (!agencyId) return res.status(403).json({ message: "No agency access" });
+
+      // Validate request body
+      const parsed = createSellerProfileSchema.safeParse(req.body);
+      if (!parsed.success) {
+        return res.status(400).json({ message: "Invalid request data", errors: parsed.error.errors });
+      }
+      const { userId, ...profileData } = parsed.data;
+
+      // Check if profile already exists
+      const existing = await storage.getExternalSellerProfileByUser(agencyId, userId);
+      if (existing) {
+        return res.status(400).json({ message: "Seller profile already exists for this user" });
+      }
+
+      const profile = await storage.createExternalSellerProfile({
+        ...profileData,
+        agencyId,
+        userId,
+        createdBy: req.user?.id
+      });
+
+      res.status(201).json(profile);
+    } catch (error: any) {
+      console.error("Error creating seller profile:", error);
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  // PATCH /api/external/sellers/:id - Update seller profile
+  app.patch("/api/external/sellers/:id", isAuthenticated, requireRole(EXTERNAL_ADMIN_ROLES), async (req: any, res) => {
+    try {
+      const agencyId = await getUserAgencyId(req);
+      if (!agencyId) return res.status(403).json({ message: "No agency access" });
+
+      // Validate request body
+      const parsed = updateSellerProfileSchema.safeParse(req.body);
+      if (!parsed.success) {
+        return res.status(400).json({ message: "Invalid request data", errors: parsed.error.errors });
+      }
+
+      const profile = await storage.getExternalSellerProfile(req.params.id);
+      if (!profile || profile.agencyId !== agencyId) {
+        return res.status(404).json({ message: "Seller not found" });
+      }
+
+      const updated = await storage.updateExternalSellerProfile(req.params.id, parsed.data);
+      res.json(updated);
+    } catch (error: any) {
+      console.error("Error updating seller:", error);
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  // DELETE /api/external/sellers/:id - Delete seller profile
+  app.delete("/api/external/sellers/:id", isAuthenticated, requireRole(EXTERNAL_ADMIN_ROLES), async (req: any, res) => {
+    try {
+      const agencyId = await getUserAgencyId(req);
+      if (!agencyId) return res.status(403).json({ message: "No agency access" });
+
+      const profile = await storage.getExternalSellerProfile(req.params.id);
+      if (!profile || profile.agencyId !== agencyId) {
+        return res.status(404).json({ message: "Seller not found" });
+      }
+
+      await storage.deleteExternalSellerProfile(req.params.id);
+      res.status(204).send();
+    } catch (error: any) {
+      console.error("Error deleting seller:", error);
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  // GET /api/external/sellers/:id/stats - Get seller statistics
+  app.get("/api/external/sellers/:id/stats", isAuthenticated, requireRole(EXTERNAL_ADMIN_ROLES), async (req: any, res) => {
+    try {
+      const agencyId = await getUserAgencyId(req);
+      if (!agencyId) return res.status(403).json({ message: "No agency access" });
+
+      const profile = await storage.getExternalSellerProfile(req.params.id);
+      if (!profile || profile.agencyId !== agencyId) {
+        return res.status(404).json({ message: "Seller not found" });
+      }
+
+      const startDate = req.query.startDate ? new Date(req.query.startDate as string) : undefined;
+      const endDate = req.query.endDate ? new Date(req.query.endDate as string) : undefined;
+
+      const stats = await storage.getSellerStats(agencyId, profile.userId, startDate, endDate);
+      res.json(stats);
+    } catch (error: any) {
+      console.error("Error fetching seller stats:", error);
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  // =====================================================
+  // SELLER COMMISSIONS ENDPOINTS
+  // =====================================================
+
+  // GET /api/external/commissions - Get all commissions
+  app.get("/api/external/commissions", isAuthenticated, requireRole(EXTERNAL_ADMIN_ROLES), async (req: any, res) => {
+    try {
+      const agencyId = await getUserAgencyId(req);
+      if (!agencyId) return res.status(403).json({ message: "No agency access" });
+
+      const commissions = await storage.getExternalSellerCommissions(agencyId, {
+        sellerId: req.query.sellerId as string | undefined,
+        isPaid: req.query.isPaid === 'true' ? true : req.query.isPaid === 'false' ? false : undefined
+      });
+
+      res.json(commissions);
+    } catch (error: any) {
+      console.error("Error fetching commissions:", error);
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  // POST /api/external/commissions - Create commission record
+  app.post("/api/external/commissions", isAuthenticated, requireRole(EXTERNAL_ADMIN_ROLES), async (req: any, res) => {
+    try {
+      const agencyId = await getUserAgencyId(req);
+      if (!agencyId) return res.status(403).json({ message: "No agency access" });
+
+      // Validate request body
+      const parsed = createCommissionSchema.safeParse(req.body);
+      if (!parsed.success) {
+        return res.status(400).json({ message: "Invalid request data", errors: parsed.error.errors });
+      }
+
+      // Verify seller belongs to agency
+      const sellerProfile = await storage.getExternalSellerProfileByUser(agencyId, parsed.data.sellerId);
+      if (!sellerProfile) {
+        return res.status(404).json({ message: "Seller not found in this agency" });
+      }
+
+      const commission = await storage.createExternalSellerCommission({
+        ...parsed.data,
+        agencyId,
+        createdBy: req.user?.id
+      });
+
+      res.status(201).json(commission);
+    } catch (error: any) {
+      console.error("Error creating commission:", error);
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  // PATCH /api/external/commissions/:id - Update commission
+  app.patch("/api/external/commissions/:id", isAuthenticated, requireRole(EXTERNAL_ADMIN_ROLES), async (req: any, res) => {
+    try {
+      const agencyId = await getUserAgencyId(req);
+      if (!agencyId) return res.status(403).json({ message: "No agency access" });
+
+      // Validate request body
+      const parsed = updateCommissionSchema.safeParse(req.body);
+      if (!parsed.success) {
+        return res.status(400).json({ message: "Invalid request data", errors: parsed.error.errors });
+      }
+
+      const commission = await storage.getExternalSellerCommission(req.params.id);
+      if (!commission || commission.agencyId !== agencyId) {
+        return res.status(404).json({ message: "Commission not found" });
+      }
+
+      const updated = await storage.updateExternalSellerCommission(req.params.id, parsed.data);
+      res.json(updated);
+    } catch (error: any) {
+      console.error("Error updating commission:", error);
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  // =====================================================
+  // SELLER PAYOUTS ENDPOINTS
+  // =====================================================
+
+  // GET /api/external/payouts - Get all payouts
+  app.get("/api/external/payouts", isAuthenticated, requireRole(EXTERNAL_ADMIN_ROLES), async (req: any, res) => {
+    try {
+      const agencyId = await getUserAgencyId(req);
+      if (!agencyId) return res.status(403).json({ message: "No agency access" });
+
+      const payouts = await storage.getExternalSellerPayouts(agencyId, {
+        sellerId: req.query.sellerId as string | undefined,
+        status: req.query.status as string | undefined
+      });
+
+      res.json(payouts);
+    } catch (error: any) {
+      console.error("Error fetching payouts:", error);
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  // POST /api/external/payouts - Create payout
+  app.post("/api/external/payouts", isAuthenticated, requireRole(EXTERNAL_ADMIN_ROLES), async (req: any, res) => {
+    try {
+      const agencyId = await getUserAgencyId(req);
+      if (!agencyId) return res.status(403).json({ message: "No agency access" });
+
+      // Validate request body
+      const parsed = createPayoutSchema.safeParse(req.body);
+      if (!parsed.success) {
+        return res.status(400).json({ message: "Invalid request data", errors: parsed.error.errors });
+      }
+
+      // Verify seller belongs to agency
+      const sellerProfile = await storage.getExternalSellerProfileByUser(agencyId, parsed.data.sellerId);
+      if (!sellerProfile) {
+        return res.status(404).json({ message: "Seller not found in this agency" });
+      }
+
+      // Verify all commissions belong to agency and seller
+      if (parsed.data.commissionIds && parsed.data.commissionIds.length > 0) {
+        for (const commissionId of parsed.data.commissionIds) {
+          const commission = await storage.getExternalSellerCommission(commissionId);
+          if (!commission || commission.agencyId !== agencyId || commission.sellerId !== parsed.data.sellerId) {
+            return res.status(404).json({ message: "Commission not found or does not belong to seller" });
+          }
+        }
+      }
+
+      const payout = await storage.createExternalSellerPayout({
+        ...parsed.data,
+        agencyId,
+        createdBy: req.user?.id
+      });
+
+      // Mark associated commissions as paid if provided
+      if (parsed.data.commissionIds && parsed.data.commissionIds.length > 0) {
+        for (const commissionId of parsed.data.commissionIds) {
+          await storage.updateExternalSellerCommission(commissionId, {
+            payoutId: payout.id,
+            isPaid: true,
+            paidAt: new Date()
+          });
+        }
+      }
+
+      res.status(201).json(payout);
+    } catch (error: any) {
+      console.error("Error creating payout:", error);
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  // PATCH /api/external/payouts/:id - Update payout status
+  app.patch("/api/external/payouts/:id", isAuthenticated, requireRole(EXTERNAL_ADMIN_ROLES), async (req: any, res) => {
+    try {
+      const agencyId = await getUserAgencyId(req);
+      if (!agencyId) return res.status(403).json({ message: "No agency access" });
+
+      // Validate request body
+      const parsed = updatePayoutSchema.safeParse(req.body);
+      if (!parsed.success) {
+        return res.status(400).json({ message: "Invalid request data", errors: parsed.error.errors });
+      }
+
+      const payout = await storage.getExternalSellerPayout(req.params.id);
+      if (!payout || payout.agencyId !== agencyId) {
+        return res.status(404).json({ message: "Payout not found" });
+      }
+
+      const updates: any = { ...parsed.data };
+      
+      // Handle status transitions
+      if (parsed.data.status === 'approved' && payout.status !== 'approved') {
+        updates.approvedBy = req.user?.id;
+        updates.approvedAt = new Date();
+      }
+      if (parsed.data.status === 'paid' && payout.status !== 'paid') {
+        updates.paidBy = req.user?.id;
+        updates.paidAt = new Date();
+      }
+
+      const updated = await storage.updateExternalSellerPayout(req.params.id, updates);
+      res.json(updated);
+    } catch (error: any) {
+      console.error("Error updating payout:", error);
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  // =====================================================
+  // SELLER GOALS ENDPOINTS
+  // =====================================================
+
+  // GET /api/external/goals - Get all goals
+  app.get("/api/external/goals", isAuthenticated, requireRole(EXTERNAL_ADMIN_ROLES), async (req: any, res) => {
+    try {
+      const agencyId = await getUserAgencyId(req);
+      if (!agencyId) return res.status(403).json({ message: "No agency access" });
+
+      const goals = await storage.getSellerGoals(agencyId, {
+        sellerId: req.query.sellerId as string | undefined,
+        goalType: req.query.goalType as string | undefined,
+        isActive: req.query.isActive === 'true' ? true : req.query.isActive === 'false' ? false : undefined
+      });
+
+      // Add progress calculation for each goal
+      const goalsWithProgress = await Promise.all(goals.map(async (goal) => {
+        if (!goal.sellerId) return { ...goal, progress: 0, progressPercent: 0 };
+        
+        const stats = await storage.getSellerStats(
+          agencyId, 
+          goal.sellerId, 
+          goal.startDate, 
+          goal.endDate
+        );
+        
+        let current = 0;
+        switch (goal.goalType) {
+          case 'leads':
+            current = stats.totalLeads;
+            break;
+          case 'conversions':
+            current = stats.convertedLeads;
+            break;
+          case 'revenue':
+            current = stats.totalRevenue;
+            break;
+          case 'showings':
+            current = stats.totalShowings;
+            break;
+        }
+        
+        return {
+          ...goal,
+          progress: current,
+          progressPercent: Math.min(100, Math.round((current / goal.target) * 100))
+        };
+      }));
+
+      res.json(goalsWithProgress);
+    } catch (error: any) {
+      console.error("Error fetching goals:", error);
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  // POST /api/external/goals - Create goal
+  app.post("/api/external/goals", isAuthenticated, requireRole(EXTERNAL_ADMIN_ROLES), async (req: any, res) => {
+    try {
+      const agencyId = await getUserAgencyId(req);
+      if (!agencyId) return res.status(403).json({ message: "No agency access" });
+
+      // Validate request body
+      const parsed = createGoalSchema.safeParse(req.body);
+      if (!parsed.success) {
+        return res.status(400).json({ message: "Invalid request data", errors: parsed.error.errors });
+      }
+
+      // Verify seller belongs to agency if specified
+      if (parsed.data.sellerId) {
+        const sellerProfile = await storage.getExternalSellerProfileByUser(agencyId, parsed.data.sellerId);
+        if (!sellerProfile) {
+          return res.status(404).json({ message: "Seller not found in this agency" });
+        }
+      }
+
+      const goal = await storage.createSellerGoal({
+        ...parsed.data,
+        agencyId,
+        createdBy: req.user?.id
+      });
+
+      res.status(201).json(goal);
+    } catch (error: any) {
+      console.error("Error creating goal:", error);
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  // PATCH /api/external/goals/:id - Update goal
+  app.patch("/api/external/goals/:id", isAuthenticated, requireRole(EXTERNAL_ADMIN_ROLES), async (req: any, res) => {
+    try {
+      const agencyId = await getUserAgencyId(req);
+      if (!agencyId) return res.status(403).json({ message: "No agency access" });
+
+      // Validate request body
+      const parsed = updateGoalSchema.safeParse(req.body);
+      if (!parsed.success) {
+        return res.status(400).json({ message: "Invalid request data", errors: parsed.error.errors });
+      }
+
+      const goal = await storage.getSellerGoal(req.params.id);
+      if (!goal || goal.agencyId !== agencyId) {
+        return res.status(404).json({ message: "Goal not found" });
+      }
+
+      const updated = await storage.updateSellerGoal(req.params.id, parsed.data);
+      res.json(updated);
+    } catch (error: any) {
+      console.error("Error updating goal:", error);
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  // DELETE /api/external/goals/:id - Delete goal
+  app.delete("/api/external/goals/:id", isAuthenticated, requireRole(EXTERNAL_ADMIN_ROLES), async (req: any, res) => {
+    try {
+      const agencyId = await getUserAgencyId(req);
+      if (!agencyId) return res.status(403).json({ message: "No agency access" });
+
+      const goal = await storage.getSellerGoal(req.params.id);
+      if (!goal || goal.agencyId !== agencyId) {
+        return res.status(404).json({ message: "Goal not found" });
+      }
+
+      await storage.deleteSellerGoal(req.params.id);
+      res.status(204).send();
+    } catch (error: any) {
+      console.error("Error deleting goal:", error);
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  // GET /api/external/sellers-leaderboard - Get sellers ranking
+  app.get("/api/external/sellers-leaderboard", isAuthenticated, requireRole(EXTERNAL_ADMIN_ROLES), async (req: any, res) => {
+    try {
+      const agencyId = await getUserAgencyId(req);
+      if (!agencyId) return res.status(403).json({ message: "No agency access" });
+
+      const profiles = await storage.getExternalSellerProfiles(agencyId, { status: 'active' });
+      
+      const leaderboard = await Promise.all(profiles.map(async (profile) => {
+        const user = await storage.getUser(profile.userId);
+        const stats = await storage.getSellerStats(agencyId, profile.userId);
+        
+        return {
+          sellerId: profile.id,
+          userId: profile.userId,
+          name: user ? `${user.firstName || ''} ${user.lastName || ''}`.trim() : 'Unknown',
+          profileImageUrl: user?.profileImageUrl,
+          totalLeads: stats.totalLeads,
+          convertedLeads: stats.convertedLeads,
+          conversionRate: stats.totalLeads > 0 ? Math.round((stats.convertedLeads / stats.totalLeads) * 100) : 0,
+          totalContracts: stats.totalContracts,
+          totalRevenue: stats.totalRevenue,
+          totalCommissions: stats.totalCommissions,
+          unpaidCommissions: stats.unpaidCommissions
+        };
+      }));
+
+      // Sort by total revenue (can be changed based on query param)
+      const sortBy = req.query.sortBy || 'totalRevenue';
+      leaderboard.sort((a: any, b: any) => b[sortBy] - a[sortBy]);
+
+      res.json(leaderboard);
+    } catch (error: any) {
+      console.error("Error fetching leaderboard:", error);
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+
   return httpServer;
 }
