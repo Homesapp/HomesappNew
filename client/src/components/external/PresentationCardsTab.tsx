@@ -224,6 +224,21 @@ export default function PresentationCardsTab({ leadId, clientId, personName, lea
     },
   });
 
+  // Fetch zones and property types configuration
+  const { data: zonesConfig = [] } = useQuery<Array<{id: string; name: string; isActive: boolean}>>({
+    queryKey: ['/api/external/config/zones'],
+  });
+  const activeZones = zonesConfig.filter(z => z.isActive);
+
+  const { data: propertyTypesConfig = [] } = useQuery<Array<{id: string; name: string; isActive: boolean}>>({
+    queryKey: ['/api/external/config/property-types'],
+  });
+  const activePropertyTypes = propertyTypesConfig.filter(p => p.isActive);
+
+  // State for multi-select property types and zones
+  const [selectedPropertyTypes, setSelectedPropertyTypes] = useState<string[]>([]);
+  const [selectedZones, setSelectedZones] = useState<string[]>([]);
+
   const createMutation = useMutation({
     mutationFn: async (data: Partial<ExternalPresentationCard>) => {
       const res = await apiRequest("POST", "/api/external/presentation-cards", {
@@ -299,12 +314,14 @@ export default function PresentationCardsTab({ leadId, clientId, personName, lea
   const resetForm = () => {
     setFormData(defaultFormData);
     setSelectedCard(null);
+    setSelectedPropertyTypes([]);
+    setSelectedZones([]);
   };
 
   const handleCreate = () => {
     createMutation.mutate({
       title: formData.title || `${language === "es" ? "Busqueda de" : "Search for"} ${personName}`,
-      propertyType: formData.propertyType,
+      propertyType: selectedPropertyTypes.join(", ") || null,
       modality: formData.modality,
       minBudget: formData.minBudget || null,
       maxBudget: formData.maxBudget || null,
@@ -312,7 +329,7 @@ export default function PresentationCardsTab({ leadId, clientId, personName, lea
       bedrooms: formData.bedrooms ? parseInt(formData.bedrooms) : null,
       bedroomsText: formData.bedroomsText,
       bathrooms: formData.bathrooms || null,
-      preferredZone: formData.preferredZone,
+      preferredZone: selectedZones.join(", ") || null,
       moveInDateText: formData.moveInDateText,
       contractDuration: formData.contractDuration,
       hasPets: formData.hasPets,
@@ -333,7 +350,7 @@ export default function PresentationCardsTab({ leadId, clientId, personName, lea
       id: selectedCard.id,
       data: {
         title: formData.title,
-        propertyType: formData.propertyType,
+        propertyType: selectedPropertyTypes.join(", ") || null,
         modality: formData.modality,
         minBudget: formData.minBudget || null,
         maxBudget: formData.maxBudget || null,
@@ -341,7 +358,7 @@ export default function PresentationCardsTab({ leadId, clientId, personName, lea
         bedrooms: formData.bedrooms ? parseInt(formData.bedrooms) : null,
         bedroomsText: formData.bedroomsText,
         bathrooms: formData.bathrooms || null,
-        preferredZone: formData.preferredZone,
+        preferredZone: selectedZones.join(", ") || null,
         moveInDateText: formData.moveInDateText,
         contractDuration: formData.contractDuration,
         hasPets: formData.hasPets,
@@ -380,6 +397,9 @@ export default function PresentationCardsTab({ leadId, clientId, personName, lea
       specificProperty: card.specificProperty || "",
       isDefault: card.isDefault || false,
     });
+    // Initialize multi-select state from comma-separated values
+    setSelectedPropertyTypes(card.propertyType ? card.propertyType.split(", ").filter(Boolean) : []);
+    setSelectedZones(card.preferredZone ? card.preferredZone.split(", ").filter(Boolean) : []);
     setIsEditOpen(true);
   };
 
@@ -415,7 +435,7 @@ export default function PresentationCardsTab({ leadId, clientId, personName, lea
     setFormData({
       ...defaultFormData,
       title: `${language === "es" ? "Busqueda de" : "Search for"} ${personName}`,
-      propertyType: leadPreferences.desiredUnitType?.toLowerCase() || "",
+      propertyType: leadPreferences.desiredUnitType || "",
       budgetText: "",
       minBudget: budgetMinNum ? String(budgetMinNum) : (leadPreferences.estimatedRentCost ? String(Math.round(leadPreferences.estimatedRentCost * 0.85)) : ""),
       maxBudget: budgetMaxNum ? String(budgetMaxNum) : (leadPreferences.estimatedRentCost ? String(Math.round(leadPreferences.estimatedRentCost * 1.15)) : ""),
@@ -428,6 +448,9 @@ export default function PresentationCardsTab({ leadId, clientId, personName, lea
       desiredCharacteristics: leadPreferences.desiredCharacteristics || [],
       desiredAmenities: leadPreferences.desiredAmenities || [],
     });
+    // Initialize multi-select state from preferences
+    setSelectedPropertyTypes(leadPreferences.desiredUnitType ? leadPreferences.desiredUnitType.split(", ").filter(Boolean) : []);
+    setSelectedZones(leadPreferences.desiredNeighborhood ? leadPreferences.desiredNeighborhood.split(", ").filter(Boolean) : []);
     setIsCreateOpen(true);
   };
 
@@ -477,37 +500,48 @@ export default function PresentationCardsTab({ leadId, clientId, personName, lea
             />
           </div>
 
-          <div className="grid grid-cols-2 gap-3">
-            <div>
-              <Label className="text-sm">{language === "es" ? "Tipo de propiedad" : "Property type"}</Label>
-              <Select value={formData.propertyType} onValueChange={(v) => setFormData({ ...formData, propertyType: v })}>
-                <SelectTrigger className="min-h-[44px]" data-testid="select-property-type">
-                  <SelectValue placeholder={language === "es" ? "Seleccionar" : "Select"} />
-                </SelectTrigger>
-                <SelectContent>
-                  {PROPERTY_TYPES.map((type) => (
-                    <SelectItem key={type.value} value={type.value} className="min-h-[44px]">
-                      {type.label[language]}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+          <div>
+            <Label className="text-sm">{language === "es" ? "Tipo de propiedad (múltiple)" : "Property type (multiple)"}</Label>
+            <div className="flex flex-wrap gap-1.5 mt-1.5" data-testid="multiselect-property-type">
+              {(activePropertyTypes.length > 0 ? activePropertyTypes : PROPERTY_TYPES.map(t => ({ id: t.value, name: t.label[language] }))).map((pt) => (
+                <Badge
+                  key={pt.id}
+                  variant={selectedPropertyTypes.includes(pt.name) ? "default" : "outline"}
+                  className="cursor-pointer min-h-[32px] px-3"
+                  onClick={() => {
+                    setSelectedPropertyTypes(prev => 
+                      prev.includes(pt.name) 
+                        ? prev.filter(t => t !== pt.name) 
+                        : [...prev, pt.name]
+                    );
+                  }}
+                  data-testid={`badge-propertytype-${pt.id}`}
+                >
+                  {pt.name}
+                </Badge>
+              ))}
             </div>
-            <div>
-              <Label className="text-sm">{language === "es" ? "Modalidad" : "Modality"}</Label>
-              <Select value={formData.modality} onValueChange={(v) => setFormData({ ...formData, modality: v })}>
-                <SelectTrigger className="min-h-[44px]" data-testid="select-modality">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {MODALITIES.map((m) => (
-                    <SelectItem key={m.value} value={m.value} className="min-h-[44px]">
-                      {m.label[language]}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
+            {selectedPropertyTypes.length > 0 && (
+              <p className="text-xs text-muted-foreground mt-1">
+                {selectedPropertyTypes.length} {language === "es" ? "seleccionado(s)" : "selected"}
+              </p>
+            )}
+          </div>
+
+          <div>
+            <Label className="text-sm">{language === "es" ? "Modalidad" : "Modality"}</Label>
+            <Select value={formData.modality} onValueChange={(v) => setFormData({ ...formData, modality: v })}>
+              <SelectTrigger className="min-h-[44px]" data-testid="select-modality">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {MODALITIES.map((m) => (
+                  <SelectItem key={m.value} value={m.value} className="min-h-[44px]">
+                    {m.label[language]}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
         </div>
 
@@ -590,14 +624,36 @@ export default function PresentationCardsTab({ leadId, clientId, personName, lea
           </div>
 
           <div>
-            <Label className="text-sm">{language === "es" ? "Zona preferida" : "Preferred zone"}</Label>
-            <Input
-              value={formData.preferredZone}
-              onChange={(e) => setFormData({ ...formData, preferredZone: e.target.value })}
-              placeholder={language === "es" ? "Ej: Aldea Zama, Centro Tulum" : "E.g: Downtown, Beach area"}
-              className="min-h-[44px]"
-              data-testid="input-zone"
-            />
+            <Label className="text-sm">{language === "es" ? "Zona preferida (múltiple)" : "Preferred zone (multiple)"}</Label>
+            <div className="flex flex-wrap gap-1.5 mt-1.5" data-testid="multiselect-zone">
+              {(activeZones.length > 0 ? activeZones : [
+                { id: "aldea", name: "Aldea Zama" },
+                { id: "veleta", name: "La Veleta" },
+                { id: "centro", name: "Centro" },
+                { id: "region15", name: "Region 15" },
+              ]).map((zone) => (
+                <Badge
+                  key={zone.id}
+                  variant={selectedZones.includes(zone.name) ? "default" : "outline"}
+                  className="cursor-pointer min-h-[32px] px-3"
+                  onClick={() => {
+                    setSelectedZones(prev => 
+                      prev.includes(zone.name) 
+                        ? prev.filter(z => z !== zone.name) 
+                        : [...prev, zone.name]
+                    );
+                  }}
+                  data-testid={`badge-zone-${zone.id}`}
+                >
+                  {zone.name}
+                </Badge>
+              ))}
+            </div>
+            {selectedZones.length > 0 && (
+              <p className="text-xs text-muted-foreground mt-1">
+                {selectedZones.length} {language === "es" ? "seleccionado(s)" : "selected"}
+              </p>
+            )}
           </div>
 
           <div>
