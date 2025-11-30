@@ -27092,14 +27092,22 @@ ${{precio}}/mes
       const priceMax = unitPrice * 1.2;
 
       // Find matching leads based on preferences
+      const userId = req.user?.claims?.sub || req.user?.id;
+      const userRole = req.user?.cachedRole || req.user?.role;
+      
       const conditions = [
         eq(externalLeads.agencyId, agencyId),
         not(inArray(externalLeads.status, ['converted', 'renta_concretada', 'lost'])),
       ];
 
-      // Sellers only see their assigned leads
-      if (req.user.role === 'external_agency_seller') {
-        conditions.push(eq(externalLeads.sellerId, req.user.id));
+      // Sellers only see their own leads (assigned or created by them)
+      if (userRole === 'external_agency_seller' && userId) {
+        conditions.push(
+          or(
+            eq(externalLeads.sellerId, userId),
+            eq(externalLeads.createdBy, userId)
+          )!
+        );
       }
 
       const leads = await db.select({
