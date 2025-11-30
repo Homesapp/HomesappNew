@@ -56,6 +56,7 @@ import {
   Home,
   DollarSign,
   BedDouble,
+  Bath,
   Clock,
   PawPrint,
   User,
@@ -594,123 +595,350 @@ export default function ExternalLeadDetail() {
         </>
       )}
 
-      {/* Search Preferences */}
+      {/* Search Preferences - Now uses Active Presentation Card */}
       <div className="space-y-4">
-        <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wide flex items-center gap-2">
-          <Home className="h-4 w-4" />
-          {language === "es" ? "Preferencias de Búsqueda" : "Search Preferences"}
-        </h3>
-        
-        {/* Budget - Highlight Card */}
-        {(lead.budgetMin || lead.budgetMax) && (
-          <div className="flex items-center gap-3 p-3 rounded-lg bg-green-500/10 border border-green-500/20">
-            <div className="h-9 w-9 rounded-full bg-green-500/20 flex items-center justify-center shrink-0">
-              <DollarSign className="h-4 w-4 text-green-600" />
-            </div>
-            <div>
-              <p className="text-xs text-muted-foreground font-medium">
-                {language === "es" ? "Presupuesto" : "Budget"}
-              </p>
-              <p className="text-sm font-bold text-green-700 dark:text-green-400">
-                {formatBudgetRange(lead.budgetMin, lead.budgetMax)}
-              </p>
-            </div>
-          </div>
-        )}
-
-        {/* Property Preferences Grid */}
-        <div className="grid grid-cols-2 gap-2">
-          {(lead.bedrooms || lead.bedroomsText) && (
-            <div className="flex items-center gap-2 p-2.5 rounded-lg bg-muted/50 border">
-              <BedDouble className="h-4 w-4 text-blue-600 shrink-0" />
-              <div className="min-w-0">
-                <p className="text-[10px] text-muted-foreground uppercase tracking-wide">
-                  {language === "es" ? "Recámaras" : "Bedrooms"}
-                </p>
-                <p className="text-sm font-medium truncate">{lead.bedroomsText || lead.bedrooms}</p>
-              </div>
-            </div>
-          )}
-          {lead.desiredUnitType && (
-            <div className="flex items-center gap-2 p-2.5 rounded-lg bg-muted/50 border">
-              <Building2 className="h-4 w-4 text-purple-600 shrink-0" />
-              <div className="min-w-0">
-                <p className="text-[10px] text-muted-foreground uppercase tracking-wide">
-                  {language === "es" ? "Tipo" : "Type"}
-                </p>
-                <p className="text-sm font-medium truncate">{lead.desiredUnitType}</p>
-              </div>
-            </div>
-          )}
-          {lead.contractDuration && (
-            <div className="flex items-center gap-2 p-2.5 rounded-lg bg-muted/50 border">
-              <Clock className="h-4 w-4 text-teal-600 shrink-0" />
-              <div className="min-w-0">
-                <p className="text-[10px] text-muted-foreground uppercase tracking-wide">
-                  {language === "es" ? "Contrato" : "Contract"}
-                </p>
-                <p className="text-sm font-medium truncate">{lead.contractDuration}</p>
-              </div>
-            </div>
-          )}
-          {lead.hasPets && lead.hasPets !== "No" && (
-            <div className="flex items-center gap-2 p-2.5 rounded-lg bg-muted/50 border">
-              <PawPrint className="h-4 w-4 text-amber-600 shrink-0" />
-              <div className="min-w-0">
-                <p className="text-[10px] text-muted-foreground uppercase tracking-wide">
-                  {language === "es" ? "Mascotas" : "Pets"}
-                </p>
-                <p className="text-sm font-medium truncate">{lead.hasPets}</p>
-              </div>
-            </div>
+        <div className="flex items-center justify-between gap-2">
+          <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wide flex items-center gap-2">
+            <FileText className="h-4 w-4" />
+            {language === "es" ? "Perfil de Búsqueda" : "Search Profile"}
+          </h3>
+          {activeCard && (
+            <Badge variant="outline" className="text-[10px] font-medium gap-1">
+              {activeCard.isDefault && <Star className="h-2.5 w-2.5 text-amber-500 fill-amber-500" />}
+              {activeCard.title}
+            </Badge>
           )}
         </div>
+        
+        {activeCard ? (
+          <>
+            {/* Budget - Highlight Card */}
+            {(activeCard.minBudget || activeCard.maxBudget || activeCard.budgetText) && (
+              <div className="flex items-center gap-3 p-3 rounded-lg bg-green-500/10 border border-green-500/20">
+                <div className="h-9 w-9 rounded-full bg-green-500/20 flex items-center justify-center shrink-0">
+                  <DollarSign className="h-4 w-4 text-green-600" />
+                </div>
+                <div>
+                  <p className="text-xs text-muted-foreground font-medium">
+                    {language === "es" ? "Presupuesto" : "Budget"}
+                  </p>
+                  <p className="text-sm font-bold text-green-700 dark:text-green-400">
+                    {activeCard.budgetText || formatBudgetRange(activeCard.minBudget, activeCard.maxBudget)}
+                  </p>
+                </div>
+              </div>
+            )}
 
-        {/* Zone/Location */}
-        {lead.desiredNeighborhood && (
-          <div className="flex items-center gap-3 p-3 rounded-lg bg-muted/50 border">
-            <div className="h-9 w-9 rounded-full bg-orange-500/10 flex items-center justify-center shrink-0">
-              <MapPin className="h-4 w-4 text-orange-600" />
+            {/* Property Preferences Grid */}
+            <div className="grid grid-cols-2 gap-2">
+              {(activeCard.bedrooms || activeCard.bedroomsText) && (
+                <div className="flex items-center gap-2 p-2.5 rounded-lg bg-muted/50 border">
+                  <BedDouble className="h-4 w-4 text-blue-600 shrink-0" />
+                  <div className="min-w-0">
+                    <p className="text-[10px] text-muted-foreground uppercase tracking-wide">
+                      {language === "es" ? "Recámaras" : "Bedrooms"}
+                    </p>
+                    <p className="text-sm font-medium truncate">{activeCard.bedroomsText || activeCard.bedrooms}</p>
+                  </div>
+                </div>
+              )}
+              {activeCard.propertyType && (
+                <div className="flex items-center gap-2 p-2.5 rounded-lg bg-muted/50 border">
+                  <Building2 className="h-4 w-4 text-purple-600 shrink-0" />
+                  <div className="min-w-0">
+                    <p className="text-[10px] text-muted-foreground uppercase tracking-wide">
+                      {language === "es" ? "Tipo" : "Type"}
+                    </p>
+                    <p className="text-sm font-medium truncate">{activeCard.propertyType}</p>
+                  </div>
+                </div>
+              )}
+              {activeCard.contractDuration && (
+                <div className="flex items-center gap-2 p-2.5 rounded-lg bg-muted/50 border">
+                  <Clock className="h-4 w-4 text-teal-600 shrink-0" />
+                  <div className="min-w-0">
+                    <p className="text-[10px] text-muted-foreground uppercase tracking-wide">
+                      {language === "es" ? "Contrato" : "Contract"}
+                    </p>
+                    <p className="text-sm font-medium truncate">{activeCard.contractDuration}</p>
+                  </div>
+                </div>
+              )}
+              {activeCard.hasPets && (
+                <div className="flex items-center gap-2 p-2.5 rounded-lg bg-muted/50 border">
+                  <PawPrint className="h-4 w-4 text-amber-600 shrink-0" />
+                  <div className="min-w-0">
+                    <p className="text-[10px] text-muted-foreground uppercase tracking-wide">
+                      {language === "es" ? "Mascotas" : "Pets"}
+                    </p>
+                    <p className="text-sm font-medium truncate">
+                      {activeCard.petsDescription || (language === "es" ? "Sí" : "Yes")}
+                    </p>
+                  </div>
+                </div>
+              )}
+              {activeCard.bathrooms && (
+                <div className="flex items-center gap-2 p-2.5 rounded-lg bg-muted/50 border">
+                  <Bath className="h-4 w-4 text-cyan-600 shrink-0" />
+                  <div className="min-w-0">
+                    <p className="text-[10px] text-muted-foreground uppercase tracking-wide">
+                      {language === "es" ? "Baños" : "Bathrooms"}
+                    </p>
+                    <p className="text-sm font-medium truncate">{activeCard.bathrooms}</p>
+                  </div>
+                </div>
+              )}
             </div>
-            <div className="min-w-0">
-              <p className="text-xs text-muted-foreground font-medium">
-                {language === "es" ? "Zona Preferida" : "Preferred Zone"}
+
+            {/* Zone/Location */}
+            {activeCard.preferredZone && (
+              <div className="flex items-center gap-3 p-3 rounded-lg bg-muted/50 border">
+                <div className="h-9 w-9 rounded-full bg-orange-500/10 flex items-center justify-center shrink-0">
+                  <MapPin className="h-4 w-4 text-orange-600" />
+                </div>
+                <div className="min-w-0">
+                  <p className="text-xs text-muted-foreground font-medium">
+                    {language === "es" ? "Zona Preferida" : "Preferred Zone"}
+                  </p>
+                  <p className="text-sm font-medium">{activeCard.preferredZone}</p>
+                </div>
+              </div>
+            )}
+
+            {/* Move-in Date from Card */}
+            {(activeCard.moveInDateText || activeCard.moveInDate) && (
+              <div className="bg-primary/5 border border-primary/20 rounded-lg p-3 space-y-1">
+                <div className="text-xs text-muted-foreground font-medium">
+                  {language === "es" ? "Fecha de Mudanza" : "Move-in Date"}
+                </div>
+                <div className="flex items-center gap-2 text-sm font-semibold text-primary">
+                  <CalendarIcon className="h-4 w-4" />
+                  <span>
+                    {activeCard.moveInDateText || (activeCard.moveInDate ? format(new Date(activeCard.moveInDate), "PPP", { locale: language === "es" ? es : enUS }) : "")}
+                  </span>
+                </div>
+              </div>
+            )}
+
+            {/* Desired Characteristics */}
+            {activeCard.desiredCharacteristics && activeCard.desiredCharacteristics.length > 0 && (
+              <div className="space-y-2">
+                <div className="text-xs text-muted-foreground font-semibold uppercase tracking-wide">
+                  {language === "es" ? "Características" : "Features"}
+                </div>
+                <div className="flex flex-wrap gap-1.5">
+                  {activeCard.desiredCharacteristics.map((charId) => (
+                    <Badge key={charId} variant="secondary" className="text-xs font-medium">
+                      {getCharacteristicName(charId)}
+                    </Badge>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Desired Amenities */}
+            {activeCard.desiredAmenities && activeCard.desiredAmenities.length > 0 && (
+              <div className="space-y-2">
+                <div className="text-xs text-muted-foreground font-semibold uppercase tracking-wide">
+                  {language === "es" ? "Amenidades" : "Amenities"}
+                </div>
+                <div className="flex flex-wrap gap-1.5">
+                  {activeCard.desiredAmenities.map((amenityId) => (
+                    <Badge key={amenityId} variant="outline" className="text-xs font-medium">
+                      {getAmenityName(amenityId)}
+                    </Badge>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Specific Property if mentioned */}
+            {activeCard.specificProperty && (
+              <div className="flex items-center gap-3 p-3 rounded-lg bg-amber-500/10 border border-amber-500/20">
+                <div className="h-9 w-9 rounded-full bg-amber-500/20 flex items-center justify-center shrink-0">
+                  <Home className="h-4 w-4 text-amber-600" />
+                </div>
+                <div className="min-w-0">
+                  <p className="text-xs text-muted-foreground font-medium">
+                    {language === "es" ? "Propiedad Específica" : "Specific Property"}
+                  </p>
+                  <p className="text-sm font-medium">{activeCard.specificProperty}</p>
+                </div>
+              </div>
+            )}
+
+            {/* Card Stats */}
+            <div className="flex items-center justify-between text-xs text-muted-foreground pt-1">
+              <div className="flex items-center gap-1">
+                <Eye className="h-3.5 w-3.5" />
+                <span>{activeCard.usageCount || 0} {language === "es" ? "usos" : "uses"}</span>
+              </div>
+              {presentationCards && presentationCards.length > 1 && (
+                <span className="text-muted-foreground/70">
+                  {presentationCards.length} {language === "es" ? "tarjetas" : "cards"}
+                </span>
+              )}
+            </div>
+          </>
+        ) : (
+          /* No Active Card - Show legacy lead preferences as fallback OR empty state */
+          (lead.budgetMin || lead.budgetMax || lead.bedrooms || lead.desiredUnitType || lead.desiredNeighborhood) ? (
+            <>
+              <div className="text-xs text-muted-foreground bg-muted/30 rounded-md px-2 py-1.5 mb-2">
+                {language === "es" 
+                  ? "Preferencias del registro. Crea una tarjeta para gestionar mejor."
+                  : "Registration preferences. Create a card for better management."}
+              </div>
+              
+              {/* Budget - Highlight Card */}
+              {(lead.budgetMin || lead.budgetMax) && (
+                <div className="flex items-center gap-3 p-3 rounded-lg bg-green-500/10 border border-green-500/20">
+                  <div className="h-9 w-9 rounded-full bg-green-500/20 flex items-center justify-center shrink-0">
+                    <DollarSign className="h-4 w-4 text-green-600" />
+                  </div>
+                  <div>
+                    <p className="text-xs text-muted-foreground font-medium">
+                      {language === "es" ? "Presupuesto" : "Budget"}
+                    </p>
+                    <p className="text-sm font-bold text-green-700 dark:text-green-400">
+                      {formatBudgetRange(lead.budgetMin, lead.budgetMax)}
+                    </p>
+                  </div>
+                </div>
+              )}
+
+              {/* Property Preferences Grid */}
+              <div className="grid grid-cols-2 gap-2">
+                {(lead.bedrooms || lead.bedroomsText) && (
+                  <div className="flex items-center gap-2 p-2.5 rounded-lg bg-muted/50 border">
+                    <BedDouble className="h-4 w-4 text-blue-600 shrink-0" />
+                    <div className="min-w-0">
+                      <p className="text-[10px] text-muted-foreground uppercase tracking-wide">
+                        {language === "es" ? "Recámaras" : "Bedrooms"}
+                      </p>
+                      <p className="text-sm font-medium truncate">{lead.bedroomsText || lead.bedrooms}</p>
+                    </div>
+                  </div>
+                )}
+                {lead.desiredUnitType && (
+                  <div className="flex items-center gap-2 p-2.5 rounded-lg bg-muted/50 border">
+                    <Building2 className="h-4 w-4 text-purple-600 shrink-0" />
+                    <div className="min-w-0">
+                      <p className="text-[10px] text-muted-foreground uppercase tracking-wide">
+                        {language === "es" ? "Tipo" : "Type"}
+                      </p>
+                      <p className="text-sm font-medium truncate">{lead.desiredUnitType}</p>
+                    </div>
+                  </div>
+                )}
+                {lead.contractDuration && (
+                  <div className="flex items-center gap-2 p-2.5 rounded-lg bg-muted/50 border">
+                    <Clock className="h-4 w-4 text-teal-600 shrink-0" />
+                    <div className="min-w-0">
+                      <p className="text-[10px] text-muted-foreground uppercase tracking-wide">
+                        {language === "es" ? "Contrato" : "Contract"}
+                      </p>
+                      <p className="text-sm font-medium truncate">{lead.contractDuration}</p>
+                    </div>
+                  </div>
+                )}
+                {lead.hasPets && lead.hasPets !== "No" && (
+                  <div className="flex items-center gap-2 p-2.5 rounded-lg bg-muted/50 border">
+                    <PawPrint className="h-4 w-4 text-amber-600 shrink-0" />
+                    <div className="min-w-0">
+                      <p className="text-[10px] text-muted-foreground uppercase tracking-wide">
+                        {language === "es" ? "Mascotas" : "Pets"}
+                      </p>
+                      <p className="text-sm font-medium truncate">{lead.hasPets}</p>
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* Zone/Location */}
+              {lead.desiredNeighborhood && (
+                <div className="flex items-center gap-3 p-3 rounded-lg bg-muted/50 border">
+                  <div className="h-9 w-9 rounded-full bg-orange-500/10 flex items-center justify-center shrink-0">
+                    <MapPin className="h-4 w-4 text-orange-600" />
+                  </div>
+                  <div className="min-w-0">
+                    <p className="text-xs text-muted-foreground font-medium">
+                      {language === "es" ? "Zona Preferida" : "Preferred Zone"}
+                    </p>
+                    <p className="text-sm font-medium">{lead.desiredNeighborhood}</p>
+                  </div>
+                </div>
+              )}
+
+              {/* Desired Characteristics */}
+              {lead.desiredCharacteristics && lead.desiredCharacteristics.length > 0 && (
+                <div className="space-y-2">
+                  <div className="text-xs text-muted-foreground font-semibold uppercase tracking-wide">
+                    {language === "es" ? "Características" : "Features"}
+                  </div>
+                  <div className="flex flex-wrap gap-1.5">
+                    {lead.desiredCharacteristics.map((charId) => (
+                      <Badge key={charId} variant="secondary" className="text-xs font-medium">
+                        {getCharacteristicName(charId)}
+                      </Badge>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Desired Amenities */}
+              {lead.desiredAmenities && lead.desiredAmenities.length > 0 && (
+                <div className="space-y-2">
+                  <div className="text-xs text-muted-foreground font-semibold uppercase tracking-wide">
+                    {language === "es" ? "Amenidades" : "Amenities"}
+                  </div>
+                  <div className="flex flex-wrap gap-1.5">
+                    {lead.desiredAmenities.map((amenityId) => (
+                      <Badge key={amenityId} variant="outline" className="text-xs font-medium">
+                        {getAmenityName(amenityId)}
+                      </Badge>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Create Card CTA */}
+              <Button
+                size="sm"
+                variant="outline"
+                className="w-full"
+                onClick={() => createCardFromPreferencesMutation.mutate()}
+                disabled={createCardFromPreferencesMutation.isPending}
+                data-testid="button-create-card-from-preferences"
+              >
+                {createCardFromPreferencesMutation.isPending ? (
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                ) : (
+                  <Plus className="h-4 w-4 mr-2" />
+                )}
+                {language === "es" 
+                  ? "Crear Tarjeta" 
+                  : "Create Card"}
+              </Button>
+            </>
+          ) : (
+            /* Completely empty - no card and no legacy preferences */
+            <div className="text-center py-5 px-4 border rounded-lg border-dashed space-y-3 bg-muted/20">
+              <div className="h-10 w-10 rounded-full bg-muted mx-auto flex items-center justify-center">
+                <FileText className="h-5 w-5 text-muted-foreground" />
+              </div>
+              <p className="text-sm text-muted-foreground">
+                {language === "es" 
+                  ? "Sin preferencias de búsqueda" 
+                  : "No search preferences"}
               </p>
-              <p className="text-sm font-medium">{lead.desiredNeighborhood}</p>
+              <p className="text-xs text-muted-foreground">
+                {language === "es" 
+                  ? "Crea una tarjeta en la pestaña Tarjetas" 
+                  : "Create a card in the Cards tab"}
+              </p>
             </div>
-          </div>
-        )}
-
-        {/* Desired Characteristics */}
-        {lead.desiredCharacteristics && lead.desiredCharacteristics.length > 0 && (
-          <div className="space-y-2">
-            <div className="text-xs text-muted-foreground font-semibold uppercase tracking-wide">
-              {language === "es" ? "Características" : "Features"}
-            </div>
-            <div className="flex flex-wrap gap-1.5">
-              {lead.desiredCharacteristics.map((charId) => (
-                <Badge key={charId} variant="secondary" className="text-xs font-medium">
-                  {getCharacteristicName(charId)}
-                </Badge>
-              ))}
-            </div>
-          </div>
-        )}
-
-        {/* Desired Amenities */}
-        {lead.desiredAmenities && lead.desiredAmenities.length > 0 && (
-          <div className="space-y-2">
-            <div className="text-xs text-muted-foreground font-semibold uppercase tracking-wide">
-              {language === "es" ? "Amenidades" : "Amenities"}
-            </div>
-            <div className="flex flex-wrap gap-1.5">
-              {lead.desiredAmenities.map((amenityId) => (
-                <Badge key={amenityId} variant="outline" className="text-xs font-medium">
-                  {getAmenityName(amenityId)}
-                </Badge>
-              ))}
-            </div>
-          </div>
+          )
         )}
       </div>
 
@@ -731,92 +959,6 @@ export default function ExternalLeadDetail() {
           </div>
         </>
       )}
-
-      <Separator />
-
-      {/* Chosen Presentation Card */}
-      <div className="space-y-3">
-        <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wide flex items-center gap-2">
-          <FileText className="h-4 w-4" />
-          {activeCard?.isDefault 
-            ? (language === "es" ? "Tarjeta Elegida" : "Chosen Card")
-            : (language === "es" ? "Tarjeta de Presentación" : "Presentation Card")
-          }
-        </h3>
-        
-        {activeCard ? (
-          <div className="p-3 rounded-lg border border-primary/30 bg-primary/5 space-y-2.5">
-            <div className="flex items-center justify-between gap-2">
-              <span className="font-semibold text-sm">{activeCard.title}</span>
-              {activeCard.isDefault && (
-                <Star className="h-4 w-4 text-amber-500 fill-amber-500 shrink-0" />
-              )}
-            </div>
-            <div className="flex flex-wrap gap-3 text-xs text-muted-foreground">
-              {activeCard.propertyType && (
-                <div className="flex items-center gap-1.5">
-                  <Home className="h-3.5 w-3.5" />
-                  <span>{activeCard.propertyType}</span>
-                </div>
-              )}
-              {(activeCard.minBudget || activeCard.maxBudget) && (
-                <div className="flex items-center gap-1.5">
-                  <DollarSign className="h-3.5 w-3.5" />
-                  <span>{formatBudgetRange(activeCard.minBudget, activeCard.maxBudget)}</span>
-                </div>
-              )}
-              {(activeCard.bedrooms || activeCard.bedroomsText || activeCard.bathrooms) && (
-                <div className="flex items-center gap-1.5">
-                  <BedDouble className="h-3.5 w-3.5" />
-                  <span>
-                    {(activeCard.bedrooms || activeCard.bedroomsText) && `${activeCard.bedroomsText || activeCard.bedrooms} ${language === "es" ? "rec." : "bed."}`}
-                    {(activeCard.bedrooms || activeCard.bedroomsText) && activeCard.bathrooms && " • "}
-                    {activeCard.bathrooms && `${activeCard.bathrooms} ${language === "es" ? "baños" : "bath."}`}
-                  </span>
-                </div>
-              )}
-              <div className="flex items-center gap-1.5">
-                <Eye className="h-3.5 w-3.5" />
-                <span>{activeCard.usageCount || 0} {language === "es" ? "usos" : "uses"}</span>
-              </div>
-            </div>
-          </div>
-        ) : (
-          <div className="text-center py-5 px-4 border rounded-lg border-dashed space-y-3 bg-muted/20">
-            <div className="h-10 w-10 rounded-full bg-muted mx-auto flex items-center justify-center">
-              <FileText className="h-5 w-5 text-muted-foreground" />
-            </div>
-            <p className="text-sm text-muted-foreground">
-              {language === "es" 
-                ? "Sin tarjeta elegida" 
-                : "No card chosen"}
-            </p>
-            <p className="text-xs text-muted-foreground">
-              {language === "es" 
-                ? "Elige una tarjeta en la pestaña Tarjetas" 
-                : "Choose a card in the Cards tab"}
-            </p>
-            {presentationCards?.length === 0 && (
-              <Button
-                size="sm"
-                variant="outline"
-                onClick={() => createCardFromPreferencesMutation.mutate()}
-                disabled={createCardFromPreferencesMutation.isPending}
-                data-testid="button-create-card-from-preferences"
-              >
-                {createCardFromPreferencesMutation.isPending ? (
-                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                ) : (
-                  <Plus className="h-4 w-4 mr-2" />
-                )}
-                {language === "es" 
-                  ? "Crear desde Preferencias" 
-                  : "Create from Preferences"}
-              </Button>
-            )}
-          </div>
-        )}
-      </div>
 
       {/* Timestamps */}
       <Separator />
