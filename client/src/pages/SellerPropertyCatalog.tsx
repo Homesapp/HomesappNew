@@ -564,6 +564,11 @@ export default function SellerPropertyCatalog() {
   const filteredLeads = useMemo(() => {
     let result = [...allLeads];
     
+    // Exclude the currently selected lead from the list to avoid duplication
+    if (selectedLead) {
+      result = result.filter(lead => lead.id !== selectedLead.id);
+    }
+    
     if (leadSearch) {
       const searchLower = leadSearch.toLowerCase();
       result = result.filter(lead => 
@@ -585,7 +590,7 @@ export default function SellerPropertyCatalog() {
     });
     
     return result;
-  }, [allLeads, leadSearch, leadStatusFilter]);
+  }, [allLeads, leadSearch, leadStatusFilter, selectedLead]);
 
   const hasActiveFilters = Object.values(filters).some((v) => v && v !== "active");
 
