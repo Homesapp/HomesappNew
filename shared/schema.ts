@@ -8667,3 +8667,72 @@ export interface ChatbotMessage {
     cardId?: string;
   };
 }
+
+// =====================================================
+// Property Activity History - Track all activities on properties
+// =====================================================
+
+export const propertyActivityTypeEnum = pgEnum("property_activity_type", [
+  "offer_sent",
+  "offer_completed",
+  "offer_expired",
+  "rental_form_sent",
+  "rental_form_completed",
+  "rental_form_expired",
+  "appointment_scheduled",
+  "appointment_completed",
+  "appointment_cancelled",
+  "lead_interested",
+  "contract_started",
+  "contract_ended",
+  "showing_scheduled",
+  "showing_completed",
+]);
+
+export const externalPropertyActivityHistory = pgTable("external_property_activity_history", {
+  id: varchar("id").primaryKey().$defaultFn(() => crypto.randomUUID()),
+  agencyId: varchar("agency_id").notNull().references(() => externalAgencies.id, { onDelete: "cascade" }),
+  
+  unitId: varchar("unit_id").notNull().references(() => externalUnits.id, { onDelete: "cascade" }),
+  condominiumId: varchar("condominium_id").references(() => externalCondominiums.id, { onDelete: "set null" }),
+  
+  activityType: propertyActivityTypeEnum("activity_type").notNull(),
+  
+  leadId: varchar("lead_id").references(() => externalLeads.id, { onDelete: "set null" }),
+  leadName: varchar("lead_name", { length: 255 }),
+  
+  clientId: varchar("client_id").references(() => externalClients.id, { onDelete: "set null" }),
+  clientName: varchar("client_name", { length: 255 }),
+  
+  offerTokenId: varchar("offer_token_id").references(() => offerTokens.id, { onDelete: "set null" }),
+  appointmentId: varchar("appointment_id").references(() => externalAppointments.id, { onDelete: "set null" }),
+  showingId: varchar("showing_id").references(() => externalLeadShowings.id, { onDelete: "set null" }),
+  contractId: varchar("contract_id").references(() => externalRentalContracts.id, { onDelete: "set null" }),
+  
+  performedBy: varchar("performed_by").references(() => users.id, { onDelete: "set null" }),
+  performedByName: varchar("performed_by_name", { length: 255 }),
+  
+  details: jsonb("details").$type<{
+    recipientType?: "tenant" | "owner";
+    channel?: string;
+    status?: string;
+    notes?: string;
+    outcome?: string;
+  }>(),
+  
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+}, (table) => [
+  index("idx_property_activity_agency").on(table.agencyId),
+  index("idx_property_activity_unit").on(table.unitId),
+  index("idx_property_activity_condominium").on(table.condominiumId),
+  index("idx_property_activity_type").on(table.activityType),
+  index("idx_property_activity_lead").on(table.leadId),
+  index("idx_property_activity_client").on(table.clientId),
+  index("idx_property_activity_created").on(table.createdAt),
+]);
+
+export const insertExternalPropertyActivityHistorySchema = createInsertSchema(externalPropertyActivityHistory).omit({
+  id: true, createdAt: true,
+});
+export type InsertExternalPropertyActivityHistory = z.infer<typeof insertExternalPropertyActivityHistorySchema>;
+export type ExternalPropertyActivityHistory = typeof externalPropertyActivityHistory.$inferSelect;
