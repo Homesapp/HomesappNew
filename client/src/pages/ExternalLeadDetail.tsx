@@ -376,7 +376,7 @@ export default function ExternalLeadDetail() {
             </h1>
             <div className="flex items-center gap-2 flex-wrap">
               <Badge variant="outline" className="text-xs font-medium">
-                {lead.registrationType === "vendedor" 
+                {lead.registrationType === "seller" 
                   ? (language === "es" ? "Vendedor" : "Seller")
                   : (language === "es" ? "Broker" : "Broker")}
               </Badge>

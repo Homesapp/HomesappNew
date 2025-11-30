@@ -1,5 +1,6 @@
 import { Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { useIsMobile } from "@/hooks/use-mobile";
 
 interface LeadFloatingActionButtonProps {
   visible: boolean;
@@ -12,7 +13,10 @@ export function LeadFloatingActionButton({
   onClick,
   label = "Agregar",
 }: LeadFloatingActionButtonProps) {
-  if (!visible) return null;
+  const isMobile = useIsMobile();
+  
+  // Only show FAB on mobile devices
+  if (!visible || !isMobile) return null;
 
   return (
     <Button
