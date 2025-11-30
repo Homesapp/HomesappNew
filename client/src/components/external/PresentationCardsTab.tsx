@@ -270,6 +270,10 @@ export default function PresentationCardsTab({ leadId, clientId, personName, lea
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["presentation-cards", leadId || clientId] });
+      // Also invalidate the query used in ExternalLeadDetail sidebar
+      if (leadId) {
+        queryClient.invalidateQueries({ queryKey: ["/api/external/presentation-cards/lead", leadId] });
+      }
       handleDialogOpenChange(false);
       resetForm();
       toast({
@@ -289,16 +293,24 @@ export default function PresentationCardsTab({ leadId, clientId, personName, lea
   const updateMutation = useMutation({
     mutationFn: async ({ id, data }: { id: string; data: Partial<ExternalPresentationCard> }) => {
       const res = await apiRequest("PATCH", `/api/external/presentation-cards/${id}`, data);
-      return res.json();
+      return { result: await res.json(), wasSetAsDefault: data.isDefault === true };
     },
-    onSuccess: () => {
+    onSuccess: ({ wasSetAsDefault }) => {
       queryClient.invalidateQueries({ queryKey: ["presentation-cards", leadId || clientId] });
+      // Also invalidate the query used in ExternalLeadDetail sidebar
+      if (leadId) {
+        queryClient.invalidateQueries({ queryKey: ["/api/external/presentation-cards/lead", leadId] });
+      }
       setIsEditOpen(false);
       setSelectedCard(null);
       resetForm();
       toast({
-        title: language === "es" ? "Tarjeta actualizada" : "Card updated",
-        description: language === "es" ? "La tarjeta de presentacion se actualizo correctamente" : "Presentation card was updated successfully",
+        title: wasSetAsDefault 
+          ? (language === "es" ? "Tarjeta elegida" : "Card chosen")
+          : (language === "es" ? "Tarjeta actualizada" : "Card updated"),
+        description: wasSetAsDefault
+          ? (language === "es" ? "Esta tarjeta se usara para filtrar propiedades" : "This card will be used to filter properties")
+          : (language === "es" ? "La tarjeta de presentacion se actualizo correctamente" : "Presentation card was updated successfully"),
       });
     },
     onError: () => {
@@ -317,6 +329,10 @@ export default function PresentationCardsTab({ leadId, clientId, personName, lea
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["presentation-cards", leadId || clientId] });
+      // Also invalidate the query used in ExternalLeadDetail sidebar
+      if (leadId) {
+        queryClient.invalidateQueries({ queryKey: ["/api/external/presentation-cards/lead", leadId] });
+      }
       toast({
         title: language === "es" ? "Tarjeta eliminada" : "Card deleted",
         description: language === "es" ? "La tarjeta de presentacion se elimino correctamente" : "Presentation card was deleted successfully",
@@ -1017,7 +1033,7 @@ export default function PresentationCardsTab({ leadId, clientId, personName, lea
                         {!card.isDefault && (
                           <DropdownMenuItem onClick={() => setAsDefault(card)} className="min-h-[44px]">
                             <Star className="w-4 h-4 mr-2" />
-                            {language === "es" ? "Establecer como activa" : "Set as active"}
+                            {language === "es" ? "Elegir Tarjeta" : "Choose Card"}
                           </DropdownMenuItem>
                         )}
                         <DropdownMenuItem onClick={() => toggleStatus(card)} className="min-h-[44px]">

@@ -659,11 +659,14 @@ export default function ExternalLeadDetail() {
 
       <Separator />
 
-      {/* Active Presentation Card */}
+      {/* Chosen Presentation Card */}
       <div className="space-y-3">
         <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wide flex items-center gap-2">
           <FileText className="h-4 w-4" />
-          {language === "es" ? "Tarjeta de Presentación" : "Presentation Card"}
+          {activeCard?.isDefault 
+            ? (language === "es" ? "Tarjeta Elegida" : "Chosen Card")
+            : (language === "es" ? "Tarjeta de Presentación" : "Presentation Card")
+          }
         </h3>
         
         {activeCard ? (
@@ -710,25 +713,32 @@ export default function ExternalLeadDetail() {
             </div>
             <p className="text-sm text-muted-foreground">
               {language === "es" 
-                ? "Sin tarjeta de presentación" 
-                : "No presentation card"}
+                ? "Sin tarjeta elegida" 
+                : "No card chosen"}
             </p>
-            <Button
-              size="sm"
-              variant="outline"
-              onClick={() => createCardFromPreferencesMutation.mutate()}
-              disabled={createCardFromPreferencesMutation.isPending}
-              data-testid="button-create-card-from-preferences"
-            >
-              {createCardFromPreferencesMutation.isPending ? (
-                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-              ) : (
-                <Plus className="h-4 w-4 mr-2" />
-              )}
+            <p className="text-xs text-muted-foreground">
               {language === "es" 
-                ? "Crear desde Preferencias" 
-                : "Create from Preferences"}
-            </Button>
+                ? "Elige una tarjeta en la pestaña Tarjetas" 
+                : "Choose a card in the Cards tab"}
+            </p>
+            {presentationCards?.length === 0 && (
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={() => createCardFromPreferencesMutation.mutate()}
+                disabled={createCardFromPreferencesMutation.isPending}
+                data-testid="button-create-card-from-preferences"
+              >
+                {createCardFromPreferencesMutation.isPending ? (
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                ) : (
+                  <Plus className="h-4 w-4 mr-2" />
+                )}
+                {language === "es" 
+                  ? "Crear desde Preferencias" 
+                  : "Create from Preferences"}
+              </Button>
+            )}
           </div>
         )}
       </div>
