@@ -8,6 +8,7 @@ import {
   ArrowRight,
 } from "lucide-react";
 import { useLanguage } from "@/contexts/LanguageContext";
+import { LeadEmptyState } from "./LeadEmptyState";
 
 interface LeadStatusHistoryTabProps {
   leadId: string;
@@ -118,17 +119,12 @@ export default function LeadStatusHistoryTab({ leadId }: LeadStatusHistoryTabPro
           </div>
         </div>
       ) : (
-        <div className="text-center py-8 text-muted-foreground border rounded-lg border-dashed bg-muted/20">
-          <div className="h-12 w-12 rounded-full bg-muted mx-auto flex items-center justify-center mb-4">
-            <History className="h-6 w-6 text-muted-foreground" />
-          </div>
-          <p className="text-sm">{language === "es" ? "No hay historial de estados" : "No status history"}</p>
-          <p className="text-xs text-muted-foreground/70 mt-1">
-            {language === "es" 
-              ? "El historial se creará automáticamente" 
-              : "History will be created automatically"}
-          </p>
-        </div>
+        <LeadEmptyState
+          icon={History}
+          title={language === "es" ? "No hay historial" : "No history"}
+          description={language === "es" ? "El historial de estados se creará automáticamente al cambiar el estado del lead" : "Status history will be created automatically when the lead status changes"}
+          showAction={false}
+        />
       )}
     </div>
   );

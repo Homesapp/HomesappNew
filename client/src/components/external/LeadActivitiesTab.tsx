@@ -36,6 +36,7 @@ import {
 import { useLanguage } from "@/contexts/LanguageContext";
 import { useToast } from "@/hooks/use-toast";
 import { queryClient, apiRequest } from "@/lib/queryClient";
+import { LeadEmptyState } from "./LeadEmptyState";
 
 interface LeadActivitiesTabProps {
   leadId: string;
@@ -186,22 +187,15 @@ export default function LeadActivitiesTab({ leadId }: LeadActivitiesTabProps) {
           })}
         </div>
       ) : (
-        <div className="text-center py-8 text-muted-foreground border rounded-lg border-dashed bg-muted/20">
-          <div className="h-12 w-12 rounded-full bg-muted mx-auto flex items-center justify-center mb-4">
-            <Activity className="h-6 w-6 text-muted-foreground" />
-          </div>
-          <p className="text-sm">{language === "es" ? "No hay actividades registradas" : "No activities recorded"}</p>
-          <Button
-            variant="outline"
-            size="sm"
-            className="mt-4"
-            onClick={() => setIsAddActivityOpen(true)}
-            data-testid="button-add-first-activity"
-          >
-            <Plus className="h-4 w-4 mr-1" />
-            {language === "es" ? "Registrar primera actividad" : "Record first activity"}
-          </Button>
-        </div>
+        <LeadEmptyState
+          icon={Activity}
+          title={language === "es" ? "No hay actividades" : "No activities"}
+          description={language === "es" ? "Registra llamadas, correos y reuniones con este lead" : "Record calls, emails and meetings with this lead"}
+          actionLabel={language === "es" ? "Registrar actividad" : "Record activity"}
+          actionIcon={Plus}
+          onAction={() => setIsAddActivityOpen(true)}
+          actionTestId="button-add-first-activity"
+        />
       )}
 
       {/* Add Activity Dialog */}

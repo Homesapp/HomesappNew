@@ -41,6 +41,7 @@ import { useLanguage } from "@/contexts/LanguageContext";
 import { useToast } from "@/hooks/use-toast";
 import { queryClient, apiRequest } from "@/lib/queryClient";
 import { SearchableSelect } from "@/components/ui/searchable-select";
+import { LeadEmptyState } from "./LeadEmptyState";
 import type { ExternalLead, ExternalUnit, ExternalCondominium, ExternalUnitWithCondominium } from "@shared/schema";
 
 interface LeadRentalFormsTabProps {
@@ -350,28 +351,15 @@ export default function LeadRentalFormsTab({ lead }: LeadRentalFormsTabProps) {
           ))}
         </div>
       ) : (
-        <Card className="border-dashed">
-          <CardContent className="text-center py-8">
-            <div className="h-12 w-12 rounded-full bg-muted mx-auto flex items-center justify-center mb-4">
-              <FileText className="h-6 w-6 text-muted-foreground" />
-            </div>
-            <p className="text-muted-foreground text-sm">
-              {language === "es" 
-                ? "No hay formatos de renta enviados" 
-                : "No rental forms sent yet"}
-            </p>
-            <Button
-              variant="outline"
-              size="sm"
-              className="mt-4"
-              onClick={() => setIsDialogOpen(true)}
-              data-testid="button-send-first-form"
-            >
-              <Plus className="h-4 w-4 mr-1" />
-              {language === "es" ? "Enviar primer formato" : "Send first form"}
-            </Button>
-          </CardContent>
-        </Card>
+        <LeadEmptyState
+          icon={FileText}
+          title={language === "es" ? "No hay formatos" : "No forms"}
+          description={language === "es" ? "Envía el formato de renta para recopilar información del inquilino" : "Send rental forms to collect tenant information"}
+          actionLabel={language === "es" ? "Enviar formato" : "Send form"}
+          actionIcon={Plus}
+          onAction={() => setIsDialogOpen(true)}
+          actionTestId="button-send-first-form"
+        />
       )}
 
       <Dialog open={isDialogOpen} onOpenChange={handleDialogClose}>

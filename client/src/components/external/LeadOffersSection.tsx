@@ -31,6 +31,7 @@ import { useLanguage } from "@/contexts/LanguageContext";
 import { useToast } from "@/hooks/use-toast";
 import { queryClient, apiRequest } from "@/lib/queryClient";
 import { SearchableSelect } from "@/components/ui/searchable-select";
+import { LeadEmptyState } from "./LeadEmptyState";
 import type { ExternalLead, ExternalUnitWithCondominium } from "@shared/schema";
 
 interface LeadOffersSectionProps {
@@ -237,26 +238,15 @@ export default function LeadOffersSection({ lead }: LeadOffersSectionProps) {
           ))}
         </div>
       ) : (
-        <Card className="border-dashed">
-          <CardContent className="text-center py-8">
-            <div className="h-12 w-12 rounded-full bg-muted mx-auto flex items-center justify-center mb-4">
-              <Send className="h-6 w-6 text-muted-foreground" />
-            </div>
-            <p className="text-muted-foreground text-sm">
-              {language === "es" ? "No hay ofertas enviadas" : "No offers sent yet"}
-            </p>
-            <Button
-              variant="outline"
-              size="sm"
-              className="mt-4"
-              onClick={() => setIsOfferDialogOpen(true)}
-              data-testid="button-send-first-offer"
-            >
-              <Plus className="h-4 w-4 mr-1" />
-              {language === "es" ? "Enviar primera oferta" : "Send first offer"}
-            </Button>
-          </CardContent>
-        </Card>
+        <LeadEmptyState
+          icon={Send}
+          title={language === "es" ? "No hay ofertas" : "No offers"}
+          description={language === "es" ? "Envía propiedades a este lead para generar interés" : "Send properties to this lead to generate interest"}
+          actionLabel={language === "es" ? "Enviar oferta" : "Send offer"}
+          actionIcon={Plus}
+          onAction={() => setIsOfferDialogOpen(true)}
+          actionTestId="button-send-first-offer"
+        />
       )}
 
       {/* Generate Offer Dialog */}

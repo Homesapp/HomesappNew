@@ -55,6 +55,7 @@ import { queryClient, apiRequest } from "@/lib/queryClient";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
+import { LeadEmptyState } from "./LeadEmptyState";
 
 interface LeadRemindersTabProps {
   leadId: string;
@@ -273,31 +274,15 @@ export default function LeadRemindersTab({ leadId, leadName }: LeadRemindersTabP
       </div>
 
       {pendingReminders.length === 0 && completedReminders.length === 0 ? (
-        <Card className="border-dashed">
-          <CardContent className="flex flex-col items-center justify-center py-8 text-center">
-            <div className="h-12 w-12 rounded-full bg-muted flex items-center justify-center mb-4">
-              <Bell className="h-6 w-6 text-muted-foreground" />
-            </div>
-            <h4 className="font-medium text-muted-foreground">
-              {language === "es" ? "Sin recordatorios" : "No reminders"}
-            </h4>
-            <p className="text-sm text-muted-foreground mt-1">
-              {language === "es"
-                ? "Crea un recordatorio para dar seguimiento a este lead"
-                : "Create a reminder to follow up with this lead"}
-            </p>
-            <Button
-              variant="outline"
-              size="sm"
-              className="mt-4"
-              onClick={openNew}
-              data-testid="button-add-first-reminder"
-            >
-              <Plus className="h-4 w-4 mr-1" />
-              {language === "es" ? "Agregar recordatorio" : "Add reminder"}
-            </Button>
-          </CardContent>
-        </Card>
+        <LeadEmptyState
+          icon={Bell}
+          title={language === "es" ? "No hay recordatorios" : "No reminders"}
+          description={language === "es" ? "Crea recordatorios para dar seguimiento a este lead" : "Create reminders to follow up with this lead"}
+          actionLabel={language === "es" ? "Agregar recordatorio" : "Add reminder"}
+          actionIcon={Plus}
+          onAction={openNew}
+          actionTestId="button-add-first-reminder"
+        />
       ) : (
         <div className="space-y-4">
           {pendingReminders.length > 0 && (

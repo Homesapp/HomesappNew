@@ -791,46 +791,72 @@ export default function ExternalLeadDetail() {
       {/* Main Content Area */}
       <div className="flex-1 flex flex-col overflow-hidden min-w-0">
         <Tabs value={activeTab} onValueChange={setActiveTab} className="flex-1 flex flex-col">
-          <div className="border-b px-2 sm:px-4 py-2 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 overflow-x-auto">
-            <TabsList className="inline-flex w-auto min-w-full sm:grid sm:grid-cols-7 sm:w-full sm:max-w-3xl gap-0.5 sm:gap-1">
-              <TabsTrigger value="cards" className="flex items-center gap-1 sm:gap-2 px-2 sm:px-3 text-xs sm:text-sm" data-testid="tab-cards">
-                <FileText className="h-4 w-4 shrink-0" />
-                <span className="hidden md:inline">{language === "es" ? "Tarjetas" : "Cards"}</span>
-              </TabsTrigger>
-              <TabsTrigger value="offers" className="flex items-center gap-1 sm:gap-2 px-2 sm:px-3 text-xs sm:text-sm" data-testid="tab-offers">
-                <Send className="h-4 w-4 shrink-0" />
-                <span className="hidden md:inline">{language === "es" ? "Ofertas" : "Offers"}</span>
-              </TabsTrigger>
-              <TabsTrigger 
-                value="forms" 
-                className="flex items-center gap-1 sm:gap-2 px-2 sm:px-3 text-xs sm:text-sm"
-                disabled={!isInterestedStatus}
-                data-testid="tab-forms"
-              >
-                {isInterestedStatus ? (
+          <div className="border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
+            <div className="overflow-x-auto">
+              <TabsList className="w-full h-12 p-1 grid grid-cols-7 gap-1 rounded-none bg-transparent">
+                <TabsTrigger 
+                  value="cards" 
+                  className="flex items-center justify-center gap-2 px-3 py-2 text-sm font-medium rounded-md data-[state=active]:bg-primary data-[state=active]:text-primary-foreground" 
+                  data-testid="tab-cards"
+                >
                   <FileText className="h-4 w-4 shrink-0" />
-                ) : (
-                  <Lock className="h-3 w-3 text-muted-foreground shrink-0" />
-                )}
-                <span className="hidden md:inline">{language === "es" ? "Formatos" : "Forms"}</span>
-              </TabsTrigger>
-              <TabsTrigger value="activities" className="flex items-center gap-1 sm:gap-2 px-2 sm:px-3 text-xs sm:text-sm" data-testid="tab-activities">
-                <Activity className="h-4 w-4 shrink-0" />
-                <span className="hidden md:inline">{language === "es" ? "Actividades" : "Activities"}</span>
-              </TabsTrigger>
-              <TabsTrigger value="showings" className="flex items-center gap-1 sm:gap-2 px-2 sm:px-3 text-xs sm:text-sm" data-testid="tab-showings">
-                <Home className="h-4 w-4 shrink-0" />
-                <span className="hidden md:inline">{language === "es" ? "Visitas" : "Showings"}</span>
-              </TabsTrigger>
-              <TabsTrigger value="reminders" className="flex items-center gap-1 sm:gap-2 px-2 sm:px-3 text-xs sm:text-sm" data-testid="tab-reminders">
-                <Bell className="h-4 w-4 shrink-0" />
-                <span className="hidden md:inline">{language === "es" ? "Recordatorios" : "Reminders"}</span>
-              </TabsTrigger>
-              <TabsTrigger value="history" className="flex items-center gap-1 sm:gap-2 px-2 sm:px-3 text-xs sm:text-sm" data-testid="tab-history">
-                <History className="h-4 w-4 shrink-0" />
-                <span className="hidden md:inline">{language === "es" ? "Historial" : "History"}</span>
-              </TabsTrigger>
-            </TabsList>
+                  <span className="hidden lg:inline">{language === "es" ? "Tarjetas" : "Cards"}</span>
+                </TabsTrigger>
+                <TabsTrigger 
+                  value="offers" 
+                  className="flex items-center justify-center gap-2 px-3 py-2 text-sm font-medium rounded-md data-[state=active]:bg-primary data-[state=active]:text-primary-foreground" 
+                  data-testid="tab-offers"
+                >
+                  <Send className="h-4 w-4 shrink-0" />
+                  <span className="hidden lg:inline">{language === "es" ? "Ofertas" : "Offers"}</span>
+                </TabsTrigger>
+                <TabsTrigger 
+                  value="forms" 
+                  className="flex items-center justify-center gap-2 px-3 py-2 text-sm font-medium rounded-md data-[state=active]:bg-primary data-[state=active]:text-primary-foreground disabled:opacity-50"
+                  disabled={!isInterestedStatus}
+                  data-testid="tab-forms"
+                >
+                  {isInterestedStatus ? (
+                    <FileText className="h-4 w-4 shrink-0" />
+                  ) : (
+                    <Lock className="h-4 w-4 shrink-0" />
+                  )}
+                  <span className="hidden lg:inline">{language === "es" ? "Formatos" : "Forms"}</span>
+                </TabsTrigger>
+                <TabsTrigger 
+                  value="activities" 
+                  className="flex items-center justify-center gap-2 px-3 py-2 text-sm font-medium rounded-md data-[state=active]:bg-primary data-[state=active]:text-primary-foreground" 
+                  data-testid="tab-activities"
+                >
+                  <Activity className="h-4 w-4 shrink-0" />
+                  <span className="hidden lg:inline">{language === "es" ? "Actividades" : "Activities"}</span>
+                </TabsTrigger>
+                <TabsTrigger 
+                  value="showings" 
+                  className="flex items-center justify-center gap-2 px-3 py-2 text-sm font-medium rounded-md data-[state=active]:bg-primary data-[state=active]:text-primary-foreground" 
+                  data-testid="tab-showings"
+                >
+                  <Home className="h-4 w-4 shrink-0" />
+                  <span className="hidden lg:inline">{language === "es" ? "Visitas" : "Showings"}</span>
+                </TabsTrigger>
+                <TabsTrigger 
+                  value="reminders" 
+                  className="flex items-center justify-center gap-2 px-3 py-2 text-sm font-medium rounded-md data-[state=active]:bg-primary data-[state=active]:text-primary-foreground" 
+                  data-testid="tab-reminders"
+                >
+                  <Bell className="h-4 w-4 shrink-0" />
+                  <span className="hidden lg:inline">{language === "es" ? "Recordatorios" : "Reminders"}</span>
+                </TabsTrigger>
+                <TabsTrigger 
+                  value="history" 
+                  className="flex items-center justify-center gap-2 px-3 py-2 text-sm font-medium rounded-md data-[state=active]:bg-primary data-[state=active]:text-primary-foreground" 
+                  data-testid="tab-history"
+                >
+                  <History className="h-4 w-4 shrink-0" />
+                  <span className="hidden lg:inline">{language === "es" ? "Historial" : "History"}</span>
+                </TabsTrigger>
+              </TabsList>
+            </div>
           </div>
 
           <ScrollArea className="flex-1">

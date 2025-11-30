@@ -34,6 +34,7 @@ import {
 import { useLanguage } from "@/contexts/LanguageContext";
 import { useToast } from "@/hooks/use-toast";
 import { queryClient, apiRequest } from "@/lib/queryClient";
+import { LeadEmptyState } from "./LeadEmptyState";
 
 interface LeadShowingsTabProps {
   leadId: string;
@@ -171,22 +172,15 @@ export default function LeadShowingsTab({ leadId }: LeadShowingsTabProps) {
           })}
         </div>
       ) : (
-        <div className="text-center py-8 text-muted-foreground border rounded-lg border-dashed bg-muted/20">
-          <div className="h-12 w-12 rounded-full bg-muted mx-auto flex items-center justify-center mb-4">
-            <Home className="h-6 w-6 text-muted-foreground" />
-          </div>
-          <p className="text-sm">{language === "es" ? "No hay visitas programadas" : "No showings scheduled"}</p>
-          <Button
-            variant="outline"
-            size="sm"
-            className="mt-4"
-            onClick={() => setIsAddShowingOpen(true)}
-            data-testid="button-schedule-first-showing"
-          >
-            <Plus className="h-4 w-4 mr-1" />
-            {language === "es" ? "Programar primera visita" : "Schedule first showing"}
-          </Button>
-        </div>
+        <LeadEmptyState
+          icon={Home}
+          title={language === "es" ? "No hay visitas" : "No showings"}
+          description={language === "es" ? "Programa visitas a propiedades para este lead" : "Schedule property showings for this lead"}
+          actionLabel={language === "es" ? "Programar visita" : "Schedule showing"}
+          actionIcon={Plus}
+          onAction={() => setIsAddShowingOpen(true)}
+          actionTestId="button-schedule-first-showing"
+        />
       )}
 
       {/* Schedule Showing Dialog */}
