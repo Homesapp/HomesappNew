@@ -113,6 +113,26 @@ interface MessageTemplate {
   isDefault?: boolean;
 }
 
+interface PresentationCard {
+  id: string;
+  title: string;
+  propertyType: string | null;
+  propertyTypeList: string[] | null;
+  minBudget: string | null;
+  maxBudget: string | null;
+  budgetText: string | null;
+  bedrooms: number | null;
+  bedroomsText: string | null;
+  bathrooms: number | null;
+  preferredZone: string | null;
+  preferredZoneList: string[] | null;
+  contractDuration: string | null;
+  hasPets: boolean | null;
+  petsDescription: string | null;
+  isDefault: boolean;
+  status: string;
+}
+
 const singlePropertyTemplates: MessageTemplate[] = [
   {
     id: "single-1",
@@ -478,6 +498,24 @@ export default function SellerPropertyCatalog() {
     queryKey: ["/api/external/config/property-types"],
   });
 
+  // Fetch presentation cards for the selected lead to get the chosen card's criteria
+  const { data: presentationCards } = useQuery<PresentationCard[]>({
+    queryKey: ["/api/external/presentation-cards/lead", selectedLead?.id],
+    queryFn: async () => {
+      if (!selectedLead?.id) return [];
+      const res = await fetch(`/api/external/presentation-cards/lead/${selectedLead.id}`, { credentials: 'include' });
+      if (!res.ok) return [];
+      return res.json();
+    },
+    enabled: !!selectedLead?.id,
+  });
+
+  // Get the chosen presentation card (isDefault=true)
+  const chosenCard = useMemo(() => {
+    if (!presentationCards || presentationCards.length === 0) return null;
+    return presentationCards.find(c => c.isDefault) || null;
+  }, [presentationCards]);
+
   const sharePropertyMutation = useMutation({
     mutationFn: async (data: { leadId: string; unitId: string; message?: string }) => {
       const res = await apiRequest("POST", "/api/external-seller/share-property", data);
@@ -562,16 +600,82 @@ export default function SellerPropertyCatalog() {
     setSelectedLead(null);
   };
 
-  // Calculate match score between a unit and the selected lead
+  // Apply chosen presentation card filters when available
+  useEffect(() => {
+    if (!selectedLead || !chosenCard) return;
+    
+    const newFilters = {
+      minPrice: "",
+      maxPrice: "",
+      bedrooms: "",
+      zone: "",
+      propertyType: "",
+      status: "active",
+    };
+    
+    // Use the chosen card's budget range (+/- 30% variance for flexibility)
+    let hasBudgetFilter = false;
+    if (chosenCard.minBudget) {
+      const minBudget = parseFloat(chosenCard.minBudget);
+      if (!isNaN(minBudget)) {
+        newFilters.minPrice = String(Math.max(0, Math.round(minBudget * 0.7)));
+        hasBudgetFilter = true;
+      }
+    }
+    if (chosenCard.maxBudget) {
+      const maxBudget = parseFloat(chosenCard.maxBudget);
+      if (!isNaN(maxBudget)) {
+        newFilters.maxPrice = String(Math.round(maxBudget * 1.3));
+        hasBudgetFilter = true;
+      }
+    }
+    
+    // Fallback to lead's estimate if no numeric budget on card
+    if (!hasBudgetFilter && selectedLead.estimatedRentCost) {
+      const variance = Math.round(selectedLead.estimatedRentCost * 0.30);
+      newFilters.minPrice = String(Math.max(0, selectedLead.estimatedRentCost - variance));
+      newFilters.maxPrice = String(selectedLead.estimatedRentCost + variance);
+    }
+    
+    // Use the chosen card's preferred zone for search (not strict filter)
+    // The zone is used as a search term since catalog may use IDs internally
+    if (chosenCard.preferredZone) {
+      setSearch(chosenCard.preferredZone);
+    } else if (chosenCard.preferredZoneList && chosenCard.preferredZoneList.length > 0) {
+      setSearch(chosenCard.preferredZoneList[0]);
+    } else if (selectedLead.desiredNeighborhood) {
+      setSearch(selectedLead.desiredNeighborhood);
+    }
+    
+    // Note: Property type is NOT applied as a strict filter because the card stores
+    // human-readable labels while the catalog expects IDs. Using search is more flexible.
+    // The matching score system will still prioritize matching property types visually.
+    
+    setFilters(newFilters);
+  }, [selectedLead, chosenCard]);
+
+  // Calculate match score between a unit and the selected lead (using chosen card criteria if available)
   const calculateMatchScore = (unit: Unit, lead: Lead | null): { score: number; reasons: string[] } => {
     if (!lead) return { score: 0, reasons: [] };
     
     let score = 0;
     const reasons: string[] = [];
     
+    // Determine budget criteria - use chosen card if available, else lead's preference
+    let targetBudget = lead.estimatedRentCost;
+    if (chosenCard) {
+      const minBudget = chosenCard.minBudget ? parseFloat(chosenCard.minBudget) : null;
+      const maxBudget = chosenCard.maxBudget ? parseFloat(chosenCard.maxBudget) : null;
+      if (minBudget !== null && maxBudget !== null && !isNaN(minBudget) && !isNaN(maxBudget)) {
+        targetBudget = (minBudget + maxBudget) / 2;
+      } else if (maxBudget !== null && !isNaN(maxBudget)) {
+        targetBudget = maxBudget;
+      }
+    }
+    
     // Price match (max 40 points)
-    if (lead.estimatedRentCost && unit.monthlyRent) {
-      const priceDiff = Math.abs(unit.monthlyRent - lead.estimatedRentCost) / lead.estimatedRentCost;
+    if (targetBudget && unit.monthlyRent) {
+      const priceDiff = Math.abs(unit.monthlyRent - targetBudget) / targetBudget;
       if (priceDiff <= 0.10) {
         score += 40;
         reasons.push("Precio ideal");
@@ -584,30 +688,52 @@ export default function SellerPropertyCatalog() {
       }
     }
     
+    // Determine bedrooms criteria - use chosen card if available
+    let targetBedrooms = lead.bedrooms;
+    if (chosenCard?.bedrooms) {
+      targetBedrooms = chosenCard.bedrooms;
+    }
+    
     // Bedrooms match (max 25 points)
-    if (lead.bedrooms && unit.bedrooms) {
-      if (unit.bedrooms === lead.bedrooms) {
+    if (targetBedrooms && unit.bedrooms) {
+      if (unit.bedrooms === targetBedrooms) {
         score += 25;
         reasons.push("Recámaras exactas");
-      } else if (Math.abs(unit.bedrooms - lead.bedrooms) === 1) {
+      } else if (Math.abs(unit.bedrooms - targetBedrooms) === 1) {
         score += 15;
         reasons.push("Recámaras similares");
       }
     }
     
+    // Determine zone criteria - use chosen card if available
+    let targetZone = lead.desiredNeighborhood;
+    if (chosenCard?.preferredZone) {
+      targetZone = chosenCard.preferredZone;
+    } else if (chosenCard?.preferredZoneList && chosenCard.preferredZoneList.length > 0) {
+      targetZone = chosenCard.preferredZoneList[0];
+    }
+    
     // Zone match (max 25 points)
-    if (lead.desiredNeighborhood && unit.zone) {
+    if (targetZone && unit.zone) {
       const zoneLower = unit.zone.toLowerCase();
-      const desiredLower = lead.desiredNeighborhood.toLowerCase();
+      const desiredLower = targetZone.toLowerCase();
       if (zoneLower.includes(desiredLower) || desiredLower.includes(zoneLower)) {
         score += 25;
         reasons.push("Zona preferida");
       }
     }
     
+    // Determine property type - use chosen card if available
+    let targetPropertyType = lead.desiredUnitType;
+    if (chosenCard?.propertyType) {
+      targetPropertyType = chosenCard.propertyType;
+    } else if (chosenCard?.propertyTypeList && chosenCard.propertyTypeList.length > 0) {
+      targetPropertyType = chosenCard.propertyTypeList[0];
+    }
+    
     // Property type match (max 10 points)
-    if (lead.desiredUnitType && unit.unitType) {
-      if (unit.unitType.toLowerCase() === lead.desiredUnitType.toLowerCase()) {
+    if (targetPropertyType && unit.unitType) {
+      if (unit.unitType.toLowerCase() === targetPropertyType.toLowerCase()) {
         score += 10;
         reasons.push("Tipo ideal");
       }
@@ -616,7 +742,7 @@ export default function SellerPropertyCatalog() {
     return { score, reasons };
   };
 
-  // Sort units by match score when a lead is selected
+  // Sort units by match score when a lead is selected (uses chosenCard criteria when available)
   const units = useMemo(() => {
     if (!selectedLead) return displayUnits;
     return [...displayUnits].sort((a, b) => {
@@ -624,7 +750,7 @@ export default function SellerPropertyCatalog() {
       const scoreB = calculateMatchScore(b, selectedLead).score;
       return scoreB - scoreA; // Higher scores first
     });
-  }, [displayUnits, selectedLead]);
+  }, [displayUnits, selectedLead, chosenCard]);
 
   const applyLeadFilters = (lead: Lead) => {
     // Toggle behavior: if same lead is clicked, deselect it
@@ -632,33 +758,55 @@ export default function SellerPropertyCatalog() {
       clearFilters();
       return;
     }
+    // Set the lead - the useEffect will apply filters from the chosen presentation card
+    // if available, otherwise we'll use the lead's direct preferences as fallback
     setSelectedLead(lead);
-    const newFilters = {
+    // Reset filters first - they will be set by the useEffect when chosenCard is loaded
+    // or by the fallback below if no chosen card exists
+    setFilters({
       minPrice: "",
       maxPrice: "",
       bedrooms: "",
       zone: "",
       propertyType: "",
       status: "active",
-    };
-    
-    // Use wider price range for partial matching (+/- 30% instead of 15%)
-    if (lead.estimatedRentCost) {
-      const variance = Math.round(lead.estimatedRentCost * 0.30);
-      newFilters.minPrice = String(Math.max(0, lead.estimatedRentCost - variance));
-      newFilters.maxPrice = String(lead.estimatedRentCost + variance);
-    }
-    // Don't apply bedroom filter for partial matching - let them see all options
-    // Bedrooms filter will still show matching score visually
-    
-    // Zone is used as search term for partial matching, not strict filter
-    if (lead.desiredNeighborhood) {
-      setSearch(lead.desiredNeighborhood);
-    }
-    // Don't apply strict propertyType filter for partial matching
-    
-    setFilters(newFilters);
+    });
+    setSearch("");
   };
+
+  // Fallback: Apply lead preferences if no chosen presentation card exists
+  useEffect(() => {
+    if (!selectedLead || chosenCard) return; // Only apply if no chosen card
+    
+    // Wait a bit for the presentation cards query to complete
+    const timer = setTimeout(() => {
+      if (presentationCards !== undefined && !chosenCard) {
+        // No chosen card, use lead's direct preferences as fallback
+        const newFilters = {
+          minPrice: "",
+          maxPrice: "",
+          bedrooms: "",
+          zone: "",
+          propertyType: "",
+          status: "active",
+        };
+        
+        if (selectedLead.estimatedRentCost) {
+          const variance = Math.round(selectedLead.estimatedRentCost * 0.30);
+          newFilters.minPrice = String(Math.max(0, selectedLead.estimatedRentCost - variance));
+          newFilters.maxPrice = String(selectedLead.estimatedRentCost + variance);
+        }
+        
+        if (selectedLead.desiredNeighborhood) {
+          setSearch(selectedLead.desiredNeighborhood);
+        }
+        
+        setFilters(newFilters);
+      }
+    }, 500);
+    
+    return () => clearTimeout(timer);
+  }, [selectedLead, presentationCards, chosenCard]);
 
   const generateMessageFromTemplate = (template: MessageTemplate, unit: Unit, lead?: Lead | null) => {
     let message = template.content;
@@ -1304,9 +1452,17 @@ export default function SellerPropertyCatalog() {
                       {t("sellerCatalog.title", "Catálogo de Propiedades")}
                     </h1>
                     {selectedLead && (
-                      <p className="text-xs sm:text-sm text-muted-foreground">
-                        Propiedades para <span className="font-medium text-primary">{selectedLead.firstName} {selectedLead.lastName}</span>
-                      </p>
+                      <div className="text-xs sm:text-sm text-muted-foreground">
+                        <p>
+                          Propiedades para <span className="font-medium text-primary">{selectedLead.firstName} {selectedLead.lastName}</span>
+                        </p>
+                        {chosenCard && (
+                          <p className="flex items-center gap-1 mt-0.5">
+                            <FileText className="h-3 w-3" />
+                            <span>Tarjeta: <span className="font-medium">{chosenCard.title}</span></span>
+                          </p>
+                        )}
+                      </div>
                     )}
                   </div>
                 </div>
