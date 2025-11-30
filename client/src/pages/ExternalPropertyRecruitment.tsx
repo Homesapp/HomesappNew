@@ -220,7 +220,7 @@ export default function ExternalPropertyRecruitment() {
         bathrooms: data.bathrooms || undefined,
         estimatedRentPrice: data.estimatedRentPrice || undefined,
       };
-      return apiRequest("/api/external/property-prospects", "POST", payload);
+      return apiRequest("POST", "/api/external/property-prospects", payload);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/external/property-prospects"] });
@@ -235,7 +235,7 @@ export default function ExternalPropertyRecruitment() {
 
   const updateStatusMutation = useMutation({
     mutationFn: async ({ id, status }: { id: string; status: string }) => {
-      return apiRequest(`/api/external/property-prospects/${id}`, "PATCH", { status });
+      return apiRequest("PATCH", `/api/external/property-prospects/${id}`, { status });
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/external/property-prospects"] });
@@ -245,7 +245,7 @@ export default function ExternalPropertyRecruitment() {
 
   const generateInviteMutation = useMutation({
     mutationFn: async ({ id, sentVia }: { id: string; sentVia: string }) => {
-      return apiRequest(`/api/external/property-prospects/${id}/invite`, "POST", { sentVia });
+      return apiRequest("POST", `/api/external/property-prospects/${id}/invite`, { sentVia });
     },
     onSuccess: (data: { url: string; token: string }) => {
       const fullUrl = `${window.location.origin}${data.url}`;
