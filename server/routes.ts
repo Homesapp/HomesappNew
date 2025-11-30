@@ -13875,6 +13875,34 @@ export async function registerRoutes(app: Express): Promise<Server> {
         auditMessage
       );
 
+      // Log property activity for external units
+      if (externalUnit) {
+        try {
+          await db.insert(externalPropertyActivityHistory).values({
+            agencyId: externalUnit.agencyId,
+            unitId: externalUnit.id,
+            condominiumId: externalUnit.condominiumId || null,
+            activityType: 'offer_sent',
+            leadId: null,
+            leadName: null,
+            clientId: externalClientId || null,
+            clientName: externalClient ? `${externalClient.firstName || ''} ${externalClient.lastName || ''}`.trim() : null,
+            offerTokenId: offerToken[0].id,
+            performedBy: userId,
+            performedByName: null, // Will be populated by trigger/hook if needed
+            details: {
+              recipientType: 'tenant',
+              channel: 'link',
+              notes: auditMessage
+            },
+          });
+        } catch (activityError) {
+          console.error("Error logging property activity:", activityError);
+          // Don't fail the main request if activity logging fails
+        }
+      }
+
+
       // Get agency info for friendly URL generation
       let agencySlug = null;
       if (externalUnit?.agencyId) {
@@ -22532,6 +22560,53 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       await createAuditLog(req, "create", "external_appointment", appointment.id, 
         `Created ${validatedData.mode} appointment for ${validatedData.clientName}`);
+
+      // Log property activity for each unit in the appointment
+      try {
+        const unitsToLog: Array<{unitId: string, condominiumId: string | null}> = [];
+        
+        // For individual appointments, log the single unit
+        if (validatedData.mode === 'individual' && validatedData.unitId) {
+          const unit = await storage.getExternalUnit(validatedData.unitId);
+          if (unit) {
+            unitsToLog.push({ unitId: unit.id, condominiumId: unit.condominiumId || null });
+          }
+        }
+        
+        // For tours, log each tour stop
+        if (validatedData.mode === 'tour' && tourStops) {
+          for (const stop of tourStops) {
+            const unit = await storage.getExternalUnit(stop.unitId);
+            if (unit) {
+              unitsToLog.push({ unitId: unit.id, condominiumId: unit.condominiumId || null });
+            }
+          }
+        }
+        
+        // Log activity for each unit
+        for (const unitInfo of unitsToLog) {
+          await db.insert(externalPropertyActivityHistory).values({
+            agencyId,
+            unitId: unitInfo.unitId,
+            condominiumId: unitInfo.condominiumId,
+            activityType: 'appointment_scheduled',
+            leadId: validatedData.leadId || null,
+            leadName: validatedData.clientName,
+            clientId: validatedData.clientId || null,
+            clientName: validatedData.clientName,
+            appointmentId: appointment.id,
+            performedBy: userId,
+            performedByName: null,
+            details: {
+              status: appointment.status,
+              notes: appointment.notes
+            },
+          });
+        }
+      } catch (activityError) {
+        console.error("Error logging property activity for appointment:", activityError);
+      }
+
 
       res.status(201).json(appointment);
     } catch (error: any) {
@@ -31536,6 +31611,36 @@ ${{precio}}/mes
       });
       
       await createAuditLog(req, "create", "tenant_rental_form_token", newToken.id, `Created rental form for lead ${leadId}`);
+
+      // Log property activity for the unit
+      if (unit) {
+        try {
+          await db.insert(externalPropertyActivityHistory).values({
+            agencyId: lead.agencyId,
+            unitId: externalUnitId,
+            condominiumId: unit.condominiumId || null,
+            activityType: 'rental_form_sent',
+            leadId: leadId,
+            leadName: lead.fullName || null,
+            clientId: null,
+            clientName: null,
+            offerTokenId: null,
+            appointmentId: null,
+            showingId: null,
+            contractId: null,
+            performedBy: userId,
+            performedByName: createdByName,
+            details: {
+              recipientType,
+              channel: 'link',
+              notes: `Formato de renta generado para ${lead.fullName}`
+            },
+          });
+        } catch (activityError) {
+          console.error("Error logging property activity for rental form:", activityError);
+        }
+      }
+
       
       res.status(201).json({
         ...newToken,
