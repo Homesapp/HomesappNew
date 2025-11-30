@@ -1090,10 +1090,16 @@ export default function PresentationCardsTab({ leadId, clientId, personName, lea
                     </span>
                   </div>
                 )}
-                {(card.bedrooms || card.bedroomsText) && (
+                {(card.bedrooms || card.bedroomsText || card.bathrooms) && (
                   <div className="flex items-center gap-2 text-muted-foreground">
                     <Bed className="w-4 h-4 shrink-0" />
-                    <span>{card.bedroomsText || card.bedrooms} {language === "es" ? "recamaras" : "bedrooms"}</span>
+                    <span>
+                      {(card.bedroomsText || card.bedrooms) && `${card.bedroomsText || card.bedrooms} ${language === "es" ? "rec." : "bed."}`}
+                      {(card.bedroomsText || card.bedrooms) && card.bathrooms && " • "}
+                      {card.bathrooms && (
+                        <><Bath className="inline w-3.5 h-3.5 ml-1 -mt-0.5" /> {card.bathrooms} {language === "es" ? "baños" : "bath."}</>
+                      )}
+                    </span>
                   </div>
                 )}
                 {card.preferredZone && (

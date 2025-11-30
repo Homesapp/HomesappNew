@@ -475,7 +475,7 @@ import {
   type InsertSellerGoal,
 } from "@shared/schema";
 import { db } from "./db";
-import { eq, and, or, gte, lte, ilike, asc, desc, sql, isNull, isNotNull, count, inArray, SQL, between, not, notInArray } from "drizzle-orm";
+import { eq, and, or, gte, lte, ilike, asc, desc, sql, isNull, isNotNull, count, inArray, SQL, between, not, notInArray, ne } from "drizzle-orm";
 
 // Custom error class for not-found scenarios
 export class NotFoundError extends Error {
@@ -10757,6 +10757,33 @@ export class DatabaseStorage implements IStorage {
   }
 
   async updateExternalPresentationCard(id: string, updates: UpdateExternalPresentationCard): Promise<ExternalPresentationCard> {
+    // If setting this card as default, first unset all other defaults for the same lead/client
+    if (updates.isDefault === true) {
+      const card = await this.getExternalPresentationCard(id);
+      if (card) {
+        // Build conditions to match cards that share leadId OR clientId
+        const conditions: SQL<unknown>[] = [];
+        
+        if (card.leadId) {
+          conditions.push(eq(externalPresentationCards.leadId, card.leadId));
+        }
+        if (card.clientId) {
+          conditions.push(eq(externalPresentationCards.clientId, card.clientId));
+        }
+        
+        // Only reset if we have at least one condition (either leadId or clientId exists)
+        if (conditions.length > 0) {
+          // Reset all cards matching leadId OR clientId (except this one)
+          await db.update(externalPresentationCards)
+            .set({ isDefault: false, updatedAt: new Date() })
+            .where(and(
+              conditions.length > 1 ? or(...conditions) : conditions[0],
+              ne(externalPresentationCards.id, id)
+            ));
+        }
+      }
+    }
+    
     const [updated] = await db.update(externalPresentationCards)
       .set({ ...updates, updatedAt: new Date() })
       .where(eq(externalPresentationCards.id, id))

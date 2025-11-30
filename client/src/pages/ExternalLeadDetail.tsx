@@ -687,6 +687,16 @@ export default function ExternalLeadDetail() {
                   <span>{formatBudgetRange(activeCard.minBudget, activeCard.maxBudget)}</span>
                 </div>
               )}
+              {(activeCard.bedrooms || activeCard.bedroomsText || activeCard.bathrooms) && (
+                <div className="flex items-center gap-1.5">
+                  <BedDouble className="h-3.5 w-3.5" />
+                  <span>
+                    {(activeCard.bedrooms || activeCard.bedroomsText) && `${activeCard.bedroomsText || activeCard.bedrooms} ${language === "es" ? "rec." : "bed."}`}
+                    {(activeCard.bedrooms || activeCard.bedroomsText) && activeCard.bathrooms && " • "}
+                    {activeCard.bathrooms && `${activeCard.bathrooms} ${language === "es" ? "baños" : "bath."}`}
+                  </span>
+                </div>
+              )}
               <div className="flex items-center gap-1.5">
                 <Eye className="h-3.5 w-3.5" />
                 <span>{activeCard.usageCount || 0} {language === "es" ? "usos" : "uses"}</span>
