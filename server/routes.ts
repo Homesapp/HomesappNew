@@ -25894,13 +25894,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
         conditions.push(ilike(externalUnits.zone, '%' + (zone as string) + '%'));
       }
       if (propertyType) {
-        conditions.push(eq(externalUnits.unitType, propertyType as string));
+        conditions.push(eq(externalUnits.propertyType, propertyType as string));
       }
       if (search) {
         conditions.push(or(
-          ilike(externalUnits.name, '%' + (search as string) + '%'),
+          ilike(externalUnits.title, '%' + (search as string) + '%'),
           ilike(externalUnits.zone, '%' + (search as string) + '%'),
-          ilike(externalUnits.unitType, '%' + (search as string) + '%')
+          ilike(externalUnits.propertyType, '%' + (search as string) + '%')
         ));
       }
 
@@ -26110,7 +26110,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         isViewed: externalLeadPropertyOffers.isViewed,
         isInterested: externalLeadPropertyOffers.isInterested,
         sentAt: externalLeadPropertyOffers.sentAt,
-        unitName: externalUnits.name,
+        unitName: externalUnits.title,
         unitZone: externalUnits.zone,
         unitType: externalUnits.propertyType,
         unitPrice: externalUnits.monthlyRent,
