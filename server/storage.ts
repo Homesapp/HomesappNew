@@ -1542,7 +1542,7 @@ export interface IStorage {
   getExternalLead(id: string): Promise<ExternalLead | undefined>;
   getExternalLeadsByAgency(agencyId: string, filters?: { status?: string; registrationType?: string; sellerId?: string; sellerScope?: boolean; expiringDays?: number; search?: string; sortField?: string; sortOrder?: 'asc' | 'desc'; limit?: number; offset?: number }): Promise<ExternalLead[]>;
   getExternalLeadsCountByAgency(agencyId: string, filters?: { status?: string; registrationType?: string; sellerId?: string; sellerScope?: boolean; expiringDays?: number; search?: string }): Promise<number>;
-  createExternalLead(lead: InsertExternalLead): Promise<ExternalLead>;
+  createExternalLead(lead: InsertExternalLead & { agencyId: string; createdBy?: string; sellerId?: string }): Promise<ExternalLead>;
   updateExternalLead(id: string, updates: Partial<InsertExternalLead>): Promise<ExternalLead>;
   deleteExternalLead(id: string): Promise<void>;
   convertLeadToClient(leadId: string, clientId: string): Promise<void>;
@@ -10510,11 +10510,14 @@ export class DatabaseStorage implements IStorage {
     
     return result[0]?.count || 0;
   }
-  async createExternalLead(lead: InsertExternalLead): Promise<ExternalLead> {
+  async createExternalLead(lead: InsertExternalLead & { agencyId: string; createdBy?: string; sellerId?: string }): Promise<ExternalLead> {
     const [result] = await db.insert(externalLeads)
       .values({
         ...lead,
         id: crypto.randomUUID(),
+        agencyId: lead.agencyId,
+        createdBy: lead.createdBy || null,
+        sellerId: lead.sellerId || null,
       })
       .returning();
     return result;
