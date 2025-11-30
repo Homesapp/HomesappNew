@@ -273,9 +273,11 @@ export default function LeadRemindersTab({ leadId, leadName }: LeadRemindersTabP
       </div>
 
       {pendingReminders.length === 0 && completedReminders.length === 0 ? (
-        <Card>
+        <Card className="border-dashed">
           <CardContent className="flex flex-col items-center justify-center py-8 text-center">
-            <Bell className="h-12 w-12 text-muted-foreground/50 mb-4" />
+            <div className="h-12 w-12 rounded-full bg-muted flex items-center justify-center mb-4">
+              <Bell className="h-6 w-6 text-muted-foreground" />
+            </div>
             <h4 className="font-medium text-muted-foreground">
               {language === "es" ? "Sin recordatorios" : "No reminders"}
             </h4>
@@ -284,6 +286,16 @@ export default function LeadRemindersTab({ leadId, leadName }: LeadRemindersTabP
                 ? "Crea un recordatorio para dar seguimiento a este lead"
                 : "Create a reminder to follow up with this lead"}
             </p>
+            <Button
+              variant="outline"
+              size="sm"
+              className="mt-4"
+              onClick={openNew}
+              data-testid="button-add-first-reminder"
+            >
+              <Plus className="h-4 w-4 mr-1" />
+              {language === "es" ? "Agregar recordatorio" : "Add reminder"}
+            </Button>
           </CardContent>
         </Card>
       ) : (

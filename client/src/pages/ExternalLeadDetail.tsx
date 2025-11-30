@@ -300,18 +300,40 @@ export default function ExternalLeadDetail() {
 
   const statusConfig = getStatusConfig(lead.status);
 
+  // Helper function to send WhatsApp message
+  const sendWhatsAppMessage = () => {
+    const phone = lead.phone?.replace(/\D/g, '');
+    if (phone) {
+      window.open(`https://wa.me/${phone}`, '_blank');
+    }
+  };
+
   // Reusable lead info content for both mobile and desktop
   const LeadInfoContent = () => (
-    <div className="space-y-4">
-      {/* Lead Name & Status */}
-      <div className="space-y-3">
-        <div className="flex items-start justify-between gap-2">
-          <h1 className="text-xl font-semibold">
-            {lead.firstName} {lead.lastName}
-          </h1>
+    <div className="space-y-5">
+      {/* Lead Name & Quick Actions */}
+      <div className="space-y-4">
+        <div className="flex items-start justify-between gap-3">
+          <div className="space-y-1 min-w-0">
+            <h1 className="text-xl font-bold text-foreground">
+              {lead.firstName} {lead.lastName}
+            </h1>
+            <div className="flex items-center gap-2 flex-wrap">
+              <Badge variant="outline" className="text-xs font-medium">
+                {lead.registrationType === "vendedor" 
+                  ? (language === "es" ? "Vendedor" : "Seller")
+                  : (language === "es" ? "Broker" : "Broker")}
+              </Badge>
+              {lead.source && (
+                <Badge variant="secondary" className="text-xs">
+                  {lead.source}
+                </Badge>
+              )}
+            </div>
+          </div>
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <Button variant="ghost" size="icon" data-testid="button-lead-actions">
+              <Button variant="ghost" size="icon" className="shrink-0" data-testid="button-lead-actions">
                 <MoreVertical className="h-4 w-4" />
               </Button>
             </DropdownMenuTrigger>
@@ -331,33 +353,79 @@ export default function ExternalLeadDetail() {
             </DropdownMenuContent>
           </DropdownMenu>
         </div>
-        
-        {/* Registration type badge */}
-        <div className="flex items-center gap-2 flex-wrap">
-          <Badge variant="outline" className="text-xs">
-            {lead.registrationType === "vendedor" 
-              ? (language === "es" ? "Vendedor" : "Seller")
-              : (language === "es" ? "Broker" : "Broker")}
-          </Badge>
-          {lead.source && (
-            <Badge variant="secondary" className="text-xs">
-              {lead.source}
-            </Badge>
+
+        {/* WhatsApp Quick Action Button - Prominent */}
+        {lead.phone && (
+          <Button
+            onClick={sendWhatsAppMessage}
+            className="w-full bg-green-600 hover:bg-green-700 text-white gap-2"
+            data-testid="button-whatsapp-main"
+          >
+            <SiWhatsapp className="h-5 w-5" />
+            {language === "es" ? "Enviar WhatsApp" : "Send WhatsApp"}
+          </Button>
+        )}
+
+        {/* Contact Info Cards */}
+        <div className="grid gap-2">
+          {lead.phone && (
+            <div className="flex items-center gap-3 p-3 rounded-lg bg-muted/50 border">
+              <div className="h-9 w-9 rounded-full bg-primary/10 flex items-center justify-center shrink-0">
+                <Phone className="h-4 w-4 text-primary" />
+              </div>
+              <div className="min-w-0 flex-1">
+                <p className="text-xs text-muted-foreground font-medium">
+                  {language === "es" ? "Teléfono" : "Phone"}
+                </p>
+                <p className="text-sm font-medium truncate">{lead.phone}</p>
+              </div>
+            </div>
+          )}
+          {lead.email && (
+            <div className="flex items-center gap-3 p-3 rounded-lg bg-muted/50 border">
+              <div className="h-9 w-9 rounded-full bg-blue-500/10 flex items-center justify-center shrink-0">
+                <Mail className="h-4 w-4 text-blue-600" />
+              </div>
+              <div className="min-w-0 flex-1">
+                <p className="text-xs text-muted-foreground font-medium">
+                  {language === "es" ? "Email" : "Email"}
+                </p>
+                <a 
+                  href={`mailto:${lead.email}`} 
+                  className="text-sm font-medium truncate block hover:text-primary hover:underline"
+                >
+                  {lead.email}
+                </a>
+              </div>
+            </div>
+          )}
+          {lead.phoneLast4 && !lead.phone && (
+            <div className="flex items-center gap-3 p-3 rounded-lg bg-muted/50 border">
+              <div className="h-9 w-9 rounded-full bg-muted flex items-center justify-center shrink-0">
+                <Phone className="h-4 w-4 text-muted-foreground" />
+              </div>
+              <div className="min-w-0 flex-1">
+                <p className="text-xs text-muted-foreground font-medium">
+                  {language === "es" ? "Teléfono" : "Phone"}
+                </p>
+                <p className="text-sm font-medium">****{lead.phoneLast4}</p>
+              </div>
+            </div>
           )}
         </div>
 
         {/* Status selector */}
         <div className="space-y-2">
-          <label className="text-xs font-medium text-muted-foreground">
-            {language === "es" ? "Estado" : "Status"}
+          <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
+            {language === "es" ? "Estado del Lead" : "Lead Status"}
           </label>
           <Select
             value={lead.status}
             onValueChange={(value) => updateStatusMutation.mutate(value)}
           >
-            <SelectTrigger className="w-full" data-testid="select-lead-status">
+            <SelectTrigger className="w-full h-10" data-testid="select-lead-status">
               <div className="flex items-center gap-2">
-                <Badge className={statusConfig.color}>
+                <Badge className={`${statusConfig.color} px-2.5 py-0.5`}>
                   {statusConfig.label[language]}
                 </Badge>
               </div>
@@ -365,58 +433,13 @@ export default function ExternalLeadDetail() {
             <SelectContent>
               {LEAD_STATUS_OPTIONS.map((status) => (
                 <SelectItem key={status.value} value={status.value}>
-                  <Badge className={status.color}>
+                  <Badge className={`${status.color} px-2.5 py-0.5`}>
                     {status.label[language]}
                   </Badge>
                 </SelectItem>
               ))}
             </SelectContent>
           </Select>
-        </div>
-      </div>
-
-      <Separator />
-
-      {/* Contact Information */}
-      <div className="space-y-3">
-        <h3 className="text-sm font-medium flex items-center gap-2">
-          <User className="h-4 w-4 text-muted-foreground" />
-          {language === "es" ? "Contacto" : "Contact"}
-        </h3>
-        
-        <div className="space-y-2 text-sm">
-          {lead.email && (
-            <div className="flex items-center gap-2 text-muted-foreground">
-              <Mail className="h-4 w-4" />
-              <a href={`mailto:${lead.email}`} className="hover:text-primary hover:underline truncate">
-                {lead.email}
-              </a>
-            </div>
-          )}
-          {lead.phone && (
-            <div className="flex items-center gap-2">
-              <Phone className="h-4 w-4 text-muted-foreground" />
-              <span>{lead.phone}</span>
-              <Button
-                variant="ghost"
-                size="icon"
-                className="h-6 w-6"
-                onClick={() => {
-                  const phone = lead.phone?.replace(/\D/g, '');
-                  window.open(`https://wa.me/${phone}`, '_blank');
-                }}
-                data-testid="button-whatsapp"
-              >
-                <SiWhatsapp className="h-4 w-4 text-green-600" />
-              </Button>
-            </div>
-          )}
-          {lead.phoneLast4 && !lead.phone && (
-            <div className="flex items-center gap-2 text-muted-foreground">
-              <Phone className="h-4 w-4" />
-              <span>****{lead.phoneLast4}</span>
-            </div>
-          )}
         </div>
       </div>
 
@@ -441,62 +464,101 @@ export default function ExternalLeadDetail() {
       )}
 
       {/* Search Preferences */}
-      <div className="space-y-3">
-        <h3 className="text-sm font-medium flex items-center gap-2">
-          <Home className="h-4 w-4 text-muted-foreground" />
-          {language === "es" ? "Preferencias" : "Preferences"}
+      <div className="space-y-4">
+        <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wide flex items-center gap-2">
+          <Home className="h-4 w-4" />
+          {language === "es" ? "Preferencias de Búsqueda" : "Search Preferences"}
         </h3>
         
-        <div className="grid grid-cols-2 gap-2 text-sm">
-          {(lead.budgetMin || lead.budgetMax) && (
-            <div className="flex items-center gap-2 col-span-2">
+        {/* Budget - Highlight Card */}
+        {(lead.budgetMin || lead.budgetMax) && (
+          <div className="flex items-center gap-3 p-3 rounded-lg bg-green-500/10 border border-green-500/20">
+            <div className="h-9 w-9 rounded-full bg-green-500/20 flex items-center justify-center shrink-0">
               <DollarSign className="h-4 w-4 text-green-600" />
-              <span className="font-medium">
-                {formatBudgetRange(lead.budgetMin, lead.budgetMax)}
-              </span>
             </div>
-          )}
+            <div>
+              <p className="text-xs text-muted-foreground font-medium">
+                {language === "es" ? "Presupuesto" : "Budget"}
+              </p>
+              <p className="text-sm font-bold text-green-700 dark:text-green-400">
+                {formatBudgetRange(lead.budgetMin, lead.budgetMax)}
+              </p>
+            </div>
+          </div>
+        )}
+
+        {/* Property Preferences Grid */}
+        <div className="grid grid-cols-2 gap-2">
           {(lead.bedrooms || lead.bedroomsText) && (
-            <div className="flex items-center gap-2">
-              <BedDouble className="h-4 w-4 text-blue-600" />
-              <span>{lead.bedroomsText || lead.bedrooms}</span>
+            <div className="flex items-center gap-2 p-2.5 rounded-lg bg-muted/50 border">
+              <BedDouble className="h-4 w-4 text-blue-600 shrink-0" />
+              <div className="min-w-0">
+                <p className="text-[10px] text-muted-foreground uppercase tracking-wide">
+                  {language === "es" ? "Recámaras" : "Bedrooms"}
+                </p>
+                <p className="text-sm font-medium truncate">{lead.bedroomsText || lead.bedrooms}</p>
+              </div>
             </div>
           )}
           {lead.desiredUnitType && (
-            <div className="flex items-center gap-2">
-              <Building2 className="h-4 w-4 text-purple-600" />
-              <span>{lead.desiredUnitType}</span>
-            </div>
-          )}
-          {lead.desiredNeighborhood && (
-            <div className="flex items-center gap-2 col-span-2">
-              <MapPin className="h-4 w-4 text-orange-600" />
-              <span>{lead.desiredNeighborhood}</span>
+            <div className="flex items-center gap-2 p-2.5 rounded-lg bg-muted/50 border">
+              <Building2 className="h-4 w-4 text-purple-600 shrink-0" />
+              <div className="min-w-0">
+                <p className="text-[10px] text-muted-foreground uppercase tracking-wide">
+                  {language === "es" ? "Tipo" : "Type"}
+                </p>
+                <p className="text-sm font-medium truncate">{lead.desiredUnitType}</p>
+              </div>
             </div>
           )}
           {lead.contractDuration && (
-            <div className="flex items-center gap-2">
-              <Clock className="h-4 w-4 text-teal-600" />
-              <span>{lead.contractDuration}</span>
+            <div className="flex items-center gap-2 p-2.5 rounded-lg bg-muted/50 border">
+              <Clock className="h-4 w-4 text-teal-600 shrink-0" />
+              <div className="min-w-0">
+                <p className="text-[10px] text-muted-foreground uppercase tracking-wide">
+                  {language === "es" ? "Contrato" : "Contract"}
+                </p>
+                <p className="text-sm font-medium truncate">{lead.contractDuration}</p>
+              </div>
             </div>
           )}
           {lead.hasPets && lead.hasPets !== "No" && (
-            <div className="flex items-center gap-2">
-              <PawPrint className="h-4 w-4 text-amber-600" />
-              <span>{lead.hasPets}</span>
+            <div className="flex items-center gap-2 p-2.5 rounded-lg bg-muted/50 border">
+              <PawPrint className="h-4 w-4 text-amber-600 shrink-0" />
+              <div className="min-w-0">
+                <p className="text-[10px] text-muted-foreground uppercase tracking-wide">
+                  {language === "es" ? "Mascotas" : "Pets"}
+                </p>
+                <p className="text-sm font-medium truncate">{lead.hasPets}</p>
+              </div>
             </div>
           )}
         </div>
 
+        {/* Zone/Location */}
+        {lead.desiredNeighborhood && (
+          <div className="flex items-center gap-3 p-3 rounded-lg bg-muted/50 border">
+            <div className="h-9 w-9 rounded-full bg-orange-500/10 flex items-center justify-center shrink-0">
+              <MapPin className="h-4 w-4 text-orange-600" />
+            </div>
+            <div className="min-w-0">
+              <p className="text-xs text-muted-foreground font-medium">
+                {language === "es" ? "Zona Preferida" : "Preferred Zone"}
+              </p>
+              <p className="text-sm font-medium">{lead.desiredNeighborhood}</p>
+            </div>
+          </div>
+        )}
+
         {/* Desired Characteristics */}
         {lead.desiredCharacteristics && lead.desiredCharacteristics.length > 0 && (
-          <div className="space-y-2 pt-2">
-            <div className="text-xs text-muted-foreground font-medium">
-              {language === "es" ? "Características Deseadas" : "Desired Features"}
+          <div className="space-y-2">
+            <div className="text-xs text-muted-foreground font-semibold uppercase tracking-wide">
+              {language === "es" ? "Características" : "Features"}
             </div>
-            <div className="flex flex-wrap gap-1">
+            <div className="flex flex-wrap gap-1.5">
               {lead.desiredCharacteristics.map((charId) => (
-                <Badge key={charId} variant="secondary" className="text-xs">
+                <Badge key={charId} variant="secondary" className="text-xs font-medium">
                   {getCharacteristicName(charId)}
                 </Badge>
               ))}
@@ -506,13 +568,13 @@ export default function ExternalLeadDetail() {
 
         {/* Desired Amenities */}
         {lead.desiredAmenities && lead.desiredAmenities.length > 0 && (
-          <div className="space-y-2 pt-2">
-            <div className="text-xs text-muted-foreground font-medium">
-              {language === "es" ? "Amenidades Deseadas" : "Desired Amenities"}
+          <div className="space-y-2">
+            <div className="text-xs text-muted-foreground font-semibold uppercase tracking-wide">
+              {language === "es" ? "Amenidades" : "Amenities"}
             </div>
-            <div className="flex flex-wrap gap-1">
+            <div className="flex flex-wrap gap-1.5">
               {lead.desiredAmenities.map((amenityId) => (
-                <Badge key={amenityId} variant="outline" className="text-xs">
+                <Badge key={amenityId} variant="outline" className="text-xs font-medium">
                   {getAmenityName(amenityId)}
                 </Badge>
               ))}
@@ -525,13 +587,15 @@ export default function ExternalLeadDetail() {
       {lead.sellerName && (
         <>
           <Separator />
-          <div className="space-y-2">
-            <h3 className="text-sm font-medium flex items-center gap-2">
-              <Users className="h-4 w-4 text-muted-foreground" />
-              {language === "es" ? "Vendedor Asignado" : "Assigned Seller"}
-            </h3>
-            <div className="flex items-center gap-2">
-              <Badge variant="secondary">{lead.sellerName}</Badge>
+          <div className="flex items-center gap-3 p-3 rounded-lg bg-muted/50 border">
+            <div className="h-9 w-9 rounded-full bg-primary/10 flex items-center justify-center shrink-0">
+              <Users className="h-4 w-4 text-primary" />
+            </div>
+            <div className="min-w-0">
+              <p className="text-xs text-muted-foreground font-medium">
+                {language === "es" ? "Vendedor Asignado" : "Assigned Seller"}
+              </p>
+              <p className="text-sm font-semibold">{lead.sellerName}</p>
             </div>
           </div>
         </>
@@ -541,40 +605,43 @@ export default function ExternalLeadDetail() {
 
       {/* Active Presentation Card */}
       <div className="space-y-3">
-        <h3 className="text-sm font-medium flex items-center gap-2">
-          <FileText className="h-4 w-4 text-muted-foreground" />
-          {language === "es" ? "Tarjeta Activa" : "Active Card"}
+        <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wide flex items-center gap-2">
+          <FileText className="h-4 w-4" />
+          {language === "es" ? "Tarjeta de Presentación" : "Presentation Card"}
         </h3>
         
         {activeCard ? (
-          <Card className="border-primary/30 bg-primary/5">
-            <CardContent className="p-3 space-y-2">
-              <div className="flex items-center justify-between">
-                <span className="font-medium text-sm">{activeCard.title}</span>
-                {activeCard.isDefault && (
-                  <Star className="h-4 w-4 text-amber-500 fill-amber-500" />
-                )}
-              </div>
+          <div className="p-3 rounded-lg border border-primary/30 bg-primary/5 space-y-2.5">
+            <div className="flex items-center justify-between gap-2">
+              <span className="font-semibold text-sm">{activeCard.title}</span>
+              {activeCard.isDefault && (
+                <Star className="h-4 w-4 text-amber-500 fill-amber-500 shrink-0" />
+              )}
+            </div>
+            <div className="flex flex-wrap gap-3 text-xs text-muted-foreground">
               {activeCard.propertyType && (
-                <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                  <Home className="h-3 w-3" />
+                <div className="flex items-center gap-1.5">
+                  <Home className="h-3.5 w-3.5" />
                   <span>{activeCard.propertyType}</span>
                 </div>
               )}
               {(activeCard.minBudget || activeCard.maxBudget) && (
-                <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                  <DollarSign className="h-3 w-3" />
+                <div className="flex items-center gap-1.5">
+                  <DollarSign className="h-3.5 w-3.5" />
                   <span>{formatBudgetRange(activeCard.minBudget, activeCard.maxBudget)}</span>
                 </div>
               )}
-              <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                <Eye className="h-3 w-3" />
+              <div className="flex items-center gap-1.5">
+                <Eye className="h-3.5 w-3.5" />
                 <span>{activeCard.usageCount || 0} {language === "es" ? "usos" : "uses"}</span>
               </div>
-            </CardContent>
-          </Card>
+            </div>
+          </div>
         ) : (
-          <div className="text-center py-4 border rounded-lg border-dashed space-y-3">
+          <div className="text-center py-5 px-4 border rounded-lg border-dashed space-y-3 bg-muted/20">
+            <div className="h-10 w-10 rounded-full bg-muted mx-auto flex items-center justify-center">
+              <FileText className="h-5 w-5 text-muted-foreground" />
+            </div>
             <p className="text-sm text-muted-foreground">
               {language === "es" 
                 ? "Sin tarjeta de presentación" 
@@ -585,7 +652,6 @@ export default function ExternalLeadDetail() {
               variant="outline"
               onClick={() => createCardFromPreferencesMutation.mutate()}
               disabled={createCardFromPreferencesMutation.isPending}
-              className="min-h-[44px]"
               data-testid="button-create-card-from-preferences"
             >
               {createCardFromPreferencesMutation.isPending ? (
@@ -594,8 +660,8 @@ export default function ExternalLeadDetail() {
                 <Plus className="h-4 w-4 mr-2" />
               )}
               {language === "es" 
-                ? "Crear Tarjeta desde Preferencias" 
-                : "Create Card from Preferences"}
+                ? "Crear desde Preferencias" 
+                : "Create from Preferences"}
             </Button>
           </div>
         )}
@@ -603,9 +669,9 @@ export default function ExternalLeadDetail() {
 
       {/* Timestamps */}
       <Separator />
-      <div className="text-xs text-muted-foreground space-y-1">
+      <div className="text-xs text-muted-foreground space-y-1.5 py-1">
         <div className="flex items-center gap-2">
-          <CalendarIcon className="h-3 w-3" />
+          <CalendarIcon className="h-3.5 w-3.5" />
           <span>
             {language === "es" ? "Registrado: " : "Registered: "}
             {lead.createdAt ? format(new Date(lead.createdAt), "PPp", { locale: language === "es" ? es : enUS }) : "-"}
@@ -613,7 +679,7 @@ export default function ExternalLeadDetail() {
         </div>
         {lead.updatedAt && (
           <div className="flex items-center gap-2">
-            <RefreshCw className="h-3 w-3" />
+            <RefreshCw className="h-3.5 w-3.5" />
             <span>
               {language === "es" ? "Actualizado: " : "Updated: "}
               {format(new Date(lead.updatedAt), "PPp", { locale: language === "es" ? es : enUS })}
@@ -639,7 +705,7 @@ export default function ExternalLeadDetail() {
               <ArrowLeft className="h-4 w-4" />
             </Button>
             <div className="min-w-0">
-              <h1 className="text-lg font-semibold truncate">
+              <h1 className="text-lg font-bold truncate">
                 {lead.firstName} {lead.lastName}
               </h1>
               <Badge className={`${statusConfig.color} text-xs`}>
@@ -647,14 +713,25 @@ export default function ExternalLeadDetail() {
               </Badge>
             </div>
           </div>
-          <div className="flex items-center gap-1">
+          <div className="flex items-center gap-1.5">
+            {/* WhatsApp Quick Button - Mobile */}
+            {lead.phone && (
+              <Button 
+                size="icon"
+                onClick={sendWhatsAppMessage}
+                className="bg-green-600 hover:bg-green-700 text-white"
+                data-testid="button-whatsapp-mobile"
+              >
+                <SiWhatsapp className="h-4 w-4" />
+              </Button>
+            )}
             <Sheet open={isMobileInfoOpen} onOpenChange={setIsMobileInfoOpen}>
               <SheetTrigger asChild>
                 <Button variant="outline" size="icon" data-testid="button-show-lead-info">
                   <Info className="h-4 w-4" />
                 </Button>
               </SheetTrigger>
-              <SheetContent side="left" className="w-[85vw] max-w-[320px] p-0">
+              <SheetContent side="left" className="w-[85vw] max-w-[340px] p-0">
                 <ScrollArea className="h-full">
                   <div className="p-4">
                     <LeadInfoContent />

@@ -118,9 +118,16 @@ export default function LeadStatusHistoryTab({ leadId }: LeadStatusHistoryTabPro
           </div>
         </div>
       ) : (
-        <div className="text-center py-8 text-muted-foreground border rounded-lg border-dashed">
-          <History className="h-8 w-8 mx-auto mb-2 opacity-50" />
-          <p>{language === "es" ? "No hay historial de estados" : "No status history"}</p>
+        <div className="text-center py-8 text-muted-foreground border rounded-lg border-dashed bg-muted/20">
+          <div className="h-12 w-12 rounded-full bg-muted mx-auto flex items-center justify-center mb-4">
+            <History className="h-6 w-6 text-muted-foreground" />
+          </div>
+          <p className="text-sm">{language === "es" ? "No hay historial de estados" : "No status history"}</p>
+          <p className="text-xs text-muted-foreground/70 mt-1">
+            {language === "es" 
+              ? "El historial se creará automáticamente" 
+              : "History will be created automatically"}
+          </p>
         </div>
       )}
     </div>

@@ -171,9 +171,21 @@ export default function LeadActivitiesTab({ leadId }: LeadActivitiesTabProps) {
           })}
         </div>
       ) : (
-        <div className="text-center py-8 text-muted-foreground border rounded-lg border-dashed">
-          <Activity className="h-8 w-8 mx-auto mb-2 opacity-50" />
-          <p>{language === "es" ? "No hay actividades registradas" : "No activities recorded"}</p>
+        <div className="text-center py-8 text-muted-foreground border rounded-lg border-dashed bg-muted/20">
+          <div className="h-12 w-12 rounded-full bg-muted mx-auto flex items-center justify-center mb-4">
+            <Activity className="h-6 w-6 text-muted-foreground" />
+          </div>
+          <p className="text-sm">{language === "es" ? "No hay actividades registradas" : "No activities recorded"}</p>
+          <Button
+            variant="outline"
+            size="sm"
+            className="mt-4"
+            onClick={() => setIsAddActivityOpen(true)}
+            data-testid="button-add-first-activity"
+          >
+            <Plus className="h-4 w-4 mr-1" />
+            {language === "es" ? "Registrar primera actividad" : "Record first activity"}
+          </Button>
         </div>
       )}
 

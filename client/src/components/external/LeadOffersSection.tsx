@@ -237,10 +237,26 @@ export default function LeadOffersSection({ lead }: LeadOffersSectionProps) {
           ))}
         </div>
       ) : (
-        <div className="text-center py-8 text-muted-foreground border rounded-lg border-dashed">
-          <Send className="h-8 w-8 mx-auto mb-2 opacity-50" />
-          <p>{language === "es" ? "No hay ofertas enviadas" : "No offers sent"}</p>
-        </div>
+        <Card className="border-dashed">
+          <CardContent className="text-center py-8">
+            <div className="h-12 w-12 rounded-full bg-muted mx-auto flex items-center justify-center mb-4">
+              <Send className="h-6 w-6 text-muted-foreground" />
+            </div>
+            <p className="text-muted-foreground text-sm">
+              {language === "es" ? "No hay ofertas enviadas" : "No offers sent yet"}
+            </p>
+            <Button
+              variant="outline"
+              size="sm"
+              className="mt-4"
+              onClick={() => setIsOfferDialogOpen(true)}
+              data-testid="button-send-first-offer"
+            >
+              <Plus className="h-4 w-4 mr-1" />
+              {language === "es" ? "Enviar primera oferta" : "Send first offer"}
+            </Button>
+          </CardContent>
+        </Card>
       )}
 
       {/* Generate Offer Dialog */}

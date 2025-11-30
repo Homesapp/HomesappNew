@@ -352,7 +352,9 @@ export default function LeadRentalFormsTab({ lead }: LeadRentalFormsTabProps) {
       ) : (
         <Card className="border-dashed">
           <CardContent className="text-center py-8">
-            <FileText className="h-12 w-12 mx-auto text-muted-foreground/50 mb-4" />
+            <div className="h-12 w-12 rounded-full bg-muted mx-auto flex items-center justify-center mb-4">
+              <FileText className="h-6 w-6 text-muted-foreground" />
+            </div>
             <p className="text-muted-foreground text-sm">
               {language === "es" 
                 ? "No hay formatos de renta enviados" 
@@ -361,7 +363,7 @@ export default function LeadRentalFormsTab({ lead }: LeadRentalFormsTabProps) {
             <Button
               variant="outline"
               size="sm"
-              className="mt-4 min-h-[44px]"
+              className="mt-4"
               onClick={() => setIsDialogOpen(true)}
               data-testid="button-send-first-form"
             >

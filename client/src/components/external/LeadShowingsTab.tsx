@@ -171,9 +171,21 @@ export default function LeadShowingsTab({ leadId }: LeadShowingsTabProps) {
           })}
         </div>
       ) : (
-        <div className="text-center py-8 text-muted-foreground border rounded-lg border-dashed">
-          <Home className="h-8 w-8 mx-auto mb-2 opacity-50" />
-          <p>{language === "es" ? "No hay visitas programadas" : "No showings scheduled"}</p>
+        <div className="text-center py-8 text-muted-foreground border rounded-lg border-dashed bg-muted/20">
+          <div className="h-12 w-12 rounded-full bg-muted mx-auto flex items-center justify-center mb-4">
+            <Home className="h-6 w-6 text-muted-foreground" />
+          </div>
+          <p className="text-sm">{language === "es" ? "No hay visitas programadas" : "No showings scheduled"}</p>
+          <Button
+            variant="outline"
+            size="sm"
+            className="mt-4"
+            onClick={() => setIsAddShowingOpen(true)}
+            data-testid="button-schedule-first-showing"
+          >
+            <Plus className="h-4 w-4 mr-1" />
+            {language === "es" ? "Programar primera visita" : "Schedule first showing"}
+          </Button>
         </div>
       )}
 
