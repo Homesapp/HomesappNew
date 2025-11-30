@@ -26030,8 +26030,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Get lead and unit details for WhatsApp message
       const [lead] = await db.select().from(externalLeads).where(eq(externalLeads.id, leadId));
       let unit = null;
+      let condominium = null;
       if (unitId) {
         [unit] = await db.select().from(externalUnits).where(eq(externalUnits.id, unitId));
+        if (unit?.condominiumId) {
+          [condominium] = await db.select().from(externalCondominiums).where(eq(externalCondominiums.id, unit.condominiumId));
+        }
       }
 
       // Generate WhatsApp link
@@ -26040,13 +26044,40 @@ export async function registerRoutes(app: Express): Promise<Server> {
         whatsappMessage = `Hola ${lead?.firstName || ''}! Te comparto esta propiedad que puede interesarte:\n\n` +
           `${unit.name}\n` +
           `${unit.unitType || 'Propiedad'} - ${unit.bedrooms || 0} recámaras\n` +
-          `$${unit.monthlyRent?.toLocaleString() || 'Consultar'} ${unit.currency || 'MXN'}/mes\n` +
+          `${unit.monthlyRent?.toLocaleString() || 'Consultar'} ${unit.currency || 'MXN'}/mes\n` +
           `${unit.zone || ''}\n\n` +
           `¿Te gustaría agendar una visita?`;
       }
 
       const phone = lead?.phone?.replace(/\D/g, '') || '';
       const whatsappUrl = `https://wa.me/${phone}?text=${encodeURIComponent(whatsappMessage || '')}`;
+
+      // Get seller info and log activity AFTER share operation completes successfully
+      const sellerUserId = req.user.claims?.sub || req.user.id;
+      const [sellerUser] = await db.select().from(users).where(eq(users.id, sellerUserId)).limit(1);
+      const sellerName = sellerUser?.firstName && sellerUser?.lastName 
+        ? `${sellerUser.firstName} ${sellerUser.lastName}`
+        : sellerUser?.username || 'Vendedor';
+
+      // Create activity record AFTER all operations succeed
+      const activityType = channel === 'email' ? 'email' : 'whatsapp';
+      const propertyInfo = unit 
+        ? `${condominium?.name || ''} ${unit.unitNumber || unit.name || 'Unidad'}`.trim()
+        : 'Propiedad';
+      const priceInfo = unit?.monthlyRent ? ` - ${Number(unit.monthlyRent).toLocaleString()} ${unit.currency || 'MXN'}/mes` : '';
+      
+      await db.insert(externalLeadActivities).values({
+        leadId,
+        agencyId,
+        activityType: activityType as any,
+        title: `Propiedad compartida: ${propertyInfo}`,
+        description: `${sellerName} compartió la propiedad ${propertyInfo}${priceInfo} vía ${channel === 'whatsapp' ? 'WhatsApp' : channel === 'email' ? 'Email' : channel}`,
+        relatedPropertyId: propertyId || null,
+        relatedUnitId: unitId || null,
+        createdBy: sellerUserId,
+        completedAt: new Date(),
+        outcome: 'pending',
+      });
 
       res.json({
         success: true,
@@ -31383,6 +31414,13 @@ ${{precio}}/mes
         }
       }
       
+      // Get seller info for activity logging
+      const sellerIdForActivity = req.user.claims?.sub || req.user.id;
+      const [sellerForActivity] = await db.select().from(users).where(eq(users.id, sellerIdForActivity)).limit(1);
+      const sellerNameForActivity = sellerForActivity?.firstName && sellerForActivity?.lastName 
+        ? `${sellerForActivity.firstName} ${sellerForActivity.lastName}`
+        : sellerForActivity?.username || 'Vendedor';
+      
       const propertySent = await storage.createExternalLeadPropertySent({
         ...req.body,
         ...propertySnapshot,
@@ -31391,13 +31429,17 @@ ${{precio}}/mes
         sentBy: req.user.id,
       });
       
-      // Create activity entry
+      // Build property info for activity
+      const propertyInfoForActivity = `${propertySnapshot.propertyName || 'Propiedad'}${propertySnapshot.unitNumber ? ' - ' + propertySnapshot.unitNumber : ''}`;
+      const priceInfoForActivity = propertySnapshot.rentPrice ? ` (${Number(propertySnapshot.rentPrice).toLocaleString()} MXN/mes)` : '';
+      
+      // Create activity entry with seller name
       await storage.createExternalLeadActivity({
         leadId: id,
         agencyId: lead.agencyId,
         activityType: 'whatsapp',
-        title: `Propiedad enviada: ${propertySnapshot.propertyName || 'Propiedad'}${propertySnapshot.unitNumber ? ' - ' + propertySnapshot.unitNumber : ''}`,
-        description: req.body.message || 'Se compartió información de propiedad',
+        title: `Propiedad enviada: ${propertyInfoForActivity}`,
+        description: `${sellerNameForActivity} compartió la propiedad ${propertyInfoForActivity}${priceInfoForActivity}`,
         relatedPropertyId: req.body.propertyId,
         relatedUnitId: req.body.unitId,
         createdBy: req.user.id,
@@ -31471,13 +31513,13 @@ ${{precio}}/mes
       const host = req.get('host');
       const offerUrl = `${protocol}://${host}/offer/${tokenValue}`;
       
-      // Create activity entry
+      // Create activity entry with seller name
       await storage.createExternalLeadActivity({
         leadId,
         agencyId: lead.agencyId,
         activityType: 'whatsapp',
         title: `Oferta de Renta generada: ${property?.name || 'Propiedad'} - ${unit.unitNumber || ''}`,
-        description: `Se generó link de oferta de renta para ${lead.fullName}`,
+        description: `${createdByName} generó link de oferta de renta para ${property?.name || 'Propiedad'} - ${unit.unitNumber || ''}${unit.price ? ` (${Number(unit.price).toLocaleString()} ${unit.currency || 'MXN'}/mes)` : ''}`,
         relatedPropertyId: unit.propertyId,
         relatedUnitId: externalUnitId,
         createdBy: userId,

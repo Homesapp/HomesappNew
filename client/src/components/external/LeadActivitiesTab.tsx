@@ -30,6 +30,8 @@ import {
   Activity,
   History,
   Loader2,
+  Building2,
+  Send,
 } from "lucide-react";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { useToast } from "@/hooks/use-toast";
@@ -136,12 +138,19 @@ export default function LeadActivitiesTab({ leadId }: LeadActivitiesTabProps) {
       ) : activities && activities.length > 0 ? (
         <div className="space-y-3">
           {activities.map((activity: any) => {
-            const Icon = ACTIVITY_ICONS[activity.type as ActivityType] || Activity;
-            const colorClass = ACTIVITY_COLORS[activity.type as ActivityType] || ACTIVITY_COLORS.note;
+            const activityType = activity.activityType || activity.type;
+            const isPropertyActivity = activity.title?.toLowerCase().includes('propiedad') || 
+                                       activity.title?.toLowerCase().includes('oferta de renta');
+            const Icon = isPropertyActivity ? Building2 : (ACTIVITY_ICONS[activityType as ActivityType] || Activity);
+            const colorClass = isPropertyActivity 
+              ? "bg-indigo-100 text-indigo-700 dark:bg-indigo-900/50 dark:text-indigo-300"
+              : (ACTIVITY_COLORS[activityType as ActivityType] || ACTIVITY_COLORS.note);
+            
             return (
               <div 
                 key={activity.id} 
-                className="flex gap-3 p-3 rounded-lg border bg-card"
+                className={`flex gap-3 p-3 rounded-lg border bg-card ${isPropertyActivity ? 'border-indigo-200 dark:border-indigo-800' : ''}`}
+                data-testid={`activity-item-${activity.id}`}
               >
                 <div className={`p-2 rounded-lg ${colorClass} h-fit`}>
                   <Icon className="h-4 w-4" />
@@ -149,16 +158,22 @@ export default function LeadActivitiesTab({ leadId }: LeadActivitiesTabProps) {
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2 flex-wrap">
                     <span className="font-medium text-sm">
-                      {ACTIVITY_LABELS[activity.type as ActivityType]?.[language] || activity.type}
+                      {activity.title || ACTIVITY_LABELS[activityType as ActivityType]?.[language] || activityType}
                     </span>
-                    <span className="text-xs text-muted-foreground">
-                      {activity.createdAt && format(new Date(activity.createdAt), "PPp", { 
-                        locale: language === "es" ? es : enUS 
-                      })}
-                    </span>
+                    {isPropertyActivity && (
+                      <Badge variant="secondary" className="text-xs bg-indigo-100 text-indigo-700 dark:bg-indigo-900/50 dark:text-indigo-300">
+                        <Send className="h-3 w-3 mr-1" />
+                        {language === "es" ? "Propiedad" : "Property"}
+                      </Badge>
+                    )}
                   </div>
-                  {activity.notes && (
-                    <p className="text-sm text-muted-foreground mt-1">{activity.notes}</p>
+                  <span className="text-xs text-muted-foreground">
+                    {activity.createdAt && format(new Date(activity.createdAt), "PPp", { 
+                      locale: language === "es" ? es : enUS 
+                    })}
+                  </span>
+                  {(activity.description || activity.notes) && (
+                    <p className="text-sm text-muted-foreground mt-1">{activity.description || activity.notes}</p>
                   )}
                   {activity.recordedByName && (
                     <p className="text-xs text-muted-foreground mt-1">
