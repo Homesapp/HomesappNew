@@ -6499,6 +6499,29 @@ export type InsertExternalLead = z.infer<typeof insertExternalLeadSchema>;
 export type UpdateExternalLead = z.infer<typeof updateExternalLeadSchema>;
 export type ExternalLead = typeof externalLeads.$inferSelect;
 
+// Active Card summary for enriched lead responses
+export interface ActiveCardSummary {
+  id: string;
+  title: string | null;
+  propertyType: string | null;
+  budgetMin: string | null;
+  budgetMax: string | null;
+  budgetText: string | null;
+  bedrooms: number | null;
+  bedroomsText: string | null;
+  bathrooms: number | null;
+  hasPets: string | null;
+  zone: string | null;
+  moveInDate: Date | string | null;
+  contractDuration: string | null;
+  interestedUnitIds: string[] | null;
+}
+
+// Enriched lead type with active presentation card data
+export type ExternalLeadWithActiveCard = ExternalLead & {
+  activeCard: ActiveCardSummary | null;
+};
+
 // External Lead Registration Tokens - Links públicos para registro de leads (vendedores/brokers)
 export const externalLeadRegistrationTokens = pgTable("external_lead_registration_tokens", {
   id: varchar("id").primaryKey().$defaultFn(() => crypto.randomUUID()),

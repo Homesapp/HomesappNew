@@ -89,6 +89,8 @@ import {
   Columns,
   ChevronUp,
   ChevronDown,
+  ChevronLeft,
+  ChevronRight,
   ChevronsUpDown,
   CheckCircle2,
   XCircle,
@@ -124,6 +126,7 @@ import {
   AlertTriangle,
   Save,
   ArrowLeftCircle,
+  Sparkles,
 } from "lucide-react";
 import { SiWhatsapp } from "react-icons/si";
 import * as XLSX from "xlsx";
@@ -135,7 +138,7 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useToast } from "@/hooks/use-toast";
 import { queryClient, apiRequest, ApiError } from "@/lib/queryClient";
-import type { ExternalClient, ExternalLead } from "@shared/schema";
+import type { ExternalClient, ExternalLead, ExternalLeadWithActiveCard } from "@shared/schema";
 import { insertExternalClientSchema, insertExternalLeadSchema, updateExternalLeadSchema } from "@shared/schema";
 import { z } from "zod";
 import { cn } from "@/lib/utils";
@@ -183,6 +186,8 @@ export default function ExternalClients() {
 
   // Lead states
   const [isCreateLeadDialogOpen, setIsCreateLeadDialogOpen] = useState(false);
+  const [createLeadStep, setCreateLeadStep] = useState<1 | 2>(1); // 2-step wizard: 1=Contact, 2=Preferences
+  const [isValidatingStep, setIsValidatingStep] = useState(false); // Validation loading state
   const [isEditLeadDialogOpen, setIsEditLeadDialogOpen] = useState(false);
   const [isDeleteLeadDialogOpen, setIsDeleteLeadDialogOpen] = useState(false);
   const [isConvertToLeadDialogOpen, setIsConvertToLeadDialogOpen] = useState(false);
@@ -245,7 +250,7 @@ export default function ExternalClients() {
   const clients = clientsResponse?.data || [];
   const totalClients = clientsResponse?.total || 0;
 
-  const { data: leadsResponse, isLoading: leadsLoading } = useQuery<{ data: ExternalLead[]; total: number; limit: number; offset: number; hasMore: boolean }>({
+  const { data: leadsResponse, isLoading: leadsLoading } = useQuery<{ data: ExternalLeadWithActiveCard[]; total: number; limit: number; offset: number; hasMore: boolean }>({
     queryKey: ["/api/external-leads", leadStatusFilter, leadRegistrationTypeFilter, leadSellerFilter, debouncedLeadSearchTerm, leadSortField, leadSortOrder, leadCurrentPage, leadItemsPerPage],
     queryFn: async () => {
       const params = new URLSearchParams();
@@ -274,7 +279,9 @@ export default function ExternalClients() {
   
   const filteredLeads = leads.filter((lead: any) => {
     if (leadHasPetsFilter !== "all") {
-      const hasPets = lead.hasPets && lead.hasPets !== "No" && lead.hasPets !== "no" && lead.hasPets !== "";
+      // Check activeCard first, then fallback to lead field
+      const petsValue = lead.activeCard?.hasPets || lead.hasPets;
+      const hasPets = petsValue && petsValue !== "No" && petsValue !== "no" && petsValue !== "";
       if (leadHasPetsFilter === "yes" && !hasPets) return false;
       if (leadHasPetsFilter === "no" && hasPets) return false;
     }
@@ -812,6 +819,7 @@ export default function ExternalClients() {
           : "Lead has been created successfully.",
       });
       setIsCreateLeadDialogOpen(false);
+      setCreateLeadStep(1); // Reset to first step
       setSelectedAgencyIdForLead(""); // Reset agency selection
       setSelectedCreateCharacteristics([]); // Reset selections
       setSelectedCreateAmenities([]);
@@ -3218,22 +3226,26 @@ export default function ExternalClients() {
                                 )}
                               </div>
                             </TableCell>
-                            {/* Presupuesto */}
+                            {/* Presupuesto - prefer activeCard, fallback to lead fields */}
                             <TableCell className="text-sm">
-                              {lead.budgetMin || lead.budgetMax 
-                                ? `$${lead.budgetMin ? Number(lead.budgetMin).toLocaleString() : '0'} - $${lead.budgetMax ? Number(lead.budgetMax).toLocaleString() : '∞'}`
-                                : (lead.estimatedRentCostText || (lead.estimatedRentCost ? `$${lead.estimatedRentCost.toLocaleString()}` : "-"))}
+                              {lead.activeCard?.budgetText 
+                                ? lead.activeCard.budgetText
+                                : (lead.activeCard?.budgetMin || lead.activeCard?.budgetMax)
+                                  ? `$${lead.activeCard.budgetMin ? Number(lead.activeCard.budgetMin).toLocaleString() : '0'} - $${lead.activeCard.budgetMax ? Number(lead.activeCard.budgetMax).toLocaleString() : '∞'}`
+                                  : (lead.budgetMin || lead.budgetMax) 
+                                    ? `$${lead.budgetMin ? Number(lead.budgetMin).toLocaleString() : '0'} - $${lead.budgetMax ? Number(lead.budgetMax).toLocaleString() : '∞'}`
+                                    : (lead.estimatedRentCostText || (lead.estimatedRentCost ? `$${lead.estimatedRentCost.toLocaleString()}` : "-"))}
                             </TableCell>
-                            {/* Tipo Unidad */}
+                            {/* Tipo Unidad - prefer activeCard, fallback to lead */}
                             <TableCell className="text-sm">
-                              {lead.desiredUnitType || "-"}
+                              {lead.activeCard?.propertyType || lead.desiredUnitType || "-"}
                             </TableCell>
-                            {/* Mascota */}
+                            {/* Mascota - prefer activeCard, fallback to lead */}
                             <TableCell className="text-sm">
-                              {lead.hasPets ? (
+                              {(lead.activeCard?.hasPets || lead.hasPets) ? (
                                 <div className="flex items-center gap-1">
                                   <PawPrint className="h-3.5 w-3.5 text-amber-600" />
-                                  <span>{lead.hasPets}</span>
+                                  <span>{lead.activeCard?.hasPets || lead.hasPets}</span>
                                 </div>
                               ) : (
                                 <span className="text-muted-foreground">No</span>
@@ -3431,23 +3443,27 @@ export default function ExternalClients() {
                             </DropdownMenu>
                           </div>
                           
-                          {/* Info Grid - Compact 2 columns */}
+                          {/* Info Grid - Compact 2 columns - prefer activeCard, fallback to lead */}
                           <div className="grid grid-cols-2 gap-x-3 gap-y-1 text-xs mb-2">
                             <div className="flex items-center gap-1 text-muted-foreground">
                               <DollarSign className="h-3 w-3 flex-shrink-0" />
                               <span className="truncate">
-                                {lead.budgetMin || lead.budgetMax 
-                                  ? `$${lead.budgetMin ? Number(lead.budgetMin).toLocaleString() : '0'}-$${lead.budgetMax ? Number(lead.budgetMax).toLocaleString() : '∞'}`
-                                  : "-"}
+                                {lead.activeCard?.budgetText 
+                                  ? lead.activeCard.budgetText
+                                  : (lead.activeCard?.budgetMin || lead.activeCard?.budgetMax)
+                                    ? `$${lead.activeCard.budgetMin ? Number(lead.activeCard.budgetMin).toLocaleString() : '0'}-$${lead.activeCard.budgetMax ? Number(lead.activeCard.budgetMax).toLocaleString() : '∞'}`
+                                    : (lead.budgetMin || lead.budgetMax)
+                                      ? `$${lead.budgetMin ? Number(lead.budgetMin).toLocaleString() : '0'}-$${lead.budgetMax ? Number(lead.budgetMax).toLocaleString() : '∞'}`
+                                      : "-"}
                               </span>
                             </div>
                             <div className="flex items-center gap-1 text-muted-foreground">
                               <Home className="h-3 w-3 flex-shrink-0" />
-                              <span className="truncate">{lead.desiredUnitType || "-"}</span>
+                              <span className="truncate">{lead.activeCard?.propertyType || lead.desiredUnitType || "-"}</span>
                             </div>
                             <div className="flex items-center gap-1 text-muted-foreground">
-                              <PawPrint className={`h-3 w-3 flex-shrink-0 ${lead.hasPets ? "text-amber-600" : ""}`} />
-                              <span>{lead.hasPets || "No"}</span>
+                              <PawPrint className={`h-3 w-3 flex-shrink-0 ${(lead.activeCard?.hasPets || lead.hasPets) ? "text-amber-600" : ""}`} />
+                              <span>{lead.activeCard?.hasPets || lead.hasPets || "No"}</span>
                             </div>
                             <div className="flex items-center gap-1 text-muted-foreground">
                               <CalendarDays className="h-3 w-3 flex-shrink-0" />
@@ -3538,23 +3554,50 @@ export default function ExternalClients() {
         </div>
       )}
 
-      {/* Create Lead Dialog - Full screen on mobile */}
-      <Dialog open={isCreateLeadDialogOpen} onOpenChange={setIsCreateLeadDialogOpen}>
+      {/* Create Lead Dialog - Full screen on mobile - 2-Step Wizard */}
+      <Dialog open={isCreateLeadDialogOpen} onOpenChange={(open) => {
+        setIsCreateLeadDialogOpen(open);
+        if (!open) setCreateLeadStep(1);
+      }}>
         <DialogContent className="sm:max-w-3xl max-h-[100dvh] sm:max-h-[90vh] overflow-y-auto max-sm:!left-0 max-sm:!top-0 max-sm:!translate-x-0 max-sm:!translate-y-0 max-sm:!w-full max-sm:!h-full max-sm:!max-w-none max-sm:!rounded-none">
           <DialogHeader className="pb-4 border-b">
-            <div className="flex items-center gap-3">
-              <div className="p-2 rounded-lg bg-primary/10">
-                <UserPlus className="h-5 w-5 text-primary" />
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <div className="p-2 rounded-lg bg-primary/10">
+                  <UserPlus className="h-5 w-5 text-primary" />
+                </div>
+                <div>
+                  <DialogTitle className="text-xl">
+                    {language === "es" ? "Registrar Nuevo Lead" : "Register New Lead"}
+                  </DialogTitle>
+                  <DialogDescription className="mt-1">
+                    {createLeadStep === 1 
+                      ? (language === "es" 
+                          ? "Paso 1: Información de contacto básica" 
+                          : "Step 1: Basic contact information")
+                      : (language === "es" 
+                          ? "Paso 2: Preferencias de búsqueda" 
+                          : "Step 2: Search preferences")}
+                  </DialogDescription>
+                </div>
               </div>
-              <div>
-                <DialogTitle className="text-xl">
-                  {language === "es" ? "Registrar Nuevo Lead" : "Register New Lead"}
-                </DialogTitle>
-                <DialogDescription className="mt-1">
-                  {language === "es" 
-                    ? "Complete la información del prospecto. Los campos con * son obligatorios."
-                    : "Fill in the prospect information. Fields with * are required."}
-                </DialogDescription>
+              {/* Step indicators */}
+              <div className="flex items-center gap-2">
+                <div className={`flex items-center justify-center w-8 h-8 rounded-full text-sm font-medium transition-colors ${
+                  createLeadStep === 1 
+                    ? "bg-primary text-primary-foreground" 
+                    : "bg-primary/20 text-primary"
+                }`}>
+                  1
+                </div>
+                <div className="w-8 h-0.5 bg-muted" />
+                <div className={`flex items-center justify-center w-8 h-8 rounded-full text-sm font-medium transition-colors ${
+                  createLeadStep === 2 
+                    ? "bg-primary text-primary-foreground" 
+                    : "bg-muted text-muted-foreground"
+                }`}>
+                  2
+                </div>
               </div>
             </div>
           </DialogHeader>
@@ -3562,44 +3605,47 @@ export default function ExternalClients() {
           <Form {...leadForm}>
             <form onSubmit={leadForm.handleSubmit((data) => createLeadMutation.mutate(data))} className="space-y-6 py-4">
               
-              {/* Agency selector for master/admin users */}
-              {isMasterOrAdmin && (
-                <div className="p-4 rounded-lg border bg-muted/30">
-                  <div className="flex items-center gap-2 mb-3">
-                    <Building2 className="h-4 w-4 text-primary" />
-                    <span className="font-medium text-sm">{language === "es" ? "Asignación de Agencia" : "Agency Assignment"}</span>
-                  </div>
-                  <Select 
-                    value={selectedAgencyIdForLead} 
-                    onValueChange={setSelectedAgencyIdForLead}
-                  >
-                    <SelectTrigger data-testid="select-create-lead-agency" className="bg-background">
-                      <SelectValue placeholder={language === "es" ? "Seleccione la agencia" : "Select agency"} />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {agencies.map((agency) => (
-                        <SelectItem key={agency.id} value={agency.id} data-testid={`select-item-agency-${agency.id}`}>
-                          {agency.name}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                  {!selectedAgencyIdForLead && (
-                    <p className="text-xs text-muted-foreground mt-2">
-                      {language === "es" 
-                        ? "Como administrador, debes seleccionar una agencia para el lead."
-                        : "As an administrator, you must select an agency for the lead."}
-                    </p>
+              {/* ===== STEP 1: Contact Information ===== */}
+              {createLeadStep === 1 && (
+                <>
+                  {/* Agency selector for master/admin users */}
+                  {isMasterOrAdmin && (
+                    <div className="p-4 rounded-lg border bg-muted/30">
+                      <div className="flex items-center gap-2 mb-3">
+                        <Building2 className="h-4 w-4 text-primary" />
+                        <span className="font-medium text-sm">{language === "es" ? "Asignación de Agencia" : "Agency Assignment"}</span>
+                      </div>
+                      <Select 
+                        value={selectedAgencyIdForLead} 
+                        onValueChange={setSelectedAgencyIdForLead}
+                      >
+                        <SelectTrigger data-testid="select-create-lead-agency" className="bg-background">
+                          <SelectValue placeholder={language === "es" ? "Seleccione la agencia" : "Select agency"} />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {agencies.map((agency) => (
+                            <SelectItem key={agency.id} value={agency.id} data-testid={`select-item-agency-${agency.id}`}>
+                              {agency.name}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      {!selectedAgencyIdForLead && (
+                        <p className="text-xs text-muted-foreground mt-2">
+                          {language === "es" 
+                            ? "Como administrador, debes seleccionar una agencia para el lead."
+                            : "As an administrator, you must select an agency for the lead."}
+                        </p>
+                      )}
+                    </div>
                   )}
-                </div>
-              )}
 
-              {/* Section 1: Contact Type & Basic Info */}
-              <div className="space-y-4">
-                <div className="flex items-center gap-2 text-sm font-semibold text-foreground">
-                  <div className="flex items-center justify-center w-6 h-6 rounded-full bg-primary text-primary-foreground text-xs">1</div>
-                  {language === "es" ? "Información de Contacto" : "Contact Information"}
-                </div>
+                  {/* Contact Type & Basic Info */}
+                  <div className="space-y-4">
+                    <div className="flex items-center gap-2 text-sm font-semibold text-foreground">
+                      <User className="h-4 w-4 text-primary" />
+                      {language === "es" ? "Información de Contacto" : "Contact Information"}
+                    </div>
                 
 {!isSeller && (
                 <FormField
@@ -3726,12 +3772,17 @@ export default function ExternalClients() {
                     />
                   </div>
                 )}
-              </div>
+                  </div>
+                </>
+              )}
 
-              {/* Section 2: Property Search Preferences */}
-              <div className="space-y-4 pt-2 border-t">
-                <div className="flex items-center gap-2 text-sm font-semibold text-foreground pt-2">
-                  <div className="flex items-center justify-center w-6 h-6 rounded-full bg-primary text-primary-foreground text-xs">2</div>
+              {/* ===== STEP 2: Property Preferences ===== */}
+              {createLeadStep === 2 && (
+                <>
+              {/* Property Search Preferences */}
+              <div className="space-y-4">
+                <div className="flex items-center gap-2 text-sm font-semibold text-foreground">
+                  <Home className="h-4 w-4 text-primary" />
                   {language === "es" ? "Preferencias de Búsqueda" : "Search Preferences"}
                 </div>
 
@@ -4149,12 +4200,12 @@ export default function ExternalClients() {
                 </div>
               </div>
 
-              {/* Section 3: Property Characteristics & Amenities - Collapsible */}
+              {/* Property Characteristics & Amenities - Collapsible */}
               {(activeCharacteristics.length > 0 || activeAmenities.length > 0) && (
-                <Collapsible className="space-y-2 pt-2 border-t">
+                <Collapsible className="space-y-2 pt-4 border-t">
                   <CollapsibleTrigger className="flex items-center justify-between w-full py-2 group">
                     <div className="flex items-center gap-2 text-sm font-semibold text-foreground">
-                      <div className="flex items-center justify-center w-6 h-6 rounded-full bg-primary text-primary-foreground text-xs">3</div>
+                      <Sparkles className="h-4 w-4 text-primary" />
                       {language === "es" ? "Características y Amenidades" : "Characteristics & Amenities"}
                       {(selectedCreateCharacteristics.length > 0 || selectedCreateAmenities.length > 0) && (
                         <Badge variant="secondary" className="ml-2 text-xs">
@@ -4346,34 +4397,94 @@ export default function ExternalClients() {
                   )}
                 />
               </div>
+                </>
+              )}
 
+              {/* Footer with step navigation */}
               <DialogFooter className="pt-4 border-t gap-2 sm:gap-0">
-                <Button
-                  type="button"
-                  variant="outline"
-                  onClick={() => setIsCreateLeadDialogOpen(false)}
-                  data-testid="button-create-lead-cancel"
-                >
-                  {language === "es" ? "Cancelar" : "Cancel"}
-                </Button>
-                <Button 
-                  type="submit" 
-                  disabled={createLeadMutation.isPending || (isMasterOrAdmin && !selectedAgencyIdForLead)} 
-                  data-testid="button-create-lead-submit"
-                  className="gap-2"
-                >
-                  {createLeadMutation.isPending ? (
-                    <>
-                      <Loader2 className="h-4 w-4 animate-spin" />
-                      {language === "es" ? "Creando..." : "Creating..."}
-                    </>
-                  ) : (
-                    <>
-                      <Plus className="h-4 w-4" />
-                      {language === "es" ? "Crear Lead" : "Create Lead"}
-                    </>
-                  )}
-                </Button>
+                {createLeadStep === 1 ? (
+                  <>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      onClick={() => {
+                        leadForm.clearErrors();
+                        setIsCreateLeadDialogOpen(false);
+                      }}
+                      data-testid="button-create-lead-cancel"
+                    >
+                      {language === "es" ? "Cancelar" : "Cancel"}
+                    </Button>
+                    <Button 
+                      type="button"
+                      onClick={async () => {
+                        setIsValidatingStep(true);
+                        try {
+                          const registrationType = leadForm.getValues("registrationType");
+                          const fieldsToValidate: ("firstName" | "lastName" | "phone" | "phoneLast4" | "email" | "registrationType")[] = 
+                            registrationType === "broker" 
+                              ? ["firstName", "lastName", "phoneLast4", "registrationType"]
+                              : ["firstName", "lastName", "phone", "registrationType"];
+                          const isValid = await leadForm.trigger(fieldsToValidate);
+                          if (isValid && (!isMasterOrAdmin || selectedAgencyIdForLead)) {
+                            setCreateLeadStep(2);
+                          }
+                        } finally {
+                          setIsValidatingStep(false);
+                        }
+                      }}
+                      disabled={isValidatingStep || (isMasterOrAdmin && !selectedAgencyIdForLead)}
+                      data-testid="button-create-lead-next"
+                      className="gap-2"
+                    >
+                      {isValidatingStep ? (
+                        <>
+                          <Loader2 className="h-4 w-4 animate-spin" />
+                          {language === "es" ? "Validando..." : "Validating..."}
+                        </>
+                      ) : (
+                        <>
+                          {language === "es" ? "Siguiente" : "Next"}
+                          <ChevronRight className="h-4 w-4" />
+                        </>
+                      )}
+                    </Button>
+                  </>
+                ) : (
+                  <>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      onClick={() => {
+                        leadForm.clearErrors();
+                        setCreateLeadStep(1);
+                      }}
+                      data-testid="button-create-lead-back"
+                      className="gap-2"
+                    >
+                      <ChevronLeft className="h-4 w-4" />
+                      {language === "es" ? "Anterior" : "Back"}
+                    </Button>
+                    <Button 
+                      type="submit" 
+                      disabled={createLeadMutation.isPending || (isMasterOrAdmin && !selectedAgencyIdForLead)} 
+                      data-testid="button-create-lead-submit"
+                      className="gap-2"
+                    >
+                      {createLeadMutation.isPending ? (
+                        <>
+                          <Loader2 className="h-4 w-4 animate-spin" />
+                          {language === "es" ? "Creando..." : "Creating..."}
+                        </>
+                      ) : (
+                        <>
+                          <Plus className="h-4 w-4" />
+                          {language === "es" ? "Crear Lead" : "Create Lead"}
+                        </>
+                      )}
+                    </Button>
+                  </>
+                )}
               </DialogFooter>
             </form>
           </Form>
@@ -5423,63 +5534,74 @@ export default function ExternalClients() {
                   </div>
                 </div>
 
-                {/* Property Preferences */}
+                {/* Property Preferences - prefer activeCard, fallback to lead fields */}
                 <div className="space-y-3">
                   <h3 className="text-sm font-semibold flex items-center gap-2 text-primary">
                     <Home className="h-4 w-4" />
                     {language === "es" ? "Preferencias de Propiedad" : "Property Preferences"}
+                    {selectedLead.activeCard && (
+                      <span className="text-xs font-normal text-muted-foreground ml-1">
+                        ({language === "es" ? "de tarjeta" : "from card"})
+                      </span>
+                    )}
                   </h3>
                   <div className="bg-muted/30 rounded-lg p-4 space-y-3">
                     <div className="grid grid-cols-2 gap-3 text-sm">
-                      {(selectedLead.budgetMin || selectedLead.budgetMax || selectedLead.estimatedRentCost || selectedLead.estimatedRentCostText) && (
+                      {(selectedLead.activeCard?.budgetText || selectedLead.activeCard?.budgetMin || selectedLead.activeCard?.budgetMax || selectedLead.budgetMin || selectedLead.budgetMax || selectedLead.estimatedRentCost || selectedLead.estimatedRentCostText) && (
                         <div>
                           <span className="text-muted-foreground text-xs">{language === "es" ? "Presupuesto" : "Budget"}</span>
                           <p className="font-medium text-green-600">
-                            {selectedLead.budgetMin || selectedLead.budgetMax 
-                              ? `$${selectedLead.budgetMin ? Number(selectedLead.budgetMin).toLocaleString() : '0'} - $${selectedLead.budgetMax ? Number(selectedLead.budgetMax).toLocaleString() : '∞'}`
-                              : (selectedLead.estimatedRentCostText || (selectedLead.estimatedRentCost ? `$${selectedLead.estimatedRentCost.toLocaleString()}` : "-"))}
+                            {selectedLead.activeCard?.budgetText 
+                              ? selectedLead.activeCard.budgetText
+                              : (selectedLead.activeCard?.budgetMin || selectedLead.activeCard?.budgetMax)
+                                ? `$${selectedLead.activeCard.budgetMin ? Number(selectedLead.activeCard.budgetMin).toLocaleString() : '0'} - $${selectedLead.activeCard.budgetMax ? Number(selectedLead.activeCard.budgetMax).toLocaleString() : '∞'}`
+                                : (selectedLead.budgetMin || selectedLead.budgetMax) 
+                                  ? `$${selectedLead.budgetMin ? Number(selectedLead.budgetMin).toLocaleString() : '0'} - $${selectedLead.budgetMax ? Number(selectedLead.budgetMax).toLocaleString() : '∞'}`
+                                  : (selectedLead.estimatedRentCostText || (selectedLead.estimatedRentCost ? `$${selectedLead.estimatedRentCost.toLocaleString()}` : "-"))}
                           </p>
                         </div>
                       )}
-                      {(selectedLead.bedrooms || selectedLead.bedroomsText) && (
+                      {(selectedLead.activeCard?.bedrooms || selectedLead.activeCard?.bedroomsText || selectedLead.bedrooms || selectedLead.bedroomsText) && (
                         <div>
                           <span className="text-muted-foreground text-xs">{language === "es" ? "Recámaras" : "Bedrooms"}</span>
-                          <p className="font-medium">{selectedLead.bedrooms || selectedLead.bedroomsText}</p>
+                          <p className="font-medium">{selectedLead.activeCard?.bedroomsText || selectedLead.activeCard?.bedrooms || selectedLead.bedrooms || selectedLead.bedroomsText}</p>
                         </div>
                       )}
-                      {selectedLead.desiredUnitType && (
+                      {(selectedLead.activeCard?.propertyType || selectedLead.desiredUnitType) && (
                         <div>
                           <span className="text-muted-foreground text-xs">{language === "es" ? "Tipo de Unidad" : "Unit Type"}</span>
-                          <p className="font-medium">{selectedLead.desiredUnitType}</p>
+                          <p className="font-medium">{selectedLead.activeCard?.propertyType || selectedLead.desiredUnitType}</p>
                         </div>
                       )}
-                      {selectedLead.contractDuration && (
+                      {(selectedLead.activeCard?.contractDuration || selectedLead.contractDuration) && (
                         <div>
                           <span className="text-muted-foreground text-xs">{language === "es" ? "Duración Contrato" : "Contract Duration"}</span>
-                          <p className="font-medium">{selectedLead.contractDuration}</p>
+                          <p className="font-medium">{selectedLead.activeCard?.contractDuration || selectedLead.contractDuration}</p>
                         </div>
                       )}
-                      {selectedLead.hasPets && (
+                      {(selectedLead.activeCard?.hasPets || selectedLead.hasPets) && (
                         <div>
                           <span className="text-muted-foreground text-xs">{language === "es" ? "Mascotas" : "Pets"}</span>
-                          <p className="font-medium">{selectedLead.hasPets}</p>
+                          <p className="font-medium">{selectedLead.activeCard?.hasPets || selectedLead.hasPets}</p>
                         </div>
                       )}
-                      {(selectedLead.checkInDate || selectedLead.checkInDateText) && (
+                      {(selectedLead.activeCard?.moveInDate || selectedLead.checkInDate || selectedLead.checkInDateText) && (
                         <div>
                           <span className="text-muted-foreground text-xs">{language === "es" ? "Fecha de Mudanza" : "Move-in Date"}</span>
                           <p className="font-medium">
-                            {selectedLead.checkInDate 
-                              ? format(new Date(selectedLead.checkInDate), "dd MMM yyyy", { locale: language === "es" ? es : enUS })
-                              : selectedLead.checkInDateText}
+                            {selectedLead.activeCard?.moveInDate 
+                              ? format(new Date(selectedLead.activeCard.moveInDate), "dd MMM yyyy", { locale: language === "es" ? es : enUS })
+                              : selectedLead.checkInDate 
+                                ? format(new Date(selectedLead.checkInDate), "dd MMM yyyy", { locale: language === "es" ? es : enUS })
+                                : selectedLead.checkInDateText}
                           </p>
                         </div>
                       )}
                     </div>
-                    {selectedLead.desiredNeighborhood && (
+                    {(selectedLead.activeCard?.zone || selectedLead.desiredNeighborhood) && (
                       <div>
                         <span className="text-muted-foreground text-xs">{language === "es" ? "Zona Preferida" : "Preferred Area"}</span>
-                        <p className="font-medium">{selectedLead.desiredNeighborhood}</p>
+                        <p className="font-medium">{selectedLead.activeCard?.zone || selectedLead.desiredNeighborhood}</p>
                       </div>
                     )}
                     {selectedLead.desiredProperty && (

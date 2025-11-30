@@ -370,6 +370,8 @@ import {
   type UpdateExternalClientIncident,
   externalLeads,
   type ExternalLead,
+  type ExternalLeadWithActiveCard,
+  type ActiveCardSummary,
   type InsertExternalLead,
   type UpdateExternalLead,
   externalLeadRegistrationTokens,
@@ -1540,7 +1542,7 @@ export interface IStorage {
 
   // External Leads
   getExternalLead(id: string): Promise<ExternalLead | undefined>;
-  getExternalLeadsByAgency(agencyId: string, filters?: { status?: string; registrationType?: string; sellerId?: string; sellerScope?: boolean; expiringDays?: number; search?: string; sortField?: string; sortOrder?: 'asc' | 'desc'; limit?: number; offset?: number }): Promise<ExternalLead[]>;
+  getExternalLeadsByAgency(agencyId: string, filters?: { status?: string; registrationType?: string; sellerId?: string; sellerScope?: boolean; expiringDays?: number; search?: string; sortField?: string; sortOrder?: 'asc' | 'desc'; limit?: number; offset?: number }): Promise<ExternalLeadWithActiveCard[]>;
   getExternalLeadsCountByAgency(agencyId: string, filters?: { status?: string; registrationType?: string; sellerId?: string; sellerScope?: boolean; expiringDays?: number; search?: string }): Promise<number>;
   createExternalLead(lead: InsertExternalLead & { agencyId: string; createdBy?: string; sellerId?: string }): Promise<ExternalLead>;
   updateExternalLead(id: string, updates: Partial<InsertExternalLead>): Promise<ExternalLead>;
@@ -10376,7 +10378,7 @@ export class DatabaseStorage implements IStorage {
   async getExternalLeadsByAgency(
     agencyId: string, 
     filters?: { status?: string; registrationType?: string; sellerId?: string; sellerScope?: boolean; expiringDays?: number; search?: string; sortField?: string; sortOrder?: 'asc' | 'desc'; limit?: number; offset?: number }
-  ): Promise<ExternalLead[]> {
+  ): Promise<ExternalLeadWithActiveCard[]> {
     const conditions = [eq(externalLeads.agencyId, agencyId)];
     
     if (filters?.status) {
@@ -10452,7 +10454,52 @@ export class DatabaseStorage implements IStorage {
       query = query.offset(filters.offset);
     }
     
-    return await query;
+    const leads = await query;
+    
+    // Batch-fetch active presentation cards for all leads
+    if (leads.length === 0) {
+      return [];
+    }
+    
+    const leadIds = leads.map(l => l.id);
+    
+    // Fetch all presentation cards for these leads, ordered by isDefault DESC, createdAt DESC
+    const allCards = await db.select()
+      .from(externalPresentationCards)
+      .where(inArray(externalPresentationCards.leadId, leadIds))
+      .orderBy(
+        desc(externalPresentationCards.isDefault),
+        desc(externalPresentationCards.createdAt)
+      );
+    
+    // Group cards by leadId and pick the first (most relevant) one per lead
+    const activeCardByLeadId = new Map<string, ActiveCardSummary>();
+    for (const card of allCards) {
+      if (card.leadId && !activeCardByLeadId.has(card.leadId)) {
+        activeCardByLeadId.set(card.leadId, {
+          id: card.id,
+          title: card.title,
+          propertyType: card.propertyType,
+          budgetMin: card.budgetMin,
+          budgetMax: card.budgetMax,
+          budgetText: card.budgetText,
+          bedrooms: card.bedrooms,
+          bedroomsText: card.bedroomsText,
+          bathrooms: card.bathrooms,
+          hasPets: card.hasPets,
+          zone: card.zone,
+          moveInDate: card.moveInDate,
+          contractDuration: card.contractDuration,
+          interestedUnitIds: card.interestedUnitIds,
+        });
+      }
+    }
+    
+    // Enrich leads with their active card
+    return leads.map(lead => ({
+      ...lead,
+      activeCard: activeCardByLeadId.get(lead.id) || null,
+    }));
   }
   
   async getExternalLeadsCountByAgency(
