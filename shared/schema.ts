@@ -8976,3 +8976,214 @@ export const insertExternalPropertyProspectActivitySchema = createInsertSchema(e
 
 export type InsertExternalPropertyProspectActivity = z.infer<typeof insertExternalPropertyProspectActivitySchema>;
 export type ExternalPropertyProspectActivity = typeof externalPropertyProspectActivities.$inferSelect;
+
+// ============================================================================
+// COMMISSION MANAGEMENT SYSTEM
+// Sistema jerárquico de gestión de comisiones para vendedores
+// ============================================================================
+
+// External Commission Profiles - Default commission rates for the agency
+export const externalCommissionProfiles = pgTable("external_commission_profiles", {
+  id: varchar("id").primaryKey().$defaultFn(() => crypto.randomUUID()),
+  agencyId: varchar("agency_id").notNull().references(() => externalAgencies.id, { onDelete: "cascade" }).unique(),
+  
+  // Commission percentages (0-100)
+  rentalCommission: decimal("rental_commission", { precision: 5, scale: 2 }).notNull().default("10.00"), // % por renta cerrada
+  listedPropertyCommission: decimal("listed_property_commission", { precision: 5, scale: 2 }).notNull().default("5.00"), // % por propiedad enlistada
+  recruitedPropertyCommission: decimal("recruited_property_commission", { precision: 5, scale: 2 }).notNull().default("15.00"), // % por propiedad reclutada
+  
+  // Notes
+  notes: text("notes"),
+  
+  createdBy: varchar("created_by").references(() => users.id),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+}, (table) => [
+  index("idx_commission_profiles_agency").on(table.agencyId),
+]);
+
+export const insertExternalCommissionProfileSchema = createInsertSchema(externalCommissionProfiles).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+}).extend({
+  rentalCommission: z.union([z.string(), z.number()]).transform(val => String(val)),
+  listedPropertyCommission: z.union([z.string(), z.number()]).transform(val => String(val)),
+  recruitedPropertyCommission: z.union([z.string(), z.number()]).transform(val => String(val)),
+});
+
+export type InsertExternalCommissionProfile = z.infer<typeof insertExternalCommissionProfileSchema>;
+export type ExternalCommissionProfile = typeof externalCommissionProfiles.$inferSelect;
+
+// External Commission Role Overrides - Commission rates by role (overrides agency defaults)
+export const externalCommissionRoleOverrides = pgTable("external_commission_role_overrides", {
+  id: varchar("id").primaryKey().$defaultFn(() => crypto.randomUUID()),
+  agencyId: varchar("agency_id").notNull().references(() => externalAgencies.id, { onDelete: "cascade" }),
+  
+  // Role this override applies to
+  role: varchar("role", { length: 50 }).notNull(), // e.g., "external_agency_seller"
+  
+  // Commission percentages (null means use agency default)
+  rentalCommission: decimal("rental_commission", { precision: 5, scale: 2 }),
+  listedPropertyCommission: decimal("listed_property_commission", { precision: 5, scale: 2 }),
+  recruitedPropertyCommission: decimal("recruited_property_commission", { precision: 5, scale: 2 }),
+  
+  // Notes
+  notes: text("notes"),
+  
+  isActive: boolean("is_active").notNull().default(true),
+  createdBy: varchar("created_by").references(() => users.id),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+}, (table) => [
+  index("idx_commission_role_overrides_agency").on(table.agencyId),
+  index("idx_commission_role_overrides_role").on(table.role),
+  uniqueIndex("idx_commission_role_overrides_unique").on(table.agencyId, table.role),
+]);
+
+export const insertExternalCommissionRoleOverrideSchema = createInsertSchema(externalCommissionRoleOverrides).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+}).extend({
+  rentalCommission: z.union([z.string(), z.number()]).optional().nullable().transform(val => 
+    val !== null && val !== undefined ? String(val) : null
+  ),
+  listedPropertyCommission: z.union([z.string(), z.number()]).optional().nullable().transform(val => 
+    val !== null && val !== undefined ? String(val) : null
+  ),
+  recruitedPropertyCommission: z.union([z.string(), z.number()]).optional().nullable().transform(val => 
+    val !== null && val !== undefined ? String(val) : null
+  ),
+});
+
+export type InsertExternalCommissionRoleOverride = z.infer<typeof insertExternalCommissionRoleOverrideSchema>;
+export type ExternalCommissionRoleOverride = typeof externalCommissionRoleOverrides.$inferSelect;
+
+// External Commission User Overrides - Commission rates for specific users (overrides role defaults)
+export const externalCommissionUserOverrides = pgTable("external_commission_user_overrides", {
+  id: varchar("id").primaryKey().$defaultFn(() => crypto.randomUUID()),
+  agencyId: varchar("agency_id").notNull().references(() => externalAgencies.id, { onDelete: "cascade" }),
+  
+  // User this override applies to
+  userId: varchar("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  
+  // Commission percentages (null means use role/agency default)
+  rentalCommission: decimal("rental_commission", { precision: 5, scale: 2 }),
+  listedPropertyCommission: decimal("listed_property_commission", { precision: 5, scale: 2 }),
+  recruitedPropertyCommission: decimal("recruited_property_commission", { precision: 5, scale: 2 }),
+  
+  // Notes
+  notes: text("notes"),
+  
+  // Validity period (optional)
+  effectiveFrom: timestamp("effective_from"),
+  effectiveUntil: timestamp("effective_until"),
+  
+  isActive: boolean("is_active").notNull().default(true),
+  createdBy: varchar("created_by").references(() => users.id),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+}, (table) => [
+  index("idx_commission_user_overrides_agency").on(table.agencyId),
+  index("idx_commission_user_overrides_user").on(table.userId),
+  uniqueIndex("idx_commission_user_overrides_unique").on(table.agencyId, table.userId),
+]);
+
+export const insertExternalCommissionUserOverrideSchema = createInsertSchema(externalCommissionUserOverrides).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+}).extend({
+  rentalCommission: z.union([z.string(), z.number()]).optional().nullable().transform(val => 
+    val !== null && val !== undefined ? String(val) : null
+  ),
+  listedPropertyCommission: z.union([z.string(), z.number()]).optional().nullable().transform(val => 
+    val !== null && val !== undefined ? String(val) : null
+  ),
+  recruitedPropertyCommission: z.union([z.string(), z.number()]).optional().nullable().transform(val => 
+    val !== null && val !== undefined ? String(val) : null
+  ),
+  effectiveFrom: z.coerce.date().optional().nullable(),
+  effectiveUntil: z.coerce.date().optional().nullable(),
+});
+
+export type InsertExternalCommissionUserOverride = z.infer<typeof insertExternalCommissionUserOverrideSchema>;
+export type ExternalCommissionUserOverride = typeof externalCommissionUserOverrides.$inferSelect;
+
+// External Commission Lead Overrides - Commission rates for specific leads/deals (highest priority)
+export const externalCommissionLeadOverrides = pgTable("external_commission_lead_overrides", {
+  id: varchar("id").primaryKey().$defaultFn(() => crypto.randomUUID()),
+  agencyId: varchar("agency_id").notNull().references(() => externalAgencies.id, { onDelete: "cascade" }),
+  
+  // Lead or property prospect this override applies to
+  leadId: varchar("lead_id").references(() => externalLeads.id, { onDelete: "cascade" }),
+  prospectId: varchar("prospect_id").references(() => externalPropertyProspects.id, { onDelete: "cascade" }),
+  
+  // User who gets this custom commission
+  userId: varchar("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  
+  // Commission type being overridden
+  commissionType: varchar("commission_type", { length: 50 }).notNull(), // 'rental', 'listed', 'recruited'
+  
+  // Commission percentage for this specific deal
+  commissionRate: decimal("commission_rate", { precision: 5, scale: 2 }).notNull(),
+  
+  // Reason for the custom rate
+  reason: text("reason"),
+  
+  isActive: boolean("is_active").notNull().default(true),
+  createdBy: varchar("created_by").references(() => users.id),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+}, (table) => [
+  index("idx_commission_lead_overrides_agency").on(table.agencyId),
+  index("idx_commission_lead_overrides_lead").on(table.leadId),
+  index("idx_commission_lead_overrides_prospect").on(table.prospectId),
+  index("idx_commission_lead_overrides_user").on(table.userId),
+]);
+
+export const insertExternalCommissionLeadOverrideSchema = createInsertSchema(externalCommissionLeadOverrides).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+}).extend({
+  commissionRate: z.union([z.string(), z.number()]).transform(val => String(val)),
+  commissionType: z.enum(['rental', 'listed', 'recruited']),
+});
+
+export type InsertExternalCommissionLeadOverride = z.infer<typeof insertExternalCommissionLeadOverrideSchema>;
+export type ExternalCommissionLeadOverride = typeof externalCommissionLeadOverrides.$inferSelect;
+
+// Commission Change Audit Log - Track all commission changes
+export const externalCommissionAuditLogs = pgTable("external_commission_audit_logs", {
+  id: varchar("id").primaryKey().$defaultFn(() => crypto.randomUUID()),
+  agencyId: varchar("agency_id").notNull().references(() => externalAgencies.id, { onDelete: "cascade" }),
+  
+  // What changed
+  entityType: varchar("entity_type", { length: 50 }).notNull(), // 'profile', 'role_override', 'user_override', 'lead_override'
+  entityId: varchar("entity_id").notNull(), // ID of the changed record
+  action: varchar("action", { length: 20 }).notNull(), // 'create', 'update', 'delete'
+  
+  // Change details
+  previousValues: jsonb("previous_values").$type<Record<string, any>>(),
+  newValues: jsonb("new_values").$type<Record<string, any>>(),
+  
+  // Who made the change
+  changedBy: varchar("changed_by").references(() => users.id),
+  changedByName: varchar("changed_by_name", { length: 255 }),
+  
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+}, (table) => [
+  index("idx_commission_audit_agency").on(table.agencyId),
+  index("idx_commission_audit_entity").on(table.entityType, table.entityId),
+  index("idx_commission_audit_created").on(table.createdAt),
+]);
+
+export const insertExternalCommissionAuditLogSchema = createInsertSchema(externalCommissionAuditLogs).omit({
+  id: true,
+  createdAt: true,
+});
+
+export type InsertExternalCommissionAuditLog = z.infer<typeof insertExternalCommissionAuditLogSchema>;
+export type ExternalCommissionAuditLog = typeof externalCommissionAuditLogs.$inferSelect;
