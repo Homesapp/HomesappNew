@@ -140,8 +140,27 @@ export default function PublicUnitDetail() {
   const nextImage = () => setMainImageIndex((prev) => (prev + 1) % images.length);
   const prevImage = () => setMainImageIndex((prev) => (prev - 1 + images.length) % images.length);
 
-  const propertyTitle = unit.title || unit.name || unit.unitNumber || (language === "es" ? "Propiedad en Tulum" : "Property in Tulum");
-  const propertyLocation = unit.zone || unit.condominiumName || "Tulum, Quintana Roo";
+  const getPropertyTitle = () => {
+    if (unit.title) return unit.title;
+    const typeMap: Record<string, string> = language === "es" 
+      ? { departamento: "Departamento", casa: "Casa", estudio: "Estudio", penthouse: "Penthouse", villa: "Villa" }
+      : { departamento: "Apartment", casa: "House", estudio: "Studio", penthouse: "Penthouse", villa: "Villa" };
+    const rawType = (unit.unitType || unit.propertyType || 'departamento')?.toLowerCase() || 'departamento';
+    const type = typeMap[rawType] || (language === "es" ? "Departamento" : "Apartment");
+    const condoName = unit.condominiumName || '';
+    const unitNum = unit.unitNumber || unit.name || '';
+    const cleanUnitNum = unitNum.replace(/^#/, '');
+    if (condoName && cleanUnitNum) {
+      return `${type} en ${condoName} #${cleanUnitNum}`;
+    } else if (condoName) {
+      return `${type} en ${condoName}`;
+    } else if (cleanUnitNum) {
+      return `${type} #${cleanUnitNum}`;
+    }
+    return type;
+  };
+  const propertyTitle = getPropertyTitle();
+  const propertyLocation = [unit.condominiumName, unit.zone].filter(Boolean).join(', ') || "Tulum, Quintana Roo";
 
   const benefits = [
     { icon: Calendar, title: language === "es" ? "Agenda visitas" : "Schedule visits", desc: language === "es" ? "Coordina directamente con el agente" : "Coordinate directly with the agent" },
@@ -309,104 +328,62 @@ export default function PublicUnitDetail() {
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 lg:gap-12">
           {/* Main Content */}
           <div className="lg:col-span-2 space-y-8">
-            {/* Title Section */}
+            {/* Title Section - Matching Preview Dialog Format */}
             <div>
-              <div className="flex items-start justify-between gap-4 mb-2">
-                <h1 className="text-2xl sm:text-3xl font-semibold" data-testid="text-property-title">
-                  {propertyTitle}
-                </h1>
-                <Badge 
-                  variant={(unit as any).isPubliclyAvailable ? "default" : "secondary"} 
-                  className="shrink-0 text-sm px-3 py-1"
-                >
-                  {(unit as any).isPubliclyAvailable
-                    ? (language === "es" ? "Disponible" : "Available")
-                    : (language === "es" ? "No disponible" : "Not available")}
-                </Badge>
+              <h1 className="text-2xl font-bold mb-2" data-testid="text-property-title">
+                {propertyTitle}
+              </h1>
+              <div className="flex items-center gap-2 text-muted-foreground" data-testid="text-property-location">
+                <MapPin className="h-4 w-4 shrink-0" />
+                <span>{propertyLocation}</span>
               </div>
-              <p className="text-muted-foreground flex items-center gap-2 text-lg" data-testid="text-property-location">
-                <MapPin className="h-5 w-5 shrink-0" />
-                {propertyLocation}
-              </p>
-              {unit.condominiumName && (
-                <p className="text-muted-foreground flex items-center gap-2 mt-1">
-                  <Building2 className="h-4 w-4 shrink-0" />
-                  {unit.condominiumName}{unit.zone ? ` - ${unit.zone}` : ''}
-                </p>
-              )}
             </div>
 
-            <Separator />
-
-            {/* Key Features */}
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-              {unit.bedrooms !== null && unit.bedrooms !== undefined && (
-                <div className="flex items-center gap-3 p-4 rounded-xl bg-muted/50">
-                  <div className="w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center shrink-0">
-                    <Bed className="h-6 w-6 text-primary" />
-                  </div>
-                  <div>
-                    <p className="text-2xl font-semibold">{unit.bedrooms}</p>
-                    <p className="text-sm text-muted-foreground">{language === "es" ? "Recámaras" : "Bedrooms"}</p>
-                  </div>
+            {/* Key Features Row - Matching Preview Dialog Format */}
+            <div className="flex flex-wrap gap-4 py-3 px-4 bg-muted/50 rounded-lg">
+              {unit.bedrooms !== null && unit.bedrooms !== undefined && Number(unit.bedrooms) > 0 && (
+                <div className="flex items-center gap-2">
+                  <Bed className="h-5 w-5 text-muted-foreground" />
+                  <span className="font-medium">{unit.bedrooms}</span>
+                  <span className="text-sm text-muted-foreground">{language === "es" ? "Recámaras" : "Bedrooms"}</span>
                 </div>
               )}
               {unit.bathrooms !== null && unit.bathrooms !== undefined && (
-                <div className="flex items-center gap-3 p-4 rounded-xl bg-muted/50">
-                  <div className="w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center shrink-0">
-                    <Bath className="h-6 w-6 text-primary" />
-                  </div>
-                  <div>
-                    <p className="text-2xl font-semibold">{unit.bathrooms}</p>
-                    <p className="text-sm text-muted-foreground">{language === "es" ? "Baños" : "Bathrooms"}</p>
-                  </div>
+                <div className="flex items-center gap-2">
+                  <Bath className="h-5 w-5 text-muted-foreground" />
+                  <span className="font-medium">{unit.bathrooms}</span>
+                  <span className="text-sm text-muted-foreground">{language === "es" ? "Baños" : "Bathrooms"}</span>
                 </div>
               )}
               {(unit.squareMeters || unit.area) && (
-                <div className="flex items-center gap-3 p-4 rounded-xl bg-muted/50">
-                  <div className="w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center shrink-0">
-                    <Maximize className="h-6 w-6 text-primary" />
-                  </div>
-                  <div>
-                    <p className="text-2xl font-semibold">{unit.squareMeters || unit.area}</p>
-                    <p className="text-sm text-muted-foreground">m²</p>
-                  </div>
+                <div className="flex items-center gap-2">
+                  <Maximize className="h-5 w-5 text-muted-foreground" />
+                  <span className="font-medium">{unit.squareMeters || unit.area} m²</span>
+                  <span className="text-sm text-muted-foreground">{language === "es" ? "Área" : "Area"}</span>
                 </div>
               )}
-              {unit.unitType && (
-                <div className="flex items-center gap-3 p-4 rounded-xl bg-muted/50">
-                  <div className="w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center shrink-0">
-                    <Home className="h-6 w-6 text-primary" />
-                  </div>
-                  <div>
-                    <p className="text-lg font-semibold capitalize truncate">{unit.unitType}</p>
-                    <p className="text-sm text-muted-foreground">{language === "es" ? "Tipo" : "Type"}</p>
-                  </div>
+              {unit.petsAllowed && (
+                <div className="flex items-center gap-2">
+                  <PawPrint className="h-5 w-5 text-muted-foreground" />
+                  <span className="text-sm text-muted-foreground">{language === "es" ? "Acepta Mascotas" : "Pet Friendly"}</span>
                 </div>
               )}
             </div>
 
-            {/* Quick Info Badges */}
-            <div className="flex flex-wrap gap-3">
-              {unit.hasFurniture !== null && unit.hasFurniture !== undefined && (
-                <div className={`flex items-center gap-2 px-4 py-2.5 rounded-full min-h-[44px] ${unit.hasFurniture ? 'bg-green-50 dark:bg-green-950 text-green-700 dark:text-green-300' : 'bg-muted text-muted-foreground'}`}>
-                  <Sofa className="h-5 w-5" />
-                  <span className="font-medium">{unit.hasFurniture ? (language === "es" ? "Amueblado" : "Furnished") : (language === "es" ? "Sin amueblar" : "Unfurnished")}</span>
+            {/* Amenities Section - Matching Preview Dialog Format */}
+            {unit.amenities && unit.amenities.length > 0 && (
+              <div>
+                <h3 className="font-semibold mb-3">{language === "es" ? "Amenidades" : "Amenities"}</h3>
+                <div className="flex flex-wrap gap-x-6 gap-y-2">
+                  {unit.amenities.map((amenity, idx) => (
+                    <div key={idx} className="flex items-center gap-2 text-muted-foreground">
+                      <Check className="h-4 w-4" />
+                      <span className="text-sm">{amenity}</span>
+                    </div>
+                  ))}
                 </div>
-              )}
-              {unit.hasParking !== null && unit.hasParking !== undefined && (
-                <div className={`flex items-center gap-2 px-4 py-2.5 rounded-full min-h-[44px] ${unit.hasParking ? 'bg-green-50 dark:bg-green-950 text-green-700 dark:text-green-300' : 'bg-muted text-muted-foreground'}`}>
-                  <Car className="h-5 w-5" />
-                  <span className="font-medium">{unit.hasParking ? (language === "es" ? "Con estacionamiento" : "Parking included") : (language === "es" ? "Sin estacionamiento" : "No parking")}</span>
-                </div>
-              )}
-              {unit.petsAllowed !== null && unit.petsAllowed !== undefined && (
-                <div className={`flex items-center gap-2 px-4 py-2.5 rounded-full min-h-[44px] ${unit.petsAllowed ? 'bg-green-50 dark:bg-green-950 text-green-700 dark:text-green-300' : 'bg-muted text-muted-foreground'}`}>
-                  <PawPrint className="h-5 w-5" />
-                  <span className="font-medium">{unit.petsAllowed ? (language === "es" ? "Acepta mascotas" : "Pets allowed") : (language === "es" ? "No mascotas" : "No pets")}</span>
-                </div>
-              )}
-            </div>
+              </div>
+            )}
 
             <Separator />
 
@@ -451,20 +428,6 @@ export default function PublicUnitDetail() {
               </div>
             )}
 
-            {/* Amenities */}
-            {unit.amenities && unit.amenities.length > 0 && (
-              <div>
-                <h2 className="text-xl font-semibold mb-4">{language === "es" ? "Amenidades" : "Amenities"}</h2>
-                <div className="flex flex-wrap gap-2">
-                  {unit.amenities.map((amenity, idx) => (
-                    <Badge key={idx} variant="outline" className="gap-1 px-3 py-1.5">
-                      <Check className="h-3 w-3" />
-                      {amenity}
-                    </Badge>
-                  ))}
-                </div>
-              </div>
-            )}
           </div>
 
           {/* Sidebar - Sticky CTA Card */}
