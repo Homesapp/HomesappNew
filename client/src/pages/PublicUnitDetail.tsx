@@ -613,21 +613,21 @@ export default function PublicUnitDetail() {
 
       {/* All Photos Dialog - Professional Gallery */}
       <Dialog open={showAllPhotosDialog} onOpenChange={setShowAllPhotosDialog}>
-        <DialogContent className="max-w-6xl max-h-[95vh] overflow-hidden p-0 bg-black/95 border-0">
+        <DialogContent className="max-w-6xl max-h-[95vh] overflow-hidden p-0 bg-background border shadow-xl">
           {/* Header */}
-          <div className="flex items-center justify-between px-6 py-4 bg-black/80 border-b border-white/10">
+          <div className="flex items-center justify-between px-6 py-4 border-b">
             <div className="flex items-center gap-4">
-              <h2 className="text-white font-semibold text-lg">
+              <h2 className="font-semibold text-lg">
                 {propertyTitle}
               </h2>
-              <Badge variant="secondary" className="bg-white/10 text-white border-0">
+              <Badge variant="secondary">
                 {images.length} {language === "es" ? "fotos" : "photos"}
               </Badge>
             </div>
             <Button 
               variant="ghost" 
               size="icon" 
-              className="min-h-[44px] min-w-[44px] text-white hover:bg-white/10" 
+              className="min-h-[44px] min-w-[44px]" 
               onClick={() => setShowAllPhotosDialog(false)}
             >
               <X className="h-5 w-5" />
@@ -635,18 +635,18 @@ export default function PublicUnitDetail() {
           </div>
           
           {/* Gallery Grid */}
-          <div className="overflow-y-auto max-h-[calc(95vh-80px)] p-4">
+          <div className="overflow-y-auto max-h-[calc(95vh-80px)] p-4 bg-muted/30">
             {/* Primary Images Section */}
             {primaryImages.length > 0 && (
               <div className="mb-6">
-                <p className="text-white/60 text-sm mb-3 px-2">
+                <p className="text-muted-foreground text-sm mb-3 px-2 font-medium">
                   {language === "es" ? "Fotos principales" : "Main photos"} ({primaryImages.length})
                 </p>
-                <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2">
+                <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
                   {primaryImages.map((img, idx) => (
                     <button
                       key={`primary-${idx}`}
-                      className="aspect-[4/3] rounded-lg overflow-hidden relative group"
+                      className="aspect-[4/3] rounded-xl overflow-hidden relative group shadow-sm border"
                       onClick={() => setExpandedImageIndex(idx)}
                     >
                       <img
@@ -654,11 +654,7 @@ export default function PublicUnitDetail() {
                         alt={`${propertyTitle} - ${idx + 1}`}
                         className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
                       />
-                      <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition-colors flex items-center justify-center">
-                        <span className="opacity-0 group-hover:opacity-100 text-white text-sm font-medium transition-opacity">
-                          {idx + 1}
-                        </span>
-                      </div>
+                      <div className="absolute inset-0 bg-black/0 group-hover:bg-black/10 transition-colors" />
                     </button>
                   ))}
                 </div>
@@ -668,14 +664,14 @@ export default function PublicUnitDetail() {
             {/* Secondary Images Section */}
             {secondaryImages.length > 0 && (
               <div>
-                <p className="text-white/60 text-sm mb-3 px-2">
+                <p className="text-muted-foreground text-sm mb-3 px-2 font-medium">
                   {language === "es" ? "Más fotos" : "More photos"} ({secondaryImages.length})
                 </p>
-                <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2">
+                <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
                   {secondaryImages.map((img, idx) => (
                     <button
                       key={`secondary-${idx}`}
-                      className="aspect-[4/3] rounded-lg overflow-hidden relative group"
+                      className="aspect-[4/3] rounded-xl overflow-hidden relative group shadow-sm border"
                       onClick={() => setExpandedImageIndex(primaryImages.length + idx)}
                     >
                       <img
@@ -683,11 +679,7 @@ export default function PublicUnitDetail() {
                         alt={`${propertyTitle} - ${primaryImages.length + idx + 1}`}
                         className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
                       />
-                      <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition-colors flex items-center justify-center">
-                        <span className="opacity-0 group-hover:opacity-100 text-white text-sm font-medium transition-opacity">
-                          {primaryImages.length + idx + 1}
-                        </span>
-                      </div>
+                      <div className="absolute inset-0 bg-black/0 group-hover:bg-black/10 transition-colors" />
                     </button>
                   ))}
                 </div>
@@ -696,11 +688,11 @@ export default function PublicUnitDetail() {
             
             {/* Fallback if no categorized images */}
             {primaryImages.length === 0 && secondaryImages.length === 0 && images.length > 0 && (
-              <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2">
+              <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
                 {images.map((img, idx) => (
                   <button
                     key={idx}
-                    className="aspect-[4/3] rounded-lg overflow-hidden relative group"
+                    className="aspect-[4/3] rounded-xl overflow-hidden relative group shadow-sm border"
                     onClick={() => setExpandedImageIndex(idx)}
                   >
                     <img
@@ -708,7 +700,7 @@ export default function PublicUnitDetail() {
                       alt={`${propertyTitle} - ${idx + 1}`}
                       className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
                     />
-                    <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition-colors" />
+                    <div className="absolute inset-0 bg-black/0 group-hover:bg-black/10 transition-colors" />
                   </button>
                 ))}
               </div>
@@ -719,56 +711,56 @@ export default function PublicUnitDetail() {
 
       {/* Expanded Image Dialog */}
       <Dialog open={expandedImageIndex !== null} onOpenChange={() => setExpandedImageIndex(null)}>
-        <DialogContent className="max-w-[95vw] max-h-[95vh] p-0 bg-background border shadow-xl">
+        <DialogContent className="max-w-[95vw] max-h-[95vh] p-0 bg-background border shadow-xl overflow-hidden">
           {/* Close button */}
           <Button
             variant="ghost"
             size="icon"
-            className="absolute right-4 top-4 z-20 min-h-[44px] min-w-[44px] bg-background/80 hover:bg-muted"
+            className="absolute right-4 top-4 z-20 min-h-[44px] min-w-[44px] bg-background/80 hover:bg-muted rounded-full"
             onClick={() => setExpandedImageIndex(null)}
           >
             <X className="h-5 w-5" />
           </Button>
           
           {expandedImageIndex !== null && (
-            <div className="relative flex items-center justify-center min-h-[70vh] px-16">
-              {/* Left navigation button */}
-              {images.length > 1 && (
-                <Button
-                  variant="secondary"
-                  size="icon"
-                  className="absolute left-4 top-1/2 -translate-y-1/2 z-10 min-h-[52px] min-w-[52px] rounded-full shadow-lg"
-                  onClick={() => setExpandedImageIndex((prev) => (prev! - 1 + images.length) % images.length)}
-                >
-                  <ChevronLeft className="h-7 w-7" />
-                </Button>
-              )}
-              
+            <div className="flex items-center justify-center h-[90vh] py-8 px-20">
               {/* Image */}
               <img
                 src={images[expandedImageIndex]}
                 alt={`${propertyTitle} - ${expandedImageIndex + 1}`}
-                className="max-w-full max-h-[85vh] object-contain rounded-lg"
+                className="max-w-full max-h-full object-contain rounded-lg"
               />
-              
-              {/* Right navigation button */}
-              {images.length > 1 && (
-                <Button
-                  variant="secondary"
-                  size="icon"
-                  className="absolute right-4 top-1/2 -translate-y-1/2 z-10 min-h-[52px] min-w-[52px] rounded-full shadow-lg"
-                  onClick={() => setExpandedImageIndex((prev) => (prev! + 1) % images.length)}
-                >
-                  <ChevronRight className="h-7 w-7" />
-                </Button>
-              )}
-              
-              {/* Image counter */}
-              {images.length > 1 && (
-                <div className="absolute bottom-6 left-1/2 -translate-x-1/2 bg-foreground/80 text-background px-4 py-2 rounded-full text-sm font-medium">
-                  {expandedImageIndex + 1} / {images.length}
-                </div>
-              )}
+            </div>
+          )}
+          
+          {/* Left navigation button - positioned outside image area */}
+          {expandedImageIndex !== null && images.length > 1 && (
+            <Button
+              variant="secondary"
+              size="icon"
+              className="absolute left-3 top-1/2 -translate-y-1/2 z-10 min-h-[52px] min-w-[52px] rounded-full shadow-lg border"
+              onClick={() => setExpandedImageIndex((prev) => (prev! - 1 + images.length) % images.length)}
+            >
+              <ChevronLeft className="h-7 w-7" />
+            </Button>
+          )}
+          
+          {/* Right navigation button - positioned outside image area */}
+          {expandedImageIndex !== null && images.length > 1 && (
+            <Button
+              variant="secondary"
+              size="icon"
+              className="absolute right-3 top-1/2 -translate-y-1/2 z-10 min-h-[52px] min-w-[52px] rounded-full shadow-lg border"
+              onClick={() => setExpandedImageIndex((prev) => (prev! + 1) % images.length)}
+            >
+              <ChevronRight className="h-7 w-7" />
+            </Button>
+          )}
+          
+          {/* Image counter */}
+          {expandedImageIndex !== null && images.length > 1 && (
+            <div className="absolute bottom-6 left-1/2 -translate-x-1/2 bg-foreground/90 text-background px-4 py-2 rounded-full text-sm font-medium shadow-lg">
+              {expandedImageIndex + 1} / {images.length}
             </div>
           )}
         </DialogContent>
