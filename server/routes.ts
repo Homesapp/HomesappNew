@@ -41791,6 +41791,7 @@ const generateSlug = (str: string) => str.toLowerCase().normalize("NFD").replace
       const agencyId = await getUserAgencyId(req);
       if (!agencyId) return res.status(403).json({ message: "No agency access" });
 
+      // Flatten the select to avoid Drizzle nested object issues
       const sellers = await db.select({
         id: users.id,
         firstName: users.firstName,
@@ -41801,17 +41802,15 @@ const generateSlug = (str: string) => str.toLowerCase().normalize("NFD").replace
         role: users.role,
         status: users.status,
         createdAt: users.createdAt,
-        points: {
-          totalPoints: externalAgencySellerPoints.totalPoints,
-          weeklyPoints: externalAgencySellerPoints.weeklyPoints,
-          monthlyPoints: externalAgencySellerPoints.monthlyPoints,
-          leadsRegistered: externalAgencySellerPoints.leadsRegistered,
-          offersSent: externalAgencySellerPoints.offersSent,
-          rentalFormsSent: externalAgencySellerPoints.rentalFormsSent,
-          ownersRegistered: externalAgencySellerPoints.ownersRegistered,
-          rentalsCompleted: externalAgencySellerPoints.rentalsCompleted,
-          currentRank: externalAgencySellerPoints.currentRank,
-        },
+        totalPoints: externalAgencySellerPoints.totalPoints,
+        weeklyPoints: externalAgencySellerPoints.weeklyPoints,
+        monthlyPoints: externalAgencySellerPoints.monthlyPoints,
+        leadsRegistered: externalAgencySellerPoints.leadsRegistered,
+        offersSent: externalAgencySellerPoints.offersSent,
+        rentalFormsSent: externalAgencySellerPoints.rentalFormsSent,
+        ownersRegistered: externalAgencySellerPoints.ownersRegistered,
+        rentalsCompleted: externalAgencySellerPoints.rentalsCompleted,
+        currentRank: externalAgencySellerPoints.currentRank,
       })
         .from(users)
         .leftJoin(externalAgencySellerPoints, and(
@@ -41824,14 +41823,37 @@ const generateSlug = (str: string) => str.toLowerCase().normalize("NFD").replace
         ))
         .orderBy(desc(externalAgencySellerPoints.totalPoints));
 
-      res.json(sellers);
+      // Transform to expected format with points nested
+      const formattedSellers = sellers.map(seller => ({
+        id: seller.id,
+        firstName: seller.firstName,
+        lastName: seller.lastName,
+        email: seller.email,
+        phone: seller.phone,
+        profilePicture: seller.profilePicture,
+        role: seller.role,
+        status: seller.status,
+        createdAt: seller.createdAt,
+        points: {
+          totalPoints: seller.totalPoints ?? 0,
+          weeklyPoints: seller.weeklyPoints ?? 0,
+          monthlyPoints: seller.monthlyPoints ?? 0,
+          leadsRegistered: seller.leadsRegistered ?? 0,
+          offersSent: seller.offersSent ?? 0,
+          rentalFormsSent: seller.rentalFormsSent ?? 0,
+          ownersRegistered: seller.ownersRegistered ?? 0,
+          rentalsCompleted: seller.rentalsCompleted ?? 0,
+          currentRank: seller.currentRank ?? 1,
+        },
+      }));
+
+      res.json(formattedSellers);
     } catch (error: any) {
       console.error("Error fetching sellers:", error);
       res.status(500).json({ message: error.message });
     }
   });
 
-  // GET /api/external/chat/seller/:id - Get seller profile with detailed metrics
   app.get("/api/external/chat/seller/:id", isAuthenticated, requireRole([...EXTERNAL_ADMIN_ROLES, 'external_agency_seller']), async (req: any, res) => {
     try {
       const agencyId = await getUserAgencyId(req);
