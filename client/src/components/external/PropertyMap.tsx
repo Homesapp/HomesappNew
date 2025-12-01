@@ -160,7 +160,7 @@ export function PropertyMap({
 
   const getPropertyLink = (property: PropertyLocation) => {
     if (property.slug && property.agencySlug) {
-      return `/${property.agencySlug}/propiedad/${property.slug}`;
+      return `/${property.agencySlug}/${property.slug}`;
     }
     return `${linkPrefix}/${property.id}`;
   };
