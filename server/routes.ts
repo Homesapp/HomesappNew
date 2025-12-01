@@ -580,8 +580,41 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       const { email, password } = validationResult.data;
       
-      // Find admin by email
-      const admin = await storage.getAdminByEmail(email);
+      // First, try to find in admin_users table
+      let admin = await storage.getAdminByEmail(email);
+      let isExternalAgencyUser = false;
+      
+      // If not found in admin_users, try users table for external agency admins
+      if (!admin) {
+        const user = await storage.getUserByEmail(email);
+        const externalAgencyRoles = [
+          'external_agency_admin', 
+          'external_agency_accounting',
+          'external_agency_maintenance',
+          'external_agency_staff',
+          'external_agency_seller',
+          'external_agency_concierge',
+          'external_agency_lawyer'
+        ];
+        
+        if (user && externalAgencyRoles.includes(user.role)) {
+          // Treat external agency user as admin-like
+          admin = {
+            id: user.id,
+            username: user.email,
+            email: user.email,
+            firstName: user.firstName,
+            lastName: user.lastName,
+            role: user.role,
+            passwordHash: user.passwordHash,
+            isActive: user.status === 'approved' && !user.isSuspended,
+            profileImageUrl: user.profileImageUrl,
+            externalAgencyId: user.externalAgencyId,
+          } as any;
+          isExternalAgencyUser = true;
+        }
+      }
+      
       if (!admin) {
         return res.status(401).json({ message: "Invalid credentials" });
       }
@@ -592,34 +625,40 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       
       // Verify password
+      if (!admin.passwordHash) {
+        return res.status(401).json({ message: "Invalid credentials" });
+      }
+      
       const isValidPassword = await bcrypt.compare(password, admin.passwordHash);
       if (!isValidPassword) {
         return res.status(401).json({ message: "Invalid credentials" });
       }
       
-      // Ensure admin also exists in users table (for foreign key constraints)
-      try {
-        await storage.upsertUser({
-          id: admin.id,
-          email: admin.email,
-          firstName: admin.firstName,
-          lastName: admin.lastName,
-          role: admin.role,
-          profileImageUrl: admin.profileImageUrl,
-        });
-      } catch (upsertError) {
-        console.error("Error upserting admin to users table:", upsertError);
-        // Don't fail login if this fails, but log it
+      // For regular admins, ensure they exist in users table
+      if (!isExternalAgencyUser) {
+        try {
+          await storage.upsertUser({
+            id: admin.id,
+            email: admin.email,
+            firstName: admin.firstName,
+            lastName: admin.lastName,
+            role: admin.role,
+            profileImageUrl: admin.profileImageUrl,
+          });
+        } catch (upsertError) {
+          console.error("Error upserting admin to users table:", upsertError);
+        }
       }
       
       // Create session with admin info
       req.session.adminUser = {
         id: admin.id,
-        username: admin.username,
+        username: admin.username || admin.email,
         email: admin.email,
         firstName: admin.firstName,
         lastName: admin.lastName,
         role: admin.role,
+        externalAgencyId: (admin as any).externalAgencyId,
       };
       
       // Save session explicitly
