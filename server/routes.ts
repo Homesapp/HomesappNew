@@ -21510,6 +21510,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(403).json({ message: "Access denied to this unit" });
       }
 
+      const userId = req.user?.claims?.sub || req.user?.id;
+      
+      // Check if agency has auto-approve enabled
+      const agency = await storage.getExternalAgency(agencyId);
+      const shouldAutoApprove = agency?.autoApprovePublications === true;
+
       // Check if there's already a pending request for this unit
       const [existingPending] = await db.select()
         .from(externalPublicationRequests)
@@ -21519,14 +21525,26 @@ export async function registerRoutes(app: Express): Promise<Server> {
         ));
 
       if (existingPending) {
-        return res.status(400).json({ message: "A pending request already exists for this unit" });
+        // If auto-approve is enabled, approve the existing pending request
+        if (shouldAutoApprove) {
+          await db.update(externalPublicationRequests)
+            .set({
+              status: 'approved',
+              reviewedBy: userId,
+              reviewedAt: new Date(),
+              feedback: 'Auto-approved by agency configuration',
+            })
+            .where(eq(externalPublicationRequests.id, existingPending.id));
+          
+          // Sync to properties table
+          await syncExternalUnitToProperty(unit, userId, agencyId);
+          await storage.updateExternalUnit(unitId, { publishToMain: true, publishStatus: 'approved' });
+          
+          return res.status(200).json({ ...existingPending, status: 'approved', autoApproved: true });
+        }
+        // Otherwise return error that pending request exists
+        return res.status(400).json({ message: "A pending request already exists for this unit. Please wait for admin approval." });
       }
-
-      const userId = req.user?.claims?.sub || req.user?.id;
-      
-      // Check if agency has auto-approve enabled
-      const agency = await storage.getExternalAgency(agencyId);
-      const shouldAutoApprove = agency?.autoApprovePublications === true;
 
       // Create the request with appropriate status
       const [request] = await db.insert(externalPublicationRequests)
@@ -32692,29 +32710,71 @@ ${{precio}}/mes
         }
       }
       
-      // Apply filter: search query (title, description, zone)
+      // Apply filter: search query (title, description, zone, condominium name)
+      // We need to use a subquery for condominium name search
+      let searchCondition: any = undefined;
       if (q && typeof q === 'string' && q.trim()) {
         const searchTerm = `%${q.trim()}%`;
-        conditions.push(or(
+        searchCondition = or(
           ilike(externalUnits.title, searchTerm),
           ilike(externalUnits.description, searchTerm),
           ilike(externalUnits.zone, searchTerm),
           ilike(externalUnits.unitNumber, searchTerm)
+        );
+      }
+      
+      // Get total count with filters applied (includes condominium name search via join)
+      const countQuery = db
+        .select({ count: sql<number>`count(DISTINCT ${externalUnits.id})` })
+        .from(externalUnits)
+        .leftJoin(externalCondominiums, eq(externalUnits.condominiumId, externalCondominiums.id));
+      
+      // Build final conditions including condominium name search
+      const finalConditions = [...conditions];
+      if (q && typeof q === 'string' && q.trim()) {
+        const searchTerm = `%${q.trim()}%`;
+        finalConditions.push(or(
+          ilike(externalUnits.title, searchTerm),
+          ilike(externalUnits.description, searchTerm),
+          ilike(externalUnits.zone, searchTerm),
+          ilike(externalUnits.unitNumber, searchTerm),
+          ilike(externalCondominiums.name, searchTerm)
         ));
       }
       
-      // Get total count with filters applied
-      const countResult = await db
-        .select({ count: sql<number>`count(*)` })
-        .from(externalUnits)
-        .where(and(...conditions));
+      const countResult = await countQuery.where(and(...finalConditions));
       const totalCount = Number(countResult[0]?.count || 0);
       
-      // Get paginated units
+      // Get paginated units with condominium join for search
       const approvedUnits = await db
-        .select()
+        .select({
+          id: externalUnits.id,
+          agencyId: externalUnits.agencyId,
+          condominiumId: externalUnits.condominiumId,
+          unitNumber: externalUnits.unitNumber,
+          title: externalUnits.title,
+          description: externalUnits.description,
+          propertyType: externalUnits.propertyType,
+          typology: externalUnits.typology,
+          bedrooms: externalUnits.bedrooms,
+          bathrooms: externalUnits.bathrooms,
+          area: externalUnits.area,
+          floor: externalUnits.floor,
+          price: externalUnits.price,
+          salePrice: externalUnits.salePrice,
+          currency: externalUnits.currency,
+          listingType: externalUnits.listingType,
+          zone: externalUnits.zone,
+          isActive: externalUnits.isActive,
+          publishToMain: externalUnits.publishToMain,
+          publishStatus: externalUnits.publishStatus,
+          petsAllowed: externalUnits.petsAllowed,
+          slug: externalUnits.slug,
+          createdAt: externalUnits.createdAt
+        })
         .from(externalUnits)
-        .where(and(...conditions))
+        .leftJoin(externalCondominiums, eq(externalUnits.condominiumId, externalCondominiums.id))
+        .where(and(...finalConditions))
         .orderBy(desc(externalUnits.createdAt))
         .limit(limitNum)
         .offset(offset);
