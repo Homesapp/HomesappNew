@@ -39959,8 +39959,8 @@ const generateSlug = (str: string) => str.toLowerCase().normalize("NFD").replace
       const user = await storage.getUser(profile.userId);
       const stats = await storage.getSellerStats(agencyId, profile.userId);
       const goals = await storage.getSellerGoals(agencyId, { sellerId: profile.userId, isActive: true });
-      const commissions = await storage.getExternalSellerCommissions(agencyId, { sellerId: profile.userId });
-      const payouts = await storage.getExternalSellerPayouts(agencyId, { sellerId: profile.userId });
+      const commissions = await storage.getExternalSellerCommissions(agencyId, { sellerProfileId: profile.id });
+      const payouts = await storage.getExternalSellerPayouts(agencyId, { sellerProfileId: profile.id });
 
       res.json({
         ...profile,

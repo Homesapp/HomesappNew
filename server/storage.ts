@@ -1786,15 +1786,15 @@ export interface IStorage {
   deleteExternalSellerProfile(id: string): Promise<void>;
 
   // External Seller Commissions
-  getExternalSellerCommissions(agencyId: string, filters?: { sellerId?: string; isPaid?: boolean; startDate?: Date; endDate?: Date }): Promise<ExternalSellerCommission[]>;
+  getExternalSellerCommissions(agencyId: string, filters?: { sellerProfileId?: string; status?: string; startDate?: Date; endDate?: Date }): Promise<ExternalSellerCommission[]>;
   getExternalSellerCommission(id: string): Promise<ExternalSellerCommission | undefined>;
   createExternalSellerCommission(commission: InsertExternalSellerCommission): Promise<ExternalSellerCommission>;
   updateExternalSellerCommission(id: string, updates: Partial<InsertExternalSellerCommission>): Promise<ExternalSellerCommission>;
   deleteExternalSellerCommission(id: string): Promise<void>;
-  getUnpaidCommissionsForSeller(agencyId: string, sellerId: string): Promise<ExternalSellerCommission[]>;
+  getUnpaidCommissionsForSeller(agencyId: string, sellerProfileId: string): Promise<ExternalSellerCommission[]>;
 
   // External Seller Payouts
-  getExternalSellerPayouts(agencyId: string, filters?: { sellerId?: string; status?: string; startDate?: Date; endDate?: Date }): Promise<ExternalSellerPayout[]>;
+  getExternalSellerPayouts(agencyId: string, filters?: { sellerProfileId?: string; status?: string; startDate?: Date; endDate?: Date }): Promise<ExternalSellerPayout[]>;
   getExternalSellerPayout(id: string): Promise<ExternalSellerPayout | undefined>;
   createExternalSellerPayout(payout: InsertExternalSellerPayout): Promise<ExternalSellerPayout>;
   updateExternalSellerPayout(id: string, updates: Partial<InsertExternalSellerPayout>): Promise<ExternalSellerPayout>;
@@ -12702,21 +12702,21 @@ export class DatabaseStorage implements IStorage {
   }
 
   // External Seller Commissions
-  async getExternalSellerCommissions(agencyId: string, filters?: { sellerId?: string; isPaid?: boolean; startDate?: Date; endDate?: Date }): Promise<ExternalSellerCommission[]> {
+  async getExternalSellerCommissions(agencyId: string, filters?: { sellerProfileId?: string; status?: string; startDate?: Date; endDate?: Date }): Promise<ExternalSellerCommission[]> {
     const conditions = [eq(externalSellerCommissions.agencyId, agencyId)];
-    if (filters?.sellerId) {
-      conditions.push(eq(externalSellerCommissions.sellerId, filters.sellerId));
+    if (filters?.sellerProfileId) {
+      conditions.push(eq(externalSellerCommissions.sellerProfileId, filters.sellerProfileId));
     }
-    if (filters?.isPaid !== undefined) {
-      conditions.push(eq(externalSellerCommissions.isPaid, filters.isPaid));
+    if (filters?.status) {
+      conditions.push(eq(externalSellerCommissions.status, filters.status));
     }
     if (filters?.startDate) {
-      conditions.push(gte(externalSellerCommissions.earnedAt, filters.startDate));
+      conditions.push(gte(externalSellerCommissions.createdAt, filters.startDate));
     }
     if (filters?.endDate) {
-      conditions.push(lte(externalSellerCommissions.earnedAt, filters.endDate));
+      conditions.push(lte(externalSellerCommissions.createdAt, filters.endDate));
     }
-    return await db.select().from(externalSellerCommissions).where(and(...conditions)).orderBy(desc(externalSellerCommissions.earnedAt));
+    return await db.select().from(externalSellerCommissions).where(and(...conditions)).orderBy(desc(externalSellerCommissions.createdAt));
   }
 
   async getExternalSellerCommission(id: string): Promise<ExternalSellerCommission | undefined> {
@@ -12741,30 +12741,30 @@ export class DatabaseStorage implements IStorage {
     await db.delete(externalSellerCommissions).where(eq(externalSellerCommissions.id, id));
   }
 
-  async getUnpaidCommissionsForSeller(agencyId: string, sellerId: string): Promise<ExternalSellerCommission[]> {
+  async getUnpaidCommissionsForSeller(agencyId: string, sellerProfileId: string): Promise<ExternalSellerCommission[]> {
     return await db.select().from(externalSellerCommissions)
       .where(and(
         eq(externalSellerCommissions.agencyId, agencyId),
-        eq(externalSellerCommissions.sellerId, sellerId),
-        eq(externalSellerCommissions.isPaid, false)
+        eq(externalSellerCommissions.sellerProfileId, sellerProfileId),
+        eq(externalSellerCommissions.status, "pending")
       ))
-      .orderBy(desc(externalSellerCommissions.earnedAt));
+      .orderBy(desc(externalSellerCommissions.createdAt));
   }
 
   // External Seller Payouts
-  async getExternalSellerPayouts(agencyId: string, filters?: { sellerId?: string; status?: string; startDate?: Date; endDate?: Date }): Promise<ExternalSellerPayout[]> {
+  async getExternalSellerPayouts(agencyId: string, filters?: { sellerProfileId?: string; status?: string; startDate?: Date; endDate?: Date }): Promise<ExternalSellerPayout[]> {
     const conditions = [eq(externalSellerPayouts.agencyId, agencyId)];
-    if (filters?.sellerId) {
-      conditions.push(eq(externalSellerPayouts.sellerId, filters.sellerId));
+    if (filters?.sellerProfileId) {
+      conditions.push(eq(externalSellerPayouts.sellerProfileId, filters.sellerProfileId));
     }
     if (filters?.status) {
-      conditions.push(eq(externalSellerPayouts.status, filters.status as any));
+      conditions.push(eq(externalSellerPayouts.status, filters.status));
     }
     if (filters?.startDate) {
-      conditions.push(gte(externalSellerPayouts.periodStart, filters.startDate));
+      conditions.push(gte(externalSellerPayouts.createdAt, filters.startDate));
     }
     if (filters?.endDate) {
-      conditions.push(lte(externalSellerPayouts.periodEnd, filters.endDate));
+      conditions.push(lte(externalSellerPayouts.createdAt, filters.endDate));
     }
     return await db.select().from(externalSellerPayouts).where(and(...conditions)).orderBy(desc(externalSellerPayouts.createdAt));
   }
