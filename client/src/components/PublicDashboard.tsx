@@ -13,6 +13,7 @@ import { useLanguage } from "@/contexts/LanguageContext";
 import { getPropertyTitle } from "@/lib/propertyHelpers";
 import logoIcon from "@assets/H mes (500 x 300 px)_1759672952263.png";
 import { FloatingChat } from "@/components/FloatingChat";
+import { PropertyMap } from "@/components/external/PropertyMap";
 
 export default function PublicDashboard() {
   const [, setLocation] = useLocation();
@@ -29,6 +30,33 @@ export default function PublicDashboard() {
     queryKey: ["/api/public/external-properties?limit=12"],
   });
   const externalProperties = externalPropertiesResponse?.data || [];
+
+  // Load properties with coordinates for map (get more for the map view)
+  const { data: mapPropertiesResponse } = useQuery<{ data: any[]; totalCount: number }>({
+    queryKey: ["/api/public/external-properties?limit=100"],
+  });
+  const mapProperties = (mapPropertiesResponse?.data || [])
+    .filter((p: any) => p.latitude && p.longitude)
+    .map((p: any) => ({
+      id: p.id,
+      title: p.title,
+      unitNumber: p.unitNumber || "",
+      latitude: p.latitude,
+      longitude: p.longitude,
+      price: p.price,
+      salePrice: p.salePrice,
+      currency: p.currency || "MXN",
+      saleCurrency: p.saleCurrency,
+      listingType: p.listingType || p.status,
+      bedrooms: p.bedrooms,
+      bathrooms: p.bathrooms,
+      area: p.area,
+      propertyType: p.propertyType,
+      zone: p.zone || p.location,
+      primaryImages: p.primaryImages,
+      slug: p.unitSlug,
+      agencySlug: p.agencySlug,
+    }));
 
   const { data: colonies = [] } = useQuery<Colony[]>({
     queryKey: ["/api/colonies/approved"],
@@ -418,6 +446,38 @@ export default function PublicDashboard() {
             </div>
           </div>
         )}
+
+        {/* Interactive Map Section */}
+        <div className="mb-10 sm:mb-14">
+          <div className="flex items-center justify-between mb-4 sm:mb-6">
+            <h2 className="text-xl sm:text-2xl font-semibold flex items-center gap-2">
+              <MapPin className="h-5 w-5 sm:h-6 sm:w-6 text-primary" />
+              {t("public.map.title") || "Mapa de Propiedades"}
+            </h2>
+            <Button
+              variant="ghost"
+              size="sm"
+              className="text-muted-foreground gap-1"
+              onClick={() => setLocation("/buscar-propiedades?view=map")}
+              data-testid="button-view-full-map"
+            >
+              Ver mapa completo <ChevronRight className="h-4 w-4" />
+            </Button>
+          </div>
+          <div className="rounded-2xl overflow-hidden border shadow-sm">
+            <PropertyMap
+              properties={mapProperties}
+              height="400px"
+              zoom={12}
+              language="es"
+            />
+          </div>
+          {mapProperties.length === 0 && (
+            <p className="text-center text-sm text-muted-foreground mt-4">
+              {t("public.map.noProperties") || "Pronto agregaremos ubicaciones de propiedades al mapa"}
+            </p>
+          )}
+        </div>
 
         {/* Explora Propiedades - Responsive Grid */}
         <div className="mb-6 sm:mb-10">
