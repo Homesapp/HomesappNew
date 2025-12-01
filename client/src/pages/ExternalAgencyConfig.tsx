@@ -20,10 +20,406 @@ import { z } from "zod";
 import { useEffect } from "react";
 import { formatDistanceToNow } from "date-fns";
 import { es } from "date-fns/locale";
-import { Bell, CheckCheck, Settings, AlertTriangle, CreditCard, Wrench, FileText, Calendar, Percent } from "lucide-react";
+import { Bell, CheckCheck, Settings, AlertTriangle, CreditCard, Wrench, FileText, Calendar, Percent, Mail, RefreshCw, Plus, Trash2, Loader2, CheckCircle, XCircle } from "lucide-react";
 import CommissionManagement from "@/components/CommissionManagement";
+import { Switch } from "@/components/ui/switch";
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 
 const formSchema = insertExternalAgencySchema.extend({});
+
+interface EmailSource {
+  id: string;
+  agencyId: string;
+  provider: string;
+  providerName: string;
+  senderEmails: string[];
+  subjectPatterns: string[] | null;
+  defaultSellerId: string | null;
+  defaultSource: string | null;
+  defaultRegistrationType: string;
+  isActive: boolean;
+  lastSyncAt: string | null;
+  totalImported: number;
+  totalDuplicates: number;
+  totalErrors: number;
+  createdAt: string;
+  updatedAt: string;
+}
+
+interface GmailStatus {
+  connected: boolean;
+  email?: string;
+  lastCheck?: string;
+}
+
+function EmailImportSection({ language, agencyId }: { language: string; agencyId?: string }) {
+  const { toast } = useToast();
+  const [addDialogOpen, setAddDialogOpen] = useState(false);
+  const [newSource, setNewSource] = useState({
+    provider: "tokko",
+    providerName: "Tokko Broker",
+    senderEmails: "",
+    defaultRegistrationType: "seller",
+    isActive: true,
+  });
+
+  const { data: emailSources = [], isLoading: sourcesLoading, refetch: refetchSources } = useQuery<EmailSource[]>({
+    queryKey: ['/api/external/email-sources'],
+    enabled: !!agencyId,
+  });
+
+  const { data: gmailStatus, isLoading: gmailLoading, refetch: refetchGmail } = useQuery<GmailStatus>({
+    queryKey: ['/api/external/email-sources/gmail-status'],
+    enabled: !!agencyId,
+  });
+
+  const { data: workerStatus } = useQuery<{ isRunning: boolean; intervalMs: number }>({
+    queryKey: ['/api/external/email-sources/worker-status'],
+    enabled: !!agencyId,
+    refetchInterval: 30000,
+  });
+
+  const createSourceMutation = useMutation({
+    mutationFn: async (data: any) => {
+      return await apiRequest("POST", "/api/external/email-sources", data);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/external/email-sources'] });
+      setAddDialogOpen(false);
+      setNewSource({
+        provider: "tokko",
+        providerName: "Tokko Broker",
+        senderEmails: "",
+        defaultRegistrationType: "seller",
+        isActive: true,
+      });
+      toast({
+        title: language === "es" ? "Fuente creada" : "Source created",
+        description: language === "es" 
+          ? "La fuente de email ha sido configurada correctamente"
+          : "Email source has been configured successfully",
+      });
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Error",
+        description: error.message || (language === "es" ? "Error al crear la fuente" : "Error creating source"),
+        variant: "destructive",
+      });
+    },
+  });
+
+  const deleteSourceMutation = useMutation({
+    mutationFn: async (id: string) => {
+      return await apiRequest("DELETE", `/api/external/email-sources/${id}`);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/external/email-sources'] });
+      toast({
+        title: language === "es" ? "Fuente eliminada" : "Source deleted",
+      });
+    },
+  });
+
+  const toggleSourceMutation = useMutation({
+    mutationFn: async ({ id, isActive }: { id: string; isActive: boolean }) => {
+      return await apiRequest("PATCH", `/api/external/email-sources/${id}`, { isActive });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/external/email-sources'] });
+    },
+  });
+
+  const manualSyncMutation = useMutation({
+    mutationFn: async () => {
+      return await apiRequest("POST", "/api/external/email-sources/sync-all");
+    },
+    onSuccess: (data: any) => {
+      queryClient.invalidateQueries({ queryKey: ['/api/external/email-sources'] });
+      toast({
+        title: language === "es" ? "Sincronización completada" : "Sync completed",
+        description: language === "es" 
+          ? `Importados: ${data.imported || 0}, Duplicados: ${data.duplicates || 0}`
+          : `Imported: ${data.imported || 0}, Duplicates: ${data.duplicates || 0}`,
+      });
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Error",
+        description: error.message || (language === "es" ? "Error durante la sincronización" : "Error during sync"),
+        variant: "destructive",
+      });
+    },
+  });
+
+  const handleCreateSource = () => {
+    const emails = newSource.senderEmails.split(",").map(e => e.trim()).filter(e => e);
+    if (emails.length === 0) {
+      toast({
+        title: "Error",
+        description: language === "es" ? "Ingresa al menos un email" : "Enter at least one email",
+        variant: "destructive",
+      });
+      return;
+    }
+    createSourceMutation.mutate({
+      ...newSource,
+      senderEmails: emails,
+      defaultSource: newSource.provider === "tokko" ? "Tokko Broker" : "EasyBroker",
+    });
+  };
+
+  const providerOptions = [
+    { value: "tokko", label: "Tokko Broker", email: "notifier@tokkobroker.com" },
+    { value: "easybroker", label: "EasyBroker", email: "tulumr_1@inbox.easybroker.com" },
+  ];
+
+  if (!agencyId) {
+    return (
+      <Card>
+        <CardContent className="py-8">
+          <div className="text-center text-muted-foreground">
+            {language === "es" ? "No hay agencia asignada" : "No agency assigned"}
+          </div>
+        </CardContent>
+      </Card>
+    );
+  }
+
+  return (
+    <Card data-testid="card-email-import">
+      <CardHeader>
+        <div className="flex items-center justify-between">
+          <div>
+            <CardTitle className="flex items-center gap-2">
+              <Mail className="h-5 w-5" />
+              {language === "es" ? "Importación de Leads por Email" : "Email Lead Import"}
+            </CardTitle>
+            <CardDescription>
+              {language === "es" 
+                ? "Importa leads automáticamente desde Tokko Broker y EasyBroker"
+                : "Automatically import leads from Tokko Broker and EasyBroker"}
+            </CardDescription>
+          </div>
+          <div className="flex gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => manualSyncMutation.mutate()}
+              disabled={manualSyncMutation.isPending}
+              data-testid="button-manual-sync"
+            >
+              {manualSyncMutation.isPending ? (
+                <Loader2 className="h-4 w-4 animate-spin mr-2" />
+              ) : (
+                <RefreshCw className="h-4 w-4 mr-2" />
+              )}
+              {language === "es" ? "Sincronizar Ahora" : "Sync Now"}
+            </Button>
+            <Dialog open={addDialogOpen} onOpenChange={setAddDialogOpen}>
+              <DialogTrigger asChild>
+                <Button size="sm" data-testid="button-add-source">
+                  <Plus className="h-4 w-4 mr-2" />
+                  {language === "es" ? "Agregar Fuente" : "Add Source"}
+                </Button>
+              </DialogTrigger>
+              <DialogContent>
+                <DialogHeader>
+                  <DialogTitle>
+                    {language === "es" ? "Agregar Fuente de Email" : "Add Email Source"}
+                  </DialogTitle>
+                  <DialogDescription>
+                    {language === "es" 
+                      ? "Configura una nueva fuente para importar leads desde emails"
+                      : "Configure a new source to import leads from emails"}
+                  </DialogDescription>
+                </DialogHeader>
+                <div className="space-y-4 py-4">
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium">
+                      {language === "es" ? "Proveedor" : "Provider"}
+                    </label>
+                    <Select
+                      value={newSource.provider}
+                      onValueChange={(value) => {
+                        const provider = providerOptions.find(p => p.value === value);
+                        setNewSource({
+                          ...newSource,
+                          provider: value,
+                          providerName: provider?.label || value,
+                          senderEmails: provider?.email || "",
+                        });
+                      }}
+                    >
+                      <SelectTrigger data-testid="select-provider">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {providerOptions.map((p) => (
+                          <SelectItem key={p.value} value={p.value}>
+                            {p.label}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium">
+                      {language === "es" ? "Emails del Remitente" : "Sender Emails"}
+                    </label>
+                    <Input
+                      value={newSource.senderEmails}
+                      onChange={(e) => setNewSource({ ...newSource, senderEmails: e.target.value })}
+                      placeholder={language === "es" ? "Separar con comas" : "Separate with commas"}
+                      data-testid="input-sender-emails"
+                    />
+                    <p className="text-xs text-muted-foreground">
+                      {language === "es" 
+                        ? "Los emails desde los cuales se reciben las notificaciones de leads"
+                        : "Emails from which lead notifications are received"}
+                    </p>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <label className="text-sm font-medium">
+                      {language === "es" ? "Activo" : "Active"}
+                    </label>
+                    <Switch
+                      checked={newSource.isActive}
+                      onCheckedChange={(checked) => setNewSource({ ...newSource, isActive: checked })}
+                      data-testid="switch-active"
+                    />
+                  </div>
+                </div>
+                <DialogFooter>
+                  <Button variant="outline" onClick={() => setAddDialogOpen(false)}>
+                    {language === "es" ? "Cancelar" : "Cancel"}
+                  </Button>
+                  <Button 
+                    onClick={handleCreateSource}
+                    disabled={createSourceMutation.isPending}
+                    data-testid="button-create-source"
+                  >
+                    {createSourceMutation.isPending ? (
+                      <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                    ) : null}
+                    {language === "es" ? "Crear Fuente" : "Create Source"}
+                  </Button>
+                </DialogFooter>
+              </DialogContent>
+            </Dialog>
+          </div>
+        </div>
+      </CardHeader>
+      <CardContent className="space-y-6">
+        <Alert className={gmailStatus?.connected ? "border-green-500" : "border-yellow-500"}>
+          <div className="flex items-center gap-2">
+            {gmailStatus?.connected ? (
+              <CheckCircle className="h-4 w-4 text-green-500" />
+            ) : (
+              <AlertTriangle className="h-4 w-4 text-yellow-500" />
+            )}
+            <AlertTitle>
+              {gmailStatus?.connected 
+                ? (language === "es" ? "Gmail Conectado" : "Gmail Connected")
+                : (language === "es" ? "Gmail No Conectado" : "Gmail Not Connected")}
+            </AlertTitle>
+          </div>
+          <AlertDescription className="mt-2">
+            {gmailStatus?.connected ? (
+              <span>
+                {language === "es" ? "Cuenta: " : "Account: "}{gmailStatus.email || "administracion@tulumrentalhomes.com.mx"}
+              </span>
+            ) : (
+              <span>
+                {language === "es" 
+                  ? "La conexión con Gmail requiere configurar los permisos de OAuth. Contacta al administrador."
+                  : "Gmail connection requires OAuth permissions. Contact the administrator."}
+              </span>
+            )}
+          </AlertDescription>
+        </Alert>
+
+        <div className="text-sm text-muted-foreground">
+          {language === "es" 
+            ? `Intervalo de verificación: cada 30 minutos • Solo emails de la última hora`
+            : `Check interval: every 30 minutes • Only emails from last hour`}
+        </div>
+
+        {sourcesLoading ? (
+          <div className="space-y-2">
+            <Skeleton className="h-16 w-full" />
+            <Skeleton className="h-16 w-full" />
+          </div>
+        ) : emailSources.length === 0 ? (
+          <div className="text-center py-8 text-muted-foreground">
+            <Mail className="h-12 w-12 mx-auto mb-4 opacity-50" />
+            <p>{language === "es" ? "No hay fuentes configuradas" : "No sources configured"}</p>
+            <p className="text-sm mt-2">
+              {language === "es" 
+                ? "Agrega Tokko Broker o EasyBroker para comenzar a importar leads"
+                : "Add Tokko Broker or EasyBroker to start importing leads"}
+            </p>
+          </div>
+        ) : (
+          <div className="space-y-3">
+            {emailSources.map((source) => (
+              <div 
+                key={source.id} 
+                className="flex items-center justify-between p-4 border rounded-lg"
+                data-testid={`source-${source.id}`}
+              >
+                <div className="flex-1">
+                  <div className="flex items-center gap-2">
+                    <span className="font-medium">{source.providerName}</span>
+                    <Badge variant={source.isActive ? "default" : "secondary"}>
+                      {source.isActive 
+                        ? (language === "es" ? "Activo" : "Active")
+                        : (language === "es" ? "Inactivo" : "Inactive")}
+                    </Badge>
+                  </div>
+                  <div className="text-sm text-muted-foreground mt-1">
+                    {source.senderEmails.join(", ")}
+                  </div>
+                  <div className="text-xs text-muted-foreground mt-1 flex gap-4">
+                    <span>{language === "es" ? "Importados" : "Imported"}: {source.totalImported}</span>
+                    <span>{language === "es" ? "Duplicados" : "Duplicates"}: {source.totalDuplicates}</span>
+                    {source.lastSyncAt && (
+                      <span>
+                        {language === "es" ? "Última sync: " : "Last sync: "}
+                        {formatDistanceToNow(new Date(source.lastSyncAt), { 
+                          addSuffix: true, 
+                          locale: language === "es" ? es : undefined 
+                        })}
+                      </span>
+                    )}
+                  </div>
+                </div>
+                <div className="flex items-center gap-2">
+                  <Switch
+                    checked={source.isActive}
+                    onCheckedChange={(checked) => toggleSourceMutation.mutate({ id: source.id, isActive: checked })}
+                    data-testid={`toggle-source-${source.id}`}
+                  />
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    onClick={() => deleteSourceMutation.mutate(source.id)}
+                    disabled={deleteSourceMutation.isPending}
+                    data-testid={`delete-source-${source.id}`}
+                  >
+                    <Trash2 className="h-4 w-4 text-destructive" />
+                  </Button>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </CardContent>
+    </Card>
+  );
+}
 
 export default function ExternalAgencyConfig() {
   const { language } = useLanguage();
@@ -173,7 +569,7 @@ export default function ExternalAgencyConfig() {
       </div>
 
       <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-        <TabsList className="grid w-full grid-cols-3">
+        <TabsList className="grid w-full grid-cols-4">
           <TabsTrigger value="config" className="flex items-center gap-2" data-testid="tab-config">
             <Settings className="h-4 w-4" />
             <span className="hidden sm:inline">{language === "es" ? "Configuración" : "Configuration"}</span>
@@ -181,6 +577,10 @@ export default function ExternalAgencyConfig() {
           <TabsTrigger value="commissions" className="flex items-center gap-2" data-testid="tab-commissions">
             <Percent className="h-4 w-4" />
             <span className="hidden sm:inline">{language === "es" ? "Comisiones" : "Commissions"}</span>
+          </TabsTrigger>
+          <TabsTrigger value="email-import" className="flex items-center gap-2" data-testid="tab-email-import">
+            <Mail className="h-4 w-4" />
+            <span className="hidden sm:inline">{language === "es" ? "Import. Email" : "Email Import"}</span>
           </TabsTrigger>
           <TabsTrigger value="notifications" className="flex items-center gap-2" data-testid="tab-notifications">
             <Bell className="h-4 w-4" />
@@ -338,6 +738,10 @@ export default function ExternalAgencyConfig() {
 
         <TabsContent value="commissions" className="mt-6">
           <CommissionManagement />
+        </TabsContent>
+
+        <TabsContent value="email-import" className="mt-6">
+          <EmailImportSection language={language} agencyId={agency?.id} />
         </TabsContent>
 
         <TabsContent value="notifications" className="mt-6">

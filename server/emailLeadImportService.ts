@@ -616,6 +616,35 @@ export async function processEmailsForAgency(
   return result;
 }
 
+export async function runEmailImportForAgency(agencyId: string): Promise<{ imported: number; duplicates: number; errors: number }> {
+  console.log(`[Email Import] Running manual import for agency ${agencyId}...`);
+  
+  const activeSources = await db
+    .select()
+    .from(externalLeadEmailSources)
+    .where(and(
+      eq(externalLeadEmailSources.agencyId, agencyId),
+      eq(externalLeadEmailSources.isActive, true)
+    ));
+  
+  const totals = { imported: 0, duplicates: 0, errors: 0 };
+  
+  for (const source of activeSources) {
+    try {
+      const result = await processEmailsForAgency(agencyId, source);
+      totals.imported += result.imported;
+      totals.duplicates += result.duplicates;
+      totals.errors += result.errors;
+    } catch (error) {
+      console.error(`[Email Import] Error processing source ${source.id}:`, error);
+      totals.errors++;
+    }
+  }
+  
+  console.log(`[Email Import] Manual import completed: imported=${totals.imported}, duplicates=${totals.duplicates}, errors=${totals.errors}`);
+  return totals;
+}
+
 export async function runEmailImportForAllAgencies(): Promise<void> {
   console.log('[Email Import] Starting scheduled email import run...');
   

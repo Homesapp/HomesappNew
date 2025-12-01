@@ -42192,6 +42192,48 @@ const generateSlug = (str: string) => str.toLowerCase().normalize("NFD").replace
     }
   });
 
+  // GET /api/external/email-sources/gmail-status - Get Gmail connection status
+  app.get("/api/external/email-sources/gmail-status", isAuthenticated, requireRole(EXTERNAL_ADMIN_ROLES), async (req: any, res) => {
+    try {
+      const { testGmailConnection } = await import('./emailLeadImportService');
+      const connected = await testGmailConnection();
+      res.json({ 
+        connected, 
+        email: connected ? "administracion@tulumrentalhomes.com.mx" : undefined,
+        lastCheck: new Date().toISOString()
+      });
+    } catch (error: any) {
+      res.json({ connected: false, error: error.message });
+    }
+  });
+
+  // GET /api/external/email-sources/worker-status - Get worker status
+  app.get("/api/external/email-sources/worker-status", isAuthenticated, requireRole(EXTERNAL_ADMIN_ROLES), async (req: any, res) => {
+    try {
+      const { getWorkerStatus } = await import('./emailImportWorker');
+      const status = getWorkerStatus();
+      res.json(status);
+    } catch (error: any) {
+      res.json({ isRunning: false, intervalMs: 30 * 60 * 1000 });
+    }
+  });
+
+  // POST /api/external/email-sources/sync-all - Trigger manual sync for all sources
+  app.post("/api/external/email-sources/sync-all", isAuthenticated, requireRole(EXTERNAL_ADMIN_ROLES), async (req: any, res) => {
+    try {
+      const agencyId = await getUserAgencyId(req);
+      if (!agencyId) return res.status(403).json({ message: "No agency access" });
+
+      const { runEmailImportForAgency } = await import('./emailLeadImportService');
+      const result = await runEmailImportForAgency(agencyId);
+      res.json(result);
+    } catch (error: any) {
+      console.error("Error running manual sync:", error);
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+
 
   return httpServer;
 }
