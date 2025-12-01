@@ -7137,7 +7137,8 @@ export const externalUnits = pgTable("external_units", {
   // Precios
   price: decimal("price", { precision: 12, scale: 2 }), // Precio de renta mensual (12 meses)
   salePrice: decimal("sale_price", { precision: 12, scale: 2 }), // Precio de venta (para cuando aplique)
-  currency: varchar("currency", { length: 3 }).default("MXN"), // Moneda
+  currency: varchar("currency", { length: 3 }).default("MXN"), // Moneda de renta
+  saleCurrency: varchar("sale_currency", { length: 3 }).default("MXN"), // Moneda de venta
   listingType: varchar("listing_type", { length: 20 }).default("rent"), // rent, sale, both
   
   // Estado de disponibilidad y términos

@@ -472,20 +472,45 @@ export default function PublicUnitDetail() {
             <div className="sticky top-24">
               <Card className="shadow-xl border-2">
                 <CardContent className="p-6 space-y-6">
-                  {/* Price */}
-                  <div>
-                    <div className="flex items-baseline gap-2 flex-wrap">
-                      <span className="text-3xl font-bold">
-                        {formatPrice(unit.monthlyRent || unit.price, unit.currency)}
-                      </span>
-                      <span className="text-lg text-muted-foreground">
-                        {unit.currency || "MXN"} / {language === "es" ? "mes" : "month"}
-                      </span>
-                    </div>
-                    {unit.securityDeposit && (
-                      <p className="text-sm text-muted-foreground mt-1">
-                        {language === "es" ? "Depósito:" : "Deposit:"} ${unit.securityDeposit.toLocaleString()} {unit.currency || "MXN"}
-                      </p>
+                  {/* Prices */}
+                  <div className="space-y-4">
+                    {/* Rent Price */}
+                    {(unit.monthlyRent || unit.price) && (
+                      <div>
+                        <p className="text-sm font-medium text-muted-foreground mb-1">
+                          {language === "es" ? "Renta Mensual" : "Monthly Rent"}
+                        </p>
+                        <div className="flex items-baseline gap-2 flex-wrap">
+                          <span className="text-3xl font-bold text-blue-600 dark:text-blue-400">
+                            {formatPrice(unit.monthlyRent || unit.price, unit.currency)}
+                          </span>
+                          <span className="text-lg text-muted-foreground">
+                            {unit.currency || "MXN"} / {language === "es" ? "mes" : "month"}
+                          </span>
+                        </div>
+                        {unit.securityDeposit && (
+                          <p className="text-sm text-muted-foreground mt-1">
+                            {language === "es" ? "Depósito:" : "Deposit:"} ${unit.securityDeposit.toLocaleString()} {unit.currency || "MXN"}
+                          </p>
+                        )}
+                      </div>
+                    )}
+
+                    {/* Sale Price */}
+                    {(unit as any).salePrice && Number((unit as any).salePrice) > 0 && (
+                      <div>
+                        <p className="text-sm font-medium text-muted-foreground mb-1">
+                          {language === "es" ? "Precio de Venta" : "Sale Price"}
+                        </p>
+                        <div className="flex items-baseline gap-2 flex-wrap">
+                          <span className="text-3xl font-bold text-green-600 dark:text-green-400">
+                            ${Number((unit as any).salePrice).toLocaleString()}
+                          </span>
+                          <span className="text-lg text-muted-foreground">
+                            {(unit as any).saleCurrency || unit.currency || "MXN"}
+                          </span>
+                        </div>
+                      </div>
                     )}
                   </div>
 

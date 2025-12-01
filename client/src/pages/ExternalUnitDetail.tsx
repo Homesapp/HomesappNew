@@ -108,7 +108,7 @@ const unitEditSchema = z.object({
   price: z.union([z.string(), z.number()]).transform(val => val === "" ? null : String(val)).nullable(),
   currency: z.string().nullable(),
   salePrice: z.union([z.string(), z.number()]).transform(val => val === "" ? null : String(val)).nullable(),
-  salePriceCurrency: z.string().nullable(),
+  saleCurrency: z.string().nullable(),
   listingType: z.enum(["rent", "sale", "both"]).default("rent"),
   address: z.string().nullable(),
   googleMapsUrl: z.string().nullable(),
@@ -702,7 +702,7 @@ export default function ExternalUnitDetail() {
       price: unit.price ?? null,
       currency: unit.currency ?? "MXN",
       salePrice: unit.salePrice ?? null,
-      salePriceCurrency: unit.salePriceCurrency ?? "MXN",
+      saleCurrency: unit.saleCurrency ?? "MXN",
       listingType: unit.listingType ?? "rent",
       address: unit.address ?? null,
       googleMapsUrl: unit.googleMapsUrl ?? null,
@@ -1401,7 +1401,7 @@ ${language === "es" ? "ACCESOS" : "ACCESSES"}:
                           {language === "es" ? "Precio de Venta" : "Sale Price"}
                         </Label>
                         <p className="text-base font-semibold text-green-600 dark:text-green-400 mt-0.5" data-testid="text-sale-price">
-                          ${Number((unit as any).salePrice).toLocaleString()} {(unit as any).salePriceCurrency || unit.currency || "MXN"}
+                          ${Number((unit as any).salePrice).toLocaleString()} {(unit as any).saleCurrency || unit.currency || "MXN"}
                         </p>
                       </div>
                     )}
@@ -2518,7 +2518,7 @@ ${language === "es" ? "ACCESOS" : "ACCESSES"}:
                 />
                 <FormField
                   control={unitEditForm.control}
-                  name="salePriceCurrency"
+                  name="saleCurrency"
                   render={({ field }) => (
                     <FormItem>
                       <FormLabel>{language === "es" ? "Moneda Venta" : "Sale Currency"}</FormLabel>
