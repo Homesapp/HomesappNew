@@ -4,7 +4,13 @@ import { useLocation } from "wouter";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Building2, Plus, AlertCircle, AlertTriangle, Home, Edit, Trash2, Search, Filter, CheckCircle2, XCircle, DoorOpen, DoorClosed, Key, Power, PowerOff, ChevronDown, ChevronUp, LayoutGrid, Table as TableIcon, ArrowUpDown, FileSpreadsheet, Target, UserCheck, Clock, Phone, Mail, MapPin, Calendar, Globe, Clock4 } from "lucide-react";
+import { Building2, Plus, AlertCircle, AlertTriangle, Home, Edit, Trash2, Search, Filter, CheckCircle2, XCircle, DoorOpen, DoorClosed, Key, Power, PowerOff, ChevronDown, ChevronUp, LayoutGrid, Table as TableIcon, ArrowUpDown, FileSpreadsheet, Target, UserCheck, Clock, Phone, Mail, MapPin, Calendar, Globe, Clock4, MoreHorizontal, Eye } from "lucide-react";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { ExternalPaginationControls } from "@/components/external/ExternalPaginationControls";
 import { format } from "date-fns";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -2231,14 +2237,16 @@ export default function ExternalCondominiums() {
                               {language === "es" ? "m²" : "sqm"} {getUnitsSortIcon('area')}
                             </TableHead>
                             <TableHead className="h-10 px-3 min-w-[120px] cursor-pointer hover:bg-muted" onClick={() => handleUnitsSort('price')}>
-                              {language === "es" ? "Precio Renta" : "Rent Price"} {getUnitsSortIcon('price')}
+                              {language === "es" ? "Renta" : "Rent"} {getUnitsSortIcon('price')}
+                            </TableHead>
+                            <TableHead className="h-10 px-3 min-w-[120px] cursor-pointer hover:bg-muted" onClick={() => handleUnitsSort('salePrice')}>
+                              {language === "es" ? "Venta" : "Sale"} {getUnitsSortIcon('salePrice')}
                             </TableHead>
                             <TableHead className="h-10 px-3 min-w-[120px] cursor-pointer hover:bg-muted" onClick={() => handleUnitsSort('isActive')}>
-                              {language === "es" ? "Estado Unidad" : "Unit Status"} {getUnitsSortIcon('isActive')}
+                              {language === "es" ? "Estado" : "Status"} {getUnitsSortIcon('isActive')}
                             </TableHead>
-                            <TableHead className="h-10 px-3 min-w-[120px]">{language === "es" ? "Renta" : "Rental"}</TableHead>
-                            <TableHead className="h-10 px-3 min-w-[100px]">{language === "es" ? "Servicios" : "Services"}</TableHead>
-                            <TableHead className="h-10 px-3 text-right min-w-[150px]">{language === "es" ? "Acciones" : "Actions"}</TableHead>
+                            <TableHead className="h-10 px-3 min-w-[100px]">{language === "es" ? "Disponibilidad" : "Availability"}</TableHead>
+                            <TableHead className="h-10 px-3 text-right min-w-[80px]"></TableHead>
                           </TableRow>
                         </TableHeader>
                   <TableBody>
@@ -2309,8 +2317,17 @@ export default function ExternalCondominiums() {
                           <TableCell>{unit.area ? Number(unit.area).toLocaleString(language === "es" ? "es-MX" : "en-US") : '-'}</TableCell>
                           <TableCell>
                             {unit.price ? (
-                              <span className="font-medium text-green-600 dark:text-green-400">
+                              <span className="font-medium text-blue-600 dark:text-blue-400">
                                 ${Number(unit.price).toLocaleString(language === "es" ? "es-MX" : "en-US")}
+                              </span>
+                            ) : (
+                              <span className="text-muted-foreground">-</span>
+                            )}
+                          </TableCell>
+                          <TableCell>
+                            {unit.salePrice && Number(unit.salePrice) > 0 ? (
+                              <span className="font-medium text-green-600 dark:text-green-400">
+                                ${Number(unit.salePrice).toLocaleString(language === "es" ? "es-MX" : "en-US")}
                               </span>
                             ) : (
                               <span className="text-muted-foreground">-</span>
@@ -2350,58 +2367,56 @@ export default function ExternalCondominiums() {
                               </Badge>
                             )}
                           </TableCell>
-                          <TableCell>
-                            {unitServices.length > 0 ? (
-                              <div className="flex items-center gap-1" title={serviceTypes.join(', ')}>
-                                <Badge 
-                                  variant="outline" 
-                                  className="bg-purple-50 dark:bg-purple-950/20 text-purple-700 dark:text-purple-300 border-purple-200 dark:border-purple-800"
-                                  data-testid={`badge-services-${unit.id}`}
-                                >
-                                  <Key className="h-3 w-3 mr-1" />
-                                  {unitServices.length}
-                                </Badge>
-                              </div>
-                            ) : (
-                              <Badge variant="outline" className="text-muted-foreground" data-testid={`badge-no-services-${unit.id}`}>
-                                -
-                              </Badge>
-                            )}
-                          </TableCell>
                           <TableCell className="text-right">
-                            <div className="flex items-center justify-end gap-1">
-                              <Button
-                                size="icon"
-                                variant="ghost"
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  toggleUnitStatusMutation.mutate(unit.id);
-                                }}
-                                disabled={toggleUnitStatusMutation.isPending}
-                                data-testid={`button-toggle-status-${unit.id}`}
-                                title={unit.isActive ? 
-                                  (language === "es" ? "Suspender unidad" : "Suspend unit") : 
-                                  (language === "es" ? "Activar unidad" : "Activate unit")
-                                }
-                              >
-                                {unit.isActive ? (
-                                  <PowerOff className="h-4 w-4 text-orange-600 dark:text-orange-400" />
-                                ) : (
-                                  <Power className="h-4 w-4 text-green-600 dark:text-green-400" />
-                                )}
-                              </Button>
-                              <Button
-                                size="icon"
-                                variant="ghost"
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  handleEditUnit(unit);
-                                }}
-                                data-testid={`button-edit-unit-${unit.id}`}
-                              >
-                                <Edit className="h-4 w-4" />
-                              </Button>
-                            </div>
+                            <DropdownMenu>
+                              <DropdownMenuTrigger asChild onClick={(e) => e.stopPropagation()}>
+                                <Button size="icon" variant="ghost" data-testid={`button-actions-${unit.id}`}>
+                                  <MoreHorizontal className="h-4 w-4" />
+                                </Button>
+                              </DropdownMenuTrigger>
+                              <DropdownMenuContent align="end">
+                                <DropdownMenuItem
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    navigate(`/external/units/${unit.id}`);
+                                  }}
+                                  data-testid={`menu-view-${unit.id}`}
+                                >
+                                  <Eye className="h-4 w-4 mr-2" />
+                                  {language === "es" ? "Ver detalle" : "View detail"}
+                                </DropdownMenuItem>
+                                <DropdownMenuItem
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    handleEditUnit(unit);
+                                  }}
+                                  data-testid={`menu-edit-${unit.id}`}
+                                >
+                                  <Edit className="h-4 w-4 mr-2" />
+                                  {language === "es" ? "Editar" : "Edit"}
+                                </DropdownMenuItem>
+                                <DropdownMenuItem
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    toggleUnitStatusMutation.mutate(unit.id);
+                                  }}
+                                  disabled={toggleUnitStatusMutation.isPending}
+                                  data-testid={`menu-toggle-status-${unit.id}`}
+                                >
+                                  {unit.isActive ? (
+                                    <>
+                                      <PowerOff className="h-4 w-4 mr-2 text-orange-600" />
+                                      {language === "es" ? "Suspender" : "Suspend"}
+                                    </>
+                                  ) : (
+                                    <>
+                                      <Power className="h-4 w-4 mr-2 text-green-600" />
+                                      {language === "es" ? "Activar" : "Activate"}
+                                    </>
+                                  )}
+                                </DropdownMenuItem>
+                              </DropdownMenuContent>
+                            </DropdownMenu>
                           </TableCell>
                         </TableRow>
                       );

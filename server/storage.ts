@@ -9911,6 +9911,9 @@ export class DatabaseStorage implements IStorage {
       createdAt: externalUnits.createdAt,
       updatedAt: externalUnits.updatedAt,
       zone: externalUnits.zone,
+      price: externalUnits.price,
+      salePrice: externalUnits.salePrice,
+      currency: externalUnits.currency,
       condominium: {
         id: externalCondominiums.id,
         name: externalCondominiums.name,
@@ -9946,6 +9949,9 @@ export class DatabaseStorage implements IStorage {
         break;
       case 'floor':
         query = query.orderBy(sortFn(externalUnits.floor));
+        break;
+      case 'salePrice':
+        query = query.orderBy(sortFn(externalUnits.salePrice));
         break;
       case 'price':
         query = query.orderBy(sortFn(externalUnits.price));
