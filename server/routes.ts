@@ -27828,6 +27828,40 @@ ${{precio}}/mes
     }
   });
 
+  // GET /api/external-units/publication-status - Get publication status for all units in agency
+  app.get("/api/external-units/publication-status", isAuthenticated, requireRole(EXTERNAL_ALL_ROLES), async (req: any, res) => {
+    try {
+      const agencyId = await getUserAgencyId(req);
+      if (!agencyId) {
+        return res.status(400).json({ message: "User is not assigned to any agency" });
+      }
+
+      // Get the most recent publication request for each unit in this agency
+      // Using a subquery to get the latest request per unit
+      const allRequests = await db.select({
+        unitId: externalPublicationRequests.unitId,
+        status: externalPublicationRequests.status,
+        requestedAt: externalPublicationRequests.requestedAt,
+      })
+      .from(externalPublicationRequests)
+      .where(eq(externalPublicationRequests.agencyId, agencyId))
+      .orderBy(desc(externalPublicationRequests.requestedAt));
+
+      // Get only the latest request per unit
+      const latestByUnit = new Map<string, { unitId: string; status: string }>();
+      for (const req of allRequests) {
+        if (!latestByUnit.has(req.unitId)) {
+          latestByUnit.set(req.unitId, { unitId: req.unitId, status: req.status });
+        }
+      }
+
+      res.json(Array.from(latestByUnit.values()));
+    } catch (error: any) {
+      console.error("Error fetching publication status:", error);
+      handleGenericError(res, error);
+    }
+  });
+
   // External Units Routes
   app.get("/api/external-units", isAuthenticated, requireRole(EXTERNAL_ALL_ROLES), async (req: any, res) => {
     try {

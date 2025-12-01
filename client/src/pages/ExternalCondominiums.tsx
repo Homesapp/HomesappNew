@@ -4,7 +4,7 @@ import { useLocation } from "wouter";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Building2, Plus, AlertCircle, AlertTriangle, Home, Edit, Trash2, Search, Filter, CheckCircle2, XCircle, DoorOpen, DoorClosed, Key, Power, PowerOff, ChevronDown, ChevronUp, LayoutGrid, Table as TableIcon, ArrowUpDown, FileSpreadsheet, Target, UserCheck, Clock, Phone, Mail, MapPin, Calendar } from "lucide-react";
+import { Building2, Plus, AlertCircle, AlertTriangle, Home, Edit, Trash2, Search, Filter, CheckCircle2, XCircle, DoorOpen, DoorClosed, Key, Power, PowerOff, ChevronDown, ChevronUp, LayoutGrid, Table as TableIcon, ArrowUpDown, FileSpreadsheet, Target, UserCheck, Clock, Phone, Mail, MapPin, Calendar, Globe, Clock4 } from "lucide-react";
 import { ExternalPaginationControls } from "@/components/external/ExternalPaginationControls";
 import { format } from "date-fns";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -293,6 +293,24 @@ export default function ExternalCondominiums() {
     },
     enabled: !!units && units.length > 0,
   });
+
+  // Publication requests for units (to show portal status)
+  const { data: publicationRequests } = useQuery<{ unitId: string; status: string }[]>({
+    queryKey: ['/api/external-units/publication-status'],
+    queryFn: async () => {
+      const response = await fetch('/api/external-units/publication-status', { credentials: 'include' });
+      if (!response.ok) return [];
+      return response.json();
+    },
+    staleTime: 2 * 60 * 1000,
+  });
+
+  // Helper to get publication status for a unit
+  const getPublicationStatus = (unitId: string): 'approved' | 'pending' | 'rejected' | 'not_requested' => {
+    const request = publicationRequests?.find(r => r.unitId === unitId);
+    if (!request) return 'not_requested';
+    return request.status as 'approved' | 'pending' | 'rejected';
+  };
 
   const condoForm = useForm<CondominiumFormData>({
     resolver: zodResolver(insertExternalCondominiumSchema),
@@ -1504,10 +1522,10 @@ export default function ExternalCondominiums() {
                                       <span className="font-medium" data-testid={`text-bathrooms-detail-${unit.id}`}>{unit.bathrooms}</span>
                                     </div>
                                   )}
-                                  {unit.squareMeters !== null && (
+                                  {unit.area !== null && (
                                     <div className="flex justify-between text-sm">
                                       <span className="text-muted-foreground">{language === "es" ? "m²:" : "sqm:"}</span>
-                                      <span className="font-medium" data-testid={`text-sqm-detail-${unit.id}`}>{unit.squareMeters}</span>
+                                      <span className="font-medium" data-testid={`text-sqm-detail-${unit.id}`}>{unit.area}</span>
                                     </div>
                                   )}
                                 </div>
@@ -2188,6 +2206,9 @@ export default function ExternalCondominiums() {
                       <Table className="text-sm">
                         <TableHeader>
                           <TableRow>
+                            <TableHead className="h-10 px-3 min-w-[100px]">
+                              {language === "es" ? "Portal" : "Portal"}
+                            </TableHead>
                             <TableHead className="h-10 px-3 min-w-[120px] cursor-pointer hover:bg-muted" onClick={() => handleUnitsSort('unitNumber')}>
                               {language === "es" ? "Número" : "Number"} {getUnitsSortIcon('unitNumber')}
                             </TableHead>
@@ -2206,8 +2227,8 @@ export default function ExternalCondominiums() {
                             <TableHead className="h-10 px-3 min-w-[80px] cursor-pointer hover:bg-muted" onClick={() => handleUnitsSort('bathrooms')}>
                               {language === "es" ? "Baños" : "Bathrooms"} {getUnitsSortIcon('bathrooms')}
                             </TableHead>
-                            <TableHead className="h-10 px-3 min-w-[80px] cursor-pointer hover:bg-muted" onClick={() => handleUnitsSort('squareMeters')}>
-                              {language === "es" ? "m²" : "sqm"} {getUnitsSortIcon('squareMeters')}
+                            <TableHead className="h-10 px-3 min-w-[80px] cursor-pointer hover:bg-muted" onClick={() => handleUnitsSort('area')}>
+                              {language === "es" ? "m²" : "sqm"} {getUnitsSortIcon('area')}
                             </TableHead>
                             <TableHead className="h-10 px-3 min-w-[120px] cursor-pointer hover:bg-muted" onClick={() => handleUnitsSort('price')}>
                               {language === "es" ? "Precio Renta" : "Rent Price"} {getUnitsSortIcon('price')}
@@ -2223,7 +2244,7 @@ export default function ExternalCondominiums() {
                   <TableBody>
                     {(unitsPageTransition || unitsFetching) && !unitsLoading ? (
                       <TableRow>
-                        <TableCell colSpan={12} className="h-[300px] p-0">
+                        <TableCell colSpan={13} className="h-[300px] p-0">
                           <TableLoading minHeight="300px" />
                         </TableCell>
                       </TableRow>
@@ -2243,6 +2264,8 @@ export default function ExternalCondominiums() {
                         return typeMap[s.serviceType] || s.serviceType;
                       });
                       
+                      const pubStatus = getPublicationStatus(unit.id);
+                      
                       return (
                         <TableRow 
                           key={unit.id}
@@ -2250,6 +2273,28 @@ export default function ExternalCondominiums() {
                           className="cursor-pointer hover-elevate"
                           onClick={() => navigate(`/external/units/${unit.id}`)}
                         >
+                          <TableCell>
+                            {pubStatus === 'approved' ? (
+                              <Badge variant="outline" className="bg-green-50 dark:bg-green-950/20 text-green-700 dark:text-green-300 border-green-200 dark:border-green-800" data-testid={`badge-pub-approved-${unit.id}`}>
+                                <Globe className="h-3 w-3 mr-1" />
+                                {language === "es" ? "Publicado" : "Published"}
+                              </Badge>
+                            ) : pubStatus === 'pending' ? (
+                              <Badge variant="outline" className="bg-yellow-50 dark:bg-yellow-950/20 text-yellow-700 dark:text-yellow-300 border-yellow-200 dark:border-yellow-800" data-testid={`badge-pub-pending-${unit.id}`}>
+                                <Clock4 className="h-3 w-3 mr-1" />
+                                {language === "es" ? "Pendiente" : "Pending"}
+                              </Badge>
+                            ) : pubStatus === 'rejected' ? (
+                              <Badge variant="outline" className="bg-red-50 dark:bg-red-950/20 text-red-700 dark:text-red-300 border-red-200 dark:border-red-800" data-testid={`badge-pub-rejected-${unit.id}`}>
+                                <XCircle className="h-3 w-3 mr-1" />
+                                {language === "es" ? "Rechazado" : "Rejected"}
+                              </Badge>
+                            ) : (
+                              <Badge variant="outline" className="text-muted-foreground" data-testid={`badge-pub-none-${unit.id}`}>
+                                -
+                              </Badge>
+                            )}
+                          </TableCell>
                           <TableCell>
                             <div className="flex items-center gap-2">
                               <Home className="h-4 w-4 text-muted-foreground" />
@@ -2261,7 +2306,7 @@ export default function ExternalCondominiums() {
                           <TableCell>{formatFloor(unit.floor, language)}</TableCell>
                           <TableCell>{unit.bedrooms ?? '-'}</TableCell>
                           <TableCell>{unit.bathrooms ?? '-'}</TableCell>
-                          <TableCell>{unit.squareMeters ?? '-'}</TableCell>
+                          <TableCell>{unit.area ? Number(unit.area).toLocaleString(language === "es" ? "es-MX" : "en-US") : '-'}</TableCell>
                           <TableCell>
                             {unit.price ? (
                               <span className="font-medium text-green-600 dark:text-green-400">

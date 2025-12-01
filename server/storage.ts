@@ -9935,6 +9935,21 @@ export class DatabaseStorage implements IStorage {
       case 'propertyType':
         query = query.orderBy(sortFn(externalUnits.propertyType));
         break;
+      case 'bedrooms':
+        query = query.orderBy(sortFn(externalUnits.bedrooms));
+        break;
+      case 'bathrooms':
+        query = query.orderBy(sortFn(externalUnits.bathrooms));
+        break;
+      case 'area':
+        query = query.orderBy(sortFn(externalUnits.area));
+        break;
+      case 'floor':
+        query = query.orderBy(sortFn(externalUnits.floor));
+        break;
+      case 'price':
+        query = query.orderBy(sortFn(externalUnits.price));
+        break;
       case 'isActive':
         query = query.orderBy(sortFn(externalUnits.isActive));
         break;
