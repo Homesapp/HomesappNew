@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { useLocation } from "wouter";
 import { Button } from "@/components/ui/button";
@@ -75,6 +75,70 @@ export default function PropertySearch() {
   const [selectedAmenities, setSelectedAmenities] = useState<string[]>([]);
   const [currentPage, setCurrentPage] = useState(1);
   const ITEMS_PER_PAGE = 24;
+
+  // Read URL query parameters on mount and apply to filters
+  useEffect(() => {
+    const urlParams = new URLSearchParams(window.location.search);
+    const initialFilters: SearchFilters = { location: "Tulum" };
+    
+    // Read search query from URL (q parameter)
+    const query = urlParams.get("q");
+    if (query) {
+      initialFilters.query = query;
+    }
+    
+    // Read status filter
+    const status = urlParams.get("status");
+    if (status) {
+      initialFilters.status = status;
+    }
+    
+    // Read property type
+    const propertyType = urlParams.get("propertyType");
+    if (propertyType) {
+      initialFilters.propertyType = propertyType;
+    }
+    
+    // Read featured filter
+    const featured = urlParams.get("featured");
+    if (featured === "true") {
+      initialFilters.featured = true;
+    }
+    
+    // Read pet friendly filter
+    const petFriendly = urlParams.get("petFriendly");
+    if (petFriendly === "true") {
+      initialFilters.petFriendly = true;
+    }
+    
+    // Read colony name
+    const colonyName = urlParams.get("colonyName");
+    if (colonyName) {
+      initialFilters.colonyName = colonyName;
+    }
+    
+    // Read price filters
+    const minPrice = urlParams.get("minPrice");
+    if (minPrice) {
+      initialFilters.minPrice = parseInt(minPrice);
+    }
+    const maxPrice = urlParams.get("maxPrice");
+    if (maxPrice) {
+      initialFilters.maxPrice = parseInt(maxPrice);
+    }
+    
+    // Read bedroom/bathroom filters
+    const bedrooms = urlParams.get("bedrooms");
+    if (bedrooms) {
+      initialFilters.bedrooms = parseInt(bedrooms);
+    }
+    const bathrooms = urlParams.get("bathrooms");
+    if (bathrooms) {
+      initialFilters.bathrooms = parseInt(bathrooms);
+    }
+    
+    setFilters(initialFilters);
+  }, []);
 
   const { data: favorites = [] } = useQuery({
     queryKey: ["/api/favorites"],
