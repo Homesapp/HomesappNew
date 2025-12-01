@@ -146,6 +146,7 @@ import { ExternalPaginationControls } from "@/components/external/ExternalPagina
 import LeadKanbanView from "@/components/external/LeadKanbanView";
 import LeadCRMTabs from "@/components/external/LeadCRMTabs";
 import ClientCRMTabs from "@/components/external/ClientCRMTabs";
+import BrokerManagementTab from "@/components/external/BrokerManagementTab";
 import { SearchableSelect, type SelectOption } from "@/components/ui/searchable-select";
 import { SearchableMultiSelect, type MultiSelectOption } from "@/components/ui/searchable-multi-select";
 
@@ -167,7 +168,7 @@ export default function ExternalClients() {
   const isMobile = useMobile();
   const [, navigate] = useLocation();
 
-  const [activeTab, setActiveTab] = useState<"clients" | "leads">(user?.role === 'external_agency_seller' ? "leads" : "clients");
+  const [activeTab, setActiveTab] = useState<"clients" | "leads" | "brokers">(user?.role === 'external_agency_seller' ? "leads" : "clients");
   const [viewMode, setViewMode] = useState<"cards" | "table" | "kanban">(isMobile ? "cards" : "table");
   const [searchTerm, setSearchTerm] = useState("");
   const debouncedSearchTerm = useDebounce(searchTerm, 400);
@@ -1602,15 +1603,18 @@ export default function ExternalClients() {
       </Collapsible>)}
 
       {/* Tabs */}
-      <Tabs value={activeTab} onValueChange={(value) => setActiveTab(value as "clients" | "leads")}>
+      <Tabs value={activeTab} onValueChange={(value) => setActiveTab(value as "clients" | "leads" | "brokers")}>
         <div className="flex items-center justify-between gap-4">
           {!isSeller && (
-            <TabsList className="grid grid-cols-2" style={{ width: "fit-content" }}>
+            <TabsList className="grid grid-cols-3" style={{ width: "fit-content" }}>
               <TabsTrigger value="clients" data-testid="tab-clients">
                 {language === "es" ? "Clientes" : "Clients"}
               </TabsTrigger>
               <TabsTrigger value="leads" data-testid="tab-leads">
                 {language === "es" ? "Leads" : "Leads"}
+              </TabsTrigger>
+              <TabsTrigger value="brokers" data-testid="tab-brokers">
+                {language === "es" ? "Brokers" : "Brokers"}
               </TabsTrigger>
             </TabsList>
           )}
@@ -3561,6 +3565,11 @@ export default function ExternalClients() {
 
             </>
           )}
+        </TabsContent>
+
+        {/* Brokers Tab */}
+        <TabsContent value="brokers" className="space-y-6 mt-6">
+          <BrokerManagementTab />
         </TabsContent>
       </Tabs>
 

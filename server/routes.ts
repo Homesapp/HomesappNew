@@ -155,6 +155,9 @@ import {
   insertExternalClientIncidentSchema,
   updateExternalClientIncidentSchema,
   externalClients,
+  externalBrokers,
+  insertExternalBrokerSchema,
+  updateExternalBrokerSchema,
   externalLeads,
   externalLeadEmailSources,
   externalLeadEmailImportLogs,
@@ -30720,8 +30723,276 @@ ${{precio}}/mes
     }
   });
 
-  // External Leads Routes
+
   // ==============================
+  // External Brokers Routes
+
+  // GET /api/external-brokers - Get all brokers for agency (with pagination, search, and sorting)
+  app.get("/api/external-brokers", isAuthenticated, requireRole(EXTERNAL_ADMIN_ROLES), async (req: any, res) => {
+    try {
+      const agencyId = await getUserAgencyId(req);
+      if (!agencyId) {
+        return res.status(403).json({ message: "User is not assigned to any agency" });
+      }
+
+      const { search, status, sortBy = 'createdAt', sortOrder = 'desc', page = '1', limit = '20' } = req.query;
+      const pageNum = parseInt(page as string);
+      const limitNum = Math.min(parseInt(limit as string), 100);
+      const offset = (pageNum - 1) * limitNum;
+
+      // Build where conditions
+      const conditions = [eq(externalBrokers.agencyId, agencyId)];
+      
+      if (status && status !== 'all') {
+        conditions.push(eq(externalBrokers.status, status));
+      }
+      
+      if (search) {
+        const searchTerm = `%${search.toLowerCase()}%`;
+        conditions.push(
+          sql`(LOWER(${externalBrokers.firstName}) LIKE ${searchTerm} OR 
+               LOWER(${externalBrokers.lastName}) LIKE ${searchTerm} OR 
+               LOWER(${externalBrokers.email}) LIKE ${searchTerm} OR
+               LOWER(${externalBrokers.company}) LIKE ${searchTerm} OR
+               ${externalBrokers.phone} LIKE ${searchTerm})`
+        );
+      }
+
+      // Get total count
+      const countResult = await db
+        .select({ count: sql<number>`count(*)` })
+        .from(externalBrokers)
+        .where(and(...conditions));
+      const total = Number(countResult[0]?.count || 0);
+
+      // Build orderBy
+      let orderByColumn: any = externalBrokers.createdAt;
+      if (sortBy === 'firstName') orderByColumn = externalBrokers.firstName;
+      else if (sortBy === 'lastName') orderByColumn = externalBrokers.lastName;
+      else if (sortBy === 'email') orderByColumn = externalBrokers.email;
+      else if (sortBy === 'company') orderByColumn = externalBrokers.company;
+      else if (sortBy === 'status') orderByColumn = externalBrokers.status;
+      else if (sortBy === 'totalLeadsShared') orderByColumn = externalBrokers.totalLeadsShared;
+
+      const orderFn = sortOrder === 'asc' ? asc : desc;
+
+      // Fetch brokers
+      const brokers = await db
+        .select()
+        .from(externalBrokers)
+        .where(and(...conditions))
+        .orderBy(orderFn(orderByColumn))
+        .limit(limitNum)
+        .offset(offset);
+
+      res.json({
+        brokers,
+        pagination: {
+          total,
+          page: pageNum,
+          limit: limitNum,
+          totalPages: Math.ceil(total / limitNum),
+        },
+      });
+    } catch (error: any) {
+      console.error("Error fetching external brokers:", error);
+      handleGenericError(res, error);
+    }
+  });
+
+  // GET /api/external-brokers/:id - Get specific broker
+  app.get("/api/external-brokers/:id", isAuthenticated, requireRole(EXTERNAL_ADMIN_ROLES), async (req: any, res) => {
+    try {
+      const { id } = req.params;
+      const agencyId = await getUserAgencyId(req);
+      if (!agencyId) {
+        return res.status(403).json({ message: "User is not assigned to any agency" });
+      }
+      
+      // Scope query by agencyId to prevent cross-tenant disclosure
+      const broker = await db
+        .select()
+        .from(externalBrokers)
+        .where(and(eq(externalBrokers.id, id), eq(externalBrokers.agencyId, agencyId)))
+        .limit(1);
+
+      if (!broker[0]) {
+        return res.status(404).json({ message: "Broker not found" });
+      }
+
+      // Get leads count for this broker
+      const leadsCount = await db
+        .select({ count: sql<number>`count(*)` })
+        .from(externalLeads)
+        .where(eq(externalLeads.brokerId, id));
+
+      res.json({
+        ...broker[0],
+        leadsCount: Number(leadsCount[0]?.count || 0),
+      });
+    } catch (error: any) {
+      console.error("Error fetching external broker:", error);
+      handleGenericError(res, error);
+    }
+  });
+
+  // POST /api/external-brokers - Create new broker
+  app.post("/api/external-brokers", isAuthenticated, requireRole(EXTERNAL_ADMIN_ROLES), async (req: any, res) => {
+    try {
+      const agencyId = await getUserAgencyId(req);
+      if (!agencyId) {
+        return res.status(403).json({ message: "User is not assigned to any agency" });
+      }
+
+      const validatedData = insertExternalBrokerSchema.parse(req.body);
+
+      const newBroker = await db
+        .insert(externalBrokers)
+        .values({
+          ...validatedData,
+          agencyId,
+          createdBy: req.user.id,
+        })
+        .returning();
+
+      await createAuditLog(req, "create", "external_broker", newBroker[0].id, "Created new broker");
+      res.status(201).json(newBroker[0]);
+    } catch (error: any) {
+      console.error("Error creating external broker:", error);
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ message: "Validation error", errors: error.errors });
+      }
+      handleGenericError(res, error);
+    }
+  });
+
+  // PATCH /api/external-brokers/:id - Update broker
+  app.patch("/api/external-brokers/:id", isAuthenticated, requireRole(EXTERNAL_ADMIN_ROLES), async (req: any, res) => {
+    try {
+      const { id } = req.params;
+      const agencyId = await getUserAgencyId(req);
+      if (!agencyId) {
+        return res.status(403).json({ message: "User is not assigned to any agency" });
+      }
+      
+      // Scope query by agencyId to prevent cross-tenant disclosure
+      const existingBroker = await db
+        .select()
+        .from(externalBrokers)
+        .where(and(eq(externalBrokers.id, id), eq(externalBrokers.agencyId, agencyId)))
+        .limit(1);
+
+      if (!existingBroker[0]) {
+        return res.status(404).json({ message: "Broker not found" });
+      }
+
+      const validatedData = updateExternalBrokerSchema.parse(req.body);
+
+      const updatedBroker = await db
+        .update(externalBrokers)
+        .set({
+          ...validatedData,
+          updatedAt: new Date(),
+        })
+        .where(eq(externalBrokers.id, id))
+        .returning();
+
+      await createAuditLog(req, "update", "external_broker", id, "Updated broker");
+      res.json(updatedBroker[0]);
+    } catch (error: any) {
+      console.error("Error updating external broker:", error);
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ message: "Validation error", errors: error.errors });
+      }
+      handleGenericError(res, error);
+    }
+  });
+
+  // DELETE /api/external-brokers/:id - Delete broker
+  app.delete("/api/external-brokers/:id", isAuthenticated, requireRole(EXTERNAL_ADMIN_ROLES), async (req: any, res) => {
+    try {
+      const { id } = req.params;
+      const agencyId = await getUserAgencyId(req);
+      if (!agencyId) {
+        return res.status(403).json({ message: "User is not assigned to any agency" });
+      }
+      
+      // Scope query by agencyId to prevent cross-tenant disclosure
+      const existingBroker = await db
+        .select()
+        .from(externalBrokers)
+        .where(and(eq(externalBrokers.id, id), eq(externalBrokers.agencyId, agencyId)))
+        .limit(1);
+
+      if (!existingBroker[0]) {
+        return res.status(404).json({ message: "Broker not found" });
+      }
+
+      await db.delete(externalBrokers).where(eq(externalBrokers.id, id));
+      
+      await createAuditLog(req, "delete", "external_broker", id, "Deleted broker");
+      res.status(204).send();
+    } catch (error: any) {
+      console.error("Error deleting external broker:", error);
+      handleGenericError(res, error);
+    }
+  });
+
+  // GET /api/external-brokers/:id/leads - Get leads for a specific broker
+  app.get("/api/external-brokers/:id/leads", isAuthenticated, requireRole(EXTERNAL_ADMIN_ROLES), async (req: any, res) => {
+    try {
+      const { id } = req.params;
+      const { page = '1', limit = '20' } = req.query;
+      const pageNum = parseInt(page as string);
+      const limitNum = Math.min(parseInt(limit as string), 100);
+      const offset = (pageNum - 1) * limitNum;
+
+      const broker = await db
+        .select()
+        .from(externalBrokers)
+        .where(eq(externalBrokers.id, id))
+        .limit(1);
+
+      if (!broker[0]) {
+        return res.status(404).json({ message: "Broker not found" });
+      }
+
+      const hasAccess = await verifyExternalAgencyOwnership(req, res, broker[0].agencyId);
+      if (!hasAccess) return;
+
+      // Get total count
+      const countResult = await db
+        .select({ count: sql<number>`count(*)` })
+        .from(externalLeads)
+        .where(eq(externalLeads.brokerId, id));
+      const total = Number(countResult[0]?.count || 0);
+
+      // Get leads
+      const leads = await db
+        .select()
+        .from(externalLeads)
+        .where(eq(externalLeads.brokerId, id))
+        .orderBy(desc(externalLeads.createdAt))
+        .limit(limitNum)
+        .offset(offset);
+
+      res.json({
+        data: leads,
+        pagination: {
+          total,
+          page: pageNum,
+          limit: limitNum,
+          totalPages: Math.ceil(total / limitNum),
+        },
+      });
+    } catch (error: any) {
+      console.error("Error fetching broker leads:", error);
+      handleGenericError(res, error);
+    }
+  });
+
+  // ==============================
+  // External Leads Routes
 
   // GET /api/external-leads - Get all leads for agency
   app.get("/api/external-leads", isAuthenticated, requireRole([...EXTERNAL_ADMIN_ROLES, 'external_agency_seller']), async (req: any, res) => {

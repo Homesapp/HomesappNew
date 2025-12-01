@@ -6359,6 +6359,65 @@ export type InsertExternalPropertyShowing = z.infer<typeof insertExternalPropert
 export type UpdateExternalPropertyShowing = z.infer<typeof updateExternalPropertyShowingSchema>;
 export type ExternalPropertyShowing = typeof externalPropertyShowings.$inferSelect;
 
+// External Brokers - Brokers/referidores externos que comparten leads con la agencia
+export const externalBrokers = pgTable("external_brokers", {
+  id: varchar("id").primaryKey().$defaultFn(() => crypto.randomUUID()),
+  agencyId: varchar("agency_id").notNull().references(() => externalAgencies.id, { onDelete: "cascade" }),
+  
+  // Personal Information
+  firstName: varchar("first_name", { length: 100 }).notNull(),
+  lastName: varchar("last_name", { length: 100 }).notNull(),
+  email: varchar("email", { length: 255 }),
+  phoneCountryCode: varchar("phone_country_code", { length: 10 }).default("+52"),
+  phone: varchar("phone", { length: 50 }),
+  
+  // Company Information
+  company: varchar("company", { length: 200 }), // Nombre de su inmobiliaria/empresa
+  companyLogo: text("company_logo"), // URL del logo de la empresa
+  website: varchar("website", { length: 255 }), // Sitio web del broker
+  
+  // Commission & Financial
+  commissionRate: decimal("commission_rate", { precision: 5, scale: 2 }).default("20.00"), // Porcentaje de comisión (default 20%)
+  
+  // Status & Tracking
+  status: varchar("status", { length: 50 }).notNull().default("active"), // active, inactive, blocked
+  totalLeadsShared: integer("total_leads_shared").default(0), // Total de leads compartidos
+  totalLeadsConverted: integer("total_leads_converted").default(0), // Leads que se convirtieron en rentas
+  totalCommissionsEarned: decimal("total_commissions_earned", { precision: 12, scale: 2 }).default("0.00"),
+  
+  // Notes & Tags
+  notes: text("notes"),
+  tags: text("tags").array().default(sql`ARRAY[]::text[]`),
+  
+  // Metadata
+  createdBy: varchar("created_by").references(() => users.id),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+}, (table) => [
+  index("idx_external_brokers_agency").on(table.agencyId),
+  index("idx_external_brokers_email").on(table.email),
+  index("idx_external_brokers_phone").on(table.phone),
+  index("idx_external_brokers_status").on(table.status),
+  index("idx_external_brokers_company").on(table.company),
+]);
+
+export const insertExternalBrokerSchema = createInsertSchema(externalBrokers).omit({
+  id: true,
+  agencyId: true,
+  createdBy: true,
+  createdAt: true,
+  updatedAt: true,
+  totalLeadsShared: true,
+  totalLeadsConverted: true,
+  totalCommissionsEarned: true,
+});
+
+export const updateExternalBrokerSchema = insertExternalBrokerSchema.partial();
+
+export type InsertExternalBroker = z.infer<typeof insertExternalBrokerSchema>;
+export type UpdateExternalBroker = z.infer<typeof updateExternalBrokerSchema>;
+export type ExternalBroker = typeof externalBrokers.$inferSelect;
+
 // External Leads - Leads registrados por brokers o sellers que se convierten en clientes
 export const externalLeads = pgTable("external_leads", {
   id: varchar("id").primaryKey().$defaultFn(() => crypto.randomUUID()),
@@ -6406,6 +6465,9 @@ export const externalLeads = pgTable("external_leads", {
   sellerName: varchar("seller_name", { length: 200 }), // Nombre del vendedor (si es texto libre)
   assistantSellerName: varchar("assistant_seller_name", { length: 200 }), // Vendedor secundario/asistente
   
+  // Broker externo (para leads compartidos por brokers)
+  brokerId: varchar("broker_id").references(() => externalBrokers.id, { onDelete: "set null" }), // Broker que compartió el lead
+  
   // Estado y origen
   status: externalLeadStatusEnum("status").notNull().default("nuevo_lead"),
   source: varchar("source", { length: 100 }), // de dónde vino el lead
@@ -6442,6 +6504,7 @@ export const externalLeads = pgTable("external_leads", {
   index("idx_external_leads_registration_type").on(table.registrationType),
   index("idx_external_leads_valid_until").on(table.validUntil),
   index("idx_external_leads_converted").on(table.convertedToClientId),
+  index("idx_external_leads_broker").on(table.brokerId),
 ]);
 
 const baseExternalLeadSchema = createInsertSchema(externalLeads).omit({
@@ -7858,6 +7921,18 @@ export const externalClientsRelations = relations(externalClients, ({ one }) => 
     fields: [externalClients.createdBy],
     references: [users.id],
   }),
+}));
+
+export const externalBrokersRelations = relations(externalBrokers, ({ one, many }) => ({
+  agency: one(externalAgencies, {
+    fields: [externalBrokers.agencyId],
+    references: [externalAgencies.id],
+  }),
+  createdByUser: one(users, {
+    fields: [externalBrokers.createdBy],
+    references: [users.id],
+  }),
+  leads: many(externalLeads),
 }));
 
 // Agency-configurable zones (colonias)
