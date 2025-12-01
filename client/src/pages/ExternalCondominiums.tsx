@@ -49,7 +49,7 @@ export default function ExternalCondominiums() {
   const [editingUnit, setEditingUnit] = useState<ExternalUnit | null>(null);
   const [deletingCondo, setDeletingCondo] = useState<ExternalCondominium | null>(null);
   const [selectedCondoId, setSelectedCondoId] = useState<string | null>(null);
-  const [activeTab, setActiveTab] = useState<"condominiums" | "units">("condominiums");
+  const [activeTab, setActiveTab] = useState<"condominiums" | "units" | "recruitment">("condominiums");
   const [viewMode, setViewMode] = useState<"cards" | "table">("table");
   const [manualViewModeOverride, setManualViewModeOverride] = useState(false);
   const [prevIsMobile, setPrevIsMobile] = useState(isMobile);
