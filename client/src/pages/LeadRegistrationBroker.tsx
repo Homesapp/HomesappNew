@@ -315,22 +315,22 @@ export default function LeadRegistrationBroker() {
     <div className="min-h-screen flex items-center justify-center p-4 bg-gradient-to-br from-background to-muted">
       <Card className="w-full max-w-2xl">
         <CardHeader className="text-center">
-          <div className="flex justify-center items-center gap-4 mb-4">
+          <div className="flex justify-center items-center gap-6 mb-4">
             <div className="flex flex-col items-center">
               <img 
                 src={logoPath} 
                 alt="HomesApp Logo" 
-                className="h-12 w-auto"
+                className="h-14 w-auto"
               />
               <span className="text-xs text-muted-foreground mt-1 font-medium tracking-wide">Smart Real Estate</span>
             </div>
             {agencyData?.logoUrl && (
               <>
-                <span className="text-muted-foreground">x</span>
+                <span className="text-muted-foreground text-xl">×</span>
                 <img 
                   src={agencyData.logoUrl} 
                   alt={`${agencyData.name} Logo`} 
-                  className="h-12 w-auto max-w-[150px] object-contain"
+                  className="h-14 w-auto object-contain"
                 />
               </>
             )}
