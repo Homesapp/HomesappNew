@@ -3624,11 +3624,13 @@ export default function ExternalClients() {
               onSubmit={leadForm.handleSubmit((data) => createLeadMutation.mutate(data))} 
               className="space-y-6 py-4"
               onKeyDown={(e) => {
-                // Prevent form submission when pressing Enter on step 1
-                // This ensures users must explicitly click "Siguiente" to move to step 2
-                // and "Crear Lead" to submit the form
-                if (e.key === 'Enter' && createLeadStep === 1) {
+                // Prevent form submission when pressing Enter on any step
+                // Users must explicitly click "Siguiente" to move to step 2
+                // and click "Crear Lead" button to submit the form
+                // This prevents accidental auto-submission when navigating between fields
+                if (e.key === 'Enter') {
                   e.preventDefault();
+                  e.stopPropagation();
                 }
               }}
             >
