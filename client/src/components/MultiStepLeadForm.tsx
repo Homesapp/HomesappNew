@@ -185,7 +185,10 @@ export default function MultiStepLeadForm({ onSubmit, isPending, defaultValues }
       </div>
 
       <Form {...form}>
-        <form onSubmit={form.handleSubmit(handleSubmit)} className="space-y-4">
+        <form 
+          onSubmit={form.handleSubmit(handleSubmit)}
+          className="space-y-4"
+        >
           {/* Step 1: Basic Information */}
           {currentStep === 1 && (
             <div className="space-y-4">
@@ -196,7 +199,12 @@ export default function MultiStepLeadForm({ onSubmit, isPending, defaultValues }
                   <FormItem>
                     <FormLabel>Nombre *</FormLabel>
                     <FormControl>
-                      <Input {...field} placeholder="Juan" data-testid="input-firstname" />
+                      <Input 
+                        {...field} 
+                        placeholder="Juan" 
+                        data-testid="input-firstname"
+                        onKeyDown={(e) => e.key === 'Enter' && e.preventDefault()}
+                      />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -210,7 +218,12 @@ export default function MultiStepLeadForm({ onSubmit, isPending, defaultValues }
                   <FormItem>
                     <FormLabel>Apellido *</FormLabel>
                     <FormControl>
-                      <Input {...field} placeholder="Pérez" data-testid="input-lastname" />
+                      <Input 
+                        {...field} 
+                        placeholder="Pérez" 
+                        data-testid="input-lastname"
+                        onKeyDown={(e) => e.key === 'Enter' && e.preventDefault()}
+                      />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -224,7 +237,14 @@ export default function MultiStepLeadForm({ onSubmit, isPending, defaultValues }
                   <FormItem>
                     <FormLabel>Email</FormLabel>
                     <FormControl>
-                      <Input {...field} value={field.value || ""} type="email" placeholder="juan@ejemplo.com" data-testid="input-email" />
+                      <Input 
+                        {...field} 
+                        value={field.value || ""} 
+                        type="email" 
+                        placeholder="juan@ejemplo.com" 
+                        data-testid="input-email"
+                        onKeyDown={(e) => e.key === 'Enter' && e.preventDefault()}
+                      />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -238,7 +258,12 @@ export default function MultiStepLeadForm({ onSubmit, isPending, defaultValues }
                   <FormItem>
                     <FormLabel>Teléfono con Lada *</FormLabel>
                     <FormControl>
-                      <Input {...field} placeholder="+52 984 123 4567" data-testid="input-phone" />
+                      <Input 
+                        {...field} 
+                        placeholder="+52 984 123 4567" 
+                        data-testid="input-phone"
+                        onKeyDown={(e) => e.key === 'Enter' && e.preventDefault()}
+                      />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -343,7 +368,13 @@ export default function MultiStepLeadForm({ onSubmit, isPending, defaultValues }
                   <FormItem>
                     <FormLabel>Presupuesto *</FormLabel>
                     <FormControl>
-                      <Input {...field} type="text" placeholder="50000" data-testid="input-budget" />
+                      <Input 
+                        {...field} 
+                        type="text" 
+                        placeholder="50000" 
+                        data-testid="input-budget"
+                        onKeyDown={(e) => e.key === 'Enter' && e.preventDefault()}
+                      />
                     </FormControl>
                     <FormMessage />
                   </FormItem>

@@ -187,7 +187,7 @@ export default function ExternalMessages() {
   }, [isSeller, activeTab]);
 
   // Fetch team chat messages with polling - keep previous data to prevent flickering
-  const { data: teamMessages, isLoading: loadingTeamMessages, isFetched: messagesFetched } = useQuery<ChatMessage[]>({
+  const { data: teamMessages, isLoading: loadingTeamMessages } = useQuery<ChatMessage[]>({
     queryKey: ['/api/external/chat/messages'],
     refetchInterval: 5000, // Poll every 5 seconds
     enabled: activeTab === 'team',
@@ -255,8 +255,6 @@ export default function ExternalMessages() {
       return response.json();
     },
     onSuccess: () => {
-      setSelectedImage(null);
-      setImagePreview(null);
       queryClient.invalidateQueries({ queryKey: ['/api/external/chat/messages'] });
       toast({
         title: language === "es" ? "Archivo enviado" : "File sent",
