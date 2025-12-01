@@ -175,7 +175,7 @@ const leadFormSchema = z.object({
 });
 
 // Opciones predefinidas para los multi-select
-const SOURCE_OPTIONS = ["Web", "Referido", "Llamada", "Evento", "Redes Sociales", "WhatsApp"];
+const SOURCE_OPTIONS = ["Web", "Referido", "Llamada", "Evento", "Redes Sociales", "WhatsApp", "Tokko Broker", "EasyBroker"];
 const CONTRACT_DURATION_OPTIONS = ["6 meses", "1 año", "2 años", "3 años o más"];
 const MOVE_IN_DATE_OPTIONS = ["Inmediato", "Próximo mes", "En 2-3 meses", "Más de 3 meses"];
 const BEDROOMS_OPTIONS = ["Studio", "1", "2", "3", "4+"];

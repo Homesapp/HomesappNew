@@ -51,7 +51,7 @@ const STEPS = [
   { id: 3, title: "Detalles", description: "Información adicional" },
 ];
 
-const sourceOptions = ["Web", "Referido", "Llamada", "Evento", "Redes Sociales", "WhatsApp"];
+const sourceOptions = ["Web", "Referido", "Llamada", "Evento", "Redes Sociales", "WhatsApp", "Tokko Broker", "EasyBroker"];
 const contractDurationOptions = ["6 meses", "1 año", "2 años", "3+ años"];
 const moveInDateOptions = ["Inmediato", "Próximo mes", "En 2-3 meses", "Más de 3 meses"];
 const bedroomsOptions = ["Studio", "1", "2", "3", "4+"];
