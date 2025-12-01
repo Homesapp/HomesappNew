@@ -9808,3 +9808,118 @@ export const insertFeaturedPropertySchema = createInsertSchema(featuredPropertie
 
 export type InsertFeaturedProperty = z.infer<typeof insertFeaturedPropertySchema>;
 export type FeaturedProperty = typeof featuredProperties.$inferSelect;
+
+// ==========================================
+// External Unit Media - Section-based image organization
+// ==========================================
+
+export const mediaSectionEnum = pgEnum("media_section", [
+  "cover",           // Portada principal
+  "bedroom",         // Recámara (usa sectionIndex para 1, 2, 3...)
+  "bathroom",        // Baño completo (usa sectionIndex)
+  "half_bath",       // Medio baño (usa sectionIndex)
+  "kitchen",         // Cocina
+  "living_room",     // Sala
+  "dining_room",     // Comedor
+  "garden",          // Jardín
+  "terrace",         // Terraza
+  "pool",            // Alberca
+  "balcony",         // Balcón
+  "rooftop",         // Rooftop
+  "parking",         // Estacionamiento
+  "amenities",       // Amenidades del condominio
+  "common_areas",    // Áreas comunes
+  "exterior",        // Vista exterior / Fachada
+  "view",            // Vista desde la propiedad
+  "floor_plan",      // Plano de piso
+  "other",           // Sin categorizar / Legacy
+]);
+
+export const externalUnitMedia = pgTable("external_unit_media", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  unitId: varchar("unit_id").notNull().references(() => externalUnits.id, { onDelete: "cascade" }),
+  agencyId: varchar("agency_id").notNull().references(() => externalAgencies.id, { onDelete: "cascade" }),
+  
+  section: mediaSectionEnum("section").notNull().default("other"),
+  sectionIndex: integer("section_index").default(1), // Para Recámara 1, 2, 3... Baño 1, 2...
+  
+  url: text("url").notNull(),
+  caption: text("caption"), // Descripción opcional de la imagen
+  
+  sortOrder: integer("sort_order").notNull().default(0), // Orden dentro de la sección
+  isCover: boolean("is_cover").default(false), // Si es la imagen de portada general
+  
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+}, (table) => [
+  index("idx_unit_media_unit").on(table.unitId),
+  index("idx_unit_media_agency").on(table.agencyId),
+  index("idx_unit_media_section").on(table.section, table.sectionIndex),
+  index("idx_unit_media_sort").on(table.unitId, table.section, table.sortOrder),
+]);
+
+export const externalUnitMediaRelations = relations(externalUnitMedia, ({ one }) => ({
+  unit: one(externalUnits, {
+    fields: [externalUnitMedia.unitId],
+    references: [externalUnits.id],
+  }),
+  agency: one(externalAgencies, {
+    fields: [externalUnitMedia.agencyId],
+    references: [externalAgencies.id],
+  }),
+}));
+
+export const insertExternalUnitMediaSchema = createInsertSchema(externalUnitMedia).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export type InsertExternalUnitMedia = z.infer<typeof insertExternalUnitMediaSchema>;
+export type ExternalUnitMedia = typeof externalUnitMedia.$inferSelect;
+
+// Media section labels for UI
+export const mediaSectionLabels = {
+  es: {
+    cover: "Portada",
+    bedroom: "Recámara",
+    bathroom: "Baño",
+    half_bath: "Medio Baño",
+    kitchen: "Cocina",
+    living_room: "Sala",
+    dining_room: "Comedor",
+    garden: "Jardín",
+    terrace: "Terraza",
+    pool: "Alberca",
+    balcony: "Balcón",
+    rooftop: "Rooftop",
+    parking: "Estacionamiento",
+    amenities: "Amenidades",
+    common_areas: "Áreas Comunes",
+    exterior: "Exterior / Fachada",
+    view: "Vista",
+    floor_plan: "Plano",
+    other: "Otras Fotos",
+  },
+  en: {
+    cover: "Cover",
+    bedroom: "Bedroom",
+    bathroom: "Bathroom",
+    half_bath: "Half Bath",
+    kitchen: "Kitchen",
+    living_room: "Living Room",
+    dining_room: "Dining Room",
+    garden: "Garden",
+    terrace: "Terrace",
+    pool: "Pool",
+    balcony: "Balcony",
+    rooftop: "Rooftop",
+    parking: "Parking",
+    amenities: "Amenities",
+    common_areas: "Common Areas",
+    exterior: "Exterior / Facade",
+    view: "View",
+    floor_plan: "Floor Plan",
+    other: "Other Photos",
+  },
+} as const;
