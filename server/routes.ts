@@ -23296,7 +23296,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       await createAuditLog(req, "create", "user", user.id, `Created external agency user with role ${validatedData.role}`);
 
 
-      // Auto-seed default message templates for sellers
+      // Auto-seed default message templates for sellers and create seller profile
       if (validatedData.role === "external_agency_seller") {
         try {
           const templatesCreated = await seedDefaultTemplatesForSeller(agencyId);
@@ -23305,8 +23305,22 @@ export async function registerRoutes(app: Express): Promise<Server> {
           console.error("Error auto-seeding templates for new seller:", templateError);
           // Non-blocking - user creation succeeded
         }
+        
+        // Create seller profile with commission rate if provided
+        try {
+          await storage.createExternalSellerProfile({
+            agencyId,
+            userId: user.id,
+            status: "active",
+            commissionRate: validatedData.commissionRate || "10.00", // Default 10%
+            hireDate: new Date(),
+          });
+          console.log(`Created seller profile for ${user.email} with commission rate ${validatedData.commissionRate || "10"}%`);
+        } catch (profileError) {
+          console.error("Error creating seller profile:", profileError);
+          // Non-blocking - user creation succeeded
+        }
       }
-      // Return user and temp password
       res.status(201).json({ 
         user: {
           id: user.id,
@@ -23371,11 +23385,27 @@ export async function registerRoutes(app: Express): Promise<Server> {
         .set(updateData)
         .where(eq(users.id, id))
         .returning();
-
       await createAuditLog(req, "update", "user", id, `Updated external agency user - changed: ${Object.keys(validatedData).join(', ')}`);
 
+      // If this is a seller and commission rate is provided, update the seller profile
+      if (validatedData.commissionRate && (validatedData.role === "external_agency_seller" || updatedUser.role === "external_agency_seller")) {
+        const existingProfile = await storage.getExternalSellerProfileByUser(agencyId, id);
+        const payload = {
+          agencyId,
+          userId: id,
+          status: existingProfile?.status ?? "active",
+          commissionRate: `${validatedData.commissionRate}.00`,
+        };
+
+        if (existingProfile) {
+          await storage.updateExternalSellerProfile(existingProfile.id, payload);
+        } else {
+          await storage.createExternalSellerProfile({ ...payload, hireDate: new Date() });
+        }
+      }
+
+
       res.json({
-        id: updatedUser.id,
         email: updatedUser.email,
         firstName: updatedUser.firstName,
         lastName: updatedUser.lastName,

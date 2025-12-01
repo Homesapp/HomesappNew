@@ -133,6 +133,76 @@ type SellerPayout = {
   createdAt: string;
 };
 
+type CommissionDefault = {
+  id: string | null;
+  agencyId: string;
+  concept: string;
+  rate: string;
+  descriptionEs: string | null;
+  descriptionEn: string | null;
+  updatedBy: string | null;
+  createdAt: string | null;
+  updatedAt: string | null;
+};
+
+type CommissionOverride = {
+  id: string;
+  agencyId: string;
+  concept: string;
+  overrideType: 'role' | 'user';
+  roleValue: string | null;
+  userId: string | null;
+  rate: string;
+  notes: string | null;
+  createdBy: string | null;
+  updatedBy: string | null;
+  createdAt: string;
+  updatedAt: string | null;
+  user?: {
+    id: string;
+    firstName: string;
+    lastName: string;
+    email: string;
+    profileImageUrl: string | null;
+  } | null;
+};
+
+type AgencySeller = {
+  id: string;
+  firstName: string;
+  lastName: string;
+  email: string;
+  role: string;
+  profileImageUrl: string | null;
+  createdAt: string;
+};
+
+const COMMISSION_CONCEPTS: Record<string, Record<string, string>> = {
+  es: {
+    rental_no_referral: "Renta sin Referido",
+    rental_with_referral: "Renta con Referido",
+    property_recruitment: "Captación de Propiedad",
+    broker_referral: "Referido de Broker"
+  },
+  en: {
+    rental_no_referral: "Rental without Referral",
+    rental_with_referral: "Rental with Referral",
+    property_recruitment: "Property Recruitment",
+    broker_referral: "Broker Referral"
+  }
+};
+
+const ROLE_LABELS: Record<string, Record<string, string>> = {
+  es: {
+    external_agency_admin: "Administrador",
+    external_agency_seller: "Vendedor"
+  },
+  en: {
+    external_agency_admin: "Administrator",
+    external_agency_seller: "Seller"
+  }
+};
+
 const STATUS_LABELS: Record<string, Record<string, string>> = {
   es: {
     active: "Activo",
@@ -1684,6 +1754,469 @@ export default function ExternalSellersManagement() {
     </div>
   );
 
+  const renderRatesTab = () => {
+    // Query for commission defaults
+    const { data: commissionDefaults = [], isLoading: defaultsLoading } = useQuery<CommissionDefault[]>({
+      queryKey: ["/api/external/seller-commission-rates/defaults"],
+    });
+
+    // Query for commission overrides
+    const { data: commissionOverrides = [], isLoading: overridesLoading } = useQuery<CommissionOverride[]>({
+      queryKey: ["/api/external/seller-commission-rates/overrides"],
+    });
+
+    // Query for agency sellers
+    const { data: agencySellers = [] } = useQuery<AgencySeller[]>({
+      queryKey: ["/api/external/agency-sellers"],
+    });
+
+    const [editingDefaultId, setEditingDefaultId] = useState<string | null>(null);
+    const [editingRate, setEditingRate] = useState<string>("");
+    const [isAddOverrideOpen, setIsAddOverrideOpen] = useState(false);
+    const [newOverride, setNewOverride] = useState({
+      concept: "rental_no_referral",
+      overrideType: "role" as "role" | "user",
+      roleValue: "external_agency_seller",
+      targetUserId: "",
+      rate: "",
+      notes: ""
+    });
+
+    // Update default rate mutation
+    const updateDefaultMutation = useMutation({
+      mutationFn: async (data: { concept: string; rate: number }) => {
+        return apiRequest("/api/external/seller-commission-rates/defaults", {
+          method: "PUT",
+          body: JSON.stringify(data),
+          headers: { "Content-Type": "application/json" }
+        });
+      },
+      onSuccess: () => {
+        queryClient.invalidateQueries({ queryKey: ["/api/external/seller-commission-rates/defaults"] });
+        toast({
+          title: language === "es" ? "Porcentaje actualizado" : "Rate updated",
+          description: language === "es" ? "El porcentaje por defecto ha sido actualizado" : "Default rate has been updated"
+        });
+        setEditingDefaultId(null);
+      },
+      onError: (error: Error) => {
+        toast({
+          title: language === "es" ? "Error" : "Error",
+          description: error.message,
+          variant: "destructive"
+        });
+      }
+    });
+
+    // Create override mutation
+    const createOverrideMutation = useMutation({
+      mutationFn: async (data: typeof newOverride) => {
+        return apiRequest("/api/external/seller-commission-rates/overrides", {
+          method: "POST",
+          body: JSON.stringify({
+            ...data,
+            rate: parseFloat(data.rate)
+          }),
+          headers: { "Content-Type": "application/json" }
+        });
+      },
+      onSuccess: () => {
+        queryClient.invalidateQueries({ queryKey: ["/api/external/seller-commission-rates/overrides"] });
+        toast({
+          title: language === "es" ? "Excepción creada" : "Override created",
+          description: language === "es" ? "La excepción de porcentaje ha sido creada" : "Rate override has been created"
+        });
+        setIsAddOverrideOpen(false);
+        setNewOverride({
+          concept: "rental_no_referral",
+          overrideType: "role",
+          roleValue: "external_agency_seller",
+          targetUserId: "",
+          rate: "",
+          notes: ""
+        });
+      },
+      onError: (error: Error) => {
+        toast({
+          title: language === "es" ? "Error" : "Error",
+          description: error.message,
+          variant: "destructive"
+        });
+      }
+    });
+
+    // Delete override mutation
+    const deleteOverrideMutation = useMutation({
+      mutationFn: async (id: string) => {
+        return apiRequest(`/api/external/seller-commission-rates/overrides/${id}`, {
+          method: "DELETE"
+        });
+      },
+      onSuccess: () => {
+        queryClient.invalidateQueries({ queryKey: ["/api/external/seller-commission-rates/overrides"] });
+        toast({
+          title: language === "es" ? "Excepción eliminada" : "Override deleted",
+          description: language === "es" ? "La excepción ha sido eliminada" : "Override has been deleted"
+        });
+      },
+      onError: (error: Error) => {
+        toast({
+          title: language === "es" ? "Error" : "Error",
+          description: error.message,
+          variant: "destructive"
+        });
+      }
+    });
+
+    const handleSaveDefault = (concept: string) => {
+      const rate = parseFloat(editingRate);
+      if (isNaN(rate) || rate < 0 || rate > 100) {
+        toast({
+          title: language === "es" ? "Error" : "Error",
+          description: language === "es" ? "Ingresa un porcentaje válido (0-100)" : "Enter a valid percentage (0-100)",
+          variant: "destructive"
+        });
+        return;
+      }
+      updateDefaultMutation.mutate({ concept, rate });
+    };
+
+    return (
+      <div className="space-y-6">
+        {/* Agency Default Rates */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Percent className="h-5 w-5" />
+              {language === "es" ? "Porcentajes por Defecto" : "Default Rates"}
+            </CardTitle>
+            <CardDescription>
+              {language === "es" 
+                ? "Porcentajes de comisión que aplican a todos los vendedores por defecto"
+                : "Commission percentages that apply to all sellers by default"
+              }
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            {defaultsLoading ? (
+              <div className="space-y-3">
+                {[...Array(4)].map((_, i) => (
+                  <Skeleton key={i} className="h-16 w-full" />
+                ))}
+              </div>
+            ) : (
+              <div className="grid gap-4 md:grid-cols-2">
+                {commissionDefaults.map((d) => (
+                  <Card key={d.concept} className="bg-muted/30" data-testid={`card-default-${d.concept}`}>
+                    <CardContent className="pt-4">
+                      <div className="flex items-center justify-between gap-2">
+                        <div className="min-w-0">
+                          <p className="font-medium text-sm">
+                            {COMMISSION_CONCEPTS[language][d.concept] || d.concept}
+                          </p>
+                          <p className="text-xs text-muted-foreground">
+                            {language === "es" ? "Porcentaje del vendedor" : "Seller percentage"}
+                          </p>
+                        </div>
+                        {editingDefaultId === d.concept ? (
+                          <div className="flex items-center gap-2">
+                            <Input
+                              type="number"
+                              min={0}
+                              max={100}
+                              step={1}
+                              value={editingRate}
+                              onChange={(e) => setEditingRate(e.target.value)}
+                              className="w-20 h-9"
+                              data-testid={`input-rate-${d.concept}`}
+                            />
+                            <span className="text-sm">%</span>
+                            <Button
+                              size="sm"
+                              onClick={() => handleSaveDefault(d.concept)}
+                              disabled={updateDefaultMutation.isPending}
+                              data-testid={`button-save-${d.concept}`}
+                            >
+                              {language === "es" ? "Guardar" : "Save"}
+                            </Button>
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              onClick={() => setEditingDefaultId(null)}
+                              data-testid={`button-cancel-${d.concept}`}
+                            >
+                              <XCircle className="h-4 w-4" />
+                            </Button>
+                          </div>
+                        ) : (
+                          <div className="flex items-center gap-2">
+                            <Badge variant="secondary" className="text-lg px-3 py-1">
+                              {parseFloat(d.rate)}%
+                            </Badge>
+                            <Button
+                              size="icon"
+                              variant="ghost"
+                              onClick={() => {
+                                setEditingDefaultId(d.concept);
+                                setEditingRate(d.rate);
+                              }}
+                              data-testid={`button-edit-${d.concept}`}
+                            >
+                              <Edit className="h-4 w-4" />
+                            </Button>
+                          </div>
+                        )}
+                      </div>
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
+            )}
+          </CardContent>
+        </Card>
+
+        {/* Rate Overrides */}
+        <Card>
+          <CardHeader>
+            <div className="flex items-center justify-between gap-2">
+              <div>
+                <CardTitle className="flex items-center gap-2">
+                  <Users className="h-5 w-5" />
+                  {language === "es" ? "Excepciones de Porcentaje" : "Rate Overrides"}
+                </CardTitle>
+                <CardDescription>
+                  {language === "es" 
+                    ? "Porcentajes personalizados por rol o vendedor específico"
+                    : "Custom rates by role or specific seller"
+                  }
+                </CardDescription>
+              </div>
+              <Button onClick={() => setIsAddOverrideOpen(true)} data-testid="button-add-override">
+                <Plus className="mr-2 h-4 w-4" />
+                {language === "es" ? "Agregar" : "Add"}
+              </Button>
+            </div>
+          </CardHeader>
+          <CardContent>
+            {overridesLoading ? (
+              <div className="space-y-3">
+                {[...Array(2)].map((_, i) => (
+                  <Skeleton key={i} className="h-20 w-full" />
+                ))}
+              </div>
+            ) : commissionOverrides.length === 0 ? (
+              <div className="text-center py-8 text-muted-foreground">
+                <Users className="h-12 w-12 mx-auto mb-3 opacity-50" />
+                <p>{language === "es" ? "No hay excepciones configuradas" : "No overrides configured"}</p>
+                <p className="text-sm mt-1">
+                  {language === "es" 
+                    ? "Todos los vendedores usan los porcentajes por defecto"
+                    : "All sellers use default rates"
+                  }
+                </p>
+              </div>
+            ) : (
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>{language === "es" ? "Concepto" : "Concept"}</TableHead>
+                    <TableHead>{language === "es" ? "Aplica a" : "Applies to"}</TableHead>
+                    <TableHead className="text-right">{language === "es" ? "Porcentaje" : "Rate"}</TableHead>
+                    <TableHead>{language === "es" ? "Notas" : "Notes"}</TableHead>
+                    <TableHead className="text-right">{language === "es" ? "Acciones" : "Actions"}</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {commissionOverrides.map((o) => (
+                    <TableRow key={o.id} data-testid={`row-override-${o.id}`}>
+                      <TableCell className="font-medium">
+                        {COMMISSION_CONCEPTS[language][o.concept] || o.concept}
+                      </TableCell>
+                      <TableCell>
+                        {o.overrideType === "role" ? (
+                          <Badge variant="outline">
+                            {ROLE_LABELS[language][o.roleValue || ""] || o.roleValue}
+                          </Badge>
+                        ) : (
+                          <div className="flex items-center gap-2">
+                            <Avatar className="h-6 w-6">
+                              <AvatarImage src={o.user?.profileImageUrl || undefined} />
+                              <AvatarFallback className="text-xs">
+                                {o.user ? `${o.user.firstName?.[0] || ""}${o.user.lastName?.[0] || ""}` : "?"}
+                              </AvatarFallback>
+                            </Avatar>
+                            <span className="text-sm">
+                              {o.user ? `${o.user.firstName} ${o.user.lastName}` : o.userId}
+                            </span>
+                          </div>
+                        )}
+                      </TableCell>
+                      <TableCell className="text-right">
+                        <Badge variant="secondary">{parseFloat(o.rate)}%</Badge>
+                      </TableCell>
+                      <TableCell className="text-muted-foreground text-sm max-w-[200px] truncate">
+                        {o.notes || "-"}
+                      </TableCell>
+                      <TableCell className="text-right">
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => {
+                            if (confirm(language === "es" ? "¿Eliminar esta excepción?" : "Delete this override?")) {
+                              deleteOverrideMutation.mutate(o.id);
+                            }
+                          }}
+                          data-testid={`button-delete-override-${o.id}`}
+                        >
+                          <Trash2 className="h-4 w-4 text-red-500" />
+                        </Button>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            )}
+          </CardContent>
+        </Card>
+
+        {/* Add Override Dialog */}
+        <Dialog open={isAddOverrideOpen} onOpenChange={setIsAddOverrideOpen}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>
+                {language === "es" ? "Agregar Excepción de Porcentaje" : "Add Rate Override"}
+              </DialogTitle>
+              <DialogDescription>
+                {language === "es" 
+                  ? "Define un porcentaje personalizado para un rol o vendedor específico"
+                  : "Define a custom rate for a specific role or seller"
+                }
+              </DialogDescription>
+            </DialogHeader>
+            <div className="space-y-4 py-4">
+              <div className="space-y-2">
+                <Label>{language === "es" ? "Concepto" : "Concept"}</Label>
+                <Select
+                  value={newOverride.concept}
+                  onValueChange={(v) => setNewOverride(prev => ({ ...prev, concept: v }))}
+                >
+                  <SelectTrigger data-testid="select-concept">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {Object.entries(COMMISSION_CONCEPTS[language]).map(([key, label]) => (
+                      <SelectItem key={key} value={key}>{label}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="space-y-2">
+                <Label>{language === "es" ? "Tipo de Excepción" : "Override Type"}</Label>
+                <Select
+                  value={newOverride.overrideType}
+                  onValueChange={(v: "role" | "user") => setNewOverride(prev => ({ ...prev, overrideType: v }))}
+                >
+                  <SelectTrigger data-testid="select-override-type">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="role">{language === "es" ? "Por Rol" : "By Role"}</SelectItem>
+                    <SelectItem value="user">{language === "es" ? "Por Vendedor" : "By Seller"}</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              {newOverride.overrideType === "role" ? (
+                <div className="space-y-2">
+                  <Label>{language === "es" ? "Rol" : "Role"}</Label>
+                  <Select
+                    value={newOverride.roleValue}
+                    onValueChange={(v) => setNewOverride(prev => ({ ...prev, roleValue: v }))}
+                  >
+                    <SelectTrigger data-testid="select-role">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="external_agency_seller">
+                        {language === "es" ? "Vendedor" : "Seller"}
+                      </SelectItem>
+                      <SelectItem value="external_agency_admin">
+                        {language === "es" ? "Administrador" : "Administrator"}
+                      </SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              ) : (
+                <div className="space-y-2">
+                  <Label>{language === "es" ? "Vendedor" : "Seller"}</Label>
+                  <Select
+                    value={newOverride.targetUserId}
+                    onValueChange={(v) => setNewOverride(prev => ({ ...prev, targetUserId: v }))}
+                  >
+                    <SelectTrigger data-testid="select-seller">
+                      <SelectValue placeholder={language === "es" ? "Seleccionar vendedor" : "Select seller"} />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {agencySellers.map((seller) => (
+                        <SelectItem key={seller.id} value={seller.id}>
+                          {seller.firstName} {seller.lastName}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              )}
+
+              <div className="space-y-2">
+                <Label>{language === "es" ? "Porcentaje (%)" : "Percentage (%)"}</Label>
+                <Input
+                  type="number"
+                  min={0}
+                  max={100}
+                  step={1}
+                  value={newOverride.rate}
+                  onChange={(e) => setNewOverride(prev => ({ ...prev, rate: e.target.value }))}
+                  placeholder="50"
+                  data-testid="input-override-rate"
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label>{language === "es" ? "Notas (opcional)" : "Notes (optional)"}</Label>
+                <Textarea
+                  value={newOverride.notes}
+                  onChange={(e) => setNewOverride(prev => ({ ...prev, notes: e.target.value }))}
+                  placeholder={language === "es" ? "Razón de la excepción..." : "Reason for override..."}
+                  data-testid="input-override-notes"
+                />
+              </div>
+            </div>
+            <DialogFooter>
+              <Button
+                variant="outline"
+                onClick={() => setIsAddOverrideOpen(false)}
+                data-testid="button-cancel-override"
+              >
+                {language === "es" ? "Cancelar" : "Cancel"}
+              </Button>
+              <Button
+                onClick={() => createOverrideMutation.mutate(newOverride)}
+                disabled={createOverrideMutation.isPending || !newOverride.rate || (newOverride.overrideType === "user" && !newOverride.targetUserId)}
+                data-testid="button-save-override"
+              >
+                {createOverrideMutation.isPending 
+                  ? (language === "es" ? "Guardando..." : "Saving...")
+                  : (language === "es" ? "Guardar" : "Save")
+                }
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+      </div>
+    );
+  };
+
   return (
     <div className="container mx-auto p-4 sm:p-6 space-y-4 sm:space-y-6">
       <div className="flex items-center justify-between gap-2">
@@ -1716,7 +2249,7 @@ export default function ExternalSellersManagement() {
       </div>
 
       <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as any)} className="w-full">
-        <TabsList className="grid w-full grid-cols-5">
+        <TabsList className="grid w-full grid-cols-6">
           <TabsTrigger value="overview" data-testid="tab-overview">
             <BarChart3 className="h-4 w-4 mr-2" />
             {!isMobile && (language === "es" ? "General" : "Overview")}
@@ -1736,6 +2269,10 @@ export default function ExternalSellersManagement() {
           <TabsTrigger value="goals" data-testid="tab-goals">
             <Target className="h-4 w-4 mr-2" />
             {!isMobile && (language === "es" ? "Metas" : "Goals")}
+          </TabsTrigger>
+          <TabsTrigger value="rates" data-testid="tab-rates">
+            <Percent className="h-4 w-4 mr-2" />
+            {!isMobile && (language === "es" ? "Porcentajes" : "Rates")}
           </TabsTrigger>
         </TabsList>
 
@@ -1757,6 +2294,10 @@ export default function ExternalSellersManagement() {
 
         <TabsContent value="goals" className="mt-6">
           {renderGoalsTab()}
+        </TabsContent>
+
+        <TabsContent value="rates" className="mt-6">
+          {renderRatesTab()}
         </TabsContent>
       </Tabs>
 
