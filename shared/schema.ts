@@ -9518,3 +9518,119 @@ export const insertExternalAgencyRewardRedemptionSchema = createInsertSchema(ext
 
 export type InsertExternalAgencyRewardRedemption = z.infer<typeof insertExternalAgencyRewardRedemptionSchema>;
 export type ExternalAgencyRewardRedemption = typeof externalAgencyRewardRedemptions.$inferSelect;
+
+// ========================================
+// EMAIL LEAD IMPORT SYSTEM
+// ========================================
+
+// Enum for email providers
+export const emailLeadProviderEnum = pgEnum("email_lead_provider", [
+  "tokko",
+  "easybroker",
+  "inmuebles24",
+  "mercadolibre",
+  "other",
+]);
+
+// Enum for import status
+export const emailImportStatusEnum = pgEnum("email_import_status", [
+  "success",
+  "duplicate",
+  "parse_error",
+  "skipped",
+]);
+
+// External Lead Email Sources - Configuration for email lead import per agency
+export const externalLeadEmailSources = pgTable("external_lead_email_sources", {
+  id: varchar("id").primaryKey().$defaultFn(() => crypto.randomUUID()),
+  agencyId: varchar("agency_id").notNull().references(() => externalAgencies.id, { onDelete: "cascade" }),
+  
+  // Provider configuration
+  provider: emailLeadProviderEnum("provider").notNull(),
+  providerName: varchar("provider_name", { length: 100 }).notNull(), // Display name
+  
+  // Email matching criteria
+  senderEmails: text("sender_emails").array().notNull(), // Array of sender emails to match (e.g., ["noreply@tokkobroker.com"])
+  subjectPatterns: text("subject_patterns").array(), // Optional subject line patterns to match
+  
+  // Default values for imported leads
+  defaultSellerId: varchar("default_seller_id").references(() => users.id, { onDelete: "set null" }),
+  defaultSource: varchar("default_source", { length: 100 }).default("email_import"),
+  defaultRegistrationType: leadRegistrationTypeEnum("default_registration_type").notNull().default("seller"),
+  
+  // Status
+  isActive: boolean("is_active").notNull().default(true),
+  lastSyncAt: timestamp("last_sync_at"),
+  lastSyncMessageId: varchar("last_sync_message_id", { length: 255 }), // Gmail message ID of last processed email
+  
+  // Statistics
+  totalImported: integer("total_imported").notNull().default(0),
+  totalDuplicates: integer("total_duplicates").notNull().default(0),
+  totalErrors: integer("total_errors").notNull().default(0),
+  
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+}, (table) => [
+  index("idx_email_sources_agency").on(table.agencyId),
+  index("idx_email_sources_provider").on(table.provider),
+  index("idx_email_sources_active").on(table.isActive),
+]);
+
+export const insertExternalLeadEmailSourceSchema = createInsertSchema(externalLeadEmailSources).omit({
+  id: true,
+  lastSyncAt: true,
+  lastSyncMessageId: true,
+  totalImported: true,
+  totalDuplicates: true,
+  totalErrors: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export type InsertExternalLeadEmailSource = z.infer<typeof insertExternalLeadEmailSourceSchema>;
+export type ExternalLeadEmailSource = typeof externalLeadEmailSources.$inferSelect;
+
+// External Lead Email Import Logs - Track each email import attempt
+export const externalLeadEmailImportLogs = pgTable("external_lead_email_import_logs", {
+  id: varchar("id").primaryKey().$defaultFn(() => crypto.randomUUID()),
+  agencyId: varchar("agency_id").notNull().references(() => externalAgencies.id, { onDelete: "cascade" }),
+  sourceId: varchar("source_id").notNull().references(() => externalLeadEmailSources.id, { onDelete: "cascade" }),
+  
+  // Gmail message info
+  gmailMessageId: varchar("gmail_message_id", { length: 255 }).notNull(),
+  gmailThreadId: varchar("gmail_thread_id", { length: 255 }),
+  emailSubject: varchar("email_subject", { length: 500 }),
+  emailFrom: varchar("email_from", { length: 255 }),
+  emailDate: timestamp("email_date"),
+  
+  // Import result
+  status: emailImportStatusEnum("status").notNull(),
+  leadId: varchar("lead_id").references(() => externalLeads.id, { onDelete: "set null" }), // Lead created if successful
+  
+  // Parsed data (stored for debugging)
+  parsedData: jsonb("parsed_data"), // JSON with extracted lead info
+  
+  // Error info
+  errorMessage: text("error_message"),
+  
+  // Duplicate detection
+  duplicateOfLeadId: varchar("duplicate_of_lead_id").references(() => externalLeads.id, { onDelete: "set null" }),
+  duplicateReason: varchar("duplicate_reason", { length: 255 }), // e.g., "matching_phone", "matching_email_name"
+  
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+}, (table) => [
+  index("idx_email_import_logs_agency").on(table.agencyId),
+  index("idx_email_import_logs_source").on(table.sourceId),
+  index("idx_email_import_logs_status").on(table.status),
+  index("idx_email_import_logs_gmail_id").on(table.gmailMessageId),
+  index("idx_email_import_logs_lead").on(table.leadId),
+  index("idx_email_import_logs_created").on(table.createdAt),
+]);
+
+export const insertExternalLeadEmailImportLogSchema = createInsertSchema(externalLeadEmailImportLogs).omit({
+  id: true,
+  createdAt: true,
+});
+
+export type InsertExternalLeadEmailImportLog = z.infer<typeof insertExternalLeadEmailImportLogSchema>;
+export type ExternalLeadEmailImportLog = typeof externalLeadEmailImportLogs.$inferSelect;
