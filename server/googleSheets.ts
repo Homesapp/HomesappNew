@@ -282,3 +282,92 @@ export async function getTRHSheetStats(spreadsheetId: string, sheetName: string 
     sheetName,
   };
 }
+
+// Read cell notes from Google Sheets
+export interface CellNoteData {
+  rowIndex: number;
+  sheetRowId: string;
+  condominiumName: string;
+  unitNumber: string;
+  note: string | null;
+}
+
+export async function readCellNotesFromSheet(
+  spreadsheetId: string, 
+  sheetName: string = 'Renta/Long Term',
+  notesColumn: string = 'T', // Column where notes are stored
+  startRow: number = 2,
+  endRow?: number
+): Promise<CellNoteData[]> {
+  const sheets = await getGoogleSheetsClient();
+  
+  // First get the sheet ID
+  const spreadsheet = await sheets.spreadsheets.get({
+    spreadsheetId,
+    fields: 'sheets.properties',
+  });
+  
+  const sheet = spreadsheet.data.sheets?.find(
+    s => s.properties?.title === sheetName
+  );
+  
+  if (!sheet?.properties?.sheetId) {
+    throw new Error(`Sheet "${sheetName}" not found`);
+  }
+  
+  const sheetId = sheet.properties.sheetId;
+  
+  // Get cell values and notes for the required columns
+  // A = ID, G = Condominium, H = Unit, T = Notes column (or specified)
+  const noteColIndex = notesColumn.charCodeAt(0) - 'A'.charCodeAt(0);
+  
+  const response = await sheets.spreadsheets.get({
+    spreadsheetId,
+    ranges: [`'${sheetName}'!A${startRow}:${notesColumn}${endRow || ''}`],
+    fields: 'sheets.data.rowData.values(formattedValue,note)',
+  });
+  
+  const rowData = response.data.sheets?.[0]?.data?.[0]?.rowData || [];
+  
+  return rowData.map((row, index) => {
+    const values = row.values || [];
+    return {
+      rowIndex: startRow + index,
+      sheetRowId: values[0]?.formattedValue || '',        // Column A: ID
+      condominiumName: values[6]?.formattedValue || '',   // Column G: Condominio
+      unitNumber: values[7]?.formattedValue || '',        // Column H: Unidad
+      note: values[noteColIndex]?.note || null,           // Notes column: cell note
+    };
+  }).filter(row => row.sheetRowId); // Filter out empty rows
+}
+
+// Parse ficha text to extract Google Maps URL
+export function extractGoogleMapsUrlFromFicha(fichaText: string): string | null {
+  if (!fichaText) return null;
+  
+  // Look for "Ubicación:" or "Ubicacion:" followed by a URL
+  const ubicacionMatch = fichaText.match(/Ubicaci[oó]n:\s*(https?:\/\/[^\s\n]+)/i);
+  if (ubicacionMatch) {
+    return ubicacionMatch[1].trim();
+  }
+  
+  // Also try to find any Google Maps URL in the text
+  const mapsMatch = fichaText.match(/(https?:\/\/(?:maps\.app\.goo\.gl|goo\.gl\/maps|google\.com\/maps|maps\.google\.com)[^\s\n]+)/i);
+  if (mapsMatch) {
+    return mapsMatch[1].trim();
+  }
+  
+  return null;
+}
+
+// Extract TRH ID from ficha
+export function extractTRHIdFromFicha(fichaText: string): string | null {
+  if (!fichaText) return null;
+  
+  const trhMatch = fichaText.match(/TRH\s*ID\s*[:\s]*(\d+)/i);
+  if (trhMatch) {
+    return trhMatch[1];
+  }
+  
+  return null;
+}
