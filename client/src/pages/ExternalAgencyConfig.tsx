@@ -20,8 +20,7 @@ import { z } from "zod";
 import { useEffect } from "react";
 import { formatDistanceToNow } from "date-fns";
 import { es } from "date-fns/locale";
-import { Bell, CheckCheck, Settings, AlertTriangle, CreditCard, Wrench, FileText, Calendar, Percent, Mail, RefreshCw, ExternalLink } from "lucide-react";
-import { Link } from "wouter";
+import { Bell, CheckCheck, Settings, AlertTriangle, CreditCard, Wrench, FileText, Calendar, Percent } from "lucide-react";
 import CommissionManagement from "@/components/CommissionManagement";
 
 const formSchema = insertExternalAgencySchema.extend({});
@@ -126,31 +125,6 @@ export default function ExternalAgencyConfig() {
       });
     },
   });
-
-  const manualEmailImportMutation = useMutation({
-    mutationFn: async () => {
-      return await apiRequest("POST", "/api/external/email-import/trigger-manual");
-    },
-    onSuccess: () => {
-      toast({
-        title: language === "es" ? "Importación iniciada" : "Import started",
-        description: language === "es"
-          ? "La importación de leads por correo se está ejecutando. Revisa los resultados en unos minutos."
-          : "Email lead import is running. Check results in a few minutes.",
-      });
-    },
-    onError: (error: any) => {
-      toast({
-        title: language === "es" ? "Error" : "Error",
-        description: error?.message || (language === "es"
-          ? "No se pudo iniciar la importación de correos"
-          : "Could not start email import"),
-        variant: "destructive",
-      });
-    },
-  });
-
-  const isTulumRentalHomes = agency?.slug === "tulumrentalhomes" || agency?.name?.toLowerCase().includes("tulum rental");
 
   const onSubmit = (data: z.infer<typeof formSchema>) => {
     updateMutation.mutate(data);
@@ -360,70 +334,6 @@ export default function ExternalAgencyConfig() {
               )}
             </CardContent>
           </Card>
-
-          {isTulumRentalHomes && (
-            <Card className="mt-6" data-testid="card-email-import">
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <Mail className="h-5 w-5" />
-                  {language === "es" ? "Importación de Leads por Email" : "Email Lead Import"}
-                </CardTitle>
-                <CardDescription>
-                  {language === "es" 
-                    ? "Importa leads automáticamente desde Tokko Broker y EasyBroker"
-                    : "Automatically import leads from Tokko Broker and EasyBroker"}
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-4">
-                  <p className="text-sm text-muted-foreground">
-                    {language === "es" 
-                      ? "El sistema revisa automáticamente cada 30 minutos los correos recibidos en administracion@tulumrentalhomes.com.mx para importar nuevos leads de las plataformas configuradas."
-                      : "The system automatically checks every 30 minutes for emails received at administracion@tulumrentalhomes.com.mx to import new leads from configured platforms."}
-                  </p>
-                  
-                  <div className="flex flex-wrap gap-3">
-                    <Button
-                      variant="default"
-                      onClick={() => manualEmailImportMutation.mutate()}
-                      disabled={manualEmailImportMutation.isPending}
-                      data-testid="button-manual-email-import"
-                    >
-                      {manualEmailImportMutation.isPending ? (
-                        <>
-                          <RefreshCw className="h-4 w-4 mr-2 animate-spin" />
-                          {language === "es" ? "Importando..." : "Importing..."}
-                        </>
-                      ) : (
-                        <>
-                          <RefreshCw className="h-4 w-4 mr-2" />
-                          {language === "es" ? "Importar Ahora" : "Import Now"}
-                        </>
-                      )}
-                    </Button>
-                    
-                    <Link href="/external/email-import">
-                      <Button variant="outline" data-testid="button-email-import-config">
-                        <ExternalLink className="h-4 w-4 mr-2" />
-                        {language === "es" ? "Configurar Fuentes" : "Configure Sources"}
-                      </Button>
-                    </Link>
-                  </div>
-                  
-                  <div className="flex flex-wrap gap-2 mt-4">
-                    <Badge variant="outline" className="text-xs">
-                      <span className="font-medium">Tokko Broker:</span>
-                      <span className="ml-1 text-muted-foreground">notifier@tokkobroker.com</span>
-                    </Badge>
-                    <Badge variant="outline" className="text-xs">
-                      <span className="font-medium">EasyBroker:</span>
-                      <span className="ml-1 text-muted-foreground">tulumr_1@inbox.easybroker.com</span>
-                    </Badge>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-          )}
         </TabsContent>
 
         <TabsContent value="commissions" className="mt-6">

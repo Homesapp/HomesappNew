@@ -82,87 +82,63 @@ class TokkoEmailParser implements EmailParser {
       let message = '';
       let propertyInterest = '';
       
-      for (let i = 0; i < lines.length; i++) {
-        const line = lines[i];
-        
-        if (line.toLowerCase().includes('hay una nueva consulta de')) {
-          const nameMatch = line.match(/consulta de\s+([A-Za-zÁÉÍÓÚáéíóúñÑ\s]+)/i);
-          if (nameMatch) {
-            const nameParts = nameMatch[1].trim().split(' ');
-            firstName = nameParts[0] || '';
-            lastName = nameParts.slice(1).join(' ') || '';
-          }
+      for (const line of lines) {
+        if (line.toLowerCase().includes('nombre:') || line.toLowerCase().includes('name:')) {
+          const fullName = line.split(':').slice(1).join(':').trim();
+          const nameParts = fullName.split(' ');
+          firstName = nameParts[0] || '';
+          lastName = nameParts.slice(1).join(' ') || '';
         }
         
-        if (line.toLowerCase() === 'información de contacto' && lines[i + 1]) {
-          const nextLine = lines[i + 1];
-          if (nextLine && !nextLine.includes(':') && !nextLine.includes('@')) {
-            const nameParts = nextLine.trim().split(' ');
-            if (!firstName) {
-              firstName = nameParts[0] || '';
-              lastName = nameParts.slice(1).join(' ') || '';
-            }
-          }
+        if (line.toLowerCase().includes('email:') || line.toLowerCase().includes('correo:') || 
+            line.toLowerCase().includes('mail:')) {
+          email = line.split(':').slice(1).join(':').trim();
         }
         
-        if (line.toLowerCase().includes('correo electrónico:') || line.toLowerCase().includes('correo:') || 
-            line.toLowerCase().includes('email:')) {
-          const emailMatch = line.match(/[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/);
-          if (emailMatch) {
-            email = emailMatch[0];
-          }
+        if (line.toLowerCase().includes('tel') || line.toLowerCase().includes('phone') || 
+            line.toLowerCase().includes('celular') || line.toLowerCase().includes('móvil')) {
+          phone = line.split(':').slice(1).join(':').trim().replace(/\D/g, '');
         }
         
-        if (line.toLowerCase().includes('móvil:') || line.toLowerCase().includes('teléfono:') ||
-            line.toLowerCase().includes('tel:') || line.toLowerCase().includes('celular:')) {
-          const phoneMatch = line.match(/[\+\d\s\-\(\)]{8,}/);
-          if (phoneMatch) {
-            phone = phoneMatch[0].replace(/\D/g, '');
-          }
+        if (line.toLowerCase().includes('mensaje:') || line.toLowerCase().includes('comentario:') ||
+            line.toLowerCase().includes('message:') || line.toLowerCase().includes('comment:')) {
+          message = line.split(':').slice(1).join(':').trim();
         }
         
-        if (line.toLowerCase().includes('propiedades:') || line.toLowerCase().includes('propiedad:')) {
+        if (line.toLowerCase().includes('propiedad:') || line.toLowerCase().includes('property:') ||
+            line.toLowerCase().includes('inmueble:')) {
           propertyInterest = line.split(':').slice(1).join(':').trim();
         }
-        
-        if (line.toLowerCase().includes('mensaje:')) {
-          const msgPart = line.split(':').slice(1).join(':').trim();
-          if (msgPart) {
-            message = msgPart;
-          } else if (lines[i + 1]) {
-            message = lines[i + 1].trim();
-          }
-        }
       }
       
-      if (!email) {
-        const allEmails = emailContent.match(/[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/g);
-        if (allEmails) {
-          for (const em of allEmails) {
-            if (!em.includes('tokko') && !em.includes('noreply') && !em.includes('notifier')) {
-              email = em;
-              break;
-            }
-          }
-        }
+      const emailMatch = emailContent.match(/[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/);
+      if (!email && emailMatch) {
+        email = emailMatch[0];
       }
       
-      if (!phone) {
-        const phoneMatch = emailContent.match(/\+?52[\d\s\-]{8,}/);
-        if (phoneMatch) {
-          phone = phoneMatch[0].replace(/\D/g, '');
-        }
+      const phoneMatch = emailContent.match(/(?:\+?[\d\s\-\(\)]{8,})/);
+      if (!phone && phoneMatch) {
+        phone = phoneMatch[0].replace(/\D/g, '');
       }
       
-      if (!propertyInterest && emailSubject) {
-        const subjectParts = emailSubject.split(' - ');
-        if (subjectParts.length > 0) {
-          propertyInterest = subjectParts[0].trim();
+      if (!firstName) {
+        const nameMatch = emailContent.match(/(?:de|from|nombre|name)[\s:]+([A-Za-zÁÉÍÓÚáéíóúñÑ\s]+)/i);
+        if (nameMatch) {
+          const nameParts = nameMatch[1].trim().split(' ');
+          firstName = nameParts[0] || '';
+          lastName = nameParts.slice(1).join(' ') || '';
         }
       }
       
       if (!firstName && !lastName) {
         return null;
+      }
+      
+      if (emailSubject) {
+        const propertyMatch = emailSubject.match(/(?:propiedad|property|inmueble)[\s:#]+(.+)/i);
+        if (propertyMatch && !propertyInterest) {
+          propertyInterest = propertyMatch[1].trim();
+        }
       }
       
       return {
@@ -172,7 +148,7 @@ class TokkoEmailParser implements EmailParser {
         phone: phone || undefined,
         message: message || undefined,
         propertyInterest: propertyInterest || undefined,
-        source: 'tokkobroker'
+        source: 'Tokko Broker'
       };
     } catch (error) {
       console.error('Error parsing Tokko email:', error);
@@ -198,59 +174,76 @@ class EasyBrokerEmailParser implements EmailParser {
       for (let i = 0; i < lines.length; i++) {
         const line = lines[i];
         
-        if (line.toLowerCase().includes('enviado por:') || line.toLowerCase() === 'enviado por') {
-          let j = i + 1;
-          while (j < lines.length && j <= i + 5) {
-            const nextLine = lines[j];
-            if (nextLine && !nextLine.includes('@') && !nextLine.match(/^\+?\d/) && 
-                !nextLine.toLowerCase().includes('responder') && nextLine.length > 2) {
-              const nameParts = nextLine.trim().split(' ');
-              if (nameParts.length >= 1 && !firstName) {
-                firstName = nameParts[0] || '';
-                lastName = nameParts.slice(1).join(' ') || '';
-                break;
-              }
+        if (line.toLowerCase().includes('nombre') || line.toLowerCase().includes('name')) {
+          const nextLine = lines[i + 1];
+          if (nextLine && !nextLine.includes(':')) {
+            const nameParts = nextLine.trim().split(' ');
+            firstName = nameParts[0] || '';
+            lastName = nameParts.slice(1).join(' ') || '';
+          } else {
+            const fullName = line.split(':').slice(1).join(':').trim();
+            if (fullName) {
+              const nameParts = fullName.split(' ');
+              firstName = nameParts[0] || '';
+              lastName = nameParts.slice(1).join(' ') || '';
             }
-            j++;
           }
         }
         
-        const emailMatch = line.match(/[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/);
-        if (emailMatch && !email) {
-          const em = emailMatch[0];
-          if (!em.includes('easybroker') && !em.includes('noreply') && !em.includes('inbox.easybroker')) {
-            email = em;
+        if (line.toLowerCase().includes('email') || line.toLowerCase().includes('correo')) {
+          const emailInLine = line.match(/[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/);
+          if (emailInLine) {
+            email = emailInLine[0];
+          } else if (lines[i + 1]) {
+            const emailInNext = lines[i + 1].match(/[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/);
+            if (emailInNext) {
+              email = emailInNext[0];
+            }
           }
         }
         
-        if (line.match(/^\+?\d{10,}$/) || line.match(/^\+52[\d\s]{8,}/)) {
-          if (!phone) {
-            phone = line.replace(/\D/g, '');
+        if (line.toLowerCase().includes('tel') || line.toLowerCase().includes('phone') ||
+            line.toLowerCase().includes('celular') || line.toLowerCase().includes('whatsapp')) {
+          const phoneInLine = line.match(/[\d\s\-\(\)\+]{8,}/);
+          if (phoneInLine) {
+            phone = phoneInLine[0].replace(/\D/g, '');
+          } else if (lines[i + 1]) {
+            const phoneInNext = lines[i + 1].match(/[\d\s\-\(\)\+]{8,}/);
+            if (phoneInNext) {
+              phone = phoneInNext[0].replace(/\D/g, '');
+            }
           }
         }
         
-        if (line.toLowerCase().includes('hola') || line.toLowerCase().includes('interesa') ||
-            line.toLowerCase().includes('contactar') || line.toLowerCase().includes('información')) {
-          if (!message && line.length > 10 && !line.includes('EasyBroker') && !line.includes('@')) {
-            message = line;
+        if (line.toLowerCase().includes('mensaje') || line.toLowerCase().includes('comentario') ||
+            line.toLowerCase().includes('message')) {
+          message = line.split(':').slice(1).join(':').trim();
+          if (!message && lines[i + 1]) {
+            message = lines[i + 1].trim();
+          }
+        }
+        
+        if (line.toLowerCase().includes('propiedad') || line.toLowerCase().includes('property') ||
+            line.toLowerCase().includes('interesado en')) {
+          propertyInterest = line.split(':').slice(1).join(':').trim();
+          if (!propertyInterest) {
+            const propMatch = line.match(/(?:interesado en|interested in)[\s:]+(.+)/i);
+            if (propMatch) {
+              propertyInterest = propMatch[1].trim();
+            }
           }
         }
       }
       
       if (!email) {
-        const allEmails = emailContent.match(/[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/g);
-        if (allEmails) {
-          for (const em of allEmails) {
-            if (!em.includes('easybroker') && !em.includes('noreply') && !em.includes('inbox')) {
-              email = em;
-              break;
-            }
-          }
+        const emailMatch = emailContent.match(/[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/);
+        if (emailMatch && !emailMatch[0].includes('easybroker') && !emailMatch[0].includes('noreply')) {
+          email = emailMatch[0];
         }
       }
       
       if (!phone) {
-        const phoneMatch = emailContent.match(/\+?52[\d\s\-]{8,}/);
+        const phoneMatch = emailContent.match(/(?:\+?[\d\s\-\(\)]{10,})/);
         if (phoneMatch) {
           phone = phoneMatch[0].replace(/\D/g, '');
         }
@@ -260,13 +253,10 @@ class EasyBrokerEmailParser implements EmailParser {
         return null;
       }
       
-      if (emailSubject) {
-        const propMatch = emailSubject.match(/(?:Solicitud desde Pincali:?\s*)?(?:EB-\w+)?\s*(.+?)(?:\s*\(#\w+\))?$/i);
-        if (propMatch && propMatch[1]) {
-          propertyInterest = propMatch[1].trim();
-        } else {
-          const cleanSubject = emailSubject.replace(/^Solicitud desde Pincali:\s*/i, '').replace(/\s*\(#\w+\)$/, '');
-          propertyInterest = cleanSubject.trim();
+      if (emailSubject && !propertyInterest) {
+        const propMatch = emailSubject.match(/(?:EB-\w+|propiedad|property)[\s:#-]*(.+)?/i);
+        if (propMatch) {
+          propertyInterest = propMatch[0].trim();
         }
       }
       
@@ -277,7 +267,7 @@ class EasyBrokerEmailParser implements EmailParser {
         phone: phone || undefined,
         message: message || undefined,
         propertyInterest: propertyInterest || undefined,
-        source: 'easybroker'
+        source: 'EasyBroker'
       };
     } catch (error) {
       console.error('Error parsing EasyBroker email:', error);
@@ -485,8 +475,9 @@ export async function processEmailsForAgency(
     const gmail = await getGmailClient();
     
     const senderQuery = source.senderEmails.map(e => `from:${e}`).join(' OR ');
-    const oneHourAgo = Math.floor((Date.now() - 60 * 60 * 1000) / 1000);
-    const query = `(${senderQuery}) after:${oneHourAgo}`;
+    const query = source.lastSyncMessageId 
+      ? `(${senderQuery}) after:${Math.floor(Date.now() / 1000) - 7 * 24 * 60 * 60}` 
+      : `(${senderQuery}) newer_than:7d`;
     
     const listResponse = await gmail.users.messages.list({
       userId: 'me',
@@ -628,38 +619,16 @@ export async function processEmailsForAgency(
 export async function runEmailImportForAllAgencies(): Promise<void> {
   console.log('[Email Import] Starting scheduled email import run...');
   
-  const { externalAgencies } = await import('@shared/schema');
-  
-  const tulumAgency = await db
-    .select({ id: externalAgencies.id })
-    .from(externalAgencies)
-    .where(or(
-      eq(externalAgencies.slug, 'tulumrentalhomes'),
-      ilike(externalAgencies.name, '%tulum rental%')
-    ))
-    .limit(1);
-  
-  if (!tulumAgency.length) {
-    console.log('[Email Import] TULUM RENTAL HOMES agency not found - skipping email import');
-    return;
-  }
-  
-  const tulumAgencyId = tulumAgency[0].id;
-  console.log(`[Email Import] Processing only for TULUM RENTAL HOMES (ID: ${tulumAgencyId})`);
-  
   const activeSources = await db
     .select()
     .from(externalLeadEmailSources)
-    .where(and(
-      eq(externalLeadEmailSources.isActive, true),
-      eq(externalLeadEmailSources.agencyId, tulumAgencyId)
-    ));
+    .where(eq(externalLeadEmailSources.isActive, true));
   
-  console.log(`[Email Import] Found ${activeSources.length} active email sources for TULUM RENTAL HOMES`);
+  console.log(`[Email Import] Found ${activeSources.length} active email sources`);
   
   for (const source of activeSources) {
     try {
-      console.log(`[Email Import] Processing source: ${source.providerName} (${source.provider})`);
+      console.log(`[Email Import] Processing source: ${source.providerName} (${source.provider}) for agency ${source.agencyId}`);
       const result = await processEmailsForAgency(source.agencyId, source);
       console.log(`[Email Import] Source ${source.id}: imported=${result.imported}, duplicates=${result.duplicates}, errors=${result.errors}`);
     } catch (error) {
