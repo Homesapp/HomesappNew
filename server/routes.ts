@@ -42192,6 +42192,31 @@ const generateSlug = (str: string) => str.toLowerCase().normalize("NFD").replace
     }
   });
 
+  // POST /api/external/email-import/trigger-manual - Trigger manual email import (TULUM RENTAL HOMES only)
+  app.post("/api/external/email-import/trigger-manual", isAuthenticated, requireRole(EXTERNAL_ADMIN_ROLES), async (req: any, res) => {
+    try {
+      const agencyId = await getUserAgencyId(req);
+      if (!agencyId) return res.status(403).json({ message: "No agency access" });
+
+      const [agency] = await db.select().from(externalAgencies).where(eq(externalAgencies.id, agencyId));
+      
+      if (!agency || (agency.slug !== 'tulumrentalhomes' && !agency.name?.toLowerCase().includes('tulum rental'))) {
+        return res.status(403).json({ message: "Esta funcionalidad solo está disponible para Tulum Rental Homes" });
+      }
+
+      const { triggerManualImport } = await import('./emailImportWorker');
+      
+      triggerManualImport().catch(err => {
+        console.error('[Manual Email Import] Error:', err);
+      });
+      
+      res.json({ success: true, message: "Importación de correos iniciada" });
+    } catch (error: any) {
+      console.error("Error triggering manual email import:", error);
+      res.status(500).json({ message: error.message });
+    }
+  });
+
 
   return httpServer;
 }

@@ -1,6 +1,6 @@
 import { runEmailImportForAllAgencies, testGmailConnection } from './emailLeadImportService';
 
-const IMPORT_INTERVAL_MS = 5 * 60 * 1000;
+const IMPORT_INTERVAL_MS = 30 * 60 * 1000;
 
 let isRunning = false;
 let intervalId: NodeJS.Timeout | null = null;
