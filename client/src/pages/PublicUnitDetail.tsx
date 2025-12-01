@@ -240,15 +240,6 @@ export default function PublicUnitDetail() {
                     )}
                   </div>
                 ))}
-                <Button
-                  variant="secondary"
-                  className="absolute bottom-8 right-8 min-h-[44px] gap-2 shadow-lg"
-                  onClick={() => setShowAllPhotosDialog(true)}
-                  data-testid="button-show-all-photos"
-                >
-                  <Grid3X3 className="h-4 w-4" />
-                  {language === "es" ? "Ver todas las fotos" : "Show all photos"}
-                </Button>
               </div>
             </div>
           ) : (
