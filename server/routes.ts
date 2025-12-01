@@ -28249,6 +28249,10 @@ ${{precio}}/mes
           ));
         
         if (!existingPending) {
+          // Check if agency has auto-approve enabled
+          const agency = await storage.getExternalAgency(existing.agencyId);
+          const shouldAutoApprove = agency?.autoApprovePublications === true;
+          
           // Create a new publication request
           const userId = req.user?.claims?.sub || req.user?.id;
           await db.insert(externalPublicationRequests)
@@ -28256,11 +28260,24 @@ ${{precio}}/mes
               unitId: id,
               agencyId: existing.agencyId,
               requestedBy: userId,
-              status: 'pending',
+              status: shouldAutoApprove ? 'approved' : 'pending',
+              reviewedBy: shouldAutoApprove ? userId : null,
+              reviewedAt: shouldAutoApprove ? new Date() : null,
+              feedback: shouldAutoApprove ? 'Auto-approved by agency configuration' : null,
             });
           
-          // Set the publishStatus to pending
-          updateData.publishStatus = 'pending';
+          if (shouldAutoApprove) {
+            // Auto-approve: set status to approved
+            updateData.publishStatus = 'approved';
+            // Sync to properties table
+            const fullUnit = await storage.getExternalUnit(id);
+            if (fullUnit) {
+              await syncExternalUnitToProperty(fullUnit, userId, existing.agencyId);
+            }
+          } else {
+            // Manual approval required
+            updateData.publishStatus = 'pending';
+          }
         }
       }
       
