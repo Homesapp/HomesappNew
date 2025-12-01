@@ -355,6 +355,9 @@ import {
   externalUnitDocuments,
   type ExternalUnitDocument,
   type InsertExternalUnitDocument,
+  externalUnitMedia,
+  type ExternalUnitMedia,
+  type InsertExternalUnitMedia,
   externalCheckoutReports,
   type ExternalCheckoutReport,
   type InsertExternalCheckoutReport,
@@ -13573,6 +13576,110 @@ export class DatabaseStorage implements IStorage {
       propertyRecruitment: resolveRate('property_recruitment'),
       brokerReferral: resolveRate('broker_referral')
     };
+  }
+
+  // ==========================================
+  // External Unit Media Methods
+  // ==========================================
+
+  async getUnitMedia(unitId: string): Promise<ExternalUnitMedia[]> {
+    return await db
+      .select()
+      .from(externalUnitMedia)
+      .where(eq(externalUnitMedia.unitId, unitId))
+      .orderBy(externalUnitMedia.section, externalUnitMedia.sectionIndex, externalUnitMedia.sortOrder);
+  }
+
+  async getUnitMediaBySection(unitId: string, section: string, sectionIndex?: number): Promise<ExternalUnitMedia[]> {
+    const conditions = [
+      eq(externalUnitMedia.unitId, unitId),
+      eq(externalUnitMedia.section, section as any),
+    ];
+    if (sectionIndex !== undefined) {
+      conditions.push(eq(externalUnitMedia.sectionIndex, sectionIndex));
+    }
+    return await db
+      .select()
+      .from(externalUnitMedia)
+      .where(and(...conditions))
+      .orderBy(externalUnitMedia.sortOrder);
+  }
+
+  async createUnitMedia(data: InsertExternalUnitMedia): Promise<ExternalUnitMedia> {
+    const [result] = await db
+      .insert(externalUnitMedia)
+      .values(data)
+      .returning();
+    return result;
+  }
+
+  async createManyUnitMedia(items: InsertExternalUnitMedia[]): Promise<ExternalUnitMedia[]> {
+    if (items.length === 0) return [];
+    return await db
+      .insert(externalUnitMedia)
+      .values(items)
+      .returning();
+  }
+
+  async updateUnitMedia(id: string, data: Partial<InsertExternalUnitMedia>): Promise<ExternalUnitMedia | null> {
+    const [result] = await db
+      .update(externalUnitMedia)
+      .set({ ...data, updatedAt: new Date() })
+      .where(eq(externalUnitMedia.id, id))
+      .returning();
+    return result || null;
+  }
+
+  async deleteUnitMedia(id: string): Promise<boolean> {
+    const result = await db
+      .delete(externalUnitMedia)
+      .where(eq(externalUnitMedia.id, id))
+      .returning();
+    return result.length > 0;
+  }
+
+  async deleteUnitMediaByUrl(unitId: string, url: string): Promise<boolean> {
+    const result = await db
+      .delete(externalUnitMedia)
+      .where(and(
+        eq(externalUnitMedia.unitId, unitId),
+        eq(externalUnitMedia.url, url)
+      ))
+      .returning();
+    return result.length > 0;
+  }
+
+  async reorderUnitMedia(unitId: string, section: string, sectionIndex: number | undefined, mediaIds: string[]): Promise<void> {
+    for (let i = 0; i < mediaIds.length; i++) {
+      await db
+        .update(externalUnitMedia)
+        .set({ sortOrder: i, updatedAt: new Date() })
+        .where(eq(externalUnitMedia.id, mediaIds[i]));
+    }
+  }
+
+  async setCoverImage(unitId: string, mediaId: string): Promise<void> {
+    await db
+      .update(externalUnitMedia)
+      .set({ isCover: false, updatedAt: new Date() })
+      .where(eq(externalUnitMedia.unitId, unitId));
+    
+    await db
+      .update(externalUnitMedia)
+      .set({ isCover: true, updatedAt: new Date() })
+      .where(eq(externalUnitMedia.id, mediaId));
+  }
+
+  async getUnitCoverImage(unitId: string): Promise<ExternalUnitMedia | null> {
+    const [result] = await db
+      .select()
+      .from(externalUnitMedia)
+      .where(and(
+        eq(externalUnitMedia.unitId, unitId),
+        eq(externalUnitMedia.isCover, true)
+      ))
+      .limit(1);
+    return result || null;
   }
 }
 

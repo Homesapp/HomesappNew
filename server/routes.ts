@@ -29364,6 +29364,320 @@ ${{precio}}/mes
     }
   });
 
+  // ==========================================
+  // External Unit Media - Section-based image organization
+  // ==========================================
+
+  // GET /api/external-units/:id/media - Get all media for a unit organized by section
+  app.get("/api/external-units/:id/media", isAuthenticated, requireRole(EXTERNAL_ALL_ROLES), async (req: any, res) => {
+    try {
+      const { id } = req.params;
+      
+      const existing = await storage.getExternalUnit(id);
+      if (!existing) {
+        return res.status(404).json({ message: "Unit not found" });
+      }
+
+      const hasAccess = await verifyExternalAgencyAccess(req, res, existing.agencyId);
+      if (!hasAccess) return;
+
+      const media = await storage.getUnitMedia(id);
+      
+      // Group by section
+      const groupedMedia: Record<string, typeof media> = {};
+      media.forEach(item => {
+        const key = item.sectionIndex && item.sectionIndex > 1 
+          ? `${item.section}_${item.sectionIndex}`
+          : item.section;
+        if (!groupedMedia[key]) {
+          groupedMedia[key] = [];
+        }
+        groupedMedia[key].push(item);
+      });
+
+      res.json({ 
+        success: true, 
+        data: media,
+        grouped: groupedMedia,
+        count: media.length
+      });
+    } catch (error: any) {
+      console.error("Error fetching unit media:", error);
+      res.status(500).json({ message: error.message || "Failed to fetch media" });
+    }
+  });
+
+  // POST /api/external-units/:id/media - Upload image to specific section
+  app.post("/api/external-units/:id/media", isAuthenticated, requireRole(EXTERNAL_ADMIN_ROLES), uploadExternalUnitImages.array('images', 20), async (req: any, res) => {
+    try {
+      const { id } = req.params;
+      const { section = 'other', sectionIndex = 1, caption } = req.body;
+
+      const existing = await storage.getExternalUnit(id);
+      if (!existing) {
+        return res.status(404).json({ message: "Unit not found" });
+      }
+
+      const hasAccess = await verifyExternalAgencyOwnership(req, res, existing.agencyId);
+      if (!hasAccess) return;
+
+      const files = req.files as Express.Multer.File[];
+      if (!files || files.length === 0) {
+        return res.status(400).json({ message: "No images provided" });
+      }
+
+      // Get current max sortOrder for this section
+      const existingMedia = await storage.getUnitMediaBySection(id, section, parseInt(sectionIndex));
+      let nextSortOrder = existingMedia.length;
+
+      const uploadedMedia: any[] = [];
+      const errors: string[] = [];
+
+      for (const file of files) {
+        try {
+          const processed = await imageProcessor.processImage(file.buffer, file.mimetype, {
+            maxDimension: 2000,
+            quality: 85,
+            outputFormat: 'webp',
+          });
+
+          const result = await imageProcessor.uploadToStorage(
+            processed,
+            `external-units/${id}/media/${section}`
+          );
+
+          const mediaItem = await storage.createUnitMedia({
+            unitId: id,
+            agencyId: existing.agencyId,
+            section: section as any,
+            sectionIndex: parseInt(sectionIndex) || 1,
+            url: result.publicUrl,
+            caption: caption || null,
+            sortOrder: nextSortOrder++,
+            isCover: false,
+          });
+
+          uploadedMedia.push(mediaItem);
+        } catch (error: any) {
+          console.error(`Error processing image ${file.originalname}:`, error);
+          errors.push(`${file.originalname}: ${error.message}`);
+        }
+      }
+
+      if (uploadedMedia.length === 0) {
+        return res.status(400).json({ 
+          message: "Failed to process all images",
+          errors 
+        });
+      }
+
+      res.json({
+        success: true,
+        data: uploadedMedia,
+        errors: errors.length > 0 ? errors : undefined,
+        message: `${uploadedMedia.length} imagen(es) subida(s) correctamente`
+      });
+    } catch (error: any) {
+      console.error("Error uploading media:", error);
+      res.status(500).json({ message: error.message || "Failed to upload media" });
+    }
+  });
+
+  // PATCH /api/external-units/:id/media/:mediaId - Update media item
+  app.patch("/api/external-units/:id/media/:mediaId", isAuthenticated, requireRole(EXTERNAL_ADMIN_ROLES), async (req: any, res) => {
+    try {
+      const { id, mediaId } = req.params;
+      const { section, sectionIndex, caption, sortOrder } = req.body;
+
+      const existing = await storage.getExternalUnit(id);
+      if (!existing) {
+        return res.status(404).json({ message: "Unit not found" });
+      }
+
+      const hasAccess = await verifyExternalAgencyOwnership(req, res, existing.agencyId);
+      if (!hasAccess) return;
+
+      const updates: any = {};
+      if (section !== undefined) updates.section = section;
+      if (sectionIndex !== undefined) updates.sectionIndex = sectionIndex;
+      if (caption !== undefined) updates.caption = caption;
+      if (sortOrder !== undefined) updates.sortOrder = sortOrder;
+
+      const updated = await storage.updateUnitMedia(mediaId, updates);
+      if (!updated) {
+        return res.status(404).json({ message: "Media not found" });
+      }
+
+      res.json({ success: true, data: updated });
+    } catch (error: any) {
+      console.error("Error updating media:", error);
+      res.status(500).json({ message: error.message || "Failed to update media" });
+    }
+  });
+
+  // DELETE /api/external-units/:id/media/:mediaId - Delete specific media item
+  app.delete("/api/external-units/:id/media/:mediaId", isAuthenticated, requireRole(EXTERNAL_ADMIN_ROLES), async (req: any, res) => {
+    try {
+      const { id, mediaId } = req.params;
+
+      const existing = await storage.getExternalUnit(id);
+      if (!existing) {
+        return res.status(404).json({ message: "Unit not found" });
+      }
+
+      const hasAccess = await verifyExternalAgencyOwnership(req, res, existing.agencyId);
+      if (!hasAccess) return;
+
+      const deleted = await storage.deleteUnitMedia(mediaId);
+      if (!deleted) {
+        return res.status(404).json({ message: "Media not found" });
+      }
+
+      res.json({ success: true, message: "Imagen eliminada" });
+    } catch (error: any) {
+      console.error("Error deleting media:", error);
+      res.status(500).json({ message: error.message || "Failed to delete media" });
+    }
+  });
+
+  // POST /api/external-units/:id/media/reorder - Reorder media within a section
+  app.post("/api/external-units/:id/media/reorder", isAuthenticated, requireRole(EXTERNAL_ADMIN_ROLES), async (req: any, res) => {
+    try {
+      const { id } = req.params;
+      const { section, sectionIndex, mediaIds } = req.body;
+
+      if (!Array.isArray(mediaIds)) {
+        return res.status(400).json({ message: "mediaIds must be an array" });
+      }
+
+      const existing = await storage.getExternalUnit(id);
+      if (!existing) {
+        return res.status(404).json({ message: "Unit not found" });
+      }
+
+      const hasAccess = await verifyExternalAgencyOwnership(req, res, existing.agencyId);
+      if (!hasAccess) return;
+
+      await storage.reorderUnitMedia(id, section, sectionIndex, mediaIds);
+
+      res.json({ success: true, message: "Orden actualizado" });
+    } catch (error: any) {
+      console.error("Error reordering media:", error);
+      res.status(500).json({ message: error.message || "Failed to reorder media" });
+    }
+  });
+
+  // POST /api/external-units/:id/media/:mediaId/set-cover - Set as cover image
+  app.post("/api/external-units/:id/media/:mediaId/set-cover", isAuthenticated, requireRole(EXTERNAL_ADMIN_ROLES), async (req: any, res) => {
+    try {
+      const { id, mediaId } = req.params;
+
+      const existing = await storage.getExternalUnit(id);
+      if (!existing) {
+        return res.status(404).json({ message: "Unit not found" });
+      }
+
+      const hasAccess = await verifyExternalAgencyOwnership(req, res, existing.agencyId);
+      if (!hasAccess) return;
+
+      await storage.setCoverImage(id, mediaId);
+
+      res.json({ success: true, message: "Imagen de portada actualizada" });
+    } catch (error: any) {
+      console.error("Error setting cover image:", error);
+      res.status(500).json({ message: error.message || "Failed to set cover image" });
+    }
+  });
+
+  // GET /api/external-units/:id/media/sections - Get available sections based on unit characteristics
+  app.get("/api/external-units/:id/media/sections", isAuthenticated, requireRole(EXTERNAL_ALL_ROLES), async (req: any, res) => {
+    try {
+      const { id } = req.params;
+      
+      const existing = await storage.getExternalUnit(id);
+      if (!existing) {
+        return res.status(404).json({ message: "Unit not found" });
+      }
+
+      const hasAccess = await verifyExternalAgencyAccess(req, res, existing.agencyId);
+      if (!hasAccess) return;
+
+      // Build dynamic sections based on unit characteristics
+      const sections: Array<{ key: string; section: string; sectionIndex: number; label: { es: string; en: string } }> = [];
+
+      // Cover section
+      sections.push({ key: 'cover', section: 'cover', sectionIndex: 1, label: { es: 'Portada', en: 'Cover' } });
+
+      // Bedrooms
+      const bedroomCount = existing.bedrooms || 0;
+      for (let i = 1; i <= bedroomCount; i++) {
+        sections.push({ key: `bedroom_${i}`, section: 'bedroom', sectionIndex: i, label: { es: `Recámara ${i}`, en: `Bedroom ${i}` } });
+      }
+
+      // Bathrooms (full)
+      const bathroomCount = Math.floor(parseFloat(existing.bathrooms?.toString() || '0'));
+      const hasHalfBath = (parseFloat(existing.bathrooms?.toString() || '0') % 1) !== 0;
+      
+      for (let i = 1; i <= bathroomCount; i++) {
+        sections.push({ key: `bathroom_${i}`, section: 'bathroom', sectionIndex: i, label: { es: `Baño ${i}`, en: `Bathroom ${i}` } });
+      }
+
+      // Half bath
+      if (hasHalfBath) {
+        sections.push({ key: 'half_bath_1', section: 'half_bath', sectionIndex: 1, label: { es: 'Medio Baño', en: 'Half Bath' } });
+      }
+
+      // Common areas
+      const commonSections = [
+        { section: 'kitchen', label: { es: 'Cocina', en: 'Kitchen' } },
+        { section: 'living_room', label: { es: 'Sala', en: 'Living Room' } },
+        { section: 'dining_room', label: { es: 'Comedor', en: 'Dining Room' } },
+      ];
+      commonSections.forEach(s => {
+        sections.push({ key: s.section, section: s.section, sectionIndex: 1, label: s.label });
+      });
+
+      // Check amenities for outdoor areas
+      const amenities = existing.amenities || [];
+      const amenitiesLower = amenities.map(a => a.toLowerCase());
+      
+      const outdoorSections = [
+        { section: 'garden', keywords: ['jardin', 'jardín', 'garden'], label: { es: 'Jardín', en: 'Garden' } },
+        { section: 'terrace', keywords: ['terraza', 'terrace'], label: { es: 'Terraza', en: 'Terrace' } },
+        { section: 'pool', keywords: ['alberca', 'pool', 'piscina'], label: { es: 'Alberca', en: 'Pool' } },
+        { section: 'balcony', keywords: ['balcon', 'balcón', 'balcony'], label: { es: 'Balcón', en: 'Balcony' } },
+        { section: 'rooftop', keywords: ['rooftop', 'azotea'], label: { es: 'Rooftop', en: 'Rooftop' } },
+        { section: 'parking', keywords: ['estacionamiento', 'parking', 'garage', 'cochera'], label: { es: 'Estacionamiento', en: 'Parking' } },
+      ];
+
+      outdoorSections.forEach(s => {
+        const hasAmenity = s.keywords.some(k => amenitiesLower.some(a => a.includes(k)));
+        if (hasAmenity) {
+          sections.push({ key: s.section, section: s.section, sectionIndex: 1, label: s.label });
+        }
+      });
+
+      // Always add these sections
+      const alwaysInclude = [
+        { section: 'amenities', label: { es: 'Amenidades', en: 'Amenities' } },
+        { section: 'common_areas', label: { es: 'Áreas Comunes', en: 'Common Areas' } },
+        { section: 'exterior', label: { es: 'Exterior / Fachada', en: 'Exterior / Facade' } },
+        { section: 'view', label: { es: 'Vista', en: 'View' } },
+        { section: 'floor_plan', label: { es: 'Plano', en: 'Floor Plan' } },
+        { section: 'other', label: { es: 'Otras Fotos', en: 'Other Photos' } },
+      ];
+      alwaysInclude.forEach(s => {
+        sections.push({ key: s.section, section: s.section, sectionIndex: 1, label: s.label });
+      });
+
+      res.json({ success: true, data: sections });
+    } catch (error: any) {
+      console.error("Error fetching media sections:", error);
+      res.status(500).json({ message: error.message || "Failed to fetch sections" });
+    }
+  });
+
+
   // POST /api/external-units/:id/upload-videos - Upload videos for external unit
   app.post("/api/external-units/:id/upload-videos", isAuthenticated, requireRole(EXTERNAL_ADMIN_ROLES), async (req: any, res) => {
     try {
