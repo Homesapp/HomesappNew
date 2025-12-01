@@ -109,6 +109,22 @@ The system implements SEO-friendly URLs for offer and rental form links:
 - Agency slugs are stored in `external_agencies.slug` (e.g., "tulumrentalhomes")
 - Token creation endpoints return `agencySlug` and `unitSlug` in response for frontend URL generation
 
+## Team Chat System
+The External Management System includes a comprehensive team chat system for sellers and admins:
+- Real-time messaging with 5-second polling for message updates
+- File and image upload support with preview
+- Audio recording and playback capabilities
+- Activity notifications when sellers perform actions (register leads, send offers/forms)
+- Points and gamification system:
+  - Points awarded for: lead_registered (10pts), offer_sent (15pts), rental_form_sent (15pts), owner_registered (25pts), rental_completed (100pts)
+  - Configurable point values per agency
+  - Weekly and monthly point tracking
+  - Leaderboard with seller rankings
+- Seller profile panel with metrics (total points, leads registered, offers sent, etc.)
+- Activity service logs seller actions and creates system chat notifications
+- Multi-tenant isolation via agency_id filtering
+- API endpoints: GET/POST /api/external/chat/messages, /api/external/chat/attachments, /api/external/chat/points/leaderboard, /api/external/chat/points/my-points
+
 ## Searchable Dropdown Components
 The system includes reusable searchable dropdown components for improved UX:
 - `SearchableSelect`: Single-selection dropdown with type-to-search filtering
