@@ -147,7 +147,7 @@ export default function PublicUnitDetail() {
             onClick={() => setLocation("/")}
             data-testid="button-back-home"
           >
-            <img src={logoIcon} alt="HomesApp" className="h-7 w-auto" />
+            <img src={logoIcon} alt="HomesApp" className="h-14 w-auto" />
           </Button>
           <div className="flex items-center gap-2">
             <Button

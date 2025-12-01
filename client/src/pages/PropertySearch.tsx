@@ -193,7 +193,7 @@ export default function PropertySearch() {
               className="flex items-center gap-2 cursor-pointer" 
               onClick={() => setLocation("/")}
             >
-              <img src={logoIcon} alt="HomesApp" className="h-8 w-auto" data-testid="img-logo-header" />
+              <img src={logoIcon} alt="HomesApp" className="h-14 w-auto" data-testid="img-logo-header" />
             </div>
             <div className="flex items-center gap-2 sm:gap-4">
               <LanguageToggle />

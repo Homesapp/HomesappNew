@@ -72,7 +72,7 @@ export default function PublicDashboard() {
       <header className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
         <div className="container mx-auto flex h-16 items-center justify-between px-4">
           <div className="flex items-center gap-2 cursor-pointer" onClick={() => setLocation("/")}>
-            <img src={logoIcon} alt="HomesApp" className="h-8 w-auto" data-testid="img-logo-header" />
+            <img src={logoIcon} alt="HomesApp" className="h-14 w-auto" data-testid="img-logo-header" />
           </div>
           <div className="flex items-center gap-2 sm:gap-4">
             <span 
@@ -515,7 +515,7 @@ export default function PublicDashboard() {
             {/* Brand - Full width on mobile */}
             <div className="text-center sm:text-left">
               <div className="flex items-center justify-center sm:justify-start gap-2 mb-3 cursor-pointer" onClick={() => setLocation("/")}>
-                <img src={logoIcon} alt="HomesApp" className="h-7 w-auto" data-testid="img-logo-footer" />
+                <img src={logoIcon} alt="HomesApp" className="h-12 w-auto" data-testid="img-logo-footer" />
               </div>
               <p className="text-xs text-muted-foreground max-w-[200px] mx-auto sm:mx-0">
                 La mejor plataforma inmobiliaria en Tulum, Riviera Maya.
