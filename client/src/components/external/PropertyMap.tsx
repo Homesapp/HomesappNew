@@ -1,9 +1,8 @@
-import { useState, useCallback, useMemo } from "react";
-import { GoogleMap, useJsApiLoader, Marker, InfoWindow } from "@react-google-maps/api";
+import { useState, useCallback, useMemo, useEffect, useRef } from "react";
+import { GoogleMap, useJsApiLoader, InfoWindow } from "@react-google-maps/api";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Skeleton } from "@/components/ui/skeleton";
 import { MapPin, Bed, Bath, Square, ExternalLink, Home, Loader2 } from "lucide-react";
 import { Link } from "wouter";
 
@@ -58,6 +57,8 @@ const mapStyles = [
   },
 ];
 
+const libraries: ("marker")[] = ["marker"];
+
 export function PropertyMap({
   properties,
   center,
@@ -70,10 +71,12 @@ export function PropertyMap({
 }: PropertyMapProps) {
   const [selectedProperty, setSelectedProperty] = useState<PropertyLocation | null>(null);
   const [map, setMap] = useState<google.maps.Map | null>(null);
+  const markersRef = useRef<google.maps.marker.AdvancedMarkerElement[]>([]);
 
   const { isLoaded, loadError } = useJsApiLoader({
     id: "google-map-script",
     googleMapsApiKey: import.meta.env.VITE_GOOGLE_MAPS_API_KEY || "",
+    libraries,
   });
 
   const t = {
@@ -137,15 +140,73 @@ export function PropertyMap({
   }, []);
 
   const onUnmount = useCallback(() => {
+    markersRef.current.forEach((marker) => {
+      marker.map = null;
+    });
+    markersRef.current = [];
     setMap(null);
   }, []);
 
-  const handleMarkerClick = (property: PropertyLocation) => {
+  const handleMarkerClick = useCallback((property: PropertyLocation) => {
     setSelectedProperty(property);
     if (onPropertyClick) {
       onPropertyClick(property);
     }
-  };
+  }, [onPropertyClick]);
+
+  const createMarkerContent = useCallback(() => {
+    const div = document.createElement("div");
+    div.innerHTML = `
+      <svg width="32" height="40" viewBox="0 0 40 48" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <path d="M20 0C8.954 0 0 8.954 0 20c0 14.625 18.125 26.25 20 28 1.875-1.75 20-13.375 20-28C40 8.954 31.046 0 20 0z" fill="#4F46E5"/>
+        <circle cx="20" cy="18" r="8" fill="white"/>
+      </svg>
+    `;
+    div.style.cursor = "pointer";
+    return div;
+  }, []);
+
+  useEffect(() => {
+    if (!map || !isLoaded || validProperties.length === 0) return;
+
+    markersRef.current.forEach((marker) => {
+      marker.map = null;
+    });
+    markersRef.current = [];
+
+    const createMarkers = async () => {
+      const { AdvancedMarkerElement } = await google.maps.importLibrary("marker") as google.maps.MarkerLibrary;
+
+      validProperties.forEach((property) => {
+        const markerContent = createMarkerContent();
+        
+        const marker = new AdvancedMarkerElement({
+          map,
+          position: {
+            lat: Number(property.latitude),
+            lng: Number(property.longitude),
+          },
+          content: markerContent,
+          title: property.title || property.unitNumber,
+        });
+
+        marker.addListener("click", () => {
+          handleMarkerClick(property);
+        });
+
+        markersRef.current.push(marker);
+      });
+    };
+
+    createMarkers();
+
+    return () => {
+      markersRef.current.forEach((marker) => {
+        marker.map = null;
+      });
+      markersRef.current = [];
+    };
+  }, [map, isLoaded, validProperties, createMarkerContent, handleMarkerClick]);
 
   const formatPrice = (price: number | string | undefined, currency: string = "MXN") => {
     if (!price) return null;
@@ -234,34 +295,14 @@ export function PropertyMap({
         onLoad={onLoad}
         onUnmount={onUnmount}
         options={{
-          styles: mapStyles,
+          styles: import.meta.env.VITE_GOOGLE_MAPS_MAP_ID ? undefined : mapStyles,
           streetViewControl: false,
           mapTypeControl: false,
           fullscreenControl: true,
           zoomControl: true,
+          ...(import.meta.env.VITE_GOOGLE_MAPS_MAP_ID && { mapId: import.meta.env.VITE_GOOGLE_MAPS_MAP_ID }),
         }}
       >
-        {validProperties.map((property) => (
-          <Marker
-            key={property.id}
-            position={{
-              lat: Number(property.latitude),
-              lng: Number(property.longitude),
-            }}
-            onClick={() => handleMarkerClick(property)}
-            icon={{
-              url: "data:image/svg+xml;charset=UTF-8," + encodeURIComponent(`
-                <svg width="40" height="48" viewBox="0 0 40 48" fill="none" xmlns="http://www.w3.org/2000/svg">
-                  <path d="M20 0C8.954 0 0 8.954 0 20c0 14.625 18.125 26.25 20 28 1.875-1.75 20-13.375 20-28C40 8.954 31.046 0 20 0z" fill="#4F46E5"/>
-                  <circle cx="20" cy="18" r="8" fill="white"/>
-                </svg>
-              `),
-              scaledSize: new google.maps.Size(32, 40),
-              anchor: new google.maps.Point(16, 40),
-            }}
-          />
-        ))}
-
         {showInfoWindow && selectedProperty && (
           <InfoWindow
             position={{
