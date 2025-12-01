@@ -475,14 +475,14 @@ export async function processEmailsForAgency(
     const gmail = await getGmailClient();
     
     const senderQuery = source.senderEmails.map(e => `from:${e}`).join(' OR ');
-    const query = source.lastSyncMessageId 
-      ? `(${senderQuery}) after:${Math.floor(Date.now() / 1000) - 7 * 24 * 60 * 60}` 
-      : `(${senderQuery}) newer_than:7d`;
+    // Only check emails from the last 1 hour for better performance
+    const oneHourAgo = Math.floor(Date.now() / 1000) - 60 * 60;
+    const query = `(${senderQuery}) after:${oneHourAgo}`;
     
     const listResponse = await gmail.users.messages.list({
       userId: 'me',
       q: query,
-      maxResults: 50,
+      maxResults: 20, // Reduced for performance
     });
     
     const messages = listResponse.data.messages || [];
