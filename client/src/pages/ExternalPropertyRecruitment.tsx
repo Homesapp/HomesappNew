@@ -610,7 +610,7 @@ export default function ExternalPropertyRecruitment() {
         <div>
           <h1 className="text-2xl font-bold" data-testid="page-title">Reclutamiento de Propiedades</h1>
           <p className="text-muted-foreground">Gestiona prospectos de propiedades para reclutamiento</p>
-          <CommissionRatesDisplay compact className="mt-2" />
+          <CommissionRatesDisplay compact className="mt-2" filterConcepts={['recruitedProperty']} />
         </div>
         <Button onClick={() => setShowNewProspectDialog(true)} data-testid="button-new-prospect">
           <Plus className="h-4 w-4 mr-2" />
