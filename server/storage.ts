@@ -10480,14 +10480,14 @@ export class DatabaseStorage implements IStorage {
           id: card.id,
           title: card.title,
           propertyType: card.propertyType,
-          budgetMin: card.budgetMin,
-          budgetMax: card.budgetMax,
+          budgetMin: card.minBudget,  // Correct field: minBudget maps to min_budget column
+          budgetMax: card.maxBudget,  // Correct field: maxBudget maps to max_budget column
           budgetText: card.budgetText,
           bedrooms: card.bedrooms,
           bedroomsText: card.bedroomsText,
           bathrooms: card.bathrooms,
           hasPets: card.hasPets,
-          zone: card.zone,
+          zone: card.preferredZone,  // Correct field: preferredZone maps to preferred_zone column
           moveInDate: card.moveInDate,
           contractDuration: card.contractDuration,
           interestedUnitIds: card.interestedUnitIds,

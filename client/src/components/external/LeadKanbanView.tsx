@@ -26,6 +26,9 @@ import {
   Calendar as CalendarIcon,
   ChevronDown,
   ChevronRight,
+  DollarSign,
+  Home,
+  PawPrint,
 } from "lucide-react";
 import { SiWhatsapp } from "react-icons/si";
 import {
@@ -46,7 +49,7 @@ import {
   CollapsibleContent,
   CollapsibleTrigger,
 } from "@/components/ui/collapsible";
-import type { ExternalLead } from "@shared/schema";
+import type { ExternalLeadWithActiveCard } from "@shared/schema";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { format } from "date-fns";
 import { es } from "date-fns/locale";
@@ -79,11 +82,11 @@ type LeadStatus =
   | "muerto";
 
 interface LeadKanbanViewProps {
-  leads: ExternalLead[];
+  leads: ExternalLeadWithActiveCard[];
   onUpdateStatus: (leadId: string, newStatus: LeadStatus) => void;
-  onEdit: (lead: ExternalLead) => void;
-  onDelete: (lead: ExternalLead) => void;
-  onViewDetail?: (lead: ExternalLead) => void;
+  onEdit: (lead: ExternalLeadWithActiveCard) => void;
+  onDelete: (lead: ExternalLeadWithActiveCard) => void;
+  onViewDetail?: (lead: ExternalLeadWithActiveCard) => void;
 }
 
 interface KanbanColumnDef {
@@ -145,9 +148,9 @@ function DraggableLeadCard({
   onDelete,
   isDragging = false,
 }: {
-  lead: ExternalLead;
-  onEdit: (lead: ExternalLead) => void;
-  onDelete: (lead: ExternalLead) => void;
+  lead: ExternalLeadWithActiveCard;
+  onEdit: (lead: ExternalLeadWithActiveCard) => void;
+  onDelete: (lead: ExternalLeadWithActiveCard) => void;
   isDragging?: boolean;
 }) {
   const { language } = useLanguage();
@@ -213,10 +216,40 @@ function DraggableLeadCard({
         </DropdownMenu>
       </CardHeader>
       <CardContent className="space-y-2 text-xs">
-        {lead.email && (
+        {/* Budget - prefer activeCard, fallback to legacy */}
+        <div className="flex items-center gap-2 text-muted-foreground">
+          <DollarSign className="h-3 w-3 flex-shrink-0" />
+          <span className="truncate">
+            {(() => {
+              // First try activeCard budget
+              if (lead.activeCard?.budgetText) return lead.activeCard.budgetText;
+              if (lead.activeCard?.budgetMin && lead.activeCard?.budgetMax) {
+                return `$${Number(lead.activeCard.budgetMin).toLocaleString()} - $${Number(lead.activeCard.budgetMax).toLocaleString()}`;
+              }
+              if (lead.activeCard?.budgetMin) return `$${Number(lead.activeCard.budgetMin).toLocaleString()}+`;
+              if (lead.activeCard?.budgetMax) return `${language === "es" ? "Hasta" : "Up to"} $${Number(lead.activeCard.budgetMax).toLocaleString()}`;
+              // Then try legacy budget fields
+              if (lead.budgetMin && lead.budgetMax) {
+                return `$${Number(lead.budgetMin).toLocaleString()} - $${Number(lead.budgetMax).toLocaleString()}`;
+              }
+              if (lead.budgetMin) return `$${Number(lead.budgetMin).toLocaleString()}+`;
+              if (lead.budgetMax) return `${language === "es" ? "Hasta" : "Up to"} $${Number(lead.budgetMax).toLocaleString()}`;
+              // Final fallback to legacy estimatedRentCost
+              if (lead.estimatedRentCost) return `$${lead.estimatedRentCost.toLocaleString()}`;
+              return "-";
+            })()}
+          </span>
+        </div>
+        {/* Property Type - prefer activeCard, fallback to legacy */}
+        <div className="flex items-center gap-2 text-muted-foreground">
+          <Home className="h-3 w-3 flex-shrink-0" />
+          <span className="truncate">{lead.activeCard?.propertyType || lead.desiredUnitType || "-"}</span>
+        </div>
+        {/* Has Pets - prefer activeCard, fallback to legacy */}
+        {(lead.activeCard?.hasPets || lead.hasPets) && (
           <div className="flex items-center gap-2 text-muted-foreground">
-            <Mail className="h-3 w-3 flex-shrink-0" />
-            <span className="truncate">{lead.email}</span>
+            <PawPrint className="h-3 w-3 flex-shrink-0 text-amber-600" />
+            <span>{lead.activeCard?.hasPets || lead.hasPets}</span>
           </div>
         )}
         {lead.phone && (
@@ -253,9 +286,9 @@ function MobileLeadCard({
   onDelete,
   onUpdateStatus,
 }: {
-  lead: ExternalLead;
-  onEdit: (lead: ExternalLead) => void;
-  onDelete: (lead: ExternalLead) => void;
+  lead: ExternalLeadWithActiveCard;
+  onEdit: (lead: ExternalLeadWithActiveCard) => void;
+  onDelete: (lead: ExternalLeadWithActiveCard) => void;
   onUpdateStatus: (leadId: string, newStatus: LeadStatus) => void;
 }) {
   const { language } = useLanguage();
@@ -277,6 +310,42 @@ function MobileLeadCard({
         </div>
       </CardHeader>
       <CardContent className="space-y-3 pt-0">
+        {/* Budget - prefer activeCard, fallback to legacy */}
+        <div className="flex items-center gap-2 text-sm text-muted-foreground">
+          <DollarSign className="h-4 w-4 flex-shrink-0" />
+          <span className="truncate">
+            {(() => {
+              // First try activeCard budget
+              if (lead.activeCard?.budgetText) return lead.activeCard.budgetText;
+              if (lead.activeCard?.budgetMin && lead.activeCard?.budgetMax) {
+                return `$${Number(lead.activeCard.budgetMin).toLocaleString()} - $${Number(lead.activeCard.budgetMax).toLocaleString()}`;
+              }
+              if (lead.activeCard?.budgetMin) return `$${Number(lead.activeCard.budgetMin).toLocaleString()}+`;
+              if (lead.activeCard?.budgetMax) return `${language === "es" ? "Hasta" : "Up to"} $${Number(lead.activeCard.budgetMax).toLocaleString()}`;
+              // Then try legacy budget fields
+              if (lead.budgetMin && lead.budgetMax) {
+                return `$${Number(lead.budgetMin).toLocaleString()} - $${Number(lead.budgetMax).toLocaleString()}`;
+              }
+              if (lead.budgetMin) return `$${Number(lead.budgetMin).toLocaleString()}+`;
+              if (lead.budgetMax) return `${language === "es" ? "Hasta" : "Up to"} $${Number(lead.budgetMax).toLocaleString()}`;
+              // Final fallback to legacy estimatedRentCost
+              if (lead.estimatedRentCost) return `$${lead.estimatedRentCost.toLocaleString()}`;
+              return "-";
+            })()}
+          </span>
+        </div>
+        {/* Property Type - prefer activeCard, fallback to legacy */}
+        <div className="flex items-center gap-2 text-sm text-muted-foreground">
+          <Home className="h-4 w-4 flex-shrink-0" />
+          <span className="truncate">{lead.activeCard?.propertyType || lead.desiredUnitType || "-"}</span>
+        </div>
+        {/* Has Pets - prefer activeCard, fallback to legacy */}
+        {(lead.activeCard?.hasPets || lead.hasPets) && (
+          <div className="flex items-center gap-2 text-sm text-muted-foreground">
+            <PawPrint className="h-4 w-4 flex-shrink-0 text-amber-600" />
+            <span>{lead.activeCard?.hasPets || lead.hasPets}</span>
+          </div>
+        )}
         {lead.phone && (
           <div className="flex items-center gap-2 text-sm text-muted-foreground">
             <Phone className="h-4 w-4 flex-shrink-0" />
@@ -360,9 +429,9 @@ function MobileKanbanColumn({
   language,
 }: {
   column: KanbanColumnDef;
-  leads: ExternalLead[];
-  onEdit: (lead: ExternalLead) => void;
-  onDelete: (lead: ExternalLead) => void;
+  leads: ExternalLeadWithActiveCard[];
+  onEdit: (lead: ExternalLeadWithActiveCard) => void;
+  onDelete: (lead: ExternalLeadWithActiveCard) => void;
   onUpdateStatus: (leadId: string, newStatus: LeadStatus) => void;
   language: string;
 }) {
