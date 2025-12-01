@@ -112,17 +112,30 @@ export default function MultiStepLeadForm({ onSubmit, isPending, defaultValues }
   });
 
   const handleNext = async () => {
-    let fieldsToValidate: (keyof LeadFormData)[] = [];
-
+    // Validate required fields for current step
     if (currentStep === 1) {
-      fieldsToValidate = ["firstName", "lastName", "phone", "budget"];
+      const fieldsToValidate: (keyof LeadFormData)[] = ["firstName", "lastName", "phone", "budget"];
+      
+      // Trigger validation
+      const isValid = await form.trigger(fieldsToValidate);
+      
+      // Check if values are actually filled
+      const values = form.getValues();
+      const hasRequiredValues = 
+        values.firstName?.trim() && 
+        values.lastName?.trim() && 
+        values.phone?.trim() && 
+        values.phone.length >= 10 &&
+        values.budget?.trim();
+      
+      if (!isValid || !hasRequiredValues || isDuplicate) {
+        // Don't advance - validation will show errors
+        return;
+      }
     }
-
-    const isValid = await form.trigger(fieldsToValidate);
     
-    if (isValid && !isDuplicate) {
-      setCurrentStep((prev) => Math.min(prev + 1, STEPS.length));
-    }
+    // Advance to next step
+    setCurrentStep((prev) => Math.min(prev + 1, STEPS.length));
   };
 
   const handlePrevious = () => {
@@ -186,7 +199,11 @@ export default function MultiStepLeadForm({ onSubmit, isPending, defaultValues }
 
       <Form {...form}>
         <form 
-          onSubmit={form.handleSubmit(handleSubmit)}
+          onSubmit={(e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            // Never submit via form - only via explicit button click on step 3
+          }}
           className="space-y-4"
         >
           {/* Step 1: Basic Information */}
