@@ -81,6 +81,23 @@ interface Unit {
   description: string | null;
 }
 
+interface ActiveCardSummary {
+  id: string;
+  title: string | null;
+  propertyType: string | null;
+  budgetMin: string | null;
+  budgetMax: string | null;
+  budgetText: string | null;
+  bedrooms: number | null;
+  bedroomsText: string | null;
+  bathrooms: number | null;
+  hasPets: string | null;
+  zone: string | null;
+  moveInDate: string | null;
+  contractDuration: string | null;
+  interestedUnitIds: string[] | null;
+}
+
 interface Lead {
   id: string;
   firstName: string;
@@ -97,6 +114,7 @@ interface Lead {
   contractDuration: string | null;
   hasPets: string | null;
   createdAt?: string;
+  activeCard?: ActiveCardSummary | null;
 }
 
 interface MatchingLead {
@@ -1087,61 +1105,34 @@ export default function SellerPropertyCatalog() {
               </Select>
             </div>
             
-            {/* Selected Lead Summary - Compact view showing chosen card criteria */}
+            {/* Selected Lead Quick Actions - Minimal bar to clear selection */}
             {selectedLead && (
               <div className="p-2 sm:p-3 border-b bg-primary/5">
-                <div className="flex items-center justify-between gap-2 mb-2">
+                <div className="flex items-center justify-between gap-2">
                   <div className="flex items-center gap-2 min-w-0">
-                    <div className="flex h-7 w-7 items-center justify-center rounded-full bg-primary/10">
-                      <User className="h-3.5 w-3.5 text-primary" />
-                    </div>
-                    <div className="min-w-0">
-                      <p className="font-medium text-sm truncate">{selectedLead.firstName} {selectedLead.lastName}</p>
-                    </div>
+                    <CheckCircle2 className="h-4 w-4 text-primary shrink-0" />
+                    <p className="font-medium text-sm truncate">{selectedLead.firstName} {selectedLead.lastName}</p>
+                    {selectedLead.activeCard?.title && (
+                      <Badge variant="secondary" className="text-[10px] hidden sm:inline-flex">
+                        {selectedLead.activeCard.title}
+                      </Badge>
+                    )}
                   </div>
                   <Button
                     variant="ghost"
-                    size="icon"
-                    className="h-7 w-7 shrink-0"
+                    size="sm"
+                    className="h-7 gap-1 px-2 text-xs"
                     onClick={() => clearFilters()}
                     data-testid="button-clear-lead-filter"
                   >
-                    <X className="h-3.5 w-3.5" />
+                    <X className="h-3 w-3" />
+                    Limpiar
                   </Button>
                 </div>
-                
-                {/* Chosen Card Summary */}
-                {chosenCard ? (
-                  <div className="rounded-md border bg-card p-2 space-y-1.5">
-                    <div className="flex items-center gap-1.5 text-xs">
-                      <FileText className="h-3 w-3 text-primary shrink-0" />
-                      <span className="font-medium truncate">{chosenCard.title}</span>
-                      {chosenCard.isDefault && (
-                        <Star className="h-3 w-3 text-amber-500 fill-amber-500 shrink-0" />
-                      )}
-                    </div>
-                    <div className="flex flex-wrap gap-2 text-[10px] text-muted-foreground">
-                      {(chosenCard.minBudget || chosenCard.maxBudget) && (
-                        <span className="flex items-center gap-0.5">
-                          <Wallet className="h-2.5 w-2.5" />
-                          ${chosenCard.minBudget ? parseFloat(chosenCard.minBudget).toLocaleString() : "0"} - ${chosenCard.maxBudget ? parseFloat(chosenCard.maxBudget).toLocaleString() : "—"}
-                        </span>
-                      )}
-                      {chosenCard.bedrooms && (
-                        <span className="flex items-center gap-0.5">
-                          <Bed className="h-2.5 w-2.5" />
-                          {chosenCard.bedrooms} rec.
-                        </span>
-                      )}
-                    </div>
-                  </div>
-                ) : (
-                  <p className="text-[10px] text-muted-foreground italic">Sin tarjeta elegida</p>
-                )}
               </div>
             )}
             
-            <ScrollArea className={`${selectedLead ? 'h-[150px] sm:h-[calc(100vh-26rem)]' : 'h-[200px] sm:h-[calc(100vh-14rem)]'}`}>
+            <ScrollArea className={`${selectedLead ? 'h-[180px] sm:h-[calc(100vh-20rem)]' : 'h-[200px] sm:h-[calc(100vh-14rem)]'}`}>
               <div className="space-y-2 p-2 sm:p-3">
                 {leadsLoading ? (
                   Array.from({ length: 5 }).map((_, i) => (
@@ -1199,25 +1190,40 @@ export default function SellerPropertyCatalog() {
                             </div>
                           </div>
                           
+                          {/* Show activeCard title if available */}
+                          {lead.activeCard?.title && (
+                            <div className="flex items-center gap-1 text-xs text-muted-foreground mb-1">
+                              <FileText className="h-3 w-3 text-primary" />
+                              <span className="truncate font-medium text-primary">{lead.activeCard.title}</span>
+                            </div>
+                          )}
+                          
                           <div className="flex items-center justify-between gap-1 text-xs mb-1">
                             <div className="flex items-center gap-1 text-muted-foreground">
                               <Wallet className="h-3 w-3" />
                               <span className="font-medium text-foreground truncate">
-                                {lead.estimatedRentCost 
-                                  ? `$${lead.estimatedRentCost.toLocaleString()}` 
-                                  : "—"}
+                                {/* Prefer activeCard budget, fallback to legacy */}
+                                {lead.activeCard?.budgetMin || lead.activeCard?.budgetMax
+                                  ? `$${lead.activeCard.budgetMin ? parseFloat(lead.activeCard.budgetMin).toLocaleString() : "0"} - $${lead.activeCard.budgetMax ? parseFloat(lead.activeCard.budgetMax).toLocaleString() : "—"}`
+                                  : lead.estimatedRentCost 
+                                    ? `$${lead.estimatedRentCost.toLocaleString()}` 
+                                    : "—"}
                               </span>
                             </div>
                             <div className="flex items-center gap-2">
                               <div className="flex items-center gap-1 text-muted-foreground">
                                 <Bed className="h-3 w-3" />
                                 <span className="font-medium text-foreground">
-                                  {lead.bedrooms || "—"}
+                                  {/* Prefer activeCard bedrooms, fallback to legacy */}
+                                  {lead.activeCard?.bedrooms ?? lead.bedrooms ?? "—"}
                                 </span>
                               </div>
-                              {lead.hasPets === "yes" || lead.hasPets === "si" || lead.hasPets === "sí" || lead.hasPets === true || lead.hasPets === "true" ? (
-                                <PawPrint className="h-3 w-3 text-amber-500" />
-                              ) : null}
+                              {/* Prefer activeCard hasPets, fallback to legacy */}
+                              {(() => {
+                                const hasPetsValue = lead.activeCard?.hasPets ?? lead.hasPets;
+                                const hasPets = hasPetsValue === "yes" || hasPetsValue === "si" || hasPetsValue === "sí" || hasPetsValue === true || hasPetsValue === "true";
+                                return hasPets ? <PawPrint className="h-3 w-3 text-amber-500" /> : null;
+                              })()}
                             </div>
                           </div>
                           
@@ -1245,22 +1251,39 @@ export default function SellerPropertyCatalog() {
                                 <Calendar className="h-3 w-3" />
                                 <span className="text-foreground truncate">{formatDate(lead.createdAt)}</span>
                               </div>
-                              {lead.desiredNeighborhood && (
+                              {/* Prefer activeCard zone, fallback to legacy */}
+                              {(lead.activeCard?.zone || lead.desiredNeighborhood) && (
                                 <div className="flex items-center gap-1 text-muted-foreground">
                                   <MapPin className="h-3 w-3" />
-                                  <span className="text-foreground truncate">{lead.desiredNeighborhood}</span>
+                                  <span className="text-foreground truncate">{lead.activeCard?.zone || lead.desiredNeighborhood}</span>
                                 </div>
                               )}
-                              {lead.desiredUnitType && (
+                              {/* Prefer activeCard propertyType, fallback to legacy */}
+                              {(lead.activeCard?.propertyType || lead.desiredUnitType) && (
                                 <div className="flex items-center gap-1 text-muted-foreground">
                                   <Home className="h-3 w-3" />
-                                  <span className="text-foreground truncate">{lead.desiredUnitType}</span>
+                                  <span className="text-foreground truncate">{lead.activeCard?.propertyType || lead.desiredUnitType}</span>
                                 </div>
                               )}
-                              {lead.contractDuration && (
+                              {/* Prefer activeCard contractDuration, fallback to legacy */}
+                              {(lead.activeCard?.contractDuration || lead.contractDuration) && (
                                 <div className="flex items-center gap-1 text-muted-foreground">
                                   <FileText className="h-3 w-3" />
-                                  <span className="text-foreground truncate">{lead.contractDuration}</span>
+                                  <span className="text-foreground truncate">{lead.activeCard?.contractDuration || lead.contractDuration}</span>
+                                </div>
+                              )}
+                              {/* Show bathrooms from activeCard if available */}
+                              {lead.activeCard?.bathrooms && (
+                                <div className="flex items-center gap-1 text-muted-foreground">
+                                  <Bath className="h-3 w-3" />
+                                  <span className="text-foreground truncate">{lead.activeCard.bathrooms} baños</span>
+                                </div>
+                              )}
+                              {/* Show move-in date from activeCard if available */}
+                              {lead.activeCard?.moveInDate && (
+                                <div className="flex items-center gap-1 text-muted-foreground">
+                                  <Calendar className="h-3 w-3 text-primary" />
+                                  <span className="text-foreground truncate">Check-in: {formatDate(lead.activeCard.moveInDate)}</span>
                                 </div>
                               )}
                               {lead.email && (
@@ -1510,17 +1533,9 @@ export default function SellerPropertyCatalog() {
                       {t("sellerCatalog.title", "Catálogo de Propiedades")}
                     </h1>
                     {selectedLead && (
-                      <div className="text-xs sm:text-sm text-muted-foreground">
-                        <p>
-                          Propiedades para <span className="font-medium text-primary">{selectedLead.firstName} {selectedLead.lastName}</span>
-                        </p>
-                        {chosenCard && (
-                          <p className="flex items-center gap-1 mt-0.5">
-                            <FileText className="h-3 w-3" />
-                            <span>Tarjeta: <span className="font-medium">{chosenCard.title}</span></span>
-                          </p>
-                        )}
-                      </div>
+                      <p className="text-xs sm:text-sm text-muted-foreground">
+                        Propiedades para <span className="font-medium text-primary">{selectedLead.firstName} {selectedLead.lastName}</span>
+                      </p>
                     )}
                   </div>
                 </div>
