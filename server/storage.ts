@@ -12906,15 +12906,16 @@ export class DatabaseStorage implements IStorage {
       ));
     const totalRevenue = Number(revenueResult?.total) || 0;
 
-    // Get commission totals
+    // Get commission totals - need to join with seller profiles since commissions use sellerProfileId
     const [commissionsResult] = await db.select({ 
       total: sql<number>`COALESCE(SUM(CAST(${externalSellerCommissions.commissionAmount} AS DECIMAL)), 0)`,
-      paid: sql<number>`COALESCE(SUM(CASE WHEN ${externalSellerCommissions.isPaid} = true THEN CAST(${externalSellerCommissions.commissionAmount} AS DECIMAL) ELSE 0 END), 0)`
+      paid: sql<number>`COALESCE(SUM(CASE WHEN ${externalSellerCommissions.status} = 'paid' THEN CAST(${externalSellerCommissions.commissionAmount} AS DECIMAL) ELSE 0 END), 0)`
     })
       .from(externalSellerCommissions)
+      .innerJoin(externalSellerProfiles, eq(externalSellerCommissions.sellerProfileId, externalSellerProfiles.id))
       .where(and(
         eq(externalSellerCommissions.agencyId, agencyId),
-        eq(externalSellerCommissions.sellerId, sellerId)
+        eq(externalSellerProfiles.userId, sellerId)
       ));
     const totalCommissions = Number(commissionsResult?.total) || 0;
     const paidCommissions = Number(commissionsResult?.paid) || 0;
