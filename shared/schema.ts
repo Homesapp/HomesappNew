@@ -9210,3 +9210,311 @@ export const insertExternalCommissionAuditLogSchema = createInsertSchema(externa
 
 export type InsertExternalCommissionAuditLog = z.infer<typeof insertExternalCommissionAuditLogSchema>;
 export type ExternalCommissionAuditLog = typeof externalCommissionAuditLogs.$inferSelect;
+
+// ============================================================================
+// EXTERNAL AGENCY TEAM CHAT SYSTEM
+// Real-time messaging, activity notifications, and gamification
+// ============================================================================
+
+// Enum for chat message types
+export const chatMessageTypeEnum = pgEnum("chat_message_type", [
+  "text",           // Regular text message
+  "image",          // Image attachment
+  "audio",          // Audio/voice message
+  "file",           // Other file types
+  "system_activity" // System-generated activity notification
+]);
+
+// Enum for activity action types (for tracking and points)
+export const activityActionTypeEnum = pgEnum("activity_action_type", [
+  "lead_registered",      // Seller registered a new lead
+  "offer_sent",           // Seller sent an offer to a lead
+  "rental_form_sent",     // Seller sent a rental form to a lead
+  "owner_registered",     // Seller registered a new property owner
+  "lead_converted",       // Lead converted to client
+  "rental_completed",     // Rental was completed/signed
+  "showing_scheduled",    // Property showing scheduled
+  "property_listed",      // New property listed
+  "client_registered"     // New client registered
+]);
+
+// External Agency Chat Messages - Main chat messages table
+export const externalAgencyChatMessages = pgTable("external_agency_chat_messages", {
+  id: varchar("id").primaryKey().$defaultFn(() => crypto.randomUUID()),
+  agencyId: varchar("agency_id").notNull().references(() => externalAgencies.id, { onDelete: "cascade" }),
+  
+  // Sender info
+  senderId: varchar("sender_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  senderName: varchar("sender_name", { length: 255 }).notNull(),
+  senderRole: varchar("sender_role", { length: 50 }).notNull(),
+  senderAvatarUrl: text("sender_avatar_url"),
+  
+  // Message content
+  messageType: chatMessageTypeEnum("message_type").notNull().default("text"),
+  content: text("content"), // Text content or description for attachments
+  
+  // For activity messages - reference to the activity log
+  activityLogId: varchar("activity_log_id"),
+  
+  // Read tracking
+  readBy: jsonb("read_by").$type<string[]>().default([]),
+  
+  // Timestamps
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+  isDeleted: boolean("is_deleted").notNull().default(false),
+}, (table) => [
+  index("idx_chat_messages_agency").on(table.agencyId),
+  index("idx_chat_messages_sender").on(table.senderId),
+  index("idx_chat_messages_created").on(table.createdAt),
+  index("idx_chat_messages_type").on(table.messageType),
+]);
+
+export const insertExternalAgencyChatMessageSchema = createInsertSchema(externalAgencyChatMessages).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export type InsertExternalAgencyChatMessage = z.infer<typeof insertExternalAgencyChatMessageSchema>;
+export type ExternalAgencyChatMessage = typeof externalAgencyChatMessages.$inferSelect;
+
+// External Agency Chat Attachments - Files, images, audio for messages
+export const externalAgencyChatAttachments = pgTable("external_agency_chat_attachments", {
+  id: varchar("id").primaryKey().$defaultFn(() => crypto.randomUUID()),
+  messageId: varchar("message_id").notNull().references(() => externalAgencyChatMessages.id, { onDelete: "cascade" }),
+  agencyId: varchar("agency_id").notNull().references(() => externalAgencies.id, { onDelete: "cascade" }),
+  
+  // File info
+  fileName: varchar("file_name", { length: 255 }).notNull(),
+  fileType: varchar("file_type", { length: 100 }).notNull(), // MIME type
+  fileSize: integer("file_size").notNull(), // Size in bytes
+  
+  // Storage location - object storage path
+  storagePath: text("storage_path").notNull(),
+  publicUrl: text("public_url"),
+  
+  // For audio messages - duration in seconds
+  audioDuration: integer("audio_duration"),
+  
+  // Image dimensions if applicable
+  imageWidth: integer("image_width"),
+  imageHeight: integer("image_height"),
+  
+  // Thumbnail for images/videos
+  thumbnailPath: text("thumbnail_path"),
+  
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+}, (table) => [
+  index("idx_chat_attachments_message").on(table.messageId),
+  index("idx_chat_attachments_agency").on(table.agencyId),
+]);
+
+export const insertExternalAgencyChatAttachmentSchema = createInsertSchema(externalAgencyChatAttachments).omit({
+  id: true,
+  createdAt: true,
+});
+
+export type InsertExternalAgencyChatAttachment = z.infer<typeof insertExternalAgencyChatAttachmentSchema>;
+export type ExternalAgencyChatAttachment = typeof externalAgencyChatAttachments.$inferSelect;
+
+// External Agency Activity Logs - Track all seller actions for notifications and points
+export const externalAgencyActivityLogs = pgTable("external_agency_activity_logs", {
+  id: varchar("id").primaryKey().$defaultFn(() => crypto.randomUUID()),
+  agencyId: varchar("agency_id").notNull().references(() => externalAgencies.id, { onDelete: "cascade" }),
+  
+  // Actor (who performed the action)
+  actorId: varchar("actor_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  actorName: varchar("actor_name", { length: 255 }).notNull(),
+  actorRole: varchar("actor_role", { length: 50 }).notNull(),
+  
+  // Action type
+  actionType: activityActionTypeEnum("action_type").notNull(),
+  
+  // Subject (who/what the action was performed on) - basic info only
+  subjectType: varchar("subject_type", { length: 50 }).notNull(), // 'lead', 'client', 'owner', 'property'
+  subjectId: varchar("subject_id").notNull(),
+  subjectName: varchar("subject_name", { length: 255 }).notNull(), // Name for display
+  subjectInfo: jsonb("subject_info").$type<{
+    email?: string;
+    phone?: string;
+    propertyName?: string;
+    unitNumber?: string;
+    [key: string]: any;
+  }>(),
+  
+  // Points awarded for this action
+  pointsAwarded: integer("points_awarded").notNull().default(0),
+  
+  // Reference to the chat message that was created for this activity
+  chatMessageId: varchar("chat_message_id"),
+  
+  // Whether notification was sent to chat
+  notifiedToChat: boolean("notified_to_chat").notNull().default(false),
+  
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+}, (table) => [
+  index("idx_activity_logs_agency").on(table.agencyId),
+  index("idx_activity_logs_actor").on(table.actorId),
+  index("idx_activity_logs_action").on(table.actionType),
+  index("idx_activity_logs_created").on(table.createdAt),
+]);
+
+export const insertExternalAgencyActivityLogSchema = createInsertSchema(externalAgencyActivityLogs).omit({
+  id: true,
+  createdAt: true,
+});
+
+export type InsertExternalAgencyActivityLog = z.infer<typeof insertExternalAgencyActivityLogSchema>;
+export type ExternalAgencyActivityLog = typeof externalAgencyActivityLogs.$inferSelect;
+
+// External Agency Point Configuration - Points per action type
+export const externalAgencyPointConfig = pgTable("external_agency_point_config", {
+  id: varchar("id").primaryKey().$defaultFn(() => crypto.randomUUID()),
+  agencyId: varchar("agency_id").notNull().references(() => externalAgencies.id, { onDelete: "cascade" }),
+  
+  // Action and its point value
+  actionType: activityActionTypeEnum("action_type").notNull(),
+  points: integer("points").notNull().default(0),
+  
+  // Description for display
+  descriptionEs: varchar("description_es", { length: 255 }),
+  descriptionEn: varchar("description_en", { length: 255 }),
+  
+  isActive: boolean("is_active").notNull().default(true),
+  
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+}, (table) => [
+  index("idx_point_config_agency").on(table.agencyId),
+  uniqueIndex("idx_point_config_unique").on(table.agencyId, table.actionType),
+]);
+
+export const insertExternalAgencyPointConfigSchema = createInsertSchema(externalAgencyPointConfig).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export type InsertExternalAgencyPointConfig = z.infer<typeof insertExternalAgencyPointConfigSchema>;
+export type ExternalAgencyPointConfig = typeof externalAgencyPointConfig.$inferSelect;
+
+// External Agency Seller Points - Track seller point totals
+export const externalAgencySellerPoints = pgTable("external_agency_seller_points", {
+  id: varchar("id").primaryKey().$defaultFn(() => crypto.randomUUID()),
+  agencyId: varchar("agency_id").notNull().references(() => externalAgencies.id, { onDelete: "cascade" }),
+  sellerId: varchar("seller_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  
+  // Aggregated point totals
+  totalPoints: integer("total_points").notNull().default(0),
+  weeklyPoints: integer("weekly_points").notNull().default(0),
+  monthlyPoints: integer("monthly_points").notNull().default(0),
+  
+  // Action counts
+  leadsRegistered: integer("leads_registered").notNull().default(0),
+  offersSent: integer("offers_sent").notNull().default(0),
+  rentalFormsSent: integer("rental_forms_sent").notNull().default(0),
+  ownersRegistered: integer("owners_registered").notNull().default(0),
+  rentalsCompleted: integer("rentals_completed").notNull().default(0),
+  
+  // Rank/level
+  currentRank: integer("current_rank").notNull().default(1),
+  
+  // Last reset dates for weekly/monthly
+  weeklyResetAt: timestamp("weekly_reset_at").defaultNow().notNull(),
+  monthlyResetAt: timestamp("monthly_reset_at").defaultNow().notNull(),
+  
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+}, (table) => [
+  index("idx_seller_points_agency").on(table.agencyId),
+  index("idx_seller_points_seller").on(table.sellerId),
+  uniqueIndex("idx_seller_points_unique").on(table.agencyId, table.sellerId),
+  index("idx_seller_points_total").on(table.totalPoints),
+]);
+
+export const insertExternalAgencySellerPointsSchema = createInsertSchema(externalAgencySellerPoints).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export type InsertExternalAgencySellerPoints = z.infer<typeof insertExternalAgencySellerPointsSchema>;
+export type ExternalAgencySellerPoints = typeof externalAgencySellerPoints.$inferSelect;
+
+// External Agency Rewards - Available rewards catalog
+export const externalAgencyRewards = pgTable("external_agency_rewards", {
+  id: varchar("id").primaryKey().$defaultFn(() => crypto.randomUUID()),
+  agencyId: varchar("agency_id").notNull().references(() => externalAgencies.id, { onDelete: "cascade" }),
+  
+  // Reward details
+  nameEs: varchar("name_es", { length: 255 }).notNull(),
+  nameEn: varchar("name_en", { length: 255 }).notNull(),
+  descriptionEs: text("description_es"),
+  descriptionEn: text("description_en"),
+  
+  // Points required to redeem
+  pointsCost: integer("points_cost").notNull(),
+  
+  // Reward type
+  rewardType: varchar("reward_type", { length: 50 }).notNull(), // 'bonus', 'gift', 'day_off', 'commission_boost', 'other'
+  rewardValue: varchar("reward_value", { length: 255 }), // Value description
+  
+  // Availability
+  isActive: boolean("is_active").notNull().default(true),
+  availableQuantity: integer("available_quantity"), // null = unlimited
+  
+  // Image
+  imageUrl: text("image_url"),
+  
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+}, (table) => [
+  index("idx_rewards_agency").on(table.agencyId),
+  index("idx_rewards_points").on(table.pointsCost),
+]);
+
+export const insertExternalAgencyRewardSchema = createInsertSchema(externalAgencyRewards).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export type InsertExternalAgencyReward = z.infer<typeof insertExternalAgencyRewardSchema>;
+export type ExternalAgencyReward = typeof externalAgencyRewards.$inferSelect;
+
+// External Agency Reward Redemptions - Track reward claims
+export const externalAgencyRewardRedemptions = pgTable("external_agency_reward_redemptions", {
+  id: varchar("id").primaryKey().$defaultFn(() => crypto.randomUUID()),
+  agencyId: varchar("agency_id").notNull().references(() => externalAgencies.id, { onDelete: "cascade" }),
+  rewardId: varchar("reward_id").notNull().references(() => externalAgencyRewards.id, { onDelete: "cascade" }),
+  sellerId: varchar("seller_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  
+  // Points spent
+  pointsSpent: integer("points_spent").notNull(),
+  
+  // Status
+  status: varchar("status", { length: 20 }).notNull().default("pending"), // 'pending', 'approved', 'delivered', 'rejected'
+  
+  // Admin notes
+  adminNotes: text("admin_notes"),
+  processedBy: varchar("processed_by").references(() => users.id),
+  processedAt: timestamp("processed_at"),
+  
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+}, (table) => [
+  index("idx_redemptions_agency").on(table.agencyId),
+  index("idx_redemptions_seller").on(table.sellerId),
+  index("idx_redemptions_reward").on(table.rewardId),
+  index("idx_redemptions_status").on(table.status),
+]);
+
+export const insertExternalAgencyRewardRedemptionSchema = createInsertSchema(externalAgencyRewardRedemptions).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export type InsertExternalAgencyRewardRedemption = z.infer<typeof insertExternalAgencyRewardRedemptionSchema>;
+export type ExternalAgencyRewardRedemption = typeof externalAgencyRewardRedemptions.$inferSelect;

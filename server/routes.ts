@@ -249,9 +249,24 @@ import {
   insertSellerGoalSchema,
   externalPropertyActivityHistory,
   insertExternalPropertyActivityHistorySchema,
+  externalAgencyChatMessages,
+  externalAgencyChatAttachments,
+  externalAgencyActivityLogs,
+  externalAgencyPointConfig,
+  externalAgencySellerPoints,
+  externalAgencyRewards,
+  externalAgencyRewardRedemptions,
+  insertExternalAgencyChatMessageSchema,
+  insertExternalAgencyChatAttachmentSchema,
+  insertExternalAgencyActivityLogSchema,
+  insertExternalAgencyPointConfigSchema,
+  insertExternalAgencySellerPointsSchema,
+  insertExternalAgencyRewardSchema,
+  insertExternalAgencyRewardRedemptionSchema,
 } from "@shared/schema";
 import { db } from "./db";
 import { registerPortalRoutes } from "./portal-routes";
+import { logSellerActivity } from "./activityService";
 import { eq, and, or, not, inArray, desc, asc, sql, ne, isNull, isNotNull, gte, lte, lt, ilike } from "drizzle-orm";
 
 // Helper function to verify external agency ownership
@@ -30403,6 +30418,23 @@ ${{precio}}/mes
         console.error("Error creating initial presentation card:", cardError);
       }
       
+      // Log activity for lead registration (if created by seller)
+      if (isSeller) {
+        const user = await storage.getUser(userId);
+        const actorName = user ? `${user.firstName || ""} ${user.lastName || ""}`.trim() || user.username || "Unknown" : "Unknown";
+        logSellerActivity({
+          agencyId,
+          actorId: userId,
+          actorName,
+          actorRole: userRole,
+          actionType: "lead_registered",
+          subjectType: "lead",
+          subjectId: lead.id,
+          subjectName: `${lead.firstName} ${lead.lastName}`,
+          subjectInfo: { email: lead.email, phone: lead.phone },
+        }).catch(err => console.error("Activity logging error:", err));
+      }
+
       await createAuditLog(req, "create", "external_lead", lead.id, "Created new lead");
       res.status(201).json(lead);
     } catch (error: any) {
@@ -31585,6 +31617,22 @@ ${{precio}}/mes
       });
       
       await createAuditLog(req, "create", "offer_token", newToken.id, `Created rental offer link for lead ${leadId}`);
+      // Log seller activity for offer sent
+      const userRole = req.user?.cachedRole || req.user?.role;
+      if (userRole === "external_agency_seller") {
+        logSellerActivity({
+          agencyId: lead.agencyId,
+          actorId: userId,
+          actorName: createdByName,
+          actorRole: userRole,
+          actionType: "offer_sent",
+          subjectType: "lead",
+          subjectId: leadId,
+          subjectName: `${lead.firstName || ""} ${lead.lastName || ""}`.trim(),
+          subjectInfo: { unitNumber: unit.unitNumber, propertyName: property?.name },
+        }).catch(err => console.error("Activity logging error:", err));
+      }
+
       
       res.status(201).json({
         ...newToken,
@@ -31831,6 +31879,22 @@ ${{precio}}/mes
       });
       
       await createAuditLog(req, "create", "tenant_rental_form_token", newToken.id, `Created rental form for lead ${leadId}`);
+      // Log seller activity for rental form sent
+      const userRole = req.user?.cachedRole || req.user?.role;
+      if (userRole === "external_agency_seller") {
+        logSellerActivity({
+          agencyId: lead.agencyId,
+          actorId: userId,
+          actorName: createdByName,
+          actorRole: userRole,
+          actionType: "rental_form_sent",
+          subjectType: "lead",
+          subjectId: leadId,
+          subjectName: `${lead.firstName || ""} ${lead.lastName || ""}`.trim(),
+          subjectInfo: { unitNumber: unit.unitNumber, propertyName: property?.name },
+        }).catch(err => console.error("Activity logging error:", err));
+      }
+
 
       // Log property activity for the unit
       if (unit) {
@@ -41209,6 +41273,652 @@ const generateSlug = (str: string) => str.toLowerCase().normalize("NFD").replace
       res.status(500).json({ message: error.message });
     }
   });
+
+
+  // EXTERNAL AGENCY TEAM CHAT SYSTEM
+  // Real-time messaging, activity notifications, and gamification
+  // ==========================================================================
+
+  // GET /api/external/chat/messages - Get chat messages for agency
+  app.get("/api/external/chat/messages", isAuthenticated, requireRole([...EXTERNAL_ADMIN_ROLES, 'external_agency_seller']), async (req: any, res) => {
+    try {
+      const agencyId = await getUserAgencyId(req);
+      if (!agencyId) return res.status(403).json({ message: "No agency access" });
+
+      const { limit = 50, offset = 0, before } = req.query;
+      
+      let conditions = [
+        eq(externalAgencyChatMessages.agencyId, agencyId),
+        eq(externalAgencyChatMessages.isDeleted, false),
+      ];
+
+      if (before) {
+        conditions.push(lt(externalAgencyChatMessages.createdAt, new Date(before as string)));
+      }
+
+      const messages = await db.select()
+        .from(externalAgencyChatMessages)
+        .leftJoin(externalAgencyChatAttachments, eq(externalAgencyChatMessages.id, externalAgencyChatAttachments.messageId))
+        .where(and(...conditions))
+        .orderBy(desc(externalAgencyChatMessages.createdAt))
+        .limit(parseInt(limit as string))
+        .offset(parseInt(offset as string));
+
+      // Group attachments with messages
+      const messageMap = new Map();
+      for (const row of messages) {
+        const msg = row.external_agency_chat_messages;
+        const attachment = row.external_agency_chat_attachments;
+        
+        if (!messageMap.has(msg.id)) {
+          messageMap.set(msg.id, { ...msg, attachments: [] });
+        }
+        if (attachment) {
+          messageMap.get(msg.id).attachments.push(attachment);
+        }
+      }
+
+      res.json(Array.from(messageMap.values()));
+    } catch (error: any) {
+      console.error("Error fetching chat messages:", error);
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  // POST /api/external/chat/messages - Send a new chat message
+  app.post("/api/external/chat/messages", isAuthenticated, requireRole([...EXTERNAL_ADMIN_ROLES, 'external_agency_seller']), async (req: any, res) => {
+    try {
+      const agencyId = await getUserAgencyId(req);
+      if (!agencyId) return res.status(403).json({ message: "No agency access" });
+
+      const userId = req.user?.claims?.sub || req.user?.id;
+      const user = await storage.getUser(userId);
+      if (!user) return res.status(403).json({ message: "User not found" });
+
+      const { content, messageType = 'text' } = req.body;
+
+      if (!content && messageType === 'text') {
+        return res.status(400).json({ message: "Message content is required" });
+      }
+
+      const [message] = await db.insert(externalAgencyChatMessages).values({
+        agencyId,
+        senderId: userId,
+        senderName: user.firstName && user.lastName ? `${user.firstName} ${user.lastName}` : user.username || 'Unknown',
+        senderRole: user.role,
+        senderAvatarUrl: user.profilePicture || null,
+        messageType,
+        content,
+        readBy: [userId],
+      }).returning();
+
+      // Broadcast to WebSocket clients in the agency room
+      broadcastToAgency(agencyId, {
+        type: 'chat:message',
+        data: message,
+      });
+
+      res.status(201).json(message);
+    } catch (error: any) {
+      console.error("Error sending chat message:", error);
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  // POST /api/external/chat/messages/:id/read - Mark message as read
+  app.post("/api/external/chat/messages/:id/read", isAuthenticated, requireRole([...EXTERNAL_ADMIN_ROLES, 'external_agency_seller']), async (req: any, res) => {
+    try {
+      const agencyId = await getUserAgencyId(req);
+      if (!agencyId) return res.status(403).json({ message: "No agency access" });
+
+      const userId = req.user?.claims?.sub || req.user?.id;
+      const { id } = req.params;
+
+      const [message] = await db.select()
+        .from(externalAgencyChatMessages)
+        .where(and(
+          eq(externalAgencyChatMessages.id, id),
+          eq(externalAgencyChatMessages.agencyId, agencyId)
+        ));
+
+      if (!message) {
+        return res.status(404).json({ message: "Message not found" });
+      }
+
+      const readBy = message.readBy || [];
+      if (!readBy.includes(userId)) {
+        await db.update(externalAgencyChatMessages)
+          .set({ readBy: [...readBy, userId] })
+          .where(eq(externalAgencyChatMessages.id, id));
+      }
+
+      res.json({ success: true });
+    } catch (error: any) {
+      console.error("Error marking message as read:", error);
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  // POST /api/external/chat/attachments - Upload attachment for chat
+  const chatUpload = multer({
+    storage: multer.memoryStorage(),
+    limits: { fileSize: 10 * 1024 * 1024 }, // 10MB limit
+    fileFilter: (req, file, cb) => {
+      const allowedTypes = ['image/jpeg', 'image/png', 'image/gif', 'image/webp', 'audio/webm', 'audio/mpeg', 'audio/mp3', 'audio/ogg'];
+      if (allowedTypes.includes(file.mimetype)) {
+        cb(null, true);
+      } else {
+        cb(new Error('Invalid file type. Only images and audio files are allowed.'));
+      }
+    }
+  });
+
+  app.post("/api/external/chat/attachments", isAuthenticated, requireRole([...EXTERNAL_ADMIN_ROLES, 'external_agency_seller']), chatUpload.single('file'), async (req: any, res) => {
+    try {
+      const agencyId = await getUserAgencyId(req);
+      if (!agencyId) return res.status(403).json({ message: "No agency access" });
+
+      const userId = req.user?.claims?.sub || req.user?.id;
+      const user = await storage.getUser(userId);
+      if (!user) return res.status(403).json({ message: "User not found" });
+
+      if (!req.file) {
+        return res.status(400).json({ message: "No file uploaded" });
+      }
+
+      const file = req.file;
+      const isImage = file.mimetype.startsWith('image/');
+      const isAudio = file.mimetype.startsWith('audio/');
+      const messageType = isImage ? 'image' : isAudio ? 'audio' : 'file';
+
+      // Upload to object storage
+      const { Storage } = await import('@google-cloud/storage');
+      const gcs = new Storage();
+      const bucketName = process.env.BUCKET_ID || 'replit-objstore-d3e8dbe9-eac7-41dd-8929-bb31dd40cced';
+      const bucket = gcs.bucket(bucketName);
+      
+      const fileName = `chat/${agencyId}/${Date.now()}-${file.originalname}`;
+      const blob = bucket.file(fileName);
+      
+      await blob.save(file.buffer, {
+        contentType: file.mimetype,
+        metadata: {
+          cacheControl: 'public, max-age=31536000',
+        },
+      });
+
+      // Make it public
+      await blob.makePublic();
+      const publicUrl = `https://storage.googleapis.com/${bucketName}/${fileName}`;
+
+      // Create message with attachment
+      const [message] = await db.insert(externalAgencyChatMessages).values({
+        agencyId,
+        senderId: userId,
+        senderName: user.firstName && user.lastName ? `${user.firstName} ${user.lastName}` : user.username || 'Unknown',
+        senderRole: user.role,
+        senderAvatarUrl: user.profilePicture || null,
+        messageType,
+        content: file.originalname,
+        readBy: [userId],
+      }).returning();
+
+      // Create attachment record
+      const [attachment] = await db.insert(externalAgencyChatAttachments).values({
+        messageId: message.id,
+        agencyId,
+        fileName: file.originalname,
+        fileType: file.mimetype,
+        fileSize: file.size,
+        storagePath: fileName,
+        publicUrl,
+      }).returning();
+
+      const fullMessage = { ...message, attachments: [attachment] };
+
+      // Broadcast to WebSocket clients
+      broadcastToAgency(agencyId, {
+        type: 'chat:message',
+        data: fullMessage,
+      });
+
+      res.status(201).json(fullMessage);
+    } catch (error: any) {
+      console.error("Error uploading chat attachment:", error);
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  // GET /api/external/chat/activity-logs - Get activity logs for chat
+  app.get("/api/external/chat/activity-logs", isAuthenticated, requireRole([...EXTERNAL_ADMIN_ROLES, 'external_agency_seller']), async (req: any, res) => {
+    try {
+      const agencyId = await getUserAgencyId(req);
+      if (!agencyId) return res.status(403).json({ message: "No agency access" });
+
+      const { limit = 50, offset = 0 } = req.query;
+
+      const logs = await db.select()
+        .from(externalAgencyActivityLogs)
+        .where(eq(externalAgencyActivityLogs.agencyId, agencyId))
+        .orderBy(desc(externalAgencyActivityLogs.createdAt))
+        .limit(parseInt(limit as string))
+        .offset(parseInt(offset as string));
+
+      res.json(logs);
+    } catch (error: any) {
+      console.error("Error fetching activity logs:", error);
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  // GET /api/external/chat/points/leaderboard - Get seller points leaderboard
+  app.get("/api/external/chat/points/leaderboard", isAuthenticated, requireRole([...EXTERNAL_ADMIN_ROLES, 'external_agency_seller']), async (req: any, res) => {
+    try {
+      const agencyId = await getUserAgencyId(req);
+      if (!agencyId) return res.status(403).json({ message: "No agency access" });
+
+      const { period = 'total' } = req.query; // 'total', 'weekly', 'monthly'
+
+      const orderColumn = period === 'weekly' 
+        ? externalAgencySellerPoints.weeklyPoints 
+        : period === 'monthly' 
+          ? externalAgencySellerPoints.monthlyPoints 
+          : externalAgencySellerPoints.totalPoints;
+
+      const leaderboard = await db.select({
+        sellerId: externalAgencySellerPoints.sellerId,
+        totalPoints: externalAgencySellerPoints.totalPoints,
+        weeklyPoints: externalAgencySellerPoints.weeklyPoints,
+        monthlyPoints: externalAgencySellerPoints.monthlyPoints,
+        leadsRegistered: externalAgencySellerPoints.leadsRegistered,
+        offersSent: externalAgencySellerPoints.offersSent,
+        rentalFormsSent: externalAgencySellerPoints.rentalFormsSent,
+        ownersRegistered: externalAgencySellerPoints.ownersRegistered,
+        rentalsCompleted: externalAgencySellerPoints.rentalsCompleted,
+        currentRank: externalAgencySellerPoints.currentRank,
+        sellerName: sql<string>`concat(${users.firstName}, ' ', ${users.lastName})`,
+        sellerEmail: users.email,
+        sellerAvatar: users.profilePicture,
+      })
+        .from(externalAgencySellerPoints)
+        .innerJoin(users, eq(externalAgencySellerPoints.sellerId, users.id))
+        .where(eq(externalAgencySellerPoints.agencyId, agencyId))
+        .orderBy(desc(orderColumn))
+        .limit(50);
+
+      res.json(leaderboard);
+    } catch (error: any) {
+      console.error("Error fetching leaderboard:", error);
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  // GET /api/external/chat/points/my-points - Get current user's points
+  app.get("/api/external/chat/points/my-points", isAuthenticated, requireRole([...EXTERNAL_ADMIN_ROLES, 'external_agency_seller']), async (req: any, res) => {
+    try {
+      const agencyId = await getUserAgencyId(req);
+      if (!agencyId) return res.status(403).json({ message: "No agency access" });
+
+      const userId = req.user?.claims?.sub || req.user?.id;
+
+      const [points] = await db.select()
+        .from(externalAgencySellerPoints)
+        .where(and(
+          eq(externalAgencySellerPoints.agencyId, agencyId),
+          eq(externalAgencySellerPoints.sellerId, userId)
+        ));
+
+      if (!points) {
+        // Create initial points record
+        const [newPoints] = await db.insert(externalAgencySellerPoints).values({
+          agencyId,
+          sellerId: userId,
+        }).returning();
+        return res.json(newPoints);
+      }
+
+      res.json(points);
+    } catch (error: any) {
+      console.error("Error fetching my points:", error);
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  // GET /api/external/chat/points/config - Get point configuration
+  app.get("/api/external/chat/points/config", isAuthenticated, requireRole([...EXTERNAL_ADMIN_ROLES, 'external_agency_seller']), async (req: any, res) => {
+    try {
+      const agencyId = await getUserAgencyId(req);
+      if (!agencyId) return res.status(403).json({ message: "No agency access" });
+
+      const config = await db.select()
+        .from(externalAgencyPointConfig)
+        .where(eq(externalAgencyPointConfig.agencyId, agencyId));
+
+      // If no config exists, return default values
+      if (config.length === 0) {
+        const defaultConfig = [
+          { actionType: 'lead_registered', points: 10, descriptionEs: 'Registro de lead', descriptionEn: 'Lead registration' },
+          { actionType: 'offer_sent', points: 15, descriptionEs: 'Oferta enviada', descriptionEn: 'Offer sent' },
+          { actionType: 'rental_form_sent', points: 15, descriptionEs: 'Formato de renta enviado', descriptionEn: 'Rental form sent' },
+          { actionType: 'owner_registered', points: 25, descriptionEs: 'Propietario registrado', descriptionEn: 'Owner registered' },
+          { actionType: 'lead_converted', points: 50, descriptionEs: 'Lead convertido a cliente', descriptionEn: 'Lead converted to client' },
+          { actionType: 'rental_completed', points: 100, descriptionEs: 'Renta completada', descriptionEn: 'Rental completed' },
+          { actionType: 'showing_scheduled', points: 5, descriptionEs: 'Cita programada', descriptionEn: 'Showing scheduled' },
+          { actionType: 'property_listed', points: 20, descriptionEs: 'Propiedad listada', descriptionEn: 'Property listed' },
+          { actionType: 'client_registered', points: 15, descriptionEs: 'Cliente registrado', descriptionEn: 'Client registered' },
+        ];
+        return res.json(defaultConfig);
+      }
+
+      res.json(config);
+    } catch (error: any) {
+      console.error("Error fetching point config:", error);
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  // PUT /api/external/chat/points/config - Update point configuration (admin only)
+  app.put("/api/external/chat/points/config", isAuthenticated, requireRole(EXTERNAL_ADMIN_ROLES), async (req: any, res) => {
+    try {
+      const agencyId = await getUserAgencyId(req);
+      if (!agencyId) return res.status(403).json({ message: "No agency access" });
+
+      const { config } = req.body;
+
+      if (!Array.isArray(config)) {
+        return res.status(400).json({ message: "Config must be an array" });
+      }
+
+      // Upsert each config entry
+      for (const entry of config) {
+        const existing = await db.select()
+          .from(externalAgencyPointConfig)
+          .where(and(
+            eq(externalAgencyPointConfig.agencyId, agencyId),
+            eq(externalAgencyPointConfig.actionType, entry.actionType)
+          ));
+
+        if (existing.length > 0) {
+          await db.update(externalAgencyPointConfig)
+            .set({
+              points: entry.points,
+              descriptionEs: entry.descriptionEs,
+              descriptionEn: entry.descriptionEn,
+              updatedAt: new Date(),
+            })
+            .where(eq(externalAgencyPointConfig.id, existing[0].id));
+        } else {
+          await db.insert(externalAgencyPointConfig).values({
+            agencyId,
+            actionType: entry.actionType,
+            points: entry.points,
+            descriptionEs: entry.descriptionEs,
+            descriptionEn: entry.descriptionEn,
+          });
+        }
+      }
+
+      const updatedConfig = await db.select()
+        .from(externalAgencyPointConfig)
+        .where(eq(externalAgencyPointConfig.agencyId, agencyId));
+
+      res.json(updatedConfig);
+    } catch (error: any) {
+      console.error("Error updating point config:", error);
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  // GET /api/external/chat/rewards - Get available rewards
+  app.get("/api/external/chat/rewards", isAuthenticated, requireRole([...EXTERNAL_ADMIN_ROLES, 'external_agency_seller']), async (req: any, res) => {
+    try {
+      const agencyId = await getUserAgencyId(req);
+      if (!agencyId) return res.status(403).json({ message: "No agency access" });
+
+      const rewards = await db.select()
+        .from(externalAgencyRewards)
+        .where(and(
+          eq(externalAgencyRewards.agencyId, agencyId),
+          eq(externalAgencyRewards.isActive, true)
+        ))
+        .orderBy(asc(externalAgencyRewards.pointsCost));
+
+      res.json(rewards);
+    } catch (error: any) {
+      console.error("Error fetching rewards:", error);
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  // POST /api/external/chat/rewards - Create a new reward (admin only)
+  app.post("/api/external/chat/rewards", isAuthenticated, requireRole(EXTERNAL_ADMIN_ROLES), async (req: any, res) => {
+    try {
+      const agencyId = await getUserAgencyId(req);
+      if (!agencyId) return res.status(403).json({ message: "No agency access" });
+
+      const validatedData = insertExternalAgencyRewardSchema.parse({
+        ...req.body,
+        agencyId,
+      });
+
+      const [reward] = await db.insert(externalAgencyRewards)
+        .values(validatedData)
+        .returning();
+
+      res.status(201).json(reward);
+    } catch (error: any) {
+      console.error("Error creating reward:", error);
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  // POST /api/external/chat/rewards/:id/redeem - Redeem a reward
+  app.post("/api/external/chat/rewards/:id/redeem", isAuthenticated, requireRole([...EXTERNAL_ADMIN_ROLES, 'external_agency_seller']), async (req: any, res) => {
+    try {
+      const agencyId = await getUserAgencyId(req);
+      if (!agencyId) return res.status(403).json({ message: "No agency access" });
+
+      const userId = req.user?.claims?.sub || req.user?.id;
+      const { id } = req.params;
+
+      // Get reward
+      const [reward] = await db.select()
+        .from(externalAgencyRewards)
+        .where(and(
+          eq(externalAgencyRewards.id, id),
+          eq(externalAgencyRewards.agencyId, agencyId),
+          eq(externalAgencyRewards.isActive, true)
+        ));
+
+      if (!reward) {
+        return res.status(404).json({ message: "Reward not found" });
+      }
+
+      // Get user points
+      const [points] = await db.select()
+        .from(externalAgencySellerPoints)
+        .where(and(
+          eq(externalAgencySellerPoints.agencyId, agencyId),
+          eq(externalAgencySellerPoints.sellerId, userId)
+        ));
+
+      if (!points || points.totalPoints < reward.pointsCost) {
+        return res.status(400).json({ message: "Not enough points" });
+      }
+
+      // Check availability
+      if (reward.availableQuantity !== null && reward.availableQuantity <= 0) {
+        return res.status(400).json({ message: "Reward is out of stock" });
+      }
+
+      // Deduct points
+      await db.update(externalAgencySellerPoints)
+        .set({
+          totalPoints: points.totalPoints - reward.pointsCost,
+          updatedAt: new Date(),
+        })
+        .where(eq(externalAgencySellerPoints.id, points.id));
+
+      // Update quantity if limited
+      if (reward.availableQuantity !== null) {
+        await db.update(externalAgencyRewards)
+          .set({
+            availableQuantity: reward.availableQuantity - 1,
+            updatedAt: new Date(),
+          })
+          .where(eq(externalAgencyRewards.id, id));
+      }
+
+      // Create redemption record
+      const [redemption] = await db.insert(externalAgencyRewardRedemptions).values({
+        agencyId,
+        rewardId: id,
+        sellerId: userId,
+        pointsSpent: reward.pointsCost,
+        status: 'pending',
+      }).returning();
+
+      res.status(201).json(redemption);
+    } catch (error: any) {
+      console.error("Error redeeming reward:", error);
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  // GET /api/external/chat/sellers - Get all sellers with their metrics
+  app.get("/api/external/chat/sellers", isAuthenticated, requireRole(EXTERNAL_ADMIN_ROLES), async (req: any, res) => {
+    try {
+      const agencyId = await getUserAgencyId(req);
+      if (!agencyId) return res.status(403).json({ message: "No agency access" });
+
+      const sellers = await db.select({
+        id: users.id,
+        firstName: users.firstName,
+        lastName: users.lastName,
+        email: users.email,
+        phone: users.phone,
+        profilePicture: users.profilePicture,
+        role: users.role,
+        status: users.status,
+        createdAt: users.createdAt,
+        points: {
+          totalPoints: externalAgencySellerPoints.totalPoints,
+          weeklyPoints: externalAgencySellerPoints.weeklyPoints,
+          monthlyPoints: externalAgencySellerPoints.monthlyPoints,
+          leadsRegistered: externalAgencySellerPoints.leadsRegistered,
+          offersSent: externalAgencySellerPoints.offersSent,
+          rentalFormsSent: externalAgencySellerPoints.rentalFormsSent,
+          ownersRegistered: externalAgencySellerPoints.ownersRegistered,
+          rentalsCompleted: externalAgencySellerPoints.rentalsCompleted,
+          currentRank: externalAgencySellerPoints.currentRank,
+        },
+      })
+        .from(users)
+        .leftJoin(externalAgencySellerPoints, and(
+          eq(users.id, externalAgencySellerPoints.sellerId),
+          eq(externalAgencySellerPoints.agencyId, agencyId)
+        ))
+        .where(and(
+          eq(users.externalAgencyId, agencyId),
+          eq(users.role, 'external_agency_seller')
+        ))
+        .orderBy(desc(externalAgencySellerPoints.totalPoints));
+
+      res.json(sellers);
+    } catch (error: any) {
+      console.error("Error fetching sellers:", error);
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  // GET /api/external/chat/seller/:id - Get seller profile with detailed metrics
+  app.get("/api/external/chat/seller/:id", isAuthenticated, requireRole([...EXTERNAL_ADMIN_ROLES, 'external_agency_seller']), async (req: any, res) => {
+    try {
+      const agencyId = await getUserAgencyId(req);
+      if (!agencyId) return res.status(403).json({ message: "No agency access" });
+
+      const { id } = req.params;
+
+      // Get seller info
+      const [seller] = await db.select()
+        .from(users)
+        .where(and(
+          eq(users.id, id),
+          eq(users.externalAgencyId, agencyId)
+        ));
+
+      if (!seller) {
+        return res.status(404).json({ message: "Seller not found" });
+      }
+
+      // Get points
+      const [points] = await db.select()
+        .from(externalAgencySellerPoints)
+        .where(and(
+          eq(externalAgencySellerPoints.sellerId, id),
+          eq(externalAgencySellerPoints.agencyId, agencyId)
+        ));
+
+      // Get recent activities
+      const recentActivities = await db.select()
+        .from(externalAgencyActivityLogs)
+        .where(and(
+          eq(externalAgencyActivityLogs.actorId, id),
+          eq(externalAgencyActivityLogs.agencyId, agencyId)
+        ))
+        .orderBy(desc(externalAgencyActivityLogs.createdAt))
+        .limit(20);
+
+      // Get lead count
+      const [leadCount] = await db.select({
+        count: sql<number>`count(*)::int`,
+      })
+        .from(externalLeads)
+        .where(and(
+          eq(externalLeads.assignedSellerId, id),
+          eq(externalLeads.agencyId, agencyId)
+        ));
+
+      res.json({
+        seller: {
+          id: seller.id,
+          firstName: seller.firstName,
+          lastName: seller.lastName,
+          email: seller.email,
+          phone: seller.phone,
+          profilePicture: seller.profilePicture,
+          role: seller.role,
+          status: seller.status,
+          createdAt: seller.createdAt,
+        },
+        points: points || {
+          totalPoints: 0,
+          weeklyPoints: 0,
+          monthlyPoints: 0,
+          leadsRegistered: 0,
+          offersSent: 0,
+          rentalFormsSent: 0,
+          ownersRegistered: 0,
+          rentalsCompleted: 0,
+          currentRank: 1,
+        },
+        recentActivities,
+        stats: {
+          activeLeads: leadCount?.count || 0,
+        },
+      });
+    } catch (error: any) {
+      console.error("Error fetching seller profile:", error);
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  // Helper function to broadcast WebSocket messages to agency
+  function broadcastToAgency(agencyId: string, message: any) {
+    // This will be implemented when we set up WebSocket handling
+    // For now, we rely on polling
+    console.log(`[Chat] Broadcasting to agency ${agencyId}:`, message.type);
+  }
 
 
   return httpServer;
