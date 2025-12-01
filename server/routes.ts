@@ -32711,70 +32711,47 @@ ${{precio}}/mes
       }
       
       // Apply filter: search query (title, description, zone, condominium name)
-      // We need to use a subquery for condominium name search
-      let searchCondition: any = undefined;
+      // For condominium name search, we use a subquery approach
       if (q && typeof q === 'string' && q.trim()) {
         const searchTerm = `%${q.trim()}%`;
-        searchCondition = or(
-          ilike(externalUnits.title, searchTerm),
-          ilike(externalUnits.description, searchTerm),
-          ilike(externalUnits.zone, searchTerm),
-          ilike(externalUnits.unitNumber, searchTerm)
-        );
+        // Get condominium IDs that match the search term
+        const matchingCondominiums = await db
+          .select({ id: externalCondominiums.id })
+          .from(externalCondominiums)
+          .where(ilike(externalCondominiums.name, searchTerm));
+        const matchingCondoIds = matchingCondominiums.map(c => c.id);
+        
+        // Search in unit fields OR match condominium IDs
+        if (matchingCondoIds.length > 0) {
+          conditions.push(or(
+            ilike(externalUnits.title, searchTerm),
+            ilike(externalUnits.description, searchTerm),
+            ilike(externalUnits.zone, searchTerm),
+            ilike(externalUnits.unitNumber, searchTerm),
+            inArray(externalUnits.condominiumId, matchingCondoIds)
+          ));
+        } else {
+          conditions.push(or(
+            ilike(externalUnits.title, searchTerm),
+            ilike(externalUnits.description, searchTerm),
+            ilike(externalUnits.zone, searchTerm),
+            ilike(externalUnits.unitNumber, searchTerm)
+          ));
+        }
       }
       
-      // Get total count with filters applied (includes condominium name search via join)
-      const countQuery = db
-        .select({ count: sql<number>`count(DISTINCT ${externalUnits.id})` })
+      // Get total count with filters applied
+      const countResult = await db
+        .select({ count: sql<number>`count(*)` })
         .from(externalUnits)
-        .leftJoin(externalCondominiums, eq(externalUnits.condominiumId, externalCondominiums.id));
-      
-      // Build final conditions including condominium name search
-      const finalConditions = [...conditions];
-      if (q && typeof q === 'string' && q.trim()) {
-        const searchTerm = `%${q.trim()}%`;
-        finalConditions.push(or(
-          ilike(externalUnits.title, searchTerm),
-          ilike(externalUnits.description, searchTerm),
-          ilike(externalUnits.zone, searchTerm),
-          ilike(externalUnits.unitNumber, searchTerm),
-          ilike(externalCondominiums.name, searchTerm)
-        ));
-      }
-      
-      const countResult = await countQuery.where(and(...finalConditions));
+        .where(and(...conditions));
       const totalCount = Number(countResult[0]?.count || 0);
       
-      // Get paginated units with condominium join for search
+      // Get paginated units
       const approvedUnits = await db
-        .select({
-          id: externalUnits.id,
-          agencyId: externalUnits.agencyId,
-          condominiumId: externalUnits.condominiumId,
-          unitNumber: externalUnits.unitNumber,
-          title: externalUnits.title,
-          description: externalUnits.description,
-          propertyType: externalUnits.propertyType,
-          typology: externalUnits.typology,
-          bedrooms: externalUnits.bedrooms,
-          bathrooms: externalUnits.bathrooms,
-          area: externalUnits.area,
-          floor: externalUnits.floor,
-          price: externalUnits.price,
-          salePrice: externalUnits.salePrice,
-          currency: externalUnits.currency,
-          listingType: externalUnits.listingType,
-          zone: externalUnits.zone,
-          isActive: externalUnits.isActive,
-          publishToMain: externalUnits.publishToMain,
-          publishStatus: externalUnits.publishStatus,
-          petsAllowed: externalUnits.petsAllowed,
-          slug: externalUnits.slug,
-          createdAt: externalUnits.createdAt
-        })
+        .select()
         .from(externalUnits)
-        .leftJoin(externalCondominiums, eq(externalUnits.condominiumId, externalCondominiums.id))
-        .where(and(...finalConditions))
+        .where(and(...conditions))
         .orderBy(desc(externalUnits.createdAt))
         .limit(limitNum)
         .offset(offset);
