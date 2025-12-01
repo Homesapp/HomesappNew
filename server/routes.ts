@@ -21406,6 +21406,25 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+
+  // GET /api/external-publication-requests/stats - Admin: Get publication request statistics
+  // NOTE: This route MUST be before /:id route to avoid "stats" being interpreted as an ID
+  app.get("/api/external-publication-requests/stats", isAuthenticated, requireRole(ADMIN_ONLY), async (req: any, res) => {
+    try {
+      const [stats] = await db.select({
+        total: sql<number>`count(*)`,
+        pending: sql<number>`count(*) filter (where status = 'pending')`,
+        approved: sql<number>`count(*) filter (where status = 'approved')`,
+        rejected: sql<number>`count(*) filter (where status = 'rejected')`,
+        withdrawn: sql<number>`count(*) filter (where status = 'withdrawn')`,
+      }).from(externalPublicationRequests);
+
+      res.json(stats);
+    } catch (error) {
+      console.error("Error fetching publication stats:", error);
+      res.status(500).json({ message: "Failed to fetch statistics" });
+    }
+  });
   // GET /api/external-publication-requests/:id - Admin: Get single request with full details
   app.get("/api/external-publication-requests/:id", isAuthenticated, requireRole(ADMIN_ONLY), async (req: any, res) => {
     try {
@@ -21772,24 +21791,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Error fetching unit publication requests:", error);
       res.status(500).json({ message: "Failed to fetch publication requests" });
-    }
-  });
-
-  // GET /api/external-publication-requests/stats - Admin: Get publication request statistics
-  app.get("/api/external-publication-requests/stats", isAuthenticated, requireRole(ADMIN_ONLY), async (req: any, res) => {
-    try {
-      const [stats] = await db.select({
-        total: sql<number>`count(*)`,
-        pending: sql<number>`count(*) filter (where status = 'pending')`,
-        approved: sql<number>`count(*) filter (where status = 'approved')`,
-        rejected: sql<number>`count(*) filter (where status = 'rejected')`,
-        withdrawn: sql<number>`count(*) filter (where status = 'withdrawn')`,
-      }).from(externalPublicationRequests);
-
-      res.json(stats);
-    } catch (error) {
-      console.error("Error fetching publication stats:", error);
-      res.status(500).json({ message: "Failed to fetch statistics" });
     }
   });
 

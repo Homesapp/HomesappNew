@@ -84,11 +84,19 @@ export default function AdminExternalPublicationRequests() {
   const [adminFeedback, setAdminFeedback] = useState("");
 
   const { data: stats, isLoading: isLoadingStats } = useQuery<PublicationStats>({
-    queryKey: ["/api/external-publication-requests", "stats"],
+    queryKey: ["/api/external-publication-requests/stats"],
   });
 
   const { data: requests = [], isLoading: isLoadingRequests, refetch } = useQuery<ExternalPublicationRequestWithDetails[]>({
-    queryKey: ["/api/external-publication-requests", { status: selectedStatus }],
+    queryKey: ["/api/external-publication-requests", selectedStatus],
+    queryFn: async () => {
+      const url = selectedStatus === "all" 
+        ? "/api/external-publication-requests"
+        : `/api/external-publication-requests?status=${selectedStatus}`;
+      const res = await fetch(url, { credentials: "include" });
+      if (!res.ok) throw new Error("Failed to fetch requests");
+      return res.json();
+    },
   });
 
   const approveMutation = useMutation({
