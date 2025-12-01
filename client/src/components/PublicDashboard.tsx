@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useLocation } from "wouter";
-import { Search, MapPin, Home, Heart, SlidersHorizontal, Building2, Users, Star, Clock, ChevronRight, MessageCircle } from "lucide-react";
+import { Search, MapPin, Home, Heart, SlidersHorizontal, Building2, Users, Star, Clock, ChevronRight, MessageCircle, Bed, Bath, Square, Calendar, Phone } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
@@ -42,6 +42,35 @@ export default function PublicDashboard() {
 
   const featuredProperties = externalProperties.slice(0, 4);
   const popularProperties = externalProperties.slice(0, 9);
+
+  const getPropertyTypeLabel = (type: string | null) => {
+    const types: Record<string, string> = {
+      departamento: "Departamento",
+      apartment: "Departamento",
+      casa: "Casa",
+      house: "Casa",
+      estudio: "Estudio",
+      studio: "Estudio",
+      penthouse: "Penthouse",
+      villa: "Villa",
+    };
+    return types[type?.toLowerCase() || ''] || type || "Propiedad";
+  };
+
+  const getFormattedTitle = (property: any) => {
+    const typeLabel = getPropertyTypeLabel(property.propertyType);
+    const condoName = property.condominiumName || '';
+    const unitNum = property.unitNumber || '';
+    
+    if (condoName && unitNum) {
+      return `${typeLabel} en ${condoName} #${unitNum}`;
+    } else if (condoName) {
+      return `${typeLabel} en ${condoName}`;
+    } else if (unitNum) {
+      return `${typeLabel} #${unitNum}`;
+    }
+    return property.title || typeLabel;
+  };
 
   const handleSearch = () => {
     const params = new URLSearchParams();
@@ -285,22 +314,26 @@ export default function PublicDashboard() {
               </Button>
             </div>
             <div className="grid gap-4 sm:gap-6 grid-cols-1 sm:grid-cols-2 lg:grid-cols-4">
-              {featuredProperties.map((property) => (
+              {featuredProperties.map((property) => {
+                const propertyUrl = property.isExternal && property.agencySlug && property.unitSlug 
+                  ? `/${property.agencySlug}/${property.unitSlug}` 
+                  : property.isExternal 
+                    ? `/propiedad-externa/${property.id}` 
+                    : `/propiedad/${property.id}/completo`;
+                return (
                 <div
                   key={property.id}
-                  className="group cursor-pointer rounded-2xl overflow-hidden border bg-card hover-elevate"
-                  onClick={() => setLocation(property.isExternal && property.agencySlug && property.unitSlug 
-                    ? `/${property.agencySlug}/${property.unitSlug}` 
-                    : property.isExternal 
-                      ? `/propiedad-externa/${property.id}` 
-                      : `/propiedad/${property.id}/completo`)}
+                  className="group rounded-2xl overflow-hidden border bg-card hover-elevate cursor-pointer"
+                  onClick={() => setLocation(propertyUrl)}
                   data-testid={`card-property-${property.id}`}
                 >
-                  <div className="relative aspect-[4/3] overflow-hidden bg-muted">
+                  <div 
+                    className="relative aspect-[4/3] overflow-hidden bg-muted"
+                  >
                     {property.primaryImages && property.primaryImages[0] ? (
                       <img
                         src={property.primaryImages[0]}
-                        alt={property.title || "Propiedad"}
+                        alt={getFormattedTitle(property)}
                         className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-105"
                         data-testid={`img-property-${property.id}`}
                       />
@@ -320,29 +353,68 @@ export default function PublicDashboard() {
                     </button>
                   </div>
                   <div className="p-3 sm:p-4">
-                    <div className="flex items-start justify-between gap-2 mb-1">
-                      <h3 className="font-medium text-sm sm:text-base truncate" data-testid={`text-title-${property.id}`}>
-                        {property.title || "Propiedad"}
-                      </h3>
-                    </div>
+                    <h3 
+                      className="font-semibold text-sm sm:text-base mb-1 line-clamp-2" 
+                      data-testid={`text-title-${property.id}`}
+                    >
+                      {getFormattedTitle(property)}
+                    </h3>
                     <p className="text-xs sm:text-sm text-muted-foreground mb-2 truncate flex items-center gap-1" data-testid={`text-location-${property.id}`}>
                       <MapPin className="h-3 w-3 shrink-0" />
                       {property.location}
                     </p>
-                    <div className="flex items-center justify-between">
-                      <p className="font-semibold text-sm sm:text-base" data-testid={`text-price-${property.id}`}>
+                    <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground mb-3">
+                      {property.bedrooms > 0 && (
+                        <span className="flex items-center gap-1">
+                          <Bed className="h-3 w-3" />
+                          {property.bedrooms} Rec
+                        </span>
+                      )}
+                      {property.bathrooms > 0 && (
+                        <span className="flex items-center gap-1">
+                          <Bath className="h-3 w-3" />
+                          {property.bathrooms} Baños
+                        </span>
+                      )}
+                      {property.area > 0 && (
+                        <span className="flex items-center gap-1">
+                          <Square className="h-3 w-3" />
+                          {property.area} m²
+                        </span>
+                      )}
+                    </div>
+                    <div className="flex items-center justify-between mb-3 pt-2 border-t">
+                      <p className="font-bold text-base sm:text-lg text-primary" data-testid={`text-price-${property.id}`}>
                         ${(property.price || 0).toLocaleString()} 
                         <span className="font-normal text-xs text-muted-foreground ml-1">
                           MXN{property.status === "rent" ? "/mes" : ""}
                         </span>
                       </p>
-                      <div className="text-xs text-muted-foreground">
-                        {property.bedrooms || 0} rec · {property.bathrooms || 0} baños
-                      </div>
+                    </div>
+                    <div className="flex gap-2" onClick={(e) => e.stopPropagation()}>
+                      <Button 
+                        size="sm" 
+                        className="flex-1 rounded-full text-xs"
+                        onClick={() => setLocation(propertyUrl)}
+                        data-testid={`button-consult-${property.id}`}
+                      >
+                        <Calendar className="h-3 w-3 mr-1" />
+                        Consultar
+                      </Button>
+                      <Button 
+                        size="sm" 
+                        variant="outline"
+                        className="flex-1 rounded-full text-xs"
+                        onClick={() => setLocation(propertyUrl)}
+                        data-testid={`button-contact-${property.id}`}
+                      >
+                        <Phone className="h-3 w-3 mr-1" />
+                        Contactar
+                      </Button>
                     </div>
                   </div>
                 </div>
-              ))}
+              )})}
             </div>
           </div>
         )}
@@ -362,22 +434,26 @@ export default function PublicDashboard() {
             </Button>
           </div>
           <div className="grid gap-3 sm:gap-5 grid-cols-2 lg:grid-cols-3">
-            {popularProperties.map((property) => (
+            {popularProperties.map((property) => {
+              const propertyUrl = property.isExternal && property.agencySlug && property.unitSlug 
+                ? `/${property.agencySlug}/${property.unitSlug}` 
+                : property.isExternal 
+                  ? `/propiedad-externa/${property.id}` 
+                  : `/propiedad/${property.id}/completo`;
+              return (
               <div
                 key={property.id}
-                className="group cursor-pointer rounded-xl sm:rounded-2xl overflow-hidden border bg-card hover-elevate"
-                onClick={() => setLocation(property.isExternal && property.agencySlug && property.unitSlug 
-                  ? `/${property.agencySlug}/${property.unitSlug}` 
-                  : property.isExternal 
-                    ? `/propiedad-externa/${property.id}` 
-                    : `/propiedad/${property.id}/completo`)}
+                className="group rounded-xl sm:rounded-2xl overflow-hidden border bg-card hover-elevate cursor-pointer"
+                onClick={() => setLocation(propertyUrl)}
                 data-testid={`card-all-property-${property.id}`}
               >
-                <div className="relative aspect-[4/3] overflow-hidden bg-muted">
+                <div 
+                  className="relative aspect-[4/3] overflow-hidden bg-muted"
+                >
                   {property.primaryImages && property.primaryImages[0] ? (
                     <img
                       src={property.primaryImages[0]}
-                      alt={property.title || "Propiedad"}
+                      alt={getFormattedTitle(property)}
                       className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-105"
                       data-testid={`img-all-property-${property.id}`}
                     />
@@ -397,27 +473,68 @@ export default function PublicDashboard() {
                   </button>
                 </div>
                 <div className="p-2.5 sm:p-4">
-                  <h3 className="font-medium text-xs sm:text-base truncate mb-0.5 sm:mb-1" data-testid={`text-all-title-${property.id}`}>
-                    {property.title || "Propiedad"}
+                  <h3 
+                    className="font-semibold text-xs sm:text-base mb-0.5 sm:mb-1 line-clamp-2" 
+                    data-testid={`text-all-title-${property.id}`}
+                  >
+                    {getFormattedTitle(property)}
                   </h3>
-                  <p className="text-[10px] sm:text-sm text-muted-foreground mb-2 sm:mb-3 truncate flex items-center gap-0.5 sm:gap-1" data-testid={`text-all-location-${property.id}`}>
+                  <p className="text-[10px] sm:text-sm text-muted-foreground mb-1.5 sm:mb-2 truncate flex items-center gap-0.5 sm:gap-1" data-testid={`text-all-location-${property.id}`}>
                     <MapPin className="h-2.5 w-2.5 sm:h-3 sm:w-3 shrink-0" />
                     {property.location}
                   </p>
-                  <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between pt-2 sm:pt-3 border-t gap-1">
-                    <p className="font-semibold text-xs sm:text-base" data-testid={`text-all-price-${property.id}`}>
+                  <div className="flex flex-wrap items-center gap-1.5 sm:gap-2 text-[9px] sm:text-xs text-muted-foreground mb-2 sm:mb-3">
+                    {property.bedrooms > 0 && (
+                      <span className="flex items-center gap-0.5">
+                        <Bed className="h-2.5 w-2.5 sm:h-3 sm:w-3" />
+                        {property.bedrooms} Rec
+                      </span>
+                    )}
+                    {property.bathrooms > 0 && (
+                      <span className="flex items-center gap-0.5">
+                        <Bath className="h-2.5 w-2.5 sm:h-3 sm:w-3" />
+                        {property.bathrooms} Baños
+                      </span>
+                    )}
+                    {property.area > 0 && (
+                      <span className="flex items-center gap-0.5">
+                        <Square className="h-2.5 w-2.5 sm:h-3 sm:w-3" />
+                        {property.area} m²
+                      </span>
+                    )}
+                  </div>
+                  <div className="flex items-center justify-between mb-2 sm:mb-3 pt-2 border-t">
+                    <p className="font-bold text-xs sm:text-base text-primary" data-testid={`text-all-price-${property.id}`}>
                       ${(property.price || 0).toLocaleString()} 
-                      <span className="font-normal text-[9px] sm:text-sm text-muted-foreground ml-0.5 sm:ml-1">
+                      <span className="font-normal text-[9px] sm:text-xs text-muted-foreground ml-0.5 sm:ml-1">
                         MXN{property.status === "rent" ? "/mes" : ""}
                       </span>
                     </p>
-                    <div className="text-[9px] sm:text-sm text-muted-foreground">
-                      {property.bedrooms || 0} rec · {property.bathrooms || 0} baños
-                    </div>
+                  </div>
+                  <div className="flex gap-1.5 sm:gap-2" onClick={(e) => e.stopPropagation()}>
+                    <Button 
+                      size="sm" 
+                      className="flex-1 rounded-full text-[10px] sm:text-xs h-7 sm:h-8 px-2 sm:px-3"
+                      onClick={() => setLocation(propertyUrl)}
+                      data-testid={`button-all-consult-${property.id}`}
+                    >
+                      <Calendar className="h-3 w-3 mr-1 hidden sm:inline" />
+                      Consultar
+                    </Button>
+                    <Button 
+                      size="sm" 
+                      variant="outline"
+                      className="flex-1 rounded-full text-[10px] sm:text-xs h-7 sm:h-8 px-2 sm:px-3"
+                      onClick={() => setLocation(propertyUrl)}
+                      data-testid={`button-all-contact-${property.id}`}
+                    >
+                      <Phone className="h-3 w-3 mr-1 hidden sm:inline" />
+                      Contactar
+                    </Button>
                   </div>
                 </div>
               </div>
-            ))}
+            )})}
           </div>
         </div>
 
