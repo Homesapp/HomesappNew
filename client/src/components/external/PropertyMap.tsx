@@ -3,13 +3,15 @@ import { GoogleMap, useJsApiLoader, Marker, InfoWindow } from "@react-google-map
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { MapPin, Bed, Bath, Square, ExternalLink, Home, Loader2 } from "lucide-react";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import { MapPin, Bed, Bath, Square, ExternalLink, Home, Loader2, Building2, ChevronRight } from "lucide-react";
 import { Link } from "wouter";
 
 interface PropertyLocation {
   id: string;
   title?: string;
   unitNumber: string;
+  condominiumName?: string;
   latitude: number;
   longitude: number;
   price?: number | string;
@@ -26,6 +28,14 @@ interface PropertyLocation {
   primaryImages?: string[];
   slug?: string;
   agencySlug?: string;
+}
+
+interface LocationCluster {
+  key: string;
+  lat: number;
+  lng: number;
+  properties: PropertyLocation[];
+  condominiumName?: string;
 }
 
 interface PropertyMapProps {
@@ -67,6 +77,7 @@ export function PropertyMap({
   language = "es",
   linkPrefix = "/public-unit",
 }: PropertyMapProps) {
+  const [selectedCluster, setSelectedCluster] = useState<LocationCluster | null>(null);
   const [selectedProperty, setSelectedProperty] = useState<PropertyLocation | null>(null);
   const [map, setMap] = useState<google.maps.Map | null>(null);
 
@@ -118,6 +129,32 @@ export function PropertyMap({
     );
   }, [properties]);
 
+  // Group properties by location (cluster properties at same coordinates)
+  const locationClusters = useMemo(() => {
+    const clusters = new Map<string, LocationCluster>();
+    
+    for (const property of validProperties) {
+      // Round to 5 decimal places to group very close properties
+      const lat = Number(property.latitude).toFixed(5);
+      const lng = Number(property.longitude).toFixed(5);
+      const key = `${lat},${lng}`;
+      
+      if (!clusters.has(key)) {
+        clusters.set(key, {
+          key,
+          lat: Number(property.latitude),
+          lng: Number(property.longitude),
+          properties: [],
+          condominiumName: property.condominiumName,
+        });
+      }
+      
+      clusters.get(key)!.properties.push(property);
+    }
+    
+    return Array.from(clusters.values());
+  }, [validProperties]);
+
   const mapCenter = useMemo(() => {
     if (center) return center;
     if (validProperties.length === 0) return defaultCenter;
@@ -139,11 +176,56 @@ export function PropertyMap({
     setMap(null);
   }, []);
 
-  const handleMarkerClick = (property: PropertyLocation) => {
+  const handleClusterClick = (cluster: LocationCluster) => {
+    if (cluster.properties.length === 1) {
+      // Single property - show property info directly
+      setSelectedProperty(cluster.properties[0]);
+      setSelectedCluster(null);
+      if (onPropertyClick) {
+        onPropertyClick(cluster.properties[0]);
+      }
+    } else {
+      // Multiple properties - show cluster list
+      setSelectedCluster(cluster);
+      setSelectedProperty(null);
+    }
+  };
+
+  const handlePropertySelect = (property: PropertyLocation) => {
     setSelectedProperty(property);
+    setSelectedCluster(null);
     if (onPropertyClick) {
       onPropertyClick(property);
     }
+  };
+
+  const getClusterIcon = (count: number) => {
+    if (count === 1) {
+      // Single property marker
+      return {
+        url: "data:image/svg+xml;charset=UTF-8," + encodeURIComponent(`
+          <svg width="40" height="48" viewBox="0 0 40 48" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <path d="M20 0C8.954 0 0 8.954 0 20c0 14.625 18.125 26.25 20 28 1.875-1.75 20-13.375 20-28C40 8.954 31.046 0 20 0z" fill="#4F46E5"/>
+            <circle cx="20" cy="18" r="8" fill="white"/>
+          </svg>
+        `),
+        scaledSize: new google.maps.Size(32, 40),
+        anchor: new google.maps.Point(16, 40),
+      };
+    }
+    // Cluster marker with count
+    const size = count > 50 ? 52 : count > 20 ? 46 : count > 10 ? 42 : 38;
+    const fontSize = count > 99 ? 11 : count > 9 ? 13 : 14;
+    return {
+      url: "data:image/svg+xml;charset=UTF-8," + encodeURIComponent(`
+        <svg width="${size}" height="${size}" viewBox="0 0 ${size} ${size}" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <circle cx="${size/2}" cy="${size/2}" r="${size/2 - 2}" fill="#4F46E5" stroke="white" stroke-width="3"/>
+          <text x="${size/2}" y="${size/2 + fontSize/3}" text-anchor="middle" fill="white" font-family="Arial, sans-serif" font-size="${fontSize}" font-weight="bold">${count}</text>
+        </svg>
+      `),
+      scaledSize: new google.maps.Size(size, size),
+      anchor: new google.maps.Point(size/2, size/2),
+    };
   };
 
   const formatPrice = (price: number | string | undefined, currency: string = "MXN") => {
@@ -240,27 +322,102 @@ export function PropertyMap({
           zoomControl: true,
         }}
       >
-        {validProperties.map((property) => (
+        {locationClusters.map((cluster) => (
           <Marker
-            key={property.id}
+            key={cluster.key}
             position={{
-              lat: Number(property.latitude),
-              lng: Number(property.longitude),
+              lat: cluster.lat,
+              lng: cluster.lng,
             }}
-            onClick={() => handleMarkerClick(property)}
-            icon={{
-              url: "data:image/svg+xml;charset=UTF-8," + encodeURIComponent(`
-                <svg width="40" height="48" viewBox="0 0 40 48" fill="none" xmlns="http://www.w3.org/2000/svg">
-                  <path d="M20 0C8.954 0 0 8.954 0 20c0 14.625 18.125 26.25 20 28 1.875-1.75 20-13.375 20-28C40 8.954 31.046 0 20 0z" fill="#4F46E5"/>
-                  <circle cx="20" cy="18" r="8" fill="white"/>
-                </svg>
-              `),
-              scaledSize: new google.maps.Size(32, 40),
-              anchor: new google.maps.Point(16, 40),
-            }}
+            onClick={() => handleClusterClick(cluster)}
+            icon={getClusterIcon(cluster.properties.length)}
+            title={cluster.properties.length > 1 
+              ? `${cluster.properties.length} propiedades${cluster.condominiumName ? ` en ${cluster.condominiumName}` : ''}`
+              : cluster.properties[0]?.title || cluster.properties[0]?.unitNumber
+            }
           />
         ))}
 
+        {/* Cluster InfoWindow - shows list of properties at same location */}
+        {showInfoWindow && selectedCluster && selectedCluster.properties.length > 1 && (
+          <InfoWindow
+            position={{
+              lat: selectedCluster.lat,
+              lng: selectedCluster.lng,
+            }}
+            onCloseClick={() => setSelectedCluster(null)}
+            options={{
+              pixelOffset: new google.maps.Size(0, -20),
+              maxWidth: 320,
+            }}
+          >
+            <div className="p-2 min-w-[280px]">
+              <div className="flex items-center gap-2 mb-3 pb-2 border-b">
+                <Building2 className="h-5 w-5 text-primary" />
+                <div>
+                  <h3 className="font-semibold text-sm">
+                    {selectedCluster.condominiumName || selectedCluster.properties[0]?.zone || "Ubicación"}
+                  </h3>
+                  <p className="text-xs text-gray-500">
+                    {selectedCluster.properties.length} {language === "es" ? "unidades disponibles" : "units available"}
+                  </p>
+                </div>
+              </div>
+              
+              <ScrollArea className="max-h-[240px]">
+                <div className="space-y-2 pr-2">
+                  {selectedCluster.properties.map((property) => (
+                    <div
+                      key={property.id}
+                      className="flex items-center gap-2 p-2 rounded-md hover-elevate cursor-pointer border"
+                      onClick={() => handlePropertySelect(property)}
+                      data-testid={`cluster-property-${property.id}`}
+                    >
+                      {property.primaryImages && property.primaryImages[0] ? (
+                        <img
+                          src={property.primaryImages[0]}
+                          alt={property.unitNumber}
+                          className="w-12 h-12 rounded object-cover flex-shrink-0"
+                        />
+                      ) : (
+                        <div className="w-12 h-12 rounded bg-muted flex items-center justify-center flex-shrink-0">
+                          <Home className="h-5 w-5 text-muted-foreground" />
+                        </div>
+                      )}
+                      <div className="flex-1 min-w-0">
+                        <p className="font-medium text-sm truncate">
+                          {property.title || `Unidad ${property.unitNumber}`}
+                        </p>
+                        <div className="flex items-center gap-2 text-xs text-gray-500">
+                          {property.bedrooms && (
+                            <span className="flex items-center gap-0.5">
+                              <Bed className="h-3 w-3" />
+                              {property.bedrooms}
+                            </span>
+                          )}
+                          {property.bathrooms && (
+                            <span className="flex items-center gap-0.5">
+                              <Bath className="h-3 w-3" />
+                              {property.bathrooms}
+                            </span>
+                          )}
+                          {property.price && (
+                            <span className="text-primary font-medium">
+                              {formatPrice(property.price, property.currency)}
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                      <ChevronRight className="h-4 w-4 text-muted-foreground flex-shrink-0" />
+                    </div>
+                  ))}
+                </div>
+              </ScrollArea>
+            </div>
+          </InfoWindow>
+        )}
+
+        {/* Single property InfoWindow */}
         {showInfoWindow && selectedProperty && (
           <InfoWindow
             position={{
