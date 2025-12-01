@@ -50,7 +50,9 @@ import {
   CreditCard,
   ArrowRight,
   RefreshCw,
-  Download
+  Download,
+  Home,
+  Key
 } from "lucide-react";
 
 type SellerWithStats = {
@@ -684,6 +686,21 @@ export default function ExternalSellersManagement() {
   const { data: goals = [], isLoading: goalsLoading } = useQuery<SellerGoal[]>({
     queryKey: ["/api/external/goals", { isActive: true }],
     staleTime: 2 * 60 * 1000,
+  });
+
+  // Interface for commission rates response
+  interface SellerCommissionRates {
+    rentalNoReferral: { rate: number; source: string; sourceId?: string };
+    rentalWithReferral: { rate: number; source: string; sourceId?: string };
+    propertyRecruitment: { rate: number; source: string; sourceId?: string };
+    brokerReferral: { rate: number; source: string; sourceId?: string };
+  }
+
+  // Fetch commission rates for selected seller
+  const { data: sellerCommissionRates, isLoading: commissionRatesLoading } = useQuery<SellerCommissionRates>({
+    queryKey: ["/api/external/seller-commission-rates/user", selectedSeller?.userId],
+    enabled: !!selectedSeller?.userId && isDetailDialogOpen,
+    staleTime: 30 * 1000,
   });
 
   const createPayoutMutation = useMutation({
@@ -2478,78 +2495,123 @@ export default function ExternalSellersManagement() {
                   </CardContent>
                 </Card>
 
-                {/* Commission Rate Card with Edit */}
+                {/* Commission Rates Card - All 4 concepts */}
                 <Card>
                   <CardHeader className="pb-2">
                     <CardTitle className="text-sm font-medium flex items-center gap-2">
                       <Percent className="h-4 w-4" />
-                      {language === "es" ? "Tasa de Comisión" : "Commission Rate"}
+                      {language === "es" ? "Tasas de Comisión" : "Commission Rates"}
                     </CardTitle>
+                    <p className="text-xs text-muted-foreground">
+                      {language === "es" 
+                        ? "Porcentajes del vendedor según tipo de transacción" 
+                        : "Seller percentages by transaction type"}
+                    </p>
                   </CardHeader>
                   <CardContent>
-                    {editingCommissionRate !== null ? (
-                      <div className="flex items-center gap-2">
-                        <Select
-                          value={editingCommissionRate}
-                          onValueChange={setEditingCommissionRate}
-                        >
-                          <SelectTrigger className="w-24" data-testid="select-edit-commission">
-                            <SelectValue />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="10">10%</SelectItem>
-                            <SelectItem value="20">20%</SelectItem>
-                            <SelectItem value="40">40%</SelectItem>
-                            <SelectItem value="50">50%</SelectItem>
-                          </SelectContent>
-                        </Select>
-                        <Button
-                          size="sm"
-                          onClick={() => {
-                            if (selectedSeller && editingCommissionRate) {
-                              updateSellerCommissionMutation.mutate({
-                                id: selectedSeller.id,
-                                commissionRate: editingCommissionRate
-                              });
-                            }
-                          }}
-                          disabled={updateSellerCommissionMutation.isPending}
-                          data-testid="button-save-commission"
-                        >
-                          {updateSellerCommissionMutation.isPending 
-                            ? (language === "es" ? "Guardando..." : "Saving...") 
-                            : (language === "es" ? "Guardar" : "Save")}
-                        </Button>
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          onClick={() => setEditingCommissionRate(null)}
-                          data-testid="button-cancel-commission"
-                        >
-                          {language === "es" ? "Cancelar" : "Cancel"}
-                        </Button>
+                    {commissionRatesLoading ? (
+                      <div className="space-y-3">
+                        <Skeleton className="h-8 w-full" />
+                        <Skeleton className="h-8 w-full" />
+                        <Skeleton className="h-8 w-full" />
+                        <Skeleton className="h-8 w-full" />
+                      </div>
+                    ) : sellerCommissionRates ? (
+                      <div className="grid grid-cols-2 gap-3">
+                        {/* Renta sin Referido */}
+                        <div className="p-3 rounded-lg bg-muted/50">
+                          <div className="flex items-center gap-2 mb-1">
+                            <Key className="h-4 w-4 text-green-600" />
+                            <span className="text-xs font-medium text-muted-foreground">
+                              {language === "es" ? "Renta sin Referido" : "Rental No Referral"}
+                            </span>
+                          </div>
+                          <div className="flex items-baseline gap-1">
+                            <span className="text-xl font-bold">{sellerCommissionRates.rentalNoReferral.rate}%</span>
+                            {sellerCommissionRates.rentalNoReferral.source !== 'agency_default' && (
+                              <Badge variant="outline" className="text-xs ml-1">
+                                {sellerCommissionRates.rentalNoReferral.source === 'user_override' 
+                                  ? (language === "es" ? "Personalizado" : "Custom") 
+                                  : sellerCommissionRates.rentalNoReferral.source === 'role_override'
+                                    ? (language === "es" ? "Por Rol" : "By Role")
+                                    : ""}
+                              </Badge>
+                            )}
+                          </div>
+                        </div>
+
+                        {/* Renta con Referido */}
+                        <div className="p-3 rounded-lg bg-muted/50">
+                          <div className="flex items-center gap-2 mb-1">
+                            <Key className="h-4 w-4 text-blue-600" />
+                            <span className="text-xs font-medium text-muted-foreground">
+                              {language === "es" ? "Renta con Referido" : "Rental With Referral"}
+                            </span>
+                          </div>
+                          <div className="flex items-baseline gap-1">
+                            <span className="text-xl font-bold">{sellerCommissionRates.rentalWithReferral.rate}%</span>
+                            {sellerCommissionRates.rentalWithReferral.source !== 'agency_default' && (
+                              <Badge variant="outline" className="text-xs ml-1">
+                                {sellerCommissionRates.rentalWithReferral.source === 'user_override' 
+                                  ? (language === "es" ? "Personalizado" : "Custom") 
+                                  : sellerCommissionRates.rentalWithReferral.source === 'role_override'
+                                    ? (language === "es" ? "Por Rol" : "By Role")
+                                    : ""}
+                              </Badge>
+                            )}
+                          </div>
+                        </div>
+
+                        {/* Captación de Propiedad */}
+                        <div className="p-3 rounded-lg bg-muted/50">
+                          <div className="flex items-center gap-2 mb-1">
+                            <Home className="h-4 w-4 text-amber-600" />
+                            <span className="text-xs font-medium text-muted-foreground">
+                              {language === "es" ? "Captación de Propiedad" : "Property Recruitment"}
+                            </span>
+                          </div>
+                          <div className="flex items-baseline gap-1">
+                            <span className="text-xl font-bold">{sellerCommissionRates.propertyRecruitment.rate}%</span>
+                            {sellerCommissionRates.propertyRecruitment.source !== 'agency_default' && (
+                              <Badge variant="outline" className="text-xs ml-1">
+                                {sellerCommissionRates.propertyRecruitment.source === 'user_override' 
+                                  ? (language === "es" ? "Personalizado" : "Custom") 
+                                  : sellerCommissionRates.propertyRecruitment.source === 'role_override'
+                                    ? (language === "es" ? "Por Rol" : "By Role")
+                                    : ""}
+                              </Badge>
+                            )}
+                          </div>
+                        </div>
+
+                        {/* Referido de Broker */}
+                        <div className="p-3 rounded-lg bg-muted/50">
+                          <div className="flex items-center gap-2 mb-1">
+                            <DollarSign className="h-4 w-4 text-purple-600" />
+                            <span className="text-xs font-medium text-muted-foreground">
+                              {language === "es" ? "Referido de Broker" : "Broker Referral"}
+                            </span>
+                          </div>
+                          <div className="flex items-baseline gap-1">
+                            <span className="text-xl font-bold">{sellerCommissionRates.brokerReferral.rate}%</span>
+                            {sellerCommissionRates.brokerReferral.source !== 'agency_default' && (
+                              <Badge variant="outline" className="text-xs ml-1">
+                                {sellerCommissionRates.brokerReferral.source === 'user_override' 
+                                  ? (language === "es" ? "Personalizado" : "Custom") 
+                                  : sellerCommissionRates.brokerReferral.source === 'role_override'
+                                    ? (language === "es" ? "Por Rol" : "By Role")
+                                    : ""}
+                              </Badge>
+                            )}
+                          </div>
+                        </div>
                       </div>
                     ) : (
-                      <div className="flex items-center justify-between">
-                        <span className="text-2xl font-bold">
-                          {selectedSeller.commissionRate 
-                            ? `${parseFloat(selectedSeller.commissionRate)}%` 
-                            : '10%'}
-                        </span>
-                        <Button
-                          size="sm"
-                          variant="ghost"
-                          onClick={() => setEditingCommissionRate(
-                            selectedSeller.commissionRate 
-                              ? String(parseFloat(selectedSeller.commissionRate)) 
-                              : "10"
-                          )}
-                          data-testid="button-edit-commission"
-                        >
-                          <Edit className="h-4 w-4 mr-1" />
-                          {language === "es" ? "Editar" : "Edit"}
-                        </Button>
-                      </div>
+                      <p className="text-sm text-muted-foreground">
+                        {language === "es" 
+                          ? "No se pudieron cargar las tasas de comisión" 
+                          : "Could not load commission rates"}
+                      </p>
                     )}
                   </CardContent>
                 </Card>
