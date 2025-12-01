@@ -64,6 +64,7 @@ import {
   BarChart3,
   Target,
   UserCheck,
+  Star,
 } from "lucide-react";
 import logoUrl from "@assets/H mes (500 x 300 px)_1759672952263.png";
 import logoIconUrl from "@assets/Sin título (6 x 6 cm)_1759706217639.png";
@@ -270,6 +271,7 @@ export function AppSidebar({ userRole, userId }: AppSidebarProps) {
     { titleKey: "sidebar.userManagement", url: "/admin/users", icon: UserCog, roles: ["master", "admin"] },
     { titleKey: "sidebar.externalAgenciesAdmin", url: "/admin/external-agencies", icon: Building, roles: ["master", "admin"] },
     { titleKey: "sidebar.externalPublicationRequests", url: "/admin/external-publication-requests", icon: FileCheck, roles: ["master", "admin"] },
+    { titleKey: "sidebar.featuredProperties", url: "/admin/featured-properties", icon: Star, roles: ["master", "admin"] },
     { titleKey: "sidebar.permissions", url: "/permissions", icon: Settings, roles: ["master", "admin"] },
   ];
 

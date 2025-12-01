@@ -176,6 +176,7 @@ import ExternalContracts from "@/pages/ExternalContracts";
 import ExternalAgencyUsers from "@/pages/ExternalAgencyUsers";
 import AdminExternalAgencies from "@/pages/AdminExternalAgencies";
 import AdminExternalPublicationRequests from "@/pages/AdminExternalPublicationRequests";
+import AdminFeaturedProperties from "@/pages/AdminFeaturedProperties";
 import PortalLogin from "@/pages/PortalLogin";
 import TenantPortal from "@/pages/TenantPortal";
 import OwnerPortal from "@/pages/OwnerPortal";
@@ -516,6 +517,13 @@ function AuthenticatedApp() {
                 )}
               </Route>
               <Route path="/admin/external-publication-requests" component={AdminExternalPublicationRequests} />
+              <Route path="/admin/featured-properties">
+                {() => (
+                  <ProtectedRoute allowedRoles={ROLE_GROUPS.mainAdmins}>
+                    <AdminFeaturedProperties />
+                  </ProtectedRoute>
+                )}
+              </Route>
               <Route path="/external/dashboard" component={ExternalDashboard} />
               <Route path="/external/agency" component={ExternalAgencyConfig} />
               <Route path="/external/email-import">

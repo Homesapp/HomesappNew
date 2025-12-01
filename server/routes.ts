@@ -21972,6 +21972,77 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // PATCH /api/featured-properties/:id - Update sortOrder for a single featured property (admin only)
+  app.patch("/api/featured-properties/:id", isAuthenticated, requireRole(ADMIN_ONLY), async (req: any, res) => {
+    try {
+      const { id } = req.params;
+      const { sortOrder } = req.body;
+
+      if (typeof sortOrder !== 'number' || sortOrder < 1 || sortOrder > 30) {
+        return res.status(400).json({ message: "sortOrder must be a number between 1 and 30" });
+      }
+
+      // Verify the featured property exists
+      const [existing] = await db.select()
+        .from(featuredProperties)
+        .where(eq(featuredProperties.id, id));
+
+      if (!existing) {
+        return res.status(404).json({ message: "Featured property not found" });
+      }
+
+      // Get all featured properties to handle reordering
+      const allFeatured = await db.select()
+        .from(featuredProperties)
+        .orderBy(asc(featuredProperties.sortOrder));
+
+      const oldIndex = allFeatured.findIndex(fp => fp.id === id);
+      const newIndex = sortOrder - 1;
+
+      if (oldIndex === newIndex) {
+        return res.json({ message: "No change needed" });
+      }
+
+      // Update sort orders for affected items
+      const updates: Promise<any>[] = [];
+      
+      if (newIndex < oldIndex) {
+        // Moving up: increment sortOrder for items between newIndex and oldIndex
+        allFeatured.forEach((fp, idx) => {
+          if (fp.id === id) {
+            updates.push(db.update(featuredProperties)
+              .set({ sortOrder: sortOrder })
+              .where(eq(featuredProperties.id, fp.id)));
+          } else if (idx >= newIndex && idx < oldIndex) {
+            updates.push(db.update(featuredProperties)
+              .set({ sortOrder: idx + 2 })
+              .where(eq(featuredProperties.id, fp.id)));
+          }
+        });
+      } else {
+        // Moving down: decrement sortOrder for items between oldIndex and newIndex
+        allFeatured.forEach((fp, idx) => {
+          if (fp.id === id) {
+            updates.push(db.update(featuredProperties)
+              .set({ sortOrder: sortOrder })
+              .where(eq(featuredProperties.id, fp.id)));
+          } else if (idx > oldIndex && idx <= newIndex) {
+            updates.push(db.update(featuredProperties)
+              .set({ sortOrder: idx })
+              .where(eq(featuredProperties.id, fp.id)));
+          }
+        });
+      }
+
+      await Promise.all(updates);
+
+      res.json({ message: "Sort order updated successfully" });
+    } catch (error: any) {
+      console.error("Error updating featured property sort order:", error);
+      res.status(500).json({ message: "Error updating sort order" });
+    }
+  });
+
   // PATCH /api/featured-properties/reorder - Bulk reorder featured properties (admin only)
   app.patch("/api/featured-properties/reorder", isAuthenticated, requireRole(ADMIN_ONLY), async (req: any, res) => {
     try {
@@ -21979,6 +22050,32 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       if (!Array.isArray(order)) {
         return res.status(400).json({ message: "order must be an array of { id, sortOrder }" });
+      }
+
+      // Validate all items have valid sortOrder (1-30)
+      for (const item of order) {
+        if (typeof item.sortOrder !== 'number' || item.sortOrder < 1 || item.sortOrder > 30) {
+          return res.status(400).json({ message: "All sortOrder values must be between 1 and 30" });
+        }
+      }
+
+      // Verify all IDs exist in the database - only allow updating existing items
+      const existingItems = await db.select({ id: featuredProperties.id })
+        .from(featuredProperties);
+      const existingIds = new Set(existingItems.map(item => item.id));
+      
+      for (const item of order) {
+        if (!existingIds.has(item.id)) {
+          return res.status(400).json({ message: `Featured property ${item.id} not found` });
+        }
+      }
+
+      // Ensure we're not exceeding the 30-item limit
+      if (order.length > 30) {
+        return res.status(400).json({ 
+          message: "Cannot exceed 30 featured properties",
+          code: "MAX_LIMIT_EXCEEDED"
+        });
       }
 
       // Update each featured property's sort order
