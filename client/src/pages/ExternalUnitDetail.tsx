@@ -407,7 +407,7 @@ export default function ExternalUnitDetail() {
 
   const generateOwnerLinkMutation = useMutation({
     mutationFn: async (ownerId: string) => {
-      const res = await apiRequest('POST', `/api/external-rental-form-tokens`, {
+      const res = await apiRequest('POST', `/api/rental-form-tokens`, {
         externalUnitId: id,
         externalUnitOwnerId: ownerId,
         recipientType: 'owner',
