@@ -28603,6 +28603,96 @@ ${{precio}}/mes
     }
   });
 
+  // POST /api/external-units/batch-extract-coordinates - Process all units with Google Maps URLs
+  app.post("/api/external-units/batch-extract-coordinates", isAuthenticated, requireRole(EXTERNAL_ADMIN_ROLES), async (req: any, res) => {
+    try {
+      const user = req.user as any;
+      const sellerProfile = await storage.getExternalSellerByUserId(user.id);
+      if (!sellerProfile) {
+        return res.status(403).json({ message: "No seller profile found" });
+      }
+
+      const { parseGoogleMapsUrlWithResolve } = await import('./googleMapsParser');
+      
+      // Get all units from this agency with Google Maps URLs but no coordinates
+      const allUnits = await db
+        .select({
+          id: externalUnits.id,
+          googleMapsUrl: externalUnits.googleMapsUrl,
+          latitude: externalUnits.latitude,
+          longitude: externalUnits.longitude,
+        })
+        .from(externalUnits)
+        .where(
+          and(
+            eq(externalUnits.agencyId, sellerProfile.agencyId),
+            isNotNull(externalUnits.googleMapsUrl),
+            sql`${externalUnits.googleMapsUrl} != ''`,
+            or(
+              isNull(externalUnits.latitude),
+              sql`${externalUnits.latitude} = ''`
+            )
+          )
+        );
+
+      let processed = 0;
+      let success = 0;
+      let failed = 0;
+      const errors: { id: string; url: string; error: string }[] = [];
+
+      for (const unit of allUnits) {
+        processed++;
+        
+        if (!unit.googleMapsUrl) continue;
+        
+        try {
+          const result = await parseGoogleMapsUrlWithResolve(unit.googleMapsUrl);
+          
+          if (result.success && result.data) {
+            await db
+              .update(externalUnits)
+              .set({
+                latitude: result.data.latitude.toString(),
+                longitude: result.data.longitude.toString(),
+                locationConfidence: result.data.confidence,
+              })
+              .where(eq(externalUnits.id, unit.id));
+            success++;
+          } else {
+            failed++;
+            errors.push({
+              id: unit.id,
+              url: unit.googleMapsUrl,
+              error: result.error || 'Unknown error'
+            });
+          }
+        } catch (err: any) {
+          failed++;
+          errors.push({
+            id: unit.id,
+            url: unit.googleMapsUrl,
+            error: err.message || 'Processing error'
+          });
+        }
+        
+        // Small delay to avoid overwhelming external requests
+        if (processed % 10 === 0) {
+          await new Promise(resolve => setTimeout(resolve, 100));
+        }
+      }
+
+      res.json({
+        message: `Processed ${processed} units`,
+        success,
+        failed,
+        errors: errors.slice(0, 20) // Limit error details
+      });
+    } catch (error: any) {
+      console.error("Error batch extracting coordinates:", error);
+      res.status(500).json({ message: "Error processing coordinates", error: error.message });
+    }
+  });
+
   app.patch("/api/external-units/:id", isAuthenticated, requireRole(EXTERNAL_ADMIN_ROLES), async (req: any, res) => {
     try {
       const { id } = req.params;
