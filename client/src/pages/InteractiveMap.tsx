@@ -62,7 +62,6 @@ export default function InteractiveMap() {
   const { t, language } = useTranslation();
   const [filters, setFilters] = useState<Filters>(defaultFilters);
   const [mobileFiltersOpen, setMobileFiltersOpen] = useState(false);
-  const [filtersOpen, setFiltersOpen] = useState(true);
 
   const { data: propertiesResponse, isLoading, error } = useQuery<{ data: any[]; pagination: any }>({
     queryKey: ["/api/public/external-properties?limit=500&hasCoordinates=true"],
@@ -424,7 +423,7 @@ export default function InteractiveMap() {
                   )}
                 </Button>
               </SheetTrigger>
-              <SheetContent side="right" className="w-80">
+              <SheetContent side="left" className="w-80">
                 <SheetHeader>
                   <SheetTitle className="flex items-center gap-2">
                     <Filter className="h-5 w-5" />
@@ -442,9 +441,27 @@ export default function InteractiveMap() {
         </div>
       </header>
 
-      <div className="flex-1 relative overflow-hidden">
-        {/* Full-screen Map */}
-        <main className="absolute inset-0">
+      <div className="flex-1 flex overflow-hidden">
+        <aside className="hidden lg:block w-80 border-r bg-card overflow-hidden">
+          <div className="p-4 border-b">
+            <h2 className="font-semibold flex items-center gap-2">
+              <Filter className="h-4 w-4" />
+              {language === "es" ? "Filtros de búsqueda" : "Search Filters"}
+              {activeFiltersCount > 0 && (
+                <Badge variant="secondary" className="ml-auto">
+                  {activeFiltersCount}
+                </Badge>
+              )}
+            </h2>
+          </div>
+          <ScrollArea className="h-[calc(100vh-140px)]">
+            <div className="p-4">
+              <FiltersContent />
+            </div>
+          </ScrollArea>
+        </aside>
+
+        <main className="flex-1 relative">
           {isLoading ? (
             <div className="absolute inset-0 flex items-center justify-center bg-muted/50">
               <div className="text-center space-y-3">
@@ -495,55 +512,6 @@ export default function InteractiveMap() {
             </div>
           )}
         </main>
-
-        {/* Floating Filter Panel - Right Side (Desktop) */}
-        <div className="hidden lg:block absolute top-4 right-4 z-10">
-          {filtersOpen ? (
-            <Card className="w-72 shadow-lg bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/90">
-              <div className="p-3 border-b flex items-center justify-between">
-                <h2 className="font-semibold text-sm flex items-center gap-2">
-                  <Filter className="h-4 w-4" />
-                  {language === "es" ? "Filtros" : "Filters"}
-                  {activeFiltersCount > 0 && (
-                    <Badge variant="secondary" className="text-xs">
-                      {activeFiltersCount}
-                    </Badge>
-                  )}
-                </h2>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="h-7 w-7"
-                  onClick={() => setFiltersOpen(false)}
-                  data-testid="button-close-filters"
-                >
-                  <X className="h-4 w-4" />
-                </Button>
-              </div>
-              <ScrollArea className="max-h-[calc(100vh-200px)]">
-                <div className="p-3">
-                  <FiltersContent />
-                </div>
-              </ScrollArea>
-            </Card>
-          ) : (
-            <Button
-              variant="default"
-              size="sm"
-              className="shadow-lg gap-2"
-              onClick={() => setFiltersOpen(true)}
-              data-testid="button-open-filters"
-            >
-              <SlidersHorizontal className="h-4 w-4" />
-              {language === "es" ? "Filtros" : "Filters"}
-              {activeFiltersCount > 0 && (
-                <Badge variant="secondary" className="h-5 min-w-5 p-0 justify-center text-xs">
-                  {activeFiltersCount}
-                </Badge>
-              )}
-            </Button>
-          )}
-        </div>
       </div>
     </div>
   );

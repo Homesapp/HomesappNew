@@ -16,12 +16,12 @@ import { useToast } from "@/hooks/use-toast";
 
 export default function AdminLogin() {
   const [_, setLocation] = useLocation();
-  const [email, setEmail] = useState("");
+  const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const { toast } = useToast();
 
   const loginMutation = useMutation({
-    mutationFn: async (credentials: { email: string; password: string }) => {
+    mutationFn: async (credentials: { username: string; password: string }) => {
       return apiRequest("POST", "/api/auth/admin/login", credentials);
     },
     onSuccess: () => {
@@ -46,15 +46,15 @@ export default function AdminLogin() {
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!email || !password) {
+    if (!username || !password) {
       toast({
         title: "Campos requeridos",
-        description: "Por favor ingresa email y contraseña",
+        description: "Por favor ingresa usuario y contraseña",
         variant: "destructive",
       });
       return;
     }
-    loginMutation.mutate({ email, password });
+    loginMutation.mutate({ username, password });
   };
 
   return (
@@ -71,14 +71,14 @@ export default function AdminLogin() {
         <CardContent>
           <form onSubmit={handleSubmit} className="space-y-4">
             <div className="space-y-2">
-              <Label htmlFor="email">Email</Label>
+              <Label htmlFor="username">Usuario</Label>
               <Input
-                id="email"
-                data-testid="input-email"
-                type="email"
-                placeholder="correo@ejemplo.com"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
+                id="username"
+                data-testid="input-username"
+                type="text"
+                placeholder="admin"
+                value={username}
+                onChange={(e) => setUsername(e.target.value)}
                 disabled={loginMutation.isPending}
               />
             </div>

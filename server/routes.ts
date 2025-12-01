@@ -6,17 +6,20 @@ import multer from "multer";
 import path from "path";
 import { storage, NotFoundError } from "./storage";
 import { openAIService } from "./services/openai";
-import { setupAuth, isAuthenticated, requireRole, getSession } from "./replitAuth";
+import { setupAuth, isAuthenticated, requireRole, getSession, initializeSession } from "./replitAuth";
 import { requireResourceOwnership } from "./middleware/resourceOwnership";
-import { createGoogleMeetEvent, deleteGoogleMeetEvent } from "./googleCalendar";
+import { createGoogleMeetEvent, deleteGoogleMeetEvent, checkGoogleCalendarConnection, listEvents, createCalendarEvent } from "./googleCalendar";
 import { syncMaintenanceTicketToGoogleCalendar, deleteMaintenanceTicketFromGoogleCalendar } from "./googleCalendarService";
-import { calculateRentalCommissions } from "./commissionCalculator";
+import { calculateRentalCommissions, calculateExternalCommission } from "./commissionCalculator";
 import { sendVerificationEmail, sendLeadVerificationEmail, sendDuplicateLeadNotification, sendOwnerReferralVerificationEmail, sendOwnerReferralApprovedNotification, sendOfferLinkEmail } from "./gmail";
+import { readUnitsFromSheet, getSpreadsheetInfo, readTRHUnitsFromSheet, parseTRHRow, getTRHSheetStats } from "./googleSheets";
+import { imageProcessor } from "./imageProcessor";
 import { getPropertyTitle } from "./propertyHelpers";
 import { setupGoogleAuth } from "./googleAuth";
 import { generateOfferPDF, generateRentalFormPDF, generateOwnerFormPDF, generateQuotationPDF } from "./pdfGenerator";
 import { processChatbotMessage, generatePropertyRecommendations } from "./chatbot";
-import { authLimiter, registrationLimiter, emailVerificationLimiter, chatbotLimiter, propertySubmissionLimiter } from "./rateLimiters";
+import { processExternalChatbotMessage } from "./externalChatbot";
+import { authLimiter, registrationLimiter, emailVerificationLimiter, chatbotLimiter, propertySubmissionLimiter, publicLeadRegistrationLimiter, tokenRegenerationLimiter } from "./rateLimiters";
 import { encrypt, decrypt } from "./encryption";
 import { 
   sanitizeText, 
@@ -151,10 +154,26 @@ import {
   insertExternalClientDocumentSchema,
   insertExternalClientIncidentSchema,
   updateExternalClientIncidentSchema,
+  externalClients,
+  externalBrokers,
+  insertExternalBrokerSchema,
+  updateExternalBrokerSchema,
   externalLeads,
+  externalLeadEmailSources,
+  externalLeadEmailImportLogs,
+  externalLeadShowings,
+  externalLeadReminders,
+  externalLeadActivities,
   insertExternalLeadSchema,
   updateExternalLeadSchema,
   insertExternalLeadRegistrationTokenSchema,
+  insertExternalLeadActivitySchema,
+  insertExternalLeadShowingSchema,
+  updateExternalLeadShowingSchema,
+  insertExternalLeadReminderSchema,
+  updateExternalLeadReminderSchema,
+  insertExternalClientActivitySchema,
+  insertExternalClientPropertyHistorySchema,
   createLeadRegistrationLinkSchema,
   insertExternalPropertySchema,
   insertExternalRentalContractSchema,
@@ -187,6 +206,13 @@ import {
   updateExternalQuotationSchema,
   updateExternalFinancialTransactionSchema,
   insertExternalTermsAndConditionsSchema,
+  insertExternalRolePermissionSchema,
+  insertExternalUserPermissionSchema,
+  EXTERNAL_PERMISSION_SECTIONS,
+  EXTERNAL_PERMISSION_ACTIONS,
+  DEFAULT_ROLE_PERMISSIONS,
+  PERMISSION_SECTION_LABELS,
+  PERMISSION_ACTION_LABELS,
   updateExternalTermsAndConditionsSchema,
   externalAgencies,
   externalCondominiums,
@@ -195,27 +221,78 @@ import {
   externalUnitOwners,
   externalOwnerCharges,
   externalOwnerNotifications,
+  externalNotifications,
+  insertExternalNotificationSchema,
   externalWorkerAssignments,
   externalRentalContracts,
   externalRentalTenants,
   externalPayments,
   externalPaymentSchedules,
   externalMaintenanceTickets,
+  externalFinancialTransactions,
+  externalAgencyZones,
+  insertExternalAgencyZoneSchema,
+  externalAgencyPropertyTypes,
+  externalAgencyUnitCharacteristics,
+  insertExternalAgencyUnitCharacteristicSchema,
+  externalAgencyAmenities,
+  insertExternalAgencyAmenitySchema,
+  insertExternalAgencyPropertyTypeSchema,
+  externalPublicationRequests,
+  insertExternalPublicationRequestSchema,
+  externalAppointments,
+  externalAppointmentUnits,
+  insertExternalAppointmentSchema,
+  insertExternalAppointmentUnitSchema,
+  sellerMessageTemplates,
+  sellerFollowUpTasks,
+  externalLeadPropertyOffers,
+  insertSellerMessageTemplateSchema,
+  insertSellerFollowUpTaskSchema,
+  insertExternalLeadPropertyOfferSchema,
+  sellerGoals,
+  insertSellerGoalSchema,
+  externalPropertyActivityHistory,
+  insertExternalPropertyActivityHistorySchema,
+  externalAgencyChatMessages,
+  externalAgencyChatAttachments,
+  externalAgencyActivityLogs,
+  externalAgencyPointConfig,
+  externalAgencySellerPoints,
+  externalAgencyRewards,
+  externalAgencyRewardRedemptions,
+  insertExternalAgencyChatMessageSchema,
+  insertExternalAgencyChatAttachmentSchema,
+  insertExternalAgencyActivityLogSchema,
+  insertExternalAgencyPointConfigSchema,
+  insertExternalAgencySellerPointsSchema,
+  insertExternalAgencyRewardSchema,
+  insertExternalAgencyRewardRedemptionSchema,
+  featuredProperties,
+  insertFeaturedPropertySchema,
 } from "@shared/schema";
 import { db } from "./db";
-import { eq, and, inArray, desc, asc, sql, ne, isNull, isNotNull } from "drizzle-orm";
+import { registerPortalRoutes } from "./portal-routes";
+import { logSellerActivity } from "./activityService";
+import { eq, and, or, not, inArray, desc, asc, sql, ne, isNull, isNotNull, gte, lte, lt, ilike } from "drizzle-orm";
 
 // Helper function to verify external agency ownership
 async function verifyExternalAgencyOwnership(req: any, res: any, agencyId: string): Promise<boolean> {
   try {
+    // Get user ID from authentication first
+    const userId = req.user?.claims?.sub || req.user?.id;
+    
     // Admin and master users can access all agencies
-    const userRole = req.user?.role || req.session?.adminUser?.role;
+    let userRole = req.user?.role || req.session?.adminUser?.role;
+    // Get role from database if not in session
+    if (!userRole && userId) {
+      const dbUser = await storage.getUser(userId);
+      userRole = dbUser?.role;
+    }
     if (userRole === "master" || userRole === "admin") {
       return true;
     }
 
-    // Get user ID from authentication
-    const userId = req.user?.claims?.sub || req.user?.id;
     if (!userId) {
       res.status(401).json({ message: "Unauthorized: User ID not found" });
       return false;
@@ -250,10 +327,23 @@ async function verifyExternalAgencyOwnership(req: any, res: any, agencyId: strin
 // Helper function to get user's agency ID
 async function getUserAgencyId(req: any): Promise<string | null> {
   try {
-    // Admin and master users don't have an agency
-    const userRole = req.user?.role || req.session?.adminUser?.role;
+    // Admin and master users dont have an agency
+    const userRole = req.user?.cachedRole || req.user?.role || req.session?.adminUser?.role;
     if (userRole === "master" || userRole === "admin") {
       return null;
+    }
+
+    // Try to use cached agencyId from isAuthenticated middleware first
+    if (req.user?.cachedAgencyId) {
+      return req.user.cachedAgencyId;
+    }
+
+    // Check session cache (with TTL validation - 5 min)
+    const CACHE_TTL_MS = 5 * 60 * 1000;
+    const now = Date.now();
+    const cacheValid = req.session?.cachedUser?.externalAgencyId && req.session.cachedUser.cachedAt && (now - req.session.cachedUser.cachedAt) < CACHE_TTL_MS;
+    if (cacheValid) {
+      return req.session.cachedUser.externalAgencyId;
     }
 
     // Get user ID from authentication
@@ -262,7 +352,7 @@ async function getUserAgencyId(req: any): Promise<string | null> {
       return null;
     }
 
-    // Get the user's external agency ID directly from user record
+    // Fallback: Get the users external agency ID from DB (should rarely happen now)
     const user = await storage.getUser(userId);
     return user?.externalAgencyId || null;
   } catch (error) {
@@ -342,6 +432,53 @@ function hasAdminPrivileges(userRole: string): boolean {
   return ["master", "admin", "admin_jr"].includes(userRole);
 }
 
+// Helper function to normalize lead data for presentation card creation
+function normalizePresentationCardFromLead(lead: any, agencyId: string, createdBy: string) {
+  // Normalize hasPets - handle both string and boolean values
+  let hasPetsValue = false;
+  let petsDescriptionValue: string | undefined = undefined;
+  
+  if (typeof lead.hasPets === 'boolean') {
+    hasPetsValue = lead.hasPets;
+  } else if (typeof lead.hasPets === 'string') {
+    const trimmed = lead.hasPets.trim();
+    if (trimmed !== '' && trimmed.toLowerCase() !== 'no' && trimmed.toLowerCase() !== 'false') {
+      hasPetsValue = true;
+      petsDescriptionValue = trimmed;
+    }
+  }
+
+  // Helper to normalize optional string fields
+  const normalizeString = (val: any): string | undefined => {
+    if (val === null || val === undefined) return undefined;
+    const str = String(val).trim();
+    return str !== '' ? str : undefined;
+  };
+
+  return {
+    agencyId,
+    leadId: lead.id,
+    title: (`${lead.firstName || ''} ${lead.lastName || ''} - Registro inicial`).trim() || 'Registro inicial',
+    propertyType: normalizeString(lead.desiredUnitType),
+    modality: "rent" as const,
+    minBudget: normalizeString(lead.estimatedRentCost),
+    maxBudget: normalizeString(lead.estimatedRentCost),
+    budgetText: normalizeString(lead.estimatedRentCostText),
+    bedrooms: normalizeString(lead.bedrooms),
+    bedroomsText: normalizeString(lead.bedroomsText),
+    preferredZone: normalizeString(lead.desiredNeighborhood),
+    moveInDate: lead.checkInDate || undefined,
+    moveInDateText: normalizeString(lead.checkInDateText),
+    contractDuration: normalizeString(lead.contractDuration),
+    hasPets: hasPetsValue,
+    petsDescription: petsDescriptionValue,
+    specificProperty: normalizeString(lead.desiredProperty),
+    isDefault: true,
+    status: "active" as const,
+    createdBy,
+  };
+}
+
 // Middleware to require full admin privileges
 async function requireFullAdmin(req: any, res: any, next: any) {
   const user = req.user;
@@ -404,6 +541,32 @@ function requireAccountantOrAdmin(req: any, res: any, next: any) {
 // WebSocket clients organized by conversation ID
 const wsClients = new Map<string, Set<WebSocket>>();
 
+// Import job tracking for progress reporting
+interface ImportJob {
+  id: string;
+  section: string;
+  status: 'processing' | 'completed' | 'failed';
+  total: number;
+  processed: number;
+  imported: number;
+  skipped: number;
+  errors: string[];
+  startedAt: Date;
+  finishedAt?: Date;
+  message?: string;
+}
+const importJobs = new Map<string, ImportJob>();
+
+// Clean up old jobs after 1 hour
+setInterval(() => {
+  const oneHourAgo = Date.now() - 60 * 60 * 1000;
+  for (const [jobId, job] of importJobs.entries()) {
+    if (job.finishedAt && job.finishedAt.getTime() < oneHourAgo) {
+      importJobs.delete(jobId);
+    }
+  }
+}, 5 * 60 * 1000);
+
 // Helper function to ensure user exists in database
 async function ensureUserExists(req: any): Promise<any> {
   const userId = req.user.claims.sub;
@@ -435,6 +598,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
     });
   });
 
+  // Initialize session store (warm up database connection)
+  await initializeSession();
+  
   // Auth middleware
   await setupAuth(app);
   
@@ -578,43 +744,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
         });
       }
       
-      const { email, password } = validationResult.data;
+      const { username, password } = validationResult.data;
       
-      // First, try to find in admin_users table
-      let admin = await storage.getAdminByEmail(email);
-      let isExternalAgencyUser = false;
-      
-      // If not found in admin_users, try users table for external agency admins
-      if (!admin) {
-        const user = await storage.getUserByEmail(email);
-        const externalAgencyRoles = [
-          'external_agency_admin', 
-          'external_agency_accounting',
-          'external_agency_maintenance',
-          'external_agency_staff',
-          'external_agency_seller',
-          'external_agency_concierge',
-          'external_agency_lawyer'
-        ];
-        
-        if (user && externalAgencyRoles.includes(user.role)) {
-          // Treat external agency user as admin-like
-          admin = {
-            id: user.id,
-            username: user.email,
-            email: user.email,
-            firstName: user.firstName,
-            lastName: user.lastName,
-            role: user.role,
-            passwordHash: user.passwordHash,
-            isActive: user.status === 'approved' && !user.isSuspended,
-            profileImageUrl: user.profileImageUrl,
-            externalAgencyId: user.externalAgencyId,
-          } as any;
-          isExternalAgencyUser = true;
-        }
-      }
-      
+      // Find admin by username
+      const admin = await storage.getAdminByUsername(username);
       if (!admin) {
         return res.status(401).json({ message: "Invalid credentials" });
       }
@@ -625,40 +758,34 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       
       // Verify password
-      if (!admin.passwordHash) {
-        return res.status(401).json({ message: "Invalid credentials" });
-      }
-      
       const isValidPassword = await bcrypt.compare(password, admin.passwordHash);
       if (!isValidPassword) {
         return res.status(401).json({ message: "Invalid credentials" });
       }
       
-      // For regular admins, ensure they exist in users table
-      if (!isExternalAgencyUser) {
-        try {
-          await storage.upsertUser({
-            id: admin.id,
-            email: admin.email,
-            firstName: admin.firstName,
-            lastName: admin.lastName,
-            role: admin.role,
-            profileImageUrl: admin.profileImageUrl,
-          });
-        } catch (upsertError) {
-          console.error("Error upserting admin to users table:", upsertError);
-        }
+      // Ensure admin also exists in users table (for foreign key constraints)
+      try {
+        await storage.upsertUser({
+          id: admin.id,
+          email: admin.email,
+          firstName: admin.firstName,
+          lastName: admin.lastName,
+          role: admin.role,
+          profileImageUrl: admin.profileImageUrl,
+        });
+      } catch (upsertError) {
+        console.error("Error upserting admin to users table:", upsertError);
+        // Don't fail login if this fails, but log it
       }
       
       // Create session with admin info
       req.session.adminUser = {
         id: admin.id,
-        username: admin.username || admin.email,
+        username: admin.username,
         email: admin.email,
         firstName: admin.firstName,
         lastName: admin.lastName,
         role: admin.role,
-        externalAgencyId: (admin as any).externalAgencyId,
       };
       
       // Save session explicitly
@@ -3757,6 +3884,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const { condominiumId } = req.params;
       
+      // Basic UUID validation to prevent injection
+      const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+      if (!uuidRegex.test(condominiumId)) {
+        return res.json([]);
+      }
       const units = await db
         .select()
         .from(condominiumUnits)
@@ -3793,6 +3925,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       const { condominiumId } = req.params;
       const { unitNumber } = req.body;
+      // Basic UUID validation to prevent injection
+      const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+      if (!uuidRegex.test(condominiumId)) {
+        return res.json([]);
+      }
 
       if (!unitNumber || unitNumber.trim() === "") {
         return res.status(400).json({ message: "El número de unidad es requerido" });
@@ -4525,6 +4662,26 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.json(property);
     } catch (error) {
       console.error("Error fetching property:", error);
+      res.status(500).json({ message: "Failed to fetch property" });
+    }
+  });
+
+  app.get("/api/properties/by-slug/:slug", async (req: any, res) => {
+    try {
+      const { slug } = req.params;
+      const property = await storage.getPropertyBySlug(slug);
+      if (!property) {
+        return res.status(404).json({ message: "Property not found" });
+      }
+      
+      const isUserAuthenticated = req.user || (req.session && (req.session.adminUser || req.session.userId));
+      if (!isUserAuthenticated && !["approved", "published"].includes(property.approvalStatus)) {
+        return res.status(404).json({ message: "Property not found" });
+      }
+      
+      res.json(property);
+    } catch (error) {
+      console.error("Error fetching property by slug:", error);
       res.status(500).json({ message: "Failed to fetch property" });
     }
   });
@@ -13588,7 +13745,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Offer Token routes - Enlaces privados para ofertas sin login (soporta sistema interno y externo)
-  app.post("/api/offer-tokens", isAuthenticated, requireRole(["admin", "master", "admin_jr", "seller", "external_agency_admin", "external_agency_accounting", "external_agency_staff"]), async (req: any, res) => {
+  app.post("/api/offer-tokens", isAuthenticated, requireRole(["admin", "master", "admin_jr", "seller", "external_agency_admin", "external_agency_accounting", "external_agency_seller"]), async (req: any, res) => {
     try {
       const { propertyId, externalUnitId, externalClientId, leadId } = req.body;
       const userId = req.user.claims.sub;
@@ -13740,12 +13897,54 @@ export async function registerRoutes(app: Express): Promise<Server> {
         auditMessage
       );
 
-      // Return token with property or unit info
+      // Log property activity for external units
+      if (externalUnit) {
+        try {
+          await db.insert(externalPropertyActivityHistory).values({
+            agencyId: externalUnit.agencyId,
+            unitId: externalUnit.id,
+            condominiumId: externalUnit.condominiumId || null,
+            activityType: 'offer_sent',
+            leadId: null,
+            leadName: null,
+            clientId: externalClientId || null,
+            clientName: externalClient ? `${externalClient.firstName || ''} ${externalClient.lastName || ''}`.trim() : null,
+            offerTokenId: offerToken[0].id,
+            performedBy: userId,
+            performedByName: null, // Will be populated by trigger/hook if needed
+            details: {
+              recipientType: 'tenant',
+              channel: 'link',
+              notes: auditMessage
+            },
+          });
+        } catch (activityError) {
+          console.error("Error logging property activity:", activityError);
+          // Don't fail the main request if activity logging fails
+        }
+      }
+
+
+      // Get agency info for friendly URL generation
+      let agencySlug = null;
+      if (externalUnit?.agencyId) {
+        const agency = await db.select({ slug: externalAgencies.slug })
+          .from(externalAgencies)
+          .where(eq(externalAgencies.id, externalUnit.agencyId))
+          .limit(1);
+        if (agency.length) {
+          agencySlug = agency[0].slug;
+        }
+      }
+
+      // Return token with property or unit info and slugs for friendly URLs
       res.status(201).json({
         ...offerToken[0],
         property,
         externalUnit,
         externalClient,
+        agencySlug,
+        unitSlug: externalUnit?.slug,
       });
     } catch (error: any) {
       console.error("Error creating offer token:", error);
@@ -14113,7 +14312,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Rental Form Token routes - Enlaces privados para formato de renta de inquilino (soporta sistema interno y externo)
-  app.post("/api/rental-form-tokens", isAuthenticated, requireRole(["admin", "master", "admin_jr", "seller", "external_agency_admin", "external_agency_accounting", "external_agency_staff"]), async (req: any, res) => {
+  app.post("/api/rental-form-tokens", isAuthenticated, requireRole(["admin", "master", "admin_jr", "seller", "external_agency_admin", "external_agency_accounting", "external_agency_seller"]), async (req: any, res) => {
     try {
       const { propertyId, externalUnitId, externalClientId, externalUnitOwnerId, leadId, recipientType = 'tenant' } = req.body;
       const userId = req.user.claims.sub;
@@ -14234,12 +14433,26 @@ export async function registerRoutes(app: Express): Promise<Server> {
         auditMessage
       );
 
+      // Get agency info for friendly URL generation
+      let agencySlug = null;
+      if (externalUnit?.agencyId) {
+        const agency = await db.select({ slug: externalAgencies.slug })
+          .from(externalAgencies)
+          .where(eq(externalAgencies.id, externalUnit.agencyId))
+          .limit(1);
+        if (agency.length) {
+          agencySlug = agency[0].slug;
+        }
+      }
+
       res.json({
         ...rentalFormToken,
         property,
         externalUnit,
         externalClient,
         externalUnitOwner,
+        agencySlug,
+        unitSlug: externalUnit?.slug,
       });
     } catch (error: any) {
       console.error("Error creating rental form token:", error);
@@ -14807,6 +15020,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const { token } = req.params;
       const { documentType } = req.body; // 'idDocument', 'constitutiveAct', 'propertyDocuments', 'serviceReceipts', 'noDebtProof', etc.
+      console.log("[Owner Upload] Token:", token);
+      console.log("[Owner Upload] documentType:", documentType);
+      console.log("[Owner Upload] Files received:", req.files?.length || 0);
       
       // Validate token exists
       const [rentalFormToken] = await db
@@ -14963,7 +15179,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Send rental form link via email
-  app.post("/api/rental-form-tokens/:id/send-email", isAuthenticated, requireRole(["admin", "master", "admin_jr", "seller", "external_agency_admin", "external_agency_accounting", "external_agency_staff"]), async (req: any, res) => {
+  app.post("/api/rental-form-tokens/:id/send-email", isAuthenticated, requireRole(["admin", "master", "admin_jr", "seller", "external_agency_admin", "external_agency_accounting", "external_agency_seller"]), async (req: any, res) => {
     try {
       const { id } = req.params;
       const { clientEmail, clientName } = req.body;
@@ -18438,6 +18654,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const filters: any = {
         beneficiaryId: beneficiaryId as string,
         category: category as string,
+        excludeCategories: excludeCategories ? (excludeCategories as string).split(",") : undefined,
         status: status as string,
         propertyId: propertyId as string,
         payoutBatchId: payoutBatchId as string,
@@ -18604,6 +18821,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const transactions = await storage.getIncomeTransactions({
         beneficiaryId: userId,
         category: category as string,
+        excludeCategories: excludeCategories ? (excludeCategories as string).split(",") : undefined,
         status: status as string,
         fromDate: fromDate ? new Date(fromDate as string) : undefined,
         toDate: toDate ? new Date(toDate as string) : undefined,
@@ -18667,6 +18885,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         beneficiaryId: beneficiaryId as string,
         propertyId: propertyId as string,
         category: category as string,
+        excludeCategories: excludeCategories ? (excludeCategories as string).split(",") : undefined,
         status: status as string,
         fromDate: fromDate ? new Date(fromDate as string) : undefined,
         toDate: toDate ? new Date(toDate as string) : undefined,
@@ -20970,7 +21189,1017 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // EXTERNAL_MAINTENANCE_ROLES: Property, contract, and maintenance operations
   const EXTERNAL_MAINTENANCE_ROLES = ["master", "admin", "external_agency_admin", "external_agency_maintenance"];
   // EXTERNAL_ALL_ROLES: Read-only access for all external agency users
-  const EXTERNAL_ALL_ROLES = ["master", "admin", "external_agency_admin", "external_agency_accounting", "external_agency_maintenance", "external_agency_staff"];
+  const EXTERNAL_ALL_ROLES = ["master", "admin", "external_agency_admin", "external_agency_accounting", "external_agency_maintenance", "external_agency_seller", "external_agency_concierge", "external_agency_lawyer"];
+  // EXTERNAL_SELLER_ROLES: Operations for sellers including lead management and presentation cards
+  const EXTERNAL_SELLER_ROLES = ["master", "admin", "external_agency_admin", "external_agency_seller"];
+
+  // ==============================
+  // EXTERNAL PUBLICATION REQUESTS
+  // ==============================
+
+
+  // Helper function to sync external unit to properties table
+  async function syncExternalUnitToProperty(unit: any, userId: string, agencyId: string): Promise<string | null> {
+    try {
+      // Get condominium info for mapping
+      let condominiumId: string | null = null;
+      let condoName: string | null = null;
+      
+      if (unit.condominiumId) {
+        const extCondo = await storage.getExternalCondominium(unit.condominiumId);
+        if (extCondo) {
+          condoName = extCondo.name;
+          // Check if there's a linked main condominium with the same name
+          const mainCondos = await db.select()
+            .from(condominiums)
+            .where(eq(condominiums.name, extCondo.name))
+            .limit(1);
+          
+          if (mainCondos.length > 0) {
+            condominiumId = mainCondos[0].id;
+          } else {
+            // Create a new condominium in the main system
+            const [newCondo] = await db.insert(condominiums)
+              .values({
+                name: extCondo.name,
+                location: extCondo.address || unit.zone || 'Tulum',
+                address: extCondo.address || '',
+                approvalStatus: 'approved',
+                status: 'active',
+                addedBy: userId,
+              })
+              .returning();
+            condominiumId = newCondo.id;
+          }
+        }
+      }
+
+      // Get agency details
+      const agency = await storage.getExternalAgency(agencyId);
+
+      // Create property from external unit
+      // Use the admin user as owner, fallback to first admin if not available
+      let propertyOwnerId = userId;
+      if (!propertyOwnerId) {
+        // Find a system admin to use as owner
+        const admins = await db.select().from(users).where(eq(users.role, 'admin')).limit(1);
+        propertyOwnerId = admins[0]?.id || userId;
+      }
+
+      // If no condominium was linked, create a generic one for external properties
+      if (!condominiumId) {
+        const externalCondoName = 'Propiedades Externas';
+        const [existingExtCondo] = await db.select()
+          .from(condominiums)
+          .where(eq(condominiums.name, externalCondoName))
+          .limit(1);
+        
+        if (existingExtCondo) {
+          condominiumId = existingExtCondo.id;
+        } else {
+          const [newExtCondo] = await db.insert(condominiums)
+            .values({
+              name: externalCondoName,
+              location: 'Tulum',
+              address: 'Multiple locations',
+              approvalStatus: 'approved',
+              status: 'active',
+              addedBy: propertyOwnerId,
+            })
+            .returning();
+          condominiumId = newExtCondo.id;
+        }
+      }
+
+      // Transform includedServices to proper format
+      const includedServicesData = unit.includedServices ? {
+        water: unit.includedServices.water === true,
+        electricity: unit.includedServices.electricity === true,
+        internet: unit.includedServices.internet === true,
+        gas: unit.includedServices.gas === true,
+      } : null;
+
+      // Transform accessInfo to proper format (use unattended with lockbox as default)
+      let accessInfoData = null;
+      if (unit.accessInfo) {
+        if (unit.accessInfo.lockboxCode) {
+          accessInfoData = {
+            accessType: 'unattended' as const,
+            method: 'lockbox' as const,
+            lockboxCode: unit.accessInfo.lockboxCode || '',
+            lockboxLocation: '',
+          };
+        } else if (unit.accessInfo.contactPerson) {
+          accessInfoData = {
+            accessType: 'attended' as const,
+            contactPerson: unit.accessInfo.contactPerson || '',
+            contactPhone: unit.accessInfo.contactPhone || '',
+          };
+        }
+      }
+
+      const propertyData = {
+        title: unit.title || `${unit.unitNumber} - ${condoName || unit.zone || 'Property'}`,
+        description: unit.description || '',
+        price: unit.price ? String(unit.price) : "0",
+        propertyType: unit.propertyType || 'departamento',
+        bedrooms: unit.bedrooms || 0,
+        bathrooms: unit.bathrooms ? String(unit.bathrooms) : "1",
+        area: unit.area ? String(unit.area) : null,
+        location: unit.address || unit.zone || 'Tulum',
+        colonyName: unit.zone || null,
+        status: 'rent' as const,
+        unitType: 'private',
+        condominiumId: condominiumId,
+        condoName: condoName || null,
+        unitNumber: unit.unitNumber,
+          latitude: unit.latitude ? parseFloat(unit.latitude) : null,
+          longitude: unit.longitude ? parseFloat(unit.longitude) : null,
+        showCondoInListing: true,
+        showUnitNumberInListing: true,
+        primaryImages: unit.primaryImages || [],
+        secondaryImages: unit.secondaryImages || [],
+        videos: unit.videos || [],
+        virtualTourUrl: unit.virtualTourUrl || null,
+        googleMapsUrl: unit.googleMapsUrl || null,
+        latitude: unit.latitude ? String(unit.latitude) : null,
+        longitude: unit.longitude ? String(unit.longitude) : null,
+        amenities: unit.amenities || [],
+        includedServices: includedServicesData,
+        accessInfo: accessInfoData,
+        petFriendly: unit.petFriendly || false,
+        ownerId: propertyOwnerId,
+        approvalStatus: 'approved' as const,
+        active: true,
+        published: true,
+        externalUnitId: unit.id,
+        externalAgencyId: agency?.id || null,
+        externalAgencyName: agency?.name || null,
+        externalAgencyLogoUrl: agency?.agencyLogoUrl || null,
+      };
+
+      const property = await storage.createProperty(propertyData);
+      return property.id;
+    } catch (error) {
+      console.error("Error syncing external unit to property:", error);
+      return null;
+    }
+  }
+
+  // GET /api/external-publication-requests - Admin: Get all publication requests
+  app.get("/api/external-publication-requests", isAuthenticated, requireRole(ADMIN_ONLY), async (req: any, res) => {
+    try {
+      const { status } = req.query;
+      
+      let query = db.select({
+        id: externalPublicationRequests.id,
+        unitId: externalPublicationRequests.unitId,
+        agencyId: externalPublicationRequests.agencyId,
+        requestedBy: externalPublicationRequests.requestedBy,
+        reviewedBy: externalPublicationRequests.reviewedBy,
+        status: externalPublicationRequests.status,
+        adminFeedback: externalPublicationRequests.adminFeedback,
+        linkedPropertyId: externalPublicationRequests.linkedPropertyId,
+        requestedAt: externalPublicationRequests.requestedAt,
+        reviewedAt: externalPublicationRequests.reviewedAt,
+        createdAt: externalPublicationRequests.createdAt,
+        updatedAt: externalPublicationRequests.updatedAt,
+        unitNumber: externalUnits.unitNumber,
+        unitTitle: externalUnits.title,
+        unitDescription: externalUnits.description,
+        unitPrice: externalUnits.price,
+        unitCurrency: externalUnits.currency,
+        unitBedrooms: externalUnits.bedrooms,
+        unitBathrooms: externalUnits.bathrooms,
+        unitArea: externalUnits.area,
+        unitPrimaryImages: externalUnits.primaryImages,
+        unitAmenities: externalUnits.amenities,
+        unitAddress: externalUnits.address,
+        unitZone: externalUnits.zone,
+        unitPropertyType: externalUnits.propertyType,
+        condominiumId: externalUnits.condominiumId,
+        agencyName: externalAgencies.name,
+      })
+      .from(externalPublicationRequests)
+      .leftJoin(externalUnits, eq(externalPublicationRequests.unitId, externalUnits.id))
+      .leftJoin(externalAgencies, eq(externalPublicationRequests.agencyId, externalAgencies.id))
+      .orderBy(desc(externalPublicationRequests.requestedAt));
+
+      if (status && status !== 'all') {
+        query = query.where(eq(externalPublicationRequests.status, status as any));
+      }
+
+      const requests = await query;
+
+      // Get condominium names
+      const condoIds = [...new Set(requests.filter(r => r.condominiumId).map(r => r.condominiumId!))];
+      let condoMap: Record<string, string> = {};
+      if (condoIds.length > 0) {
+        const condos = await db.select({ id: externalCondominiums.id, name: externalCondominiums.name })
+          .from(externalCondominiums)
+          .where(inArray(externalCondominiums.id, condoIds));
+        condoMap = Object.fromEntries(condos.map(c => [c.id, c.name]));
+      }
+
+      const enrichedRequests = requests.map(r => ({
+        id: r.id,
+        unitId: r.unitId,
+        agencyId: r.agencyId,
+        requestedBy: r.requestedBy,
+        reviewedBy: r.reviewedBy,
+        status: r.status,
+        adminFeedback: r.adminFeedback,
+        linkedPropertyId: r.linkedPropertyId,
+        requestedAt: r.requestedAt,
+        reviewedAt: r.reviewedAt,
+        createdAt: r.createdAt,
+        updatedAt: r.updatedAt,
+        unit: {
+          unitNumber: r.unitNumber,
+          title: r.unitTitle,
+          description: r.unitDescription,
+          price: r.unitPrice,
+          currency: r.unitCurrency,
+          bedrooms: r.unitBedrooms,
+          bathrooms: r.unitBathrooms,
+          area: r.unitArea,
+          primaryImages: r.unitPrimaryImages,
+          amenities: r.unitAmenities,
+          address: r.unitAddress,
+          zone: r.unitZone,
+          propertyType: r.unitPropertyType,
+          condominium: r.condominiumId ? { name: condoMap[r.condominiumId] || null } : null,
+        },
+        agency: r.agencyName ? { name: r.agencyName } : null,
+      }));
+
+      res.json(enrichedRequests);
+    } catch (error) {
+      console.error("Error fetching publication requests:", error);
+      res.status(500).json({ message: "Failed to fetch publication requests" });
+    }
+  });
+
+
+  // GET /api/external-publication-requests/stats - Admin: Get publication request statistics
+  // NOTE: This route MUST be before /:id route to avoid "stats" being interpreted as an ID
+  app.get("/api/external-publication-requests/stats", isAuthenticated, requireRole(ADMIN_ONLY), async (req: any, res) => {
+    try {
+      const [stats] = await db.select({
+        total: sql<number>`count(*)`,
+        pending: sql<number>`count(*) filter (where status = 'pending')`,
+        approved: sql<number>`count(*) filter (where status = 'approved')`,
+        rejected: sql<number>`count(*) filter (where status = 'rejected')`,
+        withdrawn: sql<number>`count(*) filter (where status = 'withdrawn')`,
+      }).from(externalPublicationRequests);
+
+      res.json(stats);
+    } catch (error) {
+      console.error("Error fetching publication stats:", error);
+      res.status(500).json({ message: "Failed to fetch statistics" });
+    }
+  });
+  // GET /api/external-publication-requests/:id - Admin: Get single request with full details
+  app.get("/api/external-publication-requests/:id", isAuthenticated, requireRole(ADMIN_ONLY), async (req: any, res) => {
+    try {
+      const { id } = req.params;
+
+      const [request] = await db.select()
+        .from(externalPublicationRequests)
+        .where(eq(externalPublicationRequests.id, id));
+
+      if (!request) {
+        return res.status(404).json({ message: "Publication request not found" });
+      }
+
+      // Get full unit details
+      const unit = await storage.getExternalUnit(request.unitId);
+      if (!unit) {
+        return res.status(404).json({ message: "Unit not found" });
+      }
+
+      // Get condominium if exists
+      let condominium = null;
+      if (unit.condominiumId) {
+        condominium = await storage.getExternalCondominium(unit.condominiumId);
+      }
+
+      // Get agency
+      const agency = await storage.getExternalAgency(request.agencyId);
+
+      res.json({
+        ...request,
+        unit: {
+          ...unit,
+          condominium,
+        },
+        agency,
+      });
+    } catch (error) {
+      console.error("Error fetching publication request:", error);
+      res.status(500).json({ message: "Failed to fetch publication request" });
+    }
+  });
+
+  // POST /api/external-publication-requests - External: Create publication request
+  app.post("/api/external-publication-requests", isAuthenticated, requireRole(EXTERNAL_ADMIN_ROLES), async (req: any, res) => {
+    try {
+      const agencyId = await getUserAgencyId(req);
+      if (!agencyId) {
+        return res.status(403).json({ message: "No agency access" });
+      }
+
+      const { unitId } = req.body;
+      
+      // Verify unit belongs to agency
+      const unit = await storage.getExternalUnit(unitId);
+      if (!unit || unit.agencyId !== agencyId) {
+        return res.status(403).json({ message: "Access denied to this unit" });
+      }
+
+      const userId = req.user?.claims?.sub || req.user?.id;
+      
+      // Check if agency has auto-approve enabled
+      const agency = await storage.getExternalAgency(agencyId);
+      const shouldAutoApprove = agency?.autoApprovePublications === true;
+
+      // Check if there's already a pending request for this unit
+      const [existingPending] = await db.select()
+        .from(externalPublicationRequests)
+        .where(and(
+          eq(externalPublicationRequests.unitId, unitId),
+          eq(externalPublicationRequests.status, 'pending')
+        ));
+
+      if (existingPending) {
+        // If auto-approve is enabled, approve the existing pending request
+        if (shouldAutoApprove) {
+          await db.update(externalPublicationRequests)
+            .set({
+              status: 'approved',
+              reviewedBy: userId,
+              reviewedAt: new Date(),
+              feedback: 'Auto-approved by agency configuration',
+            })
+            .where(eq(externalPublicationRequests.id, existingPending.id));
+          
+          // Sync to properties table
+          await syncExternalUnitToProperty(unit, userId, agencyId);
+          await storage.updateExternalUnit(unitId, { publishToMain: true, publishStatus: 'approved' });
+          
+          return res.status(200).json({ ...existingPending, status: 'approved', autoApproved: true });
+        }
+        // Otherwise return error that pending request exists
+        return res.status(400).json({ message: "A pending request already exists for this unit. Please wait for admin approval." });
+      }
+
+      // Create the request with appropriate status
+      const [request] = await db.insert(externalPublicationRequests)
+        .values({
+          unitId,
+          agencyId,
+          requestedBy: userId,
+          status: shouldAutoApprove ? 'approved' : 'pending',
+          reviewedBy: shouldAutoApprove ? userId : null,
+          reviewedAt: shouldAutoApprove ? new Date() : null,
+          feedback: shouldAutoApprove ? 'Auto-approved by agency configuration' : null,
+        })
+        .returning();
+
+      if (shouldAutoApprove) {
+        // Auto-approve: sync to properties table
+        await syncExternalUnitToProperty(unit, userId, agencyId);
+        await storage.updateExternalUnit(unitId, { publishToMain: true, publishStatus: 'approved' });
+      } else {
+        // Manual approval required
+        await storage.updateExternalUnit(unitId, { publishToMain: true, publishStatus: 'pending' });
+      }
+
+      res.status(201).json({ ...request, autoApproved: shouldAutoApprove });
+    } catch (error) {
+      console.error("Error creating publication request:", error);
+      res.status(500).json({ message: "Failed to create publication request" });
+    }
+  });
+
+  // PATCH /api/external-publication-requests/:id/review - Admin: Approve or reject request
+  app.patch("/api/external-publication-requests/:id/review", isAuthenticated, requireRole(ADMIN_ONLY), async (req: any, res) => {
+    try {
+      const { id } = req.params;
+      const { decision, feedback } = req.body;
+      const userId = req.user?.claims?.sub || req.user?.id || req.session?.adminUser?.id;
+
+      if (!['approved', 'rejected'].includes(decision)) {
+        return res.status(400).json({ message: "Invalid decision. Must be 'approved' or 'rejected'" });
+      }
+
+      const [request] = await db.select()
+        .from(externalPublicationRequests)
+        .where(eq(externalPublicationRequests.id, id));
+
+      if (!request) {
+        return res.status(404).json({ message: "Publication request not found" });
+      }
+
+      if (request.status !== 'pending') {
+        return res.status(400).json({ message: "Request has already been reviewed" });
+      }
+
+      // Get unit details for syncing
+      const unit = await storage.getExternalUnit(request.unitId);
+      if (!unit) {
+        return res.status(404).json({ message: "Unit not found" });
+      }
+
+      let linkedPropertyId: string | null = null;
+
+      // If approved, sync to properties table
+      if (decision === 'approved') {
+        // Get condominium info for mapping
+        let condominiumId: string | null = null;
+        let condoName: string | null = null;
+        
+        if (unit.condominiumId) {
+          const extCondo = await storage.getExternalCondominium(unit.condominiumId);
+          if (extCondo) {
+            condoName = extCondo.name;
+            // Check if there's a linked main condominium with the same name
+            const mainCondos = await db.select()
+              .from(condominiums)
+              .where(eq(condominiums.name, extCondo.name))
+              .limit(1);
+            
+            if (mainCondos.length > 0) {
+              condominiumId = mainCondos[0].id;
+            } else {
+              // Create a new condominium in the main system
+              const [newCondo] = await db.insert(condominiums)
+                .values({
+                  name: extCondo.name,
+                  location: extCondo.address || unit.zone || 'Tulum',
+                  address: extCondo.address || '',
+                  approvalStatus: 'approved',
+                  status: 'active',
+                  addedBy: userId,
+                })
+                .returning();
+              condominiumId = newCondo.id;
+            }
+          }
+        }
+
+        // Get agency details
+        const agency = await storage.getExternalAgency(request.agencyId);
+
+        // Create property from external unit
+        // Use the admin user as owner, fallback to first admin if not available
+        let propertyOwnerId = userId;
+        if (!propertyOwnerId) {
+          // Find a system admin to use as owner
+          const admins = await db.select().from(users).where(eq(users.role, 'admin')).limit(1);
+          propertyOwnerId = admins[0]?.id || userId;
+        }
+
+        // If no condominium was linked, create a generic one for external properties
+        if (!condominiumId) {
+          const externalCondoName = 'Propiedades Externas';
+          const [existingExtCondo] = await db.select()
+            .from(condominiums)
+            .where(eq(condominiums.name, externalCondoName))
+            .limit(1);
+          
+          if (existingExtCondo) {
+            condominiumId = existingExtCondo.id;
+          } else {
+            const [newExtCondo] = await db.insert(condominiums)
+              .values({
+                name: externalCondoName,
+                location: 'Tulum',
+                address: 'Multiple locations',
+                approvalStatus: 'approved',
+                status: 'active',
+                addedBy: propertyOwnerId,
+              })
+              .returning();
+            condominiumId = newExtCondo.id;
+          }
+        }
+
+        // Transform includedServices to proper format
+        const includedServicesData = unit.includedServices ? {
+          water: unit.includedServices.water === true,
+          electricity: unit.includedServices.electricity === true,
+          internet: unit.includedServices.internet === true,
+          gas: unit.includedServices.gas === true,
+        } : null;
+
+        // Transform accessInfo to proper format (use unattended with lockbox as default)
+        let accessInfoData = null;
+        if (unit.accessInfo) {
+          if (unit.accessInfo.lockboxCode) {
+            accessInfoData = {
+              accessType: 'unattended' as const,
+              method: 'lockbox' as const,
+              lockboxCode: unit.accessInfo.lockboxCode || '',
+              lockboxLocation: '',
+            };
+          } else if (unit.accessInfo.contactPerson) {
+            accessInfoData = {
+              accessType: 'attended' as const,
+              contactPerson: unit.accessInfo.contactPerson || '',
+              contactPhone: unit.accessInfo.contactPhone || '',
+            };
+          }
+        }
+
+        const propertyData = {
+          title: unit.title || `${unit.unitNumber} - ${condoName || unit.zone || 'Property'}`,
+          description: unit.description || '',
+          price: unit.price ? String(unit.price) : "0",
+          propertyType: unit.propertyType || 'departamento',
+          bedrooms: unit.bedrooms || 0,
+          bathrooms: unit.bathrooms ? String(unit.bathrooms) : "1",
+          area: unit.area ? String(unit.area) : null,
+          location: unit.address || unit.zone || 'Tulum',
+          colonyName: unit.zone || null,
+          status: 'rent' as const,
+          unitType: 'private',
+          condominiumId: condominiumId,
+          condoName: condoName || null,
+          unitNumber: unit.unitNumber,
+          latitude: unit.latitude ? parseFloat(unit.latitude) : null,
+          longitude: unit.longitude ? parseFloat(unit.longitude) : null,
+          showCondoInListing: true,
+          showUnitNumberInListing: true,
+          primaryImages: unit.primaryImages || [],
+          secondaryImages: unit.secondaryImages || [],
+          videos: unit.videos || [],
+          virtualTourUrl: unit.virtualTourUrl || null,
+          googleMapsUrl: unit.googleMapsUrl || null,
+          latitude: unit.latitude ? String(unit.latitude) : null,
+          longitude: unit.longitude ? String(unit.longitude) : null,
+          amenities: unit.amenities || [],
+          includedServices: includedServicesData,
+          accessInfo: accessInfoData,
+          petFriendly: unit.petFriendly || false,
+          ownerId: propertyOwnerId,
+          approvalStatus: 'approved' as const,
+          active: true,
+          published: true,
+          externalUnitId: unit.id,
+          externalAgencyId: agency?.id || null,
+        };
+
+        const property = await storage.createProperty(propertyData);
+        linkedPropertyId = property.id;
+      }
+
+      // Update the request
+      const [updatedRequest] = await db.update(externalPublicationRequests)
+        .set({
+          status: decision,
+          reviewedBy: userId,
+          reviewedAt: new Date(),
+          adminFeedback: feedback || null,
+          linkedPropertyId: linkedPropertyId,
+          updatedAt: new Date(),
+        })
+        .where(eq(externalPublicationRequests.id, id))
+        .returning();
+
+      // Update unit publish status
+      const newPublishStatus = decision === 'approved' ? 'approved' : 'rejected';
+      await storage.updateExternalUnit(request.unitId, { 
+        publishStatus: newPublishStatus,
+        publishedAt: decision === 'approved' ? new Date() : null,
+      });
+
+      res.json(updatedRequest);
+    } catch (error) {
+      console.error("Error reviewing publication request:", error);
+      res.status(500).json({ message: "Failed to review publication request" });
+    }
+  });
+
+  // DELETE /api/external-publication-requests/:id - External: Withdraw publication request
+  app.delete("/api/external-publication-requests/:id", isAuthenticated, requireRole(EXTERNAL_ADMIN_ROLES), async (req: any, res) => {
+    try {
+      const { id } = req.params;
+      const agencyId = await getUserAgencyId(req);
+      if (!agencyId) {
+        return res.status(403).json({ message: "No agency access" });
+      }
+
+      const [request] = await db.select()
+        .from(externalPublicationRequests)
+        .where(eq(externalPublicationRequests.id, id));
+
+      if (!request) {
+        return res.status(404).json({ message: "Publication request not found" });
+      }
+
+      if (request.agencyId !== agencyId) {
+        return res.status(403).json({ message: "Access denied" });
+      }
+
+      if (request.status !== 'pending') {
+        return res.status(400).json({ message: "Can only withdraw pending requests" });
+      }
+
+      // Update to withdrawn status
+      await db.update(externalPublicationRequests)
+        .set({ status: 'withdrawn', updatedAt: new Date() })
+        .where(eq(externalPublicationRequests.id, id));
+
+      // Update unit
+      await storage.updateExternalUnit(request.unitId, { publishToMain: false, publishStatus: 'draft' });
+
+      res.json({ message: "Request withdrawn successfully" });
+    } catch (error) {
+      console.error("Error withdrawing publication request:", error);
+      res.status(500).json({ message: "Failed to withdraw request" });
+    }
+  });
+
+  // GET /api/external-publication-requests/by-unit/:unitId - Get request for a specific unit
+  app.get("/api/external-publication-requests/by-unit/:unitId", isAuthenticated, requireRole(EXTERNAL_ALL_ROLES), async (req: any, res) => {
+    try {
+      const { unitId } = req.params;
+      const agencyId = await getUserAgencyId(req);
+      if (!agencyId) {
+        return res.status(403).json({ message: "No agency access" });
+      }
+
+      // Verify unit belongs to agency
+      const unit = await storage.getExternalUnit(unitId);
+      if (!unit || unit.agencyId !== agencyId) {
+        return res.status(403).json({ message: "Access denied" });
+      }
+
+      const requests = await db.select()
+        .from(externalPublicationRequests)
+        .where(eq(externalPublicationRequests.unitId, unitId))
+        .orderBy(desc(externalPublicationRequests.requestedAt));
+
+      res.json(requests);
+    } catch (error) {
+      console.error("Error fetching unit publication requests:", error);
+      res.status(500).json({ message: "Failed to fetch publication requests" });
+    }
+  });
+
+  // =========================================================================
+  // FEATURED PROPERTIES ROUTES - Admin can manage up to 30 featured properties
+  // =========================================================================
+
+  // GET /api/featured-properties - Get all featured properties with unit details
+  app.get("/api/featured-properties", async (req, res) => {
+    try {
+      // Get featured properties
+      const featured = await db
+        .select()
+        .from(featuredProperties)
+        .orderBy(asc(featuredProperties.sortOrder));
+      
+      // Fetch unit details for each featured property
+      const result = await Promise.all(featured.map(async (fp) => {
+        const unit = await storage.getExternalUnit(fp.unitId);
+        let condominiumName = null;
+        
+        if (unit?.condominiumId) {
+          const [condo] = await db.select({ name: externalCondominiums.name })
+            .from(externalCondominiums)
+            .where(eq(externalCondominiums.id, unit.condominiumId));
+          condominiumName = condo?.name || null;
+        }
+        
+        return {
+          id: fp.id,
+          unitId: fp.unitId,
+          sortOrder: fp.sortOrder,
+          addedBy: fp.addedBy,
+          createdAt: fp.createdAt,
+          // Unit details
+          unitNumber: unit?.unitNumber || null,
+          title: unit?.title || null,
+          propertyType: unit?.propertyType || null,
+          zone: unit?.zone || null,
+          price: unit?.price || null,
+          salePrice: unit?.salePrice || null,
+          listingType: unit?.listingType || null,
+          bedrooms: unit?.bedrooms || null,
+          bathrooms: unit?.bathrooms || null,
+          area: unit?.area || null,
+          condominiumId: unit?.condominiumId || null,
+          images: unit?.images || null,
+          agencyId: unit?.agencyId || null,
+          publishStatus: unit?.publishStatus || null,
+          condominiumName,
+        };
+      }));
+
+      res.json({ 
+        data: result,
+        count: result.length,
+        maxLimit: 30,
+        remainingSlots: Math.max(0, 30 - result.length)
+      });
+    } catch (error: any) {
+      console.error("Error fetching featured properties:", error);
+      res.status(500).json({ message: "Error fetching featured properties" });
+    }
+  });
+
+  // POST /api/featured-properties - Add a property to featured (admin only)
+  app.post("/api/featured-properties", isAuthenticated, requireRole(ADMIN_ONLY), async (req: any, res) => {
+    try {
+      const { unitId } = req.body;
+
+      if (!unitId) {
+        return res.status(400).json({ message: "unitId is required" });
+      }
+
+      // Check current count
+      const [countResult] = await db
+        .select({ count: sql<number>`count(*)` })
+        .from(featuredProperties);
+      const currentCount = Number(countResult?.count || 0);
+
+      if (currentCount >= 30) {
+        return res.status(400).json({ 
+          message: "Maximum limit of 30 featured properties reached",
+          code: "MAX_LIMIT_REACHED"
+        });
+      }
+
+      // Check if unit is already featured
+      const [existing] = await db.select()
+        .from(featuredProperties)
+        .where(eq(featuredProperties.unitId, unitId));
+
+      if (existing) {
+        return res.status(400).json({ 
+          message: "This property is already featured",
+          code: "ALREADY_FEATURED"
+        });
+      }
+
+      // Verify the unit exists and is approved
+      const unit = await storage.getExternalUnit(unitId);
+      if (!unit) {
+        return res.status(404).json({ message: "Unit not found" });
+      }
+      if (unit.publishStatus !== 'approved') {
+        return res.status(400).json({ 
+          message: "Only approved properties can be featured",
+          code: "NOT_APPROVED"
+        });
+      }
+
+      // Get the next sort order
+      const [maxOrder] = await db
+        .select({ maxOrder: sql<number>`COALESCE(MAX(sort_order), 0)` })
+        .from(featuredProperties);
+      const nextOrder = Number(maxOrder?.maxOrder || 0) + 1;
+
+      const userId = req.user?.claims?.sub || req.user?.id;
+      
+      const [newFeatured] = await db.insert(featuredProperties)
+        .values({
+          unitId,
+          sortOrder: nextOrder,
+          addedBy: userId,
+        })
+        .returning();
+
+      res.status(201).json(newFeatured);
+    } catch (error: any) {
+      console.error("Error adding featured property:", error);
+      res.status(500).json({ message: "Error adding featured property" });
+    }
+  });
+
+  // PATCH /api/featured-properties/:id - Update sortOrder for a single featured property (admin only)
+  app.patch("/api/featured-properties/:id", isAuthenticated, requireRole(ADMIN_ONLY), async (req: any, res) => {
+    try {
+      const { id } = req.params;
+      const { sortOrder } = req.body;
+
+      if (typeof sortOrder !== 'number' || sortOrder < 1 || sortOrder > 30) {
+        return res.status(400).json({ message: "sortOrder must be a number between 1 and 30" });
+      }
+
+      // Verify the featured property exists
+      const [existing] = await db.select()
+        .from(featuredProperties)
+        .where(eq(featuredProperties.id, id));
+
+      if (!existing) {
+        return res.status(404).json({ message: "Featured property not found" });
+      }
+
+      // Get all featured properties to handle reordering
+      const allFeatured = await db.select()
+        .from(featuredProperties)
+        .orderBy(asc(featuredProperties.sortOrder));
+
+      const oldIndex = allFeatured.findIndex(fp => fp.id === id);
+      const newIndex = sortOrder - 1;
+
+      if (oldIndex === newIndex) {
+        return res.json({ message: "No change needed" });
+      }
+
+      // Update sort orders for affected items
+      const updates: Promise<any>[] = [];
+      
+      if (newIndex < oldIndex) {
+        // Moving up: increment sortOrder for items between newIndex and oldIndex
+        allFeatured.forEach((fp, idx) => {
+          if (fp.id === id) {
+            updates.push(db.update(featuredProperties)
+              .set({ sortOrder: sortOrder })
+              .where(eq(featuredProperties.id, fp.id)));
+          } else if (idx >= newIndex && idx < oldIndex) {
+            updates.push(db.update(featuredProperties)
+              .set({ sortOrder: idx + 2 })
+              .where(eq(featuredProperties.id, fp.id)));
+          }
+        });
+      } else {
+        // Moving down: decrement sortOrder for items between oldIndex and newIndex
+        allFeatured.forEach((fp, idx) => {
+          if (fp.id === id) {
+            updates.push(db.update(featuredProperties)
+              .set({ sortOrder: sortOrder })
+              .where(eq(featuredProperties.id, fp.id)));
+          } else if (idx > oldIndex && idx <= newIndex) {
+            updates.push(db.update(featuredProperties)
+              .set({ sortOrder: idx })
+              .where(eq(featuredProperties.id, fp.id)));
+          }
+        });
+      }
+
+      await Promise.all(updates);
+
+      res.json({ message: "Sort order updated successfully" });
+    } catch (error: any) {
+      console.error("Error updating featured property sort order:", error);
+      res.status(500).json({ message: "Error updating sort order" });
+    }
+  });
+
+  // PATCH /api/featured-properties/reorder - Bulk reorder featured properties (admin only)
+  app.patch("/api/featured-properties/reorder", isAuthenticated, requireRole(ADMIN_ONLY), async (req: any, res) => {
+    try {
+      const { order } = req.body; // Array of { id, sortOrder }
+
+      if (!Array.isArray(order)) {
+        return res.status(400).json({ message: "order must be an array of { id, sortOrder }" });
+      }
+
+      // Validate all items have valid sortOrder (1-30)
+      for (const item of order) {
+        if (typeof item.sortOrder !== 'number' || item.sortOrder < 1 || item.sortOrder > 30) {
+          return res.status(400).json({ message: "All sortOrder values must be between 1 and 30" });
+        }
+      }
+
+      // Verify all IDs exist in the database - only allow updating existing items
+      const existingItems = await db.select({ id: featuredProperties.id })
+        .from(featuredProperties);
+      const existingIds = new Set(existingItems.map(item => item.id));
+      
+      for (const item of order) {
+        if (!existingIds.has(item.id)) {
+          return res.status(400).json({ message: `Featured property ${item.id} not found` });
+        }
+      }
+
+      // Ensure we're not exceeding the 30-item limit
+      if (order.length > 30) {
+        return res.status(400).json({ 
+          message: "Cannot exceed 30 featured properties",
+          code: "MAX_LIMIT_EXCEEDED"
+        });
+      }
+
+      // Update each featured property's sort order
+      await Promise.all(order.map(async (item: { id: string; sortOrder: number }) => {
+        await db.update(featuredProperties)
+          .set({ sortOrder: item.sortOrder })
+          .where(eq(featuredProperties.id, item.id));
+      }));
+
+      res.json({ message: "Order updated successfully" });
+    } catch (error: any) {
+      console.error("Error reordering featured properties:", error);
+      res.status(500).json({ message: "Error reordering featured properties" });
+    }
+  });
+
+  // DELETE /api/featured-properties/:id - Remove a property from featured (admin only)
+  app.delete("/api/featured-properties/:id", isAuthenticated, requireRole(ADMIN_ONLY), async (req: any, res) => {
+    try {
+      const { id } = req.params;
+
+      const [deleted] = await db.delete(featuredProperties)
+        .where(eq(featuredProperties.id, id))
+        .returning();
+
+      if (!deleted) {
+        return res.status(404).json({ message: "Featured property not found" });
+      }
+
+      // Re-normalize sort orders after deletion
+      const remaining = await db.select()
+        .from(featuredProperties)
+        .orderBy(asc(featuredProperties.sortOrder));
+
+      await Promise.all(remaining.map(async (fp, index) => {
+        await db.update(featuredProperties)
+          .set({ sortOrder: index + 1 })
+          .where(eq(featuredProperties.id, fp.id));
+      }));
+
+      res.json({ message: "Featured property removed", deleted });
+    } catch (error: any) {
+      console.error("Error removing featured property:", error);
+      res.status(500).json({ message: "Error removing featured property" });
+    }
+  });
+
+  // GET /api/featured-properties/available-units - Get available units to add as featured
+  app.get("/api/featured-properties/available-units", isAuthenticated, requireRole(ADMIN_ONLY), async (req: any, res) => {
+    try {
+      const { search, limit = 20 } = req.query;
+
+      // Get currently featured unit IDs
+      const featured = await db.select({ unitId: featuredProperties.unitId })
+        .from(featuredProperties);
+      const featuredIds = featured.map(f => f.unitId);
+
+      // Build query for approved units not already featured
+      let conditions = [
+        eq(externalUnits.publishStatus, 'approved'),
+        eq(externalUnits.publishToMain, true),
+        eq(externalUnits.isActive, true),
+      ];
+
+      if (featuredIds.length > 0) {
+        conditions.push(sql`${externalUnits.id} NOT IN (${sql.raw(featuredIds.map(id => `'${id}'`).join(','))})`);
+      }
+
+      if (search && typeof search === 'string' && search.trim()) {
+        const searchTerm = `%${search.trim()}%`;
+        conditions.push(or(
+          ilike(externalUnits.title, searchTerm),
+          ilike(externalUnits.unitNumber, searchTerm),
+          ilike(externalUnits.zone, searchTerm)
+        ));
+      }
+
+      const units = await db
+        .select({
+          id: externalUnits.id,
+          unitNumber: externalUnits.unitNumber,
+          title: externalUnits.title,
+          propertyType: externalUnits.propertyType,
+          zone: externalUnits.zone,
+          price: externalUnits.price,
+          salePrice: externalUnits.salePrice,
+          listingType: externalUnits.listingType,
+          bedrooms: externalUnits.bedrooms,
+          bathrooms: externalUnits.bathrooms,
+          area: externalUnits.area,
+          condominiumId: externalUnits.condominiumId,
+          images: externalUnits.images,
+          agencyId: externalUnits.agencyId,
+        })
+        .from(externalUnits)
+        .where(and(...conditions))
+        .orderBy(desc(externalUnits.createdAt))
+        .limit(Number(limit));
+
+      // Fetch condominium names
+      const withCondos = await Promise.all(units.map(async (unit) => {
+        if (unit.condominiumId) {
+          const [condo] = await db.select({ name: externalCondominiums.name })
+            .from(externalCondominiums)
+            .where(eq(externalCondominiums.id, unit.condominiumId));
+          return { ...unit, condominiumName: condo?.name || null };
+        }
+        return { ...unit, condominiumName: null };
+      }));
+
+      res.json(withCondos);
+    } catch (error: any) {
+      console.error("Error fetching available units:", error);
+      res.status(500).json({ message: "Error fetching available units" });
+    }
+  });
+
 
   // External Agencies Routes
   app.get("/api/external-agencies", isAuthenticated, requireRole(EXTERNAL_ADMIN_ROLES), async (req: any, res) => {
@@ -21197,6 +22426,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       const integration = await storage.getExternalAgencyIntegration(agencyId);
       
+      // Check Replit Google Calendar connection
+      const googleCalendarStatus = await checkGoogleCalendarConnection();
+      
       // Don't return sensitive tokens to frontend, only connection status
       if (integration) {
         res.json({
@@ -21204,19 +22436,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
           googleCalendarAccessToken: undefined,
           googleCalendarRefreshToken: undefined,
           openaiApiKey: undefined,
-          googleCalendarConnected: !!integration.googleCalendarAccessToken,
+          googleCalendarConnected: googleCalendarStatus.connected,
+          googleCalendarEmail: googleCalendarStatus.email,
           openaiConnected: !!(integration.openaiApiKey || integration.openaiUseReplitIntegration),
           openaiUseReplitIntegration: integration.openaiUseReplitIntegration,
           openaiHasCustomKey: !!integration.openaiApiKey,
-          openaiConnected: !!(integration.openaiApiKey || integration.openaiUseReplitIntegration),
         });
       } else {
         res.json({
           agencyId,
-          googleCalendarConnected: false,
+          googleCalendarConnected: googleCalendarStatus.connected,
+          googleCalendarEmail: googleCalendarStatus.email,
           openaiConnected: false,
-          openaiUseReplitIntegration: true,
-          openaiHasCustomKey: false,
           openaiUseReplitIntegration: true,
           openaiHasCustomKey: false,
         });
@@ -21279,11 +22510,196 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
   // ==============================
+  // External Permission Management Routes
+  // ==============================
+
+  // GET /api/external/permissions/roles - Get all role permissions for agency
+  app.get("/api/external/permissions/roles", isAuthenticated, requireRole(EXTERNAL_ADMIN_ROLES), async (req: any, res) => {
+    try {
+      const agencyId = await getUserAgencyId(req);
+      if (!agencyId) {
+        return res.status(403).json({ message: "User is not assigned to any agency" });
+      }
+
+      const permissions = await storage.getExternalRolePermissions(agencyId);
+      
+      // Return both saved permissions and default structure
+      res.json({
+        permissions,
+        defaults: DEFAULT_ROLE_PERMISSIONS,
+        sections: EXTERNAL_PERMISSION_SECTIONS,
+        actions: EXTERNAL_PERMISSION_ACTIONS,
+        sectionLabels: PERMISSION_SECTION_LABELS,
+        actionLabels: PERMISSION_ACTION_LABELS,
+      });
+    } catch (error: any) {
+      console.error("Error fetching role permissions:", error);
+      handleGenericError(res, error);
+    }
+  });
+
+  // PATCH /api/external/permissions/roles - Update role permissions (bulk upsert)
+  app.patch("/api/external/permissions/roles", isAuthenticated, requireRole(EXTERNAL_ADMIN_ROLES), async (req: any, res) => {
+    try {
+      const agencyId = await getUserAgencyId(req);
+      if (!agencyId) {
+        return res.status(403).json({ message: "User is not assigned to any agency" });
+      }
+
+      const { permissions } = req.body;
+      if (!Array.isArray(permissions)) {
+        return res.status(400).json({ message: "permissions must be an array" });
+      }
+
+      // Validate and prepare permissions
+      const validatedPermissions = permissions.map((p: any) => {
+        const validated = insertExternalRolePermissionSchema.parse({
+          agencyId,
+          role: p.role,
+          section: p.section,
+          action: p.action,
+          allowed: p.allowed,
+        });
+        return validated;
+      });
+
+      const results = await storage.bulkUpsertExternalRolePermissions(validatedPermissions);
+      
+      await createAuditLog(req, "update", "external_role_permissions", agencyId, `Updated ${results.length} role permissions`);
+      
+      res.json(results);
+    } catch (error: any) {
+      console.error("Error updating role permissions:", error);
+      handleGenericError(res, error);
+    }
+  });
+
+  // GET /api/external/permissions/users - Get all user permission overrides for agency
+  app.get("/api/external/permissions/users", isAuthenticated, requireRole(EXTERNAL_ADMIN_ROLES), async (req: any, res) => {
+    try {
+      const agencyId = await getUserAgencyId(req);
+      if (!agencyId) {
+        return res.status(403).json({ message: "User is not assigned to any agency" });
+      }
+
+      const permissions = await storage.getExternalUserPermissions(agencyId);
+      const agencyUsers = await storage.getUsersByAgency(agencyId);
+      
+      res.json({
+        permissions,
+        users: agencyUsers.map(u => ({
+          id: u.id,
+          firstName: u.firstName,
+          lastName: u.lastName,
+          email: u.email,
+          role: u.role,
+        })),
+        sections: EXTERNAL_PERMISSION_SECTIONS,
+        actions: EXTERNAL_PERMISSION_ACTIONS,
+        sectionLabels: PERMISSION_SECTION_LABELS,
+        actionLabels: PERMISSION_ACTION_LABELS,
+      });
+    } catch (error: any) {
+      console.error("Error fetching user permissions:", error);
+      handleGenericError(res, error);
+    }
+  });
+
+  // GET /api/external/permissions/users/:userId - Get specific user's permission overrides
+  app.get("/api/external/permissions/users/:userId", isAuthenticated, requireRole(EXTERNAL_ADMIN_ROLES), async (req: any, res) => {
+    try {
+      const agencyId = await getUserAgencyId(req);
+      if (!agencyId) {
+        return res.status(403).json({ message: "User is not assigned to any agency" });
+      }
+
+      const { userId } = req.params;
+      const permissions = await storage.getExternalUserPermissionsByUser(agencyId, userId);
+      
+      res.json(permissions);
+    } catch (error: any) {
+      console.error("Error fetching user permissions:", error);
+      handleGenericError(res, error);
+    }
+  });
+
+  // PATCH /api/external/permissions/users/:userId - Update specific user's permission overrides
+  app.patch("/api/external/permissions/users/:userId", isAuthenticated, requireRole(EXTERNAL_ADMIN_ROLES), async (req: any, res) => {
+    try {
+      const agencyId = await getUserAgencyId(req);
+      if (!agencyId) {
+        return res.status(403).json({ message: "User is not assigned to any agency" });
+      }
+
+      const { userId } = req.params;
+      const { permissions } = req.body;
+      
+      if (!Array.isArray(permissions)) {
+        return res.status(400).json({ message: "permissions must be an array" });
+      }
+
+      // Validate user belongs to agency
+      const user = await storage.getUser(userId);
+      if (!user || user.externalAgencyId !== agencyId) {
+        return res.status(404).json({ message: "User not found in agency" });
+      }
+
+      // Validate and prepare permissions
+      const validatedPermissions = permissions.map((p: any) => {
+        const validated = insertExternalUserPermissionSchema.parse({
+          agencyId,
+          userId,
+          section: p.section,
+          action: p.action,
+          allowed: p.allowed,
+        });
+        return validated;
+      });
+
+      const results = await storage.bulkUpsertExternalUserPermissions(validatedPermissions);
+      
+      await createAuditLog(req, "update", "external_user_permissions", userId, `Updated ${results.length} user permissions`);
+      
+      res.json(results);
+    } catch (error: any) {
+      console.error("Error updating user permissions:", error);
+      handleGenericError(res, error);
+    }
+  });
+
+  // DELETE /api/external/permissions/users/:userId - Clear all permission overrides for a user
+  app.delete("/api/external/permissions/users/:userId", isAuthenticated, requireRole(EXTERNAL_ADMIN_ROLES), async (req: any, res) => {
+    try {
+      const agencyId = await getUserAgencyId(req);
+      if (!agencyId) {
+        return res.status(403).json({ message: "User is not assigned to any agency" });
+      }
+
+      const { userId } = req.params;
+      
+      // Validate user belongs to agency
+      const user = await storage.getUser(userId);
+      if (!user || user.externalAgencyId !== agencyId) {
+        return res.status(404).json({ message: "User not found in agency" });
+      }
+
+      await storage.deleteAllExternalUserPermissions(agencyId, userId);
+      
+      await createAuditLog(req, "delete", "external_user_permissions", userId, "Cleared all user permission overrides");
+      
+      res.status(204).send();
+    } catch (error: any) {
+      console.error("Error clearing user permissions:", error);
+      handleGenericError(res, error);
+    }
+  });
+
+  // ==============================
   // External Agency User Management Routes
   // ==============================
 
   // GET /api/external/users - Get all users for the authenticated user's agency
-  app.get("/api/external/users", isAuthenticated, requireRole(EXTERNAL_ADMIN_ROLES), async (req: any, res) => {
+  app.get("/api/external/users", isAuthenticated, requireRole(EXTERNAL_ALL_ROLES), async (req: any, res) => {
     try {
       const agencyId = await getUserAgencyId(req);
       if (!agencyId) {
@@ -21406,6 +22822,536 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // External Properties Routes
+
+  // ==================== External Appointments Routes ====================
+  // Roles for appointment management
+  const EXTERNAL_APPOINTMENT_VIEW_ROLES = ["master", "admin", "external_agency_admin", "external_agency_concierge", "external_agency_lawyer", "external_agency_seller"];
+  const EXTERNAL_APPOINTMENT_MANAGE_ROLES = ["master", "admin", "external_agency_admin", "external_agency_concierge"];
+
+  // GET /api/external-appointments - Get all appointments for agency
+  app.get("/api/external-appointments", isAuthenticated, requireRole(EXTERNAL_APPOINTMENT_VIEW_ROLES), async (req: any, res) => {
+    try {
+      const agencyId = await getUserAgencyId(req);
+      if (!agencyId) {
+        return res.status(403).json({ message: "No agency assigned" });
+      }
+
+      const { status, salespersonId, conciergeId, startDate, endDate, mode, page, limit, search } = req.query;
+
+      // Parse filters
+      const filters: any = {};
+      if (status) filters.status = status.includes(',') ? status.split(',') : status;
+      if (salespersonId) filters.salespersonId = salespersonId;
+      if (conciergeId) filters.conciergeId = conciergeId;
+      if (startDate) filters.startDate = new Date(startDate);
+      if (endDate) filters.endDate = new Date(endDate);
+      if (mode) filters.mode = mode;
+
+      // If pagination requested
+      if (page && limit) {
+        const result = await storage.getExternalAppointmentsPaginated(agencyId, {
+          limit: parseInt(limit),
+          offset: (parseInt(page) - 1) * parseInt(limit),
+          ...filters,
+          search: search || undefined,
+        });
+        return res.json(result);
+      }
+
+      const appointments = await storage.getExternalAppointmentsByAgency(agencyId, filters);
+      res.json(appointments);
+    } catch (error: any) {
+      console.error("Error fetching external appointments:", error);
+      handleGenericError(res, error);
+    }
+  });
+
+  // GET /api/external-appointments/:id - Get single appointment
+  app.get("/api/external-appointments/:id", isAuthenticated, requireRole(EXTERNAL_APPOINTMENT_VIEW_ROLES), async (req: any, res) => {
+    try {
+      const { id } = req.params;
+      const agencyId = await getUserAgencyId(req);
+      if (!agencyId) {
+        return res.status(403).json({ message: "No agency assigned" });
+      }
+
+      // Use agency-scoped query to prevent enumeration
+      const appointment = await storage.getExternalAppointmentByAgency(id, agencyId);
+      
+      if (!appointment) {
+        return res.status(404).json({ message: "Appointment not found" });
+      }
+
+      // Get tour stops if this is a tour
+      let tourStops: any[] = [];
+      if (appointment.mode === 'tour') {
+        tourStops = await storage.getExternalAppointmentUnitsByAppointment(id);
+      }
+
+      res.json({ ...appointment, tourStops });
+    } catch (error: any) {
+      console.error("Error fetching external appointment:", error);
+      handleGenericError(res, error);
+    }
+  });
+
+  // GET /api/external-appointments/unit/:unitId - Get appointments for a specific unit
+  app.get("/api/external-appointments/unit/:unitId", isAuthenticated, requireRole(EXTERNAL_APPOINTMENT_VIEW_ROLES), async (req: any, res) => {
+    try {
+      const { unitId } = req.params;
+      const agencyId = await getUserAgencyId(req);
+      if (!agencyId) {
+        return res.status(403).json({ message: "No agency assigned" });
+      }
+
+      // Verify the unit belongs to the requester's agency
+      const unit = await storage.getExternalUnit(unitId);
+      if (!unit || unit.agencyId !== agencyId) {
+        return res.status(403).json({ message: "Unit not found or not accessible" });
+      }
+
+      const appointments = await storage.getExternalAppointmentsByUnit(unitId, agencyId);
+      res.json(appointments);
+    } catch (error: any) {
+      console.error("Error fetching unit appointments:", error);
+      handleGenericError(res, error);
+    }
+  });
+
+  // POST /api/external-appointments - Create appointment
+  app.post("/api/external-appointments", isAuthenticated, requireRole(EXTERNAL_APPOINTMENT_MANAGE_ROLES), async (req: any, res) => {
+    try {
+      const agencyId = await getUserAgencyId(req);
+      if (!agencyId) {
+        return res.status(403).json({ message: "No agency assigned" });
+      }
+
+      const userId = req.user?.claims?.sub || req.user?.id;
+      const { tourStops, ...appointmentData } = req.body;
+
+      // Convert date string to Date object if needed
+      const parsedDate = typeof appointmentData.date === 'string' 
+        ? new Date(appointmentData.date) 
+        : appointmentData.date;
+
+      // Validate appointment data
+      const validatedData = insertExternalAppointmentSchema.parse({
+        ...appointmentData,
+        date: parsedDate,
+        agencyId,
+        createdBy: userId,
+      });
+
+      // For tours, validate max 3 properties rule
+      if (validatedData.mode === 'tour' && tourStops && tourStops.length > 3) {
+        return res.status(400).json({ message: "Tours can have a maximum of 3 properties" });
+      }
+
+      // Calculate end time based on mode
+      const startDate = new Date(validatedData.date);
+      let endDate: Date;
+      
+      if (validatedData.mode === 'individual') {
+        // Individual appointments are 1 hour
+        endDate = new Date(startDate.getTime() + 60 * 60 * 1000);
+      } else {
+        // Tours: 30 minutes per property
+        const propertyCount = tourStops?.length || 1;
+        endDate = new Date(startDate.getTime() + propertyCount * 30 * 60 * 1000);
+      }
+
+      // Generate tour group ID if this is a tour
+      const tourGroupId = validatedData.mode === 'tour' ? crypto.randomUUID() : null;
+
+      const appointment = await storage.createExternalAppointment({
+        ...validatedData,
+        endTime: endDate,
+        tourGroupId,
+      });
+
+      // Create tour stops if this is a tour
+      if (validatedData.mode === 'tour' && tourStops && tourStops.length > 0) {
+        const stopsData = tourStops.map((stop: any, index: number) => ({
+          appointmentId: appointment.id,
+          unitId: stop.unitId,
+          sequence: index + 1,
+          scheduledTime: new Date(startDate.getTime() + index * 30 * 60 * 1000),
+          notes: stop.notes || null,
+        }));
+
+        await storage.createExternalAppointmentUnits(stopsData);
+      }
+
+      await createAuditLog(req, "create", "external_appointment", appointment.id, 
+        `Created ${validatedData.mode} appointment for ${validatedData.clientName}`);
+
+      // Log property activity for each unit in the appointment
+      try {
+        const unitsToLog: Array<{unitId: string, condominiumId: string | null}> = [];
+        
+        // For individual appointments, log the single unit
+        if (validatedData.mode === 'individual' && validatedData.unitId) {
+          const unit = await storage.getExternalUnit(validatedData.unitId);
+          if (unit) {
+            unitsToLog.push({ unitId: unit.id, condominiumId: unit.condominiumId || null });
+          }
+        }
+        
+        // For tours, log each tour stop
+        if (validatedData.mode === 'tour' && tourStops) {
+          for (const stop of tourStops) {
+            const unit = await storage.getExternalUnit(stop.unitId);
+            if (unit) {
+              unitsToLog.push({ unitId: unit.id, condominiumId: unit.condominiumId || null });
+            }
+          }
+        }
+        
+        // Log activity for each unit
+        for (const unitInfo of unitsToLog) {
+          await db.insert(externalPropertyActivityHistory).values({
+            agencyId,
+            unitId: unitInfo.unitId,
+            condominiumId: unitInfo.condominiumId,
+            activityType: 'appointment_scheduled',
+            leadId: validatedData.leadId || null,
+            leadName: validatedData.clientName,
+            clientId: validatedData.clientId || null,
+            clientName: validatedData.clientName,
+            appointmentId: appointment.id,
+            performedBy: userId,
+            performedByName: null,
+            details: {
+              status: appointment.status,
+              notes: appointment.notes
+            },
+          });
+        }
+      } catch (activityError) {
+        console.error("Error logging property activity for appointment:", activityError);
+      }
+
+
+      res.status(201).json(appointment);
+    } catch (error: any) {
+      console.error("Error creating external appointment:", error);
+      if (error.name === "ZodError") {
+        return handleZodError(res, error);
+      }
+      handleGenericError(res, error);
+    }
+  });
+
+  // PATCH /api/external-appointments/:id - Update appointment
+  app.patch("/api/external-appointments/:id", isAuthenticated, requireRole(EXTERNAL_APPOINTMENT_MANAGE_ROLES), async (req: any, res) => {
+    try {
+      const { id } = req.params;
+      const agencyId = await getUserAgencyId(req);
+      if (!agencyId) {
+        return res.status(403).json({ message: "No agency assigned" });
+      }
+
+      // Use agency-scoped query to prevent enumeration
+      const appointment = await storage.getExternalAppointmentByAgency(id, agencyId);
+      
+      if (!appointment) {
+        return res.status(404).json({ message: "Appointment not found" });
+      }
+
+      const { tourStops, ...rawUpdateData } = req.body;
+
+      // Validate tour stops if provided (max 3)
+      if (tourStops && tourStops.length > 3) {
+        return res.status(400).json({ message: "Tours can have a maximum of 3 properties" });
+      }
+
+      // Filter out undefined values and only include valid updatable fields to prevent NOT NULL violations
+      const allowedFields = ['clientId', 'leadId', 'presentationCardId', 'clientName', 'clientEmail', 'clientPhone', 'mode', 'type', 'date', 'unitId', 'notes', 'salespersonId', 'conciergeId', 'status', 'completedAt', 'tourStops', 'feedbackOutcome', 'feedbackNotes', 'feedbackRatingDelta', 'feedbackSubmittedAt', 'feedbackSubmittedBy'];
+      const updateData: Record<string, any> = {};
+      for (const field of allowedFields) {
+        if (rawUpdateData[field] !== undefined) {
+          updateData[field] = rawUpdateData[field];
+        }
+      }
+
+      const updated = await storage.updateExternalAppointment(id, updateData);
+
+      // Update tour stops if provided
+      if (tourStops) {
+        await storage.deleteExternalAppointmentUnitsByAppointment(id);
+        if (tourStops.length > 0) {
+          const startDate = new Date(updated.date);
+          const stopsData = tourStops.map((stop: any, index: number) => ({
+            appointmentId: id,
+            unitId: stop.unitId,
+            sequence: index + 1,
+            scheduledTime: new Date(startDate.getTime() + index * 30 * 60 * 1000),
+            notes: stop.notes || null,
+          }));
+          await storage.createExternalAppointmentUnits(stopsData);
+        }
+      }
+
+      await createAuditLog(req, "update", "external_appointment", id, "Updated appointment details");
+
+      res.json(updated);
+    } catch (error: any) {
+      console.error("Error updating external appointment:", error);
+      handleGenericError(res, error);
+    }
+  });
+
+  // PATCH /api/external-appointments/:id/status - Update appointment status
+  app.patch("/api/external-appointments/:id/status", isAuthenticated, requireRole(EXTERNAL_APPOINTMENT_MANAGE_ROLES), async (req: any, res) => {
+    try {
+      const { id } = req.params;
+      const { status, cancellationReason } = req.body;
+
+      const agencyId = await getUserAgencyId(req);
+      if (!agencyId) {
+        return res.status(403).json({ message: "No agency assigned" });
+      }
+
+      // Use agency-scoped query to prevent enumeration
+      const appointment = await storage.getExternalAppointmentByAgency(id, agencyId);
+      if (!appointment) {
+        return res.status(404).json({ message: "Appointment not found" });
+      }
+
+      // Validate status transitions
+      const validTransitions: Record<string, string[]> = {
+        pending: ['confirmed', 'cancelled'],
+        confirmed: ['completed', 'cancelled'],
+        completed: [],
+        cancelled: [],
+      };
+      
+      const currentStatus = appointment.status;
+      const allowedNextStatuses = validTransitions[currentStatus] || [];
+      if (!allowedNextStatuses.includes(status)) {
+        return res.status(400).json({ 
+          message: 'Invalid status transition',
+          allowedTransitions: allowedNextStatuses 
+        });
+      }
+
+      const additionalData: any = {};
+      if (status === 'confirmed') additionalData.confirmedAt = new Date();
+      if (status === 'completed') additionalData.completedAt = new Date();
+      if (status === 'cancelled') {
+        additionalData.cancelledAt = new Date();
+        if (cancellationReason) additionalData.cancellationReason = cancellationReason;
+      }
+
+      const updated = await storage.updateExternalAppointmentStatus(id, status, additionalData);
+
+      await createAuditLog(req, "update", "external_appointment", id, `Changed status to ${status}`);
+
+      res.json(updated);
+    } catch (error: any) {
+      console.error("Error updating appointment status:", error);
+      handleGenericError(res, error);
+    }
+  });
+
+  // PATCH /api/external-appointments/:id/feedback - Submit appointment feedback
+  app.patch("/api/external-appointments/:id/feedback", isAuthenticated, requireRole(EXTERNAL_APPOINTMENT_MANAGE_ROLES), async (req: any, res) => {
+    try {
+      const { id } = req.params;
+      const { outcome, notes, ratingDelta } = req.body;
+      const userId = req.user?.id || req.session?.user?.id;
+
+      const agencyId = await getUserAgencyId(req);
+      if (!agencyId) {
+        return res.status(403).json({ message: "No agency assigned" });
+      }
+
+      const appointment = await storage.getExternalAppointmentByAgency(id, agencyId);
+      if (!appointment) {
+        return res.status(404).json({ message: "Appointment not found" });
+      }
+
+
+      // Allow feedback for pending/confirmed appointments - this will also mark them as completed
+      if (appointment.status === "cancelled") {
+        return res.status(400).json({ message: "Cannot submit feedback for cancelled appointments" });
+      }
+
+      // First mark as completed if not already
+      if (appointment.status !== "completed") {
+        await storage.updateExternalAppointment(id, { 
+          status: "completed",
+          completedAt: new Date().toISOString(),
+        });
+      }
+
+      const updated = await storage.submitAppointmentFeedback(id, {
+        outcome,
+        notes,
+        ratingDelta,
+        submittedBy: userId,
+      });
+
+      // Create client rating entry if ratingDelta is provided
+      if (ratingDelta && (appointment.clientId || appointment.leadId)) {
+        await storage.createClientRating({
+          agencyId,
+          clientId: appointment.clientId || null,
+          leadId: appointment.leadId || null,
+          appointmentId: id,
+          ratingDelta,
+          reason: outcome,
+          notes,
+          createdBy: userId,
+        });
+
+        // Update cumulative rating on client or lead
+        if (appointment.clientId) {
+          const newRating = await storage.getClientCumulativeRating(appointment.clientId, null);
+          await storage.updateExternalClient(appointment.clientId, { cumulativeRating: newRating });
+        } else if (appointment.leadId) {
+          const newRating = await storage.getClientCumulativeRating(null, appointment.leadId);
+          await storage.updateExternalLead(appointment.leadId, { cumulativeRating: newRating });
+        }
+      }
+
+      await createAuditLog(req, "update", "external_appointment", id, `Submitted feedback: ${outcome}`);
+
+      res.json(updated);
+    } catch (error: any) {
+      console.error("Error submitting appointment feedback:", error);
+      handleGenericError(res, error);
+    }
+  });
+
+  // GET /api/external/property-ratings - Get property ratings
+  app.get("/api/external/property-ratings", isAuthenticated, requireRole(EXTERNAL_APPOINTMENT_VIEW_ROLES), async (req: any, res) => {
+    try {
+      const { propertyId, unitId } = req.query;
+      const ratings = await storage.getPropertyRatings(propertyId, unitId);
+      res.json(ratings);
+    } catch (error: any) {
+      console.error("Error getting property ratings:", error);
+      handleGenericError(res, error);
+    }
+  });
+
+  // POST /api/external/property-ratings - Create property rating
+  app.post("/api/external/property-ratings", isAuthenticated, requireRole(EXTERNAL_APPOINTMENT_MANAGE_ROLES), async (req: any, res) => {
+    try {
+      const agencyId = await getUserAgencyId(req);
+      if (!agencyId) {
+        return res.status(403).json({ message: "No agency assigned" });
+      }
+
+      const userId = req.user?.id || req.session?.user?.id;
+      const rating = await storage.createPropertyRating({
+        ...req.body,
+        agencyId,
+        createdBy: userId,
+      });
+
+      await createAuditLog(req, "create", "property_rating", rating.id, "Created property rating");
+      res.json(rating);
+    } catch (error: any) {
+      console.error("Error creating property rating:", error);
+      handleGenericError(res, error);
+    }
+  });
+
+  // GET /api/external/property-ratings/average - Get average rating for property
+  app.get("/api/external/property-ratings/average", isAuthenticated, requireRole(EXTERNAL_APPOINTMENT_VIEW_ROLES), async (req: any, res) => {
+    try {
+      const { propertyId, unitId } = req.query;
+      const result = await storage.getPropertyAverageRating(propertyId, unitId);
+      res.json(result);
+    } catch (error: any) {
+      console.error("Error getting property average rating:", error);
+      handleGenericError(res, error);
+    }
+  });
+
+  // GET /api/external/client-ratings - Get client rating history
+  app.get("/api/external/client-ratings", isAuthenticated, requireRole(EXTERNAL_APPOINTMENT_VIEW_ROLES), async (req: any, res) => {
+    try {
+      const { clientId, leadId } = req.query;
+      const ratings = await storage.getClientRatings(clientId || null, leadId || null);
+      res.json(ratings);
+    } catch (error: any) {
+      console.error("Error getting client ratings:", error);
+      handleGenericError(res, error);
+    }
+  });
+
+  // PATCH /api/external-appointments/:id/assign-concierge - Assign concierge
+  app.patch("/api/external-appointments/:id/assign-concierge", isAuthenticated, requireRole(EXTERNAL_ADMIN_ROLES), async (req: any, res) => {
+    try {
+      const { id } = req.params;
+      const { conciergeId } = req.body;
+
+      const agencyId = await getUserAgencyId(req);
+      if (!agencyId) {
+        return res.status(403).json({ message: "No agency assigned" });
+      }
+
+      // Use agency-scoped query to prevent enumeration
+      const appointment = await storage.getExternalAppointmentByAgency(id, agencyId);
+      if (!appointment) {
+        return res.status(404).json({ message: "Appointment not found" });
+      }
+
+      const updated = await storage.assignExternalAppointmentConcierge(id, conciergeId);
+
+      await createAuditLog(req, "update", "external_appointment", id, `Assigned concierge ${conciergeId}`);
+
+      res.json(updated);
+    } catch (error: any) {
+      console.error("Error assigning concierge:", error);
+      handleGenericError(res, error);
+    }
+  });
+
+  // DELETE /api/external-appointments/:id - Delete appointment
+  app.delete("/api/external-appointments/:id", isAuthenticated, requireRole(EXTERNAL_ADMIN_ROLES), async (req: any, res) => {
+    try {
+      const { id } = req.params;
+      const agencyId = await getUserAgencyId(req);
+      if (!agencyId) {
+        return res.status(403).json({ message: "No agency assigned" });
+      }
+
+      // Use agency-scoped query to prevent enumeration
+      const appointment = await storage.getExternalAppointmentByAgency(id, agencyId);
+      
+      if (!appointment) {
+        return res.status(404).json({ message: "Appointment not found" });
+      }
+
+      // Delete tour stops first
+      await storage.deleteExternalAppointmentUnitsByAppointment(id);
+      await storage.deleteExternalAppointment(id);
+
+      await createAuditLog(req, "delete", "external_appointment", id, "Deleted appointment");
+
+      res.status(204).send();
+    } catch (error: any) {
+      console.error("Error deleting external appointment:", error);
+      handleGenericError(res, error);
+    }
+  });
+
+  // GET /api/external-appointments/:id/tour-stops - Get tour stops for appointment
+  app.get("/api/external-appointments/:id/tour-stops", isAuthenticated, requireRole(EXTERNAL_APPOINTMENT_VIEW_ROLES), async (req: any, res) => {
+    try {
+      const { id } = req.params;
+      const stops = await storage.getExternalAppointmentUnitsByAppointment(id);
+      res.json(stops);
+    } catch (error: any) {
+      console.error("Error fetching tour stops:", error);
+      handleGenericError(res, error);
+    }
+  });
+
   app.get("/api/external-properties", isAuthenticated, requireRole(EXTERNAL_ALL_ROLES), async (req: any, res) => {
     try {
       const { agencyId, status } = req.query;
@@ -21579,16 +23525,78 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.patch("/api/external-contracts/:id/status", isAuthenticated, requireRole(EXTERNAL_MAINTENANCE_ROLES), async (req: any, res) => {
     try {
       const { id } = req.params;
-      const { status } = req.body;
+      const { status, autoConvertToLead } = req.body;
       
       if (!status) {
         return res.status(400).json({ message: "Status is required" });
       }
       
+      // Get the contract before updating to check for client
+      const existingContract = await storage.getExternalRentalContractById(id);
+      
       const contract = await storage.updateExternalContractStatus(id, status);
       
       await createAuditLog(req, "update", "external_contract", id, `Changed contract status to ${status}`);
-      res.json(contract);
+      
+      // Auto-convert client to lead when rental ends (status = completed)
+      let convertedLead = null;
+      if (status === 'completed' && existingContract?.clientId && autoConvertToLead !== false) {
+        try {
+          const client = await storage.getExternalClient(existingContract.clientId);
+          
+          // Only convert if client exists, is active, and hasn't been converted already
+          if (client && client.status === 'active' && !client.convertedBackToLeadId) {
+            const agencyId = existingContract.agencyId;
+            
+            // Get agency name for seller assignment
+            const agencyResult = await db.select({
+              name: externalAgencies.name,
+            })
+            .from(externalAgencies)
+            .where(eq(externalAgencies.id, agencyId))
+            .limit(1);
+            
+            const agencyName = agencyResult[0]?.name || 'Agencia';
+            
+            // Create new lead from client data
+            const leadData = {
+              agencyId,
+              registrationType: 'seller' as const,
+              firstName: client.firstName,
+              lastName: client.lastName,
+              email: client.email || undefined,
+              phone: client.phone || undefined,
+              status: 'nuevo_lead' as const,
+              source: 'reconversion_cliente_rental_ended',
+              notes: `Reconvertido automáticamente al finalizar renta. Contrato: ${id}. Cliente original ID: ${client.id}`,
+              bedroomsText: client.bedroomsPreference?.toString() || undefined,
+              sellerName: agencyName, // Assign agency as the seller
+              createdBy: req.user.id,
+            };
+
+            convertedLead = await storage.createExternalLead(leadData);
+
+            // Update client to mark as converted back
+            await storage.updateExternalClient(client.id, {
+              status: 'archived',
+              convertedBackToLeadId: convertedLead.id,
+              convertedBackToLeadAt: new Date(),
+              convertedBackReason: 'rental_ended',
+            });
+
+            await createAuditLog(req, "create", "external_lead", convertedLead.id, `Auto-reconverted from client ${client.id} when rental ended`);
+            await createAuditLog(req, "update", "external_client", client.id, `Auto-converted back to lead ${convertedLead.id} when rental ended`);
+          }
+        } catch (conversionError: any) {
+          console.error("Error auto-converting client to lead:", conversionError);
+          // Don't fail the main request if conversion fails
+        }
+      }
+      
+      res.json({ 
+        ...contract,
+        convertedLead: convertedLead ? { id: convertedLead.id, message: "Cliente reconvertido a lead automáticamente" } : null
+      });
     } catch (error: any) {
       console.error("Error updating external contract status:", error);
       handleGenericError(res, error);
@@ -21617,7 +23625,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       // Get all users with external agency roles that belong to this agency
-      const externalRoles = ["external_agency_admin", "external_agency_accounting", "external_agency_maintenance", "external_agency_staff"];
+      const externalRoles = ["external_agency_admin", "external_agency_accounting", "external_agency_maintenance", "external_agency_seller", "external_agency_concierge", "external_agency_lawyer"];
       const externalUsers = await db
         .select({
           id: users.id,
@@ -21628,12 +23636,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
           role: users.role,
           status: users.status,
           maintenanceSpecialty: users.maintenanceSpecialty,
+          isSuspended: users.isSuspended,
           createdAt: users.createdAt,
         })
         .from(users)
         .where(and(
           inArray(users.role, externalRoles),
-          eq(users.assignedToUser, agencyId)
+          eq(users.externalAgencyId, agencyId)
         ))
         .orderBy(users.createdAt);
 
@@ -21657,8 +23666,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
         firstName: z.string().min(1, "First name required"),
         lastName: z.string().min(1, "Last name required"),
         phone: z.string().optional(),
-        role: z.enum(["external_agency_admin", "external_agency_accounting", "external_agency_maintenance", "external_agency_staff"]),
+        role: z.enum(["external_agency_admin", "external_agency_accounting", "external_agency_maintenance", "external_agency_seller", "external_agency_concierge", "external_agency_lawyer"]),
         maintenanceSpecialty: z.enum(["encargado_mantenimiento", "mantenimiento_general", "electrico", "plomero", "refrigeracion", "carpintero", "pintor", "jardinero", "albanil", "limpieza"]).optional(),
+        commissionRate: z.enum(["10", "20", "40", "50"]).optional(),
       });
 
       const validatedData = createUserSchema.parse(req.body);
@@ -21686,13 +23696,38 @@ export async function registerRoutes(app: Express): Promise<Server> {
         status: "approved",
         emailVerified: true, // Auto-verify external agency users
         requirePasswordChange: true, // Force password change on first login
-        assignedToUser: agencyId, // Link user to agency via assignedToUser field
+        externalAgencyId: agencyId, // Link user to agency via externalAgencyId field
         maintenanceSpecialty: validatedData.maintenanceSpecialty || null,
       });
 
       await createAuditLog(req, "create", "user", user.id, `Created external agency user with role ${validatedData.role}`);
 
-      // Return user and temp password
+
+      // Auto-seed default message templates for sellers and create seller profile
+      if (validatedData.role === "external_agency_seller") {
+        try {
+          const templatesCreated = await seedDefaultTemplatesForSeller(agencyId);
+          console.log(`Auto-seeded ${templatesCreated} default templates for new seller ${user.email} in agency ${agencyId}`);
+        } catch (templateError) {
+          console.error("Error auto-seeding templates for new seller:", templateError);
+          // Non-blocking - user creation succeeded
+        }
+        
+        // Create seller profile with commission rate if provided
+        try {
+          await storage.createExternalSellerProfile({
+            agencyId,
+            userId: user.id,
+            status: "active",
+            commissionRate: validatedData.commissionRate || "10.00", // Default 10%
+            hireDate: new Date(),
+          });
+          console.log(`Created seller profile for ${user.email} with commission rate ${validatedData.commissionRate || "10"}%`);
+        } catch (profileError) {
+          console.error("Error creating seller profile:", profileError);
+          // Non-blocking - user creation succeeded
+        }
+      }
       res.status(201).json({ 
         user: {
           id: user.id,
@@ -21727,15 +23762,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
         firstName: z.string().min(1, "First name required").optional(),
         lastName: z.string().min(1, "Last name required").optional(),
         phone: z.string().optional().nullable(),
-        role: z.enum(["external_agency_admin", "external_agency_accounting", "external_agency_maintenance", "external_agency_staff"]).optional(),
+        role: z.enum(["external_agency_admin", "external_agency_accounting", "external_agency_maintenance", "external_agency_seller", "external_agency_concierge", "external_agency_lawyer"]).optional(),
         maintenanceSpecialty: z.enum(["encargado_mantenimiento", "mantenimiento_general", "electrico", "plomero", "refrigeracion", "carpintero", "pintor", "jardinero", "albanil", "limpieza"]).optional().nullable(),
+        commissionRate: z.enum(["10", "20", "40", "50"]).optional().nullable(),
       });
 
       const validatedData = updateUserSchema.parse(req.body);
 
       // Verify user belongs to this agency
       const user = await storage.getUser(id);
-      if (!user || user.assignedToUser !== agencyId) {
+      if (!user || user.externalAgencyId !== agencyId) {
         return res.status(403).json({ message: "Unauthorized to update this user" });
       }
 
@@ -21756,11 +23792,27 @@ export async function registerRoutes(app: Express): Promise<Server> {
         .set(updateData)
         .where(eq(users.id, id))
         .returning();
-
       await createAuditLog(req, "update", "user", id, `Updated external agency user - changed: ${Object.keys(validatedData).join(', ')}`);
 
+      // If this is a seller and commission rate is provided, update the seller profile
+      if (validatedData.commissionRate && (validatedData.role === "external_agency_seller" || updatedUser.role === "external_agency_seller")) {
+        const existingProfile = await storage.getExternalSellerProfileByUser(agencyId, id);
+        const payload = {
+          agencyId,
+          userId: id,
+          status: existingProfile?.status ?? "active",
+          commissionRate: `${validatedData.commissionRate}.00`,
+        };
+
+        if (existingProfile) {
+          await storage.updateExternalSellerProfile(existingProfile.id, payload);
+        } else {
+          await storage.createExternalSellerProfile({ ...payload, hireDate: new Date() });
+        }
+      }
+
+
       res.json({
-        id: updatedUser.id,
         email: updatedUser.email,
         firstName: updatedUser.firstName,
         lastName: updatedUser.lastName,
@@ -21788,7 +23840,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       // Verify user belongs to this agency
       const user = await storage.getUser(id);
-      if (!user || user.assignedToUser !== agencyId) {
+      if (!user || user.externalAgencyId !== agencyId) {
         return res.status(403).json({ message: "Unauthorized to reset password for this user" });
       }
 
@@ -21821,7 +23873,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       // Verify user belongs to this agency
       const user = await storage.getUser(id);
-      if (!user || user.assignedToUser !== agencyId) {
+      if (!user || user.externalAgencyId !== agencyId) {
         return res.status(403).json({ message: "Unauthorized to delete this user" });
       }
 
@@ -21835,6 +23887,73 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+
+  // Suspend external agency user
+  app.post("/api/external-agency-users/:id/suspend", isAuthenticated, requireRole(EXTERNAL_ADMIN_ROLES), async (req: any, res) => {
+    try {
+      const { id } = req.params;
+      const agencyId = await getUserAgencyId(req);
+      if (!agencyId) {
+        return res.status(400).json({ message: "No agency assigned to user" });
+      }
+
+      const user = await storage.getUser(id);
+      if (!user || user.externalAgencyId !== agencyId) {
+        return res.status(403).json({ message: "Unauthorized to suspend this user" });
+      }
+
+      const adminId = req.user?.claims?.sub || req.user?.id;
+      if (id === adminId) {
+        return res.status(400).json({ message: "No puedes suspender tu propia cuenta" });
+      }
+
+      await db
+        .update(users)
+        .set({
+          isSuspended: true,
+          suspendedAt: new Date(),
+          suspendedById: adminId,
+        })
+        .where(eq(users.id, id));
+
+      await createAuditLog(req, "update", "user", id, `Suspended external agency user ${user.firstName} ${user.lastName}`);
+      res.json({ message: "Usuario suspendido exitosamente" });
+    } catch (error: any) {
+      console.error("Error suspending external agency user:", error);
+      handleGenericError(res, error);
+    }
+  });
+
+  // Unsuspend/Reactivate external agency user
+  app.post("/api/external-agency-users/:id/unsuspend", isAuthenticated, requireRole(EXTERNAL_ADMIN_ROLES), async (req: any, res) => {
+    try {
+      const { id } = req.params;
+      const agencyId = await getUserAgencyId(req);
+      if (!agencyId) {
+        return res.status(400).json({ message: "No agency assigned to user" });
+      }
+
+      const user = await storage.getUser(id);
+      if (!user || user.externalAgencyId !== agencyId) {
+        return res.status(403).json({ message: "Unauthorized to reactivate this user" });
+      }
+
+      await db
+        .update(users)
+        .set({
+          isSuspended: false,
+          suspendedAt: null,
+          suspendedById: null,
+        })
+        .where(eq(users.id, id));
+
+      await createAuditLog(req, "update", "user", id, `Reactivated external agency user ${user.firstName} ${user.lastName}`);
+      res.json({ message: "Usuario reactivado exitosamente" });
+    } catch (error: any) {
+      console.error("Error reactivating external agency user:", error);
+      handleGenericError(res, error);
+    }
+  });
   // External Worker Assignments Routes
   app.get("/api/external-worker-assignments", isAuthenticated, requireRole(EXTERNAL_ADMIN_ROLES), async (req: any, res) => {
     try {
@@ -21856,7 +23975,54 @@ export async function registerRoutes(app: Express): Promise<Server> {
         .from(externalWorkerAssignments)
         .where(eq(externalWorkerAssignments.agencyId, agencyId));
 
-      res.json(assignments);
+      // Get maintenance managers (encargado_mantenimiento) who have global access
+      const maintenanceManagers = await db
+        .select({
+          id: users.id,
+        })
+        .from(users)
+        .where(and(
+          eq(users.assignedToUser, agencyId),
+          eq(users.maintenanceSpecialty, 'encargado_mantenimiento')
+        ));
+
+      // Get all condominiums for this agency
+      const allCondominiums = await db
+        .select({ id: externalCondominiums.id })
+        .from(externalCondominiums)
+        .where(eq(externalCondominiums.agencyId, agencyId));
+
+      // Generate virtual assignments for maintenance managers (they have access to all condos)
+      const virtualAssignments: any[] = [];
+      for (const manager of maintenanceManagers) {
+        // Check if manager already has manual assignments - if so, skip virtual ones for those condos
+        const existingCondoIds = new Set(
+          assignments.filter(a => a.userId === manager.id && a.condominiumId).map(a => a.condominiumId)
+        );
+        
+        for (const condo of allCondominiums) {
+          // Only add virtual assignment if no manual assignment exists for this condo
+          if (!existingCondoIds.has(condo.id)) {
+            virtualAssignments.push({
+              id: `virtual-${manager.id}-${condo.id}`,
+              agencyId,
+              userId: manager.id,
+              condominiumId: condo.id,
+              unitId: null,
+              createdAt: new Date(),
+              isGlobal: true, // Flag to indicate this is an automatic global assignment
+            });
+          }
+        }
+      }
+
+      // Combine real assignments (marked with isGlobal: false) with virtual ones
+      const combinedAssignments = [
+        ...assignments.map(a => ({ ...a, isGlobal: false })),
+        ...virtualAssignments,
+      ];
+
+      res.json(combinedAssignments);
     } catch (error: any) {
       console.error("Error fetching worker assignments:", error);
       handleGenericError(res, error);
@@ -22409,6 +24575,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           if (existingPayment.length === 0 && dueDateNormalized >= earliestDate) {
             const [payment] = await db.insert(externalPayments).values({
               id: crypto.randomUUID(),
+                registrationType: row.registration_type?.trim() || 'seller',
               agencyId: schedule.agencyId,
               contractId: schedule.contractId,
               scheduleId: schedule.id,
@@ -22543,7 +24710,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       
       // Verify ownership: master/admin can access all, others must match agency
-      const userRole = req.user?.role || req.session?.adminUser?.role;
+      let userRole = req.user?.role || req.session?.adminUser?.role;
+      // Get role from database if not in session
+      if (!userRole && userId) {
+        const dbUser = await storage.getUser(userId);
+        userRole = dbUser?.role;
+      }
       const isMasterOrAdmin = userRole === "master" || userRole === "admin";
       
       if (!isMasterOrAdmin) {
@@ -22608,7 +24780,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       
       // Verify ownership: master/admin can access all, others must match agency
-      const userRole = req.user?.role || req.session?.adminUser?.role;
+      let userRole = req.user?.role || req.session?.adminUser?.role;
+      // Get role from database if not in session
+      if (!userRole && userId) {
+        const dbUser = await storage.getUser(userId);
+        userRole = dbUser?.role;
+      }
       const isMasterOrAdmin = userRole === "master" || userRole === "admin";
       
       if (!isMasterOrAdmin) {
@@ -22805,9 +24982,125 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // External Maintenance Tickets Routes
+  // External Maintenance Tickets Statistics by Biweekly Period
+  app.get("/api/external-tickets/stats/biweekly", isAuthenticated, requireRole(EXTERNAL_ALL_ROLES), async (req: any, res) => {
+    try {
+      const { year, month, period, category, excludeCategories } = req.query; // period: 1 (1-15) or 2 (16-end)
+      const agencyId = await getUserAgencyId(req);
+      
+      const now = new Date();
+      const targetYear = year ? parseInt(year as string) : now.getFullYear();
+      const targetMonth = month ? parseInt(month as string) : now.getMonth() + 1; // 1-based
+      const targetPeriod = period ? parseInt(period as string) : (now.getDate() <= 15 ? 1 : 2);
+      
+      // Calculate date range for the biweekly period
+      const startDay = targetPeriod === 1 ? 1 : 16;
+      const lastDayOfMonth = new Date(targetYear, targetMonth, 0).getDate();
+      const endDay = targetPeriod === 1 ? 15 : lastDayOfMonth;
+      
+      const startDate = new Date(targetYear, targetMonth - 1, startDay);
+      startDate.setHours(0, 0, 0, 0);
+      
+      const endDate = new Date(targetYear, targetMonth - 1, endDay);
+      endDate.setHours(23, 59, 59, 999);
+      
+      // Build category filter conditions
+      const categoryConditions: any[] = [];
+      if (category && typeof category === 'string') {
+        categoryConditions.push(sql`category = ${category.trim()}`);
+      }
+      if (excludeCategories && typeof excludeCategories === 'string') {
+        const excludeList = excludeCategories.split(',').map((c: string) => c.trim()).filter((c: string) => c);
+        if (excludeList.length > 0) {
+          categoryConditions.push(sql`category NOT IN (${sql.join(excludeList.map((c: string) => sql`${c}`), sql`, `)})`);
+        }
+      }
+      
+      // Query tickets for this agency within the biweekly period using reference date
+      // Reference date: for closed/resolved tickets use closed_at, otherwise use scheduled_date or created_at
+      let result;
+      if (agencyId) {
+        const baseCondition = sql`agency_id = ${agencyId}
+            AND COALESCE(closed_at, scheduled_date, created_at) >= ${startDate.toISOString()}::timestamp
+            AND COALESCE(closed_at, scheduled_date, created_at) <= ${endDate.toISOString()}::timestamp`;
+        
+        const whereClause = categoryConditions.length > 0
+          ? sql`${baseCondition} AND ${sql.join(categoryConditions, sql` AND `)}`
+          : baseCondition;
+          
+        result = await db.execute(sql`
+          SELECT 
+            COUNT(*) as total,
+            COUNT(*) FILTER (WHERE status IN ('open', 'in_progress')) as open_count,
+            COUNT(*) FILTER (WHERE status IN ('resolved', 'closed')) as resolved_count,
+            COALESCE(SUM(CASE WHEN status IN ('resolved', 'closed') AND actual_cost IS NOT NULL THEN actual_cost ELSE 0 END), 0) as actual_cost_sum,
+            COALESCE(SUM(CASE WHEN status IN ('resolved', 'closed') THEN COALESCE(total_charge_amount, actual_cost * 1.15, 0) ELSE 0 END), 0) as total_charge_sum,
+            COALESCE(SUM(CASE WHEN status IN ('resolved', 'closed') AND accounting_sync_status = 'synced' THEN COALESCE(total_charge_amount, actual_cost * 1.15, 0) ELSE 0 END), 0) as paid_total_sum
+          FROM external_maintenance_tickets
+          WHERE ${whereClause}
+        `);
+      } else {
+        // Admin/master users see all agencies
+        const baseCondition = sql`COALESCE(closed_at, scheduled_date, created_at) >= ${startDate.toISOString()}::timestamp
+            AND COALESCE(closed_at, scheduled_date, created_at) <= ${endDate.toISOString()}::timestamp`;
+        
+        const whereClause = categoryConditions.length > 0
+          ? sql`${baseCondition} AND ${sql.join(categoryConditions, sql` AND `)}`
+          : baseCondition;
+          
+        result = await db.execute(sql`
+          SELECT 
+            COUNT(*) as total,
+            COUNT(*) FILTER (WHERE status IN ('open', 'in_progress')) as open_count,
+            COUNT(*) FILTER (WHERE status IN ('resolved', 'closed')) as resolved_count,
+            COALESCE(SUM(CASE WHEN status IN ('resolved', 'closed') AND actual_cost IS NOT NULL THEN actual_cost ELSE 0 END), 0) as actual_cost_sum,
+            COALESCE(SUM(CASE WHEN status IN ('resolved', 'closed') THEN COALESCE(total_charge_amount, actual_cost * 1.15, 0) ELSE 0 END), 0) as total_charge_sum,
+            COALESCE(SUM(CASE WHEN status IN ('resolved', 'closed') AND accounting_sync_status = 'synced' THEN COALESCE(total_charge_amount, actual_cost * 1.15, 0) ELSE 0 END), 0) as paid_total_sum
+          FROM external_maintenance_tickets
+          WHERE ${whereClause}
+        `);
+      }
+      
+      const row = result.rows[0] as any;
+      const actualCost = parseFloat(row.actual_cost_sum || '0');
+      const totalCharge = parseFloat(row.total_charge_sum || '0');
+      const paidTotal = parseFloat(row.paid_total_sum || '0');
+      const commission = totalCharge - actualCost;
+      
+      // Get month name in Spanish
+      const monthNames = ['enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio', 'julio', 'agosto', 'septiembre', 'octubre', 'noviembre', 'diciembre'];
+      const monthName = monthNames[targetMonth - 1];
+      
+      res.json({
+        period: {
+          year: targetYear,
+          month: targetMonth,
+          biweekly: targetPeriod,
+          startDate: startDate.toISOString(),
+          endDate: endDate.toISOString(),
+          label: targetPeriod === 1 
+            ? `1ra Quincena de ${monthName.charAt(0).toUpperCase() + monthName.slice(1)} ${targetYear}`
+            : `2da Quincena de ${monthName.charAt(0).toUpperCase() + monthName.slice(1)} ${targetYear}`
+        },
+        stats: {
+          total: parseInt(row.total || '0'),
+          open: parseInt(row.open_count || '0'),
+          resolved: parseInt(row.resolved_count || '0'),
+          actualCost: actualCost,
+          commission: commission,
+          totalCharge: totalCharge,
+          paidTotal: paidTotal
+        }
+      });
+    } catch (error: any) {
+      console.error("Error fetching biweekly stats:", error);
+      handleGenericError(res, error);
+    }
+  });
+
   app.get("/api/external-tickets", isAuthenticated, requireRole(EXTERNAL_ALL_ROLES), async (req: any, res) => {
     try {
-      const { propertyId, assignedTo, status, priority } = req.query;
+      const { propertyId, assignedTo, status, priority, category, excludeCategories, condominiumId, dateFilter, search, sortField, sortOrder, page, pageSize } = req.query;
       
       if (propertyId) {
         const tickets = await storage.getExternalMaintenanceTicketsByProperty(propertyId);
@@ -22828,13 +25121,34 @@ export async function registerRoutes(app: Express): Promise<Server> {
         }
       }
       
-      const filters: any = {};
-      if (status) filters.status = status;
-      if (priority) filters.priority = priority;
+      // Use paginated query when page/pageSize provided (from main page)
+      const pageNum = parseInt(page as string) || 1;
+      const pageSizeNum = parseInt(pageSize as string) || 10;
+      const offset = (pageNum - 1) * pageSizeNum;
       
-      const tickets = await storage.getExternalMaintenanceTicketsByAgency(agencyId, filters);
+      const result = await storage.getExternalMaintenanceTicketsPaginated(agencyId, {
+        limit: pageSizeNum,
+        offset,
+        search: search as string,
+        status: status as string,
+        priority: priority as string,
+        category: category as string,
+        excludeCategories: excludeCategories ? (excludeCategories as string).split(",") : undefined,
+        condominiumId: condominiumId as string,
+        dateFilter: dateFilter as string,
+        sortField: sortField as string || 'createdAt',
+        sortOrder: (sortOrder as 'asc' | 'desc') || 'desc',
+      });
       
-      res.json(tickets);
+      const totalPages = Math.ceil(result.total / pageSizeNum);
+      
+      res.json({
+        data: result.data,
+        total: result.total,
+        page: pageNum,
+        pageSize: pageSizeNum,
+        totalPages,
+      });
     } catch (error: any) {
       console.error("Error fetching external tickets:", error);
       handleGenericError(res, error);
@@ -22844,11 +25158,77 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get("/api/external-tickets/:id", isAuthenticated, requireRole(EXTERNAL_ALL_ROLES), async (req: any, res) => {
     try {
       const { id } = req.params;
-      const ticket = await storage.getExternalMaintenanceTicket(id);
       
-      if (!ticket) {
+      // Fetch enriched ticket with joined data in a single query
+      const enrichedResult = await db.execute(sql`
+        SELECT 
+          t.*,
+          u.unit_number as "unitNumber",
+          c.name as "condominiumName",
+          COALESCE(NULLIF(TRIM(COALESCE(assigned_user.first_name, '') || ' ' || COALESCE(assigned_user.last_name, '')), ''), assigned_user.email) as "assignedToName",
+          COALESCE(NULLIF(TRIM(COALESCE(created_user.first_name, '') || ' ' || COALESCE(created_user.last_name, '')), ''), created_user.email) as "createdByName",
+          CASE WHEN t.quotation_id IS NOT NULL THEN true ELSE false END as "feeApplied",
+          0.15 as "feeRate"
+        FROM external_maintenance_tickets t
+        LEFT JOIN external_units u ON t.unit_id = u.id
+        LEFT JOIN external_condominiums c ON u.condominium_id = c.id
+        LEFT JOIN users assigned_user ON t.assigned_to = assigned_user.id
+        LEFT JOIN users created_user ON t.created_by = created_user.id
+        WHERE t.id = ${id}
+      `);
+      
+      if (!enrichedResult.rows || enrichedResult.rows.length === 0) {
         return res.status(404).json({ message: "Ticket not found" });
       }
+      
+      const row = enrichedResult.rows[0] as any;
+      
+      // Convert snake_case to camelCase and compute base cost
+      const ticket = {
+        id: row.id,
+        unitId: row.unit_id,
+        title: row.title,
+        description: row.description,
+        category: row.category,
+        priority: row.priority,
+        status: row.status,
+        reportedBy: row.reported_by,
+        assignedTo: row.assigned_to,
+        scheduledDate: row.scheduled_date,
+        resolvedDate: row.resolved_date,
+        estimatedCost: row.estimated_cost,
+        actualCost: row.actual_cost,
+        notes: row.notes,
+        createdBy: row.created_by,
+        createdAt: row.created_at,
+        updatedAt: row.updated_at,
+        agencyId: row.agency_id,
+        quotationId: row.quotation_id,
+        quotedTotal: row.quoted_total,
+        quotedAdminFee: row.quoted_admin_fee,
+        quotedServices: row.quoted_services,
+        closureWorkNotes: row.closure_work_notes,
+        invoiceDate: row.invoice_date,
+        finalChargeAmount: row.final_charge_amount,
+        applyAdminFee: row.apply_admin_fee,
+        adminFeeAmount: row.admin_fee_amount,
+        totalChargeAmount: row.total_charge_amount,
+        afterWorkPhotos: row.after_work_photos,
+        accountingTransactionId: row.accounting_transaction_id,
+        accountingSyncStatus: row.accounting_sync_status,
+        // Enriched fields
+        unitNumber: row.unitNumber,
+        condominiumName: row.condominiumName,
+        assignedToName: row.assignedToName,
+        createdByName: row.createdByName,
+        feeApplied: row.feeApplied,
+        feeRate: parseFloat(row.feeRate),
+        sourceQuotationId: row.quotation_id,
+        // Computed base cost (if fee was applied via quotation, divide by 1.15 to get original)
+        baseCost: row.feeApplied && row.estimated_cost 
+          ? (parseFloat(row.estimated_cost) / 1.15).toFixed(2) 
+          : row.estimated_cost,
+      };
       
       res.json(ticket);
     } catch (error: any) {
@@ -22856,7 +25236,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       handleGenericError(res, error);
     }
   });
-
   app.post("/api/external-tickets", isAuthenticated, requireRole(EXTERNAL_MAINTENANCE_ROLES), async (req: any, res) => {
     try {
       const validatedData = insertExternalMaintenanceTicketSchema.parse(req.body);
@@ -22879,7 +25258,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.patch("/api/external-tickets/:id", isAuthenticated, requireRole(EXTERNAL_MAINTENANCE_ROLES), async (req: any, res) => {
     try {
       const { id } = req.params;
-      const userRole = req.user?.role || req.session?.adminUser?.role;
+      const userId = req.user?.claims?.sub || req.user?.id;
+      let userRole = req.user?.role || req.session?.adminUser?.role;
+      // Get role from database if not in session
+      if (!userRole && userId) {
+        const dbUser = await storage.getUser(userId);
+        userRole = dbUser?.role;
+      }
       
       // Only admins and maintenance managers can modify tickets directly
       // Regular users should use POST /updates and POST /photos endpoints
@@ -22918,7 +25303,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const { id } = req.params;
       const { status, resolvedDate, completionNotes } = req.body;
       const userId = req.user?.claims?.sub || req.user?.id;
-      const userRole = req.user?.role || req.session?.adminUser?.role;
+      let userRole = req.user?.role || req.session?.adminUser?.role;
+      // Get role from database if not in session
+      if (!userRole && userId) {
+        const dbUser = await storage.getUser(userId);
+        userRole = dbUser?.role;
+      }
       
       if (!status) {
         return res.status(400).json({ message: "Status is required" });
@@ -22967,7 +25357,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (status === 'closed' && updatedTicket.actualCost && parseFloat(updatedTicket.actualCost) > 0) {
         try {
           // Get owner information from the unit
-          const unitOwners = await storage.getExternalUnitOwners(ticket.unitId);
+          const unitOwners = await storage.getExternalUnitOwnersByUnit(ticket.unitId);
           const primaryOwner = unitOwners.find(o => o.ownershipPercentage && parseFloat(o.ownershipPercentage) > 0) || unitOwners[0];
           
           // Create financial transaction for maintenance expense
@@ -23005,6 +25395,137 @@ export async function registerRoutes(app: Express): Promise<Server> {
       handleGenericError(res, error);
     }
   });
+
+  // POST /api/external-tickets/:id/close-with-report - Close ticket with full closure report
+  app.post("/api/external-tickets/:id/close-with-report", isAuthenticated, requireRole(EXTERNAL_MAINTENANCE_ROLES), async (req: any, res) => {
+    try {
+      const { id } = req.params;
+      const { 
+        closureWorkNotes,
+        invoiceDate,
+        finalChargeAmount,
+        applyAdminFee = true,
+        afterWorkPhotos = [],
+        completionNotes
+      } = req.body;
+      
+      const userId = req.user?.claims?.sub || req.user?.id;
+      let userRole = req.user?.role || req.session?.adminUser?.role;
+      // Get role from database if not in session
+      if (!userRole && userId) {
+        const dbUser = await storage.getUser(userId);
+        userRole = dbUser?.role;
+      }
+      
+      // Verify ticket exists
+      const ticket = await storage.getExternalMaintenanceTicket(id);
+      if (!ticket) {
+        return res.status(404).json({ message: "Ticket not found" });
+      }
+      
+      // Get unit for agency verification
+      const unit = await storage.getExternalUnit(ticket.unitId);
+      if (!unit) {
+        return res.status(404).json({ message: "Unit not found" });
+      }
+      
+      const hasAccess = await verifyExternalAgencyOwnership(req, res, unit.agencyId);
+      if (!hasAccess) return;
+      
+      // Only admin and maintenance managers can close tickets
+      if (!storage.canModifyMaintenanceTicket(userRole)) {
+        return res.status(403).json({ 
+          message: "Only administrators and maintenance managers can close tickets" 
+        });
+      }
+      
+      // Calculate administrative fee (15%)
+      const chargeAmount = parseFloat(finalChargeAmount || '0');
+      const adminFeeAmount = applyAdminFee ? (chargeAmount * 0.15) : 0;
+      const totalChargeAmount = chargeAmount + adminFeeAmount;
+      
+      // Prepare closure data
+      const closureData: any = {
+        status: 'closed',
+        closedBy: userId,
+        closedAt: new Date(),
+        resolvedDate: new Date(),
+        closureWorkNotes: closureWorkNotes || completionNotes,
+        completionNotes: completionNotes,
+        invoiceDate: invoiceDate ? new Date(invoiceDate) : new Date(),
+        finalChargeAmount: chargeAmount.toFixed(2),
+        applyAdminFee: applyAdminFee,
+        adminFeeAmount: adminFeeAmount.toFixed(2),
+        totalChargeAmount: totalChargeAmount.toFixed(2),
+        afterWorkPhotos: afterWorkPhotos,
+        actualCost: chargeAmount.toFixed(2),
+        accountingSyncStatus: 'pending'
+      };
+      
+      // Update ticket with closure data
+      const updatedTicket = await storage.updateExternalMaintenanceTicket(id, closureData);
+      
+      // Create financial transaction for the charge
+      let transactionId = null;
+      if (totalChargeAmount > 0) {
+        try {
+          // Get owner information from the unit
+          const unitOwners = await storage.getExternalUnitOwnersByUnit(ticket.unitId);
+          const primaryOwner = unitOwners.find(o => o.ownershipPercentage && parseFloat(o.ownershipPercentage) > 0) || unitOwners[0];
+          
+          // Create financial transaction - charge to owner
+          const transaction = await storage.createExternalFinancialTransaction({
+            agencyId: unit.agencyId,
+            direction: 'inflow',
+            category: 'maintenance_charge',
+            status: 'pending',
+            grossAmount: totalChargeAmount.toFixed(2),
+            fees: adminFeeAmount.toFixed(2),
+            netAmount: chargeAmount.toFixed(2),
+            currency: 'MXN',
+            dueDate: invoiceDate ? new Date(invoiceDate) : new Date(),
+            payerRole: 'owner',
+            payeeRole: 'agency',
+            ownerId: primaryOwner?.id || null,
+            contractId: updatedTicket.contractId || null,
+            unitId: updatedTicket.unitId,
+            maintenanceTicketId: updatedTicket.id,
+            description: updatedTicket.title,
+            notes: closureWorkNotes || completionNotes || undefined,
+          });
+          
+          transactionId = transaction.id;
+          
+          // Update ticket with transaction reference
+          await storage.updateExternalMaintenanceTicket(id, {
+            accountingTransactionId: transaction.id,
+            accountingSyncStatus: 'synced'
+          });
+          
+          console.log(`Created accounting transaction ${transaction.id} for ticket closure ${id} - Total: ${totalChargeAmount}`);
+        } catch (finError) {
+          console.error('Failed to create financial transaction for ticket closure:', finError);
+          await storage.updateExternalMaintenanceTicket(id, {
+            accountingSyncStatus: 'error'
+          });
+        }
+      }
+      
+      await createAuditLog(req, "update", "external_ticket", id, `Closed ticket with report - Charge: ${totalChargeAmount} MXN`);
+      
+      // Get updated ticket with all changes
+      const finalTicket = await storage.getExternalMaintenanceTicket(id);
+      res.json({ 
+        ticket: finalTicket,
+        transactionId,
+        message: transactionId ? 'Ticket closed and sent to accounting' : 'Ticket closed'
+      });
+    } catch (error: any) {
+      console.error("Error closing ticket with report:", error);
+      handleGenericError(res, error);
+    }
+  });
+
 
   app.patch("/api/external-tickets/:id/assign", isAuthenticated, requireRole(EXTERNAL_ADMIN_ROLES), async (req: any, res) => {
     try {
@@ -23213,10 +25734,2184 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+
+  // External Dashboard Summary - optimized endpoint for dashboard statistics
+  app.get("/api/external-dashboard-summary", isAuthenticated, requireRole(EXTERNAL_ALL_ROLES), async (req: any, res) => {
+    try {
+      let agencyId = req.query.agencyId;
+      if (!agencyId) {
+        agencyId = await getUserAgencyId(req);
+        if (!agencyId) {
+          return res.status(400).json({ message: "User is not assigned to any agency" });
+        }
+      }
+      
+      // Verify ownership
+      const hasAccess = await verifyExternalAgencyOwnership(req, res, agencyId);
+      if (!hasAccess) return;
+      
+      const summary = await storage.getExternalDashboardSummary(agencyId);
+      res.json(summary);
+    } catch (error: any) {
+      console.error("Error fetching dashboard summary:", error);
+      handleGenericError(res, error);
+    }
+  });
+
+  // Seller Dashboard Summary - optimized endpoint for seller-specific statistics
+  app.get("/api/external-dashboard/seller-summary", isAuthenticated, requireRole(['external_agency_seller', 'master', 'admin']), async (req: any, res) => {
+    try {
+      const userId = req.user.id;
+      const agencyId = await getUserAgencyId(req);
+      
+      if (!agencyId) {
+        return res.status(400).json({ message: "User is not assigned to any agency" });
+      }
+
+      // Get today's date boundaries
+      const today = new Date();
+      const startOfDay = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+      const endOfDay = new Date(today.getFullYear(), today.getMonth(), today.getDate() + 1);
+      const next7Days = new Date(today.getFullYear(), today.getMonth(), today.getDate() + 7);
+
+      // Parallel queries for seller statistics
+      const [
+        totalLeads,
+        leadsByStatus,
+        todayShowings,
+        upcomingShowings,
+        recentActivities,
+        convertedLeads,
+        thisMonthLeads
+      ] = await Promise.all([
+        // Total leads assigned to this seller
+        db.select({ count: sql<number>`count(*)::int` })
+          .from(externalLeads)
+          .where(and(
+            eq(externalLeads.agencyId, agencyId),
+            eq(externalLeads.sellerId, userId)
+          ))
+          .then(r => r[0]?.count || 0),
+        
+        // Leads by status
+        db.select({
+          status: externalLeads.status,
+          count: sql<number>`count(*)::int`
+        })
+          .from(externalLeads)
+          .where(and(
+            eq(externalLeads.agencyId, agencyId),
+            eq(externalLeads.sellerId, userId)
+          ))
+          .groupBy(externalLeads.status)
+          .then(rows => {
+            const statusCounts: Record<string, number> = {};
+            rows.forEach(r => { statusCounts[r.status] = r.count; });
+            return statusCounts;
+          }),
+        
+        // Today's showings
+        db.select({ count: sql<number>`count(*)::int` })
+          .from(externalLeadShowings)
+          .innerJoin(externalLeads, eq(externalLeadShowings.leadId, externalLeads.id))
+          .where(and(
+            eq(externalLeads.agencyId, agencyId),
+            eq(externalLeads.sellerId, userId),
+            sql`${externalLeadShowings.scheduledAt} >= ${startOfDay}`,
+            sql`${externalLeadShowings.scheduledAt} < ${endOfDay}`
+          ))
+          .then(r => r[0]?.count || 0),
+        
+        // Upcoming showings (next 7 days)
+        db.select({
+          id: externalLeadShowings.id,
+          scheduledAt: externalLeadShowings.scheduledAt,
+          status: externalLeadShowings.status,
+          leadName: sql<string>`concat(${externalLeads.firstName}, ' ', ${externalLeads.lastName})`,
+          propertyName: externalLeadShowings.propertyName,
+        })
+          .from(externalLeadShowings)
+          .innerJoin(externalLeads, eq(externalLeadShowings.leadId, externalLeads.id))
+          .where(and(
+            eq(externalLeads.agencyId, agencyId),
+            eq(externalLeads.sellerId, userId),
+            sql`${externalLeadShowings.scheduledAt} >= ${startOfDay}`,
+            sql`${externalLeadShowings.scheduledAt} < ${next7Days}`,
+            eq(externalLeadShowings.status, 'scheduled')
+          ))
+          .orderBy(asc(externalLeadShowings.scheduledAt))
+          .limit(10),
+        
+        // Recent activities (last 10)
+        db.select({
+          id: externalLeadActivities.id,
+          activityType: externalLeadActivities.activityType,
+          description: externalLeadActivities.description,
+          createdAt: externalLeadActivities.createdAt,
+          leadName: sql<string>`concat(${externalLeads.firstName}, ' ', ${externalLeads.lastName})`,
+        })
+          .from(externalLeadActivities)
+          .innerJoin(externalLeads, eq(externalLeadActivities.leadId, externalLeads.id))
+          .where(and(
+            eq(externalLeads.agencyId, agencyId),
+            eq(externalLeads.sellerId, userId)
+          ))
+          .orderBy(desc(externalLeadActivities.createdAt))
+          .limit(10),
+        
+        // Converted leads (with convertedToClientId not null)
+        db.select({ count: sql<number>`count(*)::int` })
+          .from(externalLeads)
+          .where(and(
+            eq(externalLeads.agencyId, agencyId),
+            eq(externalLeads.sellerId, userId),
+            isNotNull(externalLeads.convertedToClientId)
+          ))
+          .then(r => r[0]?.count || 0),
+        
+        // Leads this month
+        db.select({ count: sql<number>`count(*)::int` })
+          .from(externalLeads)
+          .where(and(
+            eq(externalLeads.agencyId, agencyId),
+            eq(externalLeads.sellerId, userId),
+            sql`${externalLeads.createdAt} >= ${new Date(today.getFullYear(), today.getMonth(), 1)}`
+          ))
+          .then(r => r[0]?.count || 0),
+      ]);
+
+      // Calculate conversion rate
+      const conversionRate = totalLeads > 0 ? Math.round((convertedLeads / totalLeads) * 100) : 0;
+
+      res.json({
+        totalLeads,
+        leadsByStatus,
+        todayShowings,
+        upcomingShowings,
+        recentActivities,
+        convertedLeads,
+        thisMonthLeads,
+        conversionRate,
+      });
+    } catch (error: any) {
+      console.error("Error fetching seller dashboard summary:", error);
+      handleGenericError(res, error);
+    }
+  });
+
+  // Seller Activity Reports - statistics on activities, showings, and conversions
+  app.get("/api/external-dashboard/seller-reports", isAuthenticated, requireRole(['external_agency_seller', 'master', 'admin']), async (req: any, res) => {
+    try {
+      const userId = req.user.id;
+      const agencyId = await getUserAgencyId(req);
+      
+      if (!agencyId) {
+        return res.status(400).json({ message: "User is not assigned to any agency" });
+      }
+
+      const { period = 'week' } = req.query;
+      
+      // Calculate date range based on period
+      const today = new Date();
+      let startDate: Date;
+      
+      switch (period) {
+        case 'today':
+          startDate = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+          break;
+        case 'month':
+          startDate = new Date(today.getFullYear(), today.getMonth(), 1);
+          break;
+        case 'week':
+        default:
+          startDate = new Date(today.getFullYear(), today.getMonth(), today.getDate() - 7);
+          break;
+      }
+
+      const [
+        activitiesByType,
+        showingsByOutcome,
+        leadsContacted,
+        leadsConverted
+      ] = await Promise.all([
+        // Activities by type
+        db.select({
+          activityType: externalLeadActivities.activityType,
+          count: sql<number>`count(*)::int`
+        })
+          .from(externalLeadActivities)
+          .innerJoin(externalLeads, eq(externalLeadActivities.leadId, externalLeads.id))
+          .where(and(
+            eq(externalLeads.agencyId, agencyId),
+            eq(externalLeads.sellerId, userId),
+            sql`${externalLeadActivities.createdAt} >= ${startDate}`
+          ))
+          .groupBy(externalLeadActivities.type)
+          .then(rows => {
+            const counts: Record<string, number> = {};
+            rows.forEach(r => { counts[r.type] = r.count || 0; });
+            return counts;
+          }),
+        
+        // Showings by outcome
+        db.select({
+          outcome: externalLeadShowings.outcome,
+          count: sql<number>`count(*)::int`
+        })
+          .from(externalLeadShowings)
+          .innerJoin(externalLeads, eq(externalLeadShowings.leadId, externalLeads.id))
+          .where(and(
+            eq(externalLeads.agencyId, agencyId),
+            eq(externalLeads.sellerId, userId),
+            sql`${externalLeadShowings.scheduledAt} >= ${startDate}`,
+            isNotNull(externalLeadShowings.outcome)
+          ))
+          .groupBy(externalLeadShowings.outcome)
+          .then(rows => {
+            const counts: Record<string, number> = {};
+            rows.forEach(r => { 
+              if (r.outcome) counts[r.outcome] = r.count || 0; 
+            });
+            return counts;
+          }),
+        
+        // Unique leads contacted (with at least one activity)
+        db.selectDistinct({ leadId: externalLeadActivities.leadId })
+          .from(externalLeadActivities)
+          .innerJoin(externalLeads, eq(externalLeadActivities.leadId, externalLeads.id))
+          .where(and(
+            eq(externalLeads.agencyId, agencyId),
+            eq(externalLeads.sellerId, userId),
+            sql`${externalLeadActivities.createdAt} >= ${startDate}`
+          ))
+          .then(r => r.length),
+        
+        // Leads converted in period
+        db.select({ count: sql<number>`count(*)::int` })
+          .from(externalLeads)
+          .where(and(
+            eq(externalLeads.agencyId, agencyId),
+            eq(externalLeads.sellerId, userId),
+            isNotNull(externalLeads.convertedToClientId),
+            sql`${externalLeads.updatedAt} >= ${startDate}`
+          ))
+          .then(r => r[0]?.count || 0),
+      ]);
+
+      // Calculate totals
+      const totalActivities = Object.values(activitiesByType).reduce((sum, count) => sum + count, 0);
+      const totalShowings = Object.values(showingsByOutcome).reduce((sum, count) => sum + count, 0);
+      const conversionRate = leadsContacted > 0 
+        ? Math.round((leadsConverted / leadsContacted) * 100) 
+        : 0;
+
+      res.json({
+        period,
+        totalActivities,
+        activitiesByType,
+        totalShowings,
+        showingsByOutcome,
+        leadsContacted,
+        leadsConverted,
+        conversionRate,
+        dailyActivity: [],
+      });
+    } catch (error: any) {
+      console.error("Error fetching seller reports:", error);
+      handleGenericError(res, error);
+    }
+  });
+
+  // Seller Goals - active goals and achievement tracking
+  app.get("/api/external-dashboard/seller-goals", isAuthenticated, requireRole(['external_agency_seller', 'master', 'admin']), async (req: any, res) => {
+    try {
+      const userId = req.user.id;
+      const agencyId = await getUserAgencyId(req);
+      
+      if (!agencyId) {
+        return res.status(400).json({ message: "User is not assigned to any agency" });
+      }
+
+      // For now, return a placeholder structure since goals table may not exist
+      const today = new Date();
+      const startOfMonth = new Date(today.getFullYear(), today.getMonth(), 1);
+      const endOfMonth = new Date(today.getFullYear(), today.getMonth() + 1, 0);
+
+      // Calculate current stats for default goals
+      const [totalLeads, convertedLeads, totalShowings] = await Promise.all([
+        db.select({ count: sql<number>`count(*)::int` })
+          .from(externalLeads)
+          .where(and(
+            eq(externalLeads.agencyId, agencyId),
+            eq(externalLeads.sellerId, userId),
+            sql`${externalLeads.createdAt} >= ${startOfMonth}`
+          ))
+          .then(r => r[0]?.count || 0),
+        
+        db.select({ count: sql<number>`count(*)::int` })
+          .from(externalLeads)
+          .where(and(
+            eq(externalLeads.agencyId, agencyId),
+            eq(externalLeads.sellerId, userId),
+            isNotNull(externalLeads.convertedToClientId),
+            sql`${externalLeads.updatedAt} >= ${startOfMonth}`
+          ))
+          .then(r => r[0]?.count || 0),
+        
+        db.select({ count: sql<number>`count(*)::int` })
+          .from(externalLeadShowings)
+          .innerJoin(externalLeads, eq(externalLeadShowings.leadId, externalLeads.id))
+          .where(and(
+            eq(externalLeads.agencyId, agencyId),
+            eq(externalLeads.sellerId, userId),
+            sql`${externalLeadShowings.scheduledAt} >= ${startOfMonth}`
+          ))
+          .then(r => r[0]?.count || 0),
+      ]);
+
+      // Default goals based on typical sales targets - using translation keys
+      const activeGoals = [
+        {
+          id: 'default-leads',
+          nameKey: 'goals.monthlyLeadAcquisition',
+          descriptionKey: 'goals.monthlyLeadAcquisitionDesc',
+          type: 'leads',
+          target: 20,
+          current: totalLeads,
+          period: 'monthly',
+          startDate: startOfMonth.toISOString(),
+          endDate: endOfMonth.toISOString(),
+        },
+        {
+          id: 'default-conversions',
+          nameKey: 'goals.monthlyConversions',
+          descriptionKey: 'goals.monthlyConversionsDesc',
+          type: 'conversions',
+          target: 5,
+          current: convertedLeads,
+          period: 'monthly',
+          startDate: startOfMonth.toISOString(),
+          endDate: endOfMonth.toISOString(),
+        },
+        {
+          id: 'default-showings',
+          nameKey: 'goals.monthlyShowings',
+          descriptionKey: 'goals.monthlyShowingsDesc',
+          type: 'showings',
+          target: 15,
+          current: totalShowings,
+          period: 'monthly',
+          startDate: startOfMonth.toISOString(),
+          endDate: endOfMonth.toISOString(),
+        },
+      ];
+
+      const achievedCount = activeGoals.filter(g => g.current >= g.target).length;
+
+      res.json({
+        activeGoals,
+        achievedCount,
+        totalPoints: achievedCount * 100,
+        rank: 0,
+      });
+    } catch (error: any) {
+      console.error("Error fetching seller goals:", error);
+      handleGenericError(res, error);
+    }
+  });
+
   // External Condominiums Routes
+
+  // ============================================
+  // ADMIN SELLER GOALS CRUD ENDPOINTS
+  // ============================================
+
+  // GET /api/admin/seller-goals - List all goals for the agency
+  app.get("/api/admin/seller-goals", isAuthenticated, requireRole(EXTERNAL_ADMIN_ROLES), async (req: any, res) => {
+    try {
+      const agencyId = await getUserAgencyId(req);
+      if (!agencyId) {
+        return res.status(400).json({ message: "User is not assigned to any agency" });
+      }
+
+      const goals = await db.select()
+        .from(sellerGoals)
+        .where(eq(sellerGoals.agencyId, agencyId))
+        .orderBy(desc(sellerGoals.createdAt));
+
+      res.json(goals);
+    } catch (error: any) {
+      console.error("Error fetching seller goals:", error);
+      handleGenericError(res, error);
+    }
+  });
+
+  // POST /api/admin/seller-goals - Create a new goal
+  app.post("/api/admin/seller-goals", isAuthenticated, requireRole(EXTERNAL_ADMIN_ROLES), async (req: any, res) => {
+    try {
+      const agencyId = await getUserAgencyId(req);
+      if (!agencyId) {
+        return res.status(400).json({ message: "User is not assigned to any agency" });
+      }
+
+      const validation = insertSellerGoalSchema.safeParse({
+        ...req.body,
+        agencyId,
+        createdBy: req.user.id,
+      });
+
+      if (!validation.success) {
+        return res.status(400).json({ 
+          message: "Invalid goal data", 
+          errors: validation.error.errors 
+        });
+      }
+
+      const [newGoal] = await db.insert(sellerGoals)
+        .values(validation.data)
+        .returning();
+
+      res.status(201).json(newGoal);
+    } catch (error: any) {
+      console.error("Error creating seller goal:", error);
+      handleGenericError(res, error);
+    }
+  });
+
+  // PUT /api/admin/seller-goals/:id - Update a goal
+  app.put("/api/admin/seller-goals/:id", isAuthenticated, requireRole(EXTERNAL_ADMIN_ROLES), async (req: any, res) => {
+    try {
+      const agencyId = await getUserAgencyId(req);
+      if (!agencyId) {
+        return res.status(400).json({ message: "User is not assigned to any agency" });
+      }
+
+      const { id } = req.params;
+
+      // Check goal exists and belongs to agency
+      const existingGoal = await db.select()
+        .from(sellerGoals)
+        .where(and(
+          eq(sellerGoals.id, id),
+          eq(sellerGoals.agencyId, agencyId)
+        ))
+        .then(r => r[0]);
+
+      if (!existingGoal) {
+        return res.status(404).json({ message: "Goal not found" });
+      }
+
+      const [updatedGoal] = await db.update(sellerGoals)
+        .set({
+          ...req.body,
+          updatedAt: new Date(),
+        })
+        .where(eq(sellerGoals.id, id))
+        .returning();
+
+      res.json(updatedGoal);
+    } catch (error: any) {
+      console.error("Error updating seller goal:", error);
+      handleGenericError(res, error);
+    }
+  });
+
+  // DELETE /api/admin/seller-goals/:id - Delete a goal
+  app.delete("/api/admin/seller-goals/:id", isAuthenticated, requireRole(EXTERNAL_ADMIN_ROLES), async (req: any, res) => {
+    try {
+      const agencyId = await getUserAgencyId(req);
+      if (!agencyId) {
+        return res.status(400).json({ message: "User is not assigned to any agency" });
+      }
+
+      const { id } = req.params;
+
+      // Check goal exists and belongs to agency
+      const existingGoal = await db.select()
+        .from(sellerGoals)
+        .where(and(
+          eq(sellerGoals.id, id),
+          eq(sellerGoals.agencyId, agencyId)
+        ))
+        .then(r => r[0]);
+
+      if (!existingGoal) {
+        return res.status(404).json({ message: "Goal not found" });
+      }
+
+      await db.delete(sellerGoals)
+        .where(eq(sellerGoals.id, id));
+
+      res.status(204).send();
+    } catch (error: any) {
+      console.error("Error deleting seller goal:", error);
+      handleGenericError(res, error);
+    }
+  });
+
+  // GET /api/admin/seller-goals/:id - Get a specific goal
+  app.get("/api/admin/seller-goals/:id", isAuthenticated, requireRole(EXTERNAL_ADMIN_ROLES), async (req: any, res) => {
+    try {
+      const agencyId = await getUserAgencyId(req);
+      if (!agencyId) {
+        return res.status(400).json({ message: "User is not assigned to any agency" });
+      }
+
+      const { id } = req.params;
+
+      const goal = await db.select()
+        .from(sellerGoals)
+        .where(and(
+          eq(sellerGoals.id, id),
+          eq(sellerGoals.agencyId, agencyId)
+        ))
+        .then(r => r[0]);
+
+      if (!goal) {
+        return res.status(404).json({ message: "Goal not found" });
+      }
+
+      res.json(goal);
+    } catch (error: any) {
+      console.error("Error fetching seller goal:", error);
+      handleGenericError(res, error);
+    }
+  });
+
+  // GET /api/admin/sellers-for-goals - Get list of sellers for goal assignment
+  app.get("/api/admin/sellers-for-goals", isAuthenticated, requireRole(EXTERNAL_ADMIN_ROLES), async (req: any, res) => {
+    try {
+      const agencyId = await getUserAgencyId(req);
+      if (!agencyId) {
+        return res.status(400).json({ message: "User is not assigned to any agency" });
+      }
+
+      const sellers = await db.select({
+        id: users.id,
+        firstName: users.firstName,
+        lastName: users.lastName,
+        email: users.email,
+      })
+        .from(users)
+        .where(and(
+          eq(users.agencyId, agencyId),
+          eq(users.role, 'external_agency_seller')
+        ))
+        .orderBy(users.firstName, users.lastName);
+
+      res.json(sellers);
+    } catch (error: any) {
+      console.error("Error fetching sellers for goals:", error);
+      handleGenericError(res, error);
+    }
+  });
+
+  // ============================================
+  // SELLER WORKSPACE ENDPOINTS
+  // ============================================
+
+  // GET /api/external-seller/property-catalog - Property catalog with filters for sellers
+  app.get("/api/external-seller/property-catalog", isAuthenticated, requireRole(['external_agency_seller', ...EXTERNAL_ADMIN_ROLES]), async (req: any, res) => {
+    try {
+      const agencyId = await getUserAgencyId(req);
+      if (!agencyId) {
+        return res.status(400).json({ message: "User is not assigned to any agency" });
+      }
+
+      const { 
+        minPrice, maxPrice, 
+        bedrooms, 
+        zone, 
+        propertyType,
+        status = 'active',
+        search,
+        limit = '50', 
+        offset = '0' 
+      } = req.query;
+
+      const conditions: any[] = [
+        eq(externalUnits.agencyId, agencyId),
+      ];
+
+      if (status) {
+        conditions.push(eq(externalUnits.isActive, status === 'active'));
+      }
+
+      if (minPrice) {
+        conditions.push(gte(externalUnits.price, parseInt(minPrice as string)));
+      }
+      if (maxPrice) {
+        conditions.push(lte(externalUnits.price, parseInt(maxPrice as string)));
+      }
+      if (bedrooms) {
+        conditions.push(eq(externalUnits.bedrooms, parseInt(bedrooms as string)));
+      }
+      if (zone) {
+        conditions.push(ilike(externalUnits.zone, '%' + (zone as string) + '%'));
+      }
+      if (propertyType) {
+        conditions.push(eq(externalUnits.propertyType, propertyType as string));
+      }
+      if (search) {
+        conditions.push(or(
+          ilike(externalUnits.title, '%' + (search as string) + '%'),
+          ilike(externalUnits.zone, '%' + (search as string) + '%'),
+          ilike(externalUnits.propertyType, '%' + (search as string) + '%')
+        ));
+      }
+
+      const [units, totalResult] = await Promise.all([
+        db.select({
+          id: externalUnits.id,
+          name: externalUnits.title,
+          unitNumber: externalUnits.unitNumber,
+          zone: externalUnits.zone,
+          unitType: externalUnits.propertyType,
+          bedrooms: externalUnits.bedrooms,
+          bathrooms: externalUnits.bathrooms,
+          monthlyRent: externalUnits.price,
+          currency: externalUnits.currency,
+          isActive: externalUnits.isActive,
+          images: externalUnits.primaryImages,
+          amenities: externalUnits.amenities,
+          condominiumId: externalUnits.condominiumId,
+          condominiumName: externalCondominiums.name,
+          squareMeters: externalUnits.area,
+          description: externalUnits.description,
+          petsAllowed: externalUnits.petFriendly,
+        })
+          .from(externalUnits)
+          .leftJoin(externalCondominiums, eq(externalUnits.condominiumId, externalCondominiums.id))
+          .where(and(...conditions))
+          .orderBy(desc(externalUnits.createdAt))
+          .limit(parseInt(limit as string))
+          .offset(parseInt(offset as string)),
+        db.select({ count: sql<number>`count(*)` })
+          .from(externalUnits)
+          .where(and(...conditions))
+      ]);
+
+      res.json({
+        data: units,
+        total: totalResult[0]?.count || 0,
+        limit: parseInt(limit as string),
+        offset: parseInt(offset as string),
+      });
+    } catch (error: any) {
+      console.error("Error fetching property catalog:", error);
+      handleGenericError(res, error);
+    }
+  });
+
+  // GET /api/external-seller/my-leads - Get leads assigned to current seller with search preferences
+  app.get("/api/external-seller/my-leads", isAuthenticated, requireRole(['external_agency_seller', ...EXTERNAL_ADMIN_ROLES]), async (req: any, res) => {
+    try {
+      const agencyId = await getUserAgencyId(req);
+      if (!agencyId) {
+        return res.status(400).json({ message: "User is not assigned to any agency" });
+      }
+
+      const sellerId = req.user?.id;
+      if (!sellerId) {
+        return res.status(401).json({ message: "User not authenticated" });
+      }
+
+      const { limit = '50', offset = '0', status } = req.query;
+
+      const conditions: any[] = [
+        eq(externalLeads.agencyId, agencyId),
+        eq(externalLeads.sellerId, sellerId),
+        ne(externalLeads.status, 'proceso_renta'),
+      ];
+
+      if (status) {
+        conditions.push(eq(externalLeads.status, status as string));
+      }
+
+      const leads = await db.select({
+        id: externalLeads.id,
+        firstName: externalLeads.firstName,
+        lastName: externalLeads.lastName,
+        phone: externalLeads.phone,
+        email: externalLeads.email,
+        status: externalLeads.status,
+        estimatedRentCost: externalLeads.estimatedRentCost,
+        estimatedRentCostText: externalLeads.estimatedRentCostText,
+        bedrooms: externalLeads.bedrooms,
+        bedroomsText: externalLeads.bedroomsText,
+        desiredUnitType: externalLeads.desiredUnitType,
+        desiredNeighborhood: externalLeads.desiredNeighborhood,
+        contractDuration: externalLeads.contractDuration,
+        hasPets: externalLeads.hasPets,
+      })
+        .from(externalLeads)
+        .where(and(...conditions))
+        .orderBy(desc(externalLeads.createdAt))
+        .limit(parseInt(limit as string))
+        .offset(parseInt(offset as string));
+
+      res.json({ data: leads });
+    } catch (error: any) {
+      console.error("Error fetching seller leads:", error);
+      handleGenericError(res, error);
+    }
+  });
+
+  // POST /api/external-seller/share-property - Share property with lead and log it
+  app.post("/api/external-seller/share-property", isAuthenticated, requireRole(['external_agency_seller', ...EXTERNAL_ADMIN_ROLES]), async (req: any, res) => {
+    try {
+      const agencyId = await getUserAgencyId(req);
+      if (!agencyId) {
+        return res.status(400).json({ message: "User is not assigned to any agency" });
+      }
+
+      const { leadId, unitId, propertyId, channel = 'whatsapp', templateId, message } = req.body;
+
+      if (!leadId || (!unitId && !propertyId)) {
+        return res.status(400).json({ message: "Lead ID and Unit/Property ID are required" });
+      }
+
+      // Create the property offer record
+      const [offer] = await db.insert(externalLeadPropertyOffers).values({
+        agencyId,
+        leadId,
+        unitId: unitId || null,
+        propertyId: propertyId || null,
+        sellerId: req.user.id,
+        channel,
+        templateId: templateId || null,
+        message,
+      }).returning();
+
+      // Get lead and unit details for WhatsApp message
+      const [lead] = await db.select().from(externalLeads).where(eq(externalLeads.id, leadId));
+      let unit = null;
+      let condominium = null;
+      if (unitId) {
+        [unit] = await db.select().from(externalUnits).where(eq(externalUnits.id, unitId));
+        if (unit?.condominiumId) {
+          [condominium] = await db.select().from(externalCondominiums).where(eq(externalCondominiums.id, unit.condominiumId));
+        }
+      }
+
+      // Generate WhatsApp link
+      let whatsappMessage = message;
+      if (!whatsappMessage && unit) {
+        whatsappMessage = `Hola ${lead?.firstName || ''}! Te comparto esta propiedad que puede interesarte:\n\n` +
+          `${unit.name}\n` +
+          `${unit.unitType || 'Propiedad'} - ${unit.bedrooms || 0} recámaras\n` +
+          `${unit.monthlyRent?.toLocaleString() || 'Consultar'} ${unit.currency || 'MXN'}/mes\n` +
+          `${unit.zone || ''}\n\n` +
+          `¿Te gustaría agendar una visita?`;
+      }
+
+      const phone = lead?.phone?.replace(/\D/g, '') || '';
+      const whatsappUrl = `https://wa.me/${phone}?text=${encodeURIComponent(whatsappMessage || '')}`;
+
+      // Get seller info and log activity AFTER share operation completes successfully
+      const sellerUserId = req.user.claims?.sub || req.user.id;
+      const [sellerUser] = await db.select().from(users).where(eq(users.id, sellerUserId)).limit(1);
+      const sellerName = sellerUser?.firstName && sellerUser?.lastName 
+        ? `${sellerUser.firstName} ${sellerUser.lastName}`
+        : sellerUser?.username || 'Vendedor';
+
+      // Create activity record AFTER all operations succeed
+      const activityType = channel === 'email' ? 'email' : 'whatsapp';
+      const propertyInfo = unit 
+        ? `${condominium?.name || ''} ${unit.unitNumber || unit.name || 'Unidad'}`.trim()
+        : 'Propiedad';
+      const priceInfo = unit?.monthlyRent ? ` - ${Number(unit.monthlyRent).toLocaleString()} ${unit.currency || 'MXN'}/mes` : '';
+      
+      await db.insert(externalLeadActivities).values({
+        leadId,
+        agencyId,
+        activityType: activityType as any,
+        title: `Propiedad compartida: ${propertyInfo}`,
+        description: `${sellerName} compartió la propiedad ${propertyInfo}${priceInfo} vía ${channel === 'whatsapp' ? 'WhatsApp' : channel === 'email' ? 'Email' : channel}`,
+        relatedPropertyId: propertyId || null,
+        relatedUnitId: unitId || null,
+        createdBy: sellerUserId,
+        completedAt: new Date(),
+        outcome: 'pending',
+      });
+
+      res.json({
+        success: true,
+        offer,
+        whatsappUrl,
+        message: whatsappMessage,
+      });
+    } catch (error: any) {
+      console.error("Error sharing property:", error);
+      handleGenericError(res, error);
+    }
+  });
+
+  // GET /api/external-seller/lead/:leadId/property-offers - Get property offers history for a lead
+  app.get("/api/external-seller/lead/:leadId/property-offers", isAuthenticated, requireRole(['external_agency_seller', ...EXTERNAL_ADMIN_ROLES]), async (req: any, res) => {
+    try {
+      const agencyId = await getUserAgencyId(req);
+      if (!agencyId) {
+        return res.status(400).json({ message: "User is not assigned to any agency" });
+      }
+
+      const { leadId } = req.params;
+
+      const offers = await db.select({
+        id: externalLeadPropertyOffers.id,
+        unitId: externalLeadPropertyOffers.unitId,
+        propertyId: externalLeadPropertyOffers.propertyId,
+        channel: externalLeadPropertyOffers.channel,
+        message: externalLeadPropertyOffers.message,
+        isViewed: externalLeadPropertyOffers.isViewed,
+        isInterested: externalLeadPropertyOffers.isInterested,
+        sentAt: externalLeadPropertyOffers.sentAt,
+        unitName: externalUnits.title,
+        unitZone: externalUnits.zone,
+        unitType: externalUnits.propertyType,
+        unitPrice: externalUnits.monthlyRent,
+        sellerName: users.name,
+      })
+        .from(externalLeadPropertyOffers)
+        .leftJoin(externalUnits, eq(externalLeadPropertyOffers.unitId, externalUnits.id))
+        .leftJoin(users, eq(externalLeadPropertyOffers.sellerId, users.id))
+        .where(and(
+          eq(externalLeadPropertyOffers.agencyId, agencyId),
+          eq(externalLeadPropertyOffers.leadId, leadId)
+        ))
+        .orderBy(desc(externalLeadPropertyOffers.sentAt));
+
+      res.json(offers);
+    } catch (error: any) {
+      console.error("Error fetching lead property offers:", error);
+      handleGenericError(res, error);
+    }
+  });
+
+  // GET /api/external-seller/templates - Get seller message templates
+  app.get("/api/external-seller/templates", isAuthenticated, requireRole(['external_agency_seller', ...EXTERNAL_ADMIN_ROLES]), async (req: any, res) => {
+    try {
+      const agencyId = await getUserAgencyId(req);
+      if (!agencyId) {
+        return res.status(400).json({ message: "User is not assigned to any agency" });
+      }
+
+      const templates = await db.select()
+        .from(sellerMessageTemplates)
+        .where(and(
+          eq(sellerMessageTemplates.agencyId, agencyId),
+          eq(sellerMessageTemplates.isActive, true),
+          or(
+            isNull(sellerMessageTemplates.sellerId),
+            eq(sellerMessageTemplates.sellerId, req.user.id)
+          )
+        ))
+        .orderBy(sellerMessageTemplates.templateType, sellerMessageTemplates.title);
+
+      res.json(templates);
+    } catch (error: any) {
+      console.error("Error fetching templates:", error);
+      handleGenericError(res, error);
+    }
+  });
+
+  // POST /api/external-seller/templates - Create a new template
+  app.post("/api/external-seller/templates", isAuthenticated, requireRole(['external_agency_seller', ...EXTERNAL_ADMIN_ROLES]), async (req: any, res) => {
+    try {
+      const agencyId = await getUserAgencyId(req);
+      if (!agencyId) {
+        return res.status(400).json({ message: "User is not assigned to any agency" });
+      }
+
+      const { templateType, title, body, isDefault } = req.body;
+
+      if (!templateType || !title || !body) {
+        return res.status(400).json({ message: "Template type, title, and body are required" });
+      }
+
+      // If setting as default, unset other defaults of same type
+      if (isDefault) {
+        await db.update(sellerMessageTemplates)
+          .set({ isDefault: false })
+          .where(and(
+            eq(sellerMessageTemplates.agencyId, agencyId),
+            eq(sellerMessageTemplates.templateType, templateType),
+            or(
+              isNull(sellerMessageTemplates.sellerId),
+              eq(sellerMessageTemplates.sellerId, req.user.id)
+            )
+          ));
+      }
+
+      const [template] = await db.insert(sellerMessageTemplates).values({
+        agencyId,
+        sellerId: req.user.id,
+        templateType,
+        title,
+        body,
+        isDefault: isDefault || false,
+      }).returning();
+
+      res.status(201).json(template);
+    } catch (error: any) {
+      console.error("Error creating template:", error);
+      handleGenericError(res, error);
+    }
+  });
+
+  // PATCH /api/external-seller/templates/:id - Update a template
+  app.patch("/api/external-seller/templates/:id", isAuthenticated, requireRole(['external_agency_seller', ...EXTERNAL_ADMIN_ROLES]), async (req: any, res) => {
+    try {
+      const agencyId = await getUserAgencyId(req);
+      if (!agencyId) {
+        return res.status(400).json({ message: "User is not assigned to any agency" });
+      }
+
+      const { id } = req.params;
+      const { title, body, isDefault, isActive } = req.body;
+
+      // Verify ownership
+      const [existing] = await db.select().from(sellerMessageTemplates)
+        .where(and(
+          eq(sellerMessageTemplates.id, id),
+          eq(sellerMessageTemplates.agencyId, agencyId)
+        ));
+
+      if (!existing) {
+        return res.status(404).json({ message: "Template not found" });
+      }
+
+      // Only allow editing own templates or shared templates if admin
+      if (existing.sellerId && existing.sellerId !== req.user.id) {
+        return res.status(403).json({ message: "Cannot edit other seller's templates" });
+      }
+
+      const updates: any = { updatedAt: new Date() };
+      if (title !== undefined) updates.title = title;
+      if (body !== undefined) updates.body = body;
+      if (isActive !== undefined) updates.isActive = isActive;
+
+      if (isDefault !== undefined) {
+        if (isDefault) {
+          await db.update(sellerMessageTemplates)
+            .set({ isDefault: false })
+            .where(and(
+              eq(sellerMessageTemplates.agencyId, agencyId),
+              eq(sellerMessageTemplates.templateType, existing.templateType),
+              or(
+                isNull(sellerMessageTemplates.sellerId),
+                eq(sellerMessageTemplates.sellerId, req.user.id)
+              )
+            ));
+        }
+        updates.isDefault = isDefault;
+      }
+
+      const [updated] = await db.update(sellerMessageTemplates)
+        .set(updates)
+        .where(eq(sellerMessageTemplates.id, id))
+        .returning();
+
+      res.json(updated);
+    } catch (error: any) {
+      console.error("Error updating template:", error);
+      handleGenericError(res, error);
+    }
+  });
+
+  // DELETE /api/external-seller/templates/:id - Delete a template
+  app.delete("/api/external-seller/templates/:id", isAuthenticated, requireRole(['external_agency_seller', ...EXTERNAL_ADMIN_ROLES]), async (req: any, res) => {
+    try {
+      const agencyId = await getUserAgencyId(req);
+      if (!agencyId) {
+        return res.status(400).json({ message: "User is not assigned to any agency" });
+      }
+
+      const { id } = req.params;
+
+      // Verify ownership
+      const [existing] = await db.select().from(sellerMessageTemplates)
+        .where(and(
+          eq(sellerMessageTemplates.id, id),
+          eq(sellerMessageTemplates.agencyId, agencyId)
+        ));
+
+      if (!existing) {
+        return res.status(404).json({ message: "Template not found" });
+      }
+
+      if (existing.sellerId && existing.sellerId !== req.user.id) {
+        return res.status(403).json({ message: "Cannot delete other seller's templates" });
+      }
+
+      await db.delete(sellerMessageTemplates).where(eq(sellerMessageTemplates.id, id));
+
+      res.json({ success: true });
+    } catch (error: any) {
+      console.error("Error deleting template:", error);
+      handleGenericError(res, error);
+    }
+  });
+
+
+
+  // Helper function to seed default templates for an agency
+  async function seedDefaultTemplatesForSeller(agencyId: string): Promise<number> {
+    const defaultTemplates = [
+      // Property Share Templates
+      {
+        templateType: "property_share",
+        title: "Propiedad Destacada",
+        body: `¡Hola {{nombre}}! 
+
+Te comparto esta excelente propiedad que coincide con lo que buscas:
+
+*{{propiedad}}*
+{{zona}}
+${{precio}} MXN/mes
+{{recamaras}} recámaras
+
+Ver propiedad: {{link}}
+
+¿Te gustaría agendar una visita? Estoy a tus órdenes.
+
+Saludos,
+{{vendedor}}`,
+        isDefault: true,
+      },
+      {
+        templateType: "property_share",
+        title: "Múltiples Opciones",
+        body: `¡Hola {{nombre}}!
+
+Basándome en tus preferencias, encontré esta propiedad que podría interesarte:
+
+*{{propiedad}}*
+Ubicación: {{zona}}
+Renta: ${{precio}} MXN mensuales
+Habitaciones: {{recamaras}}
+
+Ver detalles: {{link}}
+
+Tengo más opciones similares si esta no te convence. ¿Qué te parece?
+
+{{vendedor}}`,
+        isDefault: false,
+      },
+      {
+        templateType: "property_share",
+        title: "Oportunidad Rápida",
+        body: `{{nombre}}, ¡buenas noticias! 
+
+Acaba de entrar esta propiedad al mercado:
+
+*{{propiedad}}* en {{zona}}
+Precio: ${{precio}}/mes | {{recamaras}} recámaras
+
+{{link}}
+
+Las propiedades en esta zona se rentan rápido. ¿Cuándo puedes verla?
+
+{{vendedor}}`,
+        isDefault: false,
+      },
+      // Follow-up Templates
+      {
+        templateType: "follow_up",
+        title: "Seguimiento General",
+        body: `¡Hola {{nombre}}! 
+
+Quería dar seguimiento a tu búsqueda de departamento. ¿Has tenido oportunidad de revisar las opciones que te compartí?
+
+Quedo atento a tus comentarios.
+
+{{vendedor}}`,
+        isDefault: true,
+      },
+      {
+        templateType: "follow_up",
+        title: "Post-Visita",
+        body: `¡Hola {{nombre}}!
+
+Espero que estés muy bien. ¿Qué te pareció la propiedad que visitamos? 
+
+Me encantaría conocer tus impresiones y si necesitas más información para tomar tu decisión.
+
+Saludos,
+{{vendedor}}`,
+        isDefault: false,
+      },
+      {
+        templateType: "follow_up",
+        title: "Recordatorio Amigable",
+        body: `{{nombre}}, ¡espero que todo marche bien! 
+
+No he sabido de ti desde nuestra última conversación. ¿Sigues buscando propiedad? Tengo nuevas opciones que podrían gustarte.
+
+Cuando tengas un momento, platiquemos.
+
+{{vendedor}}`,
+        isDefault: false,
+      },
+      // Initial Contact Templates
+      {
+        templateType: "initial_contact",
+        title: "Bienvenida",
+        body: `¡Hola {{nombre}}! 
+
+Gracias por tu interés en nuestras propiedades. Soy {{vendedor}} y te ayudaré a encontrar el lugar perfecto para ti.
+
+Para poder enviarte las mejores opciones, ¿podrías confirmarme:
+- Zona de preferencia
+- Presupuesto aproximado
+- Número de recámaras que necesitas
+
+¡Estoy a tus órdenes!`,
+        isDefault: true,
+      },
+      {
+        templateType: "initial_contact",
+        title: "Respuesta a Consulta",
+        body: `¡Hola {{nombre}}!
+
+Recibí tu consulta y con gusto te ayudo. Tenemos varias opciones que podrían interesarte.
+
+¿Tienes disponibilidad esta semana para platicar sobre lo que buscas? Así puedo enviarte propiedades que realmente se ajusten a tus necesidades.
+
+Saludos,
+{{vendedor}}`,
+        isDefault: false,
+      },
+      // Appointment Templates
+      {
+        templateType: "appointment",
+        title: "Confirmación de Cita",
+        body: `¡Hola {{nombre}}!
+
+Te confirmo nuestra cita para visitar:
+
+*{{propiedad}}*
+{{zona}}
+
+Por favor llega 10 minutos antes. Si necesitas reagendar, avísame con anticipación.
+
+Te espero,
+{{vendedor}}`,
+        isDefault: true,
+      },
+      {
+        templateType: "appointment",
+        title: "Recordatorio de Visita",
+        body: `{{nombre}}, te recuerdo que mañana tenemos cita para visitar {{propiedad}}.
+
+Te espero puntual. Si tienes algún contratiempo, por favor avísame.
+
+{{vendedor}}`,
+        isDefault: false,
+      },
+      // Closing Templates
+      {
+        templateType: "closing",
+        title: "Cierre Exitoso",
+        body: `¡Felicidades {{nombre}}! 
+
+Muchas gracias por confiar en nosotros para encontrar tu nuevo hogar. Fue un placer ayudarte.
+
+Si en el futuro necesitas algo más, no dudes en contactarme.
+
+¡Te deseo lo mejor!
+{{vendedor}}`,
+        isDefault: true,
+      },
+      // General Templates
+      {
+        templateType: "general",
+        title: "Información Adicional",
+        body: `{{nombre}}, aquí te comparto información adicional sobre la propiedad que te interesó:
+
+*{{propiedad}}*
+{{zona}}
+${{precio}}/mes
+
+¿Tienes alguna otra pregunta? Con gusto te ayudo.
+
+{{vendedor}}`,
+        isDefault: false,
+      },
+    ];
+
+    let createdCount = 0;
+    for (const template of defaultTemplates) {
+      try {
+        const [existing] = await db.select().from(sellerMessageTemplates)
+          .where(and(
+            eq(sellerMessageTemplates.agencyId, agencyId),
+            eq(sellerMessageTemplates.title, template.title),
+            eq(sellerMessageTemplates.templateType, template.templateType as any),
+            isNull(sellerMessageTemplates.sellerId)
+          ));
+
+        if (!existing) {
+          await db.insert(sellerMessageTemplates).values({
+            agencyId,
+            sellerId: null,
+            templateType: template.templateType as any,
+            title: template.title,
+            body: template.body,
+            isDefault: template.isDefault,
+          });
+          createdCount++;
+        }
+      } catch (err) {
+        console.error(`Error creating template ${template.title}:`, err);
+      }
+    }
+    return createdCount;
+  }
+
+
+  // POST /api/external-seller/templates/seed-defaults - Create default templates for agency
+  app.post("/api/external-seller/templates/seed-defaults", isAuthenticated, requireRole(['external_agency_seller', ...EXTERNAL_ADMIN_ROLES]), async (req: any, res) => {
+    try {
+      const agencyId = await getUserAgencyId(req);
+      if (!agencyId) {
+        return res.status(400).json({ message: "User is not assigned to any agency" });
+      }
+
+      // Default templates for different use cases
+      const defaultTemplates = [
+        // Property Share Templates
+        {
+          templateType: "property_share",
+          title: "Propiedad Destacada",
+          body: `¡Hola {{nombre}}! 
+
+Te comparto esta excelente propiedad que coincide con lo que buscas:
+
+*{{propiedad}}*
+{{zona}}
+${{precio}} MXN/mes
+{{recamaras}} recámaras
+
+¿Te gustaría agendar una visita? Estoy a tus órdenes.
+
+Saludos,
+{{vendedor}}`,
+          isDefault: true,
+        },
+        {
+          templateType: "property_share",
+          title: "Múltiples Opciones",
+          body: `¡Hola {{nombre}}!
+
+Basándome en tus preferencias, encontré esta propiedad que podría interesarte:
+
+*{{propiedad}}*
+Ubicación: {{zona}}
+Renta: ${{precio}} MXN mensuales
+Habitaciones: {{recamaras}}
+
+Tengo más opciones similares si esta no te convence. ¿Qué te parece?
+
+{{vendedor}}`,
+          isDefault: false,
+        },
+        {
+          templateType: "property_share",
+          title: "Oportunidad Rápida",
+          body: `{{nombre}}, ¡buenas noticias! 
+
+Acaba de entrar esta propiedad al mercado:
+
+*{{propiedad}}* en {{zona}}
+Precio: ${{precio}}/mes | {{recamaras}} recámaras
+
+Las propiedades en esta zona se rentan rápido. ¿Cuándo puedes verla?
+
+{{vendedor}}`,
+          isDefault: false,
+        },
+        // Follow-up Templates
+        {
+          templateType: "follow_up",
+          title: "Seguimiento General",
+          body: `¡Hola {{nombre}}! 
+
+Quería dar seguimiento a tu búsqueda de departamento. ¿Has tenido oportunidad de revisar las opciones que te compartí?
+
+Quedo atento a tus comentarios.
+
+{{vendedor}}`,
+          isDefault: true,
+        },
+        {
+          templateType: "follow_up",
+          title: "Post-Visita",
+          body: `¡Hola {{nombre}}!
+
+Espero que estés muy bien. ¿Qué te pareció la propiedad que visitamos? 
+
+Me encantaría conocer tus impresiones y si necesitas más información para tomar tu decisión.
+
+Saludos,
+{{vendedor}}`,
+          isDefault: false,
+        },
+        {
+          templateType: "follow_up",
+          title: "Recordatorio Amigable",
+          body: `{{nombre}}, ¡espero que todo marche bien! 
+
+No he sabido de ti desde nuestra última conversación. ¿Sigues buscando propiedad? Tengo nuevas opciones que podrían gustarte.
+
+Cuando tengas un momento, platiquemos.
+
+{{vendedor}}`,
+          isDefault: false,
+        },
+        // Initial Contact Templates
+        {
+          templateType: "initial_contact",
+          title: "Bienvenida",
+          body: `¡Hola {{nombre}}! 
+
+Gracias por tu interés en nuestras propiedades. Soy {{vendedor}} y te ayudaré a encontrar el lugar perfecto para ti.
+
+Para poder enviarte las mejores opciones, ¿podrías confirmarme:
+- Zona de preferencia
+- Presupuesto aproximado
+- Número de recámaras que necesitas
+
+¡Estoy a tus órdenes!`,
+          isDefault: true,
+        },
+        {
+          templateType: "initial_contact",
+          title: "Respuesta a Consulta",
+          body: `¡Hola {{nombre}}!
+
+Recibí tu consulta y con gusto te ayudo. Tenemos varias opciones que podrían interesarte.
+
+¿Tienes disponibilidad esta semana para platicar sobre lo que buscas? Así puedo enviarte propiedades que realmente se ajusten a tus necesidades.
+
+Saludos,
+{{vendedor}}`,
+          isDefault: false,
+        },
+        // Appointment Templates
+        {
+          templateType: "appointment",
+          title: "Confirmación de Cita",
+          body: `¡Hola {{nombre}}!
+
+Te confirmo nuestra cita para visitar:
+
+*{{propiedad}}*
+{{zona}}
+
+¿Podrías confirmarme la hora que te acomoda? Estoy disponible por la mañana o tarde.
+
+{{vendedor}}`,
+          isDefault: true,
+        },
+        {
+          templateType: "appointment",
+          title: "Recordatorio de Visita",
+          body: `{{nombre}}, ¡te recuerdo nuestra cita de hoy!
+
+Visitaremos: *{{propiedad}}*
+Ubicación: {{zona}}
+
+Si necesitas reagendar o tienes alguna pregunta, avísame con tiempo.
+
+¡Nos vemos pronto!
+{{vendedor}}`,
+          isDefault: false,
+        },
+        // General Templates
+        {
+          templateType: "general",
+          title: "Agradecimiento",
+          body: `¡Hola {{nombre}}!
+
+Muchas gracias por confiar en nosotros para encontrar tu nuevo hogar. Fue un placer ayudarte.
+
+Si en el futuro necesitas algo más, no dudes en contactarme.
+
+¡Te deseo lo mejor!
+{{vendedor}}`,
+          isDefault: true,
+        },
+        {
+          templateType: "general",
+          title: "Información Adicional",
+          body: `{{nombre}}, aquí te comparto información adicional sobre la propiedad que te interesó:
+
+*{{propiedad}}*
+{{zona}}
+${{precio}}/mes
+
+¿Tienes alguna otra pregunta? Con gusto te ayudo.
+
+{{vendedor}}`,
+          isDefault: false,
+        },
+      ];
+
+      // Insert templates (sellerId = null means shared for agency)
+      const createdTemplates = [];
+      for (const template of defaultTemplates) {
+        try {
+          // Check if a similar template already exists
+          const [existing] = await db.select().from(sellerMessageTemplates)
+            .where(and(
+              eq(sellerMessageTemplates.agencyId, agencyId),
+              eq(sellerMessageTemplates.title, template.title),
+              eq(sellerMessageTemplates.templateType, template.templateType as any),
+              isNull(sellerMessageTemplates.sellerId)
+            ));
+
+          if (!existing) {
+            const [created] = await db.insert(sellerMessageTemplates).values({
+              agencyId,
+              sellerId: null, // Shared template for all sellers in agency
+              templateType: template.templateType as any,
+              title: template.title,
+              body: template.body,
+              isDefault: template.isDefault,
+            }).returning();
+            createdTemplates.push(created);
+          }
+        } catch (err) {
+          console.error(`Error creating template ${template.title}:`, err);
+        }
+      }
+
+      res.status(201).json({ 
+        success: true, 
+        message: `${createdTemplates.length} templates created`,
+        templates: createdTemplates 
+      });
+    } catch (error: any) {
+      console.error("Error seeding default templates:", error);
+      handleGenericError(res, error);
+    }
+  });
+
+
+  // ==================== Seller Appointment Endpoints ====================
+  // POST /api/external-seller/appointments - Create appointment (seller can create for their leads)
+  app.post("/api/external-seller/appointments", isAuthenticated, requireRole(['external_agency_seller', ...EXTERNAL_ADMIN_ROLES]), async (req: any, res) => {
+    try {
+      const agencyId = await getUserAgencyId(req);
+      if (!agencyId) {
+        return res.status(403).json({ message: "No agency assigned" });
+      }
+
+      const userId = req.user?.id || req.session?.user?.id;
+      const { tourStops, leadId, ...appointmentData } = req.body;
+
+      // If leadId provided, verify lead belongs to this seller
+      if (leadId) {
+        const lead = await storage.getExternalLead(leadId);
+        if (!lead || lead.agencyId !== agencyId) {
+          return res.status(404).json({ message: "Lead not found" });
+        }
+        // Sellers can only create appointments for their own leads
+        if (req.user.role === 'external_agency_seller' && lead.sellerId !== userId) {
+          return res.status(403).json({ message: "You can only create appointments for your own leads" });
+        }
+      }
+
+      // Convert date string to Date object if needed
+      const parsedDate = typeof appointmentData.date === 'string' 
+        ? new Date(appointmentData.date) 
+        : appointmentData.date;
+
+      // Validate appointment data
+      const validatedData = insertExternalAppointmentSchema.parse({
+        ...appointmentData,
+        date: parsedDate,
+        agencyId,
+        createdBy: userId,
+        salespersonId: userId, // Seller is the salesperson
+        leadId: leadId || null,
+      });
+
+      // For tours, validate max 3 properties rule
+      if (validatedData.mode === 'tour' && tourStops && tourStops.length > 3) {
+        return res.status(400).json({ message: "Tours can have a maximum of 3 properties" });
+      }
+
+      // Calculate end time based on mode
+      const startDate = new Date(validatedData.date);
+      let endDate: Date;
+      
+      if (validatedData.mode === 'individual') {
+        // Individual appointments are 1 hour
+        endDate = new Date(startDate.getTime() + 60 * 60 * 1000);
+      } else {
+        // Tours: 30 minutes per property
+        const propertyCount = tourStops?.length || 1;
+        endDate = new Date(startDate.getTime() + propertyCount * 30 * 60 * 1000);
+      }
+
+      // Generate tour group ID if this is a tour
+      const tourGroupId = validatedData.mode === 'tour' ? crypto.randomUUID() : null;
+
+      const appointment = await storage.createExternalAppointment({
+        ...validatedData,
+        endTime: endDate,
+        tourGroupId,
+      });
+
+      // Create tour stops if this is a tour
+      if (validatedData.mode === 'tour' && tourStops && tourStops.length > 0) {
+        const stopsData = tourStops.map((stop: any, index: number) => ({
+          appointmentId: appointment.id,
+          unitId: stop.unitId,
+          sequence: index + 1,
+          scheduledTime: new Date(startDate.getTime() + index * 30 * 60 * 1000),
+          notes: stop.notes || null,
+        }));
+
+        await storage.createExternalAppointmentUnits(stopsData);
+      }
+
+      await createAuditLog(req, "create", "external_appointment", appointment.id, 
+        `Seller created ${validatedData.mode} appointment for ${validatedData.clientName}`);
+
+      res.status(201).json(appointment);
+    } catch (error: any) {
+      console.error("Error creating seller appointment:", error);
+      if (error.name === "ZodError") {
+        return handleZodError(res, error);
+      }
+      handleGenericError(res, error);
+    }
+  });
+
+  // GET /api/external-seller/appointments - Get appointments for seller's calendar view
+  app.get("/api/external-seller/appointments", isAuthenticated, requireRole(['external_agency_seller', ...EXTERNAL_ADMIN_ROLES]), async (req: any, res) => {
+    try {
+      const agencyId = await getUserAgencyId(req);
+      if (!agencyId) {
+        return res.status(403).json({ message: "No agency assigned" });
+      }
+
+      const userId = req.user?.id || req.session?.user?.id;
+      const isSeller = req.user.role === 'external_agency_seller';
+      const { startDate, endDate, status } = req.query;
+
+      const filters: any = {};
+      if (status) filters.status = status.includes(',') ? status.split(',') : status;
+      if (startDate) filters.startDate = new Date(startDate);
+      if (endDate) filters.endDate = new Date(endDate);
+
+      const appointments = await storage.getExternalAppointmentsByAgency(agencyId, filters);
+
+      // Transform appointments for seller view
+      const transformedAppointments = appointments.map((apt: any) => {
+        const isOwner = apt.salespersonId === userId || apt.createdBy === userId;
+        
+        if (isSeller && !isOwner) {
+          // Limited view for other sellers' appointments
+          return {
+            id: apt.id,
+            date: apt.date,
+            endTime: apt.endTime,
+            mode: apt.mode,
+            status: apt.status,
+            // Limited info - only show client first name and property info
+            clientName: apt.clientName?.split(' ')[0] || 'Cliente',
+            condominiumName: apt.condominiumName || null,
+            unitNumber: apt.unitNumber || null,
+            // Mark as restricted
+            isRestricted: true,
+            canEdit: false,
+            canCancel: false,
+          };
+        }
+
+        // Full view for owner or admin
+        return {
+          ...apt,
+          isRestricted: false,
+          canEdit: isOwner || !isSeller,
+          canCancel: isOwner || !isSeller,
+        };
+      });
+
+      res.json(transformedAppointments);
+    } catch (error: any) {
+      console.error("Error fetching seller appointments:", error);
+      handleGenericError(res, error);
+    }
+  });
+
+  // PATCH /api/external-seller/appointments/:id/cancel - Cancel own appointment
+  app.patch("/api/external-seller/appointments/:id/cancel", isAuthenticated, requireRole(['external_agency_seller', ...EXTERNAL_ADMIN_ROLES]), async (req: any, res) => {
+    try {
+      const { id } = req.params;
+      const { cancellationReason } = req.body;
+      const userId = req.user?.id || req.session?.user?.id;
+      const isSeller = req.user.role === 'external_agency_seller';
+
+      const agencyId = await getUserAgencyId(req);
+      if (!agencyId) {
+        return res.status(403).json({ message: "No agency assigned" });
+      }
+
+      const appointment = await storage.getExternalAppointmentByAgency(id, agencyId);
+      if (!appointment) {
+        return res.status(404).json({ message: "Appointment not found" });
+      }
+
+      // Sellers can only cancel their own appointments
+      if (isSeller && appointment.salespersonId !== userId && appointment.createdBy !== userId) {
+        return res.status(403).json({ message: "You can only cancel your own appointments" });
+      }
+
+      // Check if appointment can be cancelled
+      if (appointment.status === 'cancelled' || appointment.status === 'completed') {
+        return res.status(400).json({ message: "Cannot cancel this appointment" });
+      }
+
+      const updated = await storage.updateExternalAppointmentStatus(id, 'cancelled', {
+        cancelledAt: new Date(),
+        cancellationReason: cancellationReason || null,
+      });
+
+      await createAuditLog(req, "update", "external_appointment", id, 
+        `Seller cancelled appointment: ${cancellationReason || 'No reason provided'}`);
+
+      res.json(updated);
+    } catch (error: any) {
+      console.error("Error cancelling appointment:", error);
+      handleGenericError(res, error);
+    }
+  });
+
+  // GET /api/external-seller/follow-ups - Get follow-up tasks for seller
+  app.get("/api/external-seller/follow-ups", isAuthenticated, requireRole(['external_agency_seller', ...EXTERNAL_ADMIN_ROLES]), async (req: any, res) => {
+    try {
+      const agencyId = await getUserAgencyId(req);
+      if (!agencyId) {
+        return res.status(400).json({ message: "User is not assigned to any agency" });
+      }
+
+      const { status = 'pending', limit = '20' } = req.query;
+
+      const conditions = [
+        eq(sellerFollowUpTasks.agencyId, agencyId),
+        eq(sellerFollowUpTasks.sellerId, req.user.id),
+      ];
+
+      if (status && status !== 'all') {
+        conditions.push(eq(sellerFollowUpTasks.status, status as string));
+      }
+
+      const tasks = await db.select({
+        id: sellerFollowUpTasks.id,
+        status: sellerFollowUpTasks.status,
+        dueDate: sellerFollowUpTasks.dueDate,
+        priority: sellerFollowUpTasks.priority,
+        reason: sellerFollowUpTasks.reason,
+        notes: sellerFollowUpTasks.notes,
+        autoGenerated: sellerFollowUpTasks.autoGenerated,
+        lastContactedAt: sellerFollowUpTasks.lastContactedAt,
+        snoozedUntil: sellerFollowUpTasks.snoozedUntil,
+        createdAt: sellerFollowUpTasks.createdAt,
+        leadId: sellerFollowUpTasks.leadId,
+        leadFirstName: externalLeads.firstName,
+        leadLastName: externalLeads.lastName,
+        leadPhone: externalLeads.phone,
+        leadStatus: externalLeads.status,
+      })
+        .from(sellerFollowUpTasks)
+        .leftJoin(externalLeads, eq(sellerFollowUpTasks.leadId, externalLeads.id))
+        .where(and(...conditions))
+        .orderBy(asc(sellerFollowUpTasks.dueDate))
+        .limit(parseInt(limit as string));
+
+      // Count overdue
+      const now = new Date();
+      const overdue = tasks.filter(t => t.status === 'pending' && new Date(t.dueDate) < now);
+
+      res.json({
+        tasks,
+        overdueCount: overdue.length,
+        totalPending: tasks.filter(t => t.status === 'pending').length,
+      });
+    } catch (error: any) {
+      console.error("Error fetching follow-ups:", error);
+      handleGenericError(res, error);
+    }
+  });
+
+  // POST /api/external-seller/follow-ups - Create a follow-up task
+  app.post("/api/external-seller/follow-ups", isAuthenticated, requireRole(['external_agency_seller', ...EXTERNAL_ADMIN_ROLES]), async (req: any, res) => {
+    try {
+      const agencyId = await getUserAgencyId(req);
+      if (!agencyId) {
+        return res.status(400).json({ message: "User is not assigned to any agency" });
+      }
+
+      const { leadId, dueDate, priority = 'medium', reason, notes } = req.body;
+
+      if (!leadId || !dueDate) {
+        return res.status(400).json({ message: "Lead ID and due date are required" });
+      }
+
+      const [task] = await db.insert(sellerFollowUpTasks).values({
+        agencyId,
+        sellerId: req.user.id,
+        leadId,
+        dueDate: new Date(dueDate),
+        priority,
+        reason,
+        notes,
+        autoGenerated: false,
+      }).returning();
+
+      res.status(201).json(task);
+    } catch (error: any) {
+      console.error("Error creating follow-up:", error);
+      handleGenericError(res, error);
+    }
+  });
+
+  // PATCH /api/external-seller/follow-ups/:id - Update follow-up (complete, snooze, etc.)
+  app.patch("/api/external-seller/follow-ups/:id", isAuthenticated, requireRole(['external_agency_seller', ...EXTERNAL_ADMIN_ROLES]), async (req: any, res) => {
+    try {
+      const agencyId = await getUserAgencyId(req);
+      if (!agencyId) {
+        return res.status(400).json({ message: "User is not assigned to any agency" });
+      }
+
+      const { id } = req.params;
+      const { status, snoozedUntil, notes } = req.body;
+
+      const updates: any = { updatedAt: new Date() };
+      if (status) {
+        updates.status = status;
+        if (status === 'completed') {
+          updates.completedAt = new Date();
+        }
+      }
+      if (snoozedUntil) {
+        updates.snoozedUntil = new Date(snoozedUntil);
+        updates.status = 'snoozed';
+      }
+      if (notes !== undefined) {
+        updates.notes = notes;
+      }
+
+      const [updated] = await db.update(sellerFollowUpTasks)
+        .set(updates)
+        .where(and(
+          eq(sellerFollowUpTasks.id, id),
+          eq(sellerFollowUpTasks.agencyId, agencyId),
+          eq(sellerFollowUpTasks.sellerId, req.user.id)
+        ))
+        .returning();
+
+      if (!updated) {
+        return res.status(404).json({ message: "Follow-up task not found" });
+      }
+
+      res.json(updated);
+    } catch (error: any) {
+      console.error("Error updating follow-up:", error);
+      handleGenericError(res, error);
+    }
+  });
+
+  // GET /api/external-seller/matching-leads/:unitId - Get leads that match a property/unit
+  app.get("/api/external-seller/matching-leads/:unitId", isAuthenticated, requireRole(['external_agency_seller', ...EXTERNAL_ADMIN_ROLES]), async (req: any, res) => {
+    try {
+      const agencyId = await getUserAgencyId(req);
+      if (!agencyId) {
+        return res.status(400).json({ message: "User is not assigned to any agency" });
+      }
+
+      const { unitId } = req.params;
+
+      // Get unit details
+      const [unit] = await db.select().from(externalUnits).where(eq(externalUnits.id, unitId));
+      if (!unit) {
+        return res.status(404).json({ message: "Unit not found" });
+      }
+
+      const unitPrice = unit.monthlyRent ? Number(unit.monthlyRent) : 0;
+      const priceMin = unitPrice * 0.8;
+      const priceMax = unitPrice * 1.2;
+
+      // Find matching leads based on preferences
+      const userId = req.user?.claims?.sub || req.user?.id;
+      const userRole = req.user?.cachedRole || req.user?.role;
+      
+      const conditions = [
+        eq(externalLeads.agencyId, agencyId),
+        not(inArray(externalLeads.status, ['converted', 'renta_concretada', 'lost'])),
+      ];
+
+      // Sellers only see their own leads (assigned or created by them)
+      if (userRole === 'external_agency_seller' && userId) {
+        conditions.push(
+          or(
+            eq(externalLeads.sellerId, userId),
+            eq(externalLeads.createdBy, userId)
+          )!
+        );
+      }
+
+      const leads = await db.select({
+        id: externalLeads.id,
+        firstName: externalLeads.firstName,
+        lastName: externalLeads.lastName,
+        phone: externalLeads.phone,
+        estimatedRentCost: externalLeads.estimatedRentCost,
+        bedrooms: externalLeads.bedrooms,
+        desiredNeighborhood: externalLeads.desiredNeighborhood,
+        desiredUnitType: externalLeads.desiredUnitType,
+        status: externalLeads.status,
+      })
+        .from(externalLeads)
+        .where(and(...conditions))
+        .limit(50);
+
+      // Score leads by match quality
+      const scoredLeads = leads.map(lead => {
+        let score = 0;
+        let matchReasons: string[] = [];
+
+        // Budget match (±20%)
+        const leadBudget = lead.estimatedRentCost ? Number(lead.estimatedRentCost) : 0;
+        if (leadBudget >= priceMin && leadBudget <= priceMax) {
+          score += 30;
+          matchReasons.push('Presupuesto compatible');
+        }
+
+        // Bedrooms match
+        if (lead.bedrooms && unit.bedrooms && Number(lead.bedrooms) === unit.bedrooms) {
+          score += 25;
+          matchReasons.push('Recámaras coinciden');
+        }
+
+        // Zone match
+        if (lead.desiredNeighborhood && unit.zone && 
+            lead.desiredNeighborhood.toLowerCase().includes(unit.zone.toLowerCase())) {
+          score += 25;
+          matchReasons.push('Zona de interés');
+        }
+
+        // Unit type match
+        if (lead.desiredUnitType && unit.unitType &&
+            lead.desiredUnitType.toLowerCase() === unit.unitType.toLowerCase()) {
+          score += 20;
+          matchReasons.push('Tipo de propiedad');
+        }
+
+        return { ...lead, matchScore: score, matchReasons };
+      });
+
+      // Filter and sort by score
+      const matchingLeads = scoredLeads
+        .filter(l => l.matchScore > 0)
+        .sort((a, b) => b.matchScore - a.matchScore);
+
+      res.json(matchingLeads);
+    } catch (error: any) {
+      console.error("Error finding matching leads:", error);
+      handleGenericError(res, error);
+    }
+  });
+
+  // GET /api/external-seller/matching-properties/:leadId - Get properties that match a lead
+  app.get("/api/external-seller/matching-properties/:leadId", isAuthenticated, requireRole(['external_agency_seller', ...EXTERNAL_ADMIN_ROLES]), async (req: any, res) => {
+    try {
+      const agencyId = await getUserAgencyId(req);
+      if (!agencyId) {
+        return res.status(400).json({ message: "User is not assigned to any agency" });
+      }
+
+      const { leadId } = req.params;
+
+      // Get lead details
+      const [lead] = await db.select().from(externalLeads).where(eq(externalLeads.id, leadId));
+      if (!lead) {
+        return res.status(404).json({ message: "Lead not found" });
+      }
+
+      const leadBudget = lead.estimatedRentCost ? Number(lead.estimatedRentCost) : 0;
+      const priceMin = leadBudget * 0.8;
+      const priceMax = leadBudget * 1.2;
+
+      // Get available units
+      const units = await db.select()
+        .from(externalUnits)
+        .where(and(
+          eq(externalUnits.agencyId, agencyId),
+          eq(externalUnits.isActive, true)
+        ))
+        .limit(100);
+
+      // Score units by match quality
+      const scoredUnits = units.map(unit => {
+        let score = 0;
+        let matchReasons: string[] = [];
+
+        const unitPrice = unit.monthlyRent ? Number(unit.monthlyRent) : 0;
+
+        // Budget match
+        if (unitPrice >= priceMin && unitPrice <= priceMax) {
+          score += 30;
+          matchReasons.push('Dentro del presupuesto');
+        }
+
+        // Bedrooms match
+        if (lead.bedrooms && unit.bedrooms && Number(lead.bedrooms) === unit.bedrooms) {
+          score += 25;
+          matchReasons.push('Recámaras coinciden');
+        }
+
+        // Zone match
+        if (lead.desiredNeighborhood && unit.zone && 
+            lead.desiredNeighborhood.toLowerCase().includes(unit.zone.toLowerCase())) {
+          score += 25;
+          matchReasons.push('Zona preferida');
+        }
+
+        // Unit type match
+        if (lead.desiredUnitType && unit.unitType &&
+            lead.desiredUnitType.toLowerCase() === unit.unitType.toLowerCase()) {
+          score += 20;
+          matchReasons.push('Tipo de propiedad');
+        }
+
+        return { ...unit, matchScore: score, matchReasons };
+      });
+
+      // Filter and sort by score
+      const matchingUnits = scoredUnits
+        .filter(u => u.matchScore > 0)
+        .sort((a, b) => b.matchScore - a.matchScore)
+        .slice(0, 20);
+
+      res.json(matchingUnits);
+    } catch (error: any) {
+      console.error("Error finding matching properties:", error);
+      handleGenericError(res, error);
+    }
+  });
+
+  // GET /api/external-seller/metrics - Get seller performance metrics
+  app.get("/api/external-seller/metrics", isAuthenticated, requireRole(['external_agency_seller', ...EXTERNAL_ADMIN_ROLES]), async (req: any, res) => {
+    try {
+      const agencyId = await getUserAgencyId(req);
+      if (!agencyId) {
+        return res.status(400).json({ message: "User is not assigned to any agency" });
+      }
+
+      const sellerId = req.user.id;
+      const now = new Date();
+      const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+
+      // Get total leads
+      const [totalResult] = await db.select({
+        count: sql<number>`count(*)`
+      })
+        .from(externalLeads)
+        .where(and(
+          eq(externalLeads.agencyId, agencyId),
+          eq(externalLeads.sellerId, sellerId)
+        ));
+
+      // Get converted leads
+      const [convertedResult] = await db.select({
+        count: sql<number>`count(*)`
+      })
+        .from(externalLeads)
+        .where(and(
+          eq(externalLeads.agencyId, agencyId),
+          eq(externalLeads.sellerId, sellerId),
+          or(
+            eq(externalLeads.status, 'convertido'),
+            eq(externalLeads.status, 'renta_concretada')
+          )
+        ));
+
+      // Get this month leads
+      const [thisMonthResult] = await db.select({
+        count: sql<number>`count(*)`
+      })
+        .from(externalLeads)
+        .where(and(
+          eq(externalLeads.agencyId, agencyId),
+          eq(externalLeads.sellerId, sellerId),
+          gte(externalLeads.createdAt, startOfMonth)
+        ));
+
+      // Get total properties sent
+      const [offersTotal] = await db.select({
+        count: sql<number>`count(*)`
+      })
+        .from(externalLeadPropertyOffers)
+        .where(and(
+          eq(externalLeadPropertyOffers.agencyId, agencyId),
+          eq(externalLeadPropertyOffers.sellerId, sellerId)
+        ));
+
+      // Get this month properties sent
+      const [offersThisMonth] = await db.select({
+        count: sql<number>`count(*)`
+      })
+        .from(externalLeadPropertyOffers)
+        .where(and(
+          eq(externalLeadPropertyOffers.agencyId, agencyId),
+          eq(externalLeadPropertyOffers.sellerId, sellerId),
+          gte(externalLeadPropertyOffers.sentAt, startOfMonth)
+        ));
+
+      // Get interested count
+      const [offersInterested] = await db.select({
+        count: sql<number>`count(*)`
+      })
+        .from(externalLeadPropertyOffers)
+        .where(and(
+          eq(externalLeadPropertyOffers.agencyId, agencyId),
+          eq(externalLeadPropertyOffers.sellerId, sellerId),
+          eq(externalLeadPropertyOffers.isInterested, true)
+        ));
+
+      // Get pending follow-ups
+      const [pendingFollowUps] = await db.select({
+        count: sql<number>`count(*)`
+      })
+        .from(sellerFollowUpTasks)
+        .where(and(
+          eq(sellerFollowUpTasks.agencyId, agencyId),
+          eq(sellerFollowUpTasks.sellerId, sellerId),
+          eq(sellerFollowUpTasks.status, 'pending')
+        ));
+
+      // Get overdue follow-ups
+      const [overdueFollowUps] = await db.select({
+        count: sql<number>`count(*)`
+      })
+        .from(sellerFollowUpTasks)
+        .where(and(
+          eq(sellerFollowUpTasks.agencyId, agencyId),
+          eq(sellerFollowUpTasks.sellerId, sellerId),
+          eq(sellerFollowUpTasks.status, 'pending'),
+          lt(sellerFollowUpTasks.dueDate, now)
+        ));
+
+      // Calculate conversion rate
+      const totalLeads = Number(totalResult?.count || 0);
+      const convertedLeads = Number(convertedResult?.count || 0);
+      const conversionRate = totalLeads > 0 ? (convertedLeads / totalLeads) * 100 : 0;
+
+      res.json({
+        leads: {
+          total: totalLeads,
+          converted: convertedLeads,
+          thisMonth: Number(thisMonthResult?.count || 0),
+          conversionRate: Math.round(conversionRate * 10) / 10,
+        },
+        propertiesSent: {
+          total: Number(offersTotal?.count || 0),
+          thisMonth: Number(offersThisMonth?.count || 0),
+          interested: Number(offersInterested?.count || 0),
+        },
+        followUps: {
+          pending: Number(pendingFollowUps?.count || 0),
+          overdue: Number(overdueFollowUps?.count || 0),
+        },
+      });
+    } catch (error: any) {
+      console.error("Error fetching seller metrics:", error);
+      handleGenericError(res, error);
+    }
+  });
+
+  // GET /api/external-seller/commissions - Get seller commission history
+  // Note: External seller commissions tracking not yet implemented
+  app.get("/api/external-seller/commissions", isAuthenticated, requireRole(['external_agency_seller', ...EXTERNAL_ADMIN_ROLES]), async (req: any, res) => {
+    try {
+      // For now, return empty array since external seller commissions are not yet tracked
+      return res.json([]);
+    } catch (error: any) {
+      console.error("Error fetching seller commissions:", error);
+      handleGenericError(res, error);
+    }
+  });
+  app.post("/api/external-seller/auto-generate-follow-ups", isAuthenticated, requireRole(['external_agency_seller', ...EXTERNAL_ADMIN_ROLES]), async (req: any, res) => {
+    try {
+      const agencyId = await getUserAgencyId(req);
+      if (!agencyId) {
+        return res.status(400).json({ message: "User is not assigned to any agency" });
+      }
+
+      const sellerId = req.user.id;
+      const { inactiveDays = 3 } = req.body;
+      const cutoffDate = new Date();
+      cutoffDate.setDate(cutoffDate.getDate() - inactiveDays);
+
+      // Find leads without recent activity or follow-up
+      const inactiveLeads = await db.select({
+        id: externalLeads.id,
+        firstName: externalLeads.firstName,
+        lastName: externalLeads.lastName,
+        updatedAt: externalLeads.updatedAt,
+      })
+        .from(externalLeads)
+        .leftJoin(sellerFollowUpTasks, and(
+          eq(sellerFollowUpTasks.leadId, externalLeads.id),
+          eq(sellerFollowUpTasks.status, 'pending')
+        ))
+        .where(and(
+          eq(externalLeads.agencyId, agencyId),
+          eq(externalLeads.sellerId, sellerId),
+          not(inArray(externalLeads.status, ['converted', 'renta_concretada', 'lost'])),
+          lt(externalLeads.updatedAt, cutoffDate),
+          isNull(sellerFollowUpTasks.id)
+        ))
+        .limit(10);
+
+      // Create follow-up tasks
+      const created = [];
+      for (const lead of inactiveLeads) {
+        const dueDate = new Date();
+        dueDate.setDate(dueDate.getDate() + 1); // Due tomorrow
+
+        const [task] = await db.insert(sellerFollowUpTasks).values({
+          agencyId,
+          sellerId,
+          leadId: lead.id,
+          dueDate,
+          priority: 'medium',
+          reason: `Sin contacto en ${inactiveDays}+ días`,
+          autoGenerated: true,
+          lastContactedAt: lead.updatedAt,
+        }).returning();
+
+        created.push(task);
+      }
+
+      res.json({
+        generated: created.length,
+        tasks: created,
+      });
+    } catch (error: any) {
+      console.error("Error generating follow-ups:", error);
+      handleGenericError(res, error);
+    }
+  });
   app.get("/api/external-condominiums", isAuthenticated, requireRole(EXTERNAL_ALL_ROLES), async (req: any, res) => {
     try {
-      const { isActive, search, sortField, sortOrder, limit, offset } = req.query;
+      const { isActive, search, zone, sortField, sortOrder, limit, offset } = req.query;
       
       // Get agency ID from authenticated user (admin/master can pass agencyId to view other agencies)
       let agencyId = req.query.agencyId;
@@ -23231,54 +27926,41 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const hasAccess = await verifyExternalAgencyOwnership(req, res, agencyId);
       if (!hasAccess) return; // Response already sent by helper
       
-      // Detect if pagination is requested (for backward compatibility)
-      // Only check limit/offset to avoid breaking legacy consumers that use search/sortField
-      const usePagination = (limit !== undefined && limit !== '') || (offset !== undefined && offset !== '');
+      // Always use pagination for performance - defaults: limit=50, offset=0
+      const limitNum = limit ? parseInt(limit as string, 10) : 50;
+      const offsetNum = offset ? parseInt(offset as string, 10) : 0;
+      const parsedLimit = Number.isFinite(limitNum) ? Math.min(Math.max(1, limitNum), 1000) : 50;
+      const parsedOffset = Number.isFinite(offsetNum) ? Math.max(0, offsetNum) : 0;
       
-      if (usePagination) {
-        // Parse and validate pagination parameters
-        const limitNum = limit ? parseInt(limit as string, 10) : 50;
-        const offsetNum = offset ? parseInt(offset as string, 10) : 0;
-        const parsedLimit = Number.isFinite(limitNum) ? Math.min(Math.max(1, limitNum), 100) : 50;
-        const parsedOffset = Number.isFinite(offsetNum) ? Math.max(0, offsetNum) : 0;
-        
-        // Build filters
-        const filters: any = {};
-        if (isActive !== undefined) filters.isActive = isActive === 'true';
-        if (search) filters.search = search as string;
-        if (sortField) filters.sortField = sortField as string;
-        if (sortOrder && (sortOrder === 'asc' || sortOrder === 'desc')) filters.sortOrder = sortOrder;
-        filters.limit = parsedLimit;
-        filters.offset = parsedOffset;
-        
-        // Execute data fetch and count in parallel
-        const [condominiums, total] = await Promise.all([
-          storage.getExternalCondominiumsByAgency(agencyId, filters),
-          storage.getExternalCondominiumsCountByAgency(agencyId, {
-            isActive: filters.isActive,
-            search: filters.search,
-          }),
-        ]);
-        
-        res.json({
-          data: condominiums,
-          total,
-          limit: parsedLimit,
-          offset: parsedOffset,
-          hasMore: parsedOffset + condominiums.length < total,
-        });
-      } else {
-        // Legacy mode: return simple array (NO pagination - full dataset)
-        // Preserve historical behavior: only isActive and search, NO sortField/sortOrder
-        // Storage will use default alphabetical ordering
-        const filters: any = {};
-        if (isActive !== undefined) filters.isActive = isActive === 'true';
-        if (search) filters.search = search as string;
-        // DO NOT pass sortField/sortOrder/limit/offset - legacy callers expect default behavior
-        
-        const condominiums = await storage.getExternalCondominiumsByAgency(agencyId, filters);
-        res.json(condominiums);
-      }
+      // Build filters
+      const filters: any = {};
+      if (isActive !== undefined) filters.isActive = isActive === 'true';
+      if (search) filters.search = search as string;
+      if (zone) filters.zone = zone as string;
+      if (sortField) filters.sortField = sortField as string;
+      if (sortOrder && (sortOrder === 'asc' || sortOrder === 'desc')) filters.sortOrder = sortOrder;
+      filters.limit = parsedLimit;
+      filters.offset = parsedOffset;
+      
+      // Execute data fetch and count in parallel
+      const [condominiums, total] = await Promise.all([
+        storage.getExternalCondominiumsByAgency(agencyId, filters),
+        storage.getExternalCondominiumsCountByAgency(agencyId, {
+          isActive: filters.isActive,
+          search: filters.search,
+          sellerId: filters.sellerId,
+          sellerScope: filters.sellerScope,
+          expiringDays: filters.expiringDays,
+        }),
+      ]);
+      
+      res.json({
+        data: condominiums,
+        total,
+        limit: parsedLimit,
+        offset: parsedOffset,
+        hasMore: parsedOffset + condominiums.length < total,
+      });
     } catch (error: any) {
       console.error("Error fetching external condominiums:", error);
       handleGenericError(res, error);
@@ -23305,6 +27987,30 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // GET units for a specific external condominium
+  app.get("/api/external-condominiums/:id/units", isAuthenticated, requireRole(EXTERNAL_ALL_ROLES), async (req: any, res) => {
+    try {
+      const { id } = req.params;
+      const condominium = await storage.getExternalCondominium(id);
+      
+      if (!condominium) {
+        return res.status(404).json({ message: "Condominium not found" });
+      }
+      
+      // Verify ownership
+      const hasAccess = await verifyExternalAgencyOwnership(req, res, condominium.agencyId);
+      if (!hasAccess) return;
+      
+      // Fetch units for this condominium
+      const units = await storage.getExternalUnitsByCondominium(id);
+      console.log(`[Units for Condo] Fetched ${units.length} units for condominium ${id}`);
+      res.json(units.map(u => ({ id: u.id, unitNumber: u.unitNumber, type: u.typology || u.propertyType })));
+    } catch (error: any) {
+      console.error("Error fetching condominium units:", error);
+      handleGenericError(res, error);
+    }
+  });
+
   app.post("/api/external-condominiums", isAuthenticated, requireRole(EXTERNAL_ADMIN_ROLES), async (req: any, res) => {
     try {
       // Get agency ID from authenticated user
@@ -23327,6 +28033,31 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (error.name === "ZodError") {
         return handleZodError(res, error);
       }
+      handleGenericError(res, error);
+    }
+  });
+
+  // POST get units by IDs (for hydrating lead form edit state)
+  app.post("/api/external-units/by-ids", isAuthenticated, requireRole(EXTERNAL_ALL_ROLES), async (req: any, res) => {
+    try {
+      const userRole = req.user?.cachedRole || req.user?.role || req.session?.adminUser?.role;
+      const agencyId = await getUserAgencyId(req);
+      
+      // Non-admin users must have an agency
+      if (userRole !== 'master' && userRole !== 'admin' && !agencyId) {
+        return res.status(403).json({ message: "Access denied: No agency association" });
+      }
+      
+      
+      const { unitIds } = req.body;
+      if (!Array.isArray(unitIds)) {
+        return res.status(400).json({ message: "unitIds must be an array" });
+      }
+      
+      const units = await storage.getExternalUnitsByIds(agencyId, unitIds);
+      res.json(units);
+    } catch (error: any) {
+      console.error("Error fetching units by IDs:", error);
       handleGenericError(res, error);
     }
   });
@@ -23476,10 +28207,44 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // GET /api/external-units/publication-status - Get publication status for all units in agency
+  app.get("/api/external-units/publication-status", isAuthenticated, requireRole(EXTERNAL_ALL_ROLES), async (req: any, res) => {
+    try {
+      const agencyId = await getUserAgencyId(req);
+      if (!agencyId) {
+        return res.status(400).json({ message: "User is not assigned to any agency" });
+      }
+
+      // Get the most recent publication request for each unit in this agency
+      // Using a subquery to get the latest request per unit
+      const allRequests = await db.select({
+        unitId: externalPublicationRequests.unitId,
+        status: externalPublicationRequests.status,
+        requestedAt: externalPublicationRequests.requestedAt,
+      })
+      .from(externalPublicationRequests)
+      .where(eq(externalPublicationRequests.agencyId, agencyId))
+      .orderBy(desc(externalPublicationRequests.requestedAt));
+
+      // Get only the latest request per unit
+      const latestByUnit = new Map<string, { unitId: string; status: string }>();
+      for (const req of allRequests) {
+        if (!latestByUnit.has(req.unitId)) {
+          latestByUnit.set(req.unitId, { unitId: req.unitId, status: req.status });
+        }
+      }
+
+      res.json(Array.from(latestByUnit.values()));
+    } catch (error: any) {
+      console.error("Error fetching publication status:", error);
+      handleGenericError(res, error);
+    }
+  });
+
   // External Units Routes
   app.get("/api/external-units", isAuthenticated, requireRole(EXTERNAL_ALL_ROLES), async (req: any, res) => {
     try {
-      const { condominiumId, isActive } = req.query;
+      const { condominiumId, isActive, search, zone, typology, sortField, sortOrder, limit, offset } = req.query;
       
       // Get agency ID from authenticated user (admin/master can pass agencyId to view other agencies)
       let agencyId = req.query.agencyId;
@@ -23494,11 +28259,35 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const hasAccess = await verifyExternalAgencyOwnership(req, res, agencyId);
       if (!hasAccess) return;
       
+      // Always use pagination for performance - defaults: limit=50, offset=0
+      const limitNum = limit ? parseInt(limit as string, 10) : 50;
+      const offsetNum = offset ? parseInt(offset as string, 10) : 0;
+      const parsedLimit = Number.isFinite(limitNum) ? Math.min(Math.max(1, limitNum), 100) : 50;
+      const parsedOffset = Number.isFinite(offsetNum) ? Math.max(0, offsetNum) : 0;
+      
       const filters: any = {};
       if (isActive !== undefined) filters.isActive = isActive === 'true';
       if (condominiumId) filters.condominiumId = condominiumId;
+      if (search) filters.search = search as string;
+      if (zone) filters.zone = zone as string;
+      if (typology) filters.typology = typology as string;
+      if (sortField) filters.sortField = sortField as string;
+      if (sortOrder && (sortOrder === 'asc' || sortOrder === 'desc')) filters.sortOrder = sortOrder;
+      filters.limit = parsedLimit;
+      filters.offset = parsedOffset;
       
-      const units = await storage.getExternalUnitsByAgency(agencyId, filters);
+      // Execute data fetch and count in parallel
+      const [units, total] = await Promise.all([
+        storage.getExternalUnitsByAgency(agencyId, filters),
+        storage.getExternalUnitsCountByAgency(agencyId, {
+          isActive: filters.isActive,
+          condominiumId: filters.condominiumId,
+          search: filters.search,
+          sellerId: filters.sellerId,
+          sellerScope: filters.sellerScope,
+          expiringDays: filters.expiringDays,
+        }),
+      ]);
       
       // Get all active contracts for this agency to determine which units are rented
       const activeContracts = await storage.getExternalRentalContractsByAgency(agencyId);
@@ -23515,7 +28304,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
         currentContractId: activeContractsByUnit.get(unit.id) || null,
       }));
       
-      res.json(unitsWithContractInfo);
+      res.json({
+        data: unitsWithContractInfo,
+        total,
+        limit: parsedLimit,
+        offset: parsedOffset,
+        hasMore: parsedOffset + units.length < total,
+      });
     } catch (error: any) {
       console.error("Error fetching external units:", error);
       handleGenericError(res, error);
@@ -23526,6 +28321,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const { condominiumId } = req.params;
       
+      // Basic UUID validation to prevent injection
+      const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+      if (!uuidRegex.test(condominiumId)) {
+        return res.json([]);
+      }
       // Verify condominium exists and get its agency
       const condominium = await storage.getExternalCondominium(condominiumId);
       if (!condominium) {
@@ -23541,6 +28341,194 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.json(units);
     } catch (error: any) {
       console.error("Error fetching units by condominium:", error);
+      handleGenericError(res, error);
+    }
+  });
+
+  // GET /api/external-units/:id/overview - Consolidated endpoint for Unit Detail page
+  // Returns unit data, condominium, rental history, maintenance history, and available condos
+  app.get("/api/external-units/:id/overview", isAuthenticated, requireRole(EXTERNAL_ALL_ROLES), async (req: any, res) => {
+    try {
+      const { id } = req.params;
+      const agencyId = await getUserAgencyId(req);
+      if (!agencyId) {
+        return res.status(403).json({ message: "No agency access" });
+      }
+      
+      // Query 1: Get unit
+      const unit = await storage.getExternalUnit(id);
+      if (!unit) {
+        return res.status(404).json({ message: "Unit not found" });
+      }
+      
+      // Verify ownership via fail-closed pattern
+      if (unit.agencyId !== agencyId) {
+        return res.status(403).json({ message: "Access denied" });
+      }
+      
+      // Query 2: Get condominium (if assigned)
+      let condominium = null;
+      if (unit.condominiumId) {
+        condominium = await storage.getExternalCondominium(unit.condominiumId);
+      }
+      
+      // Query 3: Get rental contracts history (all statuses)
+      const rentalContracts = await db.select()
+        .from(externalRentalContracts)
+        .where(eq(externalRentalContracts.unitId, id))
+        .orderBy(desc(externalRentalContracts.createdAt))
+        .limit(20);
+      
+      // Query 4: Get maintenance tickets for this unit
+      const maintenanceTickets = await db.select({
+        id: externalMaintenanceTickets.id,
+        title: externalMaintenanceTickets.title,
+        category: externalMaintenanceTickets.category,
+        priority: externalMaintenanceTickets.priority,
+        status: externalMaintenanceTickets.status,
+        reportedBy: externalMaintenanceTickets.reportedBy,
+        estimatedCost: externalMaintenanceTickets.estimatedCost,
+        actualCost: externalMaintenanceTickets.actualCost,
+        scheduledDate: externalMaintenanceTickets.scheduledDate,
+        closedAt: externalMaintenanceTickets.closedAt,
+        createdAt: externalMaintenanceTickets.createdAt,
+      })
+        .from(externalMaintenanceTickets)
+        .where(
+          and(
+            eq(externalMaintenanceTickets.unitId, id),
+            eq(externalMaintenanceTickets.agencyId, agencyId)
+          )
+        )
+        .orderBy(desc(externalMaintenanceTickets.createdAt))
+        .limit(20);
+      
+      // Query 5: Get available condominiums for reassignment
+      const availableCondominiums = await db.select({
+        id: externalCondominiums.id,
+        name: externalCondominiums.name,
+        address: externalCondominiums.address,
+      })
+        .from(externalCondominiums)
+        .where(
+          and(
+            eq(externalCondominiums.agencyId, agencyId),
+            eq(externalCondominiums.isActive, true)
+          )
+        )
+        .orderBy(asc(externalCondominiums.name));
+      
+      // Query 6: Get showings related to this unit via leads
+      const unitShowings = await db.select({
+        id: externalLeadShowings.id,
+        leadId: externalLeadShowings.leadId,
+        scheduledAt: externalLeadShowings.scheduledAt,
+        outcome: externalLeadShowings.outcome,
+        leadFeedback: externalLeadShowings.leadFeedback,
+        createdAt: externalLeadShowings.createdAt,
+      })
+        .from(externalLeadShowings)
+        .where(
+          and(
+            eq(externalLeadShowings.unitId, id),
+            eq(externalLeadShowings.agencyId, agencyId)
+          )
+        )
+        .orderBy(desc(externalLeadShowings.scheduledAt))
+        .limit(20);
+      
+      res.json({
+        unit,
+        condominium,
+        rentalHistory: rentalContracts,
+        maintenanceHistory: maintenanceTickets,
+        showingsHistory: unitShowings,
+        availableCondominiums,
+      });
+    } catch (error: any) {
+      console.error("Error fetching unit overview:", error);
+      handleGenericError(res, error);
+    }
+  });
+
+  // POST /api/external-units/:id/calculate-commission - Calculate commission for a unit
+  app.post("/api/external-units/:id/calculate-commission", isAuthenticated, requireRole(EXTERNAL_ALL_ROLES), async (req: any, res) => {
+    try {
+      const { id } = req.params;
+      const { leaseDurationMonths } = req.body;
+      
+      const agencyId = await getUserAgencyId(req);
+      if (!agencyId) {
+        return res.status(403).json({ message: "No agency access" });
+      }
+      
+      const unit = await storage.getExternalUnit(id);
+      if (!unit) {
+        return res.status(404).json({ message: "Unit not found" });
+      }
+      
+      if (unit.agencyId !== agencyId) {
+        return res.status(403).json({ message: "Access denied" });
+      }
+      
+      const monthlyRent = unit.monthlyRent12 || 0;
+      if (monthlyRent <= 0) {
+        return res.status(400).json({ message: "Unit has no valid monthly rent" });
+      }
+      
+      const duration = leaseDurationMonths || 12;
+      if (duration < 6 || duration > 60) {
+        return res.status(400).json({ message: "Lease duration must be between 6 and 60 months" });
+      }
+      
+      const commissionResult = calculateExternalCommission({
+        monthlyRent,
+        leaseDurationMonths: duration,
+        commissionType: unit.commissionType,
+        referrerName: unit.referrerName,
+        referrerPhone: unit.referrerPhone,
+        referrerEmail: unit.referrerEmail,
+      });
+      
+      res.json({
+        unitId: id,
+        unitName: unit.unitNumber,
+        monthlyRent,
+        leaseDurationMonths: duration,
+        ...commissionResult,
+      });
+    } catch (error: any) {
+      console.error("Error calculating commission:", error);
+      handleGenericError(res, error);
+    }
+  });
+
+  // GET /api/external-units/sheet-preview - Preview sheet data before import
+  // NOTE: This route must be defined BEFORE the /:id route to avoid being caught by it
+  app.get("/api/external-units/sheet-preview", isAuthenticated, requireRole(EXTERNAL_ADMIN_ROLES), async (req: any, res) => {
+    try {
+      const { spreadsheetId, sheetName = 'Renta/Long Term' } = req.query;
+      
+      if (!spreadsheetId) {
+        return res.status(400).json({ message: "Spreadsheet ID is required" });
+      }
+      
+      // Get sheet stats
+      const stats = await getTRHSheetStats(spreadsheetId as string, sheetName as string);
+      
+      // Get preview of first 10 rows
+      const rawRows = await readTRHUnitsFromSheet(spreadsheetId as string, sheetName as string, 2, 10);
+      const parsedUnits = rawRows.map(row => parseTRHRow(row));
+      
+      res.json({
+        success: true,
+        totalRows: stats.totalRows,
+        sheetName: stats.sheetName,
+        preview: parsedUnits,
+        condominiums: [...new Set(parsedUnits.filter(u => u.condominiumName).map(u => u.condominiumName))],
+      });
+    } catch (error: any) {
+      console.error("Error previewing sheet:", error);
       handleGenericError(res, error);
     }
   });
@@ -23596,6 +28584,115 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // POST /api/external-units/parse-maps-url - Extract coordinates from Google Maps URL
+  app.post("/api/external-units/parse-maps-url", isAuthenticated, requireRole(EXTERNAL_ALL_ROLES), async (req: any, res) => {
+    try {
+      const { url } = req.body;
+      
+      if (!url || typeof url !== 'string') {
+        return res.status(400).json({ success: false, error: "URL is required" });
+      }
+      
+      const { parseGoogleMapsUrlWithResolve } = await import('./googleMapsParser');
+      const result = await parseGoogleMapsUrlWithResolve(url);
+      
+      res.json(result);
+    } catch (error: any) {
+      console.error("Error parsing Google Maps URL:", error);
+      res.status(500).json({ success: false, error: "Error parsing URL" });
+    }
+  });
+
+  // POST /api/external-units/batch-extract-coordinates - Process all units with Google Maps URLs
+  app.post("/api/external-units/batch-extract-coordinates", isAuthenticated, requireRole(EXTERNAL_ADMIN_ROLES), async (req: any, res) => {
+    try {
+      const user = req.user as any;
+      const sellerProfile = await storage.getExternalSellerByUserId(user.id);
+      if (!sellerProfile) {
+        return res.status(403).json({ message: "No seller profile found" });
+      }
+
+      const { parseGoogleMapsUrlWithResolve } = await import('./googleMapsParser');
+      
+      // Get all units from this agency with Google Maps URLs but no coordinates
+      const allUnits = await db
+        .select({
+          id: externalUnits.id,
+          googleMapsUrl: externalUnits.googleMapsUrl,
+          latitude: externalUnits.latitude,
+          longitude: externalUnits.longitude,
+        })
+        .from(externalUnits)
+        .where(
+          and(
+            eq(externalUnits.agencyId, sellerProfile.agencyId),
+            isNotNull(externalUnits.googleMapsUrl),
+            sql`${externalUnits.googleMapsUrl} != ''`,
+            or(
+              isNull(externalUnits.latitude),
+              sql`${externalUnits.latitude} = ''`
+            )
+          )
+        );
+
+      let processed = 0;
+      let success = 0;
+      let failed = 0;
+      const errors: { id: string; url: string; error: string }[] = [];
+
+      for (const unit of allUnits) {
+        processed++;
+        
+        if (!unit.googleMapsUrl) continue;
+        
+        try {
+          const result = await parseGoogleMapsUrlWithResolve(unit.googleMapsUrl);
+          
+          if (result.success && result.data) {
+            await db
+              .update(externalUnits)
+              .set({
+                latitude: result.data.latitude.toString(),
+                longitude: result.data.longitude.toString(),
+                locationConfidence: result.data.confidence,
+              })
+              .where(eq(externalUnits.id, unit.id));
+            success++;
+          } else {
+            failed++;
+            errors.push({
+              id: unit.id,
+              url: unit.googleMapsUrl,
+              error: result.error || 'Unknown error'
+            });
+          }
+        } catch (err: any) {
+          failed++;
+          errors.push({
+            id: unit.id,
+            url: unit.googleMapsUrl,
+            error: err.message || 'Processing error'
+          });
+        }
+        
+        // Small delay to avoid overwhelming external requests
+        if (processed % 10 === 0) {
+          await new Promise(resolve => setTimeout(resolve, 100));
+        }
+      }
+
+      res.json({
+        message: `Processed ${processed} units`,
+        success,
+        failed,
+        errors: errors.slice(0, 20) // Limit error details
+      });
+    } catch (error: any) {
+      console.error("Error batch extracting coordinates:", error);
+      res.status(500).json({ message: "Error processing coordinates", error: error.message });
+    }
+  });
+
   app.patch("/api/external-units/:id", isAuthenticated, requireRole(EXTERNAL_ADMIN_ROLES), async (req: any, res) => {
     try {
       const { id } = req.params;
@@ -23617,6 +28714,60 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const updateData = { ...validatedData };
       delete (updateData as any).agencyId;
       delete (updateData as any).createdBy;
+      
+      // Check if publishToMain is being set to true and create publication request
+      const wasPublishingToMain = existing.publishToMain === true;
+      // Check both validated data and raw request body to ensure we capture the toggle
+      const wantsToPublishToMain = validatedData.publishToMain === true || 
+                                   (validatedData.publishToMain === undefined && req.body.publishToMain === true);
+      
+      // If unpublishing (publishToMain changed from true to false), set publishStatus to draft
+      const wantsToUnpublish = validatedData.publishToMain === false;
+      if (wantsToUnpublish && wasPublishingToMain) {
+        updateData.publishStatus = 'draft';
+      }
+
+      if (wantsToPublishToMain && !wasPublishingToMain) {
+        // Check if there's already a pending request for this unit
+        const [existingPending] = await db.select()
+          .from(externalPublicationRequests)
+          .where(and(
+            eq(externalPublicationRequests.unitId, id),
+            eq(externalPublicationRequests.status, 'pending')
+          ));
+        
+        if (!existingPending) {
+          // Check if agency has auto-approve enabled
+          const agency = await storage.getExternalAgency(existing.agencyId);
+          const shouldAutoApprove = agency?.autoApprovePublications === true;
+          
+          // Create a new publication request
+          const userId = req.user?.claims?.sub || req.user?.id;
+          await db.insert(externalPublicationRequests)
+            .values({
+              unitId: id,
+              agencyId: existing.agencyId,
+              requestedBy: userId,
+              status: shouldAutoApprove ? 'approved' : 'pending',
+              reviewedBy: shouldAutoApprove ? userId : null,
+              reviewedAt: shouldAutoApprove ? new Date() : null,
+              feedback: shouldAutoApprove ? 'Auto-approved by agency configuration' : null,
+            });
+          
+          if (shouldAutoApprove) {
+            // Auto-approve: set status to approved
+            updateData.publishStatus = 'approved';
+            // Sync to properties table
+            const fullUnit = await storage.getExternalUnit(id);
+            if (fullUnit) {
+              await syncExternalUnitToProperty(fullUnit, userId, existing.agencyId);
+            }
+          } else {
+            // Manual approval required
+            updateData.publishStatus = 'pending';
+          }
+        }
+      }
       
       const unit = await storage.updateExternalUnit(id, updateData);
       
@@ -23650,6 +28801,156 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.status(204).send();
     } catch (error: any) {
       console.error("Error deleting external unit:", error);
+      handleGenericError(res, error);
+    }
+  });
+
+  // Google Sheets import endpoint for external units
+  app.post("/api/external-agencies/:agencyId/import-units-from-sheets", isAuthenticated, requireRole(['master', 'admin', 'external_agency_admin']), async (req: any, res) => {
+    try {
+      const { agencyId } = req.params;
+      const { spreadsheetId, sheetRange, condominiumId } = req.body;
+
+      if (!spreadsheetId) {
+        return res.status(400).json({ message: "Se requiere el ID de la hoja de cálculo (spreadsheetId)" });
+      }
+
+      if (!condominiumId) {
+        return res.status(400).json({ message: "Se requiere seleccionar un condominio" });
+      }
+
+      // Verify ownership
+      const hasAccess = await verifyExternalAgencyOwnership(req, res, agencyId);
+      if (!hasAccess) return;
+
+      // Verify condominium belongs to agency
+      const condominium = await storage.getExternalCondominium(condominiumId);
+      if (!condominium || condominium.agencyId !== agencyId) {
+        return res.status(400).json({ message: "El condominio no pertenece a esta agencia" });
+      }
+
+      // Read data from Google Sheets
+      const range = sheetRange || 'Sheet1!A2:M';
+      const rows = await readUnitsFromSheet(spreadsheetId, range);
+
+      if (rows.length === 0) {
+        return res.status(400).json({ message: "No se encontraron datos en la hoja de cálculo" });
+      }
+
+      const results = {
+        imported: 0,
+        skipped: 0,
+        errors: [] as string[],
+      };
+
+      for (const row of rows) {
+        try {
+          if (!row.unitNumber) {
+            results.skipped++;
+            continue;
+          }
+
+          // Check if unit already exists
+          const existingUnits = await storage.getExternalUnitsByAgency(agencyId);
+          const existingUnit = existingUnits.find(u => 
+            u.unitNumber === row.unitNumber && u.condominiumId === condominiumId
+          );
+
+          if (existingUnit) {
+            results.skipped++;
+            continue;
+          }
+
+          // Create new unit
+          await storage.createExternalUnit({
+            agencyId,
+            condominiumId,
+            unitNumber: row.unitNumber,
+            rentPurpose: (row.rentPurpose as 'long_term' | 'vacation' | 'both') || 'long_term',
+            floorNumber: row.floorNumber ? parseInt(row.floorNumber) : undefined,
+            bedrooms: row.bedrooms ? parseInt(row.bedrooms) : undefined,
+            bathrooms: row.bathrooms ? parseFloat(row.bathrooms) : undefined,
+            size: row.size ? parseFloat(row.size) : undefined,
+            rentAmount: row.rentAmount || undefined,
+            depositAmount: row.depositAmount || undefined,
+            notes: row.notes || undefined,
+            isActive: true,
+            createdBy: req.user.id,
+          });
+
+          results.imported++;
+        } catch (err: any) {
+          results.errors.push(`Error en fila ${row.unitNumber}: ${err.message}`);
+        }
+      }
+
+      await createAuditLog(req, "import", "external_units", agencyId, `Imported ${results.imported} units from Google Sheets`);
+
+      res.json({
+        message: `Importación completada: ${results.imported} unidades importadas, ${results.skipped} omitidas`,
+        ...results,
+      });
+    } catch (error: any) {
+      console.error("Error importing units from Google Sheets:", error);
+      if (error.message?.includes('Google Sheet not connected')) {
+        return res.status(400).json({ message: "Google Sheets no está conectado. Por favor, configura la conexión primero." });
+      }
+      handleGenericError(res, error);
+    }
+  });
+
+  // Get Google Sheets info (for preview)
+  app.get("/api/external-agencies/:agencyId/sheets-info", isAuthenticated, requireRole(['master', 'admin', 'external_agency_admin']), async (req: any, res) => {
+    try {
+      const { agencyId } = req.params;
+      const { spreadsheetId } = req.query;
+
+      if (!spreadsheetId) {
+        return res.status(400).json({ message: "Se requiere el ID de la hoja de cálculo" });
+      }
+
+      // Verify ownership
+      const hasAccess = await verifyExternalAgencyOwnership(req, res, agencyId);
+      if (!hasAccess) return;
+
+      const info = await getSpreadsheetInfo(spreadsheetId as string);
+      res.json(info);
+    } catch (error: any) {
+      console.error("Error getting spreadsheet info:", error);
+      if (error.message?.includes('Google Sheet not connected')) {
+        return res.status(400).json({ message: "Google Sheets no está conectado. Por favor, configura la conexión primero." });
+      }
+      handleGenericError(res, error);
+    }
+  });
+
+  // Preview Google Sheets data before import
+  app.get("/api/external-agencies/:agencyId/preview-sheets-data", isAuthenticated, requireRole(['master', 'admin', 'external_agency_admin']), async (req: any, res) => {
+    try {
+      const { agencyId } = req.params;
+      const { spreadsheetId, sheetRange } = req.query;
+
+      if (!spreadsheetId) {
+        return res.status(400).json({ message: "Se requiere el ID de la hoja de cálculo" });
+      }
+
+      // Verify ownership
+      const hasAccess = await verifyExternalAgencyOwnership(req, res, agencyId);
+      if (!hasAccess) return;
+
+      const range = (sheetRange as string) || 'Sheet1!A2:M';
+      const rows = await readUnitsFromSheet(spreadsheetId as string, range);
+
+      res.json({
+        totalRows: rows.length,
+        preview: rows.slice(0, 10), // First 10 rows for preview
+        columns: ['unitNumber', 'condominiumName', 'rentPurpose', 'floorNumber', 'bedrooms', 'bathrooms', 'size', 'rentAmount', 'depositAmount', 'ownerName', 'ownerEmail', 'ownerPhone', 'notes'],
+      });
+    } catch (error: any) {
+      console.error("Error previewing spreadsheet data:", error);
+      if (error.message?.includes('Google Sheet not connected')) {
+        return res.status(400).json({ message: "Google Sheets no está conectado. Por favor, configura la conexión primero." });
+      }
       handleGenericError(res, error);
     }
   });
@@ -23688,6 +28989,895 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Update verification status for external unit (internal QA control)
+  app.patch("/api/external-units/:id/verification", isAuthenticated, requireRole(EXTERNAL_ADMIN_ROLES), async (req: any, res) => {
+    try {
+      const { id } = req.params;
+      const { verificationStatus, verificationNotes } = req.body;
+      
+      // Validate verification status
+      if (!['unverified', 'pending_review', 'verified'].includes(verificationStatus)) {
+        return res.status(400).json({ message: "Invalid verification status" });
+      }
+      
+      // Verify unit exists
+      const existing = await storage.getExternalUnit(id);
+      if (!existing) {
+        return res.status(404).json({ message: "Unit not found" });
+      }
+      
+      // Verify ownership
+      const hasAccess = await verifyExternalAgencyOwnership(req, res, existing.agencyId);
+      if (!hasAccess) return;
+      
+      const userId = req.user?.claims?.sub || req.user?.id;
+      
+      // Build update data
+      const updateData: any = {
+        verificationStatus,
+        verificationNotes: verificationNotes || null,
+      };
+      
+      // Set verification timestamp and user if status is 'verified'
+      if (verificationStatus === 'verified') {
+        updateData.verifiedAt = new Date();
+        updateData.verifiedBy = userId;
+      } else if (verificationStatus === 'unverified') {
+        updateData.verifiedAt = null;
+        updateData.verifiedBy = null;
+      }
+      
+      const unit = await storage.updateExternalUnit(id, updateData);
+      
+      await createAuditLog(
+        req, 
+        "update", 
+        "external_unit", 
+        id, 
+        `Updated verification status to ${verificationStatus}`
+      );
+      
+      res.json(unit);
+    } catch (error: any) {
+      console.error("Error updating verification status:", error);
+      handleGenericError(res, error);
+    }
+  });
+
+  // POST /api/external-units/import-from-sheet - Import units from Google Sheets (TRH specific)
+  app.post("/api/external-units/import-from-sheet", isAuthenticated, requireRole(EXTERNAL_ADMIN_ROLES), async (req: any, res) => {
+    try {
+      const agencyId = await getUserAgencyId(req);
+      if (!agencyId) {
+        return res.status(403).json({ message: "No agency access" });
+      }
+      
+      const { spreadsheetId, sheetName = 'Renta/Long Term', startRow = 2, limit = 100, dryRun = false } = req.body;
+      
+      if (!spreadsheetId) {
+        return res.status(400).json({ message: "Spreadsheet ID is required" });
+      }
+      
+      // Read data from sheet
+      const rawRows = await readTRHUnitsFromSheet(spreadsheetId, sheetName, startRow, limit);
+      const parsedUnits = rawRows.map(row => parseTRHRow(row));
+      
+      // Filter out rows without valid unit numbers
+      const validUnits = parsedUnits.filter(u => u.unitNumber && u.condominiumName);
+      
+      if (dryRun) {
+        // Preview mode - return parsed data without inserting
+        return res.json({
+          success: true,
+          dryRun: true,
+          totalRows: rawRows.length,
+          validUnits: validUnits.length,
+          skippedRows: rawRows.length - validUnits.length,
+          preview: validUnits.slice(0, 10), // Show first 10 as preview
+          condominiums: [...new Set(validUnits.map(u => u.condominiumName))],
+        });
+      }
+      
+      // Get or create condominiums
+      const condominiumMap: Record<string, string> = {};
+      const uniqueCondos = [...new Set(validUnits.map(u => u.condominiumName))];
+      
+      for (const condoName of uniqueCondos) {
+        // Try to find existing condominium
+        const existingCondos = await db.select()
+          .from(externalCondominiums)
+          .where(and(
+            eq(externalCondominiums.agencyId, agencyId),
+            sql`LOWER(${externalCondominiums.name}) = LOWER(${condoName})`
+          ))
+          .limit(1);
+        
+        if (existingCondos.length > 0) {
+          condominiumMap[condoName] = existingCondos[0].id;
+        } else {
+          // Create new condominium
+          const [newCondo] = await db.insert(externalCondominiums)
+            .values({
+              agencyId,
+              name: condoName,
+              zone: validUnits.find(u => u.condominiumName === condoName)?.zone,
+              createdBy: req.user.id,
+            })
+            .returning();
+          condominiumMap[condoName] = newCondo.id;
+        }
+      }
+      
+      let imported = 0;
+      let updated = 0;
+      let errors: string[] = [];
+      
+      for (const unit of validUnits) {
+        try {
+          const condominiumId = condominiumMap[unit.condominiumName];
+          
+          // Check if unit already exists by sheetRowId
+          const existingUnit = unit.sheetRowId 
+            ? await db.select()
+                .from(externalUnits)
+                .where(and(
+                  eq(externalUnits.agencyId, agencyId),
+                  eq(externalUnits.sheetRowId, unit.sheetRowId)
+                ))
+                .limit(1)
+            : [];
+          
+          if (existingUnit.length > 0) {
+            // Update existing unit
+            await db.update(externalUnits)
+              .set({
+                condominiumId,
+                unitNumber: unit.unitNumber,
+          latitude: unit.latitude ? parseFloat(unit.latitude) : null,
+          longitude: unit.longitude ? parseFloat(unit.longitude) : null,
+                zone: unit.zone,
+          condominiumName: condoName || null,
+          unitNumber: unit.unitNumber,
+          latitude: unit.latitude ? parseFloat(unit.latitude) : null,
+          longitude: unit.longitude ? parseFloat(unit.longitude) : null,
+                propertyType: unit.propertyType,
+                floor: unit.floor,
+                bedrooms: unit.bedrooms,
+                bathrooms: unit.bathrooms ? String(unit.bathrooms) : null,
+                price: unit.price ? String(unit.price) : null,
+                commissionType: unit.commissionType,
+                petFriendly: unit.petFriendly,
+                allowsSublease: unit.allowsSublease,
+                virtualTourUrl: unit.virtualTourUrl,
+                googleMapsUrl: unit.googleMapsUrl,
+                photosDriveLink: unit.photosDriveLink,
+                includedServices: unit.includedServices,
+                syncedFromSheet: true,
+                lastSheetSync: new Date(),
+                updatedAt: new Date(),
+              })
+              .where(eq(externalUnits.id, existingUnit[0].id));
+            updated++;
+          } else {
+            // Insert new unit
+            await db.insert(externalUnits)
+              .values({
+                agencyId,
+                condominiumId,
+                unitNumber: unit.unitNumber,
+          latitude: unit.latitude ? parseFloat(unit.latitude) : null,
+          longitude: unit.longitude ? parseFloat(unit.longitude) : null,
+                zone: unit.zone,
+          condominiumName: condoName || null,
+          unitNumber: unit.unitNumber,
+          latitude: unit.latitude ? parseFloat(unit.latitude) : null,
+          longitude: unit.longitude ? parseFloat(unit.longitude) : null,
+                propertyType: unit.propertyType,
+                floor: unit.floor,
+                bedrooms: unit.bedrooms,
+                bathrooms: unit.bathrooms ? String(unit.bathrooms) : null,
+                price: unit.price ? String(unit.price) : null,
+                commissionType: unit.commissionType,
+                petFriendly: unit.petFriendly,
+                allowsSublease: unit.allowsSublease,
+                virtualTourUrl: unit.virtualTourUrl,
+                googleMapsUrl: unit.googleMapsUrl,
+                photosDriveLink: unit.photosDriveLink,
+                includedServices: unit.includedServices,
+                sheetRowId: unit.sheetRowId,
+                syncedFromSheet: true,
+                lastSheetSync: new Date(),
+                minimumTerm: '6 meses',
+                maximumTerm: '5 años',
+                createdBy: req.user.id,
+              });
+            imported++;
+          }
+        } catch (err: any) {
+          errors.push(`Row ${unit.sheetRowId || 'unknown'}: ${err.message}`);
+        }
+      }
+      
+      await createAuditLog(
+        req, 
+        "update", 
+        "external_unit", 
+        null, 
+        `Sheet sync: Imported ${imported} units, updated ${updated} units from Google Sheets`
+      );
+      
+      res.json({
+        success: true,
+        imported,
+        updated,
+        errors: errors.length > 0 ? errors.slice(0, 10) : [],
+        totalErrors: errors.length,
+        totalProcessed: validUnits.length,
+      });
+    } catch (error: any) {
+      console.error("Error importing from sheet:", error);
+      handleGenericError(res, error);
+    }
+  });
+
+
+  // Configure multer for external unit image uploads
+  const externalUnitImageStorage = multer.memoryStorage();
+  const uploadExternalUnitImages = multer({
+    storage: externalUnitImageStorage,
+    limits: { fileSize: 10 * 1024 * 1024 }, // 10MB limit
+    fileFilter: (req, file, cb) => {
+      const allowedMimes = [
+        'image/jpeg', 'image/jpg', 'image/png', 'image/webp',
+        'image/avif', 'image/heic', 'image/heif', 'image/gif',
+        'image/tiff', 'image/bmp'
+      ];
+      if (allowedMimes.includes(file.mimetype.toLowerCase())) {
+        cb(null, true);
+      } else {
+        cb(new Error(`Formato no soportado: ${file.mimetype}. Formatos válidos: JPEG, PNG, WebP, HEIC, AVIF, GIF, TIFF, BMP`));
+      }
+    }
+  });
+
+  // POST /api/external-units/:id/upload-images - Upload and convert images for external unit
+  app.post("/api/external-units/:id/upload-images", isAuthenticated, requireRole(EXTERNAL_ADMIN_ROLES), uploadExternalUnitImages.array('images', 20), async (req: any, res) => {
+    try {
+      const { id } = req.params;
+      const { imageType = 'primary' } = req.body; // 'primary' or 'secondary'
+
+      // Verify unit exists and user has access
+      const existing = await storage.getExternalUnit(id);
+      if (!existing) {
+        return res.status(404).json({ message: "Unit not found" });
+      }
+
+      const hasAccess = await verifyExternalAgencyOwnership(req, res, existing.agencyId);
+      if (!hasAccess) return;
+
+      const files = req.files as Express.Multer.File[];
+      if (!files || files.length === 0) {
+        return res.status(400).json({ message: "No images provided" });
+      }
+
+      const uploadedImages: Array<{ objectPath: string; publicUrl: string; width: number; height: number }> = [];
+      const errors: string[] = [];
+
+      for (const file of files) {
+        try {
+          // Process image (convert to WebP, resize, optimize)
+          const processed = await imageProcessor.processImage(file.buffer, file.mimetype, {
+            maxDimension: 2000,
+            quality: 85,
+            outputFormat: 'webp',
+          });
+
+          // Upload to object storage
+          const result = await imageProcessor.uploadToStorage(
+            processed,
+            `external-units/${id}/images`
+          );
+
+          uploadedImages.push({
+            objectPath: result.objectPath,
+            publicUrl: result.publicUrl,
+            width: result.width,
+            height: result.height,
+          });
+
+          console.log(`Image uploaded: ${file.originalname} -> ${result.objectPath} (original: ${result.originalSize}, processed: ${result.processedSize})`);
+        } catch (error: any) {
+          console.error(`Error processing image ${file.originalname}:`, error);
+          errors.push(`${file.originalname}: ${error.message}`);
+        }
+      }
+
+      if (uploadedImages.length === 0) {
+        return res.status(400).json({ 
+          message: "Failed to process all images",
+          errors 
+        });
+      }
+
+      // Update unit with new images
+      const currentPrimary = existing.primaryImages || [];
+      const currentSecondary = existing.secondaryImages || [];
+      
+      const newImageUrls = uploadedImages.map(img => img.publicUrl);
+      
+      let updateData;
+      if (imageType === 'primary') {
+        updateData = { primaryImages: [...currentPrimary, ...newImageUrls] };
+      } else {
+        updateData = { secondaryImages: [...currentSecondary, ...newImageUrls] };
+      }
+
+      await storage.updateExternalUnit(id, updateData);
+
+      res.json({
+        success: true,
+        uploaded: uploadedImages,
+        errors: errors.length > 0 ? errors : undefined,
+        message: `${uploadedImages.length} imagen(es) subida(s) correctamente`
+      });
+    } catch (error: any) {
+      console.error("Error uploading images:", error);
+      res.status(500).json({ message: error.message || "Failed to upload images" });
+    }
+  });
+
+  // DELETE /api/external-units/:id/images - Remove image from external unit
+  app.delete("/api/external-units/:id/images", isAuthenticated, requireRole(EXTERNAL_ADMIN_ROLES), async (req: any, res) => {
+    try {
+      const { id } = req.params;
+      const { imageUrl, imageType = 'primary' } = req.body;
+
+      if (!imageUrl) {
+        return res.status(400).json({ message: "Image URL is required" });
+      }
+
+      // Verify unit exists and user has access
+      const existing = await storage.getExternalUnit(id);
+      if (!existing) {
+        return res.status(404).json({ message: "Unit not found" });
+      }
+
+      const hasAccess = await verifyExternalAgencyOwnership(req, res, existing.agencyId);
+      if (!hasAccess) return;
+
+      // Remove image from the appropriate array
+      let updateData;
+      if (imageType === 'primary') {
+        const filteredImages = (existing.primaryImages || []).filter(url => url !== imageUrl);
+        updateData = { primaryImages: filteredImages };
+      } else {
+        const filteredImages = (existing.secondaryImages || []).filter(url => url !== imageUrl);
+        updateData = { secondaryImages: filteredImages };
+      }
+
+      await storage.updateExternalUnit(id, updateData);
+
+      res.json({ success: true, message: "Imagen eliminada" });
+    } catch (error: any) {
+      console.error("Error deleting image:", error);
+      res.status(500).json({ message: error.message || "Failed to delete image" });
+    }
+  });
+
+  // ==========================================
+  // External Unit Media - Section-based image organization
+  // ==========================================
+
+  // GET /api/external-units/:id/media - Get all media for a unit organized by section
+  app.get("/api/external-units/:id/media", isAuthenticated, requireRole(EXTERNAL_ALL_ROLES), async (req: any, res) => {
+    try {
+      const { id } = req.params;
+      
+      const existing = await storage.getExternalUnit(id);
+      if (!existing) {
+        return res.status(404).json({ message: "Unit not found" });
+      }
+
+      const hasAccess = await verifyExternalAgencyAccess(req, res, existing.agencyId);
+      if (!hasAccess) return;
+
+      const media = await storage.getUnitMedia(id);
+      
+      // Group by section
+      const groupedMedia: Record<string, typeof media> = {};
+      media.forEach(item => {
+        const key = item.sectionIndex && item.sectionIndex > 1 
+          ? `${item.section}_${item.sectionIndex}`
+          : item.section;
+        if (!groupedMedia[key]) {
+          groupedMedia[key] = [];
+        }
+        groupedMedia[key].push(item);
+      });
+
+      res.json({ 
+        success: true, 
+        data: media,
+        grouped: groupedMedia,
+        count: media.length
+      });
+    } catch (error: any) {
+      console.error("Error fetching unit media:", error);
+      res.status(500).json({ message: error.message || "Failed to fetch media" });
+    }
+  });
+
+  // POST /api/external-units/:id/media - Upload image to specific section
+  app.post("/api/external-units/:id/media", isAuthenticated, requireRole(EXTERNAL_ADMIN_ROLES), uploadExternalUnitImages.array('images', 20), async (req: any, res) => {
+    try {
+      const { id } = req.params;
+      const { section = 'other', sectionIndex = 1, caption } = req.body;
+
+      const existing = await storage.getExternalUnit(id);
+      if (!existing) {
+        return res.status(404).json({ message: "Unit not found" });
+      }
+
+      const hasAccess = await verifyExternalAgencyOwnership(req, res, existing.agencyId);
+      if (!hasAccess) return;
+
+      const files = req.files as Express.Multer.File[];
+      if (!files || files.length === 0) {
+        return res.status(400).json({ message: "No images provided" });
+      }
+
+      // Get current max sortOrder for this section
+      const existingMedia = await storage.getUnitMediaBySection(id, section, parseInt(sectionIndex));
+      let nextSortOrder = existingMedia.length;
+
+      const uploadedMedia: any[] = [];
+      const errors: string[] = [];
+
+      for (const file of files) {
+        try {
+          const processed = await imageProcessor.processImage(file.buffer, file.mimetype, {
+            maxDimension: 2000,
+            quality: 85,
+            outputFormat: 'webp',
+          });
+
+          const result = await imageProcessor.uploadToStorage(
+            processed,
+            `external-units/${id}/media/${section}`
+          );
+
+          const mediaItem = await storage.createUnitMedia({
+            unitId: id,
+            agencyId: existing.agencyId,
+            section: section as any,
+            sectionIndex: parseInt(sectionIndex) || 1,
+            url: result.publicUrl,
+            caption: caption || null,
+            sortOrder: nextSortOrder++,
+            isCover: false,
+          });
+
+          uploadedMedia.push(mediaItem);
+        } catch (error: any) {
+          console.error(`Error processing image ${file.originalname}:`, error);
+          errors.push(`${file.originalname}: ${error.message}`);
+        }
+      }
+
+      if (uploadedMedia.length === 0) {
+        return res.status(400).json({ 
+          message: "Failed to process all images",
+          errors 
+        });
+      }
+
+      res.json({
+        success: true,
+        data: uploadedMedia,
+        errors: errors.length > 0 ? errors : undefined,
+        message: `${uploadedMedia.length} imagen(es) subida(s) correctamente`
+      });
+    } catch (error: any) {
+      console.error("Error uploading media:", error);
+      res.status(500).json({ message: error.message || "Failed to upload media" });
+    }
+  });
+
+  // PATCH /api/external-units/:id/media/:mediaId - Update media item
+  app.patch("/api/external-units/:id/media/:mediaId", isAuthenticated, requireRole(EXTERNAL_ADMIN_ROLES), async (req: any, res) => {
+    try {
+      const { id, mediaId } = req.params;
+      const { section, sectionIndex, caption, sortOrder } = req.body;
+
+      const existing = await storage.getExternalUnit(id);
+      if (!existing) {
+        return res.status(404).json({ message: "Unit not found" });
+      }
+
+      const hasAccess = await verifyExternalAgencyOwnership(req, res, existing.agencyId);
+      if (!hasAccess) return;
+
+      const updates: any = {};
+      if (section !== undefined) updates.section = section;
+      if (sectionIndex !== undefined) updates.sectionIndex = sectionIndex;
+      if (caption !== undefined) updates.caption = caption;
+      if (sortOrder !== undefined) updates.sortOrder = sortOrder;
+
+      const updated = await storage.updateUnitMedia(mediaId, updates);
+      if (!updated) {
+        return res.status(404).json({ message: "Media not found" });
+      }
+
+      res.json({ success: true, data: updated });
+    } catch (error: any) {
+      console.error("Error updating media:", error);
+      res.status(500).json({ message: error.message || "Failed to update media" });
+    }
+  });
+
+  // DELETE /api/external-units/:id/media/:mediaId - Delete specific media item
+  app.delete("/api/external-units/:id/media/:mediaId", isAuthenticated, requireRole(EXTERNAL_ADMIN_ROLES), async (req: any, res) => {
+    try {
+      const { id, mediaId } = req.params;
+
+      const existing = await storage.getExternalUnit(id);
+      if (!existing) {
+        return res.status(404).json({ message: "Unit not found" });
+      }
+
+      const hasAccess = await verifyExternalAgencyOwnership(req, res, existing.agencyId);
+      if (!hasAccess) return;
+
+      const deleted = await storage.deleteUnitMedia(mediaId);
+      if (!deleted) {
+        return res.status(404).json({ message: "Media not found" });
+      }
+
+      res.json({ success: true, message: "Imagen eliminada" });
+    } catch (error: any) {
+      console.error("Error deleting media:", error);
+      res.status(500).json({ message: error.message || "Failed to delete media" });
+    }
+  });
+
+  // POST /api/external-units/:id/media/reorder - Reorder media within a section
+  app.post("/api/external-units/:id/media/reorder", isAuthenticated, requireRole(EXTERNAL_ADMIN_ROLES), async (req: any, res) => {
+    try {
+      const { id } = req.params;
+      const { section, sectionIndex, mediaIds } = req.body;
+
+      if (!Array.isArray(mediaIds)) {
+        return res.status(400).json({ message: "mediaIds must be an array" });
+      }
+
+      const existing = await storage.getExternalUnit(id);
+      if (!existing) {
+        return res.status(404).json({ message: "Unit not found" });
+      }
+
+      const hasAccess = await verifyExternalAgencyOwnership(req, res, existing.agencyId);
+      if (!hasAccess) return;
+
+      await storage.reorderUnitMedia(id, section, sectionIndex, mediaIds);
+
+      res.json({ success: true, message: "Orden actualizado" });
+    } catch (error: any) {
+      console.error("Error reordering media:", error);
+      res.status(500).json({ message: error.message || "Failed to reorder media" });
+    }
+  });
+
+  // POST /api/external-units/:id/media/:mediaId/set-cover - Set as cover image
+  app.post("/api/external-units/:id/media/:mediaId/set-cover", isAuthenticated, requireRole(EXTERNAL_ADMIN_ROLES), async (req: any, res) => {
+    try {
+      const { id, mediaId } = req.params;
+
+      const existing = await storage.getExternalUnit(id);
+      if (!existing) {
+        return res.status(404).json({ message: "Unit not found" });
+      }
+
+      const hasAccess = await verifyExternalAgencyOwnership(req, res, existing.agencyId);
+      if (!hasAccess) return;
+
+      await storage.setCoverImage(id, mediaId);
+
+      res.json({ success: true, message: "Imagen de portada actualizada" });
+    } catch (error: any) {
+      console.error("Error setting cover image:", error);
+      res.status(500).json({ message: error.message || "Failed to set cover image" });
+    }
+  });
+
+  // GET /api/external-units/:id/media/sections - Get available sections based on unit characteristics
+  app.get("/api/external-units/:id/media/sections", isAuthenticated, requireRole(EXTERNAL_ALL_ROLES), async (req: any, res) => {
+    try {
+      const { id } = req.params;
+      
+      const existing = await storage.getExternalUnit(id);
+      if (!existing) {
+        return res.status(404).json({ message: "Unit not found" });
+      }
+
+      const hasAccess = await verifyExternalAgencyAccess(req, res, existing.agencyId);
+      if (!hasAccess) return;
+
+      // Build dynamic sections based on unit characteristics
+      const sections: Array<{ key: string; section: string; sectionIndex: number; label: { es: string; en: string } }> = [];
+
+      // Cover section
+      sections.push({ key: 'cover', section: 'cover', sectionIndex: 1, label: { es: 'Portada', en: 'Cover' } });
+
+      // Bedrooms
+      const bedroomCount = existing.bedrooms || 0;
+      for (let i = 1; i <= bedroomCount; i++) {
+        sections.push({ key: `bedroom_${i}`, section: 'bedroom', sectionIndex: i, label: { es: `Recámara ${i}`, en: `Bedroom ${i}` } });
+      }
+
+      // Bathrooms (full)
+      const bathroomCount = Math.floor(parseFloat(existing.bathrooms?.toString() || '0'));
+      const hasHalfBath = (parseFloat(existing.bathrooms?.toString() || '0') % 1) !== 0;
+      
+      for (let i = 1; i <= bathroomCount; i++) {
+        sections.push({ key: `bathroom_${i}`, section: 'bathroom', sectionIndex: i, label: { es: `Baño ${i}`, en: `Bathroom ${i}` } });
+      }
+
+      // Half bath
+      if (hasHalfBath) {
+        sections.push({ key: 'half_bath_1', section: 'half_bath', sectionIndex: 1, label: { es: 'Medio Baño', en: 'Half Bath' } });
+      }
+
+      // Common areas
+      const commonSections = [
+        { section: 'kitchen', label: { es: 'Cocina', en: 'Kitchen' } },
+        { section: 'living_room', label: { es: 'Sala', en: 'Living Room' } },
+        { section: 'dining_room', label: { es: 'Comedor', en: 'Dining Room' } },
+      ];
+      commonSections.forEach(s => {
+        sections.push({ key: s.section, section: s.section, sectionIndex: 1, label: s.label });
+      });
+
+      // Check amenities for outdoor areas
+      const amenities = existing.amenities || [];
+      const amenitiesLower = amenities.map(a => a.toLowerCase());
+      
+      const outdoorSections = [
+        { section: 'garden', keywords: ['jardin', 'jardín', 'garden'], label: { es: 'Jardín', en: 'Garden' } },
+        { section: 'terrace', keywords: ['terraza', 'terrace'], label: { es: 'Terraza', en: 'Terrace' } },
+        { section: 'pool', keywords: ['alberca', 'pool', 'piscina'], label: { es: 'Alberca', en: 'Pool' } },
+        { section: 'balcony', keywords: ['balcon', 'balcón', 'balcony'], label: { es: 'Balcón', en: 'Balcony' } },
+        { section: 'rooftop', keywords: ['rooftop', 'azotea'], label: { es: 'Rooftop', en: 'Rooftop' } },
+        { section: 'parking', keywords: ['estacionamiento', 'parking', 'garage', 'cochera'], label: { es: 'Estacionamiento', en: 'Parking' } },
+      ];
+
+      outdoorSections.forEach(s => {
+        const hasAmenity = s.keywords.some(k => amenitiesLower.some(a => a.includes(k)));
+        if (hasAmenity) {
+          sections.push({ key: s.section, section: s.section, sectionIndex: 1, label: s.label });
+        }
+      });
+
+      // Always add these sections
+      const alwaysInclude = [
+        { section: 'amenities', label: { es: 'Amenidades', en: 'Amenities' } },
+        { section: 'common_areas', label: { es: 'Áreas Comunes', en: 'Common Areas' } },
+        { section: 'exterior', label: { es: 'Exterior / Fachada', en: 'Exterior / Facade' } },
+        { section: 'view', label: { es: 'Vista', en: 'View' } },
+        { section: 'floor_plan', label: { es: 'Plano', en: 'Floor Plan' } },
+        { section: 'other', label: { es: 'Otras Fotos', en: 'Other Photos' } },
+      ];
+      alwaysInclude.forEach(s => {
+        sections.push({ key: s.section, section: s.section, sectionIndex: 1, label: s.label });
+      });
+
+      res.json({ success: true, data: sections });
+    } catch (error: any) {
+      console.error("Error fetching media sections:", error);
+      res.status(500).json({ message: error.message || "Failed to fetch sections" });
+    }
+  });
+
+
+  // POST /api/external-units/:id/media/migrate - Migrate legacy images to section-based system
+  app.post("/api/external-units/:id/media/migrate", isAuthenticated, requireRole(EXTERNAL_ADMIN_ROLES), async (req: any, res) => {
+    try {
+      const { id } = req.params;
+
+      const unit = await storage.getExternalUnit(id);
+      if (!unit) {
+        return res.status(404).json({ message: "Unit not found" });
+      }
+
+      const hasAccess = await verifyExternalAgencyOwnership(req, res, unit.agencyId);
+      if (!hasAccess) return;
+
+      // Check if unit already has section-based media
+      const existingMedia = await storage.getUnitMedia(id);
+      if (existingMedia.length > 0) {
+        return res.status(400).json({ 
+          message: "Unit already has section-based media. Migration skipped.",
+          existingCount: existingMedia.length
+        });
+      }
+
+      const primaryImages = unit.primaryImages || [];
+      const secondaryImages = unit.secondaryImages || [];
+      
+      if (primaryImages.length === 0 && secondaryImages.length === 0) {
+        return res.json({ 
+          success: true, 
+          message: "No images to migrate",
+          migrated: 0 
+        });
+      }
+
+      let migratedCount = 0;
+
+      // Migrate primary images: first one as cover, rest as "other"
+      for (let i = 0; i < primaryImages.length; i++) {
+        const url = primaryImages[i];
+        const section = i === 0 ? 'cover' : 'other';
+        const isCover = i === 0;
+
+        await storage.createUnitMedia({
+          unitId: id,
+          agencyId: unit.agencyId,
+          section: section as any,
+          sectionIndex: 1,
+          url: url,
+          caption: null,
+          sortOrder: i,
+          isCover: isCover,
+        });
+        migratedCount++;
+      }
+
+      // Migrate secondary images to "other" section
+      for (let i = 0; i < secondaryImages.length; i++) {
+        const url = secondaryImages[i];
+        
+        await storage.createUnitMedia({
+          unitId: id,
+          agencyId: unit.agencyId,
+          section: 'other' as any,
+          sectionIndex: 1,
+          url: url,
+          caption: null,
+          sortOrder: primaryImages.length + i,
+          isCover: false,
+        });
+        migratedCount++;
+      }
+
+      res.json({
+        success: true,
+        message: `Migrated ${migratedCount} images successfully`,
+        migrated: migratedCount,
+        fromPrimary: primaryImages.length,
+        fromSecondary: secondaryImages.length,
+      });
+    } catch (error: any) {
+      console.error("Error migrating unit media:", error);
+      res.status(500).json({ message: error.message || "Failed to migrate media" });
+    }
+  });
+
+  // POST /api/external/migrate-all-unit-media - Migrate all units' legacy images (admin only)
+  app.post("/api/external/migrate-all-unit-media", isAuthenticated, requireRole(["master", "admin"]), async (req: any, res) => {
+    try {
+      const user = req.user;
+      const agencyId = user.externalAgencyId;
+      
+      if (!agencyId) {
+        return res.status(400).json({ message: "No agency associated with user" });
+      }
+
+      // Get all units for this agency that have legacy images but no section media
+      const allUnits = await db.select()
+        .from(externalUnits)
+        .where(eq(externalUnits.agencyId, agencyId));
+
+      let totalMigrated = 0;
+      let unitsMigrated = 0;
+      const errors: string[] = [];
+
+      for (const unit of allUnits) {
+        try {
+          // Check if unit already has section-based media
+          const existingMedia = await storage.getUnitMedia(unit.id);
+          if (existingMedia.length > 0) {
+            continue; // Skip if already migrated
+          }
+
+          const primaryImages = unit.primaryImages || [];
+          const secondaryImages = unit.secondaryImages || [];
+          
+          if (primaryImages.length === 0 && secondaryImages.length === 0) {
+            continue; // Skip if no images to migrate
+          }
+
+          // Migrate primary images
+          for (let i = 0; i < primaryImages.length; i++) {
+            await storage.createUnitMedia({
+              unitId: unit.id,
+              agencyId: agencyId,
+              section: (i === 0 ? 'cover' : 'other') as any,
+              sectionIndex: 1,
+              url: primaryImages[i],
+              caption: null,
+              sortOrder: i,
+              isCover: i === 0,
+            });
+            totalMigrated++;
+          }
+
+          // Migrate secondary images
+          for (let i = 0; i < secondaryImages.length; i++) {
+            await storage.createUnitMedia({
+              unitId: unit.id,
+              agencyId: agencyId,
+              section: 'other' as any,
+              sectionIndex: 1,
+              url: secondaryImages[i],
+              caption: null,
+              sortOrder: primaryImages.length + i,
+              isCover: false,
+            });
+            totalMigrated++;
+          }
+
+          unitsMigrated++;
+        } catch (unitError: any) {
+          errors.push(`Unit ${unit.unitNumber}: ${unitError.message}`);
+        }
+      }
+
+      res.json({
+        success: true,
+        message: `Migration completed: ${unitsMigrated} units, ${totalMigrated} images`,
+        unitsMigrated,
+        totalImages: totalMigrated,
+        totalUnits: allUnits.length,
+        errors: errors.length > 0 ? errors : undefined,
+      });
+    } catch (error: any) {
+      console.error("Error migrating all unit media:", error);
+      res.status(500).json({ message: error.message || "Failed to migrate media" });
+    }
+  });
+
+  // POST /api/external-units/:id/upload-videos - Upload videos for external unit
+  app.post("/api/external-units/:id/upload-videos", isAuthenticated, requireRole(EXTERNAL_ADMIN_ROLES), async (req: any, res) => {
+    try {
+      const { id } = req.params;
+      const { videoUrls } = req.body;
+
+      if (!videoUrls || !Array.isArray(videoUrls)) {
+        return res.status(400).json({ message: "Video URLs array is required" });
+      }
+
+      // Verify unit exists and user has access
+      const existing = await storage.getExternalUnit(id);
+      if (!existing) {
+        return res.status(404).json({ message: "Unit not found" });
+      }
+
+      const hasAccess = await verifyExternalAgencyOwnership(req, res, existing.agencyId);
+      if (!hasAccess) return;
+
+      // Add new video URLs to existing
+      const currentVideos = existing.videos || [];
+      const newVideos = [...currentVideos, ...videoUrls];
+
+      await storage.updateExternalUnit(id, { videos: newVideos });
+
+      res.json({ success: true, videos: newVideos, message: "Videos agregados correctamente" });
+    } catch (error: any) {
+      console.error("Error adding videos:", error);
+      res.status(500).json({ message: error.message || "Failed to add videos" });
+    }
+  });
+
   // Get services (payment schedules) for a unit - useful to show what services are configured
   app.get("/api/external-units/:id/services", isAuthenticated, requireRole(EXTERNAL_ALL_ROLES), async (req: any, res) => {
     try {
@@ -23723,6 +29913,130 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+
+  // =====================================================
+  // Property Activity History - Track all activities on properties
+  // =====================================================
+
+  // GET /api/external-units/:id/activity-history - Get activity history for a unit
+  app.get("/api/external-units/:id/activity-history", isAuthenticated, requireRole(EXTERNAL_ALL_ROLES), async (req: any, res) => {
+    try {
+      const { id } = req.params;
+      const { limit = "50", offset = "0" } = req.query;
+      
+      const limitNum = Math.min(parseInt(limit as string, 10) || 50, 100);
+      const offsetNum = parseInt(offset as string, 10) || 0;
+      
+      // Verify unit exists
+      const unit = await storage.getExternalUnit(id);
+      if (!unit) {
+        return res.status(404).json({ message: "Unit not found" });
+      }
+      
+      // Verify ownership
+      const hasAccess = await verifyExternalAgencyOwnership(req, res, unit.agencyId);
+      if (!hasAccess) return;
+      
+      // Get activity history for this unit
+      const activities = await db.select()
+        .from(externalPropertyActivityHistory)
+        .where(eq(externalPropertyActivityHistory.unitId, id))
+        .orderBy(desc(externalPropertyActivityHistory.createdAt))
+        .limit(limitNum)
+        .offset(offsetNum);
+      
+      // Get total count
+      const countResult = await db.select({ count: sql<number>`COUNT(*)` })
+        .from(externalPropertyActivityHistory)
+        .where(eq(externalPropertyActivityHistory.unitId, id));
+      
+      const total = Number(countResult[0]?.count || 0);
+      
+      res.json({
+        activities,
+        pagination: {
+          total,
+          limit: limitNum,
+          offset: offsetNum,
+          hasMore: offsetNum + limitNum < total
+        }
+      });
+    } catch (error: any) {
+      console.error("Error fetching unit activity history:", error);
+      handleGenericError(res, error);
+    }
+  });
+
+  // POST /api/property-activity - Log a property activity (internal use)
+  app.post("/api/property-activity", isAuthenticated, requireRole(EXTERNAL_ALL_ROLES), async (req: any, res) => {
+    try {
+      const agencyId = await getUserAgencyId(req);
+      if (!agencyId) {
+        return res.status(400).json({ message: "No agency assigned to user" });
+      }
+      
+      const userId = req.user?.claims?.sub || req.user?.id;
+      const userDetails = await storage.getUser(userId);
+      
+      const { unitId, activityType, leadId, clientId, offerTokenId, appointmentId, showingId, contractId, details } = req.body;
+      
+      if (!unitId || !activityType) {
+        return res.status(400).json({ message: "unitId and activityType are required" });
+      }
+      
+      // Verify unit exists and belongs to agency
+      const unit = await storage.getExternalUnit(unitId);
+      if (!unit) {
+        return res.status(404).json({ message: "Unit not found" });
+      }
+      if (unit.agencyId !== agencyId) {
+        return res.status(403).json({ message: "Access denied" });
+      }
+      
+      // Get lead/client names if IDs provided
+      let leadName = null;
+      let clientName = null;
+      
+      if (leadId) {
+        const lead = await storage.getExternalLead(leadId);
+        if (lead) {
+          leadName = `\${lead.firstName || ''} \${lead.lastName || ''}`.trim() || null;
+        }
+      }
+      
+      if (clientId) {
+        const client = await storage.getExternalClient(clientId);
+        if (client) {
+          clientName = `\${client.firstName || ''} \${client.lastName || ''}`.trim() || null;
+        }
+      }
+      
+      // Create activity record
+      const [activity] = await db.insert(externalPropertyActivityHistory).values({
+        agencyId,
+        unitId,
+        condominiumId: unit.condominiumId || null,
+        activityType,
+        leadId: leadId || null,
+        leadName,
+        clientId: clientId || null,
+        clientName,
+        offerTokenId: offerTokenId || null,
+        appointmentId: appointmentId || null,
+        showingId: showingId || null,
+        contractId: contractId || null,
+        performedBy: userId,
+        performedByName: userDetails ? `\${userDetails.firstName || ''} \${userDetails.lastName || ''}`.trim() || null : null,
+        details: details || null,
+      }).returning();
+      
+      res.status(201).json(activity);
+    } catch (error: any) {
+      console.error("Error creating property activity:", error);
+      handleGenericError(res, error);
+    }
+  });
+
   // External Owners - Consolidated endpoint for all agency owners
   app.get("/api/external-owners", isAuthenticated, requireRole(EXTERNAL_ALL_ROLES), async (req: any, res) => {
     try {
@@ -23731,27 +30045,34 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ message: "No agency assigned to user" });
       }
 
-      // Get all units for this agency - already filtered by agency
-      const units = await storage.getExternalUnitsByAgency(agencyId);
-      
-      // Verify ownership for each unit (extra security layer)
-      for (const unit of units) {
-        const hasAccess = await verifyExternalAgencyOwnership(req, res, unit.agencyId);
-        if (!hasAccess) return;
-      }
-      
-      // Get all owners for all units
-      const ownersPromises = units.map(unit => storage.getExternalUnitOwnersByUnit(unit.id));
-      const ownersArrays = await Promise.all(ownersPromises);
-      
-      // Flatten and add unit info to each owner
-      const owners = ownersArrays.flat().map((owner) => {
-        const ownerUnit = units.find(u => u.id === owner.unitId);
-        return {
-          ...owner,
-          unit: ownerUnit
-        };
-      });
+      // Optimized: Single query to get all owners with their units for the agency
+      const owners = await db.select({
+        id: externalUnitOwners.id,
+        unitId: externalUnitOwners.unitId,
+        ownerName: externalUnitOwners.ownerName,
+        ownerEmail: externalUnitOwners.ownerEmail,
+        ownerPhone: externalUnitOwners.ownerPhone,
+        ownershipPercentage: externalUnitOwners.ownershipPercentage,
+        isActive: externalUnitOwners.isActive,
+        createdBy: externalUnitOwners.createdBy,
+        createdAt: externalUnitOwners.createdAt,
+        updatedAt: externalUnitOwners.updatedAt,
+        // Unit fields
+        unit: {
+          id: externalUnits.id,
+          unitNumber: externalUnits.unitNumber,
+          condominiumId: externalUnits.condominiumId,
+          rentalStatus: externalUnits.rentalStatus,
+          bedroomCount: externalUnits.bedroomCount,
+          bathroomCount: externalUnits.bathroomCount,
+          unitType: externalUnits.propertyType,
+          agencyId: externalUnits.agencyId,
+        }
+      })
+      .from(externalUnitOwners)
+      .innerJoin(externalUnits, eq(externalUnitOwners.unitId, externalUnits.id))
+      .where(eq(externalUnits.agencyId, agencyId))
+      .orderBy(desc(externalUnitOwners.isActive), desc(externalUnitOwners.createdAt));
       
       res.json(owners);
     } catch (error: any) {
@@ -23759,6 +30080,227 @@ export async function registerRoutes(app: Express): Promise<Server> {
       handleGenericError(res, error);
     }
   });
+
+
+// GET /api/external/portfolio-summary - Optimized endpoint for owner portfolio page
+  app.get("/api/external/portfolio-summary", isAuthenticated, requireRole(EXTERNAL_ALL_ROLES), async (req: any, res) => {
+    try {
+      const agencyId = await getUserAgencyId(req);
+      
+      if (!agencyId) {
+        return res.status(403).json({ message: "User is not assigned to any agency" });
+      }
+
+      const { limit = "100", offset = "0", search, minUnits, condominiumId, isActive } = req.query;
+      const limitNum = Math.min(parseInt(limit as string, 10) || 100, 500);
+      const offsetNum = parseInt(offset as string, 10) || 0;
+
+      const currentYear = new Date().getFullYear();
+      const yearStart = new Date(currentYear, 0, 1);
+      const yearEnd = new Date(currentYear + 1, 0, 1);
+
+      // Use raw SQL to avoid Drizzle ORM issues with complex joins
+      const ownersResult = await db.execute(sql`
+        SELECT 
+          uo.id,
+          uo.unit_id as "unitId",
+          uo.owner_name as "ownerName",
+          uo.owner_email as "ownerEmail",
+          uo.owner_phone as "ownerPhone",
+          uo.ownership_percentage as "ownershipPercentage",
+          uo.is_active as "isActive",
+          
+          
+          uo.notes,
+          uo.created_by as "createdBy",
+          uo.created_at as "createdAt",
+          uo.updated_at as "updatedAt",
+          u.unit_number as "unitNumber",
+          u.condominium_id as "condominiumId",
+          u.typology as "typology",
+          c.name as "condominiumName"
+        FROM external_unit_owners uo
+        INNER JOIN external_units u ON uo.unit_id = u.id
+        LEFT JOIN external_condominiums c ON u.condominium_id = c.id
+        WHERE u.agency_id = ${agencyId}
+        ORDER BY uo.is_active DESC, uo.created_at DESC
+      `);
+
+      const ownersWithUnits = ownersResult.rows as any[];
+
+      if (ownersWithUnits.length === 0) {
+        return res.json({ data: [], total: 0, page: Math.floor(offsetNum / limitNum) + 1, pageSize: limitNum });
+      }
+
+      // Get contracts using raw SQL
+      const contractsResult = await db.execute(sql`
+        SELECT id, unit_id as "unitId", start_date as "startDate", end_date as "endDate", status
+        FROM external_rental_contracts
+        WHERE agency_id = ${agencyId}
+      `);
+      const allContracts = contractsResult.rows as any[];
+
+      // Get financial transactions using raw SQL
+      const transactionsResult = await db.execute(sql`
+        SELECT owner_id as "ownerId", unit_id as "unitId", direction, payee_role as "payeeRole", payer_role as "payerRole", gross_amount as "grossAmount"
+        FROM external_financial_transactions
+        WHERE agency_id = ${agencyId}
+      `);
+      const rawTransactions = transactionsResult.rows as any[];
+
+      // Aggregate financial data in JavaScript
+      const summaryMap = new Map<string, { ownerId: string | null; unitId: string | null; direction: string; payeeRole: string; payerRole: string; totalAmount: number }>();
+      for (const tx of rawTransactions) {
+        const key = `${tx.ownerId || 'null'}_${tx.unitId || 'null'}_${tx.direction}_${tx.payeeRole}_${tx.payerRole}`;
+        if (!summaryMap.has(key)) {
+          summaryMap.set(key, {
+            ownerId: tx.ownerId,
+            unitId: tx.unitId,
+            direction: tx.direction,
+            payeeRole: tx.payeeRole,
+            payerRole: tx.payerRole,
+            totalAmount: 0,
+          });
+        }
+        summaryMap.get(key)!.totalAmount += parseFloat(tx.grossAmount || '0');
+      }
+      const financialSummary = Array.from(summaryMap.values()).map(s => ({
+        ...s,
+        totalAmount: s.totalAmount.toFixed(2),
+      }));
+
+      // Group owners by name and email
+      const ownerGroups = new Map<string, any[]>();
+      ownersWithUnits.forEach(owner => {
+        const key = `${owner.ownerName.toLowerCase()}_${owner.ownerEmail?.toLowerCase() || ''}`;
+        if (!ownerGroups.has(key)) {
+          ownerGroups.set(key, []);
+        }
+        ownerGroups.get(key)!.push(owner);
+      });
+
+      const totalYearDays = Math.ceil((yearEnd.getTime() - yearStart.getTime()) / (1000 * 60 * 60 * 24));
+      const portfolios: any[] = [];
+
+      ownerGroups.forEach((ownerInstances, _key) => {
+        const primaryOwner = ownerInstances.sort((a, b) => 
+          new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+        )[0];
+
+        let totalIncome = 0;
+        let totalExpenses = 0;
+        let activeContracts = 0;
+        let totalOccupiedDays = 0;
+        const typologies = new Set<string>();
+        const condominiumNames = new Set<string>();
+        const unitNumbers: string[] = [];
+
+        ownerInstances.forEach(oi => {
+          if (oi.propertyType) typologies.add(oi.propertyType);
+          if (oi.condominiumName) condominiumNames.add(oi.condominiumName);
+          if (oi.unitNumber) unitNumbers.push(oi.unitNumber);
+
+          const unitContracts = allContracts.filter(c => c.unitId === oi.unitId);
+          activeContracts += unitContracts.filter(c => c.status === "active").length;
+
+          unitContracts.forEach(contract => {
+            if (contract.status === "active" || contract.status === "completed") {
+              const contractStart = new Date(Math.max(new Date(contract.startDate).getTime(), yearStart.getTime()));
+              const contractEnd = new Date(Math.min(new Date(contract.endDate).getTime(), yearEnd.getTime()));
+              if (contractEnd > contractStart) {
+                totalOccupiedDays += Math.ceil((contractEnd.getTime() - contractStart.getTime()) / (1000 * 60 * 60 * 24));
+              }
+            }
+          });
+
+          const unitFinancials = financialSummary.filter(fs => fs.unitId === oi.unitId);
+          unitFinancials.forEach(uf => {
+            if (uf.direction === "income" && uf.payeeRole === "owner") {
+              totalIncome += parseFloat(uf.totalAmount);
+            } else if (uf.direction === "expense" && uf.payerRole === "owner") {
+              totalExpenses += parseFloat(uf.totalAmount);
+            }
+          });
+        });
+
+        const occupancyRate = ownerInstances.length > 0 && totalYearDays > 0
+          ? (totalOccupiedDays / (ownerInstances.length * totalYearDays)) * 100
+          : 0;
+
+        portfolios.push({
+          owner: {
+            id: primaryOwner.id,
+            unitId: primaryOwner.unitId,
+            ownerName: primaryOwner.ownerName,
+            ownerEmail: primaryOwner.ownerEmail,
+            ownerPhone: primaryOwner.ownerPhone,
+            ownershipPercentage: primaryOwner.ownershipPercentage,
+            isActive: primaryOwner.isActive,
+            notes: primaryOwner.notes,
+            createdBy: primaryOwner.createdBy,
+            createdAt: primaryOwner.createdAt,
+            updatedAt: primaryOwner.updatedAt,
+          },
+          units: ownerInstances.map(u => ({
+            id: u.unitId,
+            unitNumber: u.unitNumber,
+            condominiumId: u.condominiumId,
+            typology: u.typology,
+          })),
+          totalIncome,
+          totalExpenses,
+          balance: totalIncome - totalExpenses,
+          activeContracts,
+          occupancyRate: Math.round(occupancyRate * 100) / 100,
+          typologies: Array.from(typologies),
+          condominiums: Array.from(condominiumNames),
+          unitNumbers,
+        });
+      });
+
+      let filteredPortfolios = portfolios;
+
+      if (search) {
+        const searchLower = (search as string).toLowerCase();
+        filteredPortfolios = filteredPortfolios.filter(p =>
+          p.owner.ownerName.toLowerCase().includes(searchLower) ||
+          p.owner.ownerEmail?.toLowerCase().includes(searchLower) ||
+          p.owner.ownerPhone?.includes(search as string)
+        );
+      }
+
+      if (minUnits) {
+        const minUnitsNum = parseInt(minUnits as string, 10);
+        if (!isNaN(minUnitsNum) && minUnitsNum > 0) {
+          filteredPortfolios = filteredPortfolios.filter(p => p.units.length >= minUnitsNum);
+        }
+      }
+
+      if (condominiumId) {
+        filteredPortfolios = filteredPortfolios.filter(p =>
+          p.units.some((u: any) => u.condominiumId === condominiumId)
+        );
+      }
+
+      if (isActive !== undefined) {
+        const activeFilter = isActive === 'true';
+        filteredPortfolios = filteredPortfolios.filter(p => p.owner.isActive === activeFilter);
+      }
+
+      const paginatedPortfolios = filteredPortfolios.slice(offsetNum, offsetNum + limitNum);
+
+      res.json({
+        data: paginatedPortfolios,
+        total: filteredPortfolios.length,
+        page: Math.floor(offsetNum / limitNum) + 1,
+        pageSize: limitNum,
+      });
+    } catch (error: any) {
+      console.error("Error fetching portfolio summary:", error);
+      handleGenericError(res, error);
+    }
+  });
+
 
   // External Unit Owners Routes
   app.get("/api/external-unit-owners/by-unit/:unitId", isAuthenticated, requireRole(EXTERNAL_ALL_ROLES), async (req: any, res) => {
@@ -24031,6 +30573,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const validatedData = insertExternalUnitAccessControlSchema.parse(req.body);
       
+      
+      // Verify unit exists and user has agency access (tenant isolation)
+      const unit = await storage.getExternalUnit(validatedData.unitId);
+      if (!unit) {
+        return res.status(404).json({ message: "Unit not found" });
+      }
+      
+      const hasAccess = await verifyExternalAgencyOwnership(req, res, unit.agencyId);
+      if (!hasAccess) return;
       // Encrypt sensitive data before storing
       const dataToStore: any = {
         ...validatedData,
@@ -24157,6 +30708,160 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+
+  // External Unit Legal Documents Routes
+  // GET /api/external-unit-documents/by-unit/:unitId - Get all documents for a unit
+  app.get("/api/external-unit-documents/by-unit/:unitId", isAuthenticated, requireRole(EXTERNAL_ALL_ROLES), async (req: any, res) => {
+    try {
+      const { unitId } = req.params;
+      
+      // Verify unit exists and user has access
+      const unit = await storage.getExternalUnit(unitId);
+      if (!unit) {
+        return res.status(404).json({ message: "Unit not found" });
+      }
+      
+      const hasAccess = await verifyExternalAgencyOwnership(req, res, unit.agencyId);
+      if (!hasAccess) return;
+      
+      const documents = await storage.getExternalUnitDocumentsByUnit(unitId);
+      res.json(documents);
+    } catch (error: any) {
+      console.error("Error fetching unit documents:", error);
+      handleGenericError(res, error);
+    }
+  });
+
+  // GET /api/external-unit-documents/:id - Get a single document by ID
+  app.get("/api/external-unit-documents/:id", isAuthenticated, requireRole(EXTERNAL_ALL_ROLES), async (req: any, res) => {
+    try {
+      const { id } = req.params;
+      const document = await storage.getExternalUnitDocument(id);
+      
+      if (!document) {
+        return res.status(404).json({ message: "Document not found" });
+      }
+      
+      // Verify ownership through unit
+      const unit = await storage.getExternalUnit(document.unitId);
+      if (!unit) {
+        return res.status(404).json({ message: "Associated unit not found" });
+      }
+      
+      const hasAccess = await verifyExternalAgencyOwnership(req, res, unit.agencyId);
+      if (!hasAccess) return;
+      
+      res.json(document);
+    } catch (error: any) {
+      console.error("Error fetching unit document:", error);
+      handleGenericError(res, error);
+    }
+  });
+
+  // POST /api/external-unit-documents - Create a new document
+  app.post("/api/external-unit-documents", isAuthenticated, requireRole(EXTERNAL_ADMIN_ROLES), async (req: any, res) => {
+    try {
+      const { unitId, documentType, documentName, documentUrl, description, expirationDate } = req.body;
+      
+      if (!unitId || !documentType || !documentName || !documentUrl) {
+        return res.status(400).json({ message: "Unit ID, document type, name, and URL are required" });
+      }
+      
+      // Verify unit exists and user has access
+      const unit = await storage.getExternalUnit(unitId);
+      if (!unit) {
+        return res.status(404).json({ message: "Unit not found" });
+      }
+      
+      const hasAccess = await verifyExternalAgencyOwnership(req, res, unit.agencyId);
+      if (!hasAccess) return;
+      
+      const document = await storage.createExternalUnitDocument({
+        unitId,
+        agencyId: unit.agencyId,
+        documentType,
+        documentName,
+        documentUrl,
+        description: description || null,
+        expirationDate: expirationDate ? new Date(expirationDate) : null,
+        uploadedBy: req.user?.id || null,
+      });
+      
+      await createAuditLog(req, "create", "external_unit_document", document.id, "Created unit document: " + documentName);
+      res.status(201).json(document);
+    } catch (error: any) {
+      console.error("Error creating unit document:", error);
+      handleGenericError(res, error);
+    }
+  });
+
+  // PATCH /api/external-unit-documents/:id - Update a document
+  app.patch("/api/external-unit-documents/:id", isAuthenticated, requireRole(EXTERNAL_ADMIN_ROLES), async (req: any, res) => {
+    try {
+      const { id } = req.params;
+      const existing = await storage.getExternalUnitDocument(id);
+      
+      if (!existing) {
+        return res.status(404).json({ message: "Document not found" });
+      }
+      
+      // Verify ownership through unit
+      const unit = await storage.getExternalUnit(existing.unitId);
+      if (!unit) {
+        return res.status(404).json({ message: "Associated unit not found" });
+      }
+      
+      const hasAccess = await verifyExternalAgencyOwnership(req, res, unit.agencyId);
+      if (!hasAccess) return;
+      
+      const { documentType, documentName, documentUrl, description, expirationDate, isActive } = req.body;
+      
+      const updates: any = {};
+      if (documentType !== undefined) updates.documentType = documentType;
+      if (documentName !== undefined) updates.documentName = documentName;
+      if (documentUrl !== undefined) updates.documentUrl = documentUrl;
+      if (description !== undefined) updates.description = description;
+      if (expirationDate !== undefined) updates.expirationDate = expirationDate ? new Date(expirationDate) : null;
+      if (isActive !== undefined) updates.isActive = isActive;
+      
+      const document = await storage.updateExternalUnitDocument(id, updates);
+      
+      await createAuditLog(req, "update", "external_unit_document", id, "Updated unit document");
+      res.json(document);
+    } catch (error: any) {
+      console.error("Error updating unit document:", error);
+      handleGenericError(res, error);
+    }
+  });
+
+  // DELETE /api/external-unit-documents/:id - Delete a document
+  app.delete("/api/external-unit-documents/:id", isAuthenticated, requireRole(EXTERNAL_ADMIN_ROLES), async (req: any, res) => {
+    try {
+      const { id } = req.params;
+      const existing = await storage.getExternalUnitDocument(id);
+      
+      if (!existing) {
+        return res.status(404).json({ message: "Document not found" });
+      }
+      
+      // Verify ownership through unit
+      const unit = await storage.getExternalUnit(existing.unitId);
+      if (!unit) {
+        return res.status(404).json({ message: "Associated unit not found" });
+      }
+      
+      const hasAccess = await verifyExternalAgencyOwnership(req, res, unit.agencyId);
+      if (!hasAccess) return;
+      
+      await storage.deleteExternalUnitDocument(id);
+      
+      await createAuditLog(req, "delete", "external_unit_document", id, "Deleted unit document");
+      res.status(204).send();
+    } catch (error: any) {
+      console.error("Error deleting unit document:", error);
+      handleGenericError(res, error);
+    }
+  });
   // External Check-Out Reports Routes
   // GET /api/external-checkout-reports/:contractId - Get checkout report by contract
   app.get("/api/external-checkout-reports/contract/:contractId", isAuthenticated, requireRole(EXTERNAL_ALL_ROLES), async (req: any, res) => {
@@ -24362,6 +31067,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
           status: filters.status,
           isVerified: filters.isVerified,
           search: filters.search,
+          sellerId: filters.sellerId,
+          sellerScope: filters.sellerScope,
+          expiringDays: filters.expiringDays,
         }),
       ]);
       
@@ -24491,9 +31199,403 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // POST /api/external-clients/:id/convert-to-lead - Convert client back to lead
+  app.post("/api/external-clients/:id/convert-to-lead", isAuthenticated, requireRole(EXTERNAL_ADMIN_ROLES), async (req: any, res) => {
+    try {
+      const { id } = req.params;
+      const { reason } = req.body; // manual, rental_ended, etc.
+      const agencyId = await getUserAgencyId(req);
+      
+      if (!agencyId) {
+        return res.status(403).json({ message: "User is not assigned to any agency" });
+      }
+
+      const client = await storage.getExternalClient(id);
+      if (!client) {
+        return res.status(404).json({ message: "Client not found" });
+      }
+
+      // Verify agency ownership
+      if (client.agencyId !== agencyId) {
+        return res.status(403).json({ message: "No access to this client" });
+      }
+
+      // Check if already converted
+      if (client.convertedBackToLeadId) {
+        return res.status(400).json({ message: "Este cliente ya fue reconvertido a lead" });
+      }
+
+      // Get agency name for seller assignment
+      const agencyResult = await db.select({
+        name: externalAgencies.name,
+      })
+      .from(externalAgencies)
+      .where(eq(externalAgencies.id, agencyId))
+      .limit(1);
+      
+      const agencyName = agencyResult[0]?.name || 'Agencia';
+
+      // Create new lead from client data
+      const leadData = {
+        agencyId,
+        registrationType: 'seller' as const,
+        firstName: client.firstName,
+        lastName: client.lastName,
+        email: client.email || undefined,
+        phone: client.phone || undefined,
+        status: 'nuevo_lead' as const,
+        source: `reconversion_cliente_${reason || 'manual'}`,
+        notes: `Reconvertido desde cliente: ${client.firstName} ${client.lastName}. Razón: ${reason || 'manual'}. Cliente original ID: ${client.id}`,
+        bedroomsText: client.bedroomsPreference?.toString() || undefined,
+        sellerName: agencyName, // Assign agency as the seller
+        createdBy: req.user.id,
+      };
+
+      const newLead = await storage.createExternalLead(leadData);
+
+      // Update client to mark as converted back
+      await storage.updateExternalClient(id, {
+        status: 'archived',
+        convertedBackToLeadId: newLead.id,
+        convertedBackToLeadAt: new Date(),
+        convertedBackReason: reason || 'manual',
+      });
+
+      await createAuditLog(req, "create", "external_lead", newLead.id, `Reconverted from client ${client.id}`);
+      await createAuditLog(req, "update", "external_client", id, `Converted back to lead ${newLead.id}`);
+      
+      res.status(201).json({ 
+        lead: newLead,
+        message: "Cliente reconvertido a lead exitosamente" 
+      });
+    } catch (error: any) {
+      console.error("Error converting client to lead:", error);
+      handleGenericError(res, error);
+    }
+  });
+
+  // ==============================
+  // GET /api/external-sellers - Get sellers for agency (for lead assignment dropdown)
+  app.get("/api/external-sellers", isAuthenticated, requireRole([...EXTERNAL_ADMIN_ROLES, 'external_agency_seller']), async (req: any, res) => {
+    try {
+      const agencyId = await getUserAgencyId(req);
+      
+      if (!agencyId) {
+        return res.status(403).json({ message: "No agency access" });
+      }
+      
+      // Get agency info to include as first seller option
+      const agency = await db.select({
+        id: externalAgencies.id,
+        name: externalAgencies.name,
+      })
+      .from(externalAgencies)
+      .where(eq(externalAgencies.id, agencyId))
+      .limit(1);
+      
+      // Get all sellers for this agency
+      const sellers = await db.select({
+        id: users.id,
+        firstName: users.firstName,
+        lastName: users.lastName,
+        email: users.email,
+      })
+      .from(users)
+      .where(and(
+        eq(users.externalAgencyId, agencyId),
+        eq(users.role, 'external_agency_seller'),
+        eq(users.isSuspended, false)
+      ))
+      .orderBy(users.firstName);
+      
+      // Include agency as first option (using agency ID prefixed with 'agency_')
+      const agencyAsSeller = agency[0] ? {
+        id: `agency_${agency[0].id}`,
+        firstName: agency[0].name,
+        lastName: '',
+        email: '',
+        isAgency: true
+      } : null;
+      
+      const result = agencyAsSeller ? [agencyAsSeller, ...sellers] : sellers;
+      
+      res.json(result);
+    } catch (error: any) {
+      console.error("Error fetching external sellers:", error);
+      handleGenericError(res, error);
+    }
+  });
+
+
+  // ==============================
+  // External Brokers Routes
+
+  // GET /api/external-brokers - Get all brokers for agency (with pagination, search, and sorting)
+  app.get("/api/external-brokers", isAuthenticated, requireRole(EXTERNAL_ADMIN_ROLES), async (req: any, res) => {
+    try {
+      const agencyId = await getUserAgencyId(req);
+      if (!agencyId) {
+        return res.status(403).json({ message: "User is not assigned to any agency" });
+      }
+
+      const { search, status, sortBy = 'createdAt', sortOrder = 'desc', page = '1', limit = '20' } = req.query;
+      const pageNum = parseInt(page as string);
+      const limitNum = Math.min(parseInt(limit as string), 100);
+      const offset = (pageNum - 1) * limitNum;
+
+      // Build where conditions
+      const conditions = [eq(externalBrokers.agencyId, agencyId)];
+      
+      if (status && status !== 'all') {
+        conditions.push(eq(externalBrokers.status, status));
+      }
+      
+      if (search) {
+        const searchTerm = `%${search.toLowerCase()}%`;
+        conditions.push(
+          sql`(LOWER(${externalBrokers.firstName}) LIKE ${searchTerm} OR 
+               LOWER(${externalBrokers.lastName}) LIKE ${searchTerm} OR 
+               LOWER(${externalBrokers.email}) LIKE ${searchTerm} OR
+               LOWER(${externalBrokers.company}) LIKE ${searchTerm} OR
+               ${externalBrokers.phone} LIKE ${searchTerm})`
+        );
+      }
+
+      // Get total count
+      const countResult = await db
+        .select({ count: sql<number>`count(*)` })
+        .from(externalBrokers)
+        .where(and(...conditions));
+      const total = Number(countResult[0]?.count || 0);
+
+      // Build orderBy
+      let orderByColumn: any = externalBrokers.createdAt;
+      if (sortBy === 'firstName') orderByColumn = externalBrokers.firstName;
+      else if (sortBy === 'lastName') orderByColumn = externalBrokers.lastName;
+      else if (sortBy === 'email') orderByColumn = externalBrokers.email;
+      else if (sortBy === 'company') orderByColumn = externalBrokers.company;
+      else if (sortBy === 'status') orderByColumn = externalBrokers.status;
+      else if (sortBy === 'totalLeadsShared') orderByColumn = externalBrokers.totalLeadsShared;
+
+      const orderFn = sortOrder === 'asc' ? asc : desc;
+
+      // Fetch brokers
+      const brokers = await db
+        .select()
+        .from(externalBrokers)
+        .where(and(...conditions))
+        .orderBy(orderFn(orderByColumn))
+        .limit(limitNum)
+        .offset(offset);
+
+      res.json({
+        brokers,
+        pagination: {
+          total,
+          page: pageNum,
+          limit: limitNum,
+          totalPages: Math.ceil(total / limitNum),
+        },
+      });
+    } catch (error: any) {
+      console.error("Error fetching external brokers:", error);
+      handleGenericError(res, error);
+    }
+  });
+
+  // GET /api/external-brokers/:id - Get specific broker
+  app.get("/api/external-brokers/:id", isAuthenticated, requireRole(EXTERNAL_ADMIN_ROLES), async (req: any, res) => {
+    try {
+      const { id } = req.params;
+      const agencyId = await getUserAgencyId(req);
+      if (!agencyId) {
+        return res.status(403).json({ message: "User is not assigned to any agency" });
+      }
+      
+      // Scope query by agencyId to prevent cross-tenant disclosure
+      const broker = await db
+        .select()
+        .from(externalBrokers)
+        .where(and(eq(externalBrokers.id, id), eq(externalBrokers.agencyId, agencyId)))
+        .limit(1);
+
+      if (!broker[0]) {
+        return res.status(404).json({ message: "Broker not found" });
+      }
+
+      // Get leads count for this broker
+      const leadsCount = await db
+        .select({ count: sql<number>`count(*)` })
+        .from(externalLeads)
+        .where(eq(externalLeads.brokerId, id));
+
+      res.json({
+        ...broker[0],
+        leadsCount: Number(leadsCount[0]?.count || 0),
+      });
+    } catch (error: any) {
+      console.error("Error fetching external broker:", error);
+      handleGenericError(res, error);
+    }
+  });
+
+  // POST /api/external-brokers - Create new broker
+  app.post("/api/external-brokers", isAuthenticated, requireRole(EXTERNAL_ADMIN_ROLES), async (req: any, res) => {
+    try {
+      const agencyId = await getUserAgencyId(req);
+      if (!agencyId) {
+        return res.status(403).json({ message: "User is not assigned to any agency" });
+      }
+
+      const validatedData = insertExternalBrokerSchema.parse(req.body);
+
+      const newBroker = await db
+        .insert(externalBrokers)
+        .values({
+          ...validatedData,
+          agencyId,
+          createdBy: req.user.id,
+        })
+        .returning();
+
+      await createAuditLog(req, "create", "external_broker", newBroker[0].id, "Created new broker");
+      res.status(201).json(newBroker[0]);
+    } catch (error: any) {
+      console.error("Error creating external broker:", error);
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ message: "Validation error", errors: error.errors });
+      }
+      handleGenericError(res, error);
+    }
+  });
+
+  // PATCH /api/external-brokers/:id - Update broker
+  app.patch("/api/external-brokers/:id", isAuthenticated, requireRole(EXTERNAL_ADMIN_ROLES), async (req: any, res) => {
+    try {
+      const { id } = req.params;
+      const agencyId = await getUserAgencyId(req);
+      if (!agencyId) {
+        return res.status(403).json({ message: "User is not assigned to any agency" });
+      }
+      
+      // Scope query by agencyId to prevent cross-tenant disclosure
+      const existingBroker = await db
+        .select()
+        .from(externalBrokers)
+        .where(and(eq(externalBrokers.id, id), eq(externalBrokers.agencyId, agencyId)))
+        .limit(1);
+
+      if (!existingBroker[0]) {
+        return res.status(404).json({ message: "Broker not found" });
+      }
+
+      const validatedData = updateExternalBrokerSchema.parse(req.body);
+
+      const updatedBroker = await db
+        .update(externalBrokers)
+        .set({
+          ...validatedData,
+          updatedAt: new Date(),
+        })
+        .where(eq(externalBrokers.id, id))
+        .returning();
+
+      await createAuditLog(req, "update", "external_broker", id, "Updated broker");
+      res.json(updatedBroker[0]);
+    } catch (error: any) {
+      console.error("Error updating external broker:", error);
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ message: "Validation error", errors: error.errors });
+      }
+      handleGenericError(res, error);
+    }
+  });
+
+  // DELETE /api/external-brokers/:id - Delete broker
+  app.delete("/api/external-brokers/:id", isAuthenticated, requireRole(EXTERNAL_ADMIN_ROLES), async (req: any, res) => {
+    try {
+      const { id } = req.params;
+      const agencyId = await getUserAgencyId(req);
+      if (!agencyId) {
+        return res.status(403).json({ message: "User is not assigned to any agency" });
+      }
+      
+      // Scope query by agencyId to prevent cross-tenant disclosure
+      const existingBroker = await db
+        .select()
+        .from(externalBrokers)
+        .where(and(eq(externalBrokers.id, id), eq(externalBrokers.agencyId, agencyId)))
+        .limit(1);
+
+      if (!existingBroker[0]) {
+        return res.status(404).json({ message: "Broker not found" });
+      }
+
+      await db.delete(externalBrokers).where(eq(externalBrokers.id, id));
+      
+      await createAuditLog(req, "delete", "external_broker", id, "Deleted broker");
+      res.status(204).send();
+    } catch (error: any) {
+      console.error("Error deleting external broker:", error);
+      handleGenericError(res, error);
+    }
+  });
+
+  // GET /api/external-brokers/:id/leads - Get leads for a specific broker
+  app.get("/api/external-brokers/:id/leads", isAuthenticated, requireRole(EXTERNAL_ADMIN_ROLES), async (req: any, res) => {
+    try {
+      const { id } = req.params;
+      const { page = '1', limit = '20' } = req.query;
+      const pageNum = parseInt(page as string);
+      const limitNum = Math.min(parseInt(limit as string), 100);
+      const offset = (pageNum - 1) * limitNum;
+
+      const broker = await db
+        .select()
+        .from(externalBrokers)
+        .where(eq(externalBrokers.id, id))
+        .limit(1);
+
+      if (!broker[0]) {
+        return res.status(404).json({ message: "Broker not found" });
+      }
+
+      const hasAccess = await verifyExternalAgencyOwnership(req, res, broker[0].agencyId);
+      if (!hasAccess) return;
+
+      // Get total count
+      const countResult = await db
+        .select({ count: sql<number>`count(*)` })
+        .from(externalLeads)
+        .where(eq(externalLeads.brokerId, id));
+      const total = Number(countResult[0]?.count || 0);
+
+      // Get leads
+      const leads = await db
+        .select()
+        .from(externalLeads)
+        .where(eq(externalLeads.brokerId, id))
+        .orderBy(desc(externalLeads.createdAt))
+        .limit(limitNum)
+        .offset(offset);
+
+      res.json({
+        data: leads,
+        pagination: {
+          total,
+          page: pageNum,
+          limit: limitNum,
+          totalPages: Math.ceil(total / limitNum),
+        },
+      });
+    } catch (error: any) {
+      console.error("Error fetching broker leads:", error);
+      handleGenericError(res, error);
+    }
+  });
+
   // ==============================
   // External Leads Routes
-  // ==============================
 
   // GET /api/external-leads - Get all leads for agency
   app.get("/api/external-leads", isAuthenticated, requireRole([...EXTERNAL_ADMIN_ROLES, 'external_agency_seller']), async (req: any, res) => {
@@ -24503,14 +31605,24 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(403).json({ message: "No agency access" });
       }
       
-      const { status, registrationType, search, sortField, sortOrder, limit = '50', offset = '0' } = req.query;
+      const { status, registrationType, sellerId, expiringDays, search, sortField, sortOrder, limit = '50', offset = '0' } = req.query;
       
       const limitNum = Math.max(1, Math.min(parseInt(limit as string, 10) || 50, 1000));
       const offsetNum = Math.max(0, parseInt(offset as string, 10) || 0);
       
+      // Security: Force seller scoping for seller users - they can only see their own leads
+      const userRole = req.user?.cachedRole || req.user?.role;
+      const userId = req.user?.claims?.sub || req.user?.id;
+      const isSeller = userRole === 'external_agency_seller';
+      const effectiveSellerId = isSeller ? userId : (sellerId as string | undefined);
+      console.log("[DEBUG] external-leads filter:", { userId, userRole, isSeller, effectiveSellerId, agencyId });
+      
       const filters = {
         status: status as string | undefined,
         registrationType: registrationType as string | undefined,
+        sellerId: effectiveSellerId,
+        sellerScope: isSeller,
+        expiringDays: expiringDays ? parseInt(expiringDays as string, 10) : undefined,
         search: search as string | undefined,
         sortField: sortField as string | undefined,
         sortOrder: (sortOrder === 'asc' || sortOrder === 'desc') ? sortOrder : 'desc' as 'asc' | 'desc',
@@ -24524,6 +31636,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
           status: filters.status,
           registrationType: filters.registrationType,
           search: filters.search,
+          sellerId: filters.sellerId,
+          sellerScope: filters.sellerScope,
+          expiringDays: filters.expiringDays,
         }),
       ]);
       
@@ -24563,38 +31678,97 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // POST /api/external-leads - Create new lead
   app.post("/api/external-leads", isAuthenticated, requireRole([...EXTERNAL_ADMIN_ROLES, 'external_agency_seller']), async (req: any, res) => {
     try {
-      const agencyId = await getUserAgencyId(req);
-      if (!agencyId) {
-        return res.status(403).json({ message: "No agency access" });
+      const userRole = req.user?.cachedRole || req.user?.role;
+      const userId = req.user?.claims?.sub || req.user?.id;
+      let agencyId = await getUserAgencyId(req);
+      
+      // Master/admin users can specify agencyId in the body
+      if ((userRole === 'master' || userRole === 'admin') && req.body.agencyId) {
+        agencyId = req.body.agencyId;
       }
       
-      const validatedData = insertExternalLeadSchema.parse(req.body);
+      if (!agencyId) {
+        return res.status(403).json({ message: "No agency access. Master/Admin users must specify agencyId." });
+      }
       
-      // Check for duplicates before creating
+      // Transform checkInDate from ISO string to Date before validation
+      const requestData = {
+        ...req.body,
+        checkInDate: req.body.checkInDate ? new Date(req.body.checkInDate) : undefined,
+      };
+      
+      // Security: Force sellerId for seller users - they can only create their own leads
+      const isSeller = userRole === 'external_agency_seller';
+      if (isSeller) {
+        requestData.sellerId = userId;
+        requestData.registrationType = 'seller'; // Force seller type
+      }
+      
+      // Handle agency as seller - agency IDs start with 'agency_'
+      // When agency is selected, store agency name in sellerName and clear sellerId
+      if (requestData.sellerId && requestData.sellerId.startsWith('agency_')) {
+        const realAgencyId = requestData.sellerId.replace('agency_', '');
+        const agency = await db.select({ name: externalAgencies.name })
+          .from(externalAgencies)
+          .where(eq(externalAgencies.id, realAgencyId))
+          .limit(1);
+        
+        if (agency.length > 0) {
+          requestData.sellerName = agency[0].name;
+        }
+        delete requestData.sellerId; // Clear invalid sellerId
+      }
+      
+      console.log("[DEBUG] createExternalLead - requestData.sellerId:", requestData.sellerId, "isSeller:", isSeller);
+      const validatedData = insertExternalLeadSchema.parse(requestData);
+      
+      console.log("[DEBUG] createExternalLead - validatedData.sellerId:", validatedData.sellerId);
+      // Check for duplicates before creating (with 3-month expiry logic)
       // For broker type, use phoneLast4; for seller type, extract from phone
       const phoneToCheck = validatedData.registrationType === 'broker' 
         ? validatedData.phoneLast4 
         : validatedData.phone;
         
-      const duplicate = await storage.checkExternalLeadDuplicate(
+      const duplicateResult = await storage.checkExternalLeadDuplicateWithExpiry(
         agencyId,
         validatedData.firstName,
         validatedData.lastName,
         phoneToCheck
       );
       
-      if (duplicate) {
+      // If duplicate found and NOT expired (still within 3-month window), reject
+      if (duplicateResult && !duplicateResult.isExpired) {
+        const { lead: existingLead, daysRemaining, sellerName } = duplicateResult;
+        
+        // Calculate weeks and days remaining
+        const weeksRemaining = Math.floor(daysRemaining / 7);
+        const extraDays = daysRemaining % 7;
+        let timeRemainingText = '';
+        if (weeksRemaining > 0) {
+          timeRemainingText = `${weeksRemaining} semana${weeksRemaining > 1 ? 's' : ''}`;
+          if (extraDays > 0) {
+            timeRemainingText += ` y ${extraDays} día${extraDays > 1 ? 's' : ''}`;
+          }
+        } else {
+          timeRemainingText = `${daysRemaining} día${daysRemaining > 1 ? 's' : ''}`;
+        }
+        
         return res.status(409).json({ 
-          message: "Duplicate lead detected",
-          detail: `A lead with the name ${duplicate.firstName} ${duplicate.lastName} and matching phone number last 4 digits already exists in your agency.`,
+          message: "Lead ya registrado",
+          detail: sellerName 
+            ? `Este lead ya está registrado por ${sellerName}. Podrá ser registrado nuevamente en ${timeRemainingText}.`
+            : `Este lead ya está registrado. Podrá ser registrado nuevamente en ${timeRemainingText}.`,
           duplicate: {
-            id: duplicate.id,
-            firstName: duplicate.firstName,
-            lastName: duplicate.lastName,
-            registrationType: duplicate.registrationType,
-            phoneLast4: duplicate.phoneLast4,
-            phone: duplicate.phone,
-            email: duplicate.email,
+            id: existingLead.id,
+            firstName: existingLead.firstName,
+            lastName: existingLead.lastName,
+            registrationType: existingLead.registrationType,
+            phoneLast4: existingLead.phoneLast4,
+            phone: existingLead.phone,
+            email: existingLead.email,
+            sellerName,
+            daysRemaining,
+            timeRemainingText,
           }
         });
       }
@@ -24602,9 +31776,34 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const lead = await storage.createExternalLead({
         ...validatedData,
         agencyId,
-        createdBy: req.user.id,
+        createdBy: userId,
       });
       
+      // Create initial presentation card from lead data
+      try {
+        const cardData = normalizePresentationCardFromLead(lead, agencyId, userId);
+        await storage.createExternalPresentationCard(cardData);
+      } catch (cardError) {
+        console.error("Error creating initial presentation card:", cardError);
+      }
+      
+      // Log activity for lead registration (if created by seller)
+      if (isSeller) {
+        const user = await storage.getUser(userId);
+        const actorName = user ? `${user.firstName || ""} ${user.lastName || ""}`.trim() || user.username || "Unknown" : "Unknown";
+        logSellerActivity({
+          agencyId,
+          actorId: userId,
+          actorName,
+          actorRole: userRole,
+          actionType: "lead_registered",
+          subjectType: "lead",
+          subjectId: lead.id,
+          subjectName: `${lead.firstName} ${lead.lastName}`,
+          subjectInfo: { email: lead.email, phone: lead.phone },
+        }).catch(err => console.error("Activity logging error:", err));
+      }
+
       await createAuditLog(req, "create", "external_lead", lead.id, "Created new lead");
       res.status(201).json(lead);
     } catch (error: any) {
@@ -24626,8 +31825,62 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const hasAccess = await verifyExternalAgencyOwnership(req, res, existing.agencyId);
       if (!hasAccess) return;
       
-      const validatedData = updateExternalLeadSchema.parse(req.body);
+      // Security: Block sellers from modifying leads in locked statuses
+      const lockedStatuses = ["proceso_renta", "renta_concretada"];
+      const userRole = req.user?.cachedRole || req.user?.role;
+      const userId = req.user?.claims?.sub || req.user?.id;
+      const isSeller = userRole === 'external_agency_seller';
+      
+      // If seller and lead is in locked status, block ALL modifications
+      if (isSeller && lockedStatuses.includes(existing.status)) {
+        return res.status(403).json({ 
+          message: "No puedes modificar un lead en proceso de renta o renta concretada. El administrador de la agencia es responsable de este lead." 
+        });
+      }
+      
+      // Transform date strings to Date objects before validation
+      const bodyWithDates = { ...req.body };
+      if (bodyWithDates.checkInDate && typeof bodyWithDates.checkInDate === 'string') {
+        bodyWithDates.checkInDate = new Date(bodyWithDates.checkInDate);
+      }
+      if (bodyWithDates.checkOutDate && typeof bodyWithDates.checkOutDate === 'string') {
+        bodyWithDates.checkOutDate = new Date(bodyWithDates.checkOutDate);
+      }
+      
+      const validatedData = updateExternalLeadSchema.parse(bodyWithDates);
+      
+      // Security: Block sellers from setting status TO locked statuses (after validation)
+      if (isSeller && validatedData.status && lockedStatuses.includes(validatedData.status)) {
+        return res.status(403).json({ 
+          message: "No puedes cambiar el estado a proceso de renta o renta concretada. Solo el administrador de la agencia puede hacerlo." 
+        });
+      }
+      
+      // Track status change for history
+      const oldStatus = existing.status;
+      const statusChanged = validatedData.status && oldStatus !== validatedData.status;
+      
       const lead = await storage.updateExternalLead(id, validatedData);
+      
+      // Log status change to history if status changed
+      if (statusChanged && req.user?.id) {
+        await storage.createExternalLeadStatusHistory({
+          leadId: id,
+          agencyId: existing.agencyId,
+          fromStatus: oldStatus,
+          toStatus: validatedData.status!,
+          changedBy: req.user.id,
+        });
+        
+        // Create activity entry for the status change
+        await storage.createExternalLeadActivity({
+          leadId: id,
+          agencyId: existing.agencyId,
+          activityType: "status_change",
+          title: `Cambio de estado: ${oldStatus} → ${validatedData.status}`,
+          createdBy: req.user.id,
+        });
+      }
       
       await createAuditLog(req, "update", "external_lead", id, "Updated lead");
       res.json(lead);
@@ -24637,7 +31890,129 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // DELETE /api/external-leads/:id - Delete lead
+
+  // POST /api/external-leads/backfill-presentation-cards - Create initial cards for leads without them
+  app.post("/api/external-leads/backfill-presentation-cards", isAuthenticated, requireRole(EXTERNAL_ADMIN_ROLES), async (req: any, res) => {
+    try {
+      const agencyId = await getUserAgencyId(req);
+      if (!agencyId) {
+        return res.status(403).json({ message: "No agency assigned" });
+      }
+
+      // Get all leads for this agency
+      const leads = await storage.getExternalLeadsByAgency(agencyId, {});
+      
+      let created = 0;
+      let skipped = 0;
+      const errors: string[] = [];
+
+      for (const lead of leads) {
+        // Check if lead already has a presentation card
+        const existingCards = await storage.getExternalPresentationCards(agencyId, undefined, lead.id);
+        
+        if (existingCards.length > 0) {
+          skipped++;
+          continue;
+        }
+
+        // Create initial presentation card
+        try {
+          const cardData = normalizePresentationCardFromLead(lead, agencyId, req.user.id);
+          await storage.createExternalPresentationCard(cardData);
+          created++;
+        } catch (cardError: any) {
+          errors.push(`Lead ${lead.id}: ${cardError.message}`);
+        }
+      }
+
+      await createAuditLog(req, "update", "external_presentation_card", "backfill", `Backfilled ${created} initial cards, skipped ${skipped}, errors ${errors.length}`);
+
+      res.json({
+        message: `Backfill completado: ${created} tarjetas creadas, ${skipped} leads ya tenían tarjetas`,
+        created,
+        skipped,
+        errors: errors.length > 0 ? errors : undefined,
+      });
+    } catch (error: any) {
+      console.error("Error in backfill:", error);
+      handleGenericError(res, error);
+    }
+  });
+
+    // POST /api/external-leads/:id/reassign - Reassign lead to different seller
+  app.post("/api/external-leads/:id/reassign", isAuthenticated, requireRole([...EXTERNAL_ADMIN_ROLES, "external_agency_seller"]), async (req: any, res) => {
+    try {
+      const { id } = req.params;
+      const { newSellerId, newSellerName } = req.body;
+      const agencyId = await getUserAgencyId(req);
+      
+      if (!agencyId) {
+        return res.status(403).json({ message: "No agency access" });
+      }
+      
+      // Verify lead belongs to this agency
+      const existingLead = await storage.getExternalLead(id);
+      if (!existingLead || existingLead.agencyId !== agencyId) {
+        return res.status(404).json({ message: "Lead not found" });
+      }
+      
+      // Determine if reassigning to agency or to a seller
+      let updateData: any = {};
+      
+      if (newSellerId?.startsWith('agency_')) {
+        // Reassigning to agency (no specific seller)
+        updateData = {
+          
+          sellerId: null,
+          sellerName: newSellerName || null,
+        };
+      } else if (newSellerId) {
+        // Reassigning to a specific seller
+        const seller = await db.select().from(users).where(eq(users.id, newSellerId)).limit(1);
+        if (!seller[0] || seller[0].externalAgencyId !== agencyId) {
+          return res.status(400).json({ message: "Invalid seller" });
+        }
+        updateData = {
+          
+          sellerId: newSellerId,
+          sellerName: `${seller[0].firstName} ${seller[0].lastName}`,
+        };
+      } else {
+        return res.status(400).json({ message: "New seller ID is required" });
+      }
+      
+      const updatedLead = await storage.updateExternalLead(id, updateData);
+      
+      // Log the reassignment
+      await storage.createAuditLog({
+        userId: req.user.id,
+        action: "update",
+        entityType: "external_lead",
+        entityId: id,
+        details: `Lead reasignado a ${newSellerName || 'nuevo vendedor'}`,
+      });
+      
+      // Create notification for the new seller when reassigned to a specific seller
+      if (newSellerId && !newSellerId.startsWith('agency_')) {
+        await db.insert(externalNotifications).values({
+          agencyId: agencyId,
+          type: "system",
+          priority: "high",
+          title: "Nuevo lead asignado",
+          message: `Se te ha asignado un nuevo lead: ${existingLead.firstName} ${existingLead.lastName}`,
+          recipientUserId: newSellerId,
+          isRead: false,
+        });
+      }
+      
+      res.json(updatedLead);
+    } catch (error: any) {
+      console.error("Error reassigning lead:", error);
+      handleGenericError(res, error);
+    }
+  });
+
+  // DELETE /api/external-leads/:id - Delete lead (admin only)
   app.delete("/api/external-leads/:id", isAuthenticated, requireRole(EXTERNAL_ADMIN_ROLES), async (req: any, res) => {
     try {
       const { id } = req.params;
@@ -24650,6 +32025,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const hasAccess = await verifyExternalAgencyOwnership(req, res, existing.agencyId);
       if (!hasAccess) return;
       
+      // Security: Block deleting leads in locked statuses
+      const lockedStatuses = ["proceso_renta", "renta_concretada"];
+      if (lockedStatuses.includes(existing.status)) {
+        return res.status(403).json({ 
+          message: "No puedes eliminar un lead en proceso de renta o renta concretada" 
+        });
+      }
+      
       await storage.deleteExternalLead(id);
       
       await createAuditLog(req, "delete", "external_lead", id, "Deleted lead");
@@ -24660,7 +32043,235 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // POST /api/external-leads/:id/unassign - Unassign lead from seller (seller can unassign their own leads)
+  app.post("/api/external-leads/:id/unassign", isAuthenticated, requireRole([...EXTERNAL_ADMIN_ROLES, 'external_agency_seller']), async (req: any, res) => {
+    try {
+      const { id } = req.params;
+      const existing = await storage.getExternalLead(id);
+      
+      if (!existing) {
+        return res.status(404).json({ message: "Lead not found" });
+      }
+      
+      const hasAccess = await verifyExternalAgencyOwnership(req, res, existing.agencyId);
+      if (!hasAccess) return;
+      
+      const userRole = req.user?.cachedRole || req.user?.role;
+      const userId = req.user?.claims?.sub || req.user?.id;
+      const isSeller = userRole === 'external_agency_seller';
+      
+      // Sellers can only unassign leads that are assigned to them (sellerId matches their ID)
+      if (isSeller && existing.sellerId !== userId) {
+        return res.status(403).json({ 
+          message: "Solo puedes desasignar leads que te están asignados" 
+        });
+      }
+      
+      // Security: Block unassigning leads in locked statuses
+      const lockedStatuses = ["proceso_renta", "renta_concretada"];
+      if (lockedStatuses.includes(existing.status)) {
+        return res.status(403).json({ 
+          message: "No puedes desasignar un lead en proceso de renta o renta concretada" 
+        });
+      }
+      
+      // Unassign the lead by setting sellerId to null
+      const lead = await storage.updateExternalLead(id, { 
+        sellerId: null,
+        sellerName: null
+      });
+      
+      await createAuditLog(req, "unassign", "external_lead", id, 
+        `Seller ${userId} unassigned lead from themselves`);
+      
+      res.json(lead);
+    } catch (error: any) {
+      console.error("Error unassigning external lead:", error);
+      handleGenericError(res, error);
+    }
+  });
+
   // External Lead Registration Links Endpoints
+
+  // POST /api/external-leads/import - Bulk import leads from CSV/Excel
+  app.post("/api/external-leads/import", isAuthenticated, requireRole(EXTERNAL_ADMIN_ROLES), async (req: any, res) => {
+    try {
+      const userId = req.user?.claims?.sub || req.user?.id;
+      if (!userId) {
+        return res.status(401).json({ message: "Unauthorized: User ID not found" });
+      }
+
+      const agencyId = await getUserAgencyId(req);
+      if (!agencyId) {
+        return res.status(403).json({ message: "User not associated with any agency" });
+      }
+
+      const { leads: importData, registrationType = 'seller' } = req.body;
+      
+      if (!Array.isArray(importData) || importData.length === 0) {
+        return res.status(400).json({ message: "No leads to import" });
+      }
+
+      // Map status from Excel to system status
+      const statusMap: Record<string, string> = {
+        'nuevo': 'nuevo_lead',
+        'en proceso': 'en_proceso',
+        'contactado': 'contactado',
+        'cita agendada': 'cita_agendada',
+        'visita realizada': 'visita_realizada',
+        'negociando': 'negociando',
+        'cerrado': 'cerrado',
+        'lead muerto': 'no_interesado',
+        'perdido': 'no_interesado',
+        '': 'nuevo_lead',
+      };
+
+      const results = {
+        imported: 0,
+        duplicates: 0,
+        errors: [] as Array<{ row: number; name: string; error: string }>,
+      };
+
+      for (let i = 0; i < importData.length; i++) {
+        const row = importData[i];
+        try {
+          // Parse name into firstName and lastName
+          const fullName = (row.nombre || row.name || '').trim();
+          const nameParts = fullName.split(' ');
+          const firstName = nameParts[0] || 'Sin nombre';
+          const lastName = nameParts.slice(1).join(' ') || '-';
+
+          // Clean phone number
+          let phone = (row.telefono || row.phone || '').toString().replace(/[^\d+]/g, '');
+          if (!phone || phone.length < 4) {
+            phone = '0000';
+          }
+
+          // Parse budget
+          let estimatedRentCost: number | null = null;
+          let estimatedRentCostText = (row.presupuesto || row.budget || '').toString();
+          const budgetMatch = estimatedRentCostText.match(/[\d,]+/);
+          if (budgetMatch) {
+            estimatedRentCost = parseInt(budgetMatch[0].replace(/,/g, ''), 10);
+          }
+
+          // Parse bedrooms
+          let bedrooms: number | null = null;
+          let bedroomsText = (row.recamaras || row.bedrooms || '').toString();
+          const bedroomsMatch = bedroomsText.match(/^\d+/);
+          if (bedroomsMatch) {
+            bedrooms = parseInt(bedroomsMatch[0], 10);
+          }
+
+          // Parse original created date
+          let originalCreatedAt: Date | null = null;
+          const dateStr = (row.fecha || row.date || '').toString();
+          if (dateStr) {
+            const datePatterns = [
+              /^(\d{1,2})\/(\d{1,2})\/(\d{4})$/,
+              /^(\d{1,2})\/(\d{1,2})\/(\d{2})$/,
+              /^(\d{1,2})\/(\d{1,2})$/,
+            ];
+            for (const pattern of datePatterns) {
+              const match = dateStr.match(pattern);
+              if (match) {
+                let day = parseInt(match[1], 10);
+                let month = parseInt(match[2], 10) - 1;
+                let year = match[3] ? (match[3].length === 2 ? 2000 + parseInt(match[3], 10) : parseInt(match[3], 10)) : new Date().getFullYear();
+                originalCreatedAt = new Date(year, month, day);
+                break;
+              }
+            }
+          }
+
+          // Calculate validUntil (3 months from original date or now)
+          const baseDate = originalCreatedAt || new Date();
+          const validUntil = new Date(baseDate);
+          validUntil.setMonth(validUntil.getMonth() + 3);
+
+          // Check for duplicates
+          const normalizedName = fullName.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9]/g, '');
+          const phoneLast4 = phone.slice(-4);
+          
+          const existingLeads = await db.select()
+            .from(externalLeads)
+            .where(and(
+              eq(externalLeads.agencyId, agencyId),
+              gte(externalLeads.validUntil, new Date())
+            ));
+
+          const isDuplicate = existingLeads.some(lead => {
+            const existingNormalizedName = `${lead.firstName}${lead.lastName}`.toLowerCase()
+              .normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9]/g, '');
+            const existingPhoneLast4 = (lead.phone || lead.phoneLast4 || '').slice(-4);
+            return existingNormalizedName === normalizedName && existingPhoneLast4 === phoneLast4;
+          });
+
+          if (isDuplicate) {
+            results.duplicates++;
+            continue;
+          }
+
+          // Map status
+          const rawStatus = (row.estado || row.status || '').toString().toLowerCase().trim();
+          const status = statusMap[rawStatus] || 'nuevo_lead';
+
+          // Create lead
+          const leadData = {
+            agencyId,
+            registrationType: registrationType as 'broker' | 'seller',
+            firstName,
+            lastName,
+            phone,
+            phoneLast4,
+            email: row.email || null,
+            contractDuration: row.duracion || row.contractDuration || null,
+            checkInDateText: row.mudanza || row.checkInDate || null,
+            hasPets: row.mascotas || row.pets || null,
+            estimatedRentCost,
+            estimatedRentCostText: estimatedRentCostText || null,
+            bedrooms,
+            bedroomsText: bedroomsText || null,
+            desiredUnitType: row.tipo || row.unitType || null,
+            desiredProperty: row.propiedad || row.property || null,
+            desiredNeighborhood: row.zona || row.neighborhood || null,
+            sellerName: row.vendedor || row.seller || null,
+            assistantSellerName: row.vendedorSecundario || row.assistantSeller || null,
+            notes: row.notas || row.notes || null,
+            status: status as any,
+            source: 'import',
+            validUntil,
+            originalCreatedAt,
+            createdBy: userId,
+          };
+
+          await db.insert(externalLeads).values(leadData);
+          results.imported++;
+
+        } catch (rowError: any) {
+          results.errors.push({
+            row: i + 1,
+            name: row.nombre || row.name || 'Unknown',
+            error: rowError.message || 'Unknown error',
+          });
+        }
+      }
+
+      await createAuditLog(req, "create", "external_lead_import", null, 
+        `Imported ${results.imported} leads (${results.duplicates} duplicates skipped, ${results.errors.length} errors)`);
+
+      res.json({
+        success: true,
+        imported: results.imported,
+        duplicates: results.duplicates,
+        errors: results.errors,
+        total: importData.length,
+      });
+    } catch (error: any) {
+      console.error("Error importing external leads:", error);
+      handleGenericError(res, error);
+    }
+  });
   // POST /api/external-lead-registration-links - Create registration link
   app.post("/api/external-lead-registration-links", isAuthenticated, requireRole(EXTERNAL_ADMIN_ROLES), async (req: any, res) => {
     try {
@@ -24794,153 +32405,1109 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Public endpoint for external properties (for main site map and search)
-  app.get("/api/public/external-properties", async (req: any, res) => {
+  // ========================================
+  // CRM ROUTES - Lead & Client Activity Tracking
+  // ========================================
+
+  // GET /api/external-leads/:id/activities - Get all activities for a lead
+  app.get("/api/external-leads/:id/activities", isAuthenticated, requireRole([...EXTERNAL_ADMIN_ROLES, 'external_agency_seller']), async (req: any, res) => {
     try {
-      const {
-        limit = "50",
-        offset = "0",
-        hasCoordinates,
-        query,
-        propertyType,
-        minPrice,
-        maxPrice,
-        bedrooms,
-        bathrooms,
-        petFriendly,
-        featured,
-        colonyName,
-        status,
-        listingType
-      } = req.query;
-
-      // Get Tulum Rental Homes agency (the main public-facing agency)
-      const agency = await storage.getExternalAgencyBySlug("tulumrentalhomes");
-      if (!agency) {
-        return res.json({ properties: [], total: 0 });
+      const { id } = req.params;
+      const lead = await storage.getExternalLead(id);
+      
+      if (!lead) {
+        return res.status(404).json({ message: "Lead not found" });
       }
-
-      // Build conditions for approved properties only
-      const conditions: any[] = [
-        eq(externalUnits.agencyId, agency.id),
-        eq(externalUnits.publishToMain, true),
-        eq(externalUnits.publishStatus, 'approved')
-      ];
-
-      // Optional filters
-      if (hasCoordinates === 'true') {
-        conditions.push(isNotNull(externalUnits.latitude));
-        conditions.push(isNotNull(externalUnits.longitude));
-      }
-
-      if (query) {
-        conditions.push(
-          or(
-            ilike(externalUnits.unitNumber, `%${query}%`),
-            ilike(externalUnits.description, `%${query}%`)
-          )
-        );
-      }
-
-      if (propertyType) {
-        conditions.push(eq(externalUnits.propertyType, propertyType));
-      }
-
-      if (minPrice) {
-        conditions.push(gte(externalUnits.price, parseFloat(minPrice)));
-      }
-      if (maxPrice) {
-        conditions.push(lte(externalUnits.price, parseFloat(maxPrice)));
-      }
-
-      if (bedrooms) {
-        conditions.push(eq(externalUnits.bedrooms, parseInt(bedrooms)));
-      }
-      if (bathrooms) {
-        conditions.push(eq(externalUnits.bathrooms, parseFloat(bathrooms)));
-      }
-
-      if (petFriendly === 'true') {
-        conditions.push(
-          or(
-            eq(externalUnits.petsAllowed, true),
-            ilike(sql`CAST(${externalUnits.petsAllowed} AS TEXT)`, '%Sí%')
-          )
-        );
-      }
-
-      if (featured === 'true') {
-        conditions.push(eq(externalUnits.isFeatured, true));
-      }
-
-      if (colonyName) {
-        conditions.push(ilike(externalUnits.zone, `%${colonyName}%`));
-      }
-
-      if (status) {
-        conditions.push(eq(externalUnits.status, status as any));
-      }
-
-      if (listingType && listingType !== 'all') {
-        conditions.push(eq(externalUnits.listingType, listingType));
-      }
-
-      // Count total
-      const [countResult] = await db
-        .select({ count: sql<number>`count(*)` })
-        .from(externalUnits)
-        .where(and(...conditions));
-
-      // Get properties with condominium info
-      const properties = await db
-        .select({
-          id: externalUnits.id,
-          slug: externalUnits.slug,
-          unitNumber: externalUnits.unitNumber,
-          propertyType: externalUnits.propertyType,
-          description: externalUnits.description,
-          price: externalUnits.price,
-          salePrice: externalUnits.salePrice,
-          currency: externalUnits.currency,
-          listingType: externalUnits.listingType,
-          bedrooms: externalUnits.bedrooms,
-          bathrooms: externalUnits.bathrooms,
-          area: externalUnits.area,
-          areaUnit: externalUnits.areaUnit,
-          zone: externalUnits.zone,
-          petsAllowed: externalUnits.petsAllowed,
-          amenities: externalUnits.amenities,
-          primaryImages: externalUnits.primaryImages,
-          latitude: externalUnits.latitude,
-          longitude: externalUnits.longitude,
-          isFeatured: externalUnits.isFeatured,
-          status: externalUnits.status,
-          condominiumId: externalUnits.condominiumId,
-          condominiumName: externalCondominiums.name,
-          condominiumAddress: externalCondominiums.address,
-          googleMapsUrl: externalUnits.googleMapsUrl,
-          agencyId: externalUnits.agencyId
-        })
-        .from(externalUnits)
-        .leftJoin(externalCondominiums, eq(externalUnits.condominiumId, externalCondominiums.id))
-        .where(and(...conditions))
-        .orderBy(desc(externalUnits.isFeatured), desc(externalUnits.createdAt))
-        .limit(parseInt(limit))
-        .offset(parseInt(offset));
-
-      res.json({
-        properties,
-        total: Number(countResult?.count) || 0
-      });
+      
+      const hasAccess = await verifyExternalAgencyOwnership(req, res, lead.agencyId);
+      if (!hasAccess) return;
+      
+      const activities = await storage.getExternalLeadActivities(id);
+      res.json(activities);
     } catch (error: any) {
-      console.error("Error fetching public external properties:", error);
-      res.status(500).json({ message: "Failed to fetch properties" });
+      console.error("Error fetching lead activities:", error);
+      handleGenericError(res, error);
     }
   });
 
-    // Public simplified lead registration endpoints (no tokens required)
+  // POST /api/external-leads/:id/activities - Create activity for a lead
+  app.post("/api/external-leads/:id/activities", isAuthenticated, requireRole([...EXTERNAL_ADMIN_ROLES, 'external_agency_seller']), async (req: any, res) => {
+    try {
+      const { id } = req.params;
+      const lead = await storage.getExternalLead(id);
+      
+      if (!lead) {
+        return res.status(404).json({ message: "Lead not found" });
+      }
+      
+      const hasAccess = await verifyExternalAgencyOwnership(req, res, lead.agencyId);
+      if (!hasAccess) return;
+      
+      const validatedData = insertExternalLeadActivitySchema.omit({ leadId: true, agencyId: true, createdBy: true }).parse(req.body);
+      const activity = await storage.createExternalLeadActivity({
+        ...validatedData,
+        leadId: id,
+        agencyId: lead.agencyId,
+        createdBy: req.user.id,
+      });
+      // Update lead's lastContactDate
+      await storage.updateExternalLead(id, { lastContactDate: new Date() });
+      
+      await createAuditLog(req, "create", "external_lead_activity", activity.id, "Created lead activity");
+      res.status(201).json(activity);
+    } catch (error: any) {
+      console.error("Error creating lead activity:", error);
+      handleGenericError(res, error);
+    }
+  });
+
+  // GET /api/external-leads/:id/status-history - Get status history for a lead
+  app.get("/api/external-leads/:id/status-history", isAuthenticated, requireRole([...EXTERNAL_ADMIN_ROLES, 'external_agency_seller']), async (req: any, res) => {
+    try {
+      const { id } = req.params;
+      const lead = await storage.getExternalLead(id);
+      
+      if (!lead) {
+        return res.status(404).json({ message: "Lead not found" });
+      }
+      
+      const hasAccess = await verifyExternalAgencyOwnership(req, res, lead.agencyId);
+      if (!hasAccess) return;
+      
+      const history = await storage.getExternalLeadStatusHistory(id);
+      res.json(history);
+    } catch (error: any) {
+      console.error("Error fetching lead status history:", error);
+      handleGenericError(res, error);
+    }
+  });
+
+  // GET /api/external-leads/:id/showings - Get all showings for a lead
+  app.get("/api/external-leads/:id/showings", isAuthenticated, requireRole([...EXTERNAL_ADMIN_ROLES, 'external_agency_seller']), async (req: any, res) => {
+    try {
+      const { id } = req.params;
+      const lead = await storage.getExternalLead(id);
+      
+      if (!lead) {
+        return res.status(404).json({ message: "Lead not found" });
+      }
+      
+      const hasAccess = await verifyExternalAgencyOwnership(req, res, lead.agencyId);
+      if (!hasAccess) return;
+      
+      const showings = await storage.getExternalLeadShowings(id);
+      res.json(showings);
+    } catch (error: any) {
+      console.error("Error fetching lead showings:", error);
+      handleGenericError(res, error);
+    }
+  });
+
+  // POST /api/external-leads/:id/showings - Create showing for a lead
+  app.post("/api/external-leads/:id/showings", isAuthenticated, requireRole([...EXTERNAL_ADMIN_ROLES, 'external_agency_seller']), async (req: any, res) => {
+    try {
+      const { id } = req.params;
+      const lead = await storage.getExternalLead(id);
+      
+      if (!lead) {
+        return res.status(404).json({ message: "Lead not found" });
+      }
+      
+      const hasAccess = await verifyExternalAgencyOwnership(req, res, lead.agencyId);
+      if (!hasAccess) return;
+      
+      const validatedShowing = insertExternalLeadShowingSchema.omit({ leadId: true, agencyId: true, createdBy: true }).parse(req.body);
+      const showing = await storage.createExternalLeadShowing({
+        ...validatedShowing,
+        leadId: id,
+        agencyId: lead.agencyId,
+        createdBy: req.user.id,
+      });
+      
+      // Create activity entry for the showing
+      await storage.createExternalLeadActivity({
+        leadId: id,
+        agencyId: lead.agencyId,
+        activityType: 'showing',
+        title: `Recorrido programado: ${showing.propertyName || 'Propiedad'}`,
+        description: `Recorrido programado para ${new Date(showing.scheduledAt).toLocaleDateString('es-MX')}`,
+        scheduledAt: showing.scheduledAt,
+        createdBy: req.user.id,
+      });
+      
+      await createAuditLog(req, "create", "external_lead_showing", showing.id, "Created lead showing");
+      res.status(201).json(showing);
+    } catch (error: any) {
+      console.error("Error creating lead showing:", error);
+      handleGenericError(res, error);
+    }
+  });
+
+  // PATCH /api/external-lead-showings/:id - Update showing
+  app.patch("/api/external-lead-showings/:id", isAuthenticated, requireRole([...EXTERNAL_ADMIN_ROLES, 'external_agency_seller']), async (req: any, res) => {
+    try {
+      const { id } = req.params;
+      const showing = await storage.getExternalLeadShowing(id);
+      
+      if (!showing) {
+        return res.status(404).json({ message: "Showing not found" });
+      }
+      
+      const hasAccess = await verifyExternalAgencyOwnership(req, res, showing.agencyId);
+      if (!hasAccess) return;
+      
+      const updated = await storage.updateExternalLeadShowing(id, req.body);
+      
+      await createAuditLog(req, "update", "external_lead_showing", id, "Updated lead showing");
+      res.json(updated);
+    } catch (error: any) {
+      console.error("Error updating lead showing:", error);
+      handleGenericError(res, error);
+    }
+  });
+
+  // DELETE /api/external-lead-showings/:id - Delete showing
+  app.delete("/api/external-lead-showings/:id", isAuthenticated, requireRole(EXTERNAL_ADMIN_ROLES), async (req: any, res) => {
+    try {
+      const { id } = req.params;
+      const showing = await storage.getExternalLeadShowing(id);
+      
+      if (!showing) {
+        return res.status(404).json({ message: "Showing not found" });
+      }
+      
+      const hasAccess = await verifyExternalAgencyOwnership(req, res, showing.agencyId);
+      if (!hasAccess) return;
+      
+      await storage.deleteExternalLeadShowing(id);
+      
+      await createAuditLog(req, "delete", "external_lead_showing", id, "Deleted lead showing");
+      res.status(204).send();
+    } catch (error: any) {
+      console.error("Error deleting lead showing:", error);
+      handleGenericError(res, error);
+    }
+  });
+
+  // ================== LEAD PROPERTY SENT ENDPOINTS ==================
+
+  // ================== LEAD REMINDERS ENDPOINTS ==================
+  
+  // GET /api/external-leads/:id/reminders - Get all reminders for a lead
+  app.get("/api/external-leads/:id/reminders", isAuthenticated, requireRole([...EXTERNAL_ADMIN_ROLES, 'external_agency_seller']), async (req: any, res) => {
+    try {
+      const { id } = req.params;
+      const lead = await storage.getExternalLead(id);
+      
+      if (!lead) {
+        return res.status(404).json({ message: "Lead not found" });
+      }
+      
+      const hasAccess = await verifyExternalAgencyOwnership(req, res, lead.agencyId);
+      if (!hasAccess) return;
+      
+      const sellerId = req.user?.claims?.sub || req.user?.id;
+      
+      // Get reminders - sellers only see their own reminders (private)
+      const reminders = await db.select()
+        .from(externalLeadReminders)
+        .where(and(
+          eq(externalLeadReminders.leadId, id),
+          eq(externalLeadReminders.sellerId, sellerId)
+        ))
+        .orderBy(desc(externalLeadReminders.reminderDate));
+      
+      res.json(reminders);
+    } catch (error: any) {
+      console.error("Error fetching lead reminders:", error);
+      handleGenericError(res, error);
+    }
+  });
+  
+  // POST /api/external-leads/:id/reminders - Create a reminder for a lead
+  app.post("/api/external-leads/:id/reminders", isAuthenticated, requireRole([...EXTERNAL_ADMIN_ROLES, 'external_agency_seller']), async (req: any, res) => {
+    try {
+      const { id } = req.params;
+      const lead = await storage.getExternalLead(id);
+      
+      if (!lead) {
+        return res.status(404).json({ message: "Lead not found" });
+      }
+      
+      const hasAccess = await verifyExternalAgencyOwnership(req, res, lead.agencyId);
+      if (!hasAccess) return;
+      
+      const sellerId = req.user?.claims?.sub || req.user?.id;
+      
+      // Validate input - only allow safe fields, strip any sensitive fields
+      const allowedFields = insertExternalLeadReminderSchema.omit({
+        id: true,
+        leadId: true,
+        agencyId: true,
+        sellerId: true,
+        isPrivate: true,
+        isNotified: true,
+        completedAt: true,
+        createdAt: true,
+        updatedAt: true,
+      });
+      
+      const validatedData = allowedFields.parse(req.body);
+      
+      const reminderData = {
+        ...validatedData,
+        leadId: id,
+        agencyId: lead.agencyId,
+        sellerId: sellerId,
+        isPrivate: true,
+      };
+      
+      const [reminder] = await db.insert(externalLeadReminders)
+        .values(reminderData)
+        .returning();
+      
+      await createAuditLog(req, "create", "external_lead_reminder", reminder.id, `Created reminder for lead ${lead.firstName} ${lead.lastName}`);
+      
+      res.status(201).json(reminder);
+    } catch (error: any) {
+      console.error("Error creating lead reminder:", error);
+      handleGenericError(res, error);
+    }
+  });
+  
+  // PATCH /api/external-lead-reminders/:id - Update a reminder
+  app.patch("/api/external-lead-reminders/:id", isAuthenticated, requireRole([...EXTERNAL_ADMIN_ROLES, 'external_agency_seller']), async (req: any, res) => {
+    try {
+      const { id } = req.params;
+      const sellerId = req.user?.claims?.sub || req.user?.id;
+      
+      const [existing] = await db.select()
+        .from(externalLeadReminders)
+        .where(eq(externalLeadReminders.id, id));
+      
+      if (!existing) {
+        return res.status(404).json({ message: "Reminder not found" });
+      }
+      
+      // Sellers can only update their own reminders
+      if (existing.sellerId !== sellerId) {
+        return res.status(403).json({ message: "You can only update your own reminders" });
+      }
+      
+      // Validate input - only allow safe fields, strip sensitive fields
+      const allowedUpdateFields = updateExternalLeadReminderSchema.omit({
+        id: true,
+        leadId: true,
+        agencyId: true,
+        sellerId: true,
+        isPrivate: true,
+        isNotified: true,
+        createdAt: true,
+      });
+      
+      const validatedData = allowedUpdateFields.parse(req.body);
+      
+      const updateData: any = {
+        ...validatedData,
+        updatedAt: new Date(),
+      };
+      
+      // If marking as completed, set completedAt
+      if (validatedData.status === 'completed' && existing.status !== 'completed') {
+        updateData.completedAt = new Date();
+      }
+      
+      const [updated] = await db.update(externalLeadReminders)
+        .set(updateData)
+        .where(eq(externalLeadReminders.id, id))
+        .returning();
+      
+      res.json(updated);
+    } catch (error: any) {
+      console.error("Error updating lead reminder:", error);
+      handleGenericError(res, error);
+    }
+  });
+
+  // DELETE /api/external-lead-reminders/:id - Delete a reminder
+  app.delete("/api/external-lead-reminders/:id", isAuthenticated, requireRole([...EXTERNAL_ADMIN_ROLES, 'external_agency_seller']), async (req: any, res) => {
+    try {
+      const { id } = req.params;
+      const sellerId = req.user?.claims?.sub || req.user?.id;
+      
+      const [existing] = await db.select()
+        .from(externalLeadReminders)
+        .where(eq(externalLeadReminders.id, id));
+      
+      if (!existing) {
+        return res.status(404).json({ message: "Reminder not found" });
+      }
+      
+      // Sellers can only delete their own reminders
+      if (existing.sellerId !== sellerId) {
+        return res.status(403).json({ message: "You can only delete your own reminders" });
+      }
+      
+      await db.delete(externalLeadReminders)
+        .where(eq(externalLeadReminders.id, id));
+      
+      res.json({ success: true });
+    } catch (error: any) {
+      console.error("Error deleting lead reminder:", error);
+      handleGenericError(res, error);
+    }
+  });
+  
+  // GET /api/external-seller/reminders - Get all reminders for the seller (for calendar)
+  app.get("/api/external-seller/reminders", isAuthenticated, requireRole([...EXTERNAL_ADMIN_ROLES, 'external_agency_seller']), async (req: any, res) => {
+    try {
+      const sellerId = req.user?.claims?.sub || req.user?.id;
+      const agencyId = await getUserAgencyId(req);
+      
+      if (!agencyId) {
+        return res.status(403).json({ message: "No agency access" });
+      }
+      
+      const { status, from, to } = req.query;
+      
+      let conditions = [
+        eq(externalLeadReminders.sellerId, sellerId),
+        eq(externalLeadReminders.agencyId, agencyId)
+      ];
+      
+      if (status && status !== 'all') {
+        conditions.push(eq(externalLeadReminders.status, status as string));
+      }
+      
+      if (from) {
+        conditions.push(gte(externalLeadReminders.reminderDate, new Date(from as string)));
+      }
+      
+      if (to) {
+        conditions.push(lte(externalLeadReminders.reminderDate, new Date(to as string)));
+      }
+      
+      const results = await db.select({
+        reminder: externalLeadReminders,
+        lead: {
+          id: externalLeads.id,
+          firstName: externalLeads.firstName,
+          lastName: externalLeads.lastName,
+          phone: externalLeads.phone,
+          email: externalLeads.email,
+        }
+      })
+        .from(externalLeadReminders)
+        .leftJoin(externalLeads, eq(externalLeadReminders.leadId, externalLeads.id))
+        .where(and(...conditions))
+        .orderBy(asc(externalLeadReminders.reminderDate));
+      
+      // Flatten the response to match frontend expectations
+      const reminders = results.map(r => ({
+        id: r.reminder.id,
+        leadId: r.reminder.leadId,
+        reminderType: r.reminder.reminderType,
+        title: r.reminder.title,
+        description: r.reminder.description,
+        dueDate: r.reminder.reminderDate, // Map reminderDate to dueDate for frontend
+        priority: r.reminder.priority,
+        status: r.reminder.status,
+        lead: r.lead ? {
+          firstName: r.lead.firstName,
+          lastName: r.lead.lastName,
+        } : null,
+      }));
+      
+      res.json(reminders);
+    } catch (error: any) {
+      console.error("Error fetching seller reminders:", error);
+      handleGenericError(res, error);
+    }
+  });
+  // GET /api/external-leads/:id/properties-sent - Get all properties sent to a lead
+  app.get("/api/external-leads/:id/properties-sent", isAuthenticated, requireRole([...EXTERNAL_ADMIN_ROLES, 'external_agency_seller']), async (req: any, res) => {
+    try {
+      const { id } = req.params;
+      const lead = await storage.getExternalLead(id);
+      
+      if (!lead) {
+        return res.status(404).json({ message: "Lead not found" });
+      }
+      
+      const hasAccess = await verifyExternalAgencyOwnership(req, res, lead.agencyId);
+      if (!hasAccess) return;
+      
+      const propertiesSent = await storage.getExternalLeadPropertiesSent(id);
+      res.json(propertiesSent);
+    } catch (error: any) {
+      console.error("Error fetching lead properties sent:", error);
+      handleGenericError(res, error);
+    }
+  });
+  
+  // POST /api/external-leads/:id/properties-sent - Send/share property to a lead
+  app.post("/api/external-leads/:id/properties-sent", isAuthenticated, requireRole([...EXTERNAL_ADMIN_ROLES, 'external_agency_seller']), async (req: any, res) => {
+    try {
+      const { id } = req.params;
+      const lead = await storage.getExternalLead(id);
+      
+      if (!lead) {
+        return res.status(404).json({ message: "Lead not found" });
+      }
+      
+      const hasAccess = await verifyExternalAgencyOwnership(req, res, lead.agencyId);
+      if (!hasAccess) return;
+      
+      // Get property details for snapshot
+      let propertySnapshot: any = {};
+      if (req.body.unitId) {
+        const unit = await storage.getExternalUnit(req.body.unitId);
+        if (unit) {
+          const property = await storage.getExternalProperty(unit.propertyId);
+          propertySnapshot = {
+            propertyName: property?.name || '',
+            unitNumber: unit.unitNumber,
+          latitude: unit.latitude ? parseFloat(unit.latitude) : null,
+          longitude: unit.longitude ? parseFloat(unit.longitude) : null,
+            rentPrice: unit.rentPrice?.toString(),
+            bedrooms: unit.bedrooms,
+            zone: property?.zone || '',
+          };
+        }
+      } else if (req.body.propertyId) {
+        const property = await storage.getExternalProperty(req.body.propertyId);
+        if (property) {
+          propertySnapshot = {
+            propertyName: property.name,
+            zone: property.zone || '',
+          };
+        }
+      }
+      
+      // Get seller info for activity logging
+      const sellerIdForActivity = req.user.claims?.sub || req.user.id;
+      const [sellerForActivity] = await db.select().from(users).where(eq(users.id, sellerIdForActivity)).limit(1);
+      const sellerNameForActivity = sellerForActivity?.firstName && sellerForActivity?.lastName 
+        ? `${sellerForActivity.firstName} ${sellerForActivity.lastName}`
+        : sellerForActivity?.username || 'Vendedor';
+      
+      const propertySent = await storage.createExternalLeadPropertySent({
+        ...req.body,
+        ...propertySnapshot,
+        leadId: id,
+        agencyId: lead.agencyId,
+        sentBy: req.user.id,
+      });
+      
+      // Build property info for activity
+      const propertyInfoForActivity = `${propertySnapshot.propertyName || 'Propiedad'}${propertySnapshot.unitNumber ? ' - ' + propertySnapshot.unitNumber : ''}`;
+      const priceInfoForActivity = propertySnapshot.rentPrice ? ` (${Number(propertySnapshot.rentPrice).toLocaleString()} MXN/mes)` : '';
+      
+      // Create activity entry with seller name
+      await storage.createExternalLeadActivity({
+        leadId: id,
+        agencyId: lead.agencyId,
+        activityType: 'whatsapp',
+        title: `Propiedad enviada: ${propertyInfoForActivity}`,
+        description: `${sellerNameForActivity} compartió la propiedad ${propertyInfoForActivity}${priceInfoForActivity}`,
+        relatedPropertyId: req.body.propertyId,
+        relatedUnitId: req.body.unitId,
+        createdBy: req.user.id,
+      });
+      
+      await createAuditLog(req, "create", "external_lead_property_sent", propertySent.id, "Sent property to lead");
+      res.status(201).json(propertySent);
+    } catch (error: any) {
+      console.error("Error sending property to lead:", error);
+      handleGenericError(res, error);
+    }
+  });
+  
+  // POST /api/external-leads/:id/offer - Generate rental offer link for a lead (seller flow)
+  app.post("/api/external-leads/:id/offer", isAuthenticated, requireRole([...EXTERNAL_ADMIN_ROLES, 'external_agency_seller']), async (req: any, res) => {
+    try {
+      const { id: leadId } = req.params;
+      const { externalUnitId } = req.body;
+      
+      // Validate lead exists and belongs to agency
+      const lead = await storage.getExternalLead(leadId);
+      if (!lead) {
+        return res.status(404).json({ message: "Lead not found" });
+      }
+      
+      const hasAccess = await verifyExternalAgencyOwnership(req, res, lead.agencyId);
+      if (!hasAccess) return;
+      
+      // Validate unit exists and belongs to same agency
+      if (!externalUnitId) {
+        return res.status(400).json({ message: "externalUnitId is required" });
+      }
+      
+      const unit = await storage.getExternalUnit(externalUnitId);
+      if (!unit) {
+        return res.status(404).json({ message: "Unit not found" });
+      }
+      
+      if (String(unit.agencyId) !== String(lead.agencyId)) {
+        return res.status(403).json({ message: "Unit does not belong to the same agency" });
+      }
+      
+      // Get user info for createdByName
+      const userId = req.user.claims?.sub || req.user.id;
+      const [user] = await db.select().from(users).where(eq(users.id, userId)).limit(1);
+      const createdByName = user?.firstName && user?.lastName 
+        ? `${user.firstName} ${user.lastName}`
+        : user?.username || 'Unknown';
+      
+      // Generate token
+      const tokenValue = crypto.randomBytes(32).toString('hex');
+      const expiresAt = new Date();
+      expiresAt.setDate(expiresAt.getDate() + 7); // 7 days validity
+      
+      // Create the offer token
+      const [newToken] = await db.insert(offerTokens).values({
+        token: tokenValue,
+        externalUnitId: String(externalUnitId),
+        externalLeadId: leadId,
+        createdBy: userId,
+        createdByName,
+        expiresAt,
+        isUsed: false,
+      }).returning();
+      
+      // Get unit and property details for response
+      const property = unit.propertyId ? await storage.getExternalProperty(unit.propertyId) : null;
+      
+      // Generate the offer URL
+      const protocol = process.env.NODE_ENV === 'production' ? 'https' : req.protocol;
+      const host = req.get('host');
+      const offerUrl = `${protocol}://${host}/offer/${tokenValue}`;
+      
+      // Create activity entry with seller name
+      await storage.createExternalLeadActivity({
+        leadId,
+        agencyId: lead.agencyId,
+        activityType: 'whatsapp',
+        title: `Oferta de Renta generada: ${property?.name || 'Propiedad'} - ${unit.unitNumber || ''}`,
+        description: `${createdByName} generó link de oferta de renta para ${property?.name || 'Propiedad'} - ${unit.unitNumber || ''}${unit.price ? ` (${Number(unit.price).toLocaleString()} ${unit.currency || 'MXN'}/mes)` : ''}`,
+        relatedPropertyId: unit.propertyId,
+        relatedUnitId: externalUnitId,
+        createdBy: userId,
+      });
+      
+      await createAuditLog(req, "create", "offer_token", newToken.id, `Created rental offer link for lead ${leadId}`);
+      // Log seller activity for offer sent
+      const userRole = req.user?.cachedRole || req.user?.role;
+      if (userRole === "external_agency_seller") {
+        logSellerActivity({
+          agencyId: lead.agencyId,
+          actorId: userId,
+          actorName: createdByName,
+          actorRole: userRole,
+          actionType: "offer_sent",
+          subjectType: "lead",
+          subjectId: leadId,
+          subjectName: `${lead.firstName || ""} ${lead.lastName || ""}`.trim(),
+          subjectInfo: { unitNumber: unit.unitNumber, propertyName: property?.name },
+        }).catch(err => console.error("Activity logging error:", err));
+      }
+
+      
+      res.status(201).json({
+        ...newToken,
+        offerUrl,
+        leadName: lead.fullName,
+        propertyName: property?.name,
+        unitNumber: unit.unitNumber,
+          latitude: unit.latitude ? parseFloat(unit.latitude) : null,
+          longitude: unit.longitude ? parseFloat(unit.longitude) : null,
+        createdByName,
+      });
+    } catch (error: any) {
+      console.error("Error creating rental offer for lead:", error);
+      handleGenericError(res, error);
+    }
+  });
+  
+  // GET /api/external-leads/:id/rental-forms - Get rental form tokens for a lead
+  app.get("/api/external-leads/:id/rental-forms", isAuthenticated, requireRole([...EXTERNAL_ADMIN_ROLES, 'external_agency_seller']), async (req: any, res) => {
+    try {
+      const { id: leadId } = req.params;
+      
+      const lead = await storage.getExternalLead(leadId);
+      if (!lead) {
+        return res.status(404).json({ message: "Lead not found" });
+      }
+      
+      const hasAccess = await verifyExternalAgencyOwnership(req, res, lead.agencyId);
+      if (!hasAccess) return;
+      
+      // Get rental form tokens for this lead
+      const tokens = await db
+        .select({
+          id: tenantRentalFormTokens.id,
+          token: tenantRentalFormTokens.token,
+          recipientType: tenantRentalFormTokens.recipientType,
+          isUsed: tenantRentalFormTokens.isUsed,
+          expiresAt: tenantRentalFormTokens.expiresAt,
+          createdAt: tenantRentalFormTokens.createdAt,
+          createdByName: tenantRentalFormTokens.createdByName,
+          unitNumber: externalUnits.unitNumber,
+          condoName: externalCondominiums.name,
+        })
+        .from(tenantRentalFormTokens)
+        .leftJoin(externalUnits, eq(tenantRentalFormTokens.externalUnitId, externalUnits.id))
+        .leftJoin(externalCondominiums, eq(externalUnits.condominiumId, externalCondominiums.id))
+        .where(eq(tenantRentalFormTokens.externalLeadId, leadId))
+        .orderBy(desc(tenantRentalFormTokens.createdAt));
+      
+      const formatted = tokens.map(t => ({
+        ...t,
+        propertyTitle: t.unitNumber 
+          ? (t.condoName ? `${t.condoName} - ${t.unitNumber}` : t.unitNumber)
+          : 'Sin unidad',
+      }));
+      
+      res.json(formatted);
+    } catch (error: any) {
+      console.error("Error fetching lead rental forms:", error);
+      handleGenericError(res, error);
+    }
+  });
+  
+  // POST /api/external-leads/:id/offers - Generate offer token for a lead
+  app.post("/api/external-leads/:id/offers", isAuthenticated, requireRole([...EXTERNAL_ADMIN_ROLES, 'external_agency_seller']), async (req: any, res) => {
+    try {
+      const { id: leadId } = req.params;
+      const { externalUnitId } = req.body;
+      
+      const lead = await storage.getExternalLead(leadId);
+      if (!lead) {
+        return res.status(404).json({ message: "Lead not found" });
+      }
+      
+      const hasAccess = await verifyExternalAgencyOwnership(req, res, lead.agencyId);
+      if (!hasAccess) return;
+      
+      if (!externalUnitId) {
+        return res.status(400).json({ message: "externalUnitId is required" });
+      }
+      
+      const unit = await storage.getExternalUnit(externalUnitId);
+      if (!unit) {
+        return res.status(404).json({ message: "Unit not found" });
+      }
+      
+      if (String(unit.agencyId) !== String(lead.agencyId)) {
+        return res.status(403).json({ message: "Unit does not belong to the same agency" });
+      }
+      
+      const userId = req.user.claims?.sub || req.user.id;
+      const [user] = await db.select().from(users).where(eq(users.id, userId)).limit(1);
+      const createdByName = user?.firstName && user?.lastName 
+        ? `${user.firstName} ${user.lastName}`
+        : user?.username || 'Unknown';
+      
+      const tokenValue = crypto.randomBytes(32).toString('hex');
+      const expiresAt = new Date();
+      expiresAt.setHours(expiresAt.getHours() + 24);
+      
+      // Create offer token
+      const [newToken] = await db.insert(offerTokens).values({
+        token: tokenValue,
+        externalUnitId,
+        externalClientId: null,
+        leadId: null,
+        createdBy: userId,
+        expiresAt,
+        isUsed: false,
+      }).returning();
+      
+      // Get agency and unit info for URL generation
+      const [agency] = await db.select({ slug: externalAgencies.slug })
+        .from(externalAgencies)
+        .where(eq(externalAgencies.id, unit.agencyId))
+        .limit(1);
+      
+      const property = unit.propertyId ? await storage.getExternalProperty(unit.propertyId) : null;
+      const condo = unit.condominiumId ? await storage.getExternalCondominium(unit.condominiumId) : null;
+      
+      // Generate URL
+      const protocol = process.env.NODE_ENV === 'production' ? 'https' : req.protocol;
+      const host = req.get('host');
+      const offerUrl = agency?.slug && unit.slug 
+        ? `${protocol}://${host}/${agency.slug}/oferta/${unit.slug}`
+        : `${protocol}://${host}/offer/${tokenValue}`;
+      
+      // Log lead activity
+      await storage.createExternalLeadActivity({
+        leadId,
+        agencyId: lead.agencyId,
+        activityType: 'email',
+        title: `Oferta generada: ${condo?.name || 'Propiedad'} - ${unit.unitNumber || ''}`,
+        description: `Se generó oferta para ${lead.fullName}`,
+        relatedPropertyId: unit.propertyId,
+        relatedUnitId: externalUnitId,
+        createdBy: userId,
+      });
+      
+      // Log property activity
+      try {
+        await db.insert(externalPropertyActivityHistory).values({
+          agencyId: lead.agencyId,
+          unitId: externalUnitId,
+          condominiumId: unit.condominiumId || null,
+          activityType: 'offer_sent',
+          leadId: leadId,
+          leadName: lead.fullName || null,
+          clientId: null,
+          clientName: null,
+          offerTokenId: newToken.id,
+          performedBy: userId,
+          performedByName: createdByName,
+          details: {
+            recipientType: 'tenant',
+            channel: 'link',
+            notes: `Oferta generada para lead ${lead.fullName}`
+          },
+        });
+      } catch (activityError) {
+        console.error("Error logging property activity for lead offer:", activityError);
+      }
+      
+      await createAuditLog(req, "create", "offer_token", newToken.id, `Created offer for lead ${leadId}`);
+      
+      res.status(201).json({
+        ...newToken,
+        offerUrl,
+        leadName: lead.fullName,
+        propertyName: property?.name || condo?.name,
+        unitNumber: unit.unitNumber,
+          latitude: unit.latitude ? parseFloat(unit.latitude) : null,
+          longitude: unit.longitude ? parseFloat(unit.longitude) : null,
+        createdByName,
+        agencySlug: agency?.slug,
+        unitSlug: unit.slug,
+      });
+    } catch (error: any) {
+      console.error("Error creating offer for lead:", error);
+      handleGenericError(res, error);
+    }
+  });
+
+  
+  // POST /api/external-leads/:id/rental-forms - Generate rental form token for a lead
+  app.post("/api/external-leads/:id/rental-forms", isAuthenticated, requireRole([...EXTERNAL_ADMIN_ROLES, 'external_agency_seller']), async (req: any, res) => {
+    try {
+      const { id: leadId } = req.params;
+      const { externalUnitId, recipientType = 'tenant' } = req.body;
+      
+      const lead = await storage.getExternalLead(leadId);
+      if (!lead) {
+        return res.status(404).json({ message: "Lead not found" });
+      }
+      
+      const hasAccess = await verifyExternalAgencyOwnership(req, res, lead.agencyId);
+      if (!hasAccess) return;
+      
+      if (!externalUnitId) {
+        return res.status(400).json({ message: "externalUnitId is required" });
+      }
+      
+      const unit = await storage.getExternalUnit(externalUnitId);
+      if (!unit) {
+        return res.status(404).json({ message: "Unit not found" });
+      }
+      
+      if (String(unit.agencyId) !== String(lead.agencyId)) {
+        return res.status(403).json({ message: "Unit does not belong to the same agency" });
+      }
+      
+      const userId = req.user.claims?.sub || req.user.id;
+      const [user] = await db.select().from(users).where(eq(users.id, userId)).limit(1);
+      const createdByName = user?.firstName && user?.lastName 
+        ? `${user.firstName} ${user.lastName}`
+        : user?.username || 'Unknown';
+      
+      const tokenValue = crypto.randomBytes(32).toString('hex');
+      const expiresAt = new Date();
+      expiresAt.setDate(expiresAt.getDate() + 7);
+      
+      const [newToken] = await db.insert(tenantRentalFormTokens).values({
+        token: tokenValue,
+        recipientType,
+        externalUnitId,
+        externalLeadId: leadId,
+        createdBy: userId,
+        createdByName,
+        expiresAt,
+        isUsed: false,
+      }).returning();
+      
+      const property = unit.propertyId ? await storage.getExternalProperty(unit.propertyId) : null;
+      
+      const protocol = process.env.NODE_ENV === 'production' ? 'https' : req.protocol;
+      const host = req.get('host');
+      const formUrl = `${protocol}://${host}/rental-form/${tokenValue}`;
+      
+      await storage.createExternalLeadActivity({
+        leadId,
+        agencyId: lead.agencyId,
+        activityType: 'whatsapp',
+        title: `Formato de Renta generado: ${property?.name || 'Propiedad'} - ${unit.unitNumber || ''}`,
+        description: `Se generó formato de renta (${recipientType}) para ${lead.fullName}`,
+        relatedPropertyId: unit.propertyId,
+        relatedUnitId: externalUnitId,
+        createdBy: userId,
+      });
+      
+      await createAuditLog(req, "create", "tenant_rental_form_token", newToken.id, `Created rental form for lead ${leadId}`);
+      // Log seller activity for rental form sent
+      const userRole = req.user?.cachedRole || req.user?.role;
+      if (userRole === "external_agency_seller") {
+        logSellerActivity({
+          agencyId: lead.agencyId,
+          actorId: userId,
+          actorName: createdByName,
+          actorRole: userRole,
+          actionType: "rental_form_sent",
+          subjectType: "lead",
+          subjectId: leadId,
+          subjectName: `${lead.firstName || ""} ${lead.lastName || ""}`.trim(),
+          subjectInfo: { unitNumber: unit.unitNumber, propertyName: property?.name },
+        }).catch(err => console.error("Activity logging error:", err));
+      }
+
+
+      // Log property activity for the unit
+      if (unit) {
+        try {
+          await db.insert(externalPropertyActivityHistory).values({
+            agencyId: lead.agencyId,
+            unitId: externalUnitId,
+            condominiumId: unit.condominiumId || null,
+            activityType: 'rental_form_sent',
+            leadId: leadId,
+            leadName: lead.fullName || null,
+            clientId: null,
+            clientName: null,
+            offerTokenId: null,
+            appointmentId: null,
+            showingId: null,
+            contractId: null,
+            performedBy: userId,
+            performedByName: createdByName,
+            details: {
+              recipientType,
+              channel: 'link',
+              notes: `Formato de renta generado para ${lead.fullName}`
+            },
+          });
+        } catch (activityError) {
+          console.error("Error logging property activity for rental form:", activityError);
+        }
+      }
+
+      
+      res.status(201).json({
+        ...newToken,
+        formUrl,
+        leadName: lead.fullName,
+        propertyName: property?.name,
+        unitNumber: unit.unitNumber,
+          latitude: unit.latitude ? parseFloat(unit.latitude) : null,
+          longitude: unit.longitude ? parseFloat(unit.longitude) : null,
+        createdByName,
+      });
+    } catch (error: any) {
+      console.error("Error creating rental form for lead:", error);
+      handleGenericError(res, error);
+    }
+  });
+  
+  // PATCH /api/external-lead-properties-sent/:id - Update property sent (e.g., lead response)
+  app.patch("/api/external-lead-properties-sent/:id", isAuthenticated, requireRole([...EXTERNAL_ADMIN_ROLES, 'external_agency_seller']), async (req: any, res) => {
+    try {
+      const { id } = req.params;
+      const propertySent = await storage.getExternalLeadPropertySent(id);
+      
+      if (!propertySent) {
+        return res.status(404).json({ message: "Property sent record not found" });
+      }
+      
+      const hasAccess = await verifyExternalAgencyOwnership(req, res, propertySent.agencyId);
+      if (!hasAccess) return;
+      
+      const updated = await storage.updateExternalLeadPropertySent(id, {
+        ...req.body,
+        respondedAt: req.body.leadResponse ? new Date() : undefined,
+      });
+      
+      await createAuditLog(req, "update", "external_lead_property_sent", id, "Updated lead property sent");
+      res.json(updated);
+    } catch (error: any) {
+      console.error("Error updating lead property sent:", error);
+      handleGenericError(res, error);
+    }
+  });
+
+
+  // GET /api/external-clients/:id/activities - Get all activities for a client
+  app.get("/api/external-clients/:id/activities", isAuthenticated, requireRole([...EXTERNAL_ADMIN_ROLES, 'external_agency_seller']), async (req: any, res) => {
+    try {
+      const { id } = req.params;
+      const client = await storage.getExternalClient(id);
+      
+      if (!client) {
+        return res.status(404).json({ message: "Client not found" });
+      }
+      
+      const hasAccess = await verifyExternalAgencyOwnership(req, res, client.agencyId);
+      if (!hasAccess) return;
+      
+      const activities = await storage.getExternalClientActivities(id);
+      res.json(activities);
+    } catch (error: any) {
+      console.error("Error fetching client activities:", error);
+      handleGenericError(res, error);
+    }
+  });
+
+  // POST /api/external-clients/:id/activities - Create activity for a client
+  app.post("/api/external-clients/:id/activities", isAuthenticated, requireRole([...EXTERNAL_ADMIN_ROLES, 'external_agency_seller']), async (req: any, res) => {
+    try {
+      const { id } = req.params;
+      const client = await storage.getExternalClient(id);
+      
+      if (!client) {
+        return res.status(404).json({ message: "Client not found" });
+      }
+      
+      const hasAccess = await verifyExternalAgencyOwnership(req, res, client.agencyId);
+      if (!hasAccess) return;
+      
+      const validatedActivity = insertExternalClientActivitySchema.omit({ clientId: true, agencyId: true, createdBy: true }).parse(req.body);
+      const activity = await storage.createExternalClientActivity({
+        ...validatedActivity,
+        clientId: id,
+        agencyId: client.agencyId,
+        createdBy: req.user.id,
+      });
+      
+      // Update client's lastContactDate
+      await storage.updateExternalClient(id, { lastContactDate: new Date() });
+      
+      await createAuditLog(req, "create", "external_client_activity", activity.id, "Created client activity");
+      res.status(201).json(activity);
+    } catch (error: any) {
+      console.error("Error creating client activity:", error);
+      handleGenericError(res, error);
+    }
+  });
+
+  // GET /api/external-clients/:id/property-history - Get property history for a client
+  app.get("/api/external-clients/:id/property-history", isAuthenticated, requireRole([...EXTERNAL_ADMIN_ROLES, 'external_agency_seller']), async (req: any, res) => {
+    try {
+      const { id } = req.params;
+      const client = await storage.getExternalClient(id);
+      
+      if (!client) {
+        return res.status(404).json({ message: "Client not found" });
+      }
+      
+      const hasAccess = await verifyExternalAgencyOwnership(req, res, client.agencyId);
+      if (!hasAccess) return;
+      
+      const history = await storage.getExternalClientPropertyHistory(id);
+      res.json(history);
+    } catch (error: any) {
+      console.error("Error fetching client property history:", error);
+      handleGenericError(res, error);
+    }
+  });
+
+  // POST /api/external-clients/:id/property-history - Add property history entry
+  app.post("/api/external-clients/:id/property-history", isAuthenticated, requireRole(EXTERNAL_ADMIN_ROLES), async (req: any, res) => {
+    try {
+      const { id } = req.params;
+      const client = await storage.getExternalClient(id);
+      
+      if (!client) {
+        return res.status(404).json({ message: "Client not found" });
+      }
+      
+      const hasAccess = await verifyExternalAgencyOwnership(req, res, client.agencyId);
+      if (!hasAccess) return;
+      
+      const validatedHistory = insertExternalClientPropertyHistorySchema.omit({ clientId: true, agencyId: true, createdBy: true }).parse(req.body);
+      const history = await storage.createExternalClientPropertyHistory({
+        ...validatedHistory,
+        clientId: id,
+        agencyId: client.agencyId,
+        createdBy: req.user.id,
+      });
+      
+      await createAuditLog(req, "create", "external_client_property_history", history.id, "Created client property history");
+      res.status(201).json(history);
+    } catch (error: any) {
+      console.error("Error creating client property history:", error);
+      handleGenericError(res, error);
+    }
+  });
+
+  // PATCH /api/external-clients/:id/blacklist - Update client blacklist status
+  app.patch("/api/external-clients/:id/blacklist", isAuthenticated, requireRole(EXTERNAL_ADMIN_ROLES), async (req: any, res) => {
+    try {
+      const { id } = req.params;
+      const client = await storage.getExternalClient(id);
+      
+      if (!client) {
+        return res.status(404).json({ message: "Client not found" });
+      }
+      
+      const hasAccess = await verifyExternalAgencyOwnership(req, res, client.agencyId);
+      if (!hasAccess) return;
+      
+      const { blacklistStatus, blacklistReason } = req.body;
+      
+      const updates: any = {
+        blacklistStatus,
+        blacklistReason,
+      };
+      
+      if (blacklistStatus === 'blacklisted') {
+        updates.blacklistedAt = new Date();
+        updates.blacklistedBy = req.user.id;
+      } else if (blacklistStatus === 'none') {
+        updates.blacklistedAt = null;
+        updates.blacklistedBy = null;
+        updates.blacklistReason = null;
+      }
+      
+      const updated = await storage.updateExternalClient(id, updates);
+      
+      // Log activity for blacklist change
+      await storage.createExternalClientActivity({
+        clientId: id,
+        agencyId: client.agencyId,
+        activityType: 'note',
+        title: `Estado de blacklist cambiado a: ${blacklistStatus}`,
+        description: blacklistReason || undefined,
+        createdBy: req.user.id,
+      });
+      
+      await createAuditLog(req, "update", "external_client", id, `Updated blacklist status to ${blacklistStatus}`);
+      res.json(updated);
+    } catch (error: any) {
+      console.error("Error updating client blacklist:", error);
+      handleGenericError(res, error);
+    }
+  });
+
+
+  // Public simplified lead registration endpoints (no tokens required)
   // POST /api/public/leads/vendedor - Public vendedor registration
-  app.post("/api/public/leads/vendedor", async (req, res) => {
+  app.post("/api/public/leads/vendedor", publicLeadRegistrationLimiter, async (req, res) => {
     try {
       const { 
         firstName, 
@@ -24954,31 +33521,50 @@ export async function registerRoutes(app: Express): Promise<Server> {
         bedrooms,
         desiredUnitType,
         desiredNeighborhood,
+        interestedCondominiumId,
+        interestedUnitId,
+        sellerId,
         sellerName,
         source, 
         notes 
       } = req.body;
       
-      // Basic validation
-      if (!firstName || !lastName || !email || !phone) {
-        return res.status(400).json({ message: "Faltan campos requeridos" });
+      // Basic validation - email is optional
+      if (!firstName || !lastName || !phone) {
+        return res.status(400).json({ message: "Faltan campos requeridos (nombre, apellido, teléfono)" });
       }
       
       // For now, we'll assign to first available external agency
-      // In production, this could be based on domain, query param, or other logic
-      const agencies = await storage.getAllExternalAgencies();
+      const agencies = await storage.getExternalAgencies();
       if (!agencies || agencies.length === 0) {
         return res.status(500).json({ message: "No hay agencias disponibles" });
       }
       
       const agencyId = agencies[0].id;
       
+      // Check for duplicate lead with 3-month expiry
+      const phoneLast4 = phone.slice(-4);
+      const duplicateCheck = await storage.checkExternalLeadDuplicateWithExpiry(
+        agencyId, firstName, lastName, phoneLast4
+      );
+      
+      if (duplicateCheck && !duplicateCheck.isExpired) {
+        return res.status(409).json({
+          message: `Este lead ya fue registrado por ${duplicateCheck.sellerName || "otro vendedor"}. Quedan ${duplicateCheck.daysRemaining} días para que expire.`,
+          detail: `Este lead ya fue registrado por ${duplicateCheck.sellerName || "otro vendedor"}. Quedan ${duplicateCheck.daysRemaining} días para que expire.`,
+          duplicate: {
+            sellerName: duplicateCheck.sellerName,
+            daysRemaining: duplicateCheck.daysRemaining
+          }
+        });
+      }
+      
       // Create lead
       const lead = await storage.createExternalLead({
         agencyId,
         firstName,
         lastName,
-        email,
+        email: email || null,
         phone,
         phoneLast4: phone.slice(-4),
         contractDuration: contractDuration || null,
@@ -24988,6 +33574,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
         bedrooms: bedrooms ? parseInt(bedrooms) : null,
         desiredUnitType: desiredUnitType || null,
         desiredNeighborhood: desiredNeighborhood || null,
+        interestedCondominiumId: interestedCondominiumId || null,
+        interestedUnitId: interestedUnitId || null,
+        sellerId: sellerId || null,
         sellerName: sellerName || null,
         registrationType: "seller",
         status: "nuevo_lead",
@@ -24996,14 +33585,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
       });
       
       res.status(201).json({ success: true, leadId: lead.id });
-    } catch (error: any) {
+    } catch (error) {
       console.error("Error creating vendedor lead:", error);
       handleGenericError(res, error);
     }
   });
 
   // POST /api/public/leads/broker - Public broker registration
-  app.post("/api/public/leads/broker", async (req, res) => {
+  app.post("/api/public/leads/broker", publicLeadRegistrationLimiter, async (req, res) => {
     try {
       const { 
         firstName, 
@@ -25020,7 +33609,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
         desiredNeighborhood,
         sellerName,
         source, 
-        notes 
+        notes,
+        interestedCondominiumId,
+        interestedUnitId
       } = req.body;
       
       // Basic validation
@@ -25029,13 +33620,29 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       
       // For now, we'll assign to first available external agency
-      const agencies = await storage.getAllExternalAgencies();
+      const agencies = await storage.getExternalAgencies();
       if (!agencies || agencies.length === 0) {
         return res.status(500).json({ message: "No hay agencias disponibles" });
       }
       
       const agencyId = agencies[0].id;
       
+      
+      // Check for duplicate lead with 3-month expiry
+      const duplicateCheck = await storage.checkExternalLeadDuplicateWithExpiry(
+        agencyId, firstName, lastName, phoneLast4
+      );
+      
+      if (duplicateCheck && !duplicateCheck.isExpired) {
+        return res.status(409).json({
+          message: `Este lead ya fue registrado por ${duplicateCheck.sellerName || "otro vendedor"}. Quedan ${duplicateCheck.daysRemaining} días para que expire.`,
+          detail: `Este lead ya fue registrado por ${duplicateCheck.sellerName || "otro vendedor"}. Quedan ${duplicateCheck.daysRemaining} días para que expire.`,
+          duplicate: {
+            sellerName: duplicateCheck.sellerName,
+            daysRemaining: duplicateCheck.daysRemaining
+          }
+        });
+      }
       // Create lead
       const lead = await storage.createExternalLead({
         agencyId,
@@ -25055,6 +33662,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         registrationType: "broker",
         status: "nuevo_lead",
         source: source || "public_web_broker",
+        interestedCondominiumId: interestedCondominiumId || null,
+        interestedUnitId: interestedUnitId || null,
         notes,
       });
       
@@ -25065,6 +33674,786 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // GET /api/public/agency - Get public agency info (name, logo)
+  app.get("/api/public/agency", async (req, res) => {
+    try {
+      const agencies = await storage.getExternalAgencies({ isActive: true });
+      if (!agencies || agencies.length === 0) {
+        return res.json({ name: "", logoUrl: "" });
+      }
+      const agency = agencies[0];
+      res.json({
+        id: agency.id,
+        name: agency.name,
+        logoUrl: agency.agencyLogoUrl || ""
+      });
+    } catch (error: any) {
+      console.error("Error fetching public agency:", error);
+      res.json({ name: "", logoUrl: "" });
+    }
+  });
+
+  // GET /api/public/external-units/:id - Public endpoint to view external unit details
+  app.get("/api/public/external-units/:id", async (req, res) => {
+    try {
+      const { id } = req.params;
+      const unit = await storage.getExternalUnit(id);
+      
+      if (!unit) {
+        return res.status(404).json({ message: "Unit not found" });
+      }
+      
+      // Get condominium name if condominiumId exists
+      let condominiumName = unit.condominiumName || null;
+      if (!condominiumName && unit.condominiumId) {
+        const condoResult = await db.select({ name: externalCondominiums.name })
+          .from(externalCondominiums)
+          .where(eq(externalCondominiums.id, unit.condominiumId))
+          .limit(1);
+        condominiumName = condoResult[0]?.name || null;
+      }
+      
+      // Calculate public availability based on publication rules
+      const isPubliclyAvailable = Boolean(
+        unit.publishToMain && 
+        unit.publishStatus === 'approved' && 
+        unit.isActive !== false
+      );
+      
+      // Return only public-safe information
+      res.json({
+        id: unit.id,
+        agencyId: unit.agencyId, // For public lead submission
+        name: unit.name,
+        unitNumber: unit.unitNumber,
+          latitude: unit.latitude ? parseFloat(unit.latitude) : null,
+          longitude: unit.longitude ? parseFloat(unit.longitude) : null,
+        zone: unit.zone,
+        unitType: unit.unitType,
+        bedrooms: unit.bedrooms,
+        bathrooms: unit.bathrooms,
+        monthlyRent: unit.price,
+        currency: unit.currency,
+        salePrice: unit.salePrice || null,
+        saleCurrency: unit.saleCurrency || 'MXN',
+        status: unit.status,
+        isPubliclyAvailable,
+        images: unit.images,
+        primaryImages: unit.primaryImages || [],
+        secondaryImages: unit.secondaryImages || [],
+        videos: unit.videos || [],
+        virtualTourUrl: unit.virtualTourUrl,
+        googleMapsUrl: unit.googleMapsUrl,
+        amenities: unit.amenities,
+        condominiumName,
+        squareMeters: unit.area,
+        hasFurniture: unit.hasFurniture,
+        hasParking: unit.hasParking,
+        petsAllowed: unit.petFriendly,
+        description: unit.description,
+        includesWater: unit.includesWater,
+        includesElectricity: unit.includesElectricity,
+        includesInternet: unit.includesInternet,
+        includesGas: unit.includesGas,
+      });
+    } catch (error: any) {
+      console.error("Error fetching public unit:", error);
+      res.status(500).json({ message: "Internal server error" });
+    }
+
+  // GET /api/public/external-units/:id/media - Public endpoint to view unit images organized by section
+  app.get("/api/public/external-units/:id/media", async (req, res) => {
+    try {
+      const { id } = req.params;
+      
+      const unit = await storage.getExternalUnit(id);
+      if (!unit) {
+        return res.status(404).json({ message: "Unit not found" });
+      }
+      
+      // Only return media for published units
+      if (!unit.publishToMain || unit.publishStatus !== 'approved') {
+        return res.status(404).json({ message: "Unit not publicly available" });
+      }
+
+      const media = await storage.getUnitMedia(id);
+      
+      // Group by section for the frontend
+      const groupedMedia: Record<string, Array<{ id: string; url: string; caption: string | null; isCover: boolean }>> = {};
+      
+      // Section labels for frontend
+      const sectionLabels: Record<string, { es: string; en: string }> = {
+        cover: { es: 'Portada', en: 'Cover' },
+        bedroom: { es: 'Recámara', en: 'Bedroom' },
+        bathroom: { es: 'Baño', en: 'Bathroom' },
+        half_bath: { es: 'Medio Baño', en: 'Half Bath' },
+        kitchen: { es: 'Cocina', en: 'Kitchen' },
+        living_room: { es: 'Sala', en: 'Living Room' },
+        dining_room: { es: 'Comedor', en: 'Dining Room' },
+        garden: { es: 'Jardín', en: 'Garden' },
+        terrace: { es: 'Terraza', en: 'Terrace' },
+        pool: { es: 'Alberca', en: 'Pool' },
+        balcony: { es: 'Balcón', en: 'Balcony' },
+        rooftop: { es: 'Rooftop', en: 'Rooftop' },
+        parking: { es: 'Estacionamiento', en: 'Parking' },
+        amenities: { es: 'Amenidades', en: 'Amenities' },
+        common_areas: { es: 'Áreas Comunes', en: 'Common Areas' },
+        exterior: { es: 'Exterior', en: 'Exterior' },
+        view: { es: 'Vista', en: 'View' },
+        floor_plan: { es: 'Plano', en: 'Floor Plan' },
+        other: { es: 'Otras Fotos', en: 'Other Photos' },
+      };
+
+      media.forEach(item => {
+        const key = item.sectionIndex && item.sectionIndex > 1 
+          ? `${item.section}_${item.sectionIndex}`
+          : item.section;
+        if (!groupedMedia[key]) {
+          groupedMedia[key] = [];
+        }
+        groupedMedia[key].push({
+          id: item.id,
+          url: item.url,
+          caption: item.caption,
+          isCover: item.isCover,
+        });
+      });
+
+      // Build sections array with labels
+      const sections = Object.entries(groupedMedia).map(([key, items]) => {
+        const [baseSection, indexStr] = key.includes('_') && !['half_bath', 'living_room', 'dining_room', 'common_areas', 'floor_plan'].includes(key) 
+          ? key.split(/_(?=\d+$)/)
+          : [key, '1'];
+        const sectionIndex = parseInt(indexStr) || 1;
+        const baseLabel = sectionLabels[baseSection] || { es: key, en: key };
+        
+        return {
+          key,
+          section: baseSection,
+          sectionIndex,
+          label: sectionIndex > 1 
+            ? { es: `${baseLabel.es} ${sectionIndex}`, en: `${baseLabel.en} ${sectionIndex}` }
+            : baseLabel,
+          images: items.sort((a, b) => (a.isCover ? -1 : 1)),
+        };
+      });
+
+      res.json({
+        success: true,
+        hasMedia: media.length > 0,
+        count: media.length,
+        sections: sections.sort((a, b) => {
+          // Sort order: cover first, then bedrooms, bathrooms, common areas, outdoor, other
+          const order = ['cover', 'bedroom', 'bathroom', 'half_bath', 'kitchen', 'living_room', 'dining_room', 'garden', 'terrace', 'pool', 'balcony', 'rooftop', 'parking', 'amenities', 'common_areas', 'exterior', 'view', 'floor_plan', 'other'];
+          const aIdx = order.indexOf(a.section);
+          const bIdx = order.indexOf(b.section);
+          if (aIdx === bIdx) return a.sectionIndex - b.sectionIndex;
+          return (aIdx === -1 ? 999 : aIdx) - (bIdx === -1 ? 999 : bIdx);
+        }),
+      });
+    } catch (error: any) {
+      console.error("Error fetching public unit media:", error);
+      res.status(500).json({ message: "Internal server error" });
+    }
+  });
+  });
+
+  // POST /api/public/leads - Create a public lead from property inquiry
+  app.post("/api/public/leads", async (req, res) => {
+    try {
+      const { 
+        agencyId, 
+        unitId,
+        firstName, 
+        lastName, 
+        email, 
+        phone,
+        message 
+      } = req.body;
+
+      // Validate required fields
+      if (!agencyId || !firstName || !lastName) {
+        return res.status(400).json({ 
+          message: "Nombre, apellido y agencia son requeridos" 
+        });
+      }
+
+      // At least one contact method is required
+      if (!email && !phone) {
+        return res.status(400).json({ 
+          message: "Se requiere al menos un método de contacto (email o teléfono)" 
+        });
+      }
+
+      // Verify agency exists
+      const agency = await db.select()
+        .from(externalAgencies)
+        .where(eq(externalAgencies.id, agencyId))
+        .limit(1);
+
+      if (!agency.length) {
+        return res.status(404).json({ message: "Agencia no encontrada" });
+      }
+
+      // Get unit info for source tracking
+      let sourceInfo = "Sitio web - Contacto directo";
+      let interestedUnitIds: string[] = [];
+      
+      if (unitId) {
+        const unit = await storage.getExternalUnit(unitId);
+        if (unit) {
+          // Get condo name for better source tracking
+          let condoName = unit.condominiumName || '';
+          if (!condoName && unit.condominiumId) {
+            const condo = await db.select({ name: externalCondominiums.name })
+              .from(externalCondominiums)
+              .where(eq(externalCondominiums.id, unit.condominiumId))
+              .limit(1);
+            condoName = condo[0]?.name || '';
+          }
+          sourceInfo = `Sitio web - ${condoName ? condoName + ' ' : ''}#${unit.unitNumber}`;
+          interestedUnitIds = [unitId];
+        }
+      }
+
+      // Calculate validUntil (3 months from now)
+      const validUntil = new Date();
+      validUntil.setMonth(validUntil.getMonth() + 3);
+
+      // Create the lead
+      const leadId = crypto.randomUUID();
+      const now = new Date();
+      
+      await db.insert(externalLeads).values({
+        id: leadId,
+        agencyId,
+        registrationType: "seller", // Public leads use seller type for full data access
+        firstName: firstName.trim(),
+        lastName: lastName.trim(),
+        email: email?.trim() || null,
+        phone: phone?.trim() || null,
+        phoneLast4: phone ? phone.trim().slice(-4) : null,
+        interestedUnitIds: interestedUnitIds.length > 0 ? interestedUnitIds : null,
+        source: sourceInfo,
+        status: "nuevo_lead",
+        notes: message ? `Mensaje del sitio web: ${message}` : null,
+        firstContactDate: now,
+        validUntil,
+        createdAt: now,
+        updatedAt: now,
+      });
+
+      res.status(201).json({ 
+        success: true,
+        message: "Solicitud enviada correctamente. Un asesor te contactará pronto.",
+        leadId 
+      });
+    } catch (error: any) {
+      console.error("Error creating public lead:", error);
+      res.status(500).json({ message: "Error al enviar la solicitud" });
+    }
+  });
+
+    // GET /api/public/sellers - Get public list of sellers for lead registration dropdown
+  // GET /api/public/resolve-offer-token/:agencySlug/:unitSlug - Resolve offer token by slugs
+  app.get("/api/public/resolve-offer-token/:agencySlug/:unitSlug", async (req, res) => {
+    try {
+      const { agencySlug, unitSlug } = req.params;
+      
+      // Find agency by slug
+      const agency = await db.select()
+        .from(externalAgencies)
+        .where(and(
+          eq(externalAgencies.slug, agencySlug),
+          eq(externalAgencies.isActive, true)
+        ))
+        .limit(1);
+      
+      if (!agency.length) {
+        return res.status(404).json({ message: "Agencia no encontrada" });
+      }
+      
+      // Find unit by slug and agency
+      const unit = await db.select()
+        .from(externalUnits)
+        .where(and(
+          eq(externalUnits.slug, unitSlug),
+          eq(externalUnits.agencyId, agency[0].id)
+        ))
+        .limit(1);
+      
+      if (!unit.length) {
+        return res.status(404).json({ message: "Unidad no encontrada" });
+      }
+      
+      // Find active offer token for this unit
+      const token = await db.select()
+        .from(offerTokens)
+        .where(and(
+          eq(offerTokens.externalUnitId, unit[0].id),
+          eq(offerTokens.status, "active")
+        ))
+        .orderBy(desc(offerTokens.createdAt))
+        .limit(1);
+      
+      if (!token.length) {
+        return res.status(404).json({ message: "No hay oferta activa para esta propiedad" });
+      }
+      
+      res.json({ token: token[0].token });
+    } catch (error: any) {
+      console.error("Error resolving offer token:", error);
+      res.status(500).json({ message: "Error interno del servidor" });
+    }
+  });
+
+  // GET /api/public/resolve-rental-form-token/:agencySlug/:unitSlug - Resolve rental form token by slugs
+  app.get("/api/public/resolve-rental-form-token/:agencySlug/:unitSlug", async (req, res) => {
+    try {
+      const { agencySlug, unitSlug } = req.params;
+      
+      // Find agency by slug
+      const agency = await db.select()
+        .from(externalAgencies)
+        .where(and(
+          eq(externalAgencies.slug, agencySlug),
+          eq(externalAgencies.isActive, true)
+        ))
+        .limit(1);
+      
+      if (!agency.length) {
+        return res.status(404).json({ message: "Agencia no encontrada" });
+      }
+      
+      // Find unit by slug and agency
+      const unit = await db.select()
+        .from(externalUnits)
+        .where(and(
+          eq(externalUnits.slug, unitSlug),
+          eq(externalUnits.agencyId, agency[0].id)
+        ))
+        .limit(1);
+      
+      if (!unit.length) {
+        return res.status(404).json({ message: "Unidad no encontrada" });
+      }
+      
+      // Find active rental form token for this unit (recipient type 'tenant')
+      const token = await db.select()
+        .from(rentalFormTokens)
+        .where(and(
+          eq(rentalFormTokens.externalUnitId, unit[0].id),
+          eq(rentalFormTokens.status, "active"),
+          eq(rentalFormTokens.recipientType, "tenant")
+        ))
+        .orderBy(desc(rentalFormTokens.createdAt))
+        .limit(1);
+      
+      if (!token.length) {
+        return res.status(404).json({ message: "No hay formato de renta activo para esta propiedad" });
+      }
+      
+      res.json({ token: token[0].token });
+    } catch (error: any) {
+      console.error("Error resolving rental form token:", error);
+      res.status(500).json({ message: "Error interno del servidor" });
+    }
+  });
+
+  app.get("/api/public/sellers", async (req, res) => {
+    try {
+      const agencies = await storage.getExternalAgencies({ isActive: true });
+      if (!agencies || agencies.length === 0) {
+        return res.json([]);
+      }
+      const agencyId = agencies[0].id;
+      
+      // Get all sellers for this agency directly from database
+      const sellers = await db.select({
+        id: users.id,
+        firstName: users.firstName,
+        lastName: users.lastName,
+      })
+      .from(users)
+      .where(and(
+        eq(users.externalAgencyId, agencyId),
+        eq(users.role, 'external_agency_seller'),
+        eq(users.status, 'approved')
+      ))
+      .orderBy(users.firstName);
+      
+      const publicSellers = sellers.map(s => ({
+        id: s.id,
+        fullName: `${s.firstName} ${s.lastName}`
+      }));
+      res.json(publicSellers);
+    } catch (error: any) {
+      console.error("Error fetching public sellers:", error);
+      res.json([]);
+    }
+  });
+
+
+  // GET /api/public/external-properties - Public list of approved external properties with pagination
+  app.get("/api/public/external-properties", async (req, res) => {
+    try {
+      const { page = 1, limit = 24, q, location, status, propertyType, minPrice, maxPrice, bedrooms, bathrooms, petFriendly, featured, hasCoordinates } = req.query;
+      const pageNum = Math.max(1, parseInt(page as string) || 1);
+      const limitNum = Math.min(Math.max(1, parseInt(limit as string) || 24), 50);
+      const offset = (pageNum - 1) * limitNum;
+      
+      // Build where conditions - base conditions
+      const conditions: any[] = [
+        eq(externalUnits.publishToMain, true),
+        eq(externalUnits.publishStatus, 'approved'),
+        eq(externalUnits.isActive, true)
+      ];
+      
+      // Apply filter: status (rent/sale/both)
+      if (status && typeof status === 'string' && status !== 'all') {
+        if (status === 'rent') {
+          conditions.push(or(eq(externalUnits.listingType, 'rent'), eq(externalUnits.listingType, 'both')));
+        } else if (status === 'sale') {
+          conditions.push(or(eq(externalUnits.listingType, 'sale'), eq(externalUnits.listingType, 'both')));
+        }
+      }
+      
+      // Apply filter: pet-friendly
+      if (petFriendly === 'true' || petFriendly === '1') {
+        conditions.push(eq(externalUnits.petsAllowed, true));
+      }
+      
+      // Apply filter: featured - Note: external units don't have a dedicated featured field
+      // For now, featured filter is not applicable to external units
+      // TODO: Add featured field to externalUnits schema if needed
+      
+      
+      // Apply filter: has coordinates (for map view)
+      if (hasCoordinates === "true" || hasCoordinates === "1") {
+        conditions.push(isNotNull(externalUnits.latitude));
+      }
+      // Apply filter: location/zone search
+      if (location && typeof location === 'string' && location.trim()) {
+        const locationTerm = `%${location.trim()}%`;
+        conditions.push(or(
+          ilike(externalUnits.zone, locationTerm),
+          ilike(externalUnits.title, locationTerm),
+          ilike(externalUnits.description, locationTerm)
+        ));
+      }
+      
+      // Apply filter: property type
+      if (propertyType && typeof propertyType === 'string' && propertyType !== 'all') {
+        conditions.push(ilike(externalUnits.propertyType, propertyType));
+      }
+      
+      // Apply filter: bedrooms
+      if (bedrooms && typeof bedrooms === 'string') {
+        const bedroomsNum = parseInt(bedrooms);
+        if (!isNaN(bedroomsNum) && bedroomsNum > 0) {
+          conditions.push(gte(externalUnits.bedrooms, bedroomsNum));
+        }
+      }
+      
+      // Apply filter: bathrooms
+      if (bathrooms && typeof bathrooms === 'string') {
+        const bathroomsNum = parseFloat(bathrooms);
+        if (!isNaN(bathroomsNum) && bathroomsNum > 0) {
+          conditions.push(gte(externalUnits.bathrooms, bathroomsNum));
+        }
+      }
+      
+      // Apply filter: min price
+      if (minPrice && typeof minPrice === 'string') {
+        const minPriceNum = parseFloat(minPrice);
+        if (!isNaN(minPriceNum) && minPriceNum > 0) {
+          conditions.push(gte(sql`CAST(${externalUnits.price} AS numeric)`, minPriceNum));
+        }
+      }
+      
+      // Apply filter: max price
+      if (maxPrice && typeof maxPrice === 'string') {
+        const maxPriceNum = parseFloat(maxPrice);
+        if (!isNaN(maxPriceNum) && maxPriceNum > 0) {
+          conditions.push(lte(sql`CAST(${externalUnits.price} AS numeric)`, maxPriceNum));
+        }
+      }
+      
+      // Apply filter: search query (title, description, zone, condominium name)
+      // For condominium name search, we use a subquery approach
+      if (q && typeof q === 'string' && q.trim()) {
+        const searchTerm = `%${q.trim()}%`;
+        // Get condominium IDs that match the search term
+        const matchingCondominiums = await db
+          .select({ id: externalCondominiums.id })
+          .from(externalCondominiums)
+          .where(ilike(externalCondominiums.name, searchTerm));
+        const matchingCondoIds = matchingCondominiums.map(c => c.id);
+        
+        // Search in unit fields OR match condominium IDs
+        if (matchingCondoIds.length > 0) {
+          conditions.push(or(
+            ilike(externalUnits.title, searchTerm),
+            ilike(externalUnits.description, searchTerm),
+            ilike(externalUnits.zone, searchTerm),
+            ilike(externalUnits.unitNumber, searchTerm),
+            inArray(externalUnits.condominiumId, matchingCondoIds)
+          ));
+        } else {
+          conditions.push(or(
+            ilike(externalUnits.title, searchTerm),
+            ilike(externalUnits.description, searchTerm),
+            ilike(externalUnits.zone, searchTerm),
+            ilike(externalUnits.unitNumber, searchTerm)
+          ));
+        }
+      }
+      
+      // Get total count with filters applied
+      const countResult = await db
+        .select({ count: sql<number>`count(*)` })
+        .from(externalUnits)
+        .where(and(...conditions));
+      const totalCount = Number(countResult[0]?.count || 0);
+      
+      // Get paginated units
+      const approvedUnits = await db
+        .select()
+        .from(externalUnits)
+        .where(and(...conditions))
+        .orderBy(desc(externalUnits.createdAt))
+        .limit(limitNum)
+        .offset(offset);
+      
+      // Transform to property-like format for frontend compatibility
+      // Helper to generate slug
+const generateSlug = (str: string) => str.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "");
+
+      const properties = await Promise.all(approvedUnits.map(async (unit) => {
+        let location = "Tulum, Quintana Roo";
+        if (unit.condominiumId) {
+          const condos = await db
+            .select({ name: externalCondominiums.name, zone: externalCondominiums.zone })
+            .from(externalCondominiums)
+            .where(eq(externalCondominiums.id, unit.condominiumId))
+            .limit(1);
+          if (condos.length > 0) {
+            const condo = condos[0];
+            location = condo.zone ? `${condo.name}, ${condo.zone}` : condo.name;
+          }
+        }
+        
+        // Get agency info for slug
+        const agencyData = await db.select({ name: externalAgencies.name, slug: externalAgencies.slug })
+          .from(externalAgencies).where(eq(externalAgencies.id, unit.agencyId)).limit(1);
+        const agency = agencyData[0];
+        const agencySlug = agency?.slug || generateSlug(agency?.name || 'agency');
+        
+        // Get condominium name for unique slug generation
+        let condoName = '';
+        if (unit.condominiumId) {
+          const condoForSlug = await db
+            .select({ name: externalCondominiums.name })
+            .from(externalCondominiums)
+            .where(eq(externalCondominiums.id, unit.condominiumId))
+            .limit(1);
+          condoName = condoForSlug[0]?.name || '';
+        }
+        
+        // Use stored slug if exists, otherwise generate unique slug with condominium name
+        let unitSlug: string;
+        if (unit.slug) {
+          unitSlug = unit.slug;
+        } else if (condoName) {
+          // Include condominium name in slug for uniqueness
+          unitSlug = generateSlug(`${condoName}-${unit.unitNumber}`);
+        } else {
+          // Fallback: use property type + unit number + partial ID for uniqueness
+          const unitTitle = unit.title || `${unit.propertyType || 'propiedad'}-${unit.unitNumber}`;
+          unitSlug = generateSlug(`${unitTitle}-${unit.id.substring(0, 8)}`);
+        }
+        
+        return {
+          id: unit.id,
+          title: unit.title || `${unit.propertyType || 'Propiedad'} ${unit.unitNumber}`,
+          description: unit.description || null,
+          location: location,
+          price: parseFloat(unit.price || '0') || 0,
+          salePrice: unit.salePrice ? parseFloat(unit.salePrice) : null,
+          status: unit.listingType === 'sale' ? 'sale' : unit.listingType === 'both' ? 'both' : 'rent',
+          listingType: unit.listingType || 'rent',
+          bedrooms: unit.bedrooms || 0,
+          bathrooms: unit.bathrooms || 0,
+          area: unit.area ? parseFloat(unit.area) : 0,
+          primaryImages: unit.primaryImages || [],
+          amenities: unit.amenities || [],
+          featured: false,
+          isExternal: true,
+          propertyType: unit.propertyType,
+          agencySlug: agencySlug,
+          unitSlug: unitSlug,
+          currency: unit.currency || 'MXN',
+          saleCurrency: unit.saleCurrency || 'MXN',
+          minimumTerm: unit.minimumTerm,
+          hasFurniture: unit.hasFurniture,
+          hasParking: unit.hasParking,
+          petsAllowed: unit.petFriendly,
+          zone: unit.zone,
+          condominiumName: condoName || null,
+          unitNumber: unit.unitNumber,
+          latitude: unit.latitude ? parseFloat(unit.latitude) : null,
+          longitude: unit.longitude ? parseFloat(unit.longitude) : null,
+          condominiumId: unit.condominiumId,
+        };
+      }));
+      
+      res.json({
+        data: properties,
+        pagination: {
+          page: pageNum,
+          limit: limitNum,
+          totalCount,
+          totalPages: Math.ceil(totalCount / limitNum),
+        }
+      });
+    } catch (error: any) {
+      console.error("Error fetching public external properties:", error);
+      res.status(500).json({ message: "Error al obtener propiedades" });
+    }
+  });
+
+
+  // =============================================================================
+  // PUBLIC CHATBOT ENDPOINTS - AI assistant for homepage
+  // =============================================================================
+
+  // POST /api/public/chat/start - Start a new chatbot conversation
+  app.post("/api/public/chat/start", async (req, res) => {
+    try {
+      const { sessionId } = req.body;
+      
+      if (!sessionId) {
+        return res.status(400).json({ message: "Session ID is required" });
+      }
+
+      // Get the first external agency (Tulum Rental Homes)
+      const agencies = await storage.getExternalAgencies();
+      if (!agencies || agencies.length === 0) {
+        return res.status(404).json({ message: "No agency configured" });
+      }
+      const agencyId = agencies[0].id;
+
+      // Check if there's an existing active conversation for this session
+      let conversation = await storage.getPublicChatbotConversationBySession(agencyId, sessionId);
+      
+      if (!conversation) {
+        // Create new conversation with welcome message
+        const { createPublicChatConversation } = await import("./services/publicChatbot");
+        conversation = await createPublicChatConversation(agencyId, sessionId);
+      }
+
+      res.json({
+        conversationId: conversation.id,
+        messages: conversation.messages,
+      });
+    } catch (error: any) {
+      console.error("Error starting chatbot conversation:", error);
+      res.status(500).json({ message: "Error al iniciar conversación" });
+    }
+  });
+
+  // POST /api/public/chat/message - Send a message to the chatbot
+  app.post("/api/public/chat/message", async (req, res) => {
+    try {
+      const { conversationId, message } = req.body;
+
+      if (!conversationId || !message) {
+        return res.status(400).json({ message: "Conversation ID and message are required" });
+      }
+
+      // Get the first external agency (Tulum Rental Homes)
+      const agencies = await storage.getExternalAgencies();
+      if (!agencies || agencies.length === 0) {
+        return res.status(404).json({ message: "No agency configured" });
+      }
+      const agencyId = agencies[0].id;
+
+      const { processPublicChatMessage } = await import("./services/publicChatbot");
+      const response = await processPublicChatMessage(conversationId, message, agencyId);
+
+      res.json(response);
+    } catch (error: any) {
+      console.error("Error processing chatbot message:", error);
+      res.status(500).json({ message: "Error al procesar mensaje" });
+    }
+  });
+
+
+  // GET /api/public/condominiums - Public list of condominiums for lead registration
+  // GET /api/public/zones - Public list of unique zones/areas
+  app.get("/api/public/zones", async (req, res) => {
+    try {
+      // Get all distinct zones from approved external units
+      const result = await db
+        .selectDistinct({ zone: externalUnits.zone })
+        .from(externalUnits)
+        .where(and(
+          eq(externalUnits.publishToMain, true),
+          eq(externalUnits.publishStatus, 'approved'),
+          eq(externalUnits.isActive, true),
+          isNotNull(externalUnits.zone)
+        ))
+        .orderBy(asc(externalUnits.zone));
+      
+      const zones = result.map(r => r.zone).filter(Boolean);
+      res.json({ data: zones });
+    } catch (error: any) {
+      console.error("Error fetching public zones:", error);
+      handleGenericError(res, error);
+    }
+  });
+
+  app.get("/api/public/condominiums", async (req, res) => {
+    try {
+      const agencies = await storage.getExternalAgencies();
+      if (!agencies || agencies.length === 0) {
+        return res.json([]);
+      }
+      const agencyId = agencies[0].id;
+      const condominiums = await storage.getExternalCondominiumsByAgency(agencyId);
+      const publicCondos = condominiums.map(c => ({
+        id: c.id,
+        name: c.name,
+        neighborhood: c.neighborhood
+      }));
+      res.json(publicCondos);
+    } catch (error: any) {
+      console.error("Error fetching public condominiums:", error);
+      handleGenericError(res, error);
+    }
+  });
+
+  // GET /api/public/condominiums/:condominiumId/units - Public list of units
+  app.get("/api/public/condominiums/:condominiumId/units", async (req, res) => {
+    try {
+      const { condominiumId } = req.params;
+      // Basic UUID validation to prevent injection
+      const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+      if (!uuidRegex.test(condominiumId)) {
+        return res.json([]);
+      }
+      const units = await storage.getExternalUnitsByCondominium(condominiumId);
+      const publicUnits = units.map(u => ({
+        id: u.id,
+        unitNumber: u.unitNumber,
+        type: u.type
+      }));
+      res.json(publicUnits);
+    } catch (error: any) {
+      console.error("Error fetching public units:", error);
+      handleGenericError(res, error);
+    }
+  });
   // GET /api/public/external/terms-and-conditions/active - Public endpoint to get active terms
   app.get("/api/public/external/terms-and-conditions/active", async (req, res) => {
     try {
@@ -25112,8 +34501,56 @@ export async function registerRoutes(app: Express): Promise<Server> {
         registrationType: registrationToken.registrationType,
         expiresAt: registrationToken.expiresAt,
       });
+
     } catch (error: any) {
       console.error("Error fetching registration form:", error);
+      handleGenericError(res, error);
+    }
+  });
+  // Public endpoint - GET unit characteristics for registration form
+  app.get("/api/leads/:token/characteristics", async (req, res) => {
+    try {
+      const { token } = req.params;
+      const registrationToken = await storage.getExternalLeadRegistrationToken(token);
+      
+      if (!registrationToken) {
+        return res.status(404).json({ message: "Registration link not found" });
+      }
+      
+      // Check if expired
+      if (new Date() > new Date(registrationToken.expiresAt)) {
+        return res.status(410).json({ message: "Registration link has expired" });
+      }
+      
+      // Get unit characteristics for the agency
+      const characteristics = await storage.getExternalUnitCharacteristics(registrationToken.agencyId);
+      res.json(characteristics);
+    } catch (error: any) {
+      console.error("Error fetching characteristics:", error);
+      handleGenericError(res, error);
+    }
+  });
+
+  // Public endpoint - GET amenities for registration form
+  app.get("/api/leads/:token/amenities", async (req, res) => {
+    try {
+      const { token } = req.params;
+      const registrationToken = await storage.getExternalLeadRegistrationToken(token);
+      
+      if (!registrationToken) {
+        return res.status(404).json({ message: "Registration link not found" });
+      }
+      
+      // Check if expired
+      if (new Date() > new Date(registrationToken.expiresAt)) {
+        return res.status(410).json({ message: "Registration link has expired" });
+      }
+      
+      // Get amenities for the agency
+      const amenities = await storage.getExternalAmenities(registrationToken.agencyId);
+      res.json(amenities);
+    } catch (error: any) {
+      console.error("Error fetching amenities:", error);
       handleGenericError(res, error);
     }
   });
@@ -25408,12 +34845,638 @@ export async function registerRoutes(app: Express): Promise<Server> {
       handleGenericError(res, error);
     }
   });
+  // ==============================
+
+  // ==============================
+  // External Referral Network Routes
+  // ==============================
+
+  // GET /api/external/referral-network - Get referral network for agency
+  app.get("/api/external/referral-network", isAuthenticated, requireRole(EXTERNAL_ADMIN_ROLES), async (req: any, res) => {
+    try {
+      const agencyId = await getUserAgencyId(req);
+      if (!agencyId) {
+        return res.status(403).json({ message: "No agency access" });
+      }
+
+      // Get all units with referido commission type and group by referrer
+      const result = await db.execute(sql`
+        SELECT 
+          u.id,
+          u.unit_number as "unitNumber",
+          u.referrer_name as "referrerName",
+          u.referrer_phone as "referrerPhone",
+          u.referrer_email as "referrerEmail",
+          u.price as "monthlyRent12",
+          COALESCE(u.publish_status, 'draft') as status,
+          c.name as "condominiumName"
+        FROM external_units u
+        LEFT JOIN external_condominiums c ON u.condominium_id = c.id
+        WHERE u.agency_id = ${agencyId}
+          -- Removed: AND u.commission_type = 'referido' (show all referrers)
+          AND u.referrer_name IS NOT NULL
+          AND u.referrer_name != ''
+        ORDER BY u.referrer_name, u.unit_number
+      `);
+
+      const units = result.rows as any[];
+
+      // Group units by referrer
+      const referrerMap = new Map<string, {
+        referrerName: string;
+        referrerPhone: string | null;
+        referrerEmail: string | null;
+        units: any[];
+        totalUnits: number;
+        estimatedCommission: number;
+      }>();
+
+      for (const unit of units) {
+        const referrerName = unit.referrerName;
+        
+        if (!referrerMap.has(referrerName)) {
+          referrerMap.set(referrerName, {
+            referrerName,
+            referrerPhone: unit.referrerPhone,
+            referrerEmail: unit.referrerEmail,
+            units: [],
+            totalUnits: 0,
+            estimatedCommission: 0,
+          });
+        }
+
+        const referrer = referrerMap.get(referrerName)!;
+        referrer.units.push({
+          id: unit.id,
+          unitNumber: unit.unitNumber,
+          latitude: unit.latitude ? parseFloat(unit.latitude) : null,
+          longitude: unit.longitude ? parseFloat(unit.longitude) : null,
+          condominiumName: unit.condominiumName,
+          monthlyRent12: unit.monthlyRent12,
+          status: unit.status,
+        });
+        referrer.totalUnits++;
+        
+        // Calculate estimated commission (20% of monthly rent)
+        if (unit.monthlyRent12) {
+          referrer.estimatedCommission += Number(unit.monthlyRent12) * 0.20;
+        }
+      }
+
+      const referrers = Array.from(referrerMap.values()).sort((a, b) => 
+        b.totalUnits - a.totalUnits
+      );
+
+      res.json(referrers);
+    } catch (error) {
+      console.error("Error fetching referral network:", error);
+      handleGenericError(res, error);
+    }
+  });
+
+  // POST /api/external/referral-network/bulk-assign - Bulk assign referrer to multiple units
+  app.post("/api/external/referral-network/bulk-assign", isAuthenticated, requireRole(EXTERNAL_ADMIN_ROLES), async (req: any, res) => {
+    try {
+      const agencyId = await getUserAgencyId(req);
+      if (!agencyId) {
+        return res.status(403).json({ message: "No agency access" });
+      }
+
+      const { referrerName, referrerEmail, referrerPhone, unitIds, commissionType } = req.body;
+
+      // Validate and sanitize referrer name
+      const sanitizedName = typeof referrerName === 'string' ? referrerName.trim() : '';
+      if (!sanitizedName || sanitizedName.length > 200) {
+        return res.status(400).json({ message: "Valid referrer name is required (max 200 characters)" });
+      }
+
+      // Validate unitIds is an array of valid UUIDs
+      if (!unitIds || !Array.isArray(unitIds) || unitIds.length === 0) {
+        return res.status(400).json({ message: "At least one unit ID is required" });
+      }
+      
+      const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+      const validUnitIds = unitIds.filter((id: any) => typeof id === 'string' && uuidRegex.test(id));
+      if (validUnitIds.length !== unitIds.length) {
+        return res.status(400).json({ message: "Invalid unit ID format detected" });
+      }
+
+      // Sanitize optional fields
+      const sanitizedEmail = typeof referrerEmail === 'string' ? referrerEmail.trim().slice(0, 254) : null;
+      const sanitizedPhone = typeof referrerPhone === 'string' ? referrerPhone.trim().slice(0, 50) : null;
+      const validCommissionType = ['completa', 'referido'].includes(commissionType) ? commissionType : 'referido';
+
+      // Verify all units belong to this agency before updating
+      const verifyResult = await db.execute(sql`
+        SELECT COUNT(*) as count FROM external_units 
+        WHERE id = ANY(${validUnitIds}) AND agency_id = ${agencyId}
+      `);
+      const verifiedCount = parseInt((verifyResult.rows[0] as any)?.count || '0', 10);
+      if (verifiedCount !== validUnitIds.length) {
+        return res.status(403).json({ message: "Some units do not belong to your agency" });
+      }
+
+      // Update all verified units with referrer info using parameterized query
+      await db.execute(sql`
+        UPDATE external_units 
+        SET referrer_name = ${sanitizedName}, 
+            referrer_email = ${sanitizedEmail}, 
+            referrer_phone = ${sanitizedPhone}, 
+            commission_type = ${validCommissionType}, 
+            updated_at = NOW() 
+        WHERE id = ANY(${validUnitIds}) AND agency_id = ${agencyId}
+      `);
+
+      res.json({ 
+        success: true, 
+        message: `Referrer assigned to ${validUnitIds.length} unit(s)`, 
+        updatedCount: validUnitIds.length 
+      });
+    } catch (error: any) {
+      console.error("Error bulk assigning referrer:", error);
+      res.status(500).json({ message: "An error occurred while assigning referrer" });
+    }
+  });
+
+  // GET /api/external/referral-network/referrers - Get list of unique referrers
+  app.get("/api/external/referral-network/referrers", isAuthenticated, requireRole(EXTERNAL_ADMIN_ROLES), async (req: any, res) => {
+    try {
+      const agencyId = await getUserAgencyId(req);
+      if (!agencyId) {
+        return res.status(403).json({ message: "No agency access" });
+      }
+
+      const result = await db.execute(sql`SELECT DISTINCT referrer_name as "name", referrer_email as "email", referrer_phone as "phone" FROM external_units WHERE agency_id = ${agencyId} AND referrer_name IS NOT NULL AND referrer_name != '' ORDER BY referrer_name`);
+
+      res.json(result.rows);
+    } catch (error: any) {
+      console.error("Error fetching referrers:", error);
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  // GET /api/external/referral-network/available-units - Get units available for referral assignment
+  app.get("/api/external/referral-network/available-units", isAuthenticated, requireRole(EXTERNAL_ADMIN_ROLES), async (req: any, res) => {
+    try {
+      const agencyId = await getUserAgencyId(req);
+      if (!agencyId) {
+        return res.status(403).json({ message: "No agency access" });
+      }
+
+      const result = await db.execute(sql`SELECT u.id, u.unit_number as "unitNumber", c.name as "condominiumName", u.referrer_name as "currentReferrer" FROM external_units u LEFT JOIN external_condominiums c ON u.condominium_id = c.id WHERE u.agency_id = ${agencyId} ORDER BY c.name, u.unit_number`);
+
+      res.json(result.rows);
+    } catch (error: any) {
+      console.error("Error fetching available units:", error);
+      res.status(500).json({ message: error.message });
+    }
+  });
+  // External Presentation Cards Routes
+  // ==============================
+
+  // GET /api/external/presentation-cards - Get all presentation cards for agency
+  app.get("/api/external/presentation-cards", isAuthenticated, requireRole(EXTERNAL_ALL_ROLES), async (req: any, res) => {
+    try {
+      const agencyId = await getUserAgencyId(req);
+      if (!agencyId) {
+        return res.status(403).json({ message: "No agency access" });
+      }
+      
+      const { status, leadId, clientId } = req.query;
+      const filters: { status?: string; leadId?: string; clientId?: string } = {};
+      if (status) filters.status = status;
+      if (leadId) filters.leadId = leadId;
+      if (clientId) filters.clientId = clientId;
+      
+      const cards = await storage.getExternalPresentationCardsByAgency(agencyId, filters);
+      res.json(cards);
+    } catch (error: any) {
+      console.error("Error fetching presentation cards:", error);
+      handleGenericError(res, error);
+    }
+  });
+
+  // GET /api/external/presentation-cards/lead/:leadId - Get presentation cards for lead
+  app.get("/api/external/presentation-cards/lead/:leadId", isAuthenticated, requireRole(EXTERNAL_ALL_ROLES), async (req: any, res) => {
+    try {
+      const { leadId } = req.params;
+      const lead = await storage.getExternalLead(leadId);
+      if (!lead) {
+        return res.status(404).json({ message: "Lead not found" });
+      }
+      
+      const hasAccess = await verifyExternalAgencyOwnership(req, res, lead.agencyId);
+      if (!hasAccess) return;
+      
+      const cards = await storage.getExternalPresentationCardsByLead(leadId);
+      res.json(cards);
+    } catch (error: any) {
+      console.error("Error fetching lead presentation cards:", error);
+      handleGenericError(res, error);
+    }
+  });
+
+  // GET /api/external/presentation-cards/client/:clientId - Get presentation cards for client
+  app.get("/api/external/presentation-cards/client/:clientId", isAuthenticated, requireRole(EXTERNAL_ALL_ROLES), async (req: any, res) => {
+    try {
+      const { clientId } = req.params;
+      const client = await storage.getExternalClient(clientId);
+      if (!client) {
+        return res.status(404).json({ message: "Client not found" });
+      }
+      
+      const hasAccess = await verifyExternalAgencyOwnership(req, res, client.agencyId);
+      if (!hasAccess) return;
+      
+      const cards = await storage.getExternalPresentationCardsByClient(clientId);
+      res.json(cards);
+    } catch (error: any) {
+      console.error("Error fetching client presentation cards:", error);
+      handleGenericError(res, error);
+    }
+  });
+
+  // GET /api/external/presentation-cards/:id - Get single presentation card
+  app.get("/api/external/presentation-cards/:id", isAuthenticated, requireRole(EXTERNAL_ALL_ROLES), async (req: any, res) => {
+    try {
+      const { id } = req.params;
+      const card = await storage.getExternalPresentationCard(id);
+      
+      if (!card) {
+        return res.status(404).json({ message: "Presentation card not found" });
+      }
+      
+      const hasAccess = await verifyExternalAgencyOwnership(req, res, card.agencyId);
+      if (!hasAccess) return;
+      
+      res.json(card);
+    } catch (error: any) {
+      console.error("Error fetching presentation card:", error);
+      handleGenericError(res, error);
+    }
+  });
+
+  // POST /api/external/presentation-cards - Create presentation card
+  app.post("/api/external/presentation-cards", isAuthenticated, requireRole(EXTERNAL_SELLER_ROLES), async (req: any, res) => {
+    try {
+      const agencyId = await getUserAgencyId(req);
+      if (!agencyId) {
+        return res.status(403).json({ message: "No agency access" });
+      }
+      
+      const cardData = { ...req.body, agencyId, createdBy: req.user.id };
+      
+      if (cardData.leadId) {
+        const lead = await storage.getExternalLead(cardData.leadId);
+        if (!lead || lead.agencyId !== agencyId) {
+          return res.status(404).json({ message: "Lead not found" });
+        }
+        // Check limit of 3 cards per lead
+        const existingCards = await db.select({ count: sql`count(*)` })
+          .from(externalPresentationCards)
+          .where(and(
+            eq(externalPresentationCards.leadId, cardData.leadId),
+            eq(externalPresentationCards.agencyId, agencyId)
+          ));
+        const cardCount = Number(existingCards[0]?.count || 0);
+        if (cardCount >= 3) {
+          return res.status(400).json({ message: "Maximum 3 presentation cards per lead allowed" });
+        }
+        cardData.cardNumber = cardCount + 1;
+      }
+      if (cardData.clientId) {
+        const client = await storage.getExternalClient(cardData.clientId);
+        if (!client || client.agencyId !== agencyId) {
+          return res.status(404).json({ message: "Client not found" });
+        }
+        // Check limit of 3 cards per client
+        const existingClientCards = await db.select({ count: sql`count(*)` })
+          .from(externalPresentationCards)
+          .where(and(
+            eq(externalPresentationCards.clientId, cardData.clientId),
+            eq(externalPresentationCards.agencyId, agencyId)
+          ));
+        const clientCardCount = Number(existingClientCards[0]?.count || 0);
+        if (clientCardCount >= 3) {
+          return res.status(400).json({ message: "Maximum 3 presentation cards per client allowed" });
+        }
+        cardData.cardNumber = clientCardCount + 1;
+      }
+      
+      const card = await storage.createExternalPresentationCard(cardData);
+      await createAuditLog(req, "create", "external_presentation_card", card.id, "Created presentation card");
+      
+      res.status(201).json(card);
+    } catch (error: any) {
+      console.error("Error creating presentation card:", error);
+      handleGenericError(res, error);
+    }
+  });
+
+  // PATCH /api/external/presentation-cards/:id - Update presentation card
+  app.patch("/api/external/presentation-cards/:id", isAuthenticated, requireRole(EXTERNAL_SELLER_ROLES), async (req: any, res) => {
+    try {
+      const { id } = req.params;
+      const agencyId = await getUserAgencyId(req);
+      if (!agencyId) {
+        return res.status(403).json({ message: "No agency access" });
+      }
+      
+      const card = await storage.getExternalPresentationCard(id);
+      
+      if (!card) {
+        return res.status(404).json({ message: "Presentation card not found" });
+      }
+      
+      const hasAccess = await verifyExternalAgencyOwnership(req, res, card.agencyId);
+      if (!hasAccess) return;
+      
+      // Validate leadId/clientId if being changed to prevent cross-tenant tampering
+      const { leadId, clientId, ...otherUpdates } = req.body;
+      
+      if (leadId !== undefined && leadId !== card.leadId) {
+        if (leadId) {
+          const lead = await storage.getExternalLead(leadId);
+          if (!lead || lead.agencyId !== agencyId) {
+            return res.status(403).json({ message: "Cannot link to lead from another agency" });
+          }
+        }
+      }
+      
+      if (clientId !== undefined && clientId !== card.clientId) {
+        if (clientId) {
+          const client = await storage.getExternalClient(clientId);
+          if (!client || client.agencyId !== agencyId) {
+            return res.status(403).json({ message: "Cannot link to client from another agency" });
+          }
+        }
+      }
+      
+      const updated = await storage.updateExternalPresentationCard(id, req.body);
+      await createAuditLog(req, "update", "external_presentation_card", id, "Updated presentation card");
+      
+      res.json(updated);
+    } catch (error: any) {
+      console.error("Error updating presentation card:", error);
+      handleGenericError(res, error);
+    }
+  });
+
+  // DELETE /api/external/presentation-cards/:id - Delete presentation card
+  app.delete("/api/external/presentation-cards/:id", isAuthenticated, requireRole(EXTERNAL_ADMIN_ROLES), async (req: any, res) => {
+    try {
+      const { id } = req.params;
+      const card = await storage.getExternalPresentationCard(id);
+      
+      if (!card) {
+        return res.status(404).json({ message: "Presentation card not found" });
+      }
+      
+      const hasAccess = await verifyExternalAgencyOwnership(req, res, card.agencyId);
+      if (!hasAccess) return;
+      
+      await storage.deleteExternalPresentationCard(id);
+      await createAuditLog(req, "delete", "external_presentation_card", id, "Deleted presentation card");
+      
+      res.status(204).send();
+    } catch (error: any) {
+      console.error("Error deleting presentation card:", error);
+      handleGenericError(res, error);
+    }
+  });
+
+  // ==============================
+  // External Property Showings Routes
+  // ==============================
+
+  // GET /api/external/property-showings - Get all showings for agency
+  app.get("/api/external/property-showings", isAuthenticated, requireRole(EXTERNAL_ALL_ROLES), async (req: any, res) => {
+    try {
+      const agencyId = await getUserAgencyId(req);
+      if (!agencyId) {
+        return res.status(403).json({ message: "No agency access" });
+      }
+      
+      const { outcome, startDate, endDate, leadId, clientId } = req.query;
+      const filters: { outcome?: string; startDate?: Date; endDate?: Date; leadId?: string; clientId?: string } = {};
+      if (outcome) filters.outcome = outcome;
+      if (startDate) filters.startDate = new Date(startDate);
+      if (endDate) filters.endDate = new Date(endDate);
+      if (leadId) filters.leadId = leadId;
+      if (clientId) filters.clientId = clientId;
+      
+      const showings = await storage.getExternalPropertyShowingsByAgency(agencyId, filters);
+      res.json(showings);
+    } catch (error: any) {
+      console.error("Error fetching property showings:", error);
+      handleGenericError(res, error);
+    }
+  });
+
+  // GET /api/external/property-showings/card/:cardId - Get showings for a presentation card
+  app.get("/api/external/property-showings/card/:cardId", isAuthenticated, requireRole(EXTERNAL_ALL_ROLES), async (req: any, res) => {
+    try {
+      const { cardId } = req.params;
+      const card = await storage.getExternalPresentationCard(cardId);
+      if (!card) {
+        return res.status(404).json({ message: "Presentation card not found" });
+      }
+      
+      const hasAccess = await verifyExternalAgencyOwnership(req, res, card.agencyId);
+      if (!hasAccess) return;
+      
+      const showings = await storage.getExternalPropertyShowingsByCard(cardId);
+      res.json(showings);
+    } catch (error: any) {
+      console.error("Error fetching card showings:", error);
+      handleGenericError(res, error);
+    }
+  });
+
+  // GET /api/external/property-showings/unit/:unitId - Get showings for a unit
+  app.get("/api/external/property-showings/unit/:unitId", isAuthenticated, requireRole(EXTERNAL_ALL_ROLES), async (req: any, res) => {
+    try {
+      const { unitId } = req.params;
+      const unit = await storage.getExternalUnit(unitId);
+      if (!unit) {
+        return res.status(404).json({ message: "Unit not found" });
+      }
+      
+      const hasAccess = await verifyExternalAgencyOwnership(req, res, unit.agencyId);
+      if (!hasAccess) return;
+      
+      const showings = await storage.getExternalPropertyShowingsByUnit(unitId);
+      res.json(showings);
+    } catch (error: any) {
+      console.error("Error fetching unit showings:", error);
+      handleGenericError(res, error);
+    }
+  });
+
+  // GET /api/external/property-showings/:id - Get single showing
+  app.get("/api/external/property-showings/:id", isAuthenticated, requireRole(EXTERNAL_ALL_ROLES), async (req: any, res) => {
+    try {
+      const { id } = req.params;
+      const showing = await storage.getExternalPropertyShowing(id);
+      
+      if (!showing) {
+        return res.status(404).json({ message: "Property showing not found" });
+      }
+      
+      const hasAccess = await verifyExternalAgencyOwnership(req, res, showing.agencyId);
+      if (!hasAccess) return;
+      
+      res.json(showing);
+    } catch (error: any) {
+      console.error("Error fetching property showing:", error);
+      handleGenericError(res, error);
+    }
+  });
+
+  // POST /api/external/property-showings - Create property showing
+  app.post("/api/external/property-showings", isAuthenticated, requireRole(EXTERNAL_ADMIN_ROLES), async (req: any, res) => {
+    try {
+      const agencyId = await getUserAgencyId(req);
+      if (!agencyId) {
+        return res.status(403).json({ message: "No agency access" });
+      }
+      
+      const showingData = { ...req.body, agencyId, recordedBy: req.user.id };
+      
+      const unit = await storage.getExternalUnit(showingData.unitId);
+      if (!unit || unit.agencyId !== agencyId) {
+        return res.status(404).json({ message: "Unit not found" });
+      }
+      
+      // Validate leadId/clientId ownership to prevent cross-tenant tampering
+      if (showingData.leadId) {
+        const lead = await storage.getExternalLead(showingData.leadId);
+        if (!lead || lead.agencyId !== agencyId) {
+          return res.status(403).json({ message: "Cannot link to lead from another agency" });
+        }
+      }
+      
+      if (showingData.clientId) {
+        const client = await storage.getExternalClient(showingData.clientId);
+        if (!client || client.agencyId !== agencyId) {
+          return res.status(403).json({ message: "Cannot link to client from another agency" });
+        }
+      }
+      
+      if (showingData.presentationCardId) {
+        const card = await storage.getExternalPresentationCard(showingData.presentationCardId);
+        if (!card || card.agencyId !== agencyId) {
+          return res.status(403).json({ message: "Cannot link to presentation card from another agency" });
+        }
+        await storage.incrementPresentationCardUsage(showingData.presentationCardId);
+      }
+      
+      const showing = await storage.createExternalPropertyShowing(showingData);
+      await createAuditLog(req, "create", "external_property_showing", showing.id, "Created property showing record");
+      
+      res.status(201).json(showing);
+    } catch (error: any) {
+      console.error("Error creating property showing:", error);
+      handleGenericError(res, error);
+    }
+  });
+  // PATCH /api/external/property-showings/:id - Update property showing
+  app.patch("/api/external/property-showings/:id", isAuthenticated, requireRole(EXTERNAL_ADMIN_ROLES), async (req: any, res) => {
+    try {
+      const { id } = req.params;
+      const agencyId = await getUserAgencyId(req);
+      if (!agencyId) {
+        return res.status(403).json({ message: "No agency access" });
+      }
+      
+      const showing = await storage.getExternalPropertyShowing(id);
+      
+      if (!showing) {
+        return res.status(404).json({ message: "Property showing not found" });
+      }
+      
+      const hasAccess = await verifyExternalAgencyOwnership(req, res, showing.agencyId);
+      if (!hasAccess) return;
+      
+      // Validate leadId/clientId/presentationCardId if being changed to prevent cross-tenant tampering
+      const { leadId, clientId, presentationCardId, unitId, ...otherUpdates } = req.body;
+      
+      if (leadId !== undefined && leadId !== showing.leadId) {
+        if (leadId) {
+          const lead = await storage.getExternalLead(leadId);
+          if (!lead || lead.agencyId !== agencyId) {
+            return res.status(403).json({ message: "Cannot link to lead from another agency" });
+          }
+        }
+      }
+      
+      if (clientId !== undefined && clientId !== showing.clientId) {
+        if (clientId) {
+          const client = await storage.getExternalClient(clientId);
+          if (!client || client.agencyId !== agencyId) {
+            return res.status(403).json({ message: "Cannot link to client from another agency" });
+          }
+        }
+      }
+      
+      if (presentationCardId !== undefined && presentationCardId !== showing.presentationCardId) {
+        if (presentationCardId) {
+          const card = await storage.getExternalPresentationCard(presentationCardId);
+          if (!card || card.agencyId !== agencyId) {
+            return res.status(403).json({ message: "Cannot link to presentation card from another agency" });
+          }
+        }
+      }
+      
+      if (unitId !== undefined && unitId !== showing.unitId) {
+        if (unitId) {
+          const unit = await storage.getExternalUnit(unitId);
+          if (!unit || unit.agencyId !== agencyId) {
+            return res.status(403).json({ message: "Cannot link to unit from another agency" });
+          }
+        }
+      }
+      
+      const updated = await storage.updateExternalPropertyShowing(id, req.body);
+      await createAuditLog(req, "update", "external_property_showing", id, "Updated property showing record");
+      
+      res.json(updated);
+    } catch (error: any) {
+      console.error("Error updating property showing:", error);
+      handleGenericError(res, error);
+    }
+  });
+
+  // DELETE /api/external/property-showings/:id - Delete property showing
+  app.delete("/api/external/property-showings/:id", isAuthenticated, requireRole(EXTERNAL_ADMIN_ROLES), async (req: any, res) => {
+    try {
+      const { id } = req.params;
+      const showing = await storage.getExternalPropertyShowing(id);
+      
+      if (!showing) {
+        return res.status(404).json({ message: "Property showing not found" });
+      }
+      
+      const hasAccess = await verifyExternalAgencyOwnership(req, res, showing.agencyId);
+      if (!hasAccess) return;
+      
+      await storage.deleteExternalPropertyShowing(id);
+      await createAuditLog(req, "delete", "external_property_showing", id, "Deleted property showing record");
+      
+      res.status(204).send();
+    } catch (error: any) {
+      console.error("Error deleting property showing:", error);
+      handleGenericError(res, error);
+    }
+  });
+
+
 
   // ==============================
   // External Token Routes (Contracts Section)
   // ==============================
 
-  // GET /api/external/offer-tokens - Get offer tokens for agency
+  // GET /api/external/offer-tokens - Get offer tokens for agency (optimized single query)
   app.get("/api/external/offer-tokens", isAuthenticated, requireRole(EXTERNAL_ALL_ROLES), async (req: any, res) => {
     try {
       const agencyId = await getUserAgencyId(req);
@@ -25421,45 +35484,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(403).json({ message: "No agency access" });
       }
       
-      const tokens = await storage.getExternalOfferTokensByAgency(agencyId);
-      
-      // Enrich with unit, creator, and client info
-      const enrichedTokens = await Promise.all(
-        tokens.map(async (token) => {
-          let unit = null;
-          let creator = null;
-          let client = null;
-          let condo = null;
-          
-          if (token.externalUnitId) {
-            unit = await storage.getExternalUnit(token.externalUnitId);
-            if (unit?.condominiumId) {
-              condo = await storage.getExternalCondominium(unit.condominiumId);
-            }
-          }
-          if (token.createdBy) {
-            creator = await storage.getUser(token.createdBy);
-          }
-          if (token.externalClientId) {
-            client = await storage.getExternalClient(token.externalClientId);
-          }
-          
-          // Map to frontend expected format
-          const propertyTitle = unit ? `${condo?.name || ''} - Unidad ${unit.unitNumber}` : '';
-          const clientName = client ? `${client.firstName} ${client.lastName}` : '';
-          
-          return {
-            ...token,
-            unit,
-            creator,
-            client,
-            propertyTitle,
-            clientName,
-          };
-        })
-      );
-      
-      res.json(enrichedTokens);
+      // Use optimized single-query method that includes all joined data
+      const tokens = await storage.getExternalOfferTokenSummariesByAgency(agencyId);
+      res.json(tokens);
     } catch (error: any) {
       console.error("Error fetching external offer tokens:", error);
       handleGenericError(res, error);
@@ -25467,7 +35494,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // POST /api/offer-tokens/:tokenId/regenerate - Regenerate offer token (delete old active ones, preserve completed)
-  app.post("/api/offer-tokens/:tokenId/regenerate", isAuthenticated, requireRole(EXTERNAL_ALL_ROLES), async (req: any, res) => {
+  app.post("/api/offer-tokens/:tokenId/regenerate", isAuthenticated, tokenRegenerationLimiter, requireRole(EXTERNAL_ALL_ROLES), async (req: any, res) => {
     try {
       const agencyId = await getUserAgencyId(req);
       if (!agencyId) {
@@ -25545,59 +35572,30 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // GET /api/external/rental-form-tokens - Get rental form tokens for agency
+  // GET /api/external/rental-form-tokens - Get rental form tokens for agency (optimized)
   app.get("/api/external/rental-form-tokens", isAuthenticated, requireRole(EXTERNAL_ALL_ROLES), async (req: any, res) => {
     try {
+      console.log("[Rental Form Tokens] Request from user:", req.user?.claims?.sub || req.user?.id, "cachedAgencyId:", req.user?.cachedAgencyId);
       const agencyId = await getUserAgencyId(req);
       if (!agencyId) {
+        console.log("[Rental Form Tokens] AgencyId resolved (null):", agencyId);
         return res.status(403).json({ message: "No agency access" });
       }
+      console.log("[Rental Form Tokens] AgencyId resolved:", agencyId);
       
-      const tokens = await storage.getExternalRentalFormTokensByAgency(agencyId);
+      // Use optimized single-query method that includes unit, condo, client, owner, creator
+      const tokens = await storage.getExternalRentalFormTokenSummariesByAgency(agencyId);
       
-      // Enrich with unit, creator, client, and owner info
-      const enrichedTokens = await Promise.all(
-        tokens.map(async (token) => {
-          let unit = null;
-          let creator = null;
-          let client = null;
-          let owner = null;
-          let condominium = null;
-          
-          if (token.externalUnitId) {
-            unit = await storage.getExternalUnit(token.externalUnitId);
-            if (unit?.condominiumId) {
-              condominium = await storage.getExternalCondominium(unit.condominiumId);
-            }
-          }
-          if (token.createdBy) {
-            creator = await storage.getUser(token.createdBy);
-          }
-          if (token.externalClientId && token.recipientType === 'tenant') {
-            client = await storage.getExternalClient(token.externalClientId);
-          }
-          if (token.externalUnitOwnerId && token.recipientType === 'owner') {
-            owner = await storage.getExternalUnitOwner(token.externalUnitOwnerId);
-          }
-          
-          // Build display strings for UI
-          const clientName = client 
-            ? `${client.firstName} ${client.lastName}`.trim()
-            : owner?.ownerName || null;
-          
-          const propertyTitle = unit && condominium
-            ? `${condominium.name} - ${unit.unitNumber}`
-            : null;
-          
-          // Get dual form status if this token is part of a rental form group
+      // Only need to get dual form status for tokens with rentalFormGroupId
+      // This is a much smaller loop than before (only tokens with groups)
+      const tokensWithDualStatus = await Promise.all(
+        tokens.map(async (token: any) => {
           let dualFormStatus = null;
+          
           if (token.rentalFormGroupId) {
-            // Find the companion form in the same group
+            // Find the companion form by linkedTokenId
             const companionForm = await db.query.tenantRentalFormTokens.findFirst({
-              where: and(
-                eq(tenantRentalFormTokens.rentalFormGroupId, token.rentalFormGroupId),
-                ne(tenantRentalFormTokens.id, token.id)
-              ),
+              where: eq(tenantRentalFormTokens.id, token.rentalFormGroupId),
             });
             
             if (companionForm) {
@@ -25611,27 +35609,85 @@ export async function registerRoutes(app: Express): Promise<Server> {
           
           return {
             ...token,
-            agencyId, // Include agencyId for ownership verification in PDFs
-            unit,
-            creator,
-            client,
-            owner,
-            clientName,
-            propertyTitle,
-            recipientType: token.recipientType,
-            rentalFormGroupId: token.rentalFormGroupId,
+            agencyId,
             dualFormStatus,
           };
         })
       );
       
-      res.json(enrichedTokens);
+      res.json(tokensWithDualStatus);
     } catch (error: any) {
       console.error("Error fetching external rental form tokens:", error);
       handleGenericError(res, error);
     }
   });
 
+
+  // Helper function to resolve unit context from rental form token
+  async function resolveExternalUnitContext(token: any, agencyId: string) {
+    // Validate token is completed - check appropriate data field based on recipientType
+    if (token.recipientType === 'tenant') {
+      if (!token.isUsed || !token.tenantData) {
+        throw { status: 400, message: "El formulario de inquilino aún no ha sido completado" };
+      }
+    } else if (token.recipientType === 'owner') {
+      if (!token.isUsed || !token.ownerData) {
+        throw { status: 400, message: "El formulario de propietario aún no ha sido completado" };
+      }
+    } else {
+      throw { status: 400, message: "Tipo de formulario inválido" };
+    }
+
+    let unit;
+    
+    // Resolve unit based on token type
+    if (token.externalUnitId) {
+      // Tenant token - direct unit reference
+      unit = await storage.getExternalUnit(token.externalUnitId);
+      if (!unit) {
+        throw { status: 404, message: "Unidad no encontrada" };
+      }
+      if (unit.agencyId !== agencyId) {
+        throw { status: 403, message: "Unauthorized" };
+      }
+    } else if (token.externalUnitOwnerId) {
+      // Owner token - get unit from owner record
+      const owner = await storage.getExternalUnitOwner(token.externalUnitOwnerId);
+      if (!owner) {
+        throw { status: 404, message: "Propietario no encontrado" };
+      }
+      
+      // SECURITY: Validate that owner belongs to the correct agency
+      // First get the unit to check agency
+      unit = await storage.getExternalUnit(owner.unitId);
+      if (!unit) {
+        throw { status: 404, message: "Unidad no encontrada" };
+      }
+      if (unit.agencyId !== agencyId) {
+        throw { status: 403, message: "Unauthorized - agency mismatch" };
+      }
+    } else {
+      throw { status: 400, message: "Este token no es del sistema externo" };
+    }
+
+    // Get condominium info
+    const condo = unit.condominiumId ? await storage.getExternalCondominium(unit.condominiumId) : null;
+    const propertyTitle = `${condo?.name || ''} - Unidad ${unit.unitNumber}`;
+
+    return {
+      unit,
+      condo,
+      propertyTitle,
+      propertyForPDF: {
+        id: unit.id,
+        title: propertyTitle,
+        address: condo?.address || '',
+        city: condo?.city || 'Tulum',
+        state: condo?.state || 'Quintana Roo',
+        country: condo?.country || 'México',
+      }
+    };
+  }
   // GET /api/external/rental-forms/:id/pdf - Generate PDF for rental form
   app.get("/api/external/rental-forms/:id/pdf", isAuthenticated, requireRole(EXTERNAL_ALL_ROLES), async (req: any, res) => {
     try {
@@ -25653,46 +35709,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ message: "Formulario de renta no encontrado" });
       }
 
-      // Verify token belongs to user's agency
-      if (rentalFormToken.externalUnitId) {
-        const unit = await storage.getExternalUnit(rentalFormToken.externalUnitId);
-        if (!unit || unit.agencyId !== agencyId) {
-          return res.status(403).json({ message: "Unauthorized" });
-        }
-      } else if (rentalFormToken.externalUnitOwnerId) {
-        // For owner forms, verify via owner's agency
-        const owner = await storage.getExternalUnitOwner(rentalFormToken.externalUnitOwnerId);
-        if (!owner || owner.agencyId !== agencyId) {
-          return res.status(403).json({ message: "Unauthorized" });
-        }
-      } else {
-        return res.status(400).json({ message: "Este token no es del sistema externo" });
-      }
 
-      if (!rentalFormToken.isUsed || !rentalFormToken.tenantData) {
-        return res.status(400).json({ message: "El formulario aún no ha sido completado" });
-      }
+      // Resolve unit context using helper function
+      const { propertyForPDF } = await resolveExternalUnitContext(rentalFormToken, agencyId);
 
       // Get agency info for branding
       const agency = await storage.getExternalAgency(agencyId);
       const agencyName = agency?.name || '';
       const templateStyle = (agency?.pdfTemplateStyle as 'professional' | 'modern' | 'elegant') || 'professional';
       const agencyLogoUrl = agency?.agencyLogoUrl || null;
-
-      // Get unit info
-      const unit = await storage.getExternalUnit(rentalFormToken.externalUnitId);
-      const condo = unit?.condominiumId ? await storage.getExternalCondominium(unit.condominiumId) : null;
-      const propertyTitle = `${condo?.name || ''} - Unidad ${unit.unitNumber}`;
-
-      // Create a property-like object for PDF generation
-      const propertyForPDF = {
-        id: unit.id,
-        title: propertyTitle,
-        address: condo?.address || '',
-        city: condo?.city || 'Tulum',
-        state: condo?.state || 'Quintana Roo',
-        country: condo?.country || 'México',
-      };
 
       // Generate appropriate PDF based on recipient type
       let pdfBuffer;
@@ -25707,8 +35732,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.setHeader('Content-Type', 'application/pdf');
       res.setHeader('Content-Disposition', `attachment; filename="formulario-${rentalFormToken.recipientType}-${rentalFormToken.id}.pdf"`);
       res.send(pdfBuffer);
-    } catch (error) {
+    } catch (error: any) {
       console.error("Error generating rental form PDF:", error);
+      if (error.status) {
+        return res.status(error.status).json({ message: error.message });
+      }
       res.status(500).json({ message: "Error al generar PDF" });
     }
   });
@@ -25983,7 +36011,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // POST /api/rental-form-tokens/:tokenId/regenerate - Regenerate rental form token (delete old active ones, preserve completed)
-  app.post("/api/rental-form-tokens/:tokenId/regenerate", isAuthenticated, requireRole(EXTERNAL_ALL_ROLES), async (req: any, res) => {
+  app.post("/api/rental-form-tokens/:tokenId/regenerate", isAuthenticated, tokenRegenerationLimiter, requireRole(EXTERNAL_ALL_ROLES), async (req: any, res) => {
     try {
       const agencyId = await getUserAgencyId(req);
       if (!agencyId) {
@@ -26127,6 +36155,151 @@ export async function registerRoutes(app: Express): Promise<Server> {
       handleGenericError(res, error);
     }
   });
+  // GET /api/external/rentals/overview - Consolidated endpoint for Active Rentals section
+  // Returns contracts with details, filter metadata, and statistics in ONE request
+  app.get("/api/external/rentals/overview", isAuthenticated, requireRole(EXTERNAL_ALL_ROLES), async (req: any, res) => {
+    try {
+      const agencyId = await getUserAgencyId(req);
+      if (!agencyId) {
+        return res.status(403).json({ message: "No agency access" });
+      }
+      
+      const { status } = req.query;
+      
+      // Build conditions for contracts
+      const contractConditions = [eq(externalRentalContracts.agencyId, agencyId)];
+      if (status && status !== 'all') {
+        contractConditions.push(eq(externalRentalContracts.status, status as any));
+      }
+      
+      // Query 1: Get rental contracts with unit and condominium (single JOIN query)
+      const contractsWithDetails = await db.select({
+        contract: externalRentalContracts,
+        unit: externalUnits,
+        condominium: externalCondominiums,
+      })
+        .from(externalRentalContracts)
+        .leftJoin(externalUnits, eq(externalRentalContracts.unitId, externalUnits.id))
+        .leftJoin(externalCondominiums, eq(externalUnits.condominiumId, externalCondominiums.id))
+        .where(and(...contractConditions))
+        .orderBy(desc(externalRentalContracts.createdAt));
+      
+      // Query 2: Get filter metadata (condominiums for this agency)
+      const condominiumsData = await db.select({
+        id: externalCondominiums.id,
+        name: externalCondominiums.name,
+      })
+        .from(externalCondominiums)
+        .where(eq(externalCondominiums.agencyId, agencyId))
+        .orderBy(asc(externalCondominiums.name));
+      
+      // Query 3: Get units for filters (grouped by condo)
+      const unitsData = await db.select({
+        id: externalUnits.id,
+        unitNumber: externalUnits.unitNumber,
+        condominiumId: externalUnits.condominiumId,
+      })
+        .from(externalUnits)
+        .where(eq(externalUnits.agencyId, agencyId))
+        .orderBy(asc(externalUnits.unitNumber));
+      
+      // Query 4: Get statistics from ALL contracts (not filtered)
+      const allContractsForStats = await db.select({ status: externalRentalContracts.status })
+        .from(externalRentalContracts)
+        .where(eq(externalRentalContracts.agencyId, agencyId));
+      
+      const stats = {
+        total: allContractsForStats.length,
+        active: allContractsForStats.filter(c => c.status === 'active').length,
+        completed: allContractsForStats.filter(c => c.status === 'completed').length,
+        pending: allContractsForStats.filter(c => c.status === 'pending_validation').length,
+      };
+      
+      // If no contracts, return early with empty data but include filters
+      if (contractsWithDetails.length === 0) {
+        return res.json({
+          contracts: [],
+          filters: {
+            condominiums: condominiumsData,
+            units: unitsData,
+          },
+          statistics: stats,
+        });
+      }
+      
+      // Query 5: Bulk fetch active schedules for all contracts
+      const contractIds = contractsWithDetails.map(c => c.contract.id);
+      const allSchedules = await db.select()
+        .from(externalPaymentSchedules)
+        .where(
+          and(
+            inArray(externalPaymentSchedules.contractId, contractIds),
+            eq(externalPaymentSchedules.isActive, true)
+          )
+        );
+      
+      // Query 6: Bulk fetch next upcoming payment for all contracts
+      const allNextPayments = await db.select()
+        .from(externalPayments)
+        .where(
+          and(
+            inArray(externalPayments.contractId, contractIds),
+            eq(externalPayments.status, 'pending'),
+            sql`${externalPayments.dueDate} >= CURRENT_DATE`
+          )
+        )
+        .orderBy(asc(externalPayments.dueDate));
+      
+      // Group schedules by contract ID
+      const schedulesByContract = allSchedules.reduce((acc, schedule) => {
+        if (!acc[schedule.contractId]) {
+          acc[schedule.contractId] = [];
+        }
+        acc[schedule.contractId].push(schedule);
+        return acc;
+      }, {} as Record<string, typeof allSchedules>);
+      
+      // Get first payment per contract ID
+      const nextPaymentByContract = allNextPayments.reduce((acc, payment) => {
+        if (!acc[payment.contractId]) {
+          acc[payment.contractId] = payment;
+        }
+        return acc;
+      }, {} as Record<string, typeof allNextPayments[0]>);
+      
+      // Combine contracts with their services and payment info
+      const enhancedContracts = contractsWithDetails.map((item) => {
+        const schedules = schedulesByContract[item.contract.id] || [];
+        const nextPayment = nextPaymentByContract[item.contract.id];
+        
+        return {
+          ...item,
+          activeServices: schedules.map(s => ({
+            serviceType: s.serviceType,
+            amount: s.amount,
+            currency: s.currency,
+            dayOfMonth: s.dayOfMonth,
+          })),
+          nextPaymentDue: nextPayment?.dueDate || null,
+          nextPaymentAmount: nextPayment?.amount || null,
+          nextPaymentService: nextPayment?.serviceType || null,
+        };
+      });
+      
+      res.json({
+        contracts: enhancedContracts,
+        filters: {
+          condominiums: condominiumsData,
+          units: unitsData,
+        },
+        statistics: stats,
+      });
+    } catch (error: any) {
+      console.error("Error fetching rentals overview:", error);
+      handleGenericError(res, error);
+    }
+  });
+
 
   // External Rental Contracts Routes
   // Get all rental contracts for user's agency with unit and condominium info
@@ -26511,6 +36684,72 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (error.name === "ZodError") {
         return handleZodError(res, error);
       }
+      handleGenericError(res, error);
+    }
+  });
+
+  // GET /api/external/contracts/overview - Consolidated endpoint for all contract-related data (offers, forms, contracts)
+  // Reduces multiple API calls to a single request for better performance
+  app.get("/api/external/contracts/overview", isAuthenticated, requireRole(EXTERNAL_ALL_ROLES), async (req: any, res) => {
+    try {
+      const agencyId = await getUserAgencyId(req);
+      if (!agencyId) {
+        return res.status(403).json({ message: "No agency access" });
+      }
+      
+      // Fetch all data in parallel for maximum performance
+      const [offers, rentalForms, contractsRaw] = await Promise.all([
+        storage.getExternalOfferTokenSummariesByAgency(agencyId),
+        storage.getExternalRentalFormTokenSummariesByAgency(agencyId),
+        (async () => {
+          // Get contracts with joined data
+          const contracts = await db
+            .select({
+              contract: externalRentalContracts,
+              unit: externalUnits,
+              condominium: externalCondominiums,
+            })
+            .from(externalRentalContracts)
+            .innerJoin(externalUnits, eq(externalRentalContracts.unitId, externalUnits.id))
+            .leftJoin(externalCondominiums, eq(externalUnits.condominiumId, externalCondominiums.id))
+            .where(eq(externalRentalContracts.agencyId, agencyId))
+            .orderBy(desc(externalRentalContracts.createdAt));
+          return contracts;
+        })()
+      ]);
+      
+      // Get dual form status for rental forms with linkedTokenId (smaller loop)
+      const rentalFormsWithDual = await Promise.all(
+        rentalForms.map(async (form: any) => {
+          let dualFormStatus = null;
+          if (form.rentalFormGroupId) {
+            const companion = await db.query.tenantRentalFormTokens.findFirst({
+              where: eq(tenantRentalFormTokens.id, form.rentalFormGroupId),
+            });
+            if (companion) {
+              dualFormStatus = {
+                hasDual: true,
+                dualType: companion.recipientType,
+                dualCompleted: companion.isUsed,
+              };
+            }
+          }
+          return { ...form, agencyId, dualFormStatus };
+        })
+      );
+      
+      res.json({
+        offers,
+        rentalForms: rentalFormsWithDual,
+        contracts: contractsRaw,
+        meta: {
+          offersCount: offers.length,
+          rentalFormsCount: rentalFormsWithDual.length,
+          contractsCount: contractsRaw.length,
+        }
+      });
+    } catch (error: any) {
+      console.error("Error fetching contracts overview:", error);
       handleGenericError(res, error);
     }
   });
@@ -27027,6 +37266,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           
           await tx.insert(externalPayments).values({
             id: crypto.randomUUID(),
+                registrationType: row.registration_type?.trim() || 'seller',
             agencyId: unit.agencyId,
             contractId: contract.id,
             scheduleId: schedule.id,
@@ -27565,6 +37805,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
             ? {
                 id: unit.id,
                 unitNumber: unit.unitNumber,
+          latitude: unit.latitude ? parseFloat(unit.latitude) : null,
+          longitude: unit.longitude ? parseFloat(unit.longitude) : null,
                 condominium: {
                   id: unit.condominium.id,
                   name: unit.condominium.name,
@@ -27653,6 +37895,146 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // External Agency - Owner Notifications Routes
+
+  // External Agency - Agency Notifications Routes (visible in agency config)
+  app.get("/api/external/notifications", isAuthenticated, requireRole(EXTERNAL_ALL_ROLES), async (req: any, res) => {
+    try {
+      const agencyId = await getUserAgencyId(req);
+      if (!agencyId) {
+        return res.status(400).json({ message: "No agency assigned to user" });
+      }
+
+      const { unreadOnly, limit = "50" } = req.query;
+      
+      const conditions = [eq(externalNotifications.agencyId, agencyId)];
+      if (unreadOnly === "true") {
+        conditions.push(eq(externalNotifications.isRead, false));
+      }
+
+      const notifications = await db.query.externalNotifications.findMany({
+        where: and(...conditions),
+        orderBy: [desc(externalNotifications.createdAt)],
+        limit: parseInt(limit as string) || 50,
+      });
+
+      res.json(notifications);
+    } catch (error: any) {
+      console.error("Error fetching agency notifications:", error);
+      handleGenericError(res, error);
+    }
+  });
+
+  app.get("/api/external/notifications/count", isAuthenticated, requireRole(EXTERNAL_ALL_ROLES), async (req: any, res) => {
+    try {
+      const agencyId = await getUserAgencyId(req);
+      if (!agencyId) {
+        return res.status(400).json({ message: "No agency assigned to user" });
+      }
+
+      const [result] = await db
+        .select({ count: sql<number>`count(*)::int` })
+        .from(externalNotifications)
+        .where(and(
+          eq(externalNotifications.agencyId, agencyId),
+          eq(externalNotifications.isRead, false)
+        ));
+
+      res.json({ unreadCount: result?.count || 0 });
+    } catch (error: any) {
+      console.error("Error fetching notification count:", error);
+      handleGenericError(res, error);
+    }
+  });
+
+  app.patch("/api/external/notifications/:id/read", isAuthenticated, requireRole(EXTERNAL_ALL_ROLES), async (req: any, res) => {
+    try {
+      const agencyId = await getUserAgencyId(req);
+      if (!agencyId) {
+        return res.status(400).json({ message: "No agency assigned to user" });
+      }
+
+      const { id } = req.params;
+
+      const [notification] = await db
+        .select()
+        .from(externalNotifications)
+        .where(eq(externalNotifications.id, id))
+        .limit(1);
+
+      if (!notification) {
+        return res.status(404).json({ message: "Notification not found" });
+      }
+
+      if (notification.agencyId !== agencyId) {
+        return res.status(403).json({ message: "Forbidden" });
+      }
+
+      const [updated] = await db
+        .update(externalNotifications)
+        .set({ isRead: true, readAt: new Date() })
+        .where(eq(externalNotifications.id, id))
+        .returning();
+
+      res.json(updated);
+    } catch (error: any) {
+      console.error("Error marking notification as read:", error);
+      handleGenericError(res, error);
+    }
+  });
+
+  app.patch("/api/external/notifications/mark-all-read", isAuthenticated, requireRole(EXTERNAL_ALL_ROLES), async (req: any, res) => {
+    try {
+      const agencyId = await getUserAgencyId(req);
+      if (!agencyId) {
+        return res.status(400).json({ message: "No agency assigned to user" });
+      }
+
+      await db
+        .update(externalNotifications)
+        .set({ isRead: true, readAt: new Date() })
+        .where(and(
+          eq(externalNotifications.agencyId, agencyId),
+          eq(externalNotifications.isRead, false)
+        ));
+
+      res.json({ success: true });
+    } catch (error: any) {
+      console.error("Error marking all notifications as read:", error);
+      handleGenericError(res, error);
+    }
+  });
+
+  // External Agency Chatbot - AI assistant with property search and appointment scheduling
+  app.post("/api/external/chatbot/message", isAuthenticated, requireRole(EXTERNAL_ALL_ROLES), async (req: any, res) => {
+    try {
+      const agencyId = await getUserAgencyId(req);
+      if (!agencyId) {
+        return res.status(400).json({ message: "No agency assigned to user" });
+      }
+
+      const { message, conversationHistory, clientInfo } = req.body;
+
+      if (!message || typeof message !== 'string') {
+        return res.status(400).json({ message: "Message is required" });
+      }
+
+      const responseText = await processExternalChatbotMessage({
+        agencyId,
+        message,
+        conversationHistory,
+        clientInfo
+      });
+
+      res.json({
+        message: responseText,
+        timestamp: new Date().toISOString()
+      });
+    } catch (error: any) {
+      console.error("Error in external chatbot:", error);
+      handleGenericError(res, error);
+    }
+  });
+
   app.get("/api/external/owner-notifications", isAuthenticated, requireRole(EXTERNAL_ALL_ROLES), async (req: any, res) => {
     try {
       const agencyId = await getUserAgencyId(req);
@@ -27797,11 +38179,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
           lastName: users.lastName,
           phone: users.phone,
           maintenanceSpecialty: users.maintenanceSpecialty,
+          isSuspended: users.isSuspended,
         })
         .from(users)
         .where(and(
           eq(users.role, "external_agency_maintenance"),
-          eq(users.assignedToUser, agencyId)
+          eq(users.externalAgencyId, agencyId)
         ))
         .orderBy(users.firstName);
 
@@ -27932,6 +38315,173 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // External Accounting / Financial Transactions Routes
   // ================================================================================
 
+  // GET /api/external/accounting/overview - Consolidated endpoint for all accounting data
+  // Reduces multiple API calls to a single request for better performance
+  app.get("/api/external/accounting/overview", isAuthenticated, requireRole(EXTERNAL_ALL_ROLES), async (req: any, res) => {
+    try {
+      const agencyId = await getUserAgencyId(req);
+      if (!agencyId) {
+        return res.status(403).json({ message: "No agency access" });
+      }
+
+      const { direction, category, status, condominiumId, unitId, startDate, endDate, search, sortField, sortOrder, limit, offset } = req.query;
+
+      // Parse pagination params
+      const limitNum = limit ? parseInt(limit as string, 10) : 20;
+      const offsetNum = offset ? parseInt(offset as string, 10) : 0;
+      const parsedLimit = Number.isFinite(limitNum) ? Math.min(Math.max(1, limitNum), 100) : 20;
+      const parsedOffset = Number.isFinite(offsetNum) ? Math.max(0, offsetNum) : 0;
+
+      // Build filters object
+      const filters: any = {
+        limit: parsedLimit,
+        offset: parsedOffset,
+      };
+      if (direction && direction !== 'all') filters.direction = direction;
+      if (category && category !== 'all') filters.category = category;
+      if (status && status !== 'all') filters.status = status;
+      if (condominiumId && condominiumId !== 'all') filters.condominiumId = condominiumId as string;
+      if (unitId && unitId !== 'all') filters.unitId = unitId as string;
+      if (startDate) filters.startDate = new Date(startDate as string);
+      if (endDate) filters.endDate = new Date(endDate as string);
+      if (search) filters.search = search as string;
+      if (zone) filters.zone = zone as string;
+      if (typology) filters.typology = typology as string;
+      if (sortField) filters.sortField = sortField as string;
+      if (sortOrder && (sortOrder === 'asc' || sortOrder === 'desc')) filters.sortOrder = sortOrder;
+
+      // Execute all queries in parallel for maximum performance
+      const [transactions, total, condominiums, units] = await Promise.all([
+        // Paginated transactions
+        storage.getExternalFinancialTransactionsByAgency(agencyId, filters),
+        // Total count for pagination
+        storage.getExternalFinancialTransactionsCountByAgency(agencyId, {
+          direction: filters.direction,
+          category: filters.category,
+          status: filters.status,
+          unitId: filters.unitId,
+          condominiumId: filters.condominiumId,
+          startDate: filters.startDate,
+          endDate: filters.endDate,
+          search: filters.search,
+        }),
+        // Filter options - condominiums
+        db.select({
+          id: externalCondominiums.id,
+          name: externalCondominiums.name,
+        })
+        .from(externalCondominiums)
+        .where(eq(externalCondominiums.agencyId, agencyId))
+        .orderBy(asc(externalCondominiums.name)),
+        // Filter options - units
+        db.select({
+          id: externalUnits.id,
+          unitNumber: externalUnits.unitNumber,
+          condominiumId: externalUnits.condominiumId,
+        })
+        .from(externalUnits)
+        .where(eq(externalUnits.agencyId, agencyId))
+        .orderBy(asc(externalUnits.unitNumber)),
+      ]);
+
+      // Calculate analytics from the transactions we already have (avoiding extra queries)
+      const todayStart = new Date();
+      todayStart.setHours(0, 0, 0, 0);
+      const todayEnd = new Date();
+      todayEnd.setHours(23, 59, 59, 999);
+
+      // For analytics, we need aggregates - run optimized queries
+      const baseConditions = [eq(externalFinancialTransactions.agencyId, agencyId)];
+      if (filters.direction) baseConditions.push(eq(externalFinancialTransactions.direction, filters.direction));
+      if (filters.category) baseConditions.push(eq(externalFinancialTransactions.category, filters.category));
+      if (filters.status) baseConditions.push(eq(externalFinancialTransactions.status, filters.status));
+      if (filters.condominiumId) baseConditions.push(eq(externalFinancialTransactions.condominiumId, filters.condominiumId));
+      if (filters.unitId) baseConditions.push(eq(externalFinancialTransactions.unitId, filters.unitId));
+      if (filters.startDate) baseConditions.push(gte(externalFinancialTransactions.dueDate, filters.startDate));
+      if (filters.endDate) baseConditions.push(lte(externalFinancialTransactions.dueDate, filters.endDate));
+
+      // Run all analytics aggregates in parallel
+      const [incomeExpense, receivablesToday, receivablesOverdue, receivablesUpcoming] = await Promise.all([
+        db.select({
+          direction: externalFinancialTransactions.direction,
+          total: sql<string>`COALESCE(SUM(CAST(${externalFinancialTransactions.grossAmount} AS DECIMAL)), 0)`,
+        })
+        .from(externalFinancialTransactions)
+        .where(and(...baseConditions, eq(externalFinancialTransactions.status, 'completed')))
+        .groupBy(externalFinancialTransactions.direction),
+        db.select({
+          count: sql<number>`COUNT(*)::int`,
+          total: sql<string>`COALESCE(SUM(CAST(${externalFinancialTransactions.grossAmount} AS DECIMAL)), 0)`,
+        })
+        .from(externalFinancialTransactions)
+        .where(and(
+          ...baseConditions,
+          eq(externalFinancialTransactions.status, 'pending'),
+          eq(externalFinancialTransactions.direction, 'inflow'),
+          sql`${externalFinancialTransactions.dueDate} >= ${todayStart}`,
+          sql`${externalFinancialTransactions.dueDate} <= ${todayEnd}`
+        )),
+        db.select({
+          count: sql<number>`COUNT(*)::int`,
+          total: sql<string>`COALESCE(SUM(CAST(${externalFinancialTransactions.grossAmount} AS DECIMAL)), 0)`,
+        })
+        .from(externalFinancialTransactions)
+        .where(and(
+          ...baseConditions,
+          eq(externalFinancialTransactions.status, 'pending'),
+          eq(externalFinancialTransactions.direction, 'inflow'),
+          sql`${externalFinancialTransactions.dueDate} < ${todayStart}`
+        )),
+        db.select({
+          count: sql<number>`COUNT(*)::int`,
+          total: sql<string>`COALESCE(SUM(CAST(${externalFinancialTransactions.grossAmount} AS DECIMAL)), 0)`,
+        })
+        .from(externalFinancialTransactions)
+        .where(and(
+          ...baseConditions,
+          eq(externalFinancialTransactions.status, 'pending'),
+          eq(externalFinancialTransactions.direction, 'inflow'),
+          sql`${externalFinancialTransactions.dueDate} > ${todayEnd}`
+        )),
+      ]);
+
+      let totalIncome = 0;
+      let totalExpenses = 0;
+      for (const row of incomeExpense) {
+        const amount = parseFloat(row.total || '0');
+        if (row.direction === 'inflow') totalIncome = amount;
+        else if (row.direction === 'outflow') totalExpenses = amount;
+      }
+
+      res.json({
+        transactions: {
+          data: transactions,
+          total,
+          limit: parsedLimit,
+          offset: parsedOffset,
+          hasMore: parsedOffset + transactions.length < total,
+        },
+        analytics: {
+          totalIncome,
+          totalExpenses,
+          netBalance: totalIncome - totalExpenses,
+          receivables: {
+            today: { count: receivablesToday[0]?.count || 0, total: parseFloat(receivablesToday[0]?.total || '0') },
+            overdue: { count: receivablesOverdue[0]?.count || 0, total: parseFloat(receivablesOverdue[0]?.total || '0') },
+            upcoming: { count: receivablesUpcoming[0]?.count || 0, total: parseFloat(receivablesUpcoming[0]?.total || '0') },
+          },
+        },
+        filters: {
+          condominiums,
+          units,
+        },
+      });
+    } catch (error: any) {
+      console.error("Error fetching accounting overview:", error);
+      handleGenericError(res, error);
+    }
+  });
+
   // GET /api/external/accounting/summary - Get accounting summary for agency
   app.get("/api/external/accounting/summary", isAuthenticated, requireRole(EXTERNAL_ALL_ROLES), async (req: any, res) => {
     try {
@@ -27956,7 +38506,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(403).json({ message: "No agency access" });
       }
 
-      const { direction, category, status, ownerId, contractId, unitId, condominiumId, startDate, endDate, search, sortField, sortOrder, limit, offset } = req.query;
+      const { direction, category, status, ownerId, contractId, unitId, condominiumId, startDate, endDate, search, sortField, sortOrder, limit, offset, zone, typology } = req.query;
 
       // Detect pagination mode: only check limit/offset to avoid breaking legacy consumers that use search/sortField
       const usePagination = (limit !== undefined && limit !== '') || (offset !== undefined && offset !== '');
@@ -27980,6 +38530,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         const parsedOffset = Number.isFinite(offsetNum) ? Math.max(0, offsetNum) : 0;
 
         if (search) filters.search = search as string;
+      if (zone) filters.zone = zone as string;
+      if (typology) filters.typology = typology as string;
         if (sortField) filters.sortField = sortField as string;
         if (sortOrder && (sortOrder === 'asc' || sortOrder === 'desc')) filters.sortOrder = sortOrder;
         filters.limit = parsedLimit;
@@ -27999,6 +38551,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
             startDate: filters.startDate,
             endDate: filters.endDate,
             search: filters.search,
+          sellerId: filters.sellerId,
+          sellerScope: filters.sellerScope,
+          expiringDays: filters.expiringDays,
           }),
         ]);
 
@@ -28014,6 +38569,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         // Preserve historical behavior: existing filters only, NO sortField/sortOrder
         // Storage will use default ordering (desc by dueDate)
         if (search) filters.search = search as string;
+      if (zone) filters.zone = zone as string;
+      if (typology) filters.typology = typology as string;
         // DO NOT pass sortField/sortOrder/limit/offset - legacy callers expect default behavior
         const transactions = await storage.getExternalFinancialTransactionsByAgency(agencyId, filters);
         res.json(transactions);
@@ -28239,6 +38796,355 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // PATCH /api/external/accounting/transactions/:id/mark-paid - Mark transaction as paid
+  app.patch("/api/external/accounting/transactions/:id/mark-paid", isAuthenticated, requireRole(EXTERNAL_ADMIN_ROLES), async (req: any, res) => {
+    try {
+      const { id } = req.params;
+      const { paidDate, notes } = req.body;
+
+      const existing = await storage.getExternalFinancialTransaction(id);
+      if (!existing) {
+        return res.status(404).json({ message: "Transaction not found" });
+      }
+
+      const hasAccess = await verifyExternalAgencyOwnership(req, res, existing.agencyId);
+      if (!hasAccess) return;
+
+      // Update the transaction to mark as paid
+      const updatedTransaction = await storage.updateExternalFinancialTransaction(id, {
+        status: 'posted',
+        performedDate: paidDate ? new Date(paidDate) : new Date(),
+        notes: notes ? (existing.notes ? `${existing.notes}\n${notes}` : notes) : existing.notes,
+      });
+
+      // If this transaction is linked to a maintenance ticket, update ticket accounting status
+      if (existing.maintenanceTicketId) {
+        await db.update(externalMaintenanceTickets)
+          .set({ accountingSyncStatus: 'synced' })
+          .where(eq(externalMaintenanceTickets.id, existing.maintenanceTicketId));
+      }
+
+      await createAuditLog(req, "update", "external_financial_transaction", id, "Marked transaction as paid");
+      res.json(updatedTransaction);
+    } catch (error: any) {
+      console.error("Error marking transaction as paid:", error);
+      handleGenericError(res, error);
+    }
+  });
+
+
+  // GET /api/external/accounting/worker-payments - Get worker payments for biweekly period
+  app.get("/api/external/accounting/worker-payments", isAuthenticated, requireRole(EXTERNAL_ALL_ROLES), async (req: any, res) => {
+    try {
+      const agencyId = await getUserAgencyId(req);
+      if (!agencyId) {
+        return res.status(403).json({ message: "User is not assigned to any agency" });
+      }
+
+      const year = parseInt(req.query.year as string) || new Date().getFullYear();
+      const month = parseInt(req.query.month as string) || (new Date().getMonth() + 1);
+      const period = parseInt(req.query.period as string) || (new Date().getDate() <= 15 ? 1 : 2);
+      const category = req.query.category as string;
+      const condominiumId = req.query.condominiumId as string;
+
+      // Calculate date range for biweekly period
+      const startDay = period === 1 ? 1 : 16;
+      const endDay = period === 1 ? 15 : new Date(year, month, 0).getDate();
+      const startDate = new Date(year, month - 1, startDay, 0, 0, 0);
+      const endDate = new Date(year, month - 1, endDay, 23, 59, 59);
+
+      // Build query conditions
+      const conditions: any[] = [
+        eq(externalMaintenanceTickets.agencyId, agencyId),
+        sql`${externalMaintenanceTickets.closedAt} >= ${startDate}`,
+        sql`${externalMaintenanceTickets.closedAt} <= ${endDate}`,
+        or(
+          eq(externalMaintenanceTickets.status, 'closed'),
+          eq(externalMaintenanceTickets.status, 'resolved')
+        ),
+      ];
+
+      if (category === 'maintenance') {
+        conditions.push(not(eq(externalMaintenanceTickets.category, 'cleaning')));
+      } else if (category === 'cleaning') {
+        conditions.push(eq(externalMaintenanceTickets.category, 'cleaning'));
+      }
+
+      if (condominiumId && condominiumId !== 'all') {
+        const unitIds = await db.select({ id: externalUnits.id })
+          .from(externalUnits)
+          .where(eq(externalUnits.condominiumId, condominiumId));
+        if (unitIds.length > 0) {
+          conditions.push(inArray(externalMaintenanceTickets.unitId, unitIds.map(u => u.id)));
+        }
+      }
+
+      const tickets = await db.select({
+        id: externalMaintenanceTickets.id,
+        title: externalMaintenanceTickets.title,
+        assignedTo: externalMaintenanceTickets.assignedTo,
+        actualCost: externalMaintenanceTickets.actualCost,
+        adminFeeAmount: externalMaintenanceTickets.adminFeeAmount,
+        totalChargeAmount: externalMaintenanceTickets.totalChargeAmount,
+        closedAt: externalMaintenanceTickets.closedAt,
+        unitId: externalMaintenanceTickets.unitId,
+        workerPaymentStatus: externalMaintenanceTickets.workerPaymentStatus,
+        workerPaymentDate: externalMaintenanceTickets.workerPaymentDate,
+        agencyCollectedStatus: externalMaintenanceTickets.agencyCollectedStatus,
+        agencyCollectedDate: externalMaintenanceTickets.agencyCollectedDate,
+        accountingTransactionId: externalMaintenanceTickets.accountingTransactionId,
+      })
+      .from(externalMaintenanceTickets)
+      .where(and(...conditions));
+
+      // Group by worker
+      const workerPayments = new Map<string, {
+        workerId: string;
+        workerName: string;
+        tickets: any[];
+        totalActualCost: number;
+        totalAdminFee: number;
+        totalCharge: number;
+      }>();
+
+      for (const ticket of tickets) {
+        if (!ticket.assignedTo) continue;
+
+        const [worker] = await db.select({
+          id: users.id,
+          firstName: users.firstName,
+          lastName: users.lastName,
+        }).from(users).where(eq(users.id, ticket.assignedTo));
+
+        if (!worker) continue;
+
+        const workerName = `${worker.firstName || ''} ${worker.lastName || ''}`.trim() || 'Sin nombre';
+        const workerId = worker.id;
+
+        if (!workerPayments.has(workerId)) {
+          workerPayments.set(workerId, {
+            workerId,
+            workerName,
+            tickets: [],
+            totalActualCost: 0,
+            totalAdminFee: 0,
+            totalCharge: 0,
+          });
+        }
+
+        const payment = workerPayments.get(workerId)!;
+        const actualCost = parseFloat(ticket.actualCost || '0');
+        const adminFee = parseFloat(ticket.adminFeeAmount || '0');
+        const totalCharge = parseFloat(ticket.totalChargeAmount || '0') || (actualCost + adminFee);
+
+        payment.tickets.push({
+          id: ticket.id,
+          title: ticket.title,
+          actualCost,
+          adminFee,
+          totalCharge,
+          closedAt: ticket.closedAt,
+          workerPaymentStatus: ticket.workerPaymentStatus || "pending",
+          agencyCollectedStatus: ticket.agencyCollectedStatus || "pending",
+          workerPaymentDate: ticket.workerPaymentDate,
+          agencyCollectedDate: ticket.agencyCollectedDate,
+          accountingTransactionId: ticket.accountingTransactionId,
+        });
+        payment.totalActualCost += actualCost;
+        payment.totalAdminFee += adminFee;
+        payment.totalCharge += totalCharge;
+      }
+
+      const payments = Array.from(workerPayments.values()).map(p => ({
+        id: `payment-${p.workerId}`,
+        workerId: p.workerId,
+        workerName: p.workerName,
+        ticketCount: p.tickets.length,
+        totalActualCost: p.totalActualCost,
+        totalAdminFee: p.totalAdminFee,
+        totalCharge: p.totalCharge,
+        status: 'pending',
+        tickets: p.tickets,
+      }));
+
+      const summary = {
+        totalPayments: payments.length,
+        totalActualCost: payments.reduce((sum, p) => sum + p.totalActualCost, 0),
+        totalAdminFee: payments.reduce((sum, p) => sum + p.totalAdminFee, 0),
+        totalCharge: payments.reduce((sum, p) => sum + p.totalCharge, 0),
+      };
+
+      res.json({ payments, summary });
+    } catch (error: any) {
+      console.error("Error fetching worker payments:", error);
+      handleGenericError(res, error);
+    }
+  });
+
+
+  // PATCH /api/external/maintenance/tickets/:id/payment-status - Mark ticket worker payment and agency collection status
+  app.patch("/api/external/maintenance/tickets/:id/payment-status", isAuthenticated, requireRole(EXTERNAL_ALL_ROLES), async (req: any, res) => {
+    try {
+      const agencyId = await getUserAgencyId(req);
+      if (!agencyId) {
+        return res.status(403).json({ message: "User is not assigned to any agency" });
+      }
+
+      const ticketId = req.params.id;
+      const { workerPaymentStatus, agencyCollectedStatus } = req.body;
+
+      // Verify ticket belongs to agency
+      const [ticket] = await db.select()
+        .from(externalMaintenanceTickets)
+        .where(and(
+          eq(externalMaintenanceTickets.id, ticketId),
+          eq(externalMaintenanceTickets.agencyId, agencyId)
+        ));
+
+      if (!ticket) {
+        return res.status(404).json({ message: "Ticket not found" });
+      }
+
+      const updateData: any = { updatedAt: new Date() };
+      
+      if (workerPaymentStatus !== undefined) {
+        updateData.workerPaymentStatus = workerPaymentStatus;
+        if (workerPaymentStatus === 'paid') {
+          updateData.workerPaymentDate = new Date();
+        }
+      }
+      
+      if (agencyCollectedStatus !== undefined) {
+        updateData.agencyCollectedStatus = agencyCollectedStatus;
+        if (agencyCollectedStatus === 'collected') {
+          updateData.agencyCollectedDate = new Date();
+        }
+      }
+
+      const [updated] = await db.update(externalMaintenanceTickets)
+        .set(updateData)
+        .where(eq(externalMaintenanceTickets.id, ticketId))
+        .returning();
+
+      res.json(updated);
+    } catch (error: any) {
+      console.error("Error updating ticket payment status:", error);
+      handleGenericError(res, error);
+    }
+  });
+  // GET /api/external/accounting/commissions - Get agency commissions for biweekly period
+  app.get("/api/external/accounting/commissions", isAuthenticated, requireRole(EXTERNAL_ALL_ROLES), async (req: any, res) => {
+    try {
+      const agencyId = await getUserAgencyId(req);
+      if (!agencyId) {
+        return res.status(403).json({ message: "User is not assigned to any agency" });
+      }
+
+      const year = parseInt(req.query.year as string) || new Date().getFullYear();
+      const month = parseInt(req.query.month as string) || (new Date().getMonth() + 1);
+      const period = parseInt(req.query.period as string) || (new Date().getDate() <= 15 ? 1 : 2);
+      const condominiumId = req.query.condominiumId as string;
+
+      const startDay = period === 1 ? 1 : 16;
+      const endDay = period === 1 ? 15 : new Date(year, month, 0).getDate();
+      const startDate = new Date(year, month - 1, startDay, 0, 0, 0);
+      const endDate = new Date(year, month - 1, endDay, 23, 59, 59);
+
+      const baseConditions: any[] = [
+        eq(externalMaintenanceTickets.agencyId, agencyId),
+        sql`${externalMaintenanceTickets.closedAt} >= ${startDate}`,
+        sql`${externalMaintenanceTickets.closedAt} <= ${endDate}`,
+        or(
+          eq(externalMaintenanceTickets.status, 'closed'),
+          eq(externalMaintenanceTickets.status, 'resolved')
+        ),
+      ];
+
+      if (condominiumId && condominiumId !== 'all') {
+        const unitIds = await db.select({ id: externalUnits.id })
+          .from(externalUnits)
+          .where(eq(externalUnits.condominiumId, condominiumId));
+        if (unitIds.length > 0) {
+          baseConditions.push(inArray(externalMaintenanceTickets.unitId, unitIds.map(u => u.id)));
+        }
+      }
+
+      const maintenanceTickets = await db.select({
+        id: externalMaintenanceTickets.id,
+        title: externalMaintenanceTickets.title,
+        adminFeeAmount: externalMaintenanceTickets.adminFeeAmount,
+        closedAt: externalMaintenanceTickets.closedAt,
+        category: externalMaintenanceTickets.category,
+      })
+      .from(externalMaintenanceTickets)
+      .where(and(
+        ...baseConditions,
+        not(eq(externalMaintenanceTickets.category, 'cleaning'))
+      ));
+
+      const cleaningTickets = await db.select({
+        id: externalMaintenanceTickets.id,
+        title: externalMaintenanceTickets.title,
+        adminFeeAmount: externalMaintenanceTickets.adminFeeAmount,
+        closedAt: externalMaintenanceTickets.closedAt,
+        category: externalMaintenanceTickets.category,
+      })
+      .from(externalMaintenanceTickets)
+      .where(and(
+        ...baseConditions,
+        eq(externalMaintenanceTickets.category, 'cleaning')
+      ));
+
+      const commissions: any[] = [];
+
+      for (const ticket of maintenanceTickets) {
+        const adminFee = parseFloat(ticket.adminFeeAmount || '0');
+        if (adminFee > 0) {
+          commissions.push({
+            id: `comm-maint-${ticket.id}`,
+            type: 'admin_fee',
+            description: `Comisión mantenimiento: ${ticket.title}`,
+            sourceId: ticket.id,
+            amount: adminFee,
+            date: ticket.closedAt,
+            category: 'maintenance',
+          });
+        }
+      }
+
+      for (const ticket of cleaningTickets) {
+        const adminFee = parseFloat(ticket.adminFeeAmount || '0');
+        if (adminFee > 0) {
+          commissions.push({
+            id: `comm-clean-${ticket.id}`,
+            type: 'admin_fee',
+            description: `Comisión limpieza: ${ticket.title}`,
+            sourceId: ticket.id,
+            amount: adminFee,
+            date: ticket.closedAt,
+            category: 'cleaning',
+          });
+        }
+      }
+
+      const totalMaintenanceFees = maintenanceTickets.reduce((sum, t) => sum + parseFloat(t.adminFeeAmount || '0'), 0);
+      const totalCleaningFees = cleaningTickets.reduce((sum, t) => sum + parseFloat(t.adminFeeAmount || '0'), 0);
+
+      const summary = {
+        totalMaintenanceFees,
+        totalCleaningFees,
+        totalRentalCommissions: 0,
+        grandTotal: totalMaintenanceFees + totalCleaningFees,
+      };
+
+      res.json({ commissions, summary });
+    } catch (error: any) {
+      console.error("Error fetching commissions:", error);
+      handleGenericError(res, error);
+    }
+  });
+
+
   // ============================================================================
   // EXTERNAL MANAGEMENT SYSTEM - TERMS AND CONDITIONS ROUTES
   // ============================================================================
@@ -28425,10 +39331,1634 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // ============================================================================
-  // EXTERNAL MANAGEMENT SYSTEM - QUOTATIONS ROUTES
+
+
+  // ============================================================================
+  // EXTERNAL MANAGEMENT SYSTEM - CSV EXPORT/IMPORT ROUTES
   // ============================================================================
 
-  // GET /api/external/quotations - List all quotations for agency
+  // GET /api/external/data/export/:section - Export data as CSV
+  app.get("/api/external/data/export/:section", isAuthenticated, requireRole(EXTERNAL_ADMIN_ROLES), async (req: any, res) => {
+    try {
+      const Papa = (await import('papaparse')).default;
+      const { section } = req.params;
+      const agencyId = await getUserAgencyId(req);
+      if (!agencyId) {
+        return res.status(403).json({ message: "Agency ID not found" });
+      }
+
+      let data: any[] = [];
+      let filename = '';
+      
+      switch (section) {
+        case 'condominiums':
+          const condos = await db.select().from(externalCondominiums).where(eq(externalCondominiums.agencyId, agencyId));
+          data = condos.map(c => ({
+            id: c.id,
+            name: c.name,
+            description: c.description || '',
+            address: c.address || '',
+            zone: c.zone || '',
+            total_units: c.totalUnits || 0,
+            is_active: c.isActive ? 'true' : 'false',
+            created_at: c.createdAt?.toISOString() || '',
+          }));
+          filename = 'condominiums.csv';
+          break;
+          
+        case 'units':
+          const units = await db.select({
+            id: externalUnits.id,
+            unitNumber: externalUnits.unitNumber,
+            condominiumId: externalUnits.condominiumId,
+            condominiumName: externalCondominiums.name,
+          squareMeters: externalUnits.area,
+          description: externalUnits.description,
+          petsAllowed: externalUnits.petFriendly,
+            zone: externalUnits.zone,
+            typology: externalUnits.typology,
+            propertyType: externalUnits.propertyType,
+            bedrooms: externalUnits.bedrooms,
+            bathrooms: externalUnits.bathrooms,
+            area: externalUnits.area,
+            city: externalUnits.city,
+            isActive: externalUnits.isActive,
+            createdAt: externalUnits.createdAt,
+          })
+          .from(externalUnits)
+          .leftJoin(externalCondominiums, eq(externalUnits.condominiumId, externalCondominiums.id))
+          .where(eq(externalUnits.agencyId, agencyId));
+          
+          data = units.map(u => ({
+            id: u.id,
+            unit_number: u.unitNumber,
+            condominium_id: u.condominiumId || '',
+            condominium_name: u.condominiumName || '',
+            zone: u.zone || '',
+            city: u.city || '',
+            typology: u.typology || '',
+            property_type: u.propertyType || '',
+            bedrooms: u.bedrooms || 0,
+            bathrooms: u.bathrooms || 0,
+            area: u.area || 0,
+            is_active: u.isActive ? 'true' : 'false',
+            created_at: u.createdAt?.toISOString() || '',
+          }));
+          filename = 'units.csv';
+          break;
+          
+        case 'owners':
+          const owners = await db.select({
+            id: externalUnitOwners.id,
+            unitId: externalUnitOwners.unitId,
+            unitNumber: externalUnits.unitNumber,
+            ownerName: externalUnitOwners.ownerName,
+            ownerEmail: externalUnitOwners.ownerEmail,
+            ownerPhone: externalUnitOwners.ownerPhone,
+            ownershipPercentage: externalUnitOwners.ownershipPercentage,
+            isActive: externalUnitOwners.isActive,
+            notes: externalUnitOwners.notes,
+            createdAt: externalUnitOwners.createdAt,
+          })
+          .from(externalUnitOwners)
+          .leftJoin(externalUnits, eq(externalUnitOwners.unitId, externalUnits.id))
+          .where(eq(externalUnits.agencyId, agencyId));
+          
+          data = owners.map(o => ({
+            id: o.id,
+            unit_id: o.unitId || '',
+            unit_number: o.unitNumber || '',
+            owner_name: o.ownerName,
+            email: o.ownerEmail || '',
+            phone: o.ownerPhone || '',
+            ownership_percentage: o.ownershipPercentage || '100.00',
+            is_active: o.isActive ? 'true' : 'false',
+            notes: o.notes || '',
+            created_at: o.createdAt?.toISOString() || '',
+          }));
+          filename = 'owners.csv';
+          break;
+          
+        case 'clients':
+          const clients = await db.select().from(externalClients).where(eq(externalClients.agencyId, agencyId));
+          data = clients.map(c => ({
+            id: c.id,
+            first_name: c.firstName,
+            last_name: c.lastName,
+            email: c.email || '',
+            phone: c.phone || '',
+            nationality: c.nationality || '',
+            client_type: c.clientType || '',
+            status: c.status || 'active',
+            notes: c.notes || '',
+            created_at: c.createdAt?.toISOString() || '',
+          }));
+          filename = 'clients.csv';
+          break;
+          
+        case 'leads':
+          const leads = await db.select().from(externalLeads).where(eq(externalLeads.agencyId, agencyId));
+          data = leads.map(l => ({
+            id: l.id,
+            first_name: l.firstName,
+            last_name: l.lastName,
+            email: l.email || '',
+            phone: l.phone || '',
+            registration_type: l.registrationType || 'seller',
+            lead_type: l.leadType || '',
+            status: l.status || '',
+            source: l.source || '',
+            assigned_to: l.assignedTo || '',
+            property_interest: l.propertyInterest || '',
+            budget_min: l.budgetMin || '',
+            budget_max: l.budgetMax || '',
+            notes: l.notes || '',
+            created_at: l.createdAt?.toISOString() || '',
+          }));
+          filename = 'leads.csv';
+          break;
+          
+        case 'contracts':
+          const contracts = await db.select({
+            id: externalRentalContracts.id,
+            unitId: externalRentalContracts.unitId,
+            unitNumber: externalUnits.unitNumber,
+            contractType: externalRentalContracts.contractType,
+            status: externalRentalContracts.status,
+            startDate: externalRentalContracts.startDate,
+            endDate: externalRentalContracts.endDate,
+            rentAmount: externalRentalContracts.rentAmount,
+            currency: externalRentalContracts.currency,
+            createdAt: externalRentalContracts.createdAt,
+          })
+          .from(externalRentalContracts)
+          .leftJoin(externalUnits, eq(externalRentalContracts.unitId, externalUnits.id))
+          .where(eq(externalRentalContracts.agencyId, agencyId));
+          
+          data = contracts.map(c => ({
+            id: c.id,
+            unit_id: c.unitId || '',
+            unit_number: c.unitNumber || '',
+            contract_type: c.contractType || '',
+            status: c.status || '',
+            start_date: c.startDate?.toISOString().split('T')[0] || '',
+            end_date: c.endDate?.toISOString().split('T')[0] || '',
+            rent_amount: c.rentAmount || 0,
+            currency: c.currency || 'USD',
+            created_at: c.createdAt?.toISOString() || '',
+          }));
+          filename = 'contracts.csv';
+          break;
+          
+        case 'maintenance':
+          const tickets = await db.select({
+            id: externalMaintenanceTickets.id,
+            unitId: externalMaintenanceTickets.unitId,
+            unitNumber: externalUnits.unitNumber,
+            title: externalMaintenanceTickets.title,
+            description: externalMaintenanceTickets.description,
+            category: externalMaintenanceTickets.category,
+            priority: externalMaintenanceTickets.priority,
+            status: externalMaintenanceTickets.status,
+            createdAt: externalMaintenanceTickets.createdAt,
+            resolvedAt: externalMaintenanceTickets.resolvedAt,
+          })
+          .from(externalMaintenanceTickets)
+          .leftJoin(externalUnits, eq(externalMaintenanceTickets.unitId, externalUnits.id))
+          .where(eq(externalMaintenanceTickets.agencyId, agencyId));
+          
+          data = tickets.map(t => ({
+            id: t.id,
+            unit_id: t.unitId || '',
+            unit_number: t.unitNumber || '',
+            title: t.title,
+            description: t.description || '',
+            category: t.category || '',
+            priority: t.priority || '',
+            status: t.status || '',
+            created_at: t.createdAt?.toISOString() || '',
+            resolved_at: t.resolvedAt?.toISOString() || '',
+          }));
+          filename = 'maintenance_tickets.csv';
+          break;
+          
+        case 'transactions':
+          const transactions = await db.select({
+            id: externalFinancialTransactions.id,
+            unitId: externalFinancialTransactions.unitId,
+            unitNumber: externalUnits.unitNumber,
+            type: externalFinancialTransactions.type,
+            category: externalFinancialTransactions.category,
+            amount: externalFinancialTransactions.amount,
+            currency: externalFinancialTransactions.currency,
+            status: externalFinancialTransactions.status,
+            description: externalFinancialTransactions.description,
+            date: externalFinancialTransactions.transactionDate,
+            createdAt: externalFinancialTransactions.createdAt,
+          })
+          .from(externalFinancialTransactions)
+          .leftJoin(externalUnits, eq(externalFinancialTransactions.unitId, externalUnits.id))
+          .where(eq(externalFinancialTransactions.agencyId, agencyId));
+          
+          data = transactions.map(t => ({
+            id: t.id,
+            unit_id: t.unitId || '',
+            unit_number: t.unitNumber || '',
+            type: t.type || '',
+            category: t.category || '',
+            amount: t.amount || 0,
+            currency: t.currency || 'USD',
+            status: t.status || '',
+            description: t.description || '',
+            transaction_date: t.date?.toISOString().split('T')[0] || '',
+            created_at: t.createdAt?.toISOString() || '',
+          }));
+          filename = 'transactions.csv';
+          break;
+          
+        case 'quotations':
+          const quotations = await db.select({
+            id: externalQuotations.id,
+            unitId: externalQuotations.unitId,
+            unitNumber: externalUnits.unitNumber,
+            clientName: externalQuotations.clientName,
+            clientEmail: externalQuotations.clientEmail,
+            status: externalQuotations.status,
+            totalAmount: externalQuotations.totalAmount,
+            adminFee: externalQuotations.adminFee,
+            currency: externalQuotations.currency,
+            validUntil: externalQuotations.validUntil,
+            createdAt: externalQuotations.createdAt,
+          })
+          .from(externalQuotations)
+          .leftJoin(externalUnits, eq(externalQuotations.unitId, externalUnits.id))
+          .where(eq(externalQuotations.agencyId, agencyId));
+          
+          data = quotations.map(q => ({
+            id: q.id,
+            unit_id: q.unitId || '',
+            unit_number: q.unitNumber || '',
+            client_name: q.clientName || '',
+            client_email: q.clientEmail || '',
+            status: q.status || '',
+            total_amount: q.totalAmount || 0,
+            admin_fee: q.adminFee || 0,
+            currency: q.currency || 'USD',
+            valid_until: q.validUntil?.toISOString().split('T')[0] || '',
+            created_at: q.createdAt?.toISOString() || '',
+          }));
+          filename = 'quotations.csv';
+          break;
+          
+        case 'accounts':
+          const externalRoles = ["external_agency_admin", "external_agency_accounting", "external_agency_maintenance", "external_agency_seller", "external_agency_concierge", "external_agency_lawyer"];
+          const agencyUsers = await db
+            .select({
+              id: users.id,
+              email: users.email,
+              firstName: users.firstName,
+              lastName: users.lastName,
+              phone: users.phone,
+              role: users.role,
+              status: users.status,
+              maintenanceSpecialty: users.maintenanceSpecialty,
+              isSuspended: users.isSuspended,
+              createdAt: users.createdAt,
+            })
+            .from(users)
+            .where(and(
+              inArray(users.role, externalRoles),
+              eq(users.externalAgencyId, agencyId)
+            ));
+          
+          data = agencyUsers.map(u => ({
+            id: u.id,
+            email: u.email || '',
+            first_name: u.firstName || '',
+            last_name: u.lastName || '',
+            phone: u.phone || '',
+            role: u.role || '',
+            status: COALESCE(u.publish_status, 'draft') as status || 'active',
+            maintenance_specialty: u.maintenanceSpecialty || '',
+            is_suspended: u.isSuspended ? 'true' : 'false',
+            created_at: u.createdAt?.toISOString() || '',
+          }));
+          filename = 'accounts.csv';
+          break;
+          
+        default:
+          return res.status(400).json({ message: `Unknown section: ${section}` });
+      }
+
+      if (data.length === 0) {
+        return res.status(200).json({ message: 'No data to export', csv: '', filename });
+      }
+
+      // Generate CSV using papaparse
+      const csv = Papa.unparse(data, {
+        header: true,
+        quotes: true,
+      });
+
+      await createAuditLog(req, "export", `external_${section}`, agencyId, `Exported ${data.length} ${section} records to CSV`);
+
+      res.setHeader('Content-Type', 'text/csv');
+      res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+      res.send(csv);
+    } catch (error: any) {
+      console.error(`Error exporting ${req.params.section}:`, error);
+      handleGenericError(res, error);
+    }
+  });
+
+  // GET /api/external/imports/:jobId - Get import job status
+  app.get("/api/external/imports/:jobId", isAuthenticated, requireRole(EXTERNAL_ADMIN_ROLES), async (req: any, res) => {
+    try {
+      const { jobId } = req.params;
+      const job = importJobs.get(jobId);
+      
+      if (!job) {
+        return res.status(404).json({ message: "Import job not found" });
+      }
+      
+      res.json({
+        id: job.id,
+        section: job.section,
+        status: job.status,
+        total: job.total,
+        processed: job.processed,
+        imported: job.imported,
+        skipped: job.skipped,
+        errors: job.errors.slice(0, 10),
+        startedAt: job.startedAt.toISOString(),
+        finishedAt: job.finishedAt?.toISOString() || null,
+        message: job.message || null,
+        progress: job.total > 0 ? Math.round((job.processed / job.total) * 100) : 0,
+      });
+    } catch (error) {
+      console.error("Error getting import status:", error);
+      handleGenericError(res, error);
+    }
+  });
+
+  // POST /api/external/data/import/:section - Import data from CSV
+  app.post("/api/external/data/import/:section", isAuthenticated, requireRole(EXTERNAL_ADMIN_ROLES), async (req: any, res) => {
+    try {
+      const Papa = (await import('papaparse')).default;
+      const { section } = req.params;
+      const { csvData } = req.body;
+      const agencyId = await getUserAgencyId(req);
+      
+      if (!agencyId) {
+        return res.status(403).json({ message: "Agency ID not found" });
+      }
+      
+      if (!csvData || typeof csvData !== 'string') {
+        return res.status(400).json({ message: "CSV data is required" });
+      }
+
+      // Parse CSV
+      const parseResult = Papa.parse(csvData, {
+        header: true,
+        skipEmptyLines: true,
+        transformHeader: (h: string) => h.trim().toLowerCase().replace(/\s+/g, '_'),
+      });
+
+      if (parseResult.errors.length > 0) {
+        return res.status(400).json({ 
+          message: "CSV parsing errors", 
+          errors: parseResult.errors.slice(0, 5) 
+        });
+      }
+
+      const rows = parseResult.data as any[];
+      
+      // Create import job for progress tracking
+      const jobId = crypto.randomUUID();
+      const job: ImportJob = {
+        id: jobId,
+        section,
+        status: 'processing',
+        total: rows.length,
+        processed: 0,
+        imported: 0,
+        skipped: 0,
+        errors: [],
+        startedAt: new Date(),
+      };
+      importJobs.set(jobId, job);
+      
+      // Return job ID immediately so client can poll for progress
+      res.json({ jobId, total: rows.length, message: "Import started" });
+      
+      // Process rows asynchronously
+      let imported = 0;
+      let skipped = 0;
+      let errors: string[] = [];
+      
+      const updateProgress = () => {
+        job.processed = imported + skipped;
+        job.imported = imported;
+        job.skipped = skipped;
+        job.errors = errors.slice(0, 50);
+      };
+
+      switch (section) {
+        case 'condominiums':
+          for (const row of rows) {
+            try {
+              if (!row.name?.trim()) {
+                skipped++;
+                continue;
+              }
+              
+              // Check if exists by name
+              const existing = await db.select().from(externalCondominiums)
+                .where(and(
+                  eq(externalCondominiums.agencyId, agencyId),
+                  sql`LOWER(${externalCondominiums.name}) = LOWER(${row.name.trim()})`
+                ))
+                .limit(1);
+              
+              if (existing.length > 0) {
+                skipped++;
+                continue;
+              }
+              
+              await db.insert(externalCondominiums).values({
+                id: crypto.randomUUID(),
+                registrationType: row.registration_type?.trim() || 'seller',
+                agencyId,
+                name: row.name.trim(),
+                description: row.description?.trim() || null,
+                address: row.address?.trim() || null,
+                zone: row.zone?.trim() || null,
+                totalUnits: parseInt(row.total_units) || 0,
+                isActive: row.is_active !== 'false',
+                createdAt: new Date(),
+                updatedAt: new Date(),
+              });
+              imported++;
+            } catch (e: any) {
+              errors.push(`Row "${row.name}": ${e.message}`);
+            }
+          }
+          break;
+          
+        case 'clients':
+          for (const row of rows) {
+            try {
+              if (!row.first_name?.trim() || !row.last_name?.trim()) {
+                skipped++;
+                continue;
+              }
+              
+              // Check for duplicates by name + phone/email
+              const existingConditions: any[] = [eq(externalClients.agencyId, agencyId)];
+              
+              const firstName = row.first_name.trim();
+              const lastName = row.last_name.trim();
+              
+              existingConditions.push(sql`LOWER(${externalClients.firstName}) = LOWER(${firstName})`);
+              existingConditions.push(sql`LOWER(${externalClients.lastName}) = LOWER(${lastName})`);
+              
+              const existing = await db.select().from(externalClients)
+                .where(and(...existingConditions))
+                .limit(1);
+              
+              if (existing.length > 0) {
+                skipped++;
+                continue;
+              }
+              
+              await db.insert(externalClients).values({
+                id: crypto.randomUUID(),
+                registrationType: row.registration_type?.trim() || 'seller',
+                agencyId,
+                firstName,
+                lastName,
+                email: row.email?.trim() || null,
+                phone: row.phone?.trim() || null,
+                nationality: row.nationality?.trim() || null,
+                clientType: row.client_type?.trim() || 'tenant',
+                status: row.status?.trim() || 'active',
+                notes: row.notes?.trim() || null,
+                createdAt: new Date(),
+                updatedAt: new Date(),
+              });
+              imported++;
+            } catch (e: any) {
+              errors.push(`Row "${row.first_name} ${row.last_name}": ${e.message}`);
+            }
+          }
+          break;
+          
+        case 'leads':
+          for (const row of rows) {
+            try {
+              if (!row.first_name?.trim() || !row.last_name?.trim()) {
+                skipped++;
+                continue;
+              }
+              
+              const firstName = row.first_name.trim();
+              const lastName = row.last_name.trim();
+              
+              // Check for duplicates
+              const existing = await db.select().from(externalLeads)
+                .where(and(
+                  eq(externalLeads.agencyId, agencyId),
+                  sql`LOWER(${externalLeads.firstName}) = LOWER(${firstName})`,
+                  sql`LOWER(${externalLeads.lastName}) = LOWER(${lastName})`
+                ))
+                .limit(1);
+              
+              if (existing.length > 0) {
+                skipped++;
+                continue;
+              }
+              
+              await db.insert(externalLeads).values({
+                id: crypto.randomUUID(),
+                registrationType: row.registration_type?.trim() || 'seller',
+                agencyId,
+                firstName,
+                lastName,
+                email: row.email?.trim() || null,
+                phone: row.phone?.trim() || null,
+                leadType: row.lead_type?.trim() || 'buyer',
+                status: row.status?.trim() || 'new',
+                source: row.source?.trim() || 'csv_import',
+                assignedTo: row.assigned_to?.trim() || null,
+                propertyInterest: row.property_interest?.trim() || null,
+                budgetMin: row.budget_min ? parseFloat(row.budget_min) : null,
+                budgetMax: row.budget_max ? parseFloat(row.budget_max) : null,
+                notes: row.notes?.trim() || null,
+                createdAt: new Date(),
+                updatedAt: new Date(),
+              });
+              imported++;
+            } catch (e: any) {
+              errors.push(`Row "${row.first_name} ${row.last_name}": ${e.message}`);
+            }
+          }
+          break;
+          
+        case 'units':
+          for (const row of rows) {
+            try {
+              if (!row.unit_number?.trim()) {
+                skipped++;
+                continue;
+              }
+              
+              const unitNumber = row.unit_number.trim();
+              
+              // Resolve condominium by name if provided
+              let condominiumId: string | null = null;
+              if (row.condominium_name?.trim()) {
+                const condo = await db.select().from(externalCondominiums)
+                  .where(and(
+                    eq(externalCondominiums.agencyId, agencyId),
+                    sql`LOWER(${externalCondominiums.name}) = LOWER(${row.condominium_name.trim()})`
+                  ))
+                  .limit(1);
+                if (condo.length > 0) {
+                  condominiumId = condo[0].id;
+                }
+              }
+              
+              // Check for duplicates by unit number + condominium
+              const existingConditions: any[] = [
+                eq(externalUnits.agencyId, agencyId),
+                sql`LOWER(${externalUnits.unitNumber}) = LOWER(${unitNumber})`
+              ];
+              if (condominiumId) {
+                existingConditions.push(eq(externalUnits.condominiumId, condominiumId));
+              }
+              
+              const existing = await db.select().from(externalUnits)
+                .where(and(...existingConditions))
+                .limit(1);
+              
+              if (existing.length > 0) {
+                skipped++;
+                continue;
+              }
+              
+              await db.insert(externalUnits).values({
+                id: crypto.randomUUID(),
+                registrationType: row.registration_type?.trim() || 'seller',
+                agencyId,
+                condominiumId,
+                unitNumber,
+                zone: row.zone?.trim() || null,
+                typology: row.typology?.trim() || null,
+                propertyType: row.property_type?.trim() || null,
+                bedrooms: row.bedrooms ? parseInt(row.bedrooms) : null,
+                bathrooms: row.bathrooms ? parseFloat(row.bathrooms) : null,
+                squareMeters: row.square_meters ? parseFloat(row.square_meters) : null,
+                furnished: row.furnished === 'true',
+                monthlyRent: row.monthly_rent ? parseFloat(row.monthly_rent) : null,
+                currency: row.currency?.trim() || 'USD',
+                status: row.status?.trim() || 'available',
+                notes: row.notes?.trim() || null,
+                isActive: row.is_active !== 'false',
+                createdAt: new Date(),
+                updatedAt: new Date(),
+              });
+              imported++;
+            } catch (e: any) {
+              errors.push(`Row "${row.unit_number}": ${e.message}`);
+            }
+          }
+          break;
+          
+        case 'owners':
+          for (const row of rows) {
+            try {
+              if (!row.owner_name?.trim() || !row.unit_number?.trim()) {
+                skipped++;
+                continue;
+              }
+              
+              const ownerName = row.owner_name.trim();
+              const unitNumber = row.unit_number.trim();
+              
+              // Find unit by number
+              const unit = await db.select().from(externalUnits)
+                .where(and(
+                  eq(externalUnits.agencyId, agencyId),
+                  sql`LOWER(${externalUnits.unitNumber}) = LOWER(${unitNumber})`
+                ))
+                .limit(1);
+              
+              if (unit.length === 0) {
+                errors.push(`Unit "${unitNumber}" not found for owner "${ownerName}"`);
+                skipped++;
+                continue;
+              }
+              
+              // Check for duplicates by owner name + unit
+              const existing = await db.select().from(externalUnitOwners)
+                .where(and(
+                  eq(externalUnitOwners.unitId, unit[0].id),
+                  sql`LOWER(${externalUnitOwners.ownerName}) = LOWER(${ownerName})`
+                ))
+                .limit(1);
+              
+              if (existing.length > 0) {
+                skipped++;
+                continue;
+              }
+              
+              await db.insert(externalUnitOwners).values({
+                id: crypto.randomUUID(),
+                registrationType: row.registration_type?.trim() || 'seller',
+                unitId: unit[0].id,
+                ownerName,
+                ownerEmail: row.email?.trim() || null,
+                ownerPhone: row.phone?.trim() || null,
+                ownershipPercentage: row.ownership_percentage?.trim() || "100.00",
+                isActive: row.is_active !== 'false',
+                notes: row.notes?.trim() || null,
+                createdAt: new Date(),
+                updatedAt: new Date(),
+              });
+              imported++;
+            } catch (e: any) {
+              errors.push(`Row "${row.owner_name}": ${e.message}`);
+            }
+          }
+          break;
+          
+        case 'contracts':
+          for (const row of rows) {
+            try {
+              if (!row.unit_number?.trim()) {
+                errors.push(`Row missing unit_number`);
+                skipped++;
+                continue;
+              }
+              
+              // Resolve unit by number
+              const unit = await db.select().from(externalUnits)
+                .where(and(
+                  eq(externalUnits.agencyId, agencyId),
+                  sql`LOWER(${externalUnits.unitNumber}) = LOWER(${row.unit_number.trim()})`
+                ))
+                .limit(1);
+              
+              if (unit.length === 0) {
+                errors.push(`Unit "${row.unit_number}" not found`);
+                skipped++;
+                continue;
+              }
+              
+              await db.insert(externalRentalContracts).values({
+                id: crypto.randomUUID(),
+                registrationType: row.registration_type?.trim() || 'seller',
+                agencyId,
+                unitId: unit[0].id,
+                contractType: row.contract_type?.trim() || 'fixed',
+                status: row.status?.trim() || 'draft',
+                startDate: row.start_date ? new Date(row.start_date) : null,
+                endDate: row.end_date ? new Date(row.end_date) : null,
+                rentAmount: row.rent_amount ? parseFloat(row.rent_amount) : null,
+                currency: row.currency?.trim() || 'USD',
+                createdAt: new Date(),
+                updatedAt: new Date(),
+              });
+              imported++;
+            } catch (e: any) {
+              errors.push(`Row "${row.unit_number}": ${e.message}`);
+            }
+          }
+          break;
+          
+        case 'maintenance':
+          for (const row of rows) {
+            try {
+              if (!row.title?.trim()) {
+                skipped++;
+                continue;
+              }
+              
+              const title = row.title.trim();
+              
+              // Resolve unit by number if provided
+              let unitId: string | null = null;
+              if (row.unit_number?.trim()) {
+                const unit = await db.select().from(externalUnits)
+                  .where(and(
+                    eq(externalUnits.agencyId, agencyId),
+                    sql`LOWER(${externalUnits.unitNumber}) = LOWER(${row.unit_number.trim()})`
+                  ))
+                  .limit(1);
+                if (unit.length > 0) {
+                  unitId = unit[0].id;
+                }
+              }
+              
+              // Check for duplicates by title
+              const existing = await db.select().from(externalMaintenanceTickets)
+                .where(and(
+                  eq(externalMaintenanceTickets.agencyId, agencyId),
+                  sql`LOWER(${externalMaintenanceTickets.title}) = LOWER(${title})`
+                ))
+                .limit(1);
+              
+              if (existing.length > 0) {
+                skipped++;
+                continue;
+              }
+              
+              await db.insert(externalMaintenanceTickets).values({
+                id: crypto.randomUUID(),
+                registrationType: row.registration_type?.trim() || 'seller',
+                agencyId,
+                unitId,
+                title,
+                description: row.description?.trim() || null,
+                category: row.category?.trim() || 'general',
+                priority: row.priority?.trim() || 'medium',
+                status: row.status?.trim() || 'open',
+                reportedBy: row.reported_by?.trim() || null,
+                estimatedCost: row.estimated_cost ? parseFloat(row.estimated_cost) : null,
+                actualCost: row.actual_cost ? parseFloat(row.actual_cost) : null,
+                createdAt: new Date(),
+                updatedAt: new Date(),
+              });
+              imported++;
+            } catch (e: any) {
+              errors.push(`Row "${row.title}": ${e.message}`);
+            }
+          }
+          break;
+          
+        case 'transactions':
+          for (const row of rows) {
+            try {
+              if (!row.type?.trim() || !row.amount) {
+                skipped++;
+                continue;
+              }
+              
+              // Resolve unit by number if provided
+              let unitId: string | null = null;
+              if (row.unit_number?.trim()) {
+                const unit = await db.select().from(externalUnits)
+                  .where(and(
+                    eq(externalUnits.agencyId, agencyId),
+                    sql`LOWER(${externalUnits.unitNumber}) = LOWER(${row.unit_number.trim()})`
+                  ))
+                  .limit(1);
+                if (unit.length > 0) {
+                  unitId = unit[0].id;
+                }
+              }
+              
+              await db.insert(externalFinancialTransactions).values({
+                id: crypto.randomUUID(),
+                registrationType: row.registration_type?.trim() || 'seller',
+                agencyId,
+                unitId,
+                type: row.type.trim(),
+                category: row.category?.trim() || 'other',
+                amount: parseFloat(row.amount),
+                currency: row.currency?.trim() || 'USD',
+                status: row.status?.trim() || 'pending',
+                description: row.description?.trim() || null,
+                transactionDate: row.transaction_date ? new Date(row.transaction_date) : new Date(),
+                createdAt: new Date(),
+                updatedAt: new Date(),
+              });
+              imported++;
+            } catch (e: any) {
+              errors.push(`Row with amount ${row.amount}: ${e.message}`);
+            }
+          }
+          break;
+          
+        case 'quotations':
+          for (const row of rows) {
+            try {
+              if (!row.title?.trim()) {
+                skipped++;
+                continue;
+              }
+              
+              const title = row.title.trim();
+              
+              // Resolve unit by number if provided
+              let unitId: string | null = null;
+              if (row.unit_number?.trim()) {
+                const unit = await db.select().from(externalUnits)
+                  .where(and(
+                    eq(externalUnits.agencyId, agencyId),
+                    sql`LOWER(${externalUnits.unitNumber}) = LOWER(${row.unit_number.trim()})`
+                  ))
+                  .limit(1);
+                if (unit.length > 0) {
+                  unitId = unit[0].id;
+                }
+              }
+              
+              // Check for duplicates by quotation number if provided
+              if (row.quotation_number?.trim()) {
+                const existing = await db.select().from(externalQuotations)
+                  .where(and(
+                    eq(externalQuotations.agencyId, agencyId),
+                    sql`LOWER(${externalQuotations.quotationNumber}) = LOWER(${row.quotation_number.trim()})`
+                  ))
+                  .limit(1);
+                
+                if (existing.length > 0) {
+                  skipped++;
+                  continue;
+                }
+              }
+              
+              await db.insert(externalQuotations).values({
+                id: crypto.randomUUID(),
+                registrationType: row.registration_type?.trim() || 'seller',
+                agencyId,
+                unitId,
+                title,
+                quotationNumber: row.quotation_number?.trim() || null,
+                clientName: row.client_name?.trim() || null,
+                clientEmail: row.client_email?.trim() || null,
+                description: row.description?.trim() || null,
+                status: row.status?.trim() || 'draft',
+                totalAmount: row.total_amount ? parseFloat(row.total_amount) : 0,
+                adminFee: row.admin_fee ? parseFloat(row.admin_fee) : 0,
+                currency: row.currency?.trim() || 'USD',
+                validUntil: row.valid_until ? new Date(row.valid_until) : null,
+                createdAt: new Date(),
+                updatedAt: new Date(),
+              });
+              imported++;
+            } catch (e: any) {
+              errors.push(`Row "${row.title}": ${e.message}`);
+            }
+          }
+          break;
+          
+        case 'accounts':
+          const bcrypt = (await import('bcryptjs')).default;
+          for (const row of rows) {
+            try {
+              if (!row.email?.trim()) {
+                skipped++;
+                continue;
+              }
+              
+              const email = row.email.trim().toLowerCase();
+              
+              // Check if user already exists
+              const existingUser = await db.select().from(users)
+                .where(eq(users.email, email))
+                .limit(1);
+              
+              if (existingUser.length > 0) {
+                skipped++;
+                continue;
+              }
+              
+              // Validate role
+              const validRoles = ["external_agency_admin", "external_agency_accounting", "external_agency_maintenance", "external_agency_seller", "external_agency_concierge", "external_agency_lawyer"];
+              const role = row.role?.trim() || 'external_agency_seller';
+              if (!validRoles.includes(role)) {
+                errors.push(`Invalid role "${role}" for user "${email}"`);
+                skipped++;
+                continue;
+              }
+              
+              // Generate random password
+              const tempPassword = crypto.randomBytes(8).toString('hex');
+              const hashedPassword = await bcrypt.hash(tempPassword, 10);
+              
+              await db.insert(users).values({
+                id: crypto.randomUUID(),
+                registrationType: row.registration_type?.trim() || 'seller',
+                email,
+                password: hashedPassword,
+                firstName: row.first_name?.trim() || null,
+                lastName: row.last_name?.trim() || null,
+                phone: row.phone?.trim() || null,
+                role,
+                status: row.status?.trim() || 'active',
+                maintenanceSpecialty: row.maintenance_specialty?.trim() || null,
+                externalAgencyId: agencyId,
+                isActive: true,
+                isSuspended: false,
+                createdAt: new Date(),
+                updatedAt: new Date(),
+              });
+              imported++;
+            } catch (e: any) {
+              errors.push(`Row "${row.email}": ${e.message}`);
+            }
+          }
+          break;
+          
+        default:
+          return res.status(400).json({ 
+            message: `Import not supported for section: ${section}` 
+          });
+      }
+
+      // Update job status to completed
+      updateProgress();
+      job.status = 'completed';
+      job.finishedAt = new Date();
+      job.message = `Imported ${imported} records, skipped ${skipped} duplicates${errors.length > 0 ? `, ${errors.length} errors` : ''}`;
+      
+      await createAuditLog(req, "import", `external_${section}`, agencyId, 
+        `Imported ${imported} ${section} records from CSV (${skipped} skipped, ${errors.length} errors)`);
+    } catch (error: any) {
+      console.error(`Error importing ${req.params.section}:`, error);
+      // Update job status to failed
+      const job = importJobs.get(req.body.jobId || '');
+      if (job) {
+        job.status = 'failed';
+        job.finishedAt = new Date();
+        job.message = error.message || 'Import failed';
+      }
+    }
+  });
+  // ============================================================================
+  // EXTERNAL MANAGEMENT SYSTEM - CONFIGURABLE ZONES ROUTES
+  // ============================================================================
+
+  // GET /api/external/config/zones - List all zones for agency
+  app.get("/api/external/config/zones", isAuthenticated, requireRole(EXTERNAL_ALL_ROLES), async (req: any, res) => {
+    try {
+      const agencyId = await getUserAgencyId(req);
+      if (!agencyId) {
+        return res.status(403).json({ message: "Agency ID not found" });
+      }
+
+      const zones = await db.select()
+        .from(externalAgencyZones)
+        .where(eq(externalAgencyZones.agencyId, agencyId))
+        .orderBy(asc(externalAgencyZones.sortOrder), asc(externalAgencyZones.name));
+
+      res.json(zones);
+    } catch (error: any) {
+      console.error("Error listing zones:", error);
+      handleGenericError(res, error);
+    }
+  });
+
+  // POST /api/external/config/zones - Create new zone
+  app.post("/api/external/config/zones", isAuthenticated, requireRole(EXTERNAL_ADMIN_ROLES), async (req: any, res) => {
+    try {
+      const agencyId = await getUserAgencyId(req);
+      if (!agencyId) {
+        return res.status(403).json({ message: "Agency ID not found" });
+      }
+
+      const validated = insertExternalAgencyZoneSchema.parse({
+        ...req.body,
+        agencyId,
+      });
+
+      const [zone] = await db.insert(externalAgencyZones)
+        .values(validated)
+        .returning();
+
+      await createAuditLog(req, "create", "external_agency_zone", zone.id, `Created zone: ${zone.name}`);
+      res.status(201).json(zone);
+    } catch (error: any) {
+      console.error("Error creating zone:", error);
+      if (error.code === "23505") {
+        return res.status(409).json({ message: "A zone with this name already exists for your agency" });
+      }
+      handleGenericError(res, error);
+    }
+  });
+
+  // PATCH /api/external/config/zones/:id - Update zone
+  app.patch("/api/external/config/zones/:id", isAuthenticated, requireRole(EXTERNAL_ADMIN_ROLES), async (req: any, res) => {
+    try {
+      const { id } = req.params;
+      const agencyId = await getUserAgencyId(req);
+      if (!agencyId) {
+        return res.status(403).json({ message: "Agency ID not found" });
+      }
+
+      const [existing] = await db.select()
+        .from(externalAgencyZones)
+        .where(and(eq(externalAgencyZones.id, id), eq(externalAgencyZones.agencyId, agencyId)));
+
+      if (!existing) {
+        return res.status(404).json({ message: "Zone not found" });
+      }
+
+      const { name, isActive, sortOrder } = req.body;
+      const updates: any = {};
+      if (name !== undefined) updates.name = name;
+      if (isActive !== undefined) updates.isActive = isActive;
+      if (sortOrder !== undefined) updates.sortOrder = sortOrder;
+
+      const [updated] = await db.update(externalAgencyZones)
+        .set(updates)
+        .where(eq(externalAgencyZones.id, id))
+        .returning();
+
+      await createAuditLog(req, "update", "external_agency_zone", id, `Updated zone: ${updated.name}`);
+      res.json(updated);
+    } catch (error: any) {
+      console.error("Error updating zone:", error);
+      if (error.code === "23505") {
+        return res.status(409).json({ message: "A zone with this name already exists for your agency" });
+      }
+      handleGenericError(res, error);
+    }
+  });
+
+  // DELETE /api/external/config/zones/:id - Delete zone
+  app.delete("/api/external/config/zones/:id", isAuthenticated, requireRole(EXTERNAL_ADMIN_ROLES), async (req: any, res) => {
+    try {
+      const { id } = req.params;
+      const agencyId = await getUserAgencyId(req);
+      if (!agencyId) {
+        return res.status(403).json({ message: "Agency ID not found" });
+      }
+
+      const [existing] = await db.select()
+        .from(externalAgencyZones)
+        .where(and(eq(externalAgencyZones.id, id), eq(externalAgencyZones.agencyId, agencyId)));
+
+      if (!existing) {
+        return res.status(404).json({ message: "Zone not found" });
+      }
+
+      await db.delete(externalAgencyZones).where(eq(externalAgencyZones.id, id));
+
+      await createAuditLog(req, "delete", "external_agency_zone", id, `Deleted zone: ${existing.name}`);
+      res.status(204).send();
+    } catch (error: any) {
+      console.error("Error deleting zone:", error);
+      handleGenericError(res, error);
+    }
+  });
+
+  // ============================================================================
+  // EXTERNAL MANAGEMENT SYSTEM - CONFIGURABLE PROPERTY TYPES ROUTES
+  // ============================================================================
+
+  // GET /api/external/config/property-types - List all property types for agency
+  app.get("/api/external/config/property-types", isAuthenticated, requireRole(EXTERNAL_ALL_ROLES), async (req: any, res) => {
+    try {
+      const agencyId = await getUserAgencyId(req);
+      if (!agencyId) {
+        return res.status(403).json({ message: "Agency ID not found" });
+      }
+
+      const propertyTypes = await db.select()
+        .from(externalAgencyPropertyTypes)
+        .where(eq(externalAgencyPropertyTypes.agencyId, agencyId))
+        .orderBy(asc(externalAgencyPropertyTypes.sortOrder), asc(externalAgencyPropertyTypes.name));
+
+      res.json(propertyTypes);
+    } catch (error: any) {
+      console.error("Error listing property types:", error);
+      handleGenericError(res, error);
+    }
+  });
+
+  // POST /api/external/config/property-types - Create new property type
+  app.post("/api/external/config/property-types", isAuthenticated, requireRole(EXTERNAL_ADMIN_ROLES), async (req: any, res) => {
+    try {
+      const agencyId = await getUserAgencyId(req);
+      if (!agencyId) {
+        return res.status(403).json({ message: "Agency ID not found" });
+      }
+
+      const validated = insertExternalAgencyPropertyTypeSchema.parse({
+        ...req.body,
+        agencyId,
+      });
+
+      const [propertyType] = await db.insert(externalAgencyPropertyTypes)
+        .values(validated)
+        .returning();
+
+      await createAuditLog(req, "create", "external_agency_property_type", propertyType.id, `Created property type: ${propertyType.name}`);
+      res.status(201).json(propertyType);
+    } catch (error: any) {
+      console.error("Error creating property type:", error);
+      if (error.code === "23505") {
+        return res.status(409).json({ message: "A property type with this name already exists for your agency" });
+      }
+      handleGenericError(res, error);
+    }
+  });
+
+  // PATCH /api/external/config/property-types/:id - Update property type
+  app.patch("/api/external/config/property-types/:id", isAuthenticated, requireRole(EXTERNAL_ADMIN_ROLES), async (req: any, res) => {
+    try {
+      const { id } = req.params;
+      const agencyId = await getUserAgencyId(req);
+      if (!agencyId) {
+        return res.status(403).json({ message: "Agency ID not found" });
+      }
+
+      const [existing] = await db.select()
+        .from(externalAgencyPropertyTypes)
+        .where(and(eq(externalAgencyPropertyTypes.id, id), eq(externalAgencyPropertyTypes.agencyId, agencyId)));
+
+      if (!existing) {
+        return res.status(404).json({ message: "Property type not found" });
+      }
+
+      const { name, isActive, sortOrder } = req.body;
+      const updates: any = {};
+      if (name !== undefined) updates.name = name;
+      if (isActive !== undefined) updates.isActive = isActive;
+      if (sortOrder !== undefined) updates.sortOrder = sortOrder;
+
+      const [updated] = await db.update(externalAgencyPropertyTypes)
+        .set(updates)
+        .where(eq(externalAgencyPropertyTypes.id, id))
+        .returning();
+
+      await createAuditLog(req, "update", "external_agency_property_type", id, `Updated property type: ${updated.name}`);
+      res.json(updated);
+    } catch (error: any) {
+      console.error("Error updating property type:", error);
+      if (error.code === "23505") {
+        return res.status(409).json({ message: "A property type with this name already exists for your agency" });
+      }
+      handleGenericError(res, error);
+    }
+  });
+
+  // DELETE /api/external/config/property-types/:id - Delete property type
+  app.delete("/api/external/config/property-types/:id", isAuthenticated, requireRole(EXTERNAL_ADMIN_ROLES), async (req: any, res) => {
+    try {
+      const { id } = req.params;
+      const agencyId = await getUserAgencyId(req);
+      if (!agencyId) {
+        return res.status(403).json({ message: "Agency ID not found" });
+      }
+
+      const [existing] = await db.select()
+        .from(externalAgencyPropertyTypes)
+        .where(and(eq(externalAgencyPropertyTypes.id, id), eq(externalAgencyPropertyTypes.agencyId, agencyId)));
+
+      if (!existing) {
+        return res.status(404).json({ message: "Property type not found" });
+      }
+
+      await db.delete(externalAgencyPropertyTypes).where(eq(externalAgencyPropertyTypes.id, id));
+
+      await createAuditLog(req, "delete", "external_agency_property_type", id, `Deleted property type: ${existing.name}`);
+      res.status(204).send();
+    } catch (error: any) {
+      console.error("Error deleting property type:", error);
+      handleGenericError(res, error);
+    }
+  });
+  // EXTERNAL MANAGEMENT SYSTEM - QUOTATIONS ROUTES
+
+  // ============================================================================
+  // EXTERNAL MANAGEMENT SYSTEM - CONFIGURABLE UNIT CHARACTERISTICS ROUTES
+  // ============================================================================
+
+  // GET /api/external/config/unit-characteristics - List all unit characteristics for agency
+  app.get("/api/external/config/unit-characteristics", isAuthenticated, requireRole(EXTERNAL_ALL_ROLES), async (req: any, res) => {
+    try {
+      const agencyId = await getUserAgencyId(req);
+      if (!agencyId) {
+        return res.status(403).json({ message: "Agency ID not found" });
+      }
+
+      const characteristics = await db.select()
+        .from(externalAgencyUnitCharacteristics)
+        .where(eq(externalAgencyUnitCharacteristics.agencyId, agencyId))
+        .orderBy(asc(externalAgencyUnitCharacteristics.category), asc(externalAgencyUnitCharacteristics.sortOrder), asc(externalAgencyUnitCharacteristics.name));
+
+      res.json(characteristics);
+    } catch (error: any) {
+      console.error("Error listing unit characteristics:", error);
+      handleGenericError(res, error);
+    }
+  });
+
+  // POST /api/external/config/unit-characteristics - Create new unit characteristic
+  app.post("/api/external/config/unit-characteristics", isAuthenticated, requireRole(EXTERNAL_ADMIN_ROLES), async (req: any, res) => {
+    try {
+      const agencyId = await getUserAgencyId(req);
+      if (!agencyId) {
+        return res.status(403).json({ message: "Agency ID not found" });
+      }
+
+      const validated = insertExternalAgencyUnitCharacteristicSchema.parse({
+        ...req.body,
+        agencyId,
+      });
+
+      const [characteristic] = await db.insert(externalAgencyUnitCharacteristics)
+        .values(validated)
+        .returning();
+
+      await createAuditLog(req, "create", "external_agency_unit_characteristic", characteristic.id, `Created unit characteristic: ${characteristic.name}`);
+      res.status(201).json(characteristic);
+    } catch (error: any) {
+      console.error("Error creating unit characteristic:", error);
+      if (error.code === "23505") {
+        return res.status(409).json({ message: "A unit characteristic with this name already exists for your agency" });
+      }
+      handleGenericError(res, error);
+    }
+  });
+
+  // PATCH /api/external/config/unit-characteristics/:id - Update unit characteristic
+  app.patch("/api/external/config/unit-characteristics/:id", isAuthenticated, requireRole(EXTERNAL_ADMIN_ROLES), async (req: any, res) => {
+    try {
+      const { id } = req.params;
+      const agencyId = await getUserAgencyId(req);
+      if (!agencyId) {
+        return res.status(403).json({ message: "Agency ID not found" });
+      }
+
+      const [existing] = await db.select()
+        .from(externalAgencyUnitCharacteristics)
+        .where(and(eq(externalAgencyUnitCharacteristics.id, id), eq(externalAgencyUnitCharacteristics.agencyId, agencyId)));
+
+      if (!existing) {
+        return res.status(404).json({ message: "Unit characteristic not found" });
+      }
+
+      const { name, nameEn, category, icon, isActive, sortOrder } = req.body;
+      const updates: any = {};
+      if (name !== undefined) updates.name = name;
+      if (nameEn !== undefined) updates.nameEn = nameEn;
+      if (category !== undefined) updates.category = category;
+      if (icon !== undefined) updates.icon = icon;
+      if (isActive !== undefined) updates.isActive = isActive;
+      if (sortOrder !== undefined) updates.sortOrder = sortOrder;
+
+      const [updated] = await db.update(externalAgencyUnitCharacteristics)
+        .set(updates)
+        .where(eq(externalAgencyUnitCharacteristics.id, id))
+        .returning();
+
+      await createAuditLog(req, "update", "external_agency_unit_characteristic", id, `Updated unit characteristic: ${updated.name}`);
+      res.json(updated);
+    } catch (error: any) {
+      console.error("Error updating unit characteristic:", error);
+      if (error.code === "23505") {
+        return res.status(409).json({ message: "A unit characteristic with this name already exists for your agency" });
+      }
+      handleGenericError(res, error);
+    }
+  });
+
+  // DELETE /api/external/config/unit-characteristics/:id - Delete unit characteristic
+  app.delete("/api/external/config/unit-characteristics/:id", isAuthenticated, requireRole(EXTERNAL_ADMIN_ROLES), async (req: any, res) => {
+    try {
+      const { id } = req.params;
+      const agencyId = await getUserAgencyId(req);
+      if (!agencyId) {
+        return res.status(403).json({ message: "Agency ID not found" });
+      }
+
+      const [existing] = await db.select()
+        .from(externalAgencyUnitCharacteristics)
+        .where(and(eq(externalAgencyUnitCharacteristics.id, id), eq(externalAgencyUnitCharacteristics.agencyId, agencyId)));
+
+      if (!existing) {
+        return res.status(404).json({ message: "Unit characteristic not found" });
+      }
+
+      await db.delete(externalAgencyUnitCharacteristics).where(eq(externalAgencyUnitCharacteristics.id, id));
+
+      await createAuditLog(req, "delete", "external_agency_unit_characteristic", id, `Deleted unit characteristic: ${existing.name}`);
+      res.status(204).send();
+    } catch (error: any) {
+      console.error("Error deleting unit characteristic:", error);
+      handleGenericError(res, error);
+    }
+  });
+
+  // ============================================================================
+  // EXTERNAL MANAGEMENT SYSTEM - CONFIGURABLE AMENITIES ROUTES
+  // ============================================================================
+
+  // GET /api/external/config/amenities - List all amenities for agency
+  app.get("/api/external/config/amenities", isAuthenticated, requireRole(EXTERNAL_ALL_ROLES), async (req: any, res) => {
+    try {
+      const agencyId = await getUserAgencyId(req);
+      if (!agencyId) {
+        return res.status(403).json({ message: "Agency ID not found" });
+      }
+
+      const amenities = await db.select()
+        .from(externalAgencyAmenities)
+        .where(eq(externalAgencyAmenities.agencyId, agencyId))
+        .orderBy(asc(externalAgencyAmenities.category), asc(externalAgencyAmenities.sortOrder), asc(externalAgencyAmenities.name));
+
+      res.json(amenities);
+    } catch (error: any) {
+      console.error("Error listing amenities:", error);
+      handleGenericError(res, error);
+    }
+  });
+
+  // POST /api/external/config/amenities - Create new amenity
+  app.post("/api/external/config/amenities", isAuthenticated, requireRole(EXTERNAL_ADMIN_ROLES), async (req: any, res) => {
+    try {
+      const agencyId = await getUserAgencyId(req);
+      if (!agencyId) {
+        return res.status(403).json({ message: "Agency ID not found" });
+      }
+
+      const validated = insertExternalAgencyAmenitySchema.parse({
+        ...req.body,
+        agencyId,
+      });
+
+      const [amenity] = await db.insert(externalAgencyAmenities)
+        .values(validated)
+        .returning();
+
+      await createAuditLog(req, "create", "external_agency_amenity", amenity.id, `Created amenity: ${amenity.name}`);
+      res.status(201).json(amenity);
+    } catch (error: any) {
+      console.error("Error creating amenity:", error);
+      if (error.code === "23505") {
+        return res.status(409).json({ message: "An amenity with this name already exists for your agency" });
+      }
+      handleGenericError(res, error);
+    }
+  });
+
+  // PATCH /api/external/config/amenities/:id - Update amenity
+  app.patch("/api/external/config/amenities/:id", isAuthenticated, requireRole(EXTERNAL_ADMIN_ROLES), async (req: any, res) => {
+    try {
+      const { id } = req.params;
+      const agencyId = await getUserAgencyId(req);
+      if (!agencyId) {
+        return res.status(403).json({ message: "Agency ID not found" });
+      }
+
+      const [existing] = await db.select()
+        .from(externalAgencyAmenities)
+        .where(and(eq(externalAgencyAmenities.id, id), eq(externalAgencyAmenities.agencyId, agencyId)));
+
+      if (!existing) {
+        return res.status(404).json({ message: "Amenity not found" });
+      }
+
+      const { name, nameEn, category, icon, isActive, sortOrder } = req.body;
+      const updates: any = {};
+      if (name !== undefined) updates.name = name;
+      if (nameEn !== undefined) updates.nameEn = nameEn;
+      if (category !== undefined) updates.category = category;
+      if (icon !== undefined) updates.icon = icon;
+      if (isActive !== undefined) updates.isActive = isActive;
+      if (sortOrder !== undefined) updates.sortOrder = sortOrder;
+
+      const [updated] = await db.update(externalAgencyAmenities)
+        .set(updates)
+        .where(eq(externalAgencyAmenities.id, id))
+        .returning();
+
+      await createAuditLog(req, "update", "external_agency_amenity", id, `Updated amenity: ${updated.name}`);
+      res.json(updated);
+    } catch (error: any) {
+      console.error("Error updating amenity:", error);
+      if (error.code === "23505") {
+        return res.status(409).json({ message: "An amenity with this name already exists for your agency" });
+      }
+      handleGenericError(res, error);
+    }
+  });
+
+  // DELETE /api/external/config/amenities/:id - Delete amenity
+  app.delete("/api/external/config/amenities/:id", isAuthenticated, requireRole(EXTERNAL_ADMIN_ROLES), async (req: any, res) => {
+    try {
+      const { id } = req.params;
+      const agencyId = await getUserAgencyId(req);
+      if (!agencyId) {
+        return res.status(403).json({ message: "Agency ID not found" });
+      }
+
+      const [existing] = await db.select()
+        .from(externalAgencyAmenities)
+        .where(and(eq(externalAgencyAmenities.id, id), eq(externalAgencyAmenities.agencyId, agencyId)));
+
+      if (!existing) {
+        return res.status(404).json({ message: "Amenity not found" });
+      }
+
+      await db.delete(externalAgencyAmenities).where(eq(externalAgencyAmenities.id, id));
+
+      await createAuditLog(req, "delete", "external_agency_amenity", id, `Deleted amenity: ${existing.name}`);
+      res.status(204).send();
+    } catch (error: any) {
+      console.error("Error deleting amenity:", error);
+      handleGenericError(res, error);
+    }
+  });
+
+  // POST /api/external/config/seed-characteristics-amenities - Seed default characteristics and amenities
+  app.post("/api/external/config/seed-characteristics-amenities", isAuthenticated, requireRole(EXTERNAL_ADMIN_ROLES), async (req: any, res) => {
+    try {
+      const agencyId = await getUserAgencyId(req);
+      if (!agencyId) {
+        return res.status(403).json({ message: "Agency ID not found" });
+      }
+
+      // Default unit characteristics (40 items)
+      const defaultCharacteristics = [
+        // Cocina (Kitchen)
+        { name: "Cocina Equipada", nameEn: "Equipped Kitchen", category: "kitchen", sortOrder: 1 },
+        { name: "Estufa", nameEn: "Stove", category: "kitchen", sortOrder: 2 },
+        { name: "Horno", nameEn: "Oven", category: "kitchen", sortOrder: 3 },
+        { name: "Microondas", nameEn: "Microwave", category: "kitchen", sortOrder: 4 },
+        { name: "Refrigerador", nameEn: "Refrigerator", category: "kitchen", sortOrder: 5 },
+        { name: "Lavavajillas", nameEn: "Dishwasher", category: "kitchen", sortOrder: 6 },
+        { name: "Tostador", nameEn: "Toaster", category: "kitchen", sortOrder: 7 },
+        { name: "Cafetera", nameEn: "Coffee Maker", category: "kitchen", sortOrder: 8 },
+        { name: "Licuadora", nameEn: "Blender", category: "kitchen", sortOrder: 9 },
+        { name: "Utensilios de Cocina", nameEn: "Kitchen Utensils", category: "kitchen", sortOrder: 10 },
+        // Lavandería (Laundry)
+        { name: "Lavadora", nameEn: "Washing Machine", category: "laundry", sortOrder: 1 },
+        { name: "Secadora", nameEn: "Dryer", category: "laundry", sortOrder: 2 },
+        { name: "Centro de Lavado", nameEn: "Washer/Dryer Combo", category: "laundry", sortOrder: 3 },
+        { name: "Área de Lavado", nameEn: "Laundry Area", category: "laundry", sortOrder: 4 },
+        { name: "Tendedero", nameEn: "Clothesline", category: "laundry", sortOrder: 5 },
+        // Climatización (Climate)
+        { name: "Aire Acondicionado", nameEn: "Air Conditioning", category: "climate", sortOrder: 1 },
+        { name: "Minisplit", nameEn: "Mini Split AC", category: "climate", sortOrder: 2 },
+        { name: "Ventilador de Techo", nameEn: "Ceiling Fan", category: "climate", sortOrder: 3 },
+        { name: "Calentador de Agua", nameEn: "Water Heater", category: "climate", sortOrder: 4 },
+        { name: "Boiler Solar", nameEn: "Solar Water Heater", category: "climate", sortOrder: 5 },
+        { name: "Calefacción", nameEn: "Heating", category: "climate", sortOrder: 6 },
+        // Baño (Bathroom)
+        { name: "Tina/Bañera", nameEn: "Bathtub", category: "bathroom", sortOrder: 1 },
+        { name: "Regadera con Hidromasaje", nameEn: "Shower with Jets", category: "bathroom", sortOrder: 2 },
+        { name: "Baño Completo", nameEn: "Full Bathroom", category: "bathroom", sortOrder: 3 },
+        { name: "Medio Baño", nameEn: "Half Bathroom", category: "bathroom", sortOrder: 4 },
+        // Recámara (Bedroom)
+        { name: "Cama King Size", nameEn: "King Size Bed", category: "bedroom", sortOrder: 1 },
+        { name: "Cama Queen Size", nameEn: "Queen Size Bed", category: "bedroom", sortOrder: 2 },
+        { name: "Closet/Armario", nameEn: "Closet/Wardrobe", category: "bedroom", sortOrder: 3 },
+        { name: "Walk-in Closet", nameEn: "Walk-in Closet", category: "bedroom", sortOrder: 4 },
+        { name: "Vestidor", nameEn: "Dressing Room", category: "bedroom", sortOrder: 5 },
+        // Sala/Estar (Living)
+        { name: "Sala Amueblada", nameEn: "Furnished Living Room", category: "living", sortOrder: 1 },
+        { name: "Comedor", nameEn: "Dining Area", category: "living", sortOrder: 2 },
+        { name: "Smart TV", nameEn: "Smart TV", category: "living", sortOrder: 3 },
+        { name: "Internet/WiFi", nameEn: "Internet/WiFi", category: "living", sortOrder: 4 },
+        { name: "Cable/Streaming", nameEn: "Cable/Streaming", category: "living", sortOrder: 5 },
+        // Exterior
+        { name: "Balcón", nameEn: "Balcony", category: "exterior", sortOrder: 1 },
+        { name: "Terraza", nameEn: "Terrace", category: "exterior", sortOrder: 2 },
+        { name: "Rooftop Privado", nameEn: "Private Rooftop", category: "exterior", sortOrder: 3 },
+        { name: "Jardín Privado", nameEn: "Private Garden", category: "exterior", sortOrder: 4 },
+        { name: "Alberca Privada", nameEn: "Private Pool", category: "exterior", sortOrder: 5 },
+      ];
+
+      // Default amenities (40 items)
+      const defaultAmenities = [
+        // Áreas Comunes (Common Areas)
+        { name: "Alberca", nameEn: "Swimming Pool", category: "common_areas", sortOrder: 1 },
+        { name: "Gimnasio", nameEn: "Gym", category: "common_areas", sortOrder: 2 },
+        { name: "Área de BBQ/Asador", nameEn: "BBQ Area", category: "common_areas", sortOrder: 3 },
+        { name: "Palapa", nameEn: "Palapa", category: "common_areas", sortOrder: 4 },
+        { name: "Rooftop Común", nameEn: "Common Rooftop", category: "common_areas", sortOrder: 5 },
+        { name: "Jardín Común", nameEn: "Common Garden", category: "common_areas", sortOrder: 6 },
+        { name: "Área de Yoga", nameEn: "Yoga Area", category: "common_areas", sortOrder: 7 },
+        { name: "Sala de Eventos", nameEn: "Event Room", category: "common_areas", sortOrder: 8 },
+        { name: "Coworking", nameEn: "Coworking Space", category: "common_areas", sortOrder: 9 },
+        { name: "Business Center", nameEn: "Business Center", category: "common_areas", sortOrder: 10 },
+        { name: "Kids Club", nameEn: "Kids Club", category: "common_areas", sortOrder: 11 },
+        { name: "Área de Juegos Infantiles", nameEn: "Playground", category: "common_areas", sortOrder: 12 },
+        { name: "Cancha de Tenis", nameEn: "Tennis Court", category: "common_areas", sortOrder: 13 },
+        { name: "Cancha de Paddle", nameEn: "Paddle Court", category: "common_areas", sortOrder: 14 },
+        { name: "Pet Friendly", nameEn: "Pet Friendly", category: "common_areas", sortOrder: 15 },
+        // Seguridad (Security)
+        { name: "Seguridad 24/7", nameEn: "24/7 Security", category: "security", sortOrder: 1 },
+        { name: "Caseta de Vigilancia", nameEn: "Security Booth", category: "security", sortOrder: 2 },
+        { name: "Cámaras de Seguridad", nameEn: "Security Cameras", category: "security", sortOrder: 3 },
+        { name: "Control de Acceso", nameEn: "Access Control", category: "security", sortOrder: 4 },
+        { name: "Acceso con Tarjeta/Llave", nameEn: "Key Card Access", category: "security", sortOrder: 5 },
+        { name: "Intercomunicador", nameEn: "Intercom", category: "security", sortOrder: 6 },
+        { name: "Portero/Conserje", nameEn: "Doorman/Concierge", category: "security", sortOrder: 7 },
+        // Estacionamiento (Parking)
+        { name: "Estacionamiento Privado", nameEn: "Private Parking", category: "parking", sortOrder: 1 },
+        { name: "Estacionamiento Techado", nameEn: "Covered Parking", category: "parking", sortOrder: 2 },
+        { name: "Estacionamiento para Visitas", nameEn: "Guest Parking", category: "parking", sortOrder: 3 },
+        { name: "Estacionamiento para Bicicletas", nameEn: "Bicycle Parking", category: "parking", sortOrder: 4 },
+        { name: "Cargador para Auto Eléctrico", nameEn: "EV Charger", category: "parking", sortOrder: 5 },
+        // Servicios (Services)
+        { name: "Elevador", nameEn: "Elevator", category: "services", sortOrder: 1 },
+        { name: "Área de Paquetería", nameEn: "Package Locker", category: "services", sortOrder: 2 },
+        { name: "Lavandería Común", nameEn: "Common Laundry", category: "services", sortOrder: 3 },
+        { name: "Recolección de Basura", nameEn: "Garbage Collection", category: "services", sortOrder: 4 },
+        { name: "Mantenimiento Incluido", nameEn: "Maintenance Included", category: "services", sortOrder: 5 },
+        { name: "Agua Incluida", nameEn: "Water Included", category: "services", sortOrder: 6 },
+        { name: "Gas Incluido", nameEn: "Gas Included", category: "services", sortOrder: 7 },
+        { name: "Internet Incluido", nameEn: "Internet Included", category: "services", sortOrder: 8 },
+        // Ubicación (Location)
+        { name: "Calle Asfaltada", nameEn: "Paved Street", category: "location", sortOrder: 1 },
+        { name: "Cerca de Playa", nameEn: "Near Beach", category: "location", sortOrder: 2 },
+        { name: "Cerca de Centro", nameEn: "Near Downtown", category: "location", sortOrder: 3 },
+        { name: "Cerca de Supermercado", nameEn: "Near Supermarket", category: "location", sortOrder: 4 },
+        { name: "Transporte Público Cercano", nameEn: "Near Public Transit", category: "location", sortOrder: 5 },
+      ];
+
+      // Check if already seeded
+      const existingChars = await db.select()
+        .from(externalAgencyUnitCharacteristics)
+        .where(eq(externalAgencyUnitCharacteristics.agencyId, agencyId))
+        .limit(1);
+
+      const existingAmenities = await db.select()
+        .from(externalAgencyAmenities)
+        .where(eq(externalAgencyAmenities.agencyId, agencyId))
+        .limit(1);
+
+      let charsCreated = 0;
+      let amenitiesCreated = 0;
+
+      if (existingChars.length === 0) {
+        await db.insert(externalAgencyUnitCharacteristics)
+          .values(defaultCharacteristics.map(c => ({ ...c, agencyId })));
+        charsCreated = defaultCharacteristics.length;
+      }
+
+      if (existingAmenities.length === 0) {
+        await db.insert(externalAgencyAmenities)
+          .values(defaultAmenities.map(a => ({ ...a, agencyId })));
+        amenitiesCreated = defaultAmenities.length;
+      }
+
+      await createAuditLog(req, "create", "seed_characteristics_amenities", agencyId, `Seeded ${charsCreated} characteristics and ${amenitiesCreated} amenities`);
+      
+      res.json({
+        message: "Seed completed",
+        characteristicsCreated: charsCreated,
+        amenitiesCreated: amenitiesCreated,
+        alreadyExisted: {
+          characteristics: existingChars.length > 0,
+          amenities: existingAmenities.length > 0,
+        }
+      });
+    } catch (error: any) {
+      console.error("Error seeding characteristics and amenities:", error);
+      handleGenericError(res, error);
+    }
+  });
+
+
+  // ============================================================================
   app.get("/api/external/quotations", isAuthenticated, requireRole(EXTERNAL_ALL_ROLES), async (req: any, res) => {
     try {
       const agencyId = await getUserAgencyId(req);
@@ -28551,7 +41081,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(403).json({ message: "User is not assigned to any agency" });
       }
 
-      if (!status || !['draft', 'sent', 'accepted', 'rejected', 'cancelled'].includes(status)) {
+      if (!status || !['draft', 'sent', 'approved', 'rejected', 'converted_to_ticket'].includes(status)) {
         return res.status(400).json({ message: "Invalid status" });
       }
 
@@ -28680,6 +41210,88 @@ export async function registerRoutes(app: Express): Promise<Server> {
       handleGenericError(res, error);
     }
   });
+
+  // POST /api/external/quotations/:id/convert-to-ticket - Convert accepted quotation to maintenance ticket
+  app.post("/api/external/quotations/:id/convert-to-ticket", isAuthenticated, requireRole(EXTERNAL_ADMIN_ROLES), async (req: any, res) => {
+    try {
+      const { id } = req.params;
+      const agencyId = await getUserAgencyId(req);
+      
+      if (!agencyId) {
+        return res.status(403).json({ message: "User is not assigned to any agency" });
+      }
+
+      const quotation = await storage.getExternalQuotationById(id, agencyId);
+      if (!quotation) {
+        return res.status(404).json({ message: "Quotation not found" });
+      }
+
+      if (quotation.status !== "approved") {
+        return res.status(400).json({ message: "Solo se pueden convertir cotizaciones aceptadas" });
+      }
+
+      if ((quotation as any).convertedTicketId) {
+        return res.status(400).json({ message: "Esta cotización ya fue convertida a ticket" });
+      }
+
+      const services = typeof quotation.services === 'string' 
+        ? JSON.parse(quotation.services) 
+        : quotation.services;
+      
+      const servicesDescription = services.map((s: any) => 
+        `- ${s.name}: ${s.quantity} x ${s.unitPrice} = ${s.subtotal}`
+      ).join('\n');
+
+      const ticketData = {
+        title: quotation.title,
+        description: quotation.description || quotation.title,
+        category: 'general' as const,
+        priority: 'medium' as const,
+        status: 'open' as const,
+        agencyId,
+        propertyId: quotation.propertyId || null,
+        unitId: quotation.unitId || null,
+        estimatedCost: quotation.total,
+        quotedTotal: quotation.total,
+        quotedAdminFee: quotation.adminFee,
+        quotedServices: services,
+        quotationId: quotation.id,
+        notes: `Creado desde cotización: ${quotation.quotationNumber}\n\nServicios:\n${servicesDescription}\n\n${(quotation as any).solutionDescription ? `Solución propuesta:\n${(quotation as any).solutionDescription}\n\n` : ''}Notas: ${quotation.notes || 'N/A'}`,
+        createdBy: req.user.id,
+      };
+
+      const ticket = await storage.createExternalMaintenanceTicket(ticketData);
+
+      await storage.updateExternalQuotation(id, agencyId, { 
+        convertedTicketId: ticket.id,
+        status: 'converted_to_ticket' 
+      });
+
+      await createAuditLog(req, "create", "external_maintenance_ticket", ticket.id, `Converted from quotation ${quotation.quotationNumber}`);
+      
+      res.status(201).json({ 
+        ticket,
+        message: "Cotización convertida a ticket exitosamente" 
+      });
+    } catch (error: any) {
+      console.error("Error converting quotation to ticket:", error);
+      if (error instanceof NotFoundError) {
+        return res.status(404).json({ message: error.message });
+      }
+      handleGenericError(res, error);
+    }
+  });
+
+  // Register portal routes for tenant/owner portals
+  registerPortalRoutes(
+    app,
+    handleGenericError,
+    isAuthenticated,
+    requireRole,
+    EXTERNAL_ADMIN_ROLES,
+    getUserAgencyId,
+    createAuditLog
+  );
 
   const httpServer = createServer(app);
   const sessionMiddleware = getSession();
@@ -28810,5 +41422,2776 @@ export async function registerRoutes(app: Express): Promise<Server> {
     });
   });
   
+
+  // GET /api/public/property/:agencySlug/:unitSlug - Resolve friendly URL to property
+  app.get("/api/public/property/:agencySlug/:unitSlug", async (req, res) => {
+    try {
+      const { agencySlug, unitSlug } = req.params;
+      
+      // Helper to generate slug from string
+      const generateSlug = (str: string) => {
+        return str
+          .toLowerCase()
+          .normalize("NFD")
+          .replace(/[\u0300-\u036f]/g, "")
+          .replace(/[^a-z0-9]+/g, "-")
+          .replace(/(^-|-$)/g, "");
+      };
+      
+      // Find agency by slug or generated slug from name
+      const agencies = await db
+        .select()
+        .from(externalAgencies)
+        .where(eq(externalAgencies.isActive, true));
+      
+      const matchedAgency = agencies.find(a => {
+        const slug = a.slug || generateSlug(a.name);
+        return slug === agencySlug;
+      });
+      
+      if (!matchedAgency) {
+        return res.status(404).json({ error: "Agency not found" });
+      }
+      
+      // Find unit by slug or generated slug (matching public API logic)
+      const units = await db
+        .select({
+          unit: externalUnits,
+          condoName: externalCondominiums.name,
+        })
+        .from(externalUnits)
+        .leftJoin(externalCondominiums, eq(externalUnits.condominiumId, externalCondominiums.id))
+        .where(and(
+          eq(externalUnits.agencyId, matchedAgency.id),
+          eq(externalUnits.isActive, true),
+          eq(externalUnits.publishStatus, "approved")
+        ));
+      
+      const matchedUnit = units.find(({ unit: u, condoName }) => {
+        // Generate slug same way as public properties endpoint
+        if (u.slug) return u.slug === unitSlug;
+        
+        // Try condoName-unitNumber (preferred format)
+        const condoBasedSlug = condoName ? generateSlug(`${condoName}-${u.unitNumber}`) : null;
+        if (condoBasedSlug === unitSlug) return true;
+        
+        // Fallback to title or propertyType-unitNumber
+        const titleBasedSlug = generateSlug(u.title || `${u.propertyType || 'propiedad'}-${u.unitNumber}`);
+        return titleBasedSlug === unitSlug;
+      });
+      
+      const matchedUnitData = matchedUnit?.unit;
+      
+      if (!matchedUnitData) {
+        return res.status(404).json({ error: "Property not found" });
+      }
+      
+      res.json({ unitId: matchedUnitData.id });
+    } catch (error: any) {
+      console.error("Error resolving property URL:", error);
+      res.status(500).json({ error: error.message || "Error resolving property URL" });
+    }
+  });
+
+
+  // =====================================================
+  // SELLER MANAGEMENT VALIDATION SCHEMAS
+  // =====================================================
+  const createSellerProfileSchema = z.object({
+    userId: z.string().trim().min(1),
+    status: z.string().trim().min(1).optional(),
+    commissionRate: z.string().trim().optional(),
+    hireDate: z.string().trim().optional(),
+    notes: z.string().trim().optional(),
+  });
+
+  const updateSellerProfileSchema = z.object({
+    status: z.string().trim().optional(),
+    commissionRate: z.string().trim().optional(),
+    hireDate: z.string().trim().optional(),
+    terminationDate: z.string().trim().optional(),
+    notes: z.string().trim().optional(),
+  });
+
+  const createCommissionSchema = z.object({
+    sellerId: z.string().trim().min(1),
+    amount: z.string().trim().min(1),
+    commissionType: z.string().trim().min(1),
+    description: z.string().trim().optional(),
+    contractId: z.string().trim().optional(),
+  });
+
+  const updateCommissionSchema = z.object({
+    amount: z.string().trim().optional(),
+    commissionType: z.string().trim().optional(),
+    description: z.string().trim().optional(),
+    isPaid: z.boolean().optional(),
+    paidAt: z.string().trim().optional(),
+    payoutId: z.string().trim().optional(),
+  });
+
+  const createPayoutSchema = z.object({
+    sellerId: z.string().trim().min(1),
+    amount: z.string().trim().min(1),
+    paymentMethod: z.string().trim().optional(),
+    notes: z.string().trim().optional(),
+    commissionIds: z.array(z.string().trim().min(1)).optional(),
+  });
+
+  const updatePayoutSchema = z.object({
+    amount: z.string().trim().optional(),
+    paymentMethod: z.string().trim().optional(),
+    notes: z.string().trim().optional(),
+    status: z.string().trim().optional(),
+    paymentReference: z.string().trim().optional(),
+  });
+
+  const createGoalSchema = z.object({
+    sellerId: z.string().trim().min(1).optional(),
+    goalType: z.string().trim().min(1),
+    target: z.coerce.number().finite(),
+    startDate: z.string().trim().min(1),
+    endDate: z.string().trim().min(1),
+    isActive: z.boolean().optional(),
+  });
+
+  const updateGoalSchema = z.object({
+    goalType: z.string().trim().optional(),
+    target: z.coerce.number().finite().optional(),
+    startDate: z.string().trim().optional(),
+    endDate: z.string().trim().optional(),
+    isActive: z.boolean().optional(),
+  });
+
+  // =====================================================
+  // SELLER MANAGEMENT ENDPOINTS (Admin Dashboard)
+  // =====================================================
+
+  // GET /api/external/sellers - Get all sellers for agency with stats
+  app.get("/api/external/sellers", isAuthenticated, requireRole(EXTERNAL_ADMIN_ROLES), async (req: any, res) => {
+    try {
+      const agencyId = await getUserAgencyId(req);
+      if (!agencyId) return res.status(403).json({ message: "No agency access" });
+
+      // Get all seller profiles for this agency
+      const profiles = await storage.getExternalSellerProfiles(agencyId, {
+        status: req.query.status as string | undefined
+      });
+
+      // Get user info and stats for each seller
+      const sellersWithStats = await Promise.all(profiles.map(async (profile) => {
+        const user = await storage.getUser(profile.userId);
+        const stats = await storage.getSellerStats(agencyId, profile.userId);
+        
+        return {
+          ...profile,
+          user: user ? {
+            id: user.id,
+            firstName: user.firstName,
+            lastName: user.lastName,
+            email: user.email,
+            profileImageUrl: user.profileImageUrl
+          } : null,
+          stats
+        };
+      }));
+
+      res.json(sellersWithStats);
+    } catch (error: any) {
+      console.error("Error fetching sellers:", error);
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  // GET /api/external/sellers/:id - Get specific seller with details
+  app.get("/api/external/sellers/:id", isAuthenticated, requireRole(EXTERNAL_ADMIN_ROLES), async (req: any, res) => {
+    try {
+      const agencyId = await getUserAgencyId(req);
+      if (!agencyId) return res.status(403).json({ message: "No agency access" });
+
+      const profile = await storage.getExternalSellerProfile(req.params.id);
+      if (!profile || profile.agencyId !== agencyId) {
+        return res.status(404).json({ message: "Seller not found" });
+      }
+
+      const user = await storage.getUser(profile.userId);
+      const stats = await storage.getSellerStats(agencyId, profile.userId);
+      const goals = await storage.getSellerGoals(agencyId, { sellerId: profile.userId, isActive: true });
+      const commissions = await storage.getExternalSellerCommissions(agencyId, { sellerProfileId: profile.id });
+      const payouts = await storage.getExternalSellerPayouts(agencyId, { sellerProfileId: profile.id });
+
+      res.json({
+        ...profile,
+        user: user ? {
+          id: user.id,
+          firstName: user.firstName,
+          lastName: user.lastName,
+          email: user.email,
+          phone: user.phone,
+          profileImageUrl: user.profileImageUrl
+        } : null,
+        stats,
+        goals,
+        commissions,
+        payouts
+      });
+    } catch (error: any) {
+      console.error("Error fetching seller:", error);
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  // POST /api/external/sellers - Create seller profile
+  app.post("/api/external/sellers", isAuthenticated, requireRole(EXTERNAL_ADMIN_ROLES), async (req: any, res) => {
+    try {
+      const agencyId = await getUserAgencyId(req);
+      if (!agencyId) return res.status(403).json({ message: "No agency access" });
+
+      // Validate request body
+      const parsed = createSellerProfileSchema.safeParse(req.body);
+      if (!parsed.success) {
+        return res.status(400).json({ message: "Invalid request data", errors: parsed.error.errors });
+      }
+      const { userId, ...profileData } = parsed.data;
+
+      // Check if profile already exists
+      const existing = await storage.getExternalSellerProfileByUser(agencyId, userId);
+      if (existing) {
+        return res.status(400).json({ message: "Seller profile already exists for this user" });
+      }
+
+      const profile = await storage.createExternalSellerProfile({
+        ...profileData,
+        agencyId,
+        userId,
+        createdBy: req.user?.id
+      });
+
+      res.status(201).json(profile);
+    } catch (error: any) {
+      console.error("Error creating seller profile:", error);
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  // PATCH /api/external/sellers/:id - Update seller profile
+  app.patch("/api/external/sellers/:id", isAuthenticated, requireRole(EXTERNAL_ADMIN_ROLES), async (req: any, res) => {
+    try {
+      const agencyId = await getUserAgencyId(req);
+      if (!agencyId) return res.status(403).json({ message: "No agency access" });
+
+      // Validate request body
+      const parsed = updateSellerProfileSchema.safeParse(req.body);
+      if (!parsed.success) {
+        return res.status(400).json({ message: "Invalid request data", errors: parsed.error.errors });
+      }
+
+      const profile = await storage.getExternalSellerProfile(req.params.id);
+      if (!profile || profile.agencyId !== agencyId) {
+        return res.status(404).json({ message: "Seller not found" });
+      }
+
+      const updated = await storage.updateExternalSellerProfile(req.params.id, parsed.data);
+      res.json(updated);
+    } catch (error: any) {
+      console.error("Error updating seller:", error);
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  // DELETE /api/external/sellers/:id - Delete seller profile
+  app.delete("/api/external/sellers/:id", isAuthenticated, requireRole(EXTERNAL_ADMIN_ROLES), async (req: any, res) => {
+    try {
+      const agencyId = await getUserAgencyId(req);
+      if (!agencyId) return res.status(403).json({ message: "No agency access" });
+
+      const profile = await storage.getExternalSellerProfile(req.params.id);
+      if (!profile || profile.agencyId !== agencyId) {
+        return res.status(404).json({ message: "Seller not found" });
+      }
+
+      await storage.deleteExternalSellerProfile(req.params.id);
+      res.status(204).send();
+    } catch (error: any) {
+      console.error("Error deleting seller:", error);
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  // GET /api/external/sellers/:id/stats - Get seller statistics
+  app.get("/api/external/sellers/:id/stats", isAuthenticated, requireRole(EXTERNAL_ADMIN_ROLES), async (req: any, res) => {
+    try {
+      const agencyId = await getUserAgencyId(req);
+      if (!agencyId) return res.status(403).json({ message: "No agency access" });
+
+      const profile = await storage.getExternalSellerProfile(req.params.id);
+      if (!profile || profile.agencyId !== agencyId) {
+        return res.status(404).json({ message: "Seller not found" });
+      }
+
+      const startDate = req.query.startDate ? new Date(req.query.startDate as string) : undefined;
+      const endDate = req.query.endDate ? new Date(req.query.endDate as string) : undefined;
+
+      const stats = await storage.getSellerStats(agencyId, profile.userId, startDate, endDate);
+      res.json(stats);
+    } catch (error: any) {
+      console.error("Error fetching seller stats:", error);
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  // =====================================================
+  // SELLER COMMISSIONS ENDPOINTS
+  // =====================================================
+
+  // GET /api/external/commissions - Get all commissions
+  app.get("/api/external/commissions", isAuthenticated, requireRole(EXTERNAL_ADMIN_ROLES), async (req: any, res) => {
+    try {
+      const agencyId = await getUserAgencyId(req);
+      if (!agencyId) return res.status(403).json({ message: "No agency access" });
+
+      const commissions = await storage.getExternalSellerCommissions(agencyId, {
+        sellerId: req.query.sellerId as string | undefined,
+        isPaid: req.query.isPaid === 'true' ? true : req.query.isPaid === 'false' ? false : undefined
+      });
+
+      res.json(commissions);
+    } catch (error: any) {
+      console.error("Error fetching commissions:", error);
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  // POST /api/external/commissions - Create commission record
+  app.post("/api/external/commissions", isAuthenticated, requireRole(EXTERNAL_ADMIN_ROLES), async (req: any, res) => {
+    try {
+      const agencyId = await getUserAgencyId(req);
+      if (!agencyId) return res.status(403).json({ message: "No agency access" });
+
+      // Validate request body
+      const parsed = createCommissionSchema.safeParse(req.body);
+      if (!parsed.success) {
+        return res.status(400).json({ message: "Invalid request data", errors: parsed.error.errors });
+      }
+
+      // Verify seller belongs to agency
+      const sellerProfile = await storage.getExternalSellerProfileByUser(agencyId, parsed.data.sellerId);
+      if (!sellerProfile) {
+        return res.status(404).json({ message: "Seller not found in this agency" });
+      }
+
+      const commission = await storage.createExternalSellerCommission({
+        ...parsed.data,
+        agencyId,
+        createdBy: req.user?.id
+      });
+
+      res.status(201).json(commission);
+    } catch (error: any) {
+      console.error("Error creating commission:", error);
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  // PATCH /api/external/commissions/:id - Update commission
+  app.patch("/api/external/commissions/:id", isAuthenticated, requireRole(EXTERNAL_ADMIN_ROLES), async (req: any, res) => {
+    try {
+      const agencyId = await getUserAgencyId(req);
+      if (!agencyId) return res.status(403).json({ message: "No agency access" });
+
+      // Validate request body
+      const parsed = updateCommissionSchema.safeParse(req.body);
+      if (!parsed.success) {
+        return res.status(400).json({ message: "Invalid request data", errors: parsed.error.errors });
+      }
+
+      const commission = await storage.getExternalSellerCommission(req.params.id);
+      if (!commission || commission.agencyId !== agencyId) {
+        return res.status(404).json({ message: "Commission not found" });
+      }
+
+      const updated = await storage.updateExternalSellerCommission(req.params.id, parsed.data);
+      res.json(updated);
+    } catch (error: any) {
+      console.error("Error updating commission:", error);
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  // =====================================================
+  // SELLER PAYOUTS ENDPOINTS
+  // =====================================================
+
+  // GET /api/external/payouts - Get all payouts
+  app.get("/api/external/payouts", isAuthenticated, requireRole(EXTERNAL_ADMIN_ROLES), async (req: any, res) => {
+    try {
+      const agencyId = await getUserAgencyId(req);
+      if (!agencyId) return res.status(403).json({ message: "No agency access" });
+
+      const payouts = await storage.getExternalSellerPayouts(agencyId, {
+        sellerId: req.query.sellerId as string | undefined,
+        status: req.query.status as string | undefined
+      });
+
+      res.json(payouts);
+    } catch (error: any) {
+      console.error("Error fetching payouts:", error);
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  // POST /api/external/payouts - Create payout
+  app.post("/api/external/payouts", isAuthenticated, requireRole(EXTERNAL_ADMIN_ROLES), async (req: any, res) => {
+    try {
+      const agencyId = await getUserAgencyId(req);
+      if (!agencyId) return res.status(403).json({ message: "No agency access" });
+
+      // Validate request body
+      const parsed = createPayoutSchema.safeParse(req.body);
+      if (!parsed.success) {
+        return res.status(400).json({ message: "Invalid request data", errors: parsed.error.errors });
+      }
+
+      // Verify seller belongs to agency
+      const sellerProfile = await storage.getExternalSellerProfileByUser(agencyId, parsed.data.sellerId);
+      if (!sellerProfile) {
+        return res.status(404).json({ message: "Seller not found in this agency" });
+      }
+
+      // Verify all commissions belong to agency and seller
+      if (parsed.data.commissionIds && parsed.data.commissionIds.length > 0) {
+        for (const commissionId of parsed.data.commissionIds) {
+          const commission = await storage.getExternalSellerCommission(commissionId);
+          if (!commission || commission.agencyId !== agencyId || commission.sellerId !== parsed.data.sellerId) {
+            return res.status(404).json({ message: "Commission not found or does not belong to seller" });
+          }
+        }
+      }
+
+      const payout = await storage.createExternalSellerPayout({
+        ...parsed.data,
+        agencyId,
+        createdBy: req.user?.id
+      });
+
+      // Mark associated commissions as paid if provided
+      if (parsed.data.commissionIds && parsed.data.commissionIds.length > 0) {
+        for (const commissionId of parsed.data.commissionIds) {
+          await storage.updateExternalSellerCommission(commissionId, {
+            payoutId: payout.id,
+            isPaid: true,
+            paidAt: new Date()
+          });
+        }
+      }
+
+      res.status(201).json(payout);
+    } catch (error: any) {
+      console.error("Error creating payout:", error);
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  // PATCH /api/external/payouts/:id - Update payout status
+  app.patch("/api/external/payouts/:id", isAuthenticated, requireRole(EXTERNAL_ADMIN_ROLES), async (req: any, res) => {
+    try {
+      const agencyId = await getUserAgencyId(req);
+      if (!agencyId) return res.status(403).json({ message: "No agency access" });
+
+      // Validate request body
+      const parsed = updatePayoutSchema.safeParse(req.body);
+      if (!parsed.success) {
+        return res.status(400).json({ message: "Invalid request data", errors: parsed.error.errors });
+      }
+
+      const payout = await storage.getExternalSellerPayout(req.params.id);
+      if (!payout || payout.agencyId !== agencyId) {
+        return res.status(404).json({ message: "Payout not found" });
+      }
+
+      const updates: any = { ...parsed.data };
+      
+      // Handle status transitions
+      if (parsed.data.status === 'approved' && payout.status !== 'approved') {
+        updates.approvedBy = req.user?.id;
+        updates.approvedAt = new Date();
+      }
+      if (parsed.data.status === 'paid' && payout.status !== 'paid') {
+        updates.paidBy = req.user?.id;
+        updates.paidAt = new Date();
+      }
+
+      const updated = await storage.updateExternalSellerPayout(req.params.id, updates);
+      res.json(updated);
+    } catch (error: any) {
+      console.error("Error updating payout:", error);
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  // =====================================================
+  // SELLER GOALS ENDPOINTS
+  // =====================================================
+
+  // GET /api/external/goals - Get all goals
+  app.get("/api/external/goals", isAuthenticated, requireRole(EXTERNAL_ADMIN_ROLES), async (req: any, res) => {
+    try {
+      const agencyId = await getUserAgencyId(req);
+      if (!agencyId) return res.status(403).json({ message: "No agency access" });
+
+      const goals = await storage.getSellerGoals(agencyId, {
+        sellerId: req.query.sellerId as string | undefined,
+        goalType: req.query.goalType as string | undefined,
+        isActive: req.query.isActive === 'true' ? true : req.query.isActive === 'false' ? false : undefined
+      });
+
+      // Add progress calculation for each goal
+      const goalsWithProgress = await Promise.all(goals.map(async (goal) => {
+        if (!goal.sellerId) return { ...goal, progress: 0, progressPercent: 0 };
+        
+        const stats = await storage.getSellerStats(
+          agencyId, 
+          goal.sellerId, 
+          goal.startDate, 
+          goal.endDate
+        );
+        
+        let current = 0;
+        switch (goal.goalType) {
+          case 'leads':
+            current = stats.totalLeads;
+            break;
+          case 'conversions':
+            current = stats.convertedLeads;
+            break;
+          case 'revenue':
+            current = stats.totalRevenue;
+            break;
+          case 'showings':
+            current = stats.totalShowings;
+            break;
+        }
+        
+        return {
+          ...goal,
+          progress: current,
+          progressPercent: Math.min(100, Math.round((current / goal.target) * 100))
+        };
+      }));
+
+      res.json(goalsWithProgress);
+    } catch (error: any) {
+      console.error("Error fetching goals:", error);
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  // POST /api/external/goals - Create goal
+  app.post("/api/external/goals", isAuthenticated, requireRole(EXTERNAL_ADMIN_ROLES), async (req: any, res) => {
+    try {
+      const agencyId = await getUserAgencyId(req);
+      if (!agencyId) return res.status(403).json({ message: "No agency access" });
+
+      // Validate request body
+      const parsed = createGoalSchema.safeParse(req.body);
+      if (!parsed.success) {
+        return res.status(400).json({ message: "Invalid request data", errors: parsed.error.errors });
+      }
+
+      // Verify seller belongs to agency if specified
+      if (parsed.data.sellerId) {
+        const sellerProfile = await storage.getExternalSellerProfileByUser(agencyId, parsed.data.sellerId);
+        if (!sellerProfile) {
+          return res.status(404).json({ message: "Seller not found in this agency" });
+        }
+      }
+
+      // Map goalType to bilingual names
+      const goalTypeNames: Record<string, { es: string, en: string }> = {
+        leads: { es: "Leads", en: "Leads" },
+        conversions: { es: "Conversiones", en: "Conversions" },
+        revenue: { es: "Ingresos", en: "Revenue" },
+        showings: { es: "Visitas", en: "Showings" },
+        contracts: { es: "Contratos", en: "Contracts" }
+      };
+      
+      const goalNames = goalTypeNames[parsed.data.goalType] || { es: "Meta", en: "Goal" };
+      
+      const goal = await storage.createSellerGoal({
+        sellerId: parsed.data.sellerId,
+        goalType: parsed.data.goalType as any,
+        target: parsed.data.target,
+        startDate: new Date(parsed.data.startDate),
+        endDate: new Date(parsed.data.endDate),
+        isActive: parsed.data.isActive ?? true,
+        period: "monthly",
+        nameEs: goalNames.es,
+        nameEn: goalNames.en,
+        agencyId,
+        createdBy: req.user?.id
+      });
+
+      res.status(201).json(goal);
+    } catch (error: any) {
+      console.error("Error creating goal:", error);
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  // PATCH /api/external/goals/:id - Update goal
+  app.patch("/api/external/goals/:id", isAuthenticated, requireRole(EXTERNAL_ADMIN_ROLES), async (req: any, res) => {
+    try {
+      const agencyId = await getUserAgencyId(req);
+      if (!agencyId) return res.status(403).json({ message: "No agency access" });
+
+      // Validate request body
+      const parsed = updateGoalSchema.safeParse(req.body);
+      if (!parsed.success) {
+        return res.status(400).json({ message: "Invalid request data", errors: parsed.error.errors });
+      }
+
+      const goal = await storage.getSellerGoal(req.params.id);
+      if (!goal || goal.agencyId !== agencyId) {
+        return res.status(404).json({ message: "Goal not found" });
+      }
+
+      const updated = await storage.updateSellerGoal(req.params.id, parsed.data);
+      res.json(updated);
+    } catch (error: any) {
+      console.error("Error updating goal:", error);
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  // DELETE /api/external/goals/:id - Delete goal
+  app.delete("/api/external/goals/:id", isAuthenticated, requireRole(EXTERNAL_ADMIN_ROLES), async (req: any, res) => {
+    try {
+      const agencyId = await getUserAgencyId(req);
+      if (!agencyId) return res.status(403).json({ message: "No agency access" });
+
+      const goal = await storage.getSellerGoal(req.params.id);
+      if (!goal || goal.agencyId !== agencyId) {
+        return res.status(404).json({ message: "Goal not found" });
+      }
+
+      await storage.deleteSellerGoal(req.params.id);
+      res.status(204).send();
+    } catch (error: any) {
+      console.error("Error deleting goal:", error);
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  // GET /api/external/sellers-leaderboard - Get sellers ranking
+  app.get("/api/external/sellers-leaderboard", isAuthenticated, requireRole(EXTERNAL_ADMIN_ROLES), async (req: any, res) => {
+    try {
+      const agencyId = await getUserAgencyId(req);
+      if (!agencyId) return res.status(403).json({ message: "No agency access" });
+
+      const profiles = await storage.getExternalSellerProfiles(agencyId, { status: 'active' });
+      
+      const leaderboard = await Promise.all(profiles.map(async (profile) => {
+        const user = await storage.getUser(profile.userId);
+        const stats = await storage.getSellerStats(agencyId, profile.userId);
+        
+        return {
+          sellerId: profile.id,
+          userId: profile.userId,
+          name: user ? `${user.firstName || ''} ${user.lastName || ''}`.trim() : 'Unknown',
+          profileImageUrl: user?.profileImageUrl,
+          totalLeads: stats.totalLeads,
+          convertedLeads: stats.convertedLeads,
+          conversionRate: stats.totalLeads > 0 ? Math.round((stats.convertedLeads / stats.totalLeads) * 100) : 0,
+          totalContracts: stats.totalContracts,
+          totalRevenue: stats.totalRevenue,
+          totalCommissions: stats.totalCommissions,
+          unpaidCommissions: stats.unpaidCommissions
+        };
+      }));
+
+      // Sort by total revenue (can be changed based on query param)
+      const sortBy = req.query.sortBy || 'totalRevenue';
+      leaderboard.sort((a: any, b: any) => b[sortBy] - a[sortBy]);
+
+      res.json(leaderboard);
+    } catch (error: any) {
+      console.error("Error fetching leaderboard:", error);
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+
+  // ==========================================
+  // Property Prospects - Recruitment System
+  // ==========================================
+
+  // GET /api/external/property-prospects - Get all property prospects for agency
+  app.get("/api/external/property-prospects", isAuthenticated, requireRole([...EXTERNAL_ADMIN_ROLES, 'external_agency_seller']), async (req: any, res) => {
+    try {
+      const agencyId = await getUserAgencyId(req);
+      if (!agencyId) return res.status(403).json({ message: "No agency access" });
+
+      const userRole = req.user?.cachedRole || req.user?.role;
+      const userId = req.user?.claims?.sub || req.user?.id;
+      const isSeller = userRole === 'external_agency_seller';
+
+      const filters: any = {
+        search: req.query.search as string,
+        status: req.query.status as string,
+        sellerId: isSeller ? userId : (req.query.sellerId as string),
+        sortField: req.query.sortField as string,
+        sortOrder: req.query.sortOrder as 'asc' | 'desc',
+        limit: req.query.limit ? parseInt(req.query.limit as string) : 50,
+        offset: req.query.offset ? parseInt(req.query.offset as string) : 0,
+      };
+
+      const [prospects, total] = await Promise.all([
+        storage.getExternalPropertyProspects(agencyId, filters),
+        storage.getExternalPropertyProspectsCount(agencyId, { 
+          status: filters.status, 
+          sellerId: filters.sellerId, 
+          search: filters.search 
+        })
+      ]);
+
+      res.json({ data: prospects, total, limit: filters.limit, offset: filters.offset });
+    } catch (error: any) {
+      console.error("Error fetching property prospects:", error);
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  // GET /api/external/property-prospects/:id - Get specific property prospect
+  app.get("/api/external/property-prospects/:id", isAuthenticated, requireRole([...EXTERNAL_ADMIN_ROLES, 'external_agency_seller']), async (req: any, res) => {
+    try {
+      const agencyId = await getUserAgencyId(req);
+      if (!agencyId) return res.status(403).json({ message: "No agency access" });
+
+      const prospect = await storage.getExternalPropertyProspect(req.params.id);
+      if (!prospect || prospect.agencyId !== agencyId) {
+        return res.status(404).json({ message: "Prospecto no encontrado" });
+      }
+
+      // Sellers can only view their own prospects
+      const userRole = req.user?.cachedRole || req.user?.role;
+      const userId = req.user?.claims?.sub || req.user?.id;
+      if (userRole === 'external_agency_seller' && prospect.sellerId !== userId) {
+        return res.status(403).json({ message: "No tienes acceso a este prospecto" });
+      }
+
+      res.json(prospect);
+    } catch (error: any) {
+      console.error("Error fetching property prospect:", error);
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  // POST /api/external/property-prospects - Create new property prospect
+  app.post("/api/external/property-prospects", isAuthenticated, requireRole([...EXTERNAL_ADMIN_ROLES, 'external_agency_seller']), async (req: any, res) => {
+    try {
+      const agencyId = await getUserAgencyId(req);
+      if (!agencyId) return res.status(403).json({ message: "No agency access" });
+      const userId = req.user?.claims?.sub || req.user?.id;
+
+      const user = await storage.getUser(userId);
+      const sellerName = user ? `${user.firstName || ''} ${user.lastName || ''}`.trim() : undefined;
+
+      const prospectData = {
+        ...req.body,
+        agencyId,
+        sellerId: userId,
+        sellerName,
+      };
+
+      const prospect = await storage.createExternalPropertyProspect(prospectData);
+
+      // Create initial activity
+      await storage.createExternalPropertyProspectActivity({
+        prospectId: prospect.id,
+        agencyId,
+        activityType: 'created',
+        title: 'Prospecto creado',
+        description: `Propiedad prospecto registrada por ${sellerName || 'usuario'}`,
+        performedBy: userId,
+        performedByName: sellerName,
+      });
+
+      res.status(201).json(prospect);
+    } catch (error: any) {
+      console.error("Error creating property prospect:", error);
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  // PATCH /api/external/property-prospects/:id - Update property prospect
+  app.patch("/api/external/property-prospects/:id", isAuthenticated, requireRole([...EXTERNAL_ADMIN_ROLES, 'external_agency_seller']), async (req: any, res) => {
+    try {
+      const agencyId = await getUserAgencyId(req);
+      if (!agencyId) return res.status(403).json({ message: "No agency access" });
+
+      const prospect = await storage.getExternalPropertyProspect(req.params.id);
+      if (!prospect || prospect.agencyId !== agencyId) {
+        return res.status(404).json({ message: "Prospecto no encontrado" });
+      }
+
+      // Sellers can only update their own prospects
+      const userRole = req.user?.cachedRole || req.user?.role;
+      const userId = req.user?.claims?.sub || req.user?.id;
+      if (userRole === 'external_agency_seller' && prospect.sellerId !== userId) {
+        return res.status(403).json({ message: "No tienes permiso para editar este prospecto" });
+      }
+
+      const previousStatus = prospect.status;
+      const updated = await storage.updateExternalPropertyProspect(req.params.id, req.body);
+
+      // Log status change if status was updated
+      if (req.body.status && req.body.status !== previousStatus) {
+        const user = await storage.getUser(userId);
+        const userName = user ? `${user.firstName || ''} ${user.lastName || ''}`.trim() : undefined;
+        
+        await storage.createExternalPropertyProspectActivity({
+          prospectId: prospect.id,
+          agencyId,
+          activityType: 'status_changed',
+          title: 'Estado actualizado',
+          description: `Estado cambiado de "${previousStatus}" a "${req.body.status}"`,
+          previousStatus: previousStatus as any,
+          newStatus: req.body.status,
+          performedBy: userId,
+          performedByName: userName,
+        });
+      }
+
+      res.json(updated);
+    } catch (error: any) {
+      console.error("Error updating property prospect:", error);
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  // DELETE /api/external/property-prospects/:id - Delete property prospect
+  app.delete("/api/external/property-prospects/:id", isAuthenticated, requireRole(EXTERNAL_ADMIN_ROLES), async (req: any, res) => {
+    try {
+      const agencyId = await getUserAgencyId(req);
+      if (!agencyId) return res.status(403).json({ message: "No agency access" });
+
+      const prospect = await storage.getExternalPropertyProspect(req.params.id);
+      if (!prospect || prospect.agencyId !== agencyId) {
+        return res.status(404).json({ message: "Prospecto no encontrado" });
+      }
+
+      await storage.deleteExternalPropertyProspect(req.params.id);
+      res.status(204).send();
+    } catch (error: any) {
+      console.error("Error deleting property prospect:", error);
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  // POST /api/external/property-prospects/:id/invite - Generate owner invite token
+  app.post("/api/external/property-prospects/:id/invite", isAuthenticated, requireRole([...EXTERNAL_ADMIN_ROLES, 'external_agency_seller']), async (req: any, res) => {
+    try {
+      const agencyId = await getUserAgencyId(req);
+      if (!agencyId) return res.status(403).json({ message: "No agency access" });
+
+      const prospect = await storage.getExternalPropertyProspect(req.params.id);
+      if (!prospect || prospect.agencyId !== agencyId) {
+        return res.status(404).json({ message: "Prospecto no encontrado" });
+      }
+
+      // Sellers can only invite for their own prospects
+      const userRole = req.user?.cachedRole || req.user?.role;
+      const userId = req.user?.claims?.sub || req.user?.id;
+      if (userRole === 'external_agency_seller' && prospect.sellerId !== userId) {
+        return res.status(403).json({ message: "No tienes permiso para invitar a este propietario" });
+      }
+
+      const expiresInHours = req.body.expiresInHours || 48;
+      const sentVia = req.body.sentVia || 'whatsapp';
+      
+      const token = await storage.generateOwnerInviteToken(req.params.id, expiresInHours);
+
+      // Update sent info
+      await storage.updateExternalPropertyProspect(req.params.id, {
+        ownerInviteSentAt: new Date(),
+        ownerInviteSentVia: sentVia,
+        status: 'owner_invited',
+      });
+
+      // Log activity
+      const user = await storage.getUser(userId);
+      const userName = user ? `${user.firstName || ''} ${user.lastName || ''}`.trim() : undefined;
+      
+      await storage.createExternalPropertyProspectActivity({
+        prospectId: prospect.id,
+        agencyId,
+        activityType: 'invite_sent',
+        title: 'Invitación enviada',
+        description: `Link de invitación generado para propietario vía ${sentVia}`,
+        details: { channel: sentVia },
+        performedBy: userId,
+        performedByName: userName,
+      });
+
+      // Get agency for slug
+      const agency = await storage.getExternalAgency(agencyId);
+      const agencySlug = agency?.slug || agencyId;
+
+      res.json({ 
+        token,
+        url: `/${agencySlug}/owner-registration/${token}`,
+        expiresAt: new Date(Date.now() + expiresInHours * 60 * 60 * 1000)
+      });
+    } catch (error: any) {
+      console.error("Error generating owner invite:", error);
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  // GET /api/external/property-prospects/:id/activities - Get activities for a prospect
+  app.get("/api/external/property-prospects/:id/activities", isAuthenticated, requireRole([...EXTERNAL_ADMIN_ROLES, 'external_agency_seller']), async (req: any, res) => {
+    try {
+      const agencyId = await getUserAgencyId(req);
+      if (!agencyId) return res.status(403).json({ message: "No agency access" });
+
+      const prospect = await storage.getExternalPropertyProspect(req.params.id);
+      if (!prospect || prospect.agencyId !== agencyId) {
+        return res.status(404).json({ message: "Prospecto no encontrado" });
+      }
+
+      const activities = await storage.getExternalPropertyProspectActivities(req.params.id);
+      res.json(activities);
+    } catch (error: any) {
+      console.error("Error fetching prospect activities:", error);
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  // POST /api/external/property-prospects/:id/activities - Add activity to a prospect
+  app.post("/api/external/property-prospects/:id/activities", isAuthenticated, requireRole([...EXTERNAL_ADMIN_ROLES, 'external_agency_seller']), async (req: any, res) => {
+    try {
+      const agencyId = await getUserAgencyId(req);
+      if (!agencyId) return res.status(403).json({ message: "No agency access" });
+
+      const prospect = await storage.getExternalPropertyProspect(req.params.id);
+      if (!prospect || prospect.agencyId !== agencyId) {
+        return res.status(404).json({ message: "Prospecto no encontrado" });
+      }
+
+      const user = await storage.getUser(userId);
+      const userName = user ? `${user.firstName || ''} ${user.lastName || ''}`.trim() : undefined;
+
+      const activity = await storage.createExternalPropertyProspectActivity({
+        ...req.body,
+        prospectId: req.params.id,
+        agencyId,
+        performedBy: userId,
+        performedByName: userName,
+      });
+
+      // Update last contact date if it's a contact activity
+      const contactActivities = ['owner_contacted', 'call_made', 'whatsapp_sent', 'email_sent', 'meeting_completed'];
+      if (contactActivities.includes(req.body.activityType)) {
+        await storage.updateExternalPropertyProspect(req.params.id, {
+          lastContactDate: new Date(),
+        });
+      }
+
+      res.status(201).json(activity);
+    } catch (error: any) {
+      console.error("Error creating prospect activity:", error);
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  // GET /api/public/owner-registration/:token - Public endpoint to get prospect info for owner registration
+  app.get("/api/public/owner-registration/:token", async (req, res) => {
+    try {
+      const { token } = req.params;
+      
+      const prospect = await storage.getExternalPropertyProspectByToken(token);
+      if (!prospect) {
+        return res.status(404).json({ message: "Link inválido o expirado" });
+      }
+
+      // Get agency info
+      const agency = await storage.getExternalAgency(prospect.agencyId);
+
+      // Return limited info for public page
+      res.json({
+        prospectId: prospect.id,
+        propertyName: prospect.propertyName,
+        propertyType: prospect.propertyType,
+        address: prospect.address,
+        neighborhood: prospect.neighborhood,
+        agencyName: agency?.name,
+        agencyLogo: agency?.logoUrl,
+        sellerName: prospect.sellerName,
+      });
+    } catch (error: any) {
+      console.error("Error fetching prospect for registration:", error);
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+
+  // ========================================
+  // Commission Management Routes
+  // ========================================
+
+  // GET /api/external/commissions/profile - Get agency commission profile (defaults)
+  app.get("/api/external/commissions/profile", isAuthenticated, requireRole(EXTERNAL_ADMIN_ROLES), async (req: any, res) => {
+    try {
+      const agencyId = await getUserAgencyId(req);
+      if (!agencyId) return res.status(403).json({ message: "No agency access" });
+
+      const profile = await storage.getExternalCommissionProfile(agencyId);
+      res.json(profile || null);
+    } catch (error: any) {
+      console.error("Error fetching commission profile:", error);
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  // POST /api/external/commissions/profile - Create or update agency commission profile
+  app.post("/api/external/commissions/profile", isAuthenticated, requireRole(EXTERNAL_ADMIN_ROLES), async (req: any, res) => {
+    try {
+      const agencyId = await getUserAgencyId(req);
+      if (!agencyId) return res.status(403).json({ message: "No agency access" });
+
+      const user = await storage.getUser(userId);
+      const existingProfile = await storage.getExternalCommissionProfile(agencyId);
+
+      let profile;
+      if (existingProfile) {
+        const previousValues = { ...existingProfile };
+        profile = await storage.updateExternalCommissionProfile(agencyId, req.body);
+        
+        await storage.createExternalCommissionAuditLog({
+          agencyId,
+          entityType: 'commission_profile',
+          entityId: profile.id,
+          action: 'update',
+          previousValues,
+          newValues: profile,
+          changedBy: userId,
+          changedByName: user ? `${user.firstName || ''} ${user.lastName || ''}`.trim() : undefined,
+        });
+      } else {
+        profile = await storage.createExternalCommissionProfile({
+          ...req.body,
+          agencyId,
+          createdBy: userId,
+        });
+        
+        await storage.createExternalCommissionAuditLog({
+          agencyId,
+          entityType: 'commission_profile',
+          entityId: profile.id,
+          action: 'create',
+          newValues: profile,
+          changedBy: userId,
+          changedByName: user ? `${user.firstName || ''} ${user.lastName || ''}`.trim() : undefined,
+        });
+      }
+
+      res.status(existingProfile ? 200 : 201).json(profile);
+    } catch (error: any) {
+      console.error("Error saving commission profile:", error);
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  // GET /api/external/commissions/role-overrides - Get all role overrides
+  app.get("/api/external/commissions/role-overrides", isAuthenticated, requireRole(EXTERNAL_ADMIN_ROLES), async (req: any, res) => {
+    try {
+      const agencyId = await getUserAgencyId(req);
+      if (!agencyId) return res.status(403).json({ message: "No agency access" });
+
+      const overrides = await storage.getExternalCommissionRoleOverrides(agencyId);
+      res.json(overrides);
+    } catch (error: any) {
+      console.error("Error fetching role overrides:", error);
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  // POST /api/external/commissions/role-overrides - Create role override
+  app.post("/api/external/commissions/role-overrides", isAuthenticated, requireRole(EXTERNAL_ADMIN_ROLES), async (req: any, res) => {
+    try {
+      const agencyId = await getUserAgencyId(req);
+      if (!agencyId) return res.status(403).json({ message: "No agency access" });
+
+      const user = await storage.getUser(userId);
+
+      const override = await storage.createExternalCommissionRoleOverride({
+        ...req.body,
+        agencyId,
+        createdBy: userId,
+      });
+
+      await storage.createExternalCommissionAuditLog({
+        agencyId,
+        entityType: 'role_override',
+        entityId: override.id,
+        action: 'create',
+        newValues: override,
+        changedBy: userId,
+        changedByName: user ? `${user.firstName || ''} ${user.lastName || ''}`.trim() : undefined,
+      });
+
+      res.status(201).json(override);
+    } catch (error: any) {
+      console.error("Error creating role override:", error);
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  // PATCH /api/external/commissions/role-overrides/:id - Update role override
+  app.patch("/api/external/commissions/role-overrides/:id", isAuthenticated, requireRole(EXTERNAL_ADMIN_ROLES), async (req: any, res) => {
+    try {
+      const agencyId = await getUserAgencyId(req);
+      if (!agencyId) return res.status(403).json({ message: "No agency access" });
+
+      const user = await storage.getUser(userId);
+
+      const overrides = await storage.getExternalCommissionRoleOverrides(agencyId);
+      const existing = overrides.find(o => o.id === req.params.id);
+      if (!existing) {
+        return res.status(404).json({ message: "Override no encontrado" });
+      }
+
+      const previousValues = { ...existing };
+      const updated = await storage.updateExternalCommissionRoleOverride(req.params.id, req.body);
+
+      await storage.createExternalCommissionAuditLog({
+        agencyId,
+        entityType: 'role_override',
+        entityId: updated.id,
+        action: 'update',
+        previousValues,
+        newValues: updated,
+        changedBy: userId,
+        changedByName: user ? `${user.firstName || ''} ${user.lastName || ''}`.trim() : undefined,
+      });
+
+      res.json(updated);
+    } catch (error: any) {
+      console.error("Error updating role override:", error);
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  // DELETE /api/external/commissions/role-overrides/:id - Delete role override
+  app.delete("/api/external/commissions/role-overrides/:id", isAuthenticated, requireRole(EXTERNAL_ADMIN_ROLES), async (req: any, res) => {
+    try {
+      const agencyId = await getUserAgencyId(req);
+      if (!agencyId) return res.status(403).json({ message: "No agency access" });
+
+      const user = await storage.getUser(userId);
+
+      const overrides = await storage.getExternalCommissionRoleOverrides(agencyId);
+      const existing = overrides.find(o => o.id === req.params.id);
+      if (!existing) {
+        return res.status(404).json({ message: "Override no encontrado" });
+      }
+
+      await storage.deleteExternalCommissionRoleOverride(req.params.id);
+
+      await storage.createExternalCommissionAuditLog({
+        agencyId,
+        entityType: 'role_override',
+        entityId: req.params.id,
+        action: 'delete',
+        previousValues: existing,
+        changedBy: userId,
+        changedByName: user ? `${user.firstName || ''} ${user.lastName || ''}`.trim() : undefined,
+      });
+
+      res.status(204).send();
+    } catch (error: any) {
+      console.error("Error deleting role override:", error);
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  // GET /api/external/commissions/user-overrides - Get all user overrides
+  app.get("/api/external/commissions/user-overrides", isAuthenticated, requireRole(EXTERNAL_ADMIN_ROLES), async (req: any, res) => {
+    try {
+      const agencyId = await getUserAgencyId(req);
+      if (!agencyId) return res.status(403).json({ message: "No agency access" });
+
+      const overrides = await storage.getExternalCommissionUserOverrides(agencyId);
+      
+      const enrichedOverrides = await Promise.all(overrides.map(async (o) => {
+        const user = await storage.getUser(o.userId);
+        return {
+          ...o,
+          userName: user ? `${user.firstName || ''} ${user.lastName || ''}`.trim() : 'Usuario desconocido',
+          userRole: user?.role,
+        };
+      }));
+      
+      res.json(enrichedOverrides);
+    } catch (error: any) {
+      console.error("Error fetching user overrides:", error);
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  // POST /api/external/commissions/user-overrides - Create user override
+  app.post("/api/external/commissions/user-overrides", isAuthenticated, requireRole(EXTERNAL_ADMIN_ROLES), async (req: any, res) => {
+    try {
+      const agencyId = await getUserAgencyId(req);
+      if (!agencyId) return res.status(403).json({ message: "No agency access" });
+
+      const user = await storage.getUser(userId);
+
+      const existing = await storage.getExternalCommissionUserOverride(agencyId, req.body.userId);
+      if (existing) {
+        return res.status(400).json({ message: "Ya existe una configuración para este usuario" });
+      }
+
+      const override = await storage.createExternalCommissionUserOverride({
+        ...req.body,
+        agencyId,
+        createdBy: userId,
+      });
+
+      await storage.createExternalCommissionAuditLog({
+        agencyId,
+        entityType: 'user_override',
+        entityId: override.id,
+        action: 'create',
+        newValues: override,
+        changedBy: userId,
+        changedByName: user ? `${user.firstName || ''} ${user.lastName || ''}`.trim() : undefined,
+      });
+
+      res.status(201).json(override);
+    } catch (error: any) {
+      console.error("Error creating user override:", error);
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  // PATCH /api/external/commissions/user-overrides/:id - Update user override
+  app.patch("/api/external/commissions/user-overrides/:id", isAuthenticated, requireRole(EXTERNAL_ADMIN_ROLES), async (req: any, res) => {
+    try {
+      const agencyId = await getUserAgencyId(req);
+      if (!agencyId) return res.status(403).json({ message: "No agency access" });
+
+      const user = await storage.getUser(userId);
+
+      const overrides = await storage.getExternalCommissionUserOverrides(agencyId);
+      const existing = overrides.find(o => o.id === req.params.id);
+      if (!existing) {
+        return res.status(404).json({ message: "Override no encontrado" });
+      }
+
+      const previousValues = { ...existing };
+      const updated = await storage.updateExternalCommissionUserOverride(req.params.id, req.body);
+
+      await storage.createExternalCommissionAuditLog({
+        agencyId,
+        entityType: 'user_override',
+        entityId: updated.id,
+        action: 'update',
+        previousValues,
+        newValues: updated,
+        changedBy: userId,
+        changedByName: user ? `${user.firstName || ''} ${user.lastName || ''}`.trim() : undefined,
+      });
+
+      res.json(updated);
+    } catch (error: any) {
+      console.error("Error updating user override:", error);
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  // DELETE /api/external/commissions/user-overrides/:id - Delete user override
+  app.delete("/api/external/commissions/user-overrides/:id", isAuthenticated, requireRole(EXTERNAL_ADMIN_ROLES), async (req: any, res) => {
+    try {
+      const agencyId = await getUserAgencyId(req);
+      if (!agencyId) return res.status(403).json({ message: "No agency access" });
+
+      const user = await storage.getUser(userId);
+
+      const overrides = await storage.getExternalCommissionUserOverrides(agencyId);
+      const existing = overrides.find(o => o.id === req.params.id);
+      if (!existing) {
+        return res.status(404).json({ message: "Override no encontrado" });
+      }
+
+      await storage.deleteExternalCommissionUserOverride(req.params.id);
+
+      await storage.createExternalCommissionAuditLog({
+        agencyId,
+        entityType: 'user_override',
+        entityId: req.params.id,
+        action: 'delete',
+        previousValues: existing,
+        changedBy: userId,
+        changedByName: user ? `${user.firstName || ''} ${user.lastName || ''}`.trim() : undefined,
+      });
+
+      res.status(204).send();
+    } catch (error: any) {
+      console.error("Error deleting user override:", error);
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  // GET /api/external/commissions/lead-overrides - Get lead/prospect overrides
+  app.get("/api/external/commissions/lead-overrides", isAuthenticated, requireRole(EXTERNAL_ADMIN_ROLES), async (req: any, res) => {
+    try {
+      const agencyId = await getUserAgencyId(req);
+      if (!agencyId) return res.status(403).json({ message: "No agency access" });
+
+      const { leadId, prospectId, userId } = req.query;
+      const overrides = await storage.getExternalCommissionLeadOverrides(agencyId, {
+        leadId: leadId as string,
+        prospectId: prospectId as string,
+        userId: userId as string,
+      });
+
+      const enrichedOverrides = await Promise.all(overrides.map(async (o) => {
+        const user = await storage.getUser(o.userId);
+        let leadName = null;
+        let prospectName = null;
+        
+        if (o.leadId) {
+          const lead = await storage.getExternalLead(o.leadId);
+          leadName = lead ? `${lead.firstName || ''} ${lead.lastName || ''}`.trim() : null;
+        }
+        if (o.prospectId) {
+          const prospect = await storage.getExternalPropertyProspect(o.prospectId);
+          prospectName = prospect?.propertyName || null;
+        }
+        
+        return {
+          ...o,
+          userName: user ? `${user.firstName || ''} ${user.lastName || ''}`.trim() : 'Usuario desconocido',
+          leadName,
+          prospectName,
+        };
+      }));
+
+      res.json(enrichedOverrides);
+    } catch (error: any) {
+      console.error("Error fetching lead overrides:", error);
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  // POST /api/external/commissions/lead-overrides - Create lead/prospect override
+  app.post("/api/external/commissions/lead-overrides", isAuthenticated, requireRole(EXTERNAL_ADMIN_ROLES), async (req: any, res) => {
+    try {
+      const agencyId = await getUserAgencyId(req);
+      if (!agencyId) return res.status(403).json({ message: "No agency access" });
+
+      const user = await storage.getUser(userId);
+
+      const override = await storage.createExternalCommissionLeadOverride({
+        ...req.body,
+        agencyId,
+        createdBy: userId,
+      });
+
+      await storage.createExternalCommissionAuditLog({
+        agencyId,
+        entityType: 'lead_override',
+        entityId: override.id,
+        action: 'create',
+        newValues: override,
+        changedBy: userId,
+        changedByName: user ? `${user.firstName || ''} ${user.lastName || ''}`.trim() : undefined,
+      });
+
+      res.status(201).json(override);
+    } catch (error: any) {
+      console.error("Error creating lead override:", error);
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  // PATCH /api/external/commissions/lead-overrides/:id - Update lead override
+  app.patch("/api/external/commissions/lead-overrides/:id", isAuthenticated, requireRole(EXTERNAL_ADMIN_ROLES), async (req: any, res) => {
+    try {
+      const agencyId = await getUserAgencyId(req);
+      if (!agencyId) return res.status(403).json({ message: "No agency access" });
+
+      const user = await storage.getUser(userId);
+
+      const overrides = await storage.getExternalCommissionLeadOverrides(agencyId);
+      const existing = overrides.find(o => o.id === req.params.id);
+      if (!existing) {
+        return res.status(404).json({ message: "Override no encontrado" });
+      }
+
+      const previousValues = { ...existing };
+      const updated = await storage.updateExternalCommissionLeadOverride(req.params.id, req.body);
+
+      await storage.createExternalCommissionAuditLog({
+        agencyId,
+        entityType: 'lead_override',
+        entityId: updated.id,
+        action: 'update',
+        previousValues,
+        newValues: updated,
+        changedBy: userId,
+        changedByName: user ? `${user.firstName || ''} ${user.lastName || ''}`.trim() : undefined,
+      });
+
+      res.json(updated);
+    } catch (error: any) {
+      console.error("Error updating lead override:", error);
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  // DELETE /api/external/commissions/lead-overrides/:id - Delete lead override
+  app.delete("/api/external/commissions/lead-overrides/:id", isAuthenticated, requireRole(EXTERNAL_ADMIN_ROLES), async (req: any, res) => {
+    try {
+      const agencyId = await getUserAgencyId(req);
+      if (!agencyId) return res.status(403).json({ message: "No agency access" });
+
+      const user = await storage.getUser(userId);
+
+      const overrides = await storage.getExternalCommissionLeadOverrides(agencyId);
+      const existing = overrides.find(o => o.id === req.params.id);
+      if (!existing) {
+        return res.status(404).json({ message: "Override no encontrado" });
+      }
+
+      await storage.deleteExternalCommissionLeadOverride(req.params.id);
+
+      await storage.createExternalCommissionAuditLog({
+        agencyId,
+        entityType: 'lead_override',
+        entityId: req.params.id,
+        action: 'delete',
+        previousValues: existing,
+        changedBy: userId,
+        changedByName: user ? `${user.firstName || ''} ${user.lastName || ''}`.trim() : undefined,
+      });
+
+      res.status(204).send();
+    } catch (error: any) {
+      console.error("Error deleting lead override:", error);
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  // GET /api/external/commissions/audit-logs - Get commission audit logs
+  app.get("/api/external/commissions/audit-logs", isAuthenticated, requireRole(EXTERNAL_ADMIN_ROLES), async (req: any, res) => {
+    try {
+      const agencyId = await getUserAgencyId(req);
+      if (!agencyId) return res.status(403).json({ message: "No agency access" });
+
+      const { entityType, entityId, limit } = req.query;
+      const logs = await storage.getExternalCommissionAuditLogs(agencyId, {
+        entityType: entityType as string,
+        entityId: entityId as string,
+        limit: limit ? parseInt(limit as string) : 50,
+      });
+
+      res.json(logs);
+    } catch (error: any) {
+      console.error("Error fetching audit logs:", error);
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  // POST /api/external/commissions/calculate - Calculate effective commission for a user
+  app.post("/api/external/commissions/calculate", isAuthenticated, requireRole([...EXTERNAL_ADMIN_ROLES, 'external_agency_seller']), async (req: any, res) => {
+    try {
+      const agencyId = await getUserAgencyId(req);
+      if (!agencyId) return res.status(403).json({ message: "No agency access" });
+
+      const { userId, userRole, commissionType, leadId, prospectId } = req.body;
+
+      if (!userId || !userRole || !commissionType) {
+        return res.status(400).json({ message: "Campos requeridos: userId, userRole, commissionType" });
+      }
+
+      const result = await storage.calculateEffectiveCommission({
+        agencyId,
+        userId,
+        userRole,
+        commissionType,
+        leadId,
+        prospectId,
+      });
+
+      res.json(result);
+    } catch (error: any) {
+      console.error("Error calculating commission:", error);
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  // GET /api/external/commissions/my-rates - Get current user's commission rates
+  app.get("/api/external/commissions/my-rates", isAuthenticated, requireRole([...EXTERNAL_ADMIN_ROLES, 'external_agency_seller']), async (req: any, res) => {
+    try {
+      const agencyId = await getUserAgencyId(req);
+      const userId = req.user?.claims?.sub || req.user?.id;
+      if (!agencyId) return res.status(403).json({ message: "No agency access" });
+
+      const user = await storage.getUser(userId);
+      const userRole = user?.role || 'external_agency_seller';
+
+      const [rentalRate, listedRate, recruitedRate] = await Promise.all([
+        storage.calculateEffectiveCommission({
+          agencyId,
+          userId,
+          userRole,
+          commissionType: 'rental',
+        }),
+        storage.calculateEffectiveCommission({
+          agencyId,
+          userId,
+          userRole,
+          commissionType: 'listed_property',
+        }),
+        storage.calculateEffectiveCommission({
+          agencyId,
+          userId,
+          userRole,
+          commissionType: 'recruited_property',
+        }),
+      ]);
+
+      res.json({
+        rental: rentalRate,
+        listedProperty: listedRate,
+        recruitedProperty: recruitedRate,
+      });
+    } catch (error: any) {
+      console.error("Error fetching my rates:", error);
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+
+  // =====================================================
+  // SELLER COMMISSION RATE MANAGEMENT (Payment Percentages)
+  // =====================================================
+
+  // GET /api/external/seller-commission-rates/defaults - Get agency default rates
+  app.get("/api/external/seller-commission-rates/defaults", isAuthenticated, requireRole(EXTERNAL_ADMIN_ROLES), async (req: any, res) => {
+    try {
+      const agencyId = await getUserAgencyId(req);
+      if (!agencyId) return res.status(403).json({ message: "No agency access" });
+
+      const defaults = await storage.getSellerCommissionDefaults(agencyId);
+      
+      // Return defaults with system fallbacks
+      const concepts = ['rental_no_referral', 'rental_with_referral', 'property_recruitment', 'broker_referral'];
+      const defaultRates: Record<string, number> = {
+        rental_no_referral: 50,
+        rental_with_referral: 40,
+        property_recruitment: 20,
+        broker_referral: 10
+      };
+      
+      const result = concepts.map(concept => {
+        const existing = defaults.find(d => d.concept === concept);
+        if (existing) return existing;
+        return {
+          id: null,
+          agencyId,
+          concept,
+          rate: String(defaultRates[concept]),
+          descriptionEs: null,
+          descriptionEn: null,
+          updatedBy: null,
+          createdAt: null,
+          updatedAt: null
+        };
+      });
+
+      res.json(result);
+    } catch (error: any) {
+      console.error("Error fetching commission defaults:", error);
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  // PUT /api/external/seller-commission-rates/defaults - Update agency default rates
+  app.put("/api/external/seller-commission-rates/defaults", isAuthenticated, requireRole(EXTERNAL_ADMIN_ROLES), async (req: any, res) => {
+    try {
+      const agencyId = await getUserAgencyId(req);
+      if (!agencyId) return res.status(403).json({ message: "No agency access" });
+      const userId = req.user?.claims?.sub || req.user?.id;
+
+      const { concept, rate, descriptionEs, descriptionEn } = req.body;
+      
+      if (!concept || rate === undefined) {
+        return res.status(400).json({ message: "concept and rate are required" });
+      }
+
+      const validConcepts = ['rental_no_referral', 'rental_with_referral', 'property_recruitment', 'broker_referral'];
+      if (!validConcepts.includes(concept)) {
+        return res.status(400).json({ message: "Invalid concept" });
+      }
+
+      const result = await storage.upsertSellerCommissionDefault({
+        agencyId,
+        concept,
+        rate: String(rate),
+        descriptionEs,
+        descriptionEn,
+        updatedBy: userId
+      });
+
+      res.json(result);
+    } catch (error: any) {
+      console.error("Error updating commission default:", error);
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  // GET /api/external/seller-commission-rates/overrides - Get all overrides
+  app.get("/api/external/seller-commission-rates/overrides", isAuthenticated, requireRole(EXTERNAL_ADMIN_ROLES), async (req: any, res) => {
+    try {
+      const agencyId = await getUserAgencyId(req);
+      if (!agencyId) return res.status(403).json({ message: "No agency access" });
+
+      const overrides = await storage.getSellerCommissionOverrides(agencyId);
+      
+      // Enrich with user data for user overrides
+      const enrichedOverrides = await Promise.all(overrides.map(async (o) => {
+        if (o.overrideType === 'user' && o.userId) {
+          const user = await storage.getUser(o.userId);
+          return {
+            ...o,
+            user: user ? {
+              id: user.id,
+              firstName: user.firstName,
+              lastName: user.lastName,
+              email: user.email,
+              profileImageUrl: user.profileImageUrl
+            } : null
+          };
+        }
+        return { ...o, user: null };
+      }));
+
+      res.json(enrichedOverrides);
+    } catch (error: any) {
+      console.error("Error fetching commission overrides:", error);
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  // POST /api/external/seller-commission-rates/overrides - Create override
+  app.post("/api/external/seller-commission-rates/overrides", isAuthenticated, requireRole(EXTERNAL_ADMIN_ROLES), async (req: any, res) => {
+    try {
+      const agencyId = await getUserAgencyId(req);
+      if (!agencyId) return res.status(403).json({ message: "No agency access" });
+      const userId = req.user?.claims?.sub || req.user?.id;
+
+      const { concept, overrideType, roleValue, targetUserId, rate, notes } = req.body;
+      
+      if (!concept || !overrideType || rate === undefined) {
+        return res.status(400).json({ message: "concept, overrideType, and rate are required" });
+      }
+
+      const validConcepts = ['rental_no_referral', 'rental_with_referral', 'property_recruitment', 'broker_referral'];
+      if (!validConcepts.includes(concept)) {
+        return res.status(400).json({ message: "Invalid concept" });
+      }
+
+      if (overrideType === 'role' && !roleValue) {
+        return res.status(400).json({ message: "roleValue is required for role overrides" });
+      }
+
+      if (overrideType === 'user' && !targetUserId) {
+        return res.status(400).json({ message: "targetUserId is required for user overrides" });
+      }
+
+      const result = await storage.createSellerCommissionOverride({
+        agencyId,
+        concept,
+        overrideType,
+        roleValue: overrideType === 'role' ? roleValue : null,
+        userId: overrideType === 'user' ? targetUserId : null,
+        rate: String(rate),
+        notes,
+        createdBy: userId,
+        updatedBy: userId
+      });
+
+      res.status(201).json(result);
+    } catch (error: any) {
+      console.error("Error creating commission override:", error);
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  // PATCH /api/external/seller-commission-rates/overrides/:id - Update override
+  app.patch("/api/external/seller-commission-rates/overrides/:id", isAuthenticated, requireRole(EXTERNAL_ADMIN_ROLES), async (req: any, res) => {
+    try {
+      const agencyId = await getUserAgencyId(req);
+      if (!agencyId) return res.status(403).json({ message: "No agency access" });
+      const userId = req.user?.claims?.sub || req.user?.id;
+
+      const { rate, notes } = req.body;
+      
+      const result = await storage.updateSellerCommissionOverride(req.params.id, {
+        rate: rate !== undefined ? String(rate) : undefined,
+        notes,
+        updatedBy: userId
+      });
+
+      if (!result) {
+        return res.status(404).json({ message: "Override not found" });
+      }
+
+      res.json(result);
+    } catch (error: any) {
+      console.error("Error updating commission override:", error);
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  // DELETE /api/external/seller-commission-rates/overrides/:id - Delete override
+  app.delete("/api/external/seller-commission-rates/overrides/:id", isAuthenticated, requireRole(EXTERNAL_ADMIN_ROLES), async (req: any, res) => {
+    try {
+      const agencyId = await getUserAgencyId(req);
+      if (!agencyId) return res.status(403).json({ message: "No agency access" });
+
+      await storage.deleteSellerCommissionOverride(req.params.id);
+      res.status(204).send();
+    } catch (error: any) {
+      console.error("Error deleting commission override:", error);
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  // GET /api/external/seller-commission-rates/my-rates - Get resolved rates for current user
+  app.get("/api/external/seller-commission-rates/my-rates", isAuthenticated, requireRole([...EXTERNAL_ADMIN_ROLES, 'external_agency_seller']), async (req: any, res) => {
+    try {
+      const agencyId = await getUserAgencyId(req);
+      const userId = req.user?.claims?.sub || req.user?.id;
+      if (!agencyId) return res.status(403).json({ message: "No agency access" });
+
+      const user = await storage.getUser(userId);
+      const userRole = user?.role || 'external_agency_seller';
+
+      const rates = await storage.getResolvedSellerCommissionRates(agencyId, userId, userRole);
+      res.json(rates);
+    } catch (error: any) {
+      console.error("Error fetching my commission rates:", error);
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  // GET /api/external/seller-commission-rates/user/:userId - Get resolved rates for a specific user (admin only)
+  app.get("/api/external/seller-commission-rates/user/:userId", isAuthenticated, requireRole(EXTERNAL_ADMIN_ROLES), async (req: any, res) => {
+    try {
+      const agencyId = await getUserAgencyId(req);
+      if (!agencyId) return res.status(403).json({ message: "No agency access" });
+
+      const targetUser = await storage.getUser(req.params.userId);
+      if (!targetUser || targetUser.externalAgencyId !== agencyId) {
+        return res.status(404).json({ message: "User not found in this agency" });
+      }
+
+      const userRole = targetUser.role || 'external_agency_seller';
+      const rates = await storage.getResolvedSellerCommissionRates(agencyId, req.params.userId, userRole);
+      res.json(rates);
+    } catch (error: any) {
+      console.error("Error fetching user commission rates:", error);
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  // GET /api/external/agency-sellers - Get list of sellers in agency
+  app.get("/api/external/agency-sellers", isAuthenticated, requireRole(EXTERNAL_ADMIN_ROLES), async (req: any, res) => {
+    try {
+      const agencyId = await getUserAgencyId(req);
+      if (!agencyId) return res.status(403).json({ message: "No agency access" });
+
+      const sellers = await db.select({
+        id: users.id,
+        firstName: users.firstName,
+        lastName: users.lastName,
+        email: users.email,
+        role: users.role,
+        profileImageUrl: users.profileImageUrl,
+        createdAt: users.createdAt
+      })
+      .from(users)
+      .where(and(
+        eq(users.externalAgencyId, agencyId),
+        or(
+          eq(users.role, 'external_agency_seller'),
+          eq(users.role, 'external_agency_admin')
+        )
+      ))
+      .orderBy(asc(users.firstName), asc(users.lastName));
+
+      res.json(sellers);
+    } catch (error: any) {
+      console.error("Error fetching agency sellers:", error);
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+
+
+  // EXTERNAL AGENCY TEAM CHAT SYSTEM
+  // Real-time messaging, activity notifications, and gamification
+  // ==========================================================================
+
+  // GET /api/external/chat/messages - Get chat messages for agency
+  app.get("/api/external/chat/messages", isAuthenticated, requireRole([...EXTERNAL_ADMIN_ROLES, 'external_agency_seller']), async (req: any, res) => {
+    try {
+      const agencyId = await getUserAgencyId(req);
+      if (!agencyId) return res.status(403).json({ message: "No agency access" });
+
+      const { limit = 50, offset = 0, before } = req.query;
+      
+      let conditions = [
+        eq(externalAgencyChatMessages.agencyId, agencyId),
+        eq(externalAgencyChatMessages.isDeleted, false),
+      ];
+
+      if (before) {
+        conditions.push(lt(externalAgencyChatMessages.createdAt, new Date(before as string)));
+      }
+
+      const messages = await db.select()
+        .from(externalAgencyChatMessages)
+        .leftJoin(externalAgencyChatAttachments, eq(externalAgencyChatMessages.id, externalAgencyChatAttachments.messageId))
+        .where(and(...conditions))
+        .orderBy(desc(externalAgencyChatMessages.createdAt))
+        .limit(parseInt(limit as string))
+        .offset(parseInt(offset as string));
+
+      // Group attachments with messages
+      const messageMap = new Map();
+      for (const row of messages) {
+        const msg = row.external_agency_chat_messages;
+        const attachment = row.external_agency_chat_attachments;
+        
+        if (!messageMap.has(msg.id)) {
+          messageMap.set(msg.id, { ...msg, attachments: [] });
+        }
+        if (attachment) {
+          messageMap.get(msg.id).attachments.push(attachment);
+        }
+      }
+
+      res.json(Array.from(messageMap.values()));
+    } catch (error: any) {
+      console.error("Error fetching chat messages:", error);
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  // POST /api/external/chat/messages - Send a new chat message
+  app.post("/api/external/chat/messages", isAuthenticated, requireRole([...EXTERNAL_ADMIN_ROLES, 'external_agency_seller']), async (req: any, res) => {
+    try {
+      const agencyId = await getUserAgencyId(req);
+      if (!agencyId) return res.status(403).json({ message: "No agency access" });
+
+      const userId = req.user?.claims?.sub || req.user?.id;
+      const user = await storage.getUser(userId);
+      if (!user) return res.status(403).json({ message: "User not found" });
+
+      const { content, messageType = 'text' } = req.body;
+
+      if (!content && messageType === 'text') {
+        return res.status(400).json({ message: "Message content is required" });
+      }
+
+      const [message] = await db.insert(externalAgencyChatMessages).values({
+        agencyId,
+        senderId: userId,
+        senderName: user.firstName && user.lastName ? `${user.firstName} ${user.lastName}` : user.username || 'Unknown',
+        senderRole: user.role,
+        senderAvatarUrl: user.profilePicture || null,
+        messageType,
+        content,
+        readBy: [userId],
+      }).returning();
+
+      // Broadcast to WebSocket clients in the agency room
+      broadcastToAgency(agencyId, {
+        type: 'chat:message',
+        data: message,
+      });
+
+      res.status(201).json(message);
+    } catch (error: any) {
+      console.error("Error sending chat message:", error);
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  // POST /api/external/chat/messages/:id/read - Mark message as read
+  app.post("/api/external/chat/messages/:id/read", isAuthenticated, requireRole([...EXTERNAL_ADMIN_ROLES, 'external_agency_seller']), async (req: any, res) => {
+    try {
+      const agencyId = await getUserAgencyId(req);
+      if (!agencyId) return res.status(403).json({ message: "No agency access" });
+
+      const userId = req.user?.claims?.sub || req.user?.id;
+      const { id } = req.params;
+
+      const [message] = await db.select()
+        .from(externalAgencyChatMessages)
+        .where(and(
+          eq(externalAgencyChatMessages.id, id),
+          eq(externalAgencyChatMessages.agencyId, agencyId)
+        ));
+
+      if (!message) {
+        return res.status(404).json({ message: "Message not found" });
+      }
+
+      const readBy = message.readBy || [];
+      if (!readBy.includes(userId)) {
+        await db.update(externalAgencyChatMessages)
+          .set({ readBy: [...readBy, userId] })
+          .where(eq(externalAgencyChatMessages.id, id));
+      }
+
+      res.json({ success: true });
+    } catch (error: any) {
+      console.error("Error marking message as read:", error);
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  // POST /api/external/chat/attachments - Upload attachment for chat
+  const chatUpload = multer({
+    storage: multer.memoryStorage(),
+    limits: { fileSize: 10 * 1024 * 1024 }, // 10MB limit
+    fileFilter: (req, file, cb) => {
+      const allowedTypes = ['image/jpeg', 'image/png', 'image/gif', 'image/webp', 'audio/webm', 'audio/mpeg', 'audio/mp3', 'audio/ogg'];
+      if (allowedTypes.includes(file.mimetype)) {
+        cb(null, true);
+      } else {
+        cb(new Error('Invalid file type. Only images and audio files are allowed.'));
+      }
+    }
+  });
+
+  app.post("/api/external/chat/attachments", isAuthenticated, requireRole([...EXTERNAL_ADMIN_ROLES, 'external_agency_seller']), chatUpload.single('file'), async (req: any, res) => {
+    try {
+      const agencyId = await getUserAgencyId(req);
+      if (!agencyId) return res.status(403).json({ message: "No agency access" });
+
+      const userId = req.user?.claims?.sub || req.user?.id;
+      const user = await storage.getUser(userId);
+      if (!user) return res.status(403).json({ message: "User not found" });
+
+      if (!req.file) {
+        return res.status(400).json({ message: "No file uploaded" });
+      }
+
+      const file = req.file;
+      const isImage = file.mimetype.startsWith('image/');
+      const isAudio = file.mimetype.startsWith('audio/');
+      const messageType = isImage ? 'image' : isAudio ? 'audio' : 'file';
+
+      // Upload to object storage
+      const { Storage } = await import('@google-cloud/storage');
+      const gcs = new Storage();
+      const bucketName = process.env.BUCKET_ID || 'replit-objstore-d3e8dbe9-eac7-41dd-8929-bb31dd40cced';
+      const bucket = gcs.bucket(bucketName);
+      
+      const fileName = `chat/${agencyId}/${Date.now()}-${file.originalname}`;
+      const blob = bucket.file(fileName);
+      
+      await blob.save(file.buffer, {
+        contentType: file.mimetype,
+        metadata: {
+          cacheControl: 'public, max-age=31536000',
+        },
+      });
+
+      // Make it public
+      await blob.makePublic();
+      const publicUrl = `https://storage.googleapis.com/${bucketName}/${fileName}`;
+
+      // Create message with attachment
+      const [message] = await db.insert(externalAgencyChatMessages).values({
+        agencyId,
+        senderId: userId,
+        senderName: user.firstName && user.lastName ? `${user.firstName} ${user.lastName}` : user.username || 'Unknown',
+        senderRole: user.role,
+        senderAvatarUrl: user.profilePicture || null,
+        messageType,
+        content: file.originalname,
+        readBy: [userId],
+      }).returning();
+
+      // Create attachment record
+      const [attachment] = await db.insert(externalAgencyChatAttachments).values({
+        messageId: message.id,
+        agencyId,
+        fileName: file.originalname,
+        fileType: file.mimetype,
+        fileSize: file.size,
+        storagePath: fileName,
+        publicUrl,
+      }).returning();
+
+      const fullMessage = { ...message, attachments: [attachment] };
+
+      // Broadcast to WebSocket clients
+      broadcastToAgency(agencyId, {
+        type: 'chat:message',
+        data: fullMessage,
+      });
+
+      res.status(201).json(fullMessage);
+    } catch (error: any) {
+      console.error("Error uploading chat attachment:", error);
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  // GET /api/external/chat/activity-logs - Get activity logs for chat
+  app.get("/api/external/chat/activity-logs", isAuthenticated, requireRole([...EXTERNAL_ADMIN_ROLES, 'external_agency_seller']), async (req: any, res) => {
+    try {
+      const agencyId = await getUserAgencyId(req);
+      if (!agencyId) return res.status(403).json({ message: "No agency access" });
+
+      const { limit = 50, offset = 0 } = req.query;
+
+      const logs = await db.select()
+        .from(externalAgencyActivityLogs)
+        .where(eq(externalAgencyActivityLogs.agencyId, agencyId))
+        .orderBy(desc(externalAgencyActivityLogs.createdAt))
+        .limit(parseInt(limit as string))
+        .offset(parseInt(offset as string));
+
+      res.json(logs);
+    } catch (error: any) {
+      console.error("Error fetching activity logs:", error);
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  // GET /api/external/chat/points/leaderboard - Get seller points leaderboard
+  app.get("/api/external/chat/points/leaderboard", isAuthenticated, requireRole([...EXTERNAL_ADMIN_ROLES, 'external_agency_seller']), async (req: any, res) => {
+    try {
+      const agencyId = await getUserAgencyId(req);
+      if (!agencyId) return res.status(403).json({ message: "No agency access" });
+
+      const { period = 'total' } = req.query; // 'total', 'weekly', 'monthly'
+
+      const orderColumn = period === 'weekly' 
+        ? externalAgencySellerPoints.weeklyPoints 
+        : period === 'monthly' 
+          ? externalAgencySellerPoints.monthlyPoints 
+          : externalAgencySellerPoints.totalPoints;
+
+      const leaderboard = await db.select({
+        sellerId: externalAgencySellerPoints.sellerId,
+        totalPoints: externalAgencySellerPoints.totalPoints,
+        weeklyPoints: externalAgencySellerPoints.weeklyPoints,
+        monthlyPoints: externalAgencySellerPoints.monthlyPoints,
+        leadsRegistered: externalAgencySellerPoints.leadsRegistered,
+        offersSent: externalAgencySellerPoints.offersSent,
+        rentalFormsSent: externalAgencySellerPoints.rentalFormsSent,
+        ownersRegistered: externalAgencySellerPoints.ownersRegistered,
+        rentalsCompleted: externalAgencySellerPoints.rentalsCompleted,
+        currentRank: externalAgencySellerPoints.currentRank,
+        sellerName: sql<string>`concat(${users.firstName}, ' ', ${users.lastName})`,
+        sellerEmail: users.email,
+        sellerAvatar: users.profilePicture,
+      })
+        .from(externalAgencySellerPoints)
+        .innerJoin(users, eq(externalAgencySellerPoints.sellerId, users.id))
+        .where(eq(externalAgencySellerPoints.agencyId, agencyId))
+        .orderBy(desc(orderColumn))
+        .limit(50);
+
+      res.json(leaderboard);
+    } catch (error: any) {
+      console.error("Error fetching leaderboard:", error);
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  // GET /api/external/chat/points/my-points - Get current user's points
+  app.get("/api/external/chat/points/my-points", isAuthenticated, requireRole([...EXTERNAL_ADMIN_ROLES, 'external_agency_seller']), async (req: any, res) => {
+    try {
+      const agencyId = await getUserAgencyId(req);
+      if (!agencyId) return res.status(403).json({ message: "No agency access" });
+
+      const userId = req.user?.claims?.sub || req.user?.id;
+
+      const [points] = await db.select()
+        .from(externalAgencySellerPoints)
+        .where(and(
+          eq(externalAgencySellerPoints.agencyId, agencyId),
+          eq(externalAgencySellerPoints.sellerId, userId)
+        ));
+
+      if (!points) {
+        // Create initial points record
+        const [newPoints] = await db.insert(externalAgencySellerPoints).values({
+          agencyId,
+          sellerId: userId,
+        }).returning();
+        return res.json(newPoints);
+      }
+
+      res.json(points);
+    } catch (error: any) {
+      console.error("Error fetching my points:", error);
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  // GET /api/external/chat/points/config - Get point configuration
+  app.get("/api/external/chat/points/config", isAuthenticated, requireRole([...EXTERNAL_ADMIN_ROLES, 'external_agency_seller']), async (req: any, res) => {
+    try {
+      const agencyId = await getUserAgencyId(req);
+      if (!agencyId) return res.status(403).json({ message: "No agency access" });
+
+      const config = await db.select()
+        .from(externalAgencyPointConfig)
+        .where(eq(externalAgencyPointConfig.agencyId, agencyId));
+
+      // If no config exists, return default values
+      if (config.length === 0) {
+        const defaultConfig = [
+          { actionType: 'lead_registered', points: 10, descriptionEs: 'Registro de lead', descriptionEn: 'Lead registration' },
+          { actionType: 'offer_sent', points: 15, descriptionEs: 'Oferta enviada', descriptionEn: 'Offer sent' },
+          { actionType: 'rental_form_sent', points: 15, descriptionEs: 'Formato de renta enviado', descriptionEn: 'Rental form sent' },
+          { actionType: 'owner_registered', points: 25, descriptionEs: 'Propietario registrado', descriptionEn: 'Owner registered' },
+          { actionType: 'lead_converted', points: 50, descriptionEs: 'Lead convertido a cliente', descriptionEn: 'Lead converted to client' },
+          { actionType: 'rental_completed', points: 100, descriptionEs: 'Renta completada', descriptionEn: 'Rental completed' },
+          { actionType: 'showing_scheduled', points: 5, descriptionEs: 'Cita programada', descriptionEn: 'Showing scheduled' },
+          { actionType: 'property_listed', points: 20, descriptionEs: 'Propiedad listada', descriptionEn: 'Property listed' },
+          { actionType: 'client_registered', points: 15, descriptionEs: 'Cliente registrado', descriptionEn: 'Client registered' },
+        ];
+        return res.json(defaultConfig);
+      }
+
+      res.json(config);
+    } catch (error: any) {
+      console.error("Error fetching point config:", error);
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  // PUT /api/external/chat/points/config - Update point configuration (admin only)
+  app.put("/api/external/chat/points/config", isAuthenticated, requireRole(EXTERNAL_ADMIN_ROLES), async (req: any, res) => {
+    try {
+      const agencyId = await getUserAgencyId(req);
+      if (!agencyId) return res.status(403).json({ message: "No agency access" });
+
+      const { config } = req.body;
+
+      if (!Array.isArray(config)) {
+        return res.status(400).json({ message: "Config must be an array" });
+      }
+
+      // Upsert each config entry
+      for (const entry of config) {
+        const existing = await db.select()
+          .from(externalAgencyPointConfig)
+          .where(and(
+            eq(externalAgencyPointConfig.agencyId, agencyId),
+            eq(externalAgencyPointConfig.actionType, entry.actionType)
+          ));
+
+        if (existing.length > 0) {
+          await db.update(externalAgencyPointConfig)
+            .set({
+              points: entry.points,
+              descriptionEs: entry.descriptionEs,
+              descriptionEn: entry.descriptionEn,
+              updatedAt: new Date(),
+            })
+            .where(eq(externalAgencyPointConfig.id, existing[0].id));
+        } else {
+          await db.insert(externalAgencyPointConfig).values({
+            agencyId,
+            actionType: entry.actionType,
+            points: entry.points,
+            descriptionEs: entry.descriptionEs,
+            descriptionEn: entry.descriptionEn,
+          });
+        }
+      }
+
+      const updatedConfig = await db.select()
+        .from(externalAgencyPointConfig)
+        .where(eq(externalAgencyPointConfig.agencyId, agencyId));
+
+      res.json(updatedConfig);
+    } catch (error: any) {
+      console.error("Error updating point config:", error);
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  // GET /api/external/chat/rewards - Get available rewards
+  app.get("/api/external/chat/rewards", isAuthenticated, requireRole([...EXTERNAL_ADMIN_ROLES, 'external_agency_seller']), async (req: any, res) => {
+    try {
+      const agencyId = await getUserAgencyId(req);
+      if (!agencyId) return res.status(403).json({ message: "No agency access" });
+
+      const rewards = await db.select()
+        .from(externalAgencyRewards)
+        .where(and(
+          eq(externalAgencyRewards.agencyId, agencyId),
+          eq(externalAgencyRewards.isActive, true)
+        ))
+        .orderBy(asc(externalAgencyRewards.pointsCost));
+
+      res.json(rewards);
+    } catch (error: any) {
+      console.error("Error fetching rewards:", error);
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  // POST /api/external/chat/rewards - Create a new reward (admin only)
+  app.post("/api/external/chat/rewards", isAuthenticated, requireRole(EXTERNAL_ADMIN_ROLES), async (req: any, res) => {
+    try {
+      const agencyId = await getUserAgencyId(req);
+      if (!agencyId) return res.status(403).json({ message: "No agency access" });
+
+      const validatedData = insertExternalAgencyRewardSchema.parse({
+        ...req.body,
+        agencyId,
+      });
+
+      const [reward] = await db.insert(externalAgencyRewards)
+        .values(validatedData)
+        .returning();
+
+      res.status(201).json(reward);
+    } catch (error: any) {
+      console.error("Error creating reward:", error);
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  // POST /api/external/chat/rewards/:id/redeem - Redeem a reward
+  app.post("/api/external/chat/rewards/:id/redeem", isAuthenticated, requireRole([...EXTERNAL_ADMIN_ROLES, 'external_agency_seller']), async (req: any, res) => {
+    try {
+      const agencyId = await getUserAgencyId(req);
+      if (!agencyId) return res.status(403).json({ message: "No agency access" });
+
+      const userId = req.user?.claims?.sub || req.user?.id;
+      const { id } = req.params;
+
+      // Get reward
+      const [reward] = await db.select()
+        .from(externalAgencyRewards)
+        .where(and(
+          eq(externalAgencyRewards.id, id),
+          eq(externalAgencyRewards.agencyId, agencyId),
+          eq(externalAgencyRewards.isActive, true)
+        ));
+
+      if (!reward) {
+        return res.status(404).json({ message: "Reward not found" });
+      }
+
+      // Get user points
+      const [points] = await db.select()
+        .from(externalAgencySellerPoints)
+        .where(and(
+          eq(externalAgencySellerPoints.agencyId, agencyId),
+          eq(externalAgencySellerPoints.sellerId, userId)
+        ));
+
+      if (!points || points.totalPoints < reward.pointsCost) {
+        return res.status(400).json({ message: "Not enough points" });
+      }
+
+      // Check availability
+      if (reward.availableQuantity !== null && reward.availableQuantity <= 0) {
+        return res.status(400).json({ message: "Reward is out of stock" });
+      }
+
+      // Deduct points
+      await db.update(externalAgencySellerPoints)
+        .set({
+          totalPoints: points.totalPoints - reward.pointsCost,
+          updatedAt: new Date(),
+        })
+        .where(eq(externalAgencySellerPoints.id, points.id));
+
+      // Update quantity if limited
+      if (reward.availableQuantity !== null) {
+        await db.update(externalAgencyRewards)
+          .set({
+            availableQuantity: reward.availableQuantity - 1,
+            updatedAt: new Date(),
+          })
+          .where(eq(externalAgencyRewards.id, id));
+      }
+
+      // Create redemption record
+      const [redemption] = await db.insert(externalAgencyRewardRedemptions).values({
+        agencyId,
+        rewardId: id,
+        sellerId: userId,
+        pointsSpent: reward.pointsCost,
+        status: 'pending',
+      }).returning();
+
+      res.status(201).json(redemption);
+    } catch (error: any) {
+      console.error("Error redeeming reward:", error);
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  // GET /api/external/chat/sellers - Get all sellers with their metrics
+  app.get("/api/external/chat/sellers", isAuthenticated, requireRole([...EXTERNAL_ADMIN_ROLES, 'external_agency_seller']), async (req: any, res) => {
+    try {
+      const agencyId = await getUserAgencyId(req);
+      if (!agencyId) return res.status(403).json({ message: "No agency access" });
+
+      // Flatten the select to avoid Drizzle nested object issues
+      const sellers = await db.select({
+        id: users.id,
+        firstName: users.firstName,
+        lastName: users.lastName,
+        email: users.email,
+        phone: users.phone,
+        profilePicture: users.profilePicture,
+        role: users.role,
+        status: users.status,
+        createdAt: users.createdAt,
+        totalPoints: externalAgencySellerPoints.totalPoints,
+        weeklyPoints: externalAgencySellerPoints.weeklyPoints,
+        monthlyPoints: externalAgencySellerPoints.monthlyPoints,
+        leadsRegistered: externalAgencySellerPoints.leadsRegistered,
+        offersSent: externalAgencySellerPoints.offersSent,
+        rentalFormsSent: externalAgencySellerPoints.rentalFormsSent,
+        ownersRegistered: externalAgencySellerPoints.ownersRegistered,
+        rentalsCompleted: externalAgencySellerPoints.rentalsCompleted,
+        currentRank: externalAgencySellerPoints.currentRank,
+      })
+        .from(users)
+        .leftJoin(externalAgencySellerPoints, and(
+          eq(users.id, externalAgencySellerPoints.sellerId),
+          eq(externalAgencySellerPoints.agencyId, agencyId)
+        ))
+        .where(and(
+          eq(users.externalAgencyId, agencyId),
+          eq(users.role, 'external_agency_seller')
+        ))
+        .orderBy(desc(externalAgencySellerPoints.totalPoints));
+
+      // Transform to expected format with points nested
+      const formattedSellers = sellers.map(seller => ({
+        id: seller.id,
+        firstName: seller.firstName,
+        lastName: seller.lastName,
+        email: seller.email,
+        phone: seller.phone,
+        profilePicture: seller.profilePicture,
+        role: seller.role,
+        status: seller.status,
+        createdAt: seller.createdAt,
+        points: {
+          totalPoints: seller.totalPoints ?? 0,
+          weeklyPoints: seller.weeklyPoints ?? 0,
+          monthlyPoints: seller.monthlyPoints ?? 0,
+          leadsRegistered: seller.leadsRegistered ?? 0,
+          offersSent: seller.offersSent ?? 0,
+          rentalFormsSent: seller.rentalFormsSent ?? 0,
+          ownersRegistered: seller.ownersRegistered ?? 0,
+          rentalsCompleted: seller.rentalsCompleted ?? 0,
+          currentRank: seller.currentRank ?? 1,
+        },
+      }));
+
+      res.json(formattedSellers);
+    } catch (error: any) {
+      console.error("Error fetching sellers:", error);
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  app.get("/api/external/chat/seller/:id", isAuthenticated, requireRole([...EXTERNAL_ADMIN_ROLES, 'external_agency_seller']), async (req: any, res) => {
+    try {
+      const agencyId = await getUserAgencyId(req);
+      if (!agencyId) return res.status(403).json({ message: "No agency access" });
+
+      const { id } = req.params;
+
+      // Get seller info
+      const [seller] = await db.select()
+        .from(users)
+        .where(and(
+          eq(users.id, id),
+          eq(users.externalAgencyId, agencyId)
+        ));
+
+      if (!seller) {
+        return res.status(404).json({ message: "Seller not found" });
+      }
+
+      // Get points
+      const [points] = await db.select()
+        .from(externalAgencySellerPoints)
+        .where(and(
+          eq(externalAgencySellerPoints.sellerId, id),
+          eq(externalAgencySellerPoints.agencyId, agencyId)
+        ));
+
+      // Get recent activities
+      const recentActivities = await db.select()
+        .from(externalAgencyActivityLogs)
+        .where(and(
+          eq(externalAgencyActivityLogs.actorId, id),
+          eq(externalAgencyActivityLogs.agencyId, agencyId)
+        ))
+        .orderBy(desc(externalAgencyActivityLogs.createdAt))
+        .limit(20);
+
+      // Get lead count
+      const [leadCount] = await db.select({
+        count: sql<number>`count(*)::int`,
+      })
+        .from(externalLeads)
+        .where(and(
+          eq(externalLeads.assignedSellerId, id),
+          eq(externalLeads.agencyId, agencyId)
+        ));
+
+      res.json({
+        seller: {
+          id: seller.id,
+          firstName: seller.firstName,
+          lastName: seller.lastName,
+          email: seller.email,
+          phone: seller.phone,
+          profilePicture: seller.profilePicture,
+          role: seller.role,
+          status: seller.status,
+          createdAt: seller.createdAt,
+        },
+        points: points || {
+          totalPoints: 0,
+          weeklyPoints: 0,
+          monthlyPoints: 0,
+          leadsRegistered: 0,
+          offersSent: 0,
+          rentalFormsSent: 0,
+          ownersRegistered: 0,
+          rentalsCompleted: 0,
+          currentRank: 1,
+        },
+        recentActivities,
+        stats: {
+          activeLeads: leadCount?.count || 0,
+        },
+      });
+    } catch (error: any) {
+      console.error("Error fetching seller profile:", error);
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  // Helper function to broadcast WebSocket messages to agency
+  function broadcastToAgency(agencyId: string, message: any) {
+    // This will be implemented when we set up WebSocket handling
+    // For now, we rely on polling
+    console.log(`[Chat] Broadcasting to agency ${agencyId}:`, message.type);
+  }
+
+
+  // ========================================
+  // EMAIL LEAD IMPORT ROUTES
+  // ========================================
+
+  // GET /api/external/email-sources - Get all email sources for agency
+  app.get("/api/external/email-sources", isAuthenticated, requireRole(EXTERNAL_ADMIN_ROLES), async (req: any, res) => {
+    try {
+      const agencyId = await getUserAgencyId(req);
+      if (!agencyId) return res.status(403).json({ message: "No agency access" });
+
+      const sources = await db.select()
+        .from(externalLeadEmailSources)
+        .where(eq(externalLeadEmailSources.agencyId, agencyId))
+        .orderBy(desc(externalLeadEmailSources.createdAt));
+
+      res.json(sources);
+    } catch (error: any) {
+      console.error("Error fetching email sources:", error);
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  // POST /api/external/email-sources - Create email source
+  app.post("/api/external/email-sources", isAuthenticated, requireRole(EXTERNAL_ADMIN_ROLES), async (req: any, res) => {
+    try {
+      const agencyId = await getUserAgencyId(req);
+      if (!agencyId) return res.status(403).json({ message: "No agency access" });
+
+      const { provider, providerName, senderEmails, subjectPatterns, defaultSellerId, defaultSource, defaultRegistrationType, isActive } = req.body;
+
+      if (!provider || !providerName || !senderEmails || !Array.isArray(senderEmails) || senderEmails.length === 0) {
+        return res.status(400).json({ message: "Provider, provider name, and sender emails are required" });
+      }
+
+      const [source] = await db.insert(externalLeadEmailSources).values({
+        agencyId,
+        provider,
+        providerName,
+        senderEmails,
+        subjectPatterns: subjectPatterns || null,
+        defaultSellerId: defaultSellerId || null,
+        defaultSource: defaultSource || 'email_import',
+        defaultRegistrationType: defaultRegistrationType || 'seller',
+        isActive: isActive !== false,
+      }).returning();
+
+      res.status(201).json(source);
+    } catch (error: any) {
+      console.error("Error creating email source:", error);
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  // PATCH /api/external/email-sources/:id - Update email source
+  app.patch("/api/external/email-sources/:id", isAuthenticated, requireRole(EXTERNAL_ADMIN_ROLES), async (req: any, res) => {
+    try {
+      const agencyId = await getUserAgencyId(req);
+      if (!agencyId) return res.status(403).json({ message: "No agency access" });
+
+      const { id } = req.params;
+      const updates = req.body;
+
+      const [existingSource] = await db.select()
+        .from(externalLeadEmailSources)
+        .where(and(
+          eq(externalLeadEmailSources.id, id),
+          eq(externalLeadEmailSources.agencyId, agencyId)
+        ));
+
+      if (!existingSource) {
+        return res.status(404).json({ message: "Email source not found" });
+      }
+
+      const [updatedSource] = await db.update(externalLeadEmailSources)
+        .set({
+          ...updates,
+          updatedAt: new Date(),
+        })
+        .where(eq(externalLeadEmailSources.id, id))
+        .returning();
+
+      res.json(updatedSource);
+    } catch (error: any) {
+      console.error("Error updating email source:", error);
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  // DELETE /api/external/email-sources/:id - Delete email source
+  app.delete("/api/external/email-sources/:id", isAuthenticated, requireRole(EXTERNAL_ADMIN_ROLES), async (req: any, res) => {
+    try {
+      const agencyId = await getUserAgencyId(req);
+      if (!agencyId) return res.status(403).json({ message: "No agency access" });
+
+      const { id } = req.params;
+
+      const [existingSource] = await db.select()
+        .from(externalLeadEmailSources)
+        .where(and(
+          eq(externalLeadEmailSources.id, id),
+          eq(externalLeadEmailSources.agencyId, agencyId)
+        ));
+
+      if (!existingSource) {
+        return res.status(404).json({ message: "Email source not found" });
+      }
+
+      await db.delete(externalLeadEmailSources)
+        .where(eq(externalLeadEmailSources.id, id));
+
+      res.json({ success: true });
+    } catch (error: any) {
+      console.error("Error deleting email source:", error);
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  // POST /api/external/email-sources/:id/sync - Trigger manual sync for email source
+  app.post("/api/external/email-sources/:id/sync", isAuthenticated, requireRole(EXTERNAL_ADMIN_ROLES), async (req: any, res) => {
+    try {
+      const agencyId = await getUserAgencyId(req);
+      if (!agencyId) return res.status(403).json({ message: "No agency access" });
+
+      const { id } = req.params;
+
+      const [source] = await db.select()
+        .from(externalLeadEmailSources)
+        .where(and(
+          eq(externalLeadEmailSources.id, id),
+          eq(externalLeadEmailSources.agencyId, agencyId)
+        ));
+
+      if (!source) {
+        return res.status(404).json({ message: "Email source not found" });
+      }
+
+      const { processEmailsForAgency } = await import('./emailLeadImportService');
+      const result = await processEmailsForAgency(agencyId, source);
+
+      res.json({
+        success: true,
+        imported: result.imported,
+        duplicates: result.duplicates,
+        errors: result.errors,
+      });
+    } catch (error: any) {
+      console.error("Error syncing email source:", error);
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  // GET /api/external/email-import-logs - Get import logs for agency
+  app.get("/api/external/email-import-logs", isAuthenticated, requireRole(EXTERNAL_ADMIN_ROLES), async (req: any, res) => {
+    try {
+      const agencyId = await getUserAgencyId(req);
+      if (!agencyId) return res.status(403).json({ message: "No agency access" });
+
+      const { sourceId, status, limit = 50, offset = 0 } = req.query;
+
+      const conditions: SQL<unknown>[] = [eq(externalLeadEmailImportLogs.agencyId, agencyId)];
+      
+      if (sourceId) {
+        conditions.push(eq(externalLeadEmailImportLogs.sourceId, sourceId as string));
+      }
+      
+      if (status) {
+        conditions.push(eq(externalLeadEmailImportLogs.status, status as any));
+      }
+
+      const logs = await db.select()
+        .from(externalLeadEmailImportLogs)
+        .where(and(...conditions))
+        .orderBy(desc(externalLeadEmailImportLogs.createdAt))
+        .limit(parseInt(limit as string))
+        .offset(parseInt(offset as string));
+
+      const [countResult] = await db.select({ count: sql<number>`count(*)::int` })
+        .from(externalLeadEmailImportLogs)
+        .where(and(...conditions));
+
+      res.json({
+        data: logs,
+        total: countResult?.count || 0,
+        limit: parseInt(limit as string),
+        offset: parseInt(offset as string),
+      });
+    } catch (error: any) {
+      console.error("Error fetching import logs:", error);
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  // GET /api/external/email-import-stats - Get import statistics for agency
+  app.get("/api/external/email-import-stats", isAuthenticated, requireRole(EXTERNAL_ADMIN_ROLES), async (req: any, res) => {
+    try {
+      const agencyId = await getUserAgencyId(req);
+      if (!agencyId) return res.status(403).json({ message: "No agency access" });
+
+      const sources = await db.select({
+        id: externalLeadEmailSources.id,
+        providerName: externalLeadEmailSources.providerName,
+        provider: externalLeadEmailSources.provider,
+        isActive: externalLeadEmailSources.isActive,
+        lastSyncAt: externalLeadEmailSources.lastSyncAt,
+        totalImported: externalLeadEmailSources.totalImported,
+        totalDuplicates: externalLeadEmailSources.totalDuplicates,
+        totalErrors: externalLeadEmailSources.totalErrors,
+      })
+        .from(externalLeadEmailSources)
+        .where(eq(externalLeadEmailSources.agencyId, agencyId));
+
+      const totals = sources.reduce((acc, s) => ({
+        totalImported: acc.totalImported + (s.totalImported || 0),
+        totalDuplicates: acc.totalDuplicates + (s.totalDuplicates || 0),
+        totalErrors: acc.totalErrors + (s.totalErrors || 0),
+      }), { totalImported: 0, totalDuplicates: 0, totalErrors: 0 });
+
+      res.json({
+        sources,
+        totals,
+      });
+    } catch (error: any) {
+      console.error("Error fetching import stats:", error);
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  // POST /api/external/email-sources/test-gmail - Test Gmail connection
+  app.post("/api/external/email-sources/test-gmail", isAuthenticated, requireRole(EXTERNAL_ADMIN_ROLES), async (req: any, res) => {
+    try {
+      const { testGmailConnection } = await import('./emailLeadImportService');
+      const connected = await testGmailConnection();
+      res.json({ connected });
+    } catch (error: any) {
+      console.error("Error testing Gmail connection:", error);
+      res.status(500).json({ message: error.message, connected: false });
+    }
+  });
+
+  // GET /api/external/email-sources/gmail-status - Get Gmail connection status
+  app.get("/api/external/email-sources/gmail-status", isAuthenticated, requireRole(EXTERNAL_ADMIN_ROLES), async (req: any, res) => {
+    try {
+      const { testGmailConnection } = await import('./emailLeadImportService');
+      const connected = await testGmailConnection();
+      res.json({ 
+        connected, 
+        email: connected ? "administracion@tulumrentalhomes.com.mx" : undefined,
+        lastCheck: new Date().toISOString()
+      });
+    } catch (error: any) {
+      res.json({ connected: false, error: error.message });
+    }
+  });
+
+  // GET /api/external/email-sources/worker-status - Get worker status
+  app.get("/api/external/email-sources/worker-status", isAuthenticated, requireRole(EXTERNAL_ADMIN_ROLES), async (req: any, res) => {
+    try {
+      const { getWorkerStatus } = await import('./emailImportWorker');
+      const status = getWorkerStatus();
+      res.json(status);
+    } catch (error: any) {
+      res.json({ isRunning: false, intervalMs: 30 * 60 * 1000 });
+    }
+  });
+
+  // POST /api/external/email-sources/sync-all - Trigger manual sync for all sources
+  app.post("/api/external/email-sources/sync-all", isAuthenticated, requireRole(EXTERNAL_ADMIN_ROLES), async (req: any, res) => {
+    try {
+      const agencyId = await getUserAgencyId(req);
+      if (!agencyId) return res.status(403).json({ message: "No agency access" });
+
+      const { runEmailImportForAgency } = await import('./emailLeadImportService');
+      const result = await runEmailImportForAgency(agencyId);
+      res.json(result);
+    } catch (error: any) {
+      console.error("Error running manual sync:", error);
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+
+
   return httpServer;
 }

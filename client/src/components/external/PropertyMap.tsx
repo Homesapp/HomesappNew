@@ -191,13 +191,11 @@ export function PropertyMap({
   }
 
   if (loadError) {
-    console.error("Google Maps load error:", loadError);
     return (
       <Card className="flex items-center justify-center" style={{ height }}>
         <div className="text-center text-destructive">
           <MapPin className="h-12 w-12 mx-auto mb-3" />
           <p>{labels.mapError}</p>
-          <p className="text-xs text-muted-foreground mt-2">{loadError.message}</p>
         </div>
       </Card>
     );

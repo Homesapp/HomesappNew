@@ -969,7 +969,7 @@ export type InsertAdminUser = z.infer<typeof insertAdminUserSchema>;
 
 // Admin login schema
 export const adminLoginSchema = z.object({
-  email: z.string().email("Email inválido"),
+  username: z.string().min(1, "Username is required"),
   password: z.string().min(1, "Password is required"),
 });
 
