@@ -30,6 +30,7 @@ import ForgotPassword from "@/pages/ForgotPassword";
 import ResetPassword from "@/pages/ResetPassword";
 import ForcePasswordChange from "@/pages/ForcePasswordChange";
 import PropertySearch from "@/pages/PropertySearch";
+import InteractiveMap from "@/pages/InteractiveMap";
 import PropertyDetails from "@/pages/PropertyDetails";
 import PropertyFullDetails from "@/pages/PropertyFullDetails";
 import PublicUnitDetail from "@/pages/PublicUnitDetail";
@@ -249,6 +250,7 @@ function AuthenticatedApp() {
         <Route path="/reset-password" component={ResetPassword} />
         <Route path="/force-password-change" component={ForcePasswordChange} />
         <Route path="/buscar-propiedades" component={PropertySearch} />
+        <Route path="/mapa-interactivo" component={InteractiveMap} />
         <Route path="/solicitud-proveedor" component={ProviderApplication} />
         <Route path="/aplicar" component={Apply} />
         <Route path="/p/:slug" component={PropertyFullDetails} />
@@ -396,6 +398,7 @@ function AuthenticatedApp() {
               <Route path="/" component={getHomeDashboard()} />
               <Route path="/mis-citas" component={Appointments} />
               <Route path="/buscar-propiedades" component={PropertySearch} />
+        <Route path="/mapa-interactivo" component={InteractiveMap} />
               <Route path="/aplicar" component={Apply} />
               <Route path="/p/:slug" component={PropertyFullDetails} />
         <Route path="/propiedad/:id/completo" component={PropertyFullDetails} />

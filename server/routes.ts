@@ -33812,6 +33812,29 @@ const generateSlug = (str: string) => str.toLowerCase().normalize("NFD").replace
 
 
   // GET /api/public/condominiums - Public list of condominiums for lead registration
+  // GET /api/public/zones - Public list of unique zones/areas
+  app.get("/api/public/zones", async (req, res) => {
+    try {
+      // Get all distinct zones from approved external units
+      const result = await db
+        .selectDistinct({ zone: externalUnits.zone })
+        .from(externalUnits)
+        .where(and(
+          eq(externalUnits.publishToMain, true),
+          eq(externalUnits.publishStatus, 'approved'),
+          eq(externalUnits.isActive, true),
+          isNotNull(externalUnits.zone)
+        ))
+        .orderBy(asc(externalUnits.zone));
+      
+      const zones = result.map(r => r.zone).filter(Boolean);
+      res.json({ data: zones });
+    } catch (error: any) {
+      console.error("Error fetching public zones:", error);
+      handleGenericError(res, error);
+    }
+  });
+
   app.get("/api/public/condominiums", async (req, res) => {
     try {
       const agencies = await storage.getExternalAgencies();

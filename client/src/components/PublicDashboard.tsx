@@ -132,12 +132,16 @@ export default function PublicDashboard() {
             <img src={logoIcon} alt="HomesApp" className="h-14 w-auto" data-testid="img-logo-header" />
           </div>
           <div className="flex items-center gap-2 sm:gap-4">
-            <span 
-              className="text-sm text-muted-foreground hidden md:block cursor-pointer hover:text-foreground transition-colors"
-              onClick={() => setLocation("/buscar-propiedades")}
+            <Button 
+              variant="ghost"
+              size="icon"
+              className="h-9 w-9"
+              onClick={() => setLocation("/mapa-interactivo")}
+              data-testid="button-interactive-map"
+              title={t("public.interactiveMap") || "Mapa Interactivo"}
             >
-              {t("public.searchButton") || "Buscar"}
-            </span>
+              <MapPin className="h-5 w-5" />
+            </Button>
             <LanguageToggle />
             <Button
               variant="outline"
@@ -452,7 +456,7 @@ export default function PublicDashboard() {
           <div className="flex items-center justify-between mb-4 sm:mb-6">
             <h2 className="text-xl sm:text-2xl font-semibold flex items-center gap-2">
               <MapPin className="h-5 w-5 sm:h-6 sm:w-6 text-primary" />
-              Mapa de Propiedades
+              Mapa Interactivo
             </h2>
             <Button
               variant="ghost"
