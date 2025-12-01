@@ -32830,6 +32830,11 @@ ${{precio}}/mes
         currency: unit.currency,
         status: unit.status,
         images: unit.images,
+        primaryImages: unit.primaryImages || [],
+        secondaryImages: unit.secondaryImages || [],
+        videos: unit.videos || [],
+        virtualTourUrl: unit.virtualTourUrl,
+        locationUrl: unit.locationUrl,
         amenities: unit.amenities,
         condominiumName: unit.condominiumName,
         squareMeters: unit.squareMeters,
@@ -32837,6 +32842,10 @@ ${{precio}}/mes
         hasParking: unit.hasParking,
         petsAllowed: unit.petsAllowed,
         description: unit.description,
+        includesWater: unit.includesWater,
+        includesElectricity: unit.includesElectricity,
+        includesInternet: unit.includesInternet,
+        includesGas: unit.includesGas,
       });
     } catch (error: any) {
       console.error("Error fetching public unit:", error);
