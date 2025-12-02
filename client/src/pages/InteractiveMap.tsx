@@ -456,11 +456,20 @@ export default function InteractiveMap() {
       <div className="flex-1 flex overflow-hidden relative">
         <main className="flex-1 relative">
           {isLoading ? (
-            <div className="absolute inset-0 flex items-center justify-center bg-muted/50">
-              <div className="text-center space-y-3">
-                <Skeleton className="h-8 w-8 rounded-full mx-auto animate-spin" />
+            <div className="absolute inset-0 flex items-center justify-center bg-background">
+              <div className="text-center space-y-4">
+                <img 
+                  src={logoIcon} 
+                  alt="HomesApp" 
+                  className="h-20 w-auto mx-auto animate-pulse" 
+                />
+                <div className="flex items-center justify-center gap-2">
+                  <div className="w-2 h-2 bg-primary rounded-full animate-bounce" style={{ animationDelay: '0ms' }}></div>
+                  <div className="w-2 h-2 bg-primary rounded-full animate-bounce" style={{ animationDelay: '150ms' }}></div>
+                  <div className="w-2 h-2 bg-primary rounded-full animate-bounce" style={{ animationDelay: '300ms' }}></div>
+                </div>
                 <p className="text-sm text-muted-foreground">
-                  {language === "es" ? "Cargando mapa..." : "Loading map..."}
+                  {language === "es" ? "Cargando propiedades..." : "Loading properties..."}
                 </p>
               </div>
             </div>

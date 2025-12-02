@@ -286,14 +286,16 @@ export function PropertyMap({
 
   if (!isLoaded) {
     return (
-      <Card style={{ height }}>
-        <div className="flex items-center justify-center h-full">
-          <div className="text-center">
-            <Loader2 className="h-8 w-8 animate-spin mx-auto mb-3 text-muted-foreground" />
-            <p className="text-sm text-muted-foreground">{labels.loading}</p>
+      <div className="flex items-center justify-center bg-background" style={{ height }}>
+        <div className="text-center space-y-3">
+          <div className="flex items-center justify-center gap-2">
+            <div className="w-2 h-2 bg-primary rounded-full animate-bounce" style={{ animationDelay: '0ms' }}></div>
+            <div className="w-2 h-2 bg-primary rounded-full animate-bounce" style={{ animationDelay: '150ms' }}></div>
+            <div className="w-2 h-2 bg-primary rounded-full animate-bounce" style={{ animationDelay: '300ms' }}></div>
           </div>
+          <p className="text-sm text-muted-foreground">{labels.loading}</p>
         </div>
-      </Card>
+      </div>
     );
   }
 
