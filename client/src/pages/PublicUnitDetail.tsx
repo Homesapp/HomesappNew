@@ -55,6 +55,7 @@ import {
 import { useLanguage } from "@/contexts/LanguageContext";
 import type { ExternalUnit } from "@shared/schema";
 import logoIcon from "@assets/H mes (500 x 300 px)_1759672952263.png";
+import { PropertyMap } from "@/components/external/PropertyMap";
 
 export default function PublicUnitDetail() {
   const [matchUnidad, paramsUnidad] = useRoute("/unidad/:id");
@@ -68,6 +69,7 @@ export default function PublicUnitDetail() {
   const [showBenefitsDialog, setShowBenefitsDialog] = useState(false);
   const [showFavoriteDialog, setShowFavoriteDialog] = useState(false);
   const [showContactDialog, setShowContactDialog] = useState(false);
+  const [showLocationDialog, setShowLocationDialog] = useState(false);
   const [contactForm, setContactForm] = useState({
     firstName: "",
     lastName: "",
@@ -357,45 +359,45 @@ export default function PublicUnitDetail() {
       {/* Action Buttons Bar */}
       <div className="border-b bg-background">
         <div className="max-w-7xl mx-auto">
-          <div className="grid grid-cols-4 gap-2 px-4 py-4">
+          <div className="grid grid-cols-4 gap-1.5 px-3 py-3 sm:gap-2 sm:px-4 sm:py-4">
             <Button
               variant="outline"
-              className="flex flex-col items-center gap-1 h-auto py-3"
+              className="flex flex-col items-center justify-center gap-1 h-auto py-2.5 sm:py-3"
               onClick={() => setShowAllPhotosDialog(true)}
               disabled={images.length === 0}
               data-testid="button-action-images"
             >
               <ImageIcon className="h-5 w-5" />
-              <span className="text-xs">{language === "es" ? "Imágenes" : "Images"}</span>
+              <span className="text-[10px] sm:text-xs font-medium">{language === "es" ? "Imágenes" : "Images"}</span>
             </Button>
             <Button
               variant="outline"
-              className="flex flex-col items-center gap-1 h-auto py-3"
+              className="flex flex-col items-center justify-center gap-1 h-auto py-2.5 sm:py-3"
               disabled={!unit.videos || unit.videos.length === 0}
               data-testid="button-action-video"
             >
               <Video className="h-5 w-5" />
-              <span className="text-xs">{language === "es" ? "Video" : "Video"}</span>
+              <span className="text-[10px] sm:text-xs font-medium">{language === "es" ? "Video" : "Video"}</span>
             </Button>
             <Button
               variant="outline"
-              className="flex flex-col items-center gap-1 h-auto py-3"
-              disabled={!unit.googleMapsUrl}
-              onClick={() => unit.googleMapsUrl && window.open(unit.googleMapsUrl, '_blank')}
+              className="flex flex-col items-center justify-center gap-1 h-auto py-2.5 sm:py-3"
+              disabled={!unit.latitude || !unit.longitude}
+              onClick={() => setShowLocationDialog(true)}
               data-testid="button-action-location"
             >
               <Map className="h-5 w-5" />
-              <span className="text-xs">{language === "es" ? "Ubicación" : "Location"}</span>
+              <span className="text-[10px] sm:text-xs font-medium">{language === "es" ? "Ubicación" : "Location"}</span>
             </Button>
             <Button
               variant="outline"
-              className="flex flex-col items-center gap-1 h-auto py-3"
+              className="flex flex-col items-center justify-center gap-1 h-auto py-2.5 sm:py-3"
               disabled={!unit.virtualTourUrl}
               onClick={() => unit.virtualTourUrl && window.open(unit.virtualTourUrl, '_blank')}
               data-testid="button-action-tour360"
             >
               <Globe className="h-5 w-5" />
-              <span className="text-xs">{language === "es" ? "Tour 360°" : "360° Tour"}</span>
+              <span className="text-[10px] sm:text-xs font-medium">{language === "es" ? "Tour 360°" : "360° Tour"}</span>
             </Button>
           </div>
         </div>
@@ -1071,6 +1073,68 @@ export default function PublicUnitDetail() {
               </Button>
             </DialogFooter>
           </form>
+        </DialogContent>
+      </Dialog>
+
+      {/* Location Map Dialog */}
+      <Dialog open={showLocationDialog} onOpenChange={setShowLocationDialog}>
+        <DialogContent className="max-w-4xl w-[95vw] h-[80vh] flex flex-col p-0">
+          <DialogHeader className="px-4 py-3 border-b shrink-0">
+            <DialogTitle className="flex items-center gap-2">
+              <MapPin className="h-5 w-5" />
+              {language === "es" ? "Ubicación de la propiedad" : "Property Location"}
+            </DialogTitle>
+            <DialogDescription>
+              {propertyLocation}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="flex-1 min-h-0">
+            {unit.latitude && unit.longitude ? (
+              import.meta.env.VITE_GOOGLE_MAPS_API_KEY ? (
+                <PropertyMap
+                  properties={[{
+                    id: unit.id || 'current-property',
+                    title: propertyTitle,
+                    unitNumber: unit.unitNumber || unit.id || 'N/A',
+                    condominiumName: (unit as any).condominiumName || propertyLocation,
+                    latitude: Number(unit.latitude),
+                    longitude: Number(unit.longitude),
+                    price: unit.price || undefined,
+                    currency: unit.currency || 'MXN',
+                    bedrooms: unit.bedrooms || undefined,
+                    bathrooms: unit.bathrooms || undefined,
+                    area: (unit as any).squareMeters || unit.area || undefined,
+                    propertyType: (unit as any).unitType || unit.propertyType || '',
+                    zone: unit.zone || '',
+                    primaryImages: images.slice(0, 1),
+                  }]}
+                  center={{ lat: Number(unit.latitude), lng: Number(unit.longitude) }}
+                  zoom={16}
+                  height="100%"
+                  language={language}
+                  showInfoWindow={true}
+                />
+              ) : (
+                <div className="flex flex-col items-center justify-center h-full gap-4 p-6">
+                  <MapPin className="h-16 w-16 text-muted-foreground" />
+                  <p className="text-muted-foreground text-center">
+                    {language === "es" ? "El mapa no está disponible" : "Map is not available"}
+                  </p>
+                  {unit.googleMapsUrl && (
+                    <Button onClick={() => window.open(unit.googleMapsUrl!, '_blank')}>
+                      {language === "es" ? "Abrir en Google Maps" : "Open in Google Maps"}
+                    </Button>
+                  )}
+                </div>
+              )
+            ) : (
+              <div className="flex items-center justify-center h-full">
+                <p className="text-muted-foreground">
+                  {language === "es" ? "Ubicación no disponible" : "Location not available"}
+                </p>
+              </div>
+            )}
+          </div>
         </DialogContent>
       </Dialog>
 
