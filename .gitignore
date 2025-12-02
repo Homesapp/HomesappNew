@@ -4,3 +4,34 @@ dist
 server/public
 vite.config.ts.*
 *.tar.gz
+
+# Temporary testing screenshots
+*.screenshot.png
+after-*.png
+mobile_*.png
+homepage_*.png
+profile_*.png
+homesapp_*.png
+*-fallback.png
+stability-check.png
+verify-*.png
+sidebar-attempt.png
+
+# Large attachments (keep only essential logos)
+attached_assets/*.pdf
+attached_assets/*.csv
+attached_assets/*.json
+attached_assets/image_*.png
+attached_assets/Captura*.png
+attached_assets/[HAP]*.pdf
+attached_assets/Diagrama*.pdf
+attached_assets/Formato*.pdf
+attached_assets/Hoja*.csv
+attached_assets/accounts*.csv
+attached_assets/clients*.csv
+attached_assets/condominiums*.csv
+
+# Backup files
+*.bak
+*.backup
+*.original
