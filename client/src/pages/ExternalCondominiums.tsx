@@ -2203,6 +2203,9 @@ export default function ExternalCondominiums() {
                       <Table className="text-sm">
                         <TableHeader>
                           <TableRow>
+                            <TableHead className="h-10 px-3 min-w-[60px]">
+                              {language === "es" ? "Foto" : "Photo"}
+                            </TableHead>
                             <TableHead className="h-10 px-3 min-w-[100px]">
                               {language === "es" ? "Portal" : "Portal"}
                             </TableHead>
@@ -2243,7 +2246,7 @@ export default function ExternalCondominiums() {
                   <TableBody>
                     {(unitsPageTransition || unitsFetching) && !unitsLoading ? (
                       <TableRow>
-                        <TableCell colSpan={13} className="h-[300px] p-0">
+                        <TableCell colSpan={14} className="h-[300px] p-0">
                           <TableLoading minHeight="300px" />
                         </TableCell>
                       </TableRow>
@@ -2272,6 +2275,20 @@ export default function ExternalCondominiums() {
                           className="cursor-pointer hover-elevate"
                           onClick={() => navigate(`/external/units/${unit.id}`)}
                         >
+                          <TableCell className="p-1">
+                            {(unit as any).coverPhotoUrl ? (
+                              <img 
+                                src={(unit as any).coverPhotoUrl} 
+                                alt={unit.unitNumber}
+                                className="w-12 h-9 object-cover rounded"
+                                data-testid={`img-cover-${unit.id}`}
+                              />
+                            ) : (
+                              <div className="w-12 h-9 bg-muted rounded flex items-center justify-center" data-testid={`img-placeholder-${unit.id}`}>
+                                <Home className="h-4 w-4 text-muted-foreground" />
+                              </div>
+                            )}
+                          </TableCell>
                           <TableCell>
                             {pubStatus === 'approved' ? (
                               <Badge variant="outline" className="bg-green-50 dark:bg-green-950/20 text-green-700 dark:text-green-300 border-green-200 dark:border-green-800" data-testid={`badge-pub-approved-${unit.id}`}>

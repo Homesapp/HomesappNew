@@ -63,17 +63,44 @@ function extractDriveLinkFromFichas(fichasNotes: string): string | null {
 async function readDriveLinksFromSheet(): Promise<DriveMediaData[]> {
   const sheets = await getGoogleSheetsClient();
   
-  const response = await sheets.spreadsheets.values.get({
+  // First, get the cell values
+  const valuesResponse = await sheets.spreadsheets.values.get({
     spreadsheetId: SPREADSHEET_ID,
     range: `'${SHEET_NAME}'!A2:AA`,
   });
   
-  const rows = response.data.values || [];
+  const rows = valuesResponse.data.values || [];
   
-  return rows.map((row: any[]) => {
-    const fichasNotes = row[19] || '';
+  // Then, get the cell NOTES from column T (which contain Drive links in fichas)
+  const notesResponse = await sheets.spreadsheets.get({
+    spreadsheetId: SPREADSHEET_ID,
+    ranges: [`'${SHEET_NAME}'!T2:T${rows.length + 1}`],
+    includeGridData: true,
+  });
+  
+  const notesData = notesResponse.data.sheets?.[0]?.data?.[0]?.rowData || [];
+  
+  // Build a map of row index to note content
+  const notesByRow: { [key: number]: string } = {};
+  notesData.forEach((rowData: any, index: number) => {
+    if (rowData?.values?.[0]?.note) {
+      notesByRow[index] = rowData.values[0].note;
+    }
+  });
+  
+  console.log(`Found ${Object.keys(notesByRow).length} cells with notes in column T`);
+  
+  return rows.map((row: any[], index: number) => {
+    // Try cell value first, then cell note
+    const fichasCellValue = row[19] || '';
+    const fichasCellNote = notesByRow[index] || '';
     const directDriveUrl = row[26] || '';
-    const fichasDriveUrl = extractDriveLinkFromFichas(fichasNotes);
+    
+    // Extract Drive link from both cell value and note
+    let fichasDriveUrl = extractDriveLinkFromFichas(fichasCellValue);
+    if (!fichasDriveUrl) {
+      fichasDriveUrl = extractDriveLinkFromFichas(fichasCellNote);
+    }
     
     return {
       sheetRowId: row[0] || '',

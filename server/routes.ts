@@ -28298,11 +28298,30 @@ ${{precio}}/mes
           .map(c => [c.unitId, c.id])
       );
       
-      // Add currentContractId and status field to each unit
+      // Get cover photos for all units in parallel
+      const unitIds = units.map(u => u.id);
+      const coverPhotosResult = unitIds.length > 0 ? await db.execute(sql`
+        SELECT DISTINCT ON (unit_id) 
+          unit_id, 
+          thumbnail_url,
+          drive_web_view_url
+        FROM external_unit_media 
+        WHERE unit_id = ANY(${unitIds}) 
+          AND media_type = 'photo'
+          AND (status = 'processed' OR status = 'pending')
+        ORDER BY unit_id, is_cover DESC, display_order ASC, created_at ASC
+      `) : { rows: [] };
+      
+      const coverPhotosByUnit = new Map(
+        (coverPhotosResult.rows as any[]).map(row => [row.unit_id, row.thumbnail_url || row.drive_web_view_url])
+      );
+      
+      // Add currentContractId, status, and coverPhoto to each unit
       const unitsWithContractInfo = units.map(unit => ({
         ...unit,
         status: unit.isActive ? 'active' : 'inactive',
         currentContractId: activeContractsByUnit.get(unit.id) || null,
+        coverPhotoUrl: coverPhotosByUnit.get(unit.id) || null,
       }));
       
       res.json({
