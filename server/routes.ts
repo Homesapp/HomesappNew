@@ -18063,7 +18063,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Chatbot Configuration routes (admin only)
   app.get("/api/chatbot/config", isAuthenticated, async (req: any, res) => {
     try {
-      const userRole = req.user.role;
+      const userRole = req.user?.role;
       
       // Only admin and master can access chatbot config
       if (userRole !== "admin" && userRole !== "master") {
@@ -18085,7 +18085,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.put("/api/chatbot/config", isAuthenticated, async (req: any, res) => {
     try {
-      const userRole = req.user.role;
+      const userRole = req.user?.role;
       const userId = req.user.claims.sub;
       
       // Only admin and master can update chatbot config
@@ -22211,7 +22211,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const filters = isActive !== undefined ? { isActive: isActive === 'true' } : undefined;
       
       let agencies;
-      if (req.user.role === "external_agency_admin") {
+      if (req.user?.role === "external_agency_admin") {
         // External agency admins can only see their own agency
         agencies = await storage.getExternalAgenciesByCreator(req.user.id);
       } else {
@@ -22423,7 +22423,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       // Verify user has access to this agency
       const userAgencyId = await getUserAgencyId(req);
-      if (userAgencyId && userAgencyId !== agencyId && !ADMIN_ONLY.includes(req.user.role)) {
+      if (userAgencyId && userAgencyId !== agencyId && !ADMIN_ONLY.includes(req.user?.role)) {
         return res.status(403).json({ message: "Access denied" });
       }
 
@@ -22469,7 +22469,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       // Verify user has access to this agency
       const userAgencyId = await getUserAgencyId(req);
-      if (userAgencyId && userAgencyId !== agencyId && !ADMIN_ONLY.includes(req.user.role)) {
+      if (userAgencyId && userAgencyId !== agencyId && !ADMIN_ONLY.includes(req.user?.role)) {
         return res.status(403).json({ message: "Access denied" });
       }
 
@@ -22498,7 +22498,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       // Verify user has access to this agency
       const userAgencyId = await getUserAgencyId(req);
-      if (userAgencyId && userAgencyId !== agencyId && !ADMIN_ONLY.includes(req.user.role)) {
+      if (userAgencyId && userAgencyId !== agencyId && !ADMIN_ONLY.includes(req.user?.role)) {
         return res.status(403).json({ message: "Access denied" });
       }
 
@@ -25777,9 +25777,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Seller Dashboard Summary - optimized endpoint for seller-specific statistics
   app.get("/api/external-dashboard/seller-summary", isAuthenticated, requireRole(['external_agency_seller', 'master', 'admin']), async (req: any, res) => {
     try {
-      const userId = req.user.id;
+      const userId = req.user?.claims?.sub || req.user?.id;
       const agencyId = await getUserAgencyId(req);
-      console.log("[seller-summary DEBUG] userId:", userId, "agencyId:", agencyId, "user.role:", req.user.role);
+      console.log("[seller-summary DEBUG] userId:", userId, "agencyId:", agencyId, "user.role:", req.user?.role);
       
       if (!agencyId) {
         return res.status(400).json({ message: "User is not assigned to any agency" });
@@ -25919,7 +25919,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Seller Activity Reports - statistics on activities, showings, and conversions
   app.get("/api/external-dashboard/seller-reports", isAuthenticated, requireRole(['external_agency_seller', 'master', 'admin']), async (req: any, res) => {
     try {
-      const userId = req.user.id;
+      const userId = req.user?.claims?.sub || req.user?.id;
       const agencyId = await getUserAgencyId(req);
       
       if (!agencyId) {
@@ -26042,7 +26042,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Seller Goals - active goals and achievement tracking
   app.get("/api/external-dashboard/seller-goals", isAuthenticated, requireRole(['external_agency_seller', 'master', 'admin']), async (req: any, res) => {
     try {
-      const userId = req.user.id;
+      const userId = req.user?.claims?.sub || req.user?.id;
       const agencyId = await getUserAgencyId(req);
       
       if (!agencyId) {
@@ -27236,7 +27236,7 @@ ${{precio}}/mes
           return res.status(404).json({ message: "Lead not found" });
         }
         // Sellers can only create appointments for their own leads
-        if (req.user.role === 'external_agency_seller' && lead.sellerId !== userId) {
+        if (req.user?.role === 'external_agency_seller' && lead.sellerId !== userId) {
           return res.status(403).json({ message: "You can only create appointments for your own leads" });
         }
       }
@@ -27318,7 +27318,7 @@ ${{precio}}/mes
       }
 
       const userId = req.user?.id || req.session?.user?.id;
-      const isSeller = req.user.role === 'external_agency_seller';
+      const isSeller = req.user?.role === 'external_agency_seller';
       const { startDate, endDate, status } = req.query;
 
       const filters: any = {};
@@ -27373,7 +27373,7 @@ ${{precio}}/mes
       const { id } = req.params;
       const { cancellationReason } = req.body;
       const userId = req.user?.id || req.session?.user?.id;
-      const isSeller = req.user.role === 'external_agency_seller';
+      const isSeller = req.user?.role === 'external_agency_seller';
 
       const agencyId = await getUserAgencyId(req);
       if (!agencyId) {
@@ -27422,7 +27422,7 @@ ${{precio}}/mes
 
       const conditions = [
         eq(sellerFollowUpTasks.agencyId, agencyId),
-        eq(sellerFollowUpTasks.sellerId, req.user.id),
+        eq(sellerFollowUpTasks.sellerId, req.user?.claims?.sub || req.user?.id),
       ];
 
       if (status && status !== 'all') {
@@ -27530,7 +27530,7 @@ ${{precio}}/mes
         .where(and(
           eq(sellerFollowUpTasks.id, id),
           eq(sellerFollowUpTasks.agencyId, agencyId),
-          eq(sellerFollowUpTasks.sellerId, req.user.id)
+          eq(sellerFollowUpTasks.sellerId, req.user?.claims?.sub || req.user?.id)
         ))
         .returning();
 
@@ -27732,7 +27732,7 @@ ${{precio}}/mes
         return res.status(400).json({ message: "User is not assigned to any agency" });
       }
 
-      const sellerId = req.user.id;
+      const sellerId = req.user?.claims?.sub || req.user?.id;
       const now = new Date();
       const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
 
@@ -27872,7 +27872,7 @@ ${{precio}}/mes
         return res.status(400).json({ message: "User is not assigned to any agency" });
       }
 
-      const sellerId = req.user.id;
+      const sellerId = req.user?.claims?.sub || req.user?.id;
       const { inactiveDays = 3 } = req.body;
       const cutoffDate = new Date();
       cutoffDate.setDate(cutoffDate.getDate() - inactiveDays);
