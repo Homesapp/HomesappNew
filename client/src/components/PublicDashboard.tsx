@@ -112,7 +112,7 @@ export default function PublicDashboard() {
               data-testid="button-interactive-map"
               title={t("public.interactiveMap") || "Mapa Interactivo"}
             >
-              <MapPin className="h-5 w-5" />
+              <Map className="h-5 w-5" />
             </Button>
             <LanguageToggle />
             <Button

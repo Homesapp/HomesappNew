@@ -453,26 +453,7 @@ export default function InteractiveMap() {
         </div>
       </header>
 
-      <div className="flex-1 flex overflow-hidden">
-        <aside className="hidden lg:block w-80 border-r bg-card overflow-hidden">
-          <div className="p-4 border-b">
-            <h2 className="font-semibold flex items-center gap-2">
-              <Filter className="h-4 w-4" />
-              {language === "es" ? "Filtros de búsqueda" : "Search Filters"}
-              {activeFiltersCount > 0 && (
-                <Badge variant="secondary" className="ml-auto">
-                  {activeFiltersCount}
-                </Badge>
-              )}
-            </h2>
-          </div>
-          <ScrollArea className="h-[calc(100vh-140px)]">
-            <div className="p-4">
-              <FiltersContent />
-            </div>
-          </ScrollArea>
-        </aside>
-
+      <div className="flex-1 flex overflow-hidden relative">
         <main className="flex-1 relative">
           {isLoading ? (
             <div className="absolute inset-0 flex items-center justify-center bg-muted/50">
@@ -502,6 +483,26 @@ export default function InteractiveMap() {
               showInfoWindow={true}
             />
           )}
+
+          {/* Floating Filter Panel - Right Side */}
+          <aside className="hidden lg:block absolute top-4 right-4 w-72 max-h-[calc(100vh-120px)] bg-card/95 backdrop-blur-sm rounded-lg shadow-lg border overflow-hidden z-10">
+            <div className="p-3 border-b bg-card">
+              <h2 className="font-semibold text-sm flex items-center gap-2">
+                <Filter className="h-4 w-4" />
+                {language === "es" ? "Filtros de búsqueda" : "Search Filters"}
+                {activeFiltersCount > 0 && (
+                  <Badge variant="secondary" className="ml-auto text-xs">
+                    {activeFiltersCount}
+                  </Badge>
+                )}
+              </h2>
+            </div>
+            <ScrollArea className="max-h-[calc(100vh-180px)]">
+              <div className="p-3">
+                <FiltersContent />
+              </div>
+            </ScrollArea>
+          </aside>
           
           {!isLoading && mapProperties.length === 0 && (
             <div className="absolute inset-0 flex items-center justify-center bg-background/80 backdrop-blur-sm">
