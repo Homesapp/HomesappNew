@@ -118,7 +118,7 @@ function SortableImage({
   item: MediaItem; 
   onDelete: () => void; 
   onSetCover: () => void;
-  onMoveToSection: (section: string) => void;
+  onMoveToSection: (section: string, sectionIndex: number) => void;
   onClick: () => void;
   disabled: boolean;
   sections: MediaSection[];
@@ -194,9 +194,9 @@ function SortableImage({
                     key={sec.key}
                     onClick={(e) => { 
                       e.stopPropagation(); 
-                      onMoveToSection(sec.section); 
+                      onMoveToSection(sec.section, sec.sectionIndex); 
                     }}
-                    data-testid={`move-to-${sec.section}-${item.id}`}
+                    data-testid={`move-to-${sec.key}-${item.id}`}
                   >
                     {sec.label[language]}
                   </DropdownMenuItem>
@@ -338,8 +338,8 @@ export function SectionMediaManager({
   });
 
   const moveSectionMutation = useMutation({
-    mutationFn: async ({ mediaId, section }: { mediaId: string; section: string }) => {
-      await apiRequest('PATCH', `/api/external-units/${unitId}/media/${mediaId}/move-section`, { section });
+    mutationFn: async ({ mediaId, section, sectionIndex }: { mediaId: string; section: string; sectionIndex: number }) => {
+      await apiRequest('PATCH', `/api/external-units/${unitId}/media/${mediaId}/move-section`, { section, sectionIndex });
     },
     onSuccess: () => {
       refetchMedia();
@@ -565,7 +565,7 @@ export function SectionMediaManager({
                                     item={item}
                                     onDelete={() => deleteMutation.mutate(item.id)}
                                     onSetCover={() => setCoverMutation.mutate(item.id)}
-                                    onMoveToSection={(newSection) => moveSectionMutation.mutate({ mediaId: item.id, section: newSection })}
+                                    onMoveToSection={(newSection, newSectionIndex) => moveSectionMutation.mutate({ mediaId: item.id, section: newSection, sectionIndex: newSectionIndex })}
                                     onClick={() => openLightbox(sectionMedia, idx)}
                                     disabled={readOnly}
                                     sections={sections}
