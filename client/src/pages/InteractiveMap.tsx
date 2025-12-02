@@ -51,7 +51,7 @@ const defaultFilters: Filters = {
   zone: "all",
   condominiumName: "all",
   minPrice: 0,
-  maxPrice: 500000,
+  maxPrice: Infinity,
   bedrooms: "all",
   bathrooms: "all",
   petFriendly: false,
@@ -78,6 +78,17 @@ export default function InteractiveMap() {
   const allProperties = propertiesResponse?.data || [];
   const rawZones = zonesData?.data || [];
   const condominiums = Array.isArray(condominiumsData) ? condominiumsData : (condominiumsData?.data || []);
+
+  // Calculate the maximum price from the dataset for dynamic slider
+  const datasetMaxPrice = useMemo(() => {
+    if (allProperties.length === 0) return 500000;
+    const prices = allProperties
+      .map((p: any) => p.price || 0)
+      .filter((p: number) => p > 0);
+    const maxPrice = Math.max(...prices, 500000);
+    // Round up to nearest 50,000 for cleaner UI
+    return Math.ceil(maxPrice / 50000) * 50000;
+  }, [allProperties]);
 
   const zones = useMemo(() => {
     const normalizedMap = new Map<string, string>();
@@ -181,7 +192,7 @@ export default function InteractiveMap() {
     if (key === "zone" && value !== "all") return true;
     if (key === "condominiumName" && value !== "all") return true;
     if (key === "minPrice" && value > 0) return true;
-    if (key === "maxPrice" && value < 500000) return true;
+    if (key === "maxPrice" && value !== Infinity && value < datasetMaxPrice) return true;
     if (key === "bedrooms" && value !== "all") return true;
     if (key === "bathrooms" && value !== "all") return true;
     if (key === "petFriendly" && value) return true;
@@ -296,16 +307,16 @@ export default function InteractiveMap() {
         <div className="px-2">
           <Slider
             min={0}
-            max={500000}
-            step={5000}
-            value={[filters.minPrice, filters.maxPrice]}
-            onValueChange={([min, max]) => setFilters({ ...filters, minPrice: min, maxPrice: max })}
+            max={datasetMaxPrice}
+            step={Math.max(1000, Math.floor(datasetMaxPrice / 100))}
+            value={[filters.minPrice, Math.min(filters.maxPrice === Infinity ? datasetMaxPrice : filters.maxPrice, datasetMaxPrice)]}
+            onValueChange={([min, max]) => setFilters({ ...filters, minPrice: min, maxPrice: max >= datasetMaxPrice ? Infinity : max })}
             className="w-full"
             data-testid="slider-map-price"
           />
           <div className="flex justify-between text-xs text-muted-foreground mt-2">
             <span>${filters.minPrice.toLocaleString()}</span>
-            <span>${filters.maxPrice.toLocaleString()}</span>
+            <span>{filters.maxPrice === Infinity ? `$${datasetMaxPrice.toLocaleString()}+` : `$${filters.maxPrice.toLocaleString()}`}</span>
           </div>
         </div>
       </div>
