@@ -18,6 +18,7 @@ import { getPropertyTitle } from "./propertyHelpers";
 import { setupGoogleAuth } from "./googleAuth";
 import { generateOfferPDF, generateRentalFormPDF, generateOwnerFormPDF, generateQuotationPDF } from "./pdfGenerator";
 import { processChatbotMessage, generatePropertyRecommendations } from "./chatbot";
+import { objectStorageClient } from "./objectStorage";
 import { processExternalChatbotMessage } from "./externalChatbot";
 import { authLimiter, registrationLimiter, emailVerificationLimiter, chatbotLimiter, propertySubmissionLimiter, publicLeadRegistrationLimiter, tokenRegenerationLimiter } from "./rateLimiters";
 import { encrypt, decrypt } from "./encryption";
@@ -44193,5 +44194,47 @@ const generateSlug = (str: string) => str.toLowerCase().normalize("NFD").replace
 
 
 
+
+  // GET /api/public/images/:path - Serve public images from Object Storage
+  app.get("/api/public/images/*", async (req, res) => {
+    try {
+      const imagePath = req.params[0];
+      if (!imagePath) {
+        return res.status(400).json({ message: "Image path required" });
+      }
+
+      const bucketId = process.env.DEFAULT_OBJECT_STORAGE_BUCKET_ID;
+      if (!bucketId) {
+        return res.status(500).json({ message: "Object storage not configured" });
+      }
+
+      const bucket = objectStorageClient.bucket(bucketId);
+      const file = bucket.file(`public/${imagePath}`);
+      
+      const [exists] = await file.exists();
+      if (!exists) {
+        return res.status(404).json({ message: "Image not found" });
+      }
+
+      const [metadata] = await file.getMetadata();
+      res.set({
+        "Content-Type": metadata.contentType || "image/jpeg",
+        "Cache-Control": "public, max-age=31536000",
+        "Access-Control-Allow-Origin": "*",
+      });
+
+      const stream = file.createReadStream();
+      stream.on("error", (err) => {
+        console.error("Stream error:", err);
+        if (!res.headersSent) {
+          res.status(500).json({ error: "Error streaming image" });
+        }
+      });
+      stream.pipe(res);
+    } catch (error: any) {
+      console.error("Error serving image:", error);
+      res.status(500).json({ message: error.message });
+    }
+  });
   return httpServer;
 }

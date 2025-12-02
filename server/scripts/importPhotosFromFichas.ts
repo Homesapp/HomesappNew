@@ -1,7 +1,7 @@
 import { db } from "../db";
 import { externalUnits } from "@shared/schema";
 import { getGoogleSheetsClient } from "../googleSheets";
-import { getGoogleDriveClient, extractFolderIdFromUrl, listImagesInFolder, downloadFileAsBuffer, getDriveFileDirectLink } from "../googleDrive";
+import { extractFolderIdFromUrl, listImagesInFolder, downloadFileAsBuffer, getDriveFileDirectLink } from "../googleDrive";
 import { objectStorageClient } from "../objectStorage";
 import sharp from "sharp";
 import { eq } from "drizzle-orm";
@@ -14,29 +14,81 @@ const THUMBNAIL_WIDTH = 400;
 const THUMBNAIL_HEIGHT = 300;
 const MAX_PHOTOS_PER_UNIT = 10;
 
-interface DrivePhotoData {
+interface FichaPhotoData {
   sheetRowId: string;
   unitNumber: string;
   condominiumName: string;
   driveFolderUrl: string;
+  source: 'ficha' | 'drive_column';
 }
 
-async function readDriveLinksFromSheet(): Promise<DrivePhotoData[]> {
+function extractDriveLinkFromText(text: string): string | null {
+  if (!text) return null;
+  
+  const driveMatch = text.match(/https?:\/\/[^\s]*drive\.google\.com[^\s\n]*/);
+  if (driveMatch) {
+    let url = driveMatch[0];
+    url = url.replace(/[)\]}>.,;:!?'"]+$/, '');
+    return url;
+  }
+  return null;
+}
+
+async function readDriveLinksFromFichas(): Promise<FichaPhotoData[]> {
   const sheets = await getGoogleSheetsClient();
   
-  const response = await sheets.spreadsheets.values.get({
+  const valuesResponse = await sheets.spreadsheets.values.get({
     spreadsheetId: SPREADSHEET_ID,
     range: `'${SHEET_NAME}'!A2:AA`,
   });
   
-  const rows = response.data.values || [];
+  const notesResponse = await sheets.spreadsheets.get({
+    spreadsheetId: SPREADSHEET_ID,
+    ranges: [`'${SHEET_NAME}'!T2:T1500`],
+    fields: 'sheets.data.rowData.values.note'
+  });
   
-  return rows.map((row: any[]) => ({
-    sheetRowId: row[0] || '',           // Column A: ID
-    condominiumName: row[6] || '',      // Column G: Condominio
-    unitNumber: row[7] || '',           // Column H: Unidad
-    driveFolderUrl: row[26] || '',      // Column AA: Drive
-  })).filter((r: DrivePhotoData) => r.sheetRowId && r.driveFolderUrl);
+  const valueRows = valuesResponse.data.values || [];
+  const noteRows = notesResponse.data.sheets?.[0]?.data?.[0]?.rowData || [];
+  
+  const results: FichaPhotoData[] = [];
+  const seenIds = new Set<string>();
+  
+  for (let i = 0; i < valueRows.length; i++) {
+    const row = valueRows[i];
+    const sheetRowId = row[0] || '';
+    const condominiumName = row[6] || '';
+    const unitNumber = row[7] || '';
+    const driveColumnUrl = row[26] || '';
+    
+    if (!sheetRowId) continue;
+    if (seenIds.has(sheetRowId)) continue;
+    
+    const note = noteRows[i]?.values?.[0]?.note || '';
+    const fichaLink = extractDriveLinkFromText(note);
+    
+    if (driveColumnUrl && driveColumnUrl.includes('drive.google.com')) {
+      seenIds.add(sheetRowId);
+      results.push({
+        sheetRowId,
+        condominiumName,
+        unitNumber,
+        driveFolderUrl: driveColumnUrl,
+        source: 'drive_column'
+      });
+    } else if (fichaLink) {
+      seenIds.add(sheetRowId);
+      results.push({
+        sheetRowId,
+        condominiumName,
+        unitNumber,
+        driveFolderUrl: fichaLink,
+        source: 'ficha'
+      });
+    }
+  }
+  
+  return results;
 }
 
 async function createThumbnail(imageBuffer: Buffer): Promise<Buffer> {
@@ -69,7 +121,6 @@ async function uploadToObjectStorage(
     },
   });
   
-  // Use proxy URL instead of direct GCS URL for public access
   return `/api/public/images/properties/${filename}`;
 }
 
@@ -121,15 +172,21 @@ async function importPhotosForUnit(
   return { thumbnails, driveLinks };
 }
 
-async function importPhotos(dryRun: boolean = true, limit?: number) {
+async function importPhotos(dryRun: boolean = true, limit?: number, skipExisting: boolean = true) {
   console.log(`\n${'='.repeat(60)}`);
-  console.log(`PHOTO IMPORT FROM GOOGLE DRIVE`);
+  console.log(`PHOTO IMPORT FROM FICHAS + DRIVE COLUMN`);
   console.log(`Mode: ${dryRun ? 'DRY RUN (no changes)' : 'LIVE IMPORT'}`);
   console.log(`${'='.repeat(60)}\n`);
   
-  console.log("Reading Drive links from spreadsheet...");
-  const driveData = await readDriveLinksFromSheet();
-  console.log(`Found ${driveData.length} units with Drive folder links\n`);
+  console.log("Reading Drive links from fichas and spreadsheet...");
+  const driveData = await readDriveLinksFromFichas();
+  
+  const fromFicha = driveData.filter(d => d.source === 'ficha').length;
+  const fromColumn = driveData.filter(d => d.source === 'drive_column').length;
+  
+  console.log(`Found ${driveData.length} total units with Drive folder links:`);
+  console.log(`  - From fichas (column T notes): ${fromFicha}`);
+  console.log(`  - From Drive column (AA): ${fromColumn}\n`);
   
   const allUnits = await db
     .select({
@@ -148,6 +205,7 @@ async function importPhotos(dryRun: boolean = true, limit?: number) {
   let updated = 0;
   let skipped = 0;
   let errors = 0;
+  let noMatch = 0;
   
   const dataToProcess = limit ? driveData.slice(0, limit) : driveData;
   
@@ -155,12 +213,12 @@ async function importPhotos(dryRun: boolean = true, limit?: number) {
     const unit = unitsBySheetRowId.get(data.sheetRowId);
     
     if (!unit) {
-      console.log(`[SKIP] No unit found for sheet row ${data.sheetRowId}`);
-      skipped++;
+      console.log(`[NO MATCH] Sheet row ${data.sheetRowId} - ${data.condominiumName} ${data.unitNumber}`);
+      noMatch++;
       continue;
     }
     
-    if (unit.primaryImages && unit.primaryImages.length > 0) {
+    if (skipExisting && unit.primaryImages && unit.primaryImages.length > 0) {
       console.log(`[SKIP] ${data.condominiumName} ${data.unitNumber} - Already has ${unit.primaryImages.length} images`);
       skipped++;
       continue;
@@ -170,11 +228,12 @@ async function importPhotos(dryRun: boolean = true, limit?: number) {
     
     if (!folderId) {
       console.log(`[ERROR] Invalid folder URL for ${data.condominiumName} ${data.unitNumber}`);
+      console.log(`        URL: ${data.driveFolderUrl.substring(0, 80)}...`);
       errors++;
       continue;
     }
     
-    console.log(`[PROCESS] ${data.condominiumName} ${data.unitNumber}`);
+    console.log(`[PROCESS] ${data.condominiumName} ${data.unitNumber} (source: ${data.source})`);
     
     try {
       const { thumbnails, driveLinks } = await importPhotosForUnit(
@@ -216,7 +275,8 @@ async function importPhotos(dryRun: boolean = true, limit?: number) {
   console.log(`${'='.repeat(60)}`);
   console.log(`Processed: ${processed}`);
   console.log(`Updated: ${updated}`);
-  console.log(`Skipped: ${skipped}`);
+  console.log(`Skipped (already have images): ${skipped}`);
+  console.log(`No match in database: ${noMatch}`);
   console.log(`Errors: ${errors}`);
   
   if (dryRun) {
@@ -228,8 +288,9 @@ const args = process.argv.slice(2);
 const dryRun = !args.includes('--import');
 const limitArg = args.find(a => a.startsWith('--limit='));
 const limit = limitArg ? parseInt(limitArg.split('=')[1]) : undefined;
+const forceReimport = args.includes('--force');
 
-importPhotos(dryRun, limit)
+importPhotos(dryRun, limit, !forceReimport)
   .then(() => {
     console.log("\nDone!");
     process.exit(0);
