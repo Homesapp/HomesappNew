@@ -7,7 +7,7 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
-import { Key, Home, DollarSign, Info } from "lucide-react";
+import { Key, Home, Handshake, Info } from "lucide-react";
 
 interface CommissionRate {
   rate: number;
@@ -17,18 +17,18 @@ interface CommissionRate {
 }
 
 interface MyRates {
-  rental: CommissionRate;
-  listedProperty: CommissionRate;
-  recruitedProperty: CommissionRate;
+  rentalNoReferral: CommissionRate;
+  rentalWithReferral: CommissionRate;
+  propertyRecruitment: CommissionRate;
+  brokerReferral: CommissionRate;
 }
 
-type CommissionConcept = 'rental' | 'listedProperty' | 'recruitedProperty';
+type CommissionConcept = 'rentalNoReferral' | 'rentalWithReferral' | 'propertyRecruitment' | 'brokerReferral';
 
 interface CommissionRatesDisplayProps {
   compact?: boolean;
   showLabels?: boolean;
   className?: string;
-  /** Filter to only show specific commission concepts. If not provided, shows all. */
   filterConcepts?: CommissionConcept[];
 }
 
@@ -39,30 +39,62 @@ const SOURCE_LABELS: Record<string, { es: string; en: string }> = {
   agency_default: { es: "Predeterminado", en: "Default" },
 };
 
+const CONCEPT_LABELS: Record<CommissionConcept, { es: string; en: string }> = {
+  rentalNoReferral: { 
+    es: "Cliente cerrado para renta sin referido", 
+    en: "Closed rental (no referral)"
+  },
+  rentalWithReferral: { 
+    es: "Cliente cerrado para renta con referido", 
+    en: "Closed rental (with referral)"
+  },
+  propertyRecruitment: { 
+    es: "Reclutar nueva propiedad", 
+    en: "Recruit new property"
+  },
+  brokerReferral: { 
+    es: "Referir a un broker con cliente", 
+    en: "Refer broker with client"
+  },
+};
+
+const CONCEPT_ICONS: Record<CommissionConcept, typeof Key> = {
+  rentalNoReferral: Key,
+  rentalWithReferral: Key,
+  propertyRecruitment: Home,
+  brokerReferral: Handshake,
+};
+
+const CONCEPT_COLORS: Record<CommissionConcept, string> = {
+  rentalNoReferral: "text-green-600",
+  rentalWithReferral: "text-emerald-600",
+  propertyRecruitment: "text-blue-600",
+  brokerReferral: "text-amber-600",
+};
+
 export default function CommissionRatesDisplay({ 
   compact = false, 
   showLabels = true,
   className = "",
   filterConcepts
 }: CommissionRatesDisplayProps) {
-  // Helper to check if a concept should be shown
+  const { language } = useLanguage();
+  
   const shouldShowConcept = (concept: CommissionConcept) => {
     if (!filterConcepts || filterConcepts.length === 0) return true;
     return filterConcepts.includes(concept);
   };
-  const { language } = useLanguage();
 
   const { data: rates, isLoading } = useQuery<MyRates>({
-    queryKey: ['/api/external/commissions/my-rates'],
+    queryKey: ['/api/external/seller-commission-rates/my-rates'],
   });
 
   if (isLoading) {
-    // Determine how many skeletons to show based on filterConcepts
-    const conceptsToShow = filterConcepts?.length || 3;
+    const conceptsToShow = filterConcepts?.length || 4;
     return (
-      <div className={`flex gap-2 ${className}`}>
+      <div className={`flex gap-2 flex-wrap ${className}`}>
         {Array.from({ length: conceptsToShow }).map((_, i) => (
-          <Skeleton key={i} className="h-6 w-16" />
+          <Skeleton key={i} className="h-6 w-20" />
         ))}
       </div>
     );
@@ -85,53 +117,32 @@ export default function CommissionRatesDisplay({
     }
   };
 
+  const concepts: CommissionConcept[] = ['rentalNoReferral', 'rentalWithReferral', 'propertyRecruitment', 'brokerReferral'];
+
   if (compact) {
     return (
-      <div className={`flex items-center gap-3 text-sm ${className}`}>
-        {shouldShowConcept('rental') && (
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <div className="flex items-center gap-1 cursor-help">
-                <Key className="h-3.5 w-3.5 text-green-600" />
-                <span className="font-medium">{rates.rental.rate}%</span>
-              </div>
-            </TooltipTrigger>
-            <TooltipContent>
-              <p>{language === "es" ? "Comisión por renta" : "Rental commission"}</p>
-              <p className="text-xs text-muted-foreground">{getSourceLabel(rates.rental.source)}</p>
-            </TooltipContent>
-          </Tooltip>
-        )}
-
-        {shouldShowConcept('listedProperty') && (
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <div className="flex items-center gap-1 cursor-help">
-                <Home className="h-3.5 w-3.5 text-blue-600" />
-                <span className="font-medium">{rates.listedProperty.rate}%</span>
-              </div>
-            </TooltipTrigger>
-            <TooltipContent>
-              <p>{language === "es" ? "Comisión por propiedad listada" : "Listed property commission"}</p>
-              <p className="text-xs text-muted-foreground">{getSourceLabel(rates.listedProperty.source)}</p>
-            </TooltipContent>
-          </Tooltip>
-        )}
-
-        {shouldShowConcept('recruitedProperty') && (
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <div className="flex items-center gap-1 cursor-help">
-                <DollarSign className="h-3.5 w-3.5 text-amber-600" />
-                <span className="font-medium">{rates.recruitedProperty.rate}%</span>
-              </div>
-            </TooltipTrigger>
-            <TooltipContent>
-              <p>{language === "es" ? "Comisión por reclutamiento" : "Recruitment commission"}</p>
-              <p className="text-xs text-muted-foreground">{getSourceLabel(rates.recruitedProperty.source)}</p>
-            </TooltipContent>
-          </Tooltip>
-        )}
+      <div className={`flex items-center gap-3 text-sm flex-wrap ${className}`}>
+        {concepts.filter(shouldShowConcept).map((concept) => {
+          const rate = rates[concept];
+          const Icon = CONCEPT_ICONS[concept];
+          const labels = CONCEPT_LABELS[concept];
+          const color = CONCEPT_COLORS[concept];
+          
+          return (
+            <Tooltip key={concept}>
+              <TooltipTrigger asChild>
+                <div className="flex items-center gap-1 cursor-help">
+                  <Icon className={`h-3.5 w-3.5 ${color}`} />
+                  <span className="font-medium">{rate.rate}%</span>
+                </div>
+              </TooltipTrigger>
+              <TooltipContent>
+                <p>{language === "es" ? labels.es : labels.en}</p>
+                <p className="text-xs text-muted-foreground">{getSourceLabel(rate.source)}</p>
+              </TooltipContent>
+            </Tooltip>
+          );
+        })}
       </div>
     );
   }
@@ -146,62 +157,31 @@ export default function CommissionRatesDisplay({
       )}
       
       <div className="flex flex-wrap gap-2">
-        {shouldShowConcept('rental') && (
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <Badge 
-                variant="outline" 
-                className={`cursor-help ${getSourceColor(rates.rental.source)}`}
-                data-testid="badge-rental-rate"
-              >
-                <Key className="h-3 w-3 mr-1" />
-                {language === "es" ? "Renta" : "Rental"}: {rates.rental.rate}%
-              </Badge>
-            </TooltipTrigger>
-            <TooltipContent>
-              <p>{getSourceLabel(rates.rental.source)}</p>
-              {rates.rental.notes && <p className="text-xs">{rates.rental.notes}</p>}
-            </TooltipContent>
-          </Tooltip>
-        )}
-
-        {shouldShowConcept('listedProperty') && (
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <Badge 
-                variant="outline" 
-                className={`cursor-help ${getSourceColor(rates.listedProperty.source)}`}
-                data-testid="badge-listed-rate"
-              >
-                <Home className="h-3 w-3 mr-1" />
-                {language === "es" ? "Listada" : "Listed"}: {rates.listedProperty.rate}%
-              </Badge>
-            </TooltipTrigger>
-            <TooltipContent>
-              <p>{getSourceLabel(rates.listedProperty.source)}</p>
-              {rates.listedProperty.notes && <p className="text-xs">{rates.listedProperty.notes}</p>}
-            </TooltipContent>
-          </Tooltip>
-        )}
-
-        {shouldShowConcept('recruitedProperty') && (
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <Badge 
-                variant="outline" 
-                className={`cursor-help ${getSourceColor(rates.recruitedProperty.source)}`}
-                data-testid="badge-recruited-rate"
-              >
-                <DollarSign className="h-3 w-3 mr-1" />
-                {language === "es" ? "Reclut." : "Recruit."}: {rates.recruitedProperty.rate}%
-              </Badge>
-            </TooltipTrigger>
-            <TooltipContent>
-              <p>{getSourceLabel(rates.recruitedProperty.source)}</p>
-              {rates.recruitedProperty.notes && <p className="text-xs">{rates.recruitedProperty.notes}</p>}
-            </TooltipContent>
-          </Tooltip>
-        )}
+        {concepts.filter(shouldShowConcept).map((concept) => {
+          const rate = rates[concept];
+          const Icon = CONCEPT_ICONS[concept];
+          const labels = CONCEPT_LABELS[concept];
+          
+          return (
+            <Tooltip key={concept}>
+              <TooltipTrigger asChild>
+                <Badge 
+                  variant="outline" 
+                  className={`cursor-help ${getSourceColor(rate.source)}`}
+                  data-testid={`badge-${concept}-rate`}
+                >
+                  <Icon className="h-3 w-3 mr-1.5 shrink-0" />
+                  <span className="truncate">{language === "es" ? labels.es : labels.en}</span>
+                  <span className="ml-1 font-semibold shrink-0">{rate.rate}%</span>
+                </Badge>
+              </TooltipTrigger>
+              <TooltipContent>
+                <p className="text-xs text-muted-foreground">{getSourceLabel(rate.source)}</p>
+                {rate.notes && <p className="text-xs mt-1">{rate.notes}</p>}
+              </TooltipContent>
+            </Tooltip>
+          );
+        })}
       </div>
     </div>
   );
