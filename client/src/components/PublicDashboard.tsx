@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useLocation } from "wouter";
-import { Search, MapPin, Home, Heart, SlidersHorizontal, Building2, Users, Star, Clock, ChevronRight, MessageCircle, Bed, Bath, Square, Calendar, Phone } from "lucide-react";
+import { Search, MapPin, Map, Home, Heart, SlidersHorizontal, Building2, Users, Star, Clock, ChevronRight, MessageCircle, Bed, Bath, Square, Calendar, Phone } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
@@ -433,14 +433,14 @@ export default function PublicDashboard() {
             <div className="flex items-center justify-between p-6 sm:p-8">
               <div className="flex items-center gap-4">
                 <div className="h-12 w-12 sm:h-14 sm:w-14 rounded-full bg-primary/10 flex items-center justify-center">
-                  <MapPin className="h-6 w-6 sm:h-7 sm:w-7 text-primary" />
+                  <Map className="h-6 w-6 sm:h-7 sm:w-7 text-primary" />
                 </div>
                 <div>
                   <h3 className="text-lg sm:text-xl font-semibold mb-1">
-                    {t("public.map.title") || "Explora en el Mapa"}
+                    {t("public.map.title")}
                   </h3>
                   <p className="text-sm text-muted-foreground">
-                    {t("public.map.subtitle") || "Encuentra propiedades por ubicación en Tulum"}
+                    {t("public.map.subtitle")}
                   </p>
                 </div>
               </div>
