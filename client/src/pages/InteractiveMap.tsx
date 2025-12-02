@@ -148,8 +148,9 @@ export default function InteractiveMap() {
         if (filters.bathrooms !== "3+" && markerBathrooms !== bathroomCount) return false;
       }
 
-      // Note: petFriendly filter not available in lightweight markers
-      // The server endpoint handles this filter
+      if (filters.petFriendly && !marker.petsAllowed) {
+        return false;
+      }
 
       return true;
     });

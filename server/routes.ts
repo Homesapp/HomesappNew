@@ -21379,6 +21379,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         unitZone: externalUnits.zone,
         unitPropertyType: externalUnits.propertyType,
         condominiumId: externalUnits.condominiumId,
+          petsAllowed: externalUnits.petFriendly,
         agencyName: externalAgencies.name,
       })
       .from(externalPublicationRequests)
@@ -22175,6 +22176,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           bathrooms: externalUnits.bathrooms,
           area: externalUnits.area,
           condominiumId: externalUnits.condominiumId,
+          petsAllowed: externalUnits.petFriendly,
           images: externalUnits.images,
           agencyId: externalUnits.agencyId,
         })
@@ -24260,6 +24262,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           unitId: externalUnitAccessControls.unitId,
           unitNumber: externalUnits.unitNumber,
           condominiumId: externalUnits.condominiumId,
+          petsAllowed: externalUnits.petFriendly,
         })
         .from(externalUnitAccessControls)
         .innerJoin(externalUnits, eq(externalUnitAccessControls.unitId, externalUnits.id))
@@ -24354,6 +24357,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           updatedAt: externalUnitAccessControls.updatedAt,
           unitNumber: externalUnits.unitNumber,
           condominiumId: externalUnits.condominiumId,
+          petsAllowed: externalUnits.petFriendly,
         })
         .from(externalUnitAccessControls)
         .innerJoin(externalUnits, eq(externalUnitAccessControls.unitId, externalUnits.id))
@@ -26387,6 +26391,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           images: externalUnits.primaryImages,
           amenities: externalUnits.amenities,
           condominiumId: externalUnits.condominiumId,
+          petsAllowed: externalUnits.petFriendly,
           condominiumName: externalCondominiums.name,
           squareMeters: externalUnits.area,
           description: externalUnits.description,
@@ -29168,6 +29173,7 @@ ${{precio}}/mes
           longitude: unit.longitude ? parseFloat(unit.longitude) : null,
                 zone: unit.zone,
           condominiumName: condoName || null,
+          petsAllowed: m.petsAllowed || false,
           unitNumber: unit.unitNumber,
           latitude: unit.latitude ? parseFloat(unit.latitude) : null,
           longitude: unit.longitude ? parseFloat(unit.longitude) : null,
@@ -29200,6 +29206,7 @@ ${{precio}}/mes
           longitude: unit.longitude ? parseFloat(unit.longitude) : null,
                 zone: unit.zone,
           condominiumName: condoName || null,
+          petsAllowed: m.petsAllowed || false,
           unitNumber: unit.unitNumber,
           latitude: unit.latitude ? parseFloat(unit.latitude) : null,
           longitude: unit.longitude ? parseFloat(unit.longitude) : null,
@@ -30139,6 +30146,7 @@ ${{precio}}/mes
           id: externalUnits.id,
           unitNumber: externalUnits.unitNumber,
           condominiumId: externalUnits.condominiumId,
+          petsAllowed: externalUnits.petFriendly,
           rentalStatus: externalUnits.rentalStatus,
           bedroomCount: externalUnits.bedroomCount,
           bathroomCount: externalUnits.bathroomCount,
@@ -34381,6 +34389,7 @@ const generateSlug = (str: string) => str.toLowerCase().normalize("NFD").replace
           petsAllowed: unit.petFriendly,
           zone: unit.zone,
           condominiumName: condoName || null,
+          petsAllowed: m.petsAllowed || false,
           unitNumber: unit.unitNumber,
           latitude: unit.latitude ? parseFloat(unit.latitude) : null,
           longitude: unit.longitude ? parseFloat(unit.longitude) : null,
@@ -34491,6 +34500,7 @@ const generateSlug = (str: string) => str.toLowerCase().normalize("NFD").replace
           slug: externalUnits.slug,
           agencyId: externalUnits.agencyId,
           condominiumId: externalUnits.condominiumId,
+          petsAllowed: externalUnits.petFriendly,
         })
         .from(externalUnits)
         .where(and(...conditions))
@@ -34550,6 +34560,7 @@ const generateSlug = (str: string) => str.toLowerCase().normalize("NFD").replace
           agencySlug,
           unitSlug,
           condominiumName: condoName || null,
+          petsAllowed: m.petsAllowed || false,
         };
       }).filter(m => m.lat && m.lng);
       
@@ -36385,6 +36396,7 @@ const generateSlug = (str: string) => str.toLowerCase().normalize("NFD").replace
         id: externalUnits.id,
         unitNumber: externalUnits.unitNumber,
         condominiumId: externalUnits.condominiumId,
+          petsAllowed: externalUnits.petFriendly,
       })
         .from(externalUnits)
         .where(whereConditions)
@@ -36439,6 +36451,7 @@ const generateSlug = (str: string) => str.toLowerCase().normalize("NFD").replace
         id: externalUnits.id,
         unitNumber: externalUnits.unitNumber,
         condominiumId: externalUnits.condominiumId,
+          petsAllowed: externalUnits.petFriendly,
       })
         .from(externalUnits)
         .where(eq(externalUnits.agencyId, agencyId))
@@ -38619,6 +38632,7 @@ const generateSlug = (str: string) => str.toLowerCase().normalize("NFD").replace
           id: externalUnits.id,
           unitNumber: externalUnits.unitNumber,
           condominiumId: externalUnits.condominiumId,
+          petsAllowed: externalUnits.petFriendly,
         })
         .from(externalUnits)
         .where(eq(externalUnits.agencyId, agencyId))
@@ -39612,6 +39626,7 @@ const generateSlug = (str: string) => str.toLowerCase().normalize("NFD").replace
             id: externalUnits.id,
             unitNumber: externalUnits.unitNumber,
             condominiumId: externalUnits.condominiumId,
+          petsAllowed: externalUnits.petFriendly,
             condominiumName: externalCondominiums.name,
           squareMeters: externalUnits.area,
           description: externalUnits.description,
