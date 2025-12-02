@@ -5,21 +5,17 @@ import { eq, and, sql } from "drizzle-orm";
 
 const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
 const LABELS = [
-  'exterior',
-  'living_room', 
-  'dining_room',
   'kitchen',
   'bedroom',
   'bathroom',
+  'dining_room',
+  'living_room',
   'balcony',
-  'pool',
-  'amenities',
   'rooftop',
-  'parking',
-  'garden',
-  'view',
-  'detail',
-  'floor_plan',
+  'pool',
+  'gym',
+  'entrance',
+  'facade',
   'other'
 ] as const;
 
@@ -71,29 +67,25 @@ export async function classifyImage(imageUrl: string): Promise<ClassificationRes
   
   const prompt = `You are analyzing a real estate property photo. 
 Classify this image into ONE primary category from this list:
-- exterior: Outside view of building/property
-- living_room: Living room or sala
-- dining_room: Dining area or comedor
 - kitchen: Kitchen or cocina
 - bedroom: Bedroom or recámara
 - bathroom: Bathroom or baño
+- dining_room: Dining area or comedor
+- living_room: Living room or sala
 - balcony: Balcony or terrace
-- pool: Swimming pool area
-- amenities: Gym, common areas, or building amenities
 - rooftop: Rooftop area
-- parking: Parking or garage
-- garden: Garden or outdoor landscaping
-- view: Scenic view from property
-- detail: Close-up detail shots (fixtures, appliances)
-- floor_plan: Floor plan or architectural drawing
-- other: Anything that doesn't fit above
+- pool: Swimming pool area
+- gym: Gym or fitness center
+- entrance: Building entrance or lobby
+- facade: Building exterior or facade
+- other: Anything that doesn't fit above categories
 
 Also list all applicable secondary labels from the same list.
 
 Respond ONLY with valid JSON in this exact format:
 {
   "primary": "bedroom",
-  "secondary": ["view", "detail"],
+  "secondary": ["balcony"],
   "confidence": 0.85,
   "description": "Master bedroom with ocean view and modern finishes"
 }`;

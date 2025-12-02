@@ -7329,21 +7329,17 @@ export const externalUnitMediaStatusEnum = pgEnum("external_unit_media_status", 
 ]);
 
 export const externalUnitMediaLabelEnum = pgEnum("external_unit_media_label", [
-  "exterior",        // Exterior/fachada
-  "living_room",     // Sala
-  "dining_room",     // Comedor
   "kitchen",         // Cocina
   "bedroom",         // Recámara
   "bathroom",        // Baño
+  "dining_room",     // Comedor
+  "living_room",     // Sala
   "balcony",         // Balcón/terraza
-  "pool",            // Alberca
-  "amenities",       // Amenidades
   "rooftop",         // Rooftop
-  "parking",         // Estacionamiento
-  "garden",          // Jardín
-  "view",            // Vista
-  "detail",          // Detalle
-  "floor_plan",      // Plano
+  "pool",            // Alberca
+  "gym",             // Gimnasio
+  "entrance",        // Entrada/lobby
+  "facade",          // Fachada exterior
   "other",           // Otro
 ]);
 
