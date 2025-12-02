@@ -348,15 +348,15 @@ export function PropertyMap({
             onCloseClick={() => setSelectedCluster(null)}
             options={{
               pixelOffset: new google.maps.Size(0, -20),
-              maxWidth: 320,
+              maxWidth: 340,
             }}
           >
-            <div className="p-2 min-w-[280px]">
-              <div className="flex items-center gap-2 mb-3 pb-2 border-b">
-                <Building2 className="h-5 w-5 text-primary" />
-                <div>
-                  <h3 className="font-semibold text-sm">
-                    {selectedCluster.condominiumName || selectedCluster.properties[0]?.zone || "Ubicación"}
+            <div className="min-w-[300px]" style={{ maxHeight: '350px', display: 'flex', flexDirection: 'column' }}>
+              <div className="flex items-center gap-2 p-3 border-b bg-gray-50 rounded-t-lg">
+                <Building2 className="h-5 w-5 text-indigo-600 flex-shrink-0" />
+                <div className="min-w-0">
+                  <h3 className="font-semibold text-sm text-gray-900 truncate">
+                    {selectedCluster.condominiumName || selectedCluster.properties[0]?.condominiumName || selectedCluster.properties[0]?.zone || "Ubicación"}
                   </h3>
                   <p className="text-xs text-gray-500">
                     {selectedCluster.properties.length} {language === "es" ? "unidades disponibles" : "units available"}
@@ -364,12 +364,15 @@ export function PropertyMap({
                 </div>
               </div>
               
-              <ScrollArea className="max-h-[240px]">
-                <div className="space-y-2 pr-2">
+              <div 
+                className="p-2 overflow-y-auto" 
+                style={{ maxHeight: '280px', overflowY: 'auto' }}
+              >
+                <div className="space-y-2">
                   {selectedCluster.properties.map((property) => (
                     <div
                       key={property.id}
-                      className="flex items-center gap-2 p-2 rounded-md hover-elevate cursor-pointer border"
+                      className="flex items-center gap-2 p-2 rounded-md cursor-pointer border border-gray-200 bg-white hover:bg-gray-50 transition-colors"
                       onClick={() => handlePropertySelect(property)}
                       data-testid={`cluster-property-${property.id}`}
                     >
@@ -380,16 +383,16 @@ export function PropertyMap({
                           className="w-12 h-12 rounded object-cover flex-shrink-0"
                         />
                       ) : (
-                        <div className="w-12 h-12 rounded bg-muted flex items-center justify-center flex-shrink-0">
-                          <Home className="h-5 w-5 text-muted-foreground" />
+                        <div className="w-12 h-12 rounded bg-gray-100 flex items-center justify-center flex-shrink-0">
+                          <Home className="h-5 w-5 text-gray-400" />
                         </div>
                       )}
                       <div className="flex-1 min-w-0">
-                        <p className="font-medium text-sm truncate">
+                        <p className="font-medium text-sm text-gray-900 truncate">
                           {property.title || `Unidad ${property.unitNumber}`}
                         </p>
                         <div className="flex items-center gap-2 text-xs text-gray-500">
-                          {property.bedrooms && (
+                          {property.bedrooms !== undefined && (
                             <span className="flex items-center gap-0.5">
                               <Bed className="h-3 w-3" />
                               {property.bedrooms}
@@ -402,17 +405,17 @@ export function PropertyMap({
                             </span>
                           )}
                           {property.price && (
-                            <span className="text-primary font-medium">
+                            <span className="text-indigo-600 font-medium">
                               {formatPrice(property.price, property.currency)}
                             </span>
                           )}
                         </div>
                       </div>
-                      <ChevronRight className="h-4 w-4 text-muted-foreground flex-shrink-0" />
+                      <ChevronRight className="h-4 w-4 text-gray-400 flex-shrink-0" />
                     </div>
                   ))}
                 </div>
-              </ScrollArea>
+              </div>
             </div>
           </InfoWindow>
         )}

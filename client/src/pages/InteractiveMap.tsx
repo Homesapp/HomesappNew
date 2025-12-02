@@ -51,7 +51,7 @@ const defaultFilters: Filters = {
   zone: "all",
   condominiumName: "all",
   minPrice: 0,
-  maxPrice: 100000,
+  maxPrice: 500000,
   bedrooms: "all",
   bathrooms: "all",
   petFriendly: false,
@@ -156,6 +156,7 @@ export default function InteractiveMap() {
     id: p.id,
     title: p.title,
     unitNumber: p.unitNumber || "",
+    condominiumName: p.condominiumName,
     latitude: parseFloat(p.latitude),
     longitude: parseFloat(p.longitude),
     price: p.price,
@@ -180,7 +181,7 @@ export default function InteractiveMap() {
     if (key === "zone" && value !== "all") return true;
     if (key === "condominiumName" && value !== "all") return true;
     if (key === "minPrice" && value > 0) return true;
-    if (key === "maxPrice" && value < 100000) return true;
+    if (key === "maxPrice" && value < 500000) return true;
     if (key === "bedrooms" && value !== "all") return true;
     if (key === "bathrooms" && value !== "all") return true;
     if (key === "petFriendly" && value) return true;
@@ -295,8 +296,8 @@ export default function InteractiveMap() {
         <div className="px-2">
           <Slider
             min={0}
-            max={100000}
-            step={1000}
+            max={500000}
+            step={5000}
             value={[filters.minPrice, filters.maxPrice]}
             onValueChange={([min, max]) => setFilters({ ...filters, minPrice: min, maxPrice: max })}
             className="w-full"
