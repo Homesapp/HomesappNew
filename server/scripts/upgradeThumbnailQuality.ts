@@ -6,6 +6,7 @@
  * 2. Downloads originals from Google Drive
  * 3. Creates new HD thumbnails (1200x900 @ 90% quality)
  * 4. Uploads to object storage and updates the records
+ * 5. Deletes old thumbnails from object storage to save space
  * 
  * Run with: npx tsx server/scripts/upgradeThumbnailQuality.ts
  */
@@ -63,29 +64,64 @@ async function sleep(ms: number): Promise<void> {
   return new Promise(resolve => setTimeout(resolve, ms));
 }
 
+async function deleteOldThumbnail(oldUrl: string): Promise<boolean> {
+  if (!BUCKET_ID || !oldUrl) return false;
+  
+  try {
+    // Extract the object path from the URL
+    // URL format: /api/public/images/properties/filename.jpg
+    const match = oldUrl.match(/\/api\/public\/images\/properties\/(.+)$/);
+    if (!match) {
+      // Try alternate format: direct object storage path
+      const altMatch = oldUrl.match(/public\/properties\/(.+)$/);
+      if (!altMatch) return false;
+    }
+    
+    const filename = match ? match[1] : oldUrl.split('/').pop();
+    if (!filename || filename.startsWith('hd_')) return false; // Don't delete HD photos
+    
+    const bucket = objectStorageClient.bucket(BUCKET_ID);
+    const objectPath = `public/properties/${filename}`;
+    const file = bucket.file(objectPath);
+    
+    const [exists] = await file.exists();
+    if (exists) {
+      await file.delete();
+      return true;
+    }
+    return false;
+  } catch (error) {
+    // Silent fail - old file might not exist or path format different
+    return false;
+  }
+}
+
 async function processPhoto(media: {
   id: string;
   unitId: string;
   driveFileId: string | null;
   thumbnailUrl: string | null;
   fileName: string | null;
-}): Promise<boolean> {
+}): Promise<{ success: boolean; deleted: boolean }> {
   try {
     if (!media.driveFileId) {
       console.log(`  [SKIP] ${media.id.slice(-8)} - No Drive file ID`);
-      return false;
+      return { success: false, deleted: false };
     }
 
     const imageBuffer = await downloadFileAsBuffer(media.driveFileId);
     if (!imageBuffer || imageBuffer.length === 0) {
       console.log(`  [SKIP] ${media.id.slice(-8)} - Empty download`);
-      return false;
+      return { success: false, deleted: false };
     }
 
     const hdThumbnail = await createHDThumbnail(imageBuffer);
     
     const timestamp = Date.now();
     const filename = `hd_${media.unitId}_${timestamp}_${media.id.slice(-8)}.jpg`;
+    
+    // Store old URL before updating
+    const oldUrl = media.thumbnailUrl;
     
     const newUrl = await uploadToObjectStorage(hdThumbnail, filename, 'image/jpeg');
 
@@ -97,11 +133,18 @@ async function processPhoto(media: {
       })
       .where(eq(externalUnitMedia.id, media.id));
 
-    console.log(`  [OK] ${media.id.slice(-8)} -> ${filename} (${Math.round(hdThumbnail.length/1024)}KB)`);
-    return true;
+    // Delete old thumbnail after successful update
+    let deleted = false;
+    if (oldUrl) {
+      deleted = await deleteOldThumbnail(oldUrl);
+    }
+
+    const deleteStatus = deleted ? ' [OLD DELETED]' : '';
+    console.log(`  [OK] ${media.id.slice(-8)} -> ${filename} (${Math.round(hdThumbnail.length/1024)}KB)${deleteStatus}`);
+    return { success: true, deleted };
   } catch (error: any) {
     console.log(`  [ERROR] ${media.id.slice(-8)}: ${error.message?.slice(0, 50)}`);
-    return false;
+    return { success: false, deleted: false };
   }
 }
 
@@ -145,6 +188,7 @@ async function main() {
   let processed = 0;
   let success = 0;
   let failed = 0;
+  let deletedOld = 0;
   const startTime = Date.now();
 
   const totalBatches = Math.ceil(allMedia.length / BATCH_SIZE);
@@ -157,8 +201,11 @@ async function main() {
 
     for (const media of batch) {
       const result = await processPhoto(media);
-      if (result) {
+      if (result.success) {
         success++;
+        if (result.deleted) {
+          deletedOld++;
+        }
       } else {
         failed++;
       }
@@ -172,7 +219,7 @@ async function main() {
     const remaining = allMedia.length - processed;
     const eta = Math.round(remaining / rate);
 
-    console.log(`  Batch done: ${success} ok, ${failed} fail | Progress: ${processed}/${allMedia.length} (${Math.round(processed/allMedia.length*100)}%)`);
+    console.log(`  Batch done: ${success} ok, ${failed} fail, ${deletedOld} old deleted | Progress: ${processed}/${allMedia.length} (${Math.round(processed/allMedia.length*100)}%)`);
     console.log(`  Time: ${elapsed}s elapsed, ~${eta}s remaining (~${Math.round(eta/60)} min)`);
 
     if (i + BATCH_SIZE < allMedia.length) {
@@ -187,6 +234,7 @@ async function main() {
   console.log(`  Total processed: ${processed}`);
   console.log(`  Success: ${success}`);
   console.log(`  Failed: ${failed}`);
+  console.log(`  Old thumbnails deleted: ${deletedOld}`);
   console.log(`  Total time: ${Math.round(totalTime/60)} minutes`);
   console.log("=================================================");
 }
