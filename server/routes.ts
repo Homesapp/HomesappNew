@@ -28279,7 +28279,7 @@ ${{precio}}/mes
       // Always use pagination for performance - defaults: limit=50, offset=0
       const limitNum = limit ? parseInt(limit as string, 10) : 50;
       const offsetNum = offset ? parseInt(offset as string, 10) : 0;
-      const parsedLimit = Number.isFinite(limitNum) ? Math.min(Math.max(1, limitNum), 2000) : 50;
+      const parsedLimit = Number.isFinite(limitNum) ? Math.min(Math.max(1, limitNum), 10000) : 50;
       const parsedOffset = Number.isFinite(offsetNum) ? Math.max(0, offsetNum) : 0;
       
       const filters: any = {};
@@ -38582,7 +38582,7 @@ const generateSlug = (str: string) => str.toLowerCase().normalize("NFD").replace
       // Parse pagination params
       const limitNum = limit ? parseInt(limit as string, 10) : 20;
       const offsetNum = offset ? parseInt(offset as string, 10) : 0;
-      const parsedLimit = Number.isFinite(limitNum) ? Math.min(Math.max(1, limitNum), 2000) : 20;
+      const parsedLimit = Number.isFinite(limitNum) ? Math.min(Math.max(1, limitNum), 10000) : 20;
       const parsedOffset = Number.isFinite(offsetNum) ? Math.max(0, offsetNum) : 0;
 
       // Build filters object
@@ -38780,7 +38780,7 @@ const generateSlug = (str: string) => str.toLowerCase().normalize("NFD").replace
         // Paginated mode: return envelope with pagination metadata
         const limitNum = limit ? parseInt(limit as string, 10) : 50;
         const offsetNum = offset ? parseInt(offset as string, 10) : 0;
-        const parsedLimit = Number.isFinite(limitNum) ? Math.min(Math.max(1, limitNum), 2000) : 50;
+        const parsedLimit = Number.isFinite(limitNum) ? Math.min(Math.max(1, limitNum), 10000) : 50;
         const parsedOffset = Number.isFinite(offsetNum) ? Math.max(0, offsetNum) : 0;
 
         if (search) filters.search = search as string;

@@ -165,7 +165,7 @@ export default function SellerCalendar() {
   const { data: unitsResponse } = useQuery<{ data: Unit[], total: number }>({
     queryKey: ["/api/external-units", "for-appointments"],
     queryFn: async () => {
-      const response = await fetch('/api/external-units?limit=1000&isActive=true', { credentials: 'include' });
+      const response = await fetch('/api/external-units?limit=10000&isActive=true', { credentials: 'include' });
       if (!response.ok) throw new Error('Failed to fetch units');
       return response.json();
     },
