@@ -33262,20 +33262,17 @@ ${{precio}}/mes
       
       await createAuditLog(req, "create", "offer_token", newToken.id, `Created offer for lead ${leadId}`);
       
-      // Also create entry in externalLeadPropertiesSent so it shows in the list
+      // Also create entry in externalLeadPropertySent so it shows in the list
       try {
-        await db.insert(externalLeadPropertiesSent).values({
+        await db.insert(externalLeadPropertySent).values({
           leadId,
           unitId: externalUnitId,
           agencyId: lead.agencyId,
           sentBy: userId,
-          sentByName: createdByName,
-          channel: 'offer_link',
-          condoName: condo?.name || null,
+          propertyName: condo?.name || null,
           unitNumber: unit.unitNumber || null,
           rentPrice: unit.price || null,
-          publicUrl: offerUrl,
-          offerTokenId: newToken.id,
+          sharedVia: 'offer_link',
         });
       } catch (propertySentError) {
         console.error("Error creating property sent entry:", propertySentError);
