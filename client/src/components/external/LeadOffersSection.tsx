@@ -388,14 +388,14 @@ export default function LeadOffersSection({ lead, dialogOpen, onDialogOpenChange
                 <Button 
                   className="flex-1"
                   variant="outline"
-                  onClick={() => copyToClipboard(generatedOffer.publicUrl)}
+                  onClick={() => copyToClipboard(generatedOffer.offerUrl)}
                 >
                   {copiedLink ? <Check className="h-4 w-4 mr-2" /> : <Copy className="h-4 w-4 mr-2" />}
                   {language === "es" ? "Copiar Enlace" : "Copy Link"}
                 </Button>
                 <Button 
                   className="flex-1"
-                  onClick={() => shareViaWhatsApp(generatedOffer.publicUrl, generatedOffer.unitNumber)}
+                  onClick={() => shareViaWhatsApp(generatedOffer.offerUrl, generatedOffer.unitNumber)}
                 >
                   <SiWhatsapp className="h-4 w-4 mr-2" />
                   WhatsApp
