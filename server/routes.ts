@@ -33807,7 +33807,7 @@ ${{precio}}/mes
       const media = await storage.getUnitMedia(id);
       
       // Group by section for the frontend
-      const groupedMedia: Record<string, Array<{ id: string; url: string; caption: string | null; isCover: boolean }>> = {};
+      const groupedMedia: Record<string, Array<{ id: string; url: string; fullSizeUrl: string | null; caption: string | null; isCover: boolean }>> = {};
       
       // Section labels for frontend
       const sectionLabels: Record<string, { es: string; en: string }> = {
@@ -33839,9 +33839,13 @@ ${{precio}}/mes
         if (!groupedMedia[key]) {
           groupedMedia[key] = [];
         }
-        groupedMedia[key].push({
+        const fullSizeUrl = item.driveFileId 
+            ? `https://drive.google.com/thumbnail?id=${item.driveFileId}&sz=w1600`
+            : null;
+          groupedMedia[key].push({
           id: item.id,
           url: item.url,
+          fullSizeUrl,
           caption: item.caption,
           isCover: item.isCover,
         });

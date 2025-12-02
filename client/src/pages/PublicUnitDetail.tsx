@@ -127,7 +127,7 @@ export default function PublicUnitDetail() {
     section: string;
     sectionIndex: number;
     label: { es: string; en: string };
-    images: Array<{ id: string; url: string; caption: string | null; isCover: boolean }>;
+    images: Array<{ id: string; url: string; fullSizeUrl: string | null; caption: string | null; isCover: boolean }>;
   }
   
   const { data: sectionMediaData } = useQuery<{ hasMedia: boolean; count: number; sections: MediaSection[] }>({
@@ -188,11 +188,18 @@ export default function PublicUnitDetail() {
   const allImages = [...primaryImages, ...secondaryImages];
   const legacyImages = allImages.length > 0 ? allImages : [];
   
-  // Build flat array of all images (combining section-based and legacy)
-  const sectionFlatImages = sectionMediaData?.hasMedia 
-    ? sectionMediaData.sections.flatMap(s => s.images.map(img => img.url))
+  // Build flat array of all images with fullSizeUrl info (combining section-based and legacy)
+  interface ImageWithFullSize { url: string; fullSizeUrl: string | null; }
+  const sectionFlatImagesWithFullSize: ImageWithFullSize[] = sectionMediaData?.hasMedia 
+    ? sectionMediaData.sections.flatMap(s => s.images.map(img => ({ url: img.url, fullSizeUrl: img.fullSizeUrl })))
     : [];
-  const images = sectionFlatImages.length > 0 ? sectionFlatImages : legacyImages;
+  const legacyImagesWithFullSize: ImageWithFullSize[] = allImages.map(url => ({ url, fullSizeUrl: null }));
+  const imagesWithFullSize = sectionFlatImagesWithFullSize.length > 0 ? sectionFlatImagesWithFullSize : legacyImagesWithFullSize;
+  const images = imagesWithFullSize.map(img => img.url);
+  const getFullSizeUrl = (index: number): string => {
+    const imgData = imagesWithFullSize[index];
+    return imgData?.fullSizeUrl || imgData?.url || images[index] || "";
+  };
   const currentImage = images[mainImageIndex] || "/placeholder-property.jpg";
 
   const formatPrice = (price: number | null, currency: string | null) => {
@@ -718,7 +725,7 @@ export default function PublicUnitDetail() {
 
       {/* All Photos Dialog - Professional Gallery */}
       <Dialog open={showAllPhotosDialog} onOpenChange={setShowAllPhotosDialog}>
-        <DialogContent className="max-w-6xl max-h-[95vh] overflow-hidden p-0 bg-background border shadow-xl">
+        <DialogContent hideCloseButton className="max-w-6xl max-h-[95vh] overflow-hidden p-0 bg-background border shadow-xl">
           {/* Header */}
           <div className="flex items-center justify-between px-6 py-4 border-b">
             <div className="flex items-center gap-4">
@@ -762,13 +769,16 @@ export default function PublicUnitDetail() {
                             key={img.id}
                             className="aspect-[4/3] rounded-xl overflow-hidden relative group shadow-sm border"
                             onClick={() => setExpandedImageIndex(flatIndex)}
+                            onContextMenu={(e) => e.preventDefault()}
                           >
                             <img
                               src={img.url}
                               alt={img.caption || `${propertyTitle} - ${section.label[language]}`}
-                              className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                              className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300 select-none pointer-events-none"
+                              draggable={false}
+                              onContextMenu={(e) => e.preventDefault()}
                             />
-                            <div className="absolute inset-0 bg-black/0 group-hover:bg-black/10 transition-colors" />
+                            <div className="absolute inset-0 bg-black/0 group-hover:bg-black/10 transition-colors pointer-events-none" />
                             {img.isCover && (
                               <Badge className="absolute top-2 left-2 text-xs" variant="secondary">
                                 <Star className="h-3 w-3 mr-1 fill-yellow-500 text-yellow-500" />
@@ -796,13 +806,16 @@ export default function PublicUnitDetail() {
                           key={`primary-${idx}`}
                           className="aspect-[4/3] rounded-xl overflow-hidden relative group shadow-sm border"
                           onClick={() => setExpandedImageIndex(idx)}
+                          onContextMenu={(e) => e.preventDefault()}
                         >
                           <img
                             src={img}
                             alt={`${propertyTitle} - ${idx + 1}`}
-                            className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                            className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300 select-none pointer-events-none"
+                            draggable={false}
+                            onContextMenu={(e) => e.preventDefault()}
                           />
-                          <div className="absolute inset-0 bg-black/0 group-hover:bg-black/10 transition-colors" />
+                          <div className="absolute inset-0 bg-black/0 group-hover:bg-black/10 transition-colors pointer-events-none" />
                         </button>
                       ))}
                     </div>
@@ -821,13 +834,16 @@ export default function PublicUnitDetail() {
                           key={`secondary-${idx}`}
                           className="aspect-[4/3] rounded-xl overflow-hidden relative group shadow-sm border"
                           onClick={() => setExpandedImageIndex(primaryImages.length + idx)}
+                          onContextMenu={(e) => e.preventDefault()}
                         >
                           <img
                             src={img}
                             alt={`${propertyTitle} - ${primaryImages.length + idx + 1}`}
-                            className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                            className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300 select-none pointer-events-none"
+                            draggable={false}
+                            onContextMenu={(e) => e.preventDefault()}
                           />
-                          <div className="absolute inset-0 bg-black/0 group-hover:bg-black/10 transition-colors" />
+                          <div className="absolute inset-0 bg-black/0 group-hover:bg-black/10 transition-colors pointer-events-none" />
                         </button>
                       ))}
                     </div>
@@ -842,13 +858,16 @@ export default function PublicUnitDetail() {
                         key={idx}
                         className="aspect-[4/3] rounded-xl overflow-hidden relative group shadow-sm border"
                         onClick={() => setExpandedImageIndex(idx)}
+                        onContextMenu={(e) => e.preventDefault()}
                       >
                         <img
                           src={img}
                           alt={`${propertyTitle} - ${idx + 1}`}
-                          className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                          className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300 select-none pointer-events-none"
+                          draggable={false}
+                          onContextMenu={(e) => e.preventDefault()}
                         />
-                        <div className="absolute inset-0 bg-black/0 group-hover:bg-black/10 transition-colors" />
+                        <div className="absolute inset-0 bg-black/0 group-hover:bg-black/10 transition-colors pointer-events-none" />
                       </button>
                     ))}
                   </div>
@@ -861,7 +880,7 @@ export default function PublicUnitDetail() {
 
       {/* Expanded Image Dialog */}
       <Dialog open={expandedImageIndex !== null} onOpenChange={() => setExpandedImageIndex(null)}>
-        <DialogContent className="max-w-[95vw] max-h-[95vh] p-0 bg-background border shadow-xl overflow-hidden">
+        <DialogContent hideCloseButton className="max-w-[95vw] max-h-[95vh] p-0 bg-background border shadow-xl overflow-hidden">
           {/* Close button */}
           <Button
             variant="ghost"
@@ -873,13 +892,27 @@ export default function PublicUnitDetail() {
           </Button>
           
           {expandedImageIndex !== null && (
-            <div className="flex items-center justify-center h-[90vh] py-8 px-20">
-              {/* Image */}
-              <img
-                src={images[expandedImageIndex]}
-                alt={`${propertyTitle} - ${expandedImageIndex + 1}`}
-                className="max-w-full max-h-full object-contain rounded-lg"
-              />
+            <div 
+              className="flex items-center justify-center h-[90vh] py-8 px-20 relative select-none"
+              onContextMenu={(e) => e.preventDefault()}
+            >
+              {/* Image with protection overlay */}
+              <div className="relative">
+                <img
+                  src={getFullSizeUrl(expandedImageIndex)}
+                  alt={`${propertyTitle} - ${expandedImageIndex + 1}`}
+                  className="max-w-full max-h-full object-contain rounded-lg select-none"
+                  draggable={false}
+                  onContextMenu={(e) => e.preventDefault()}
+                  style={{ 
+                    WebkitUserSelect: 'none',
+                    WebkitUserDrag: 'none',
+                    WebkitTouchCallout: 'none',
+                  } as React.CSSProperties}
+                />
+                {/* Transparent overlay to prevent direct image interaction */}
+                <div className="absolute inset-0 bg-transparent" />
+              </div>
             </div>
           )}
           

@@ -665,8 +665,8 @@ export function UnitImageGallery({
       </Card>
 
       <Dialog open={lightboxOpen} onOpenChange={setLightboxOpen}>
-        <DialogContent className="max-w-5xl p-0 bg-black/95 border-none">
-          <div className="relative">
+        <DialogContent hideCloseButton className="max-w-5xl p-0 bg-black/95 border-none">
+          <div className="relative" onContextMenu={(e) => e.preventDefault()}>
             <div className="absolute top-2 right-2 z-10 flex gap-2">
               {allImages[lightboxIndex] && fullSizeUrlMap.size > 0 && (
                 <Button
@@ -696,24 +696,34 @@ export function UnitImageGallery({
                 <X className="h-5 w-5" />
               </Button>
             </div>
-            <div className="flex items-center justify-center min-h-[70vh] p-4">
+            <div className="flex items-center justify-center min-h-[70vh] p-4 select-none">
               {isLoadingMedia ? (
                 <div className="flex flex-col items-center gap-3 text-white">
                   <Loader2 className="h-8 w-8 animate-spin" />
                   <span className="text-sm">{language === "es" ? "Cargando imagen..." : "Loading image..."}</span>
                 </div>
               ) : (
-                <img
-                  src={getFullSizeUrl(allImages[lightboxIndex] || "")}
-                  alt={`Image ${lightboxIndex + 1}`}
-                  className="max-h-[85vh] max-w-full object-contain rounded"
-                  onError={(e) => {
-                    const img = e.target as HTMLImageElement;
-                    if (img.src !== allImages[lightboxIndex]) {
-                      img.src = allImages[lightboxIndex] || "https://placehold.co/800x600?text=Error";
-                    }
-                  }}
-                />
+                <div className="relative">
+                  <img
+                    src={getFullSizeUrl(allImages[lightboxIndex] || "")}
+                    alt={`Image ${lightboxIndex + 1}`}
+                    className="max-h-[85vh] max-w-full object-contain rounded select-none"
+                    draggable={false}
+                    onContextMenu={(e) => e.preventDefault()}
+                    style={{ 
+                      WebkitUserSelect: 'none',
+                      WebkitUserDrag: 'none',
+                      WebkitTouchCallout: 'none',
+                    } as React.CSSProperties}
+                    onError={(e) => {
+                      const img = e.target as HTMLImageElement;
+                      if (img.src !== allImages[lightboxIndex]) {
+                        img.src = allImages[lightboxIndex] || "https://placehold.co/800x600?text=Error";
+                      }
+                    }}
+                  />
+                  <div className="absolute inset-0 bg-transparent" />
+                </div>
               )}
             </div>
             {allImages.length > 1 && (
