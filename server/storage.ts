@@ -13586,23 +13586,35 @@ export class DatabaseStorage implements IStorage {
     return await db
       .select()
       .from(externalUnitMedia)
-      .where(eq(externalUnitMedia.unitId, unitId))
-      .orderBy(externalUnitMedia.section, externalUnitMedia.sectionIndex, externalUnitMedia.sortOrder);
+      .where(and(
+        eq(externalUnitMedia.unitId, unitId),
+        eq(externalUnitMedia.isHidden, false)
+      ))
+      .orderBy(desc(externalUnitMedia.isCover), externalUnitMedia.displayOrder);
   }
 
-  async getUnitMediaBySection(unitId: string, section: string, sectionIndex?: number): Promise<ExternalUnitMedia[]> {
-    const conditions = [
-      eq(externalUnitMedia.unitId, unitId),
-      eq(externalUnitMedia.section, section as any),
-    ];
-    if (sectionIndex !== undefined) {
-      conditions.push(eq(externalUnitMedia.sectionIndex, sectionIndex));
-    }
+  async getUnitMediaByType(unitId: string, mediaType: 'photo' | 'video'): Promise<ExternalUnitMedia[]> {
     return await db
       .select()
       .from(externalUnitMedia)
-      .where(and(...conditions))
-      .orderBy(externalUnitMedia.sortOrder);
+      .where(and(
+        eq(externalUnitMedia.unitId, unitId),
+        eq(externalUnitMedia.mediaType, mediaType),
+        eq(externalUnitMedia.isHidden, false)
+      ))
+      .orderBy(desc(externalUnitMedia.isCover), externalUnitMedia.displayOrder);
+  }
+
+  async getUnitMediaByLabel(unitId: string, label: string): Promise<ExternalUnitMedia[]> {
+    return await db
+      .select()
+      .from(externalUnitMedia)
+      .where(and(
+        eq(externalUnitMedia.unitId, unitId),
+        sql`COALESCE(manual_label, ai_primary_label)::text = ${label}`,
+        eq(externalUnitMedia.isHidden, false)
+      ))
+      .orderBy(externalUnitMedia.displayOrder);
   }
 
   async createUnitMedia(data: InsertExternalUnitMedia): Promise<ExternalUnitMedia> {
@@ -13638,22 +13650,22 @@ export class DatabaseStorage implements IStorage {
     return result.length > 0;
   }
 
-  async deleteUnitMediaByUrl(unitId: string, url: string): Promise<boolean> {
+  async deleteUnitMediaByDriveFileId(unitId: string, driveFileId: string): Promise<boolean> {
     const result = await db
       .delete(externalUnitMedia)
       .where(and(
         eq(externalUnitMedia.unitId, unitId),
-        eq(externalUnitMedia.url, url)
+        eq(externalUnitMedia.driveFileId, driveFileId)
       ))
       .returning();
     return result.length > 0;
   }
 
-  async reorderUnitMedia(unitId: string, section: string, sectionIndex: number | undefined, mediaIds: string[]): Promise<void> {
+  async reorderUnitMedia(unitId: string, mediaIds: string[]): Promise<void> {
     for (let i = 0; i < mediaIds.length; i++) {
       await db
         .update(externalUnitMedia)
-        .set({ sortOrder: i, updatedAt: new Date() })
+        .set({ displayOrder: i, updatedAt: new Date() })
         .where(eq(externalUnitMedia.id, mediaIds[i]));
     }
   }

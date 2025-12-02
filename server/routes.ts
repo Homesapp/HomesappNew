@@ -29369,7 +29369,7 @@ ${{precio}}/mes
   // External Unit Media - Section-based image organization
   // ==========================================
 
-  // GET /api/external-units/:id/media - Get all media for a unit organized by section
+  // GET /api/external-units/:id/media - Get all media for a unit organized by type and label
   app.get("/api/external-units/:id/media", isAuthenticated, requireRole(EXTERNAL_ALL_ROLES), async (req: any, res) => {
     try {
       const { id } = req.params;
@@ -29384,23 +29384,31 @@ ${{precio}}/mes
 
       const media = await storage.getUnitMedia(id);
       
-      // Group by section
-      const groupedMedia: Record<string, typeof media> = {};
-      media.forEach(item => {
-        const key = item.sectionIndex && item.sectionIndex > 1 
-          ? `${item.section}_${item.sectionIndex}`
-          : item.section;
-        if (!groupedMedia[key]) {
-          groupedMedia[key] = [];
+      // Separate photos and videos
+      const photos = media.filter(m => m.mediaType === 'photo');
+      const videos = media.filter(m => m.mediaType === 'video');
+      
+      // Group photos by effective label (manual or AI)
+      const groupedByLabel: Record<string, typeof media> = {};
+      photos.forEach(item => {
+        const label = item.manualLabel || item.aiPrimaryLabel || 'other';
+        if (!groupedByLabel[label]) {
+          groupedByLabel[label] = [];
         }
-        groupedMedia[key].push(item);
+        groupedByLabel[label].push(item);
       });
 
       res.json({ 
         success: true, 
         data: media,
-        grouped: groupedMedia,
-        count: media.length
+        photos,
+        videos,
+        groupedByLabel,
+        counts: {
+          total: media.length,
+          photos: photos.length,
+          videos: videos.length
+        }
       });
     } catch (error: any) {
       console.error("Error fetching unit media:", error);
