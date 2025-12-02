@@ -13,7 +13,6 @@ import { useLanguage } from "@/contexts/LanguageContext";
 import { getPropertyTitle } from "@/lib/propertyHelpers";
 import logoIcon from "@assets/H mes (500 x 300 px)_1759672952263.png";
 import { FloatingChat } from "@/components/FloatingChat";
-import { PropertyMap } from "@/components/external/PropertyMap";
 
 export default function PublicDashboard() {
   const [, setLocation] = useLocation();
@@ -30,33 +29,6 @@ export default function PublicDashboard() {
     queryKey: ["/api/public/external-properties?limit=12"],
   });
   const externalProperties = externalPropertiesResponse?.data || [];
-
-  // Load properties with coordinates for map (get more for the map view)
-  const { data: mapPropertiesResponse } = useQuery<{ data: any[]; totalCount: number }>({
-    queryKey: ["/api/public/external-properties?limit=50&hasCoordinates=true"],
-  });
-  const mapProperties = (mapPropertiesResponse?.data || [])
-    .filter((p: any) => p.latitude && p.longitude)
-    .map((p: any) => ({
-      id: p.id,
-      title: p.title,
-      unitNumber: p.unitNumber || "",
-      latitude: p.latitude,
-      longitude: p.longitude,
-      price: p.price,
-      salePrice: p.salePrice,
-      currency: p.currency || "MXN",
-      saleCurrency: p.saleCurrency,
-      listingType: p.listingType || p.status,
-      bedrooms: p.bedrooms,
-      bathrooms: p.bathrooms,
-      area: p.area,
-      propertyType: p.propertyType,
-      zone: p.zone || p.location,
-      primaryImages: p.primaryImages,
-      slug: p.unitSlug,
-      agencySlug: p.agencySlug,
-    }));
 
   const { data: colonies = [] } = useQuery<Colony[]>({
     queryKey: ["/api/colonies/approved"],
@@ -451,30 +423,37 @@ export default function PublicDashboard() {
           </div>
         )}
 
-        {/* Interactive Map Section */}
+        {/* Interactive Map CTA Banner */}
         <div className="mb-10 sm:mb-14">
-          <div className="flex items-center justify-between mb-4 sm:mb-6">
-            <h2 className="text-xl sm:text-2xl font-semibold flex items-center gap-2">
-              <MapPin className="h-5 w-5 sm:h-6 sm:w-6 text-primary" />
-              Mapa Interactivo
-            </h2>
-            <Button
-              variant="ghost"
-              size="sm"
-              className="text-muted-foreground gap-1"
-              onClick={() => setLocation("/buscar-propiedades?view=map")}
-              data-testid="button-view-full-map"
-            >
-              Ver mapa completo <ChevronRight className="h-4 w-4" />
-            </Button>
-          </div>
-          <div className="rounded-2xl overflow-hidden border shadow-sm">
-            <PropertyMap
-              properties={mapProperties}
-              height="400px"
-              zoom={12}
-              language="es"
-            />
+          <div 
+            className="relative rounded-2xl overflow-hidden border bg-gradient-to-r from-primary/10 via-primary/5 to-transparent cursor-pointer hover-elevate"
+            onClick={() => setLocation("/mapa-interactivo")}
+            data-testid="banner-interactive-map"
+          >
+            <div className="flex items-center justify-between p-6 sm:p-8">
+              <div className="flex items-center gap-4">
+                <div className="h-12 w-12 sm:h-14 sm:w-14 rounded-full bg-primary/10 flex items-center justify-center">
+                  <MapPin className="h-6 w-6 sm:h-7 sm:w-7 text-primary" />
+                </div>
+                <div>
+                  <h3 className="text-lg sm:text-xl font-semibold mb-1">
+                    {t("public.map.title") || "Explora en el Mapa"}
+                  </h3>
+                  <p className="text-sm text-muted-foreground">
+                    {t("public.map.subtitle") || "Encuentra propiedades por ubicación en Tulum"}
+                  </p>
+                </div>
+              </div>
+              <Button
+                variant="default"
+                size="sm"
+                className="rounded-full gap-1 hidden sm:flex"
+                data-testid="button-view-map"
+              >
+                Ver Mapa <ChevronRight className="h-4 w-4" />
+              </Button>
+              <ChevronRight className="h-5 w-5 text-muted-foreground sm:hidden" />
+            </div>
           </div>
         </div>
 

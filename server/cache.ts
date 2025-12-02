@@ -15,6 +15,8 @@ import Redis from 'ioredis';
 class CacheService {
   private client: Redis | null = null;
   private enabled: boolean = false;
+  private memoryCache: Map<string, { value: any; expiresAt: number }> = new Map();
+  private useMemoryCache: boolean = false;
 
   constructor() {
     this.initialize();
@@ -26,8 +28,9 @@ class CacheService {
       const redisUrl = process.env.REDIS_URL || process.env.UPSTASH_REDIS_URL;
       
       if (!redisUrl) {
-        console.log('[Cache] Redis not configured - caching disabled');
-        this.enabled = false;
+        console.log('[Cache] Redis not configured - using in-memory cache');
+        this.useMemoryCache = true;
+        this.enabled = true;
         return;
       }
 
@@ -73,7 +76,22 @@ class CacheService {
    * Returns null if cache is disabled, key not found, or error occurred
    */
   async get<T = any>(key: string): Promise<T | null> {
-    if (!this.enabled || !this.client) {
+    if (!this.enabled) {
+      return null;
+    }
+
+    // Use in-memory cache if Redis is not available
+    if (this.useMemoryCache) {
+      const cached = this.memoryCache.get(key);
+      if (!cached) return null;
+      if (Date.now() > cached.expiresAt) {
+        this.memoryCache.delete(key);
+        return null;
+      }
+      return cached.value as T;
+    }
+
+    if (!this.client) {
       return null;
     }
 
@@ -95,7 +113,20 @@ class CacheService {
    * Silently fails if cache is disabled
    */
   async set(key: string, value: any, ttlSeconds: number): Promise<void> {
-    if (!this.enabled || !this.client) {
+    if (!this.enabled) {
+      return;
+    }
+
+    // Use in-memory cache if Redis is not available
+    if (this.useMemoryCache) {
+      this.memoryCache.set(key, {
+        value,
+        expiresAt: Date.now() + (ttlSeconds * 1000)
+      });
+      return;
+    }
+
+    if (!this.client) {
       return;
     }
 
@@ -112,7 +143,26 @@ class CacheService {
    * Supports pattern matching with wildcards (e.g., "user:*")
    */
   async invalidate(pattern: string): Promise<void> {
-    if (!this.enabled || !this.client) {
+    if (!this.enabled) {
+      return;
+    }
+
+    // Use in-memory cache if Redis is not available
+    if (this.useMemoryCache) {
+      if (pattern.includes('*')) {
+        const regex = new RegExp('^' + pattern.replace(/\*/g, '.*') + '$');
+        for (const key of this.memoryCache.keys()) {
+          if (regex.test(key)) {
+            this.memoryCache.delete(key);
+          }
+        }
+      } else {
+        this.memoryCache.delete(pattern);
+      }
+      return;
+    }
+
+    if (!this.client) {
       return;
     }
 
@@ -207,6 +257,13 @@ export const CacheKeys = {
   propertySearch: (filtersHash: string) => `properties:search:${filtersHash}`,
   propertiesFeatured: () => 'properties:featured',
   appointmentsCalendar: (date: string) => `appointments:calendar:${date}`,
+  
+  // Dashboard caches (2min TTL for frequently changing data)
+  externalDashboardSummary: (agencyId: string) => `external:dashboard:summary:${agencyId}`,
+  externalSellerSummary: (userId: string, agencyId: string) => `external:seller:summary:${userId}:${agencyId}`,
+  externalSellerMetrics: (userId: string, agencyId: string) => `external:seller:metrics:${userId}:${agencyId}`,
+  publicProperties: (limit: number, offset: number, hasCoordinates?: boolean) => 
+    `public:properties:${limit}:${offset}:${hasCoordinates || false}`,
 } as const;
 
 /**

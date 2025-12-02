@@ -25736,7 +25736,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
 
-  // External Dashboard Summary - optimized endpoint for dashboard statistics
+  // External Dashboard Summary - optimized endpoint for dashboard statistics (cached)
   app.get("/api/external-dashboard-summary", isAuthenticated, requireRole(EXTERNAL_ALL_ROLES), async (req: any, res) => {
     try {
       let agencyId = req.query.agencyId;
@@ -25751,7 +25751,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const hasAccess = await verifyExternalAgencyOwnership(req, res, agencyId);
       if (!hasAccess) return;
       
+      // Check cache first
+      const cacheKey = CacheKeys.externalDashboardSummary(agencyId);
+      const cached = await cache.get(cacheKey);
+      if (cached) {
+        return res.json(cached);
+      }
+      
       const summary = await storage.getExternalDashboardSummary(agencyId);
+      
+      // Cache for 2 minutes
+      await cache.set(cacheKey, summary, 120);
+      
       res.json(summary);
     } catch (error: any) {
       console.error("Error fetching dashboard summary:", error);
