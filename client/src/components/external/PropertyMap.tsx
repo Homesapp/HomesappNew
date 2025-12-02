@@ -340,7 +340,7 @@ export function PropertyMap({
           />
         ))}
 
-        {/* Cluster InfoWindow - shows list of properties at same location */}
+        {/* Cluster InfoWindow - Compact list of properties at same location */}
         {showInfoWindow && selectedCluster && selectedCluster.properties.length > 1 && (
           <InfoWindow
             position={{
@@ -350,31 +350,28 @@ export function PropertyMap({
             onCloseClick={() => setSelectedCluster(null)}
             options={{
               pixelOffset: new google.maps.Size(0, -20),
-              maxWidth: 340,
+              maxWidth: 280,
             }}
           >
-            <div className="min-w-[300px]" style={{ maxHeight: '350px', display: 'flex', flexDirection: 'column' }}>
-              <div className="flex items-center gap-2 p-3 border-b bg-gray-50 rounded-t-lg">
-                <Building2 className="h-5 w-5 text-indigo-600 flex-shrink-0" />
-                <div className="min-w-0">
-                  <h3 className="font-semibold text-sm text-gray-900 truncate">
+            <div style={{ width: '250px', maxHeight: '300px', display: 'flex', flexDirection: 'column' }}>
+              <div className="flex items-center gap-2 px-2 py-1.5 border-b bg-gray-50">
+                <Building2 className="h-4 w-4 text-indigo-600 flex-shrink-0" />
+                <div className="min-w-0 flex-1">
+                  <h3 className="font-semibold text-xs text-gray-900 truncate">
                     {selectedCluster.condominiumName || selectedCluster.properties[0]?.condominiumName || selectedCluster.properties[0]?.zone || "Ubicación"}
                   </h3>
-                  <p className="text-xs text-gray-500">
-                    {selectedCluster.properties.length} {language === "es" ? "unidades disponibles" : "units available"}
-                  </p>
                 </div>
+                <Badge variant="secondary" className="text-[10px] px-1.5 py-0 h-4">
+                  {selectedCluster.properties.length}
+                </Badge>
               </div>
               
-              <div 
-                className="p-2 overflow-y-auto" 
-                style={{ maxHeight: '280px', overflowY: 'auto' }}
-              >
-                <div className="space-y-2">
+              <div className="overflow-y-auto" style={{ maxHeight: '250px' }}>
+                <div className="p-1.5 space-y-1">
                   {selectedCluster.properties.map((property) => (
                     <div
                       key={property.id}
-                      className="flex items-center gap-2 p-2 rounded-md cursor-pointer border border-gray-200 bg-white hover:bg-gray-50 transition-colors"
+                      className="flex items-center gap-1.5 p-1.5 rounded cursor-pointer border border-gray-100 bg-white hover:bg-gray-50 transition-colors"
                       onClick={() => handlePropertySelect(property)}
                       data-testid={`cluster-property-${property.id}`}
                     >
@@ -382,38 +379,33 @@ export function PropertyMap({
                         <img
                           src={property.primaryImages[0]}
                           alt={property.unitNumber}
-                          className="w-12 h-12 rounded object-cover flex-shrink-0"
+                          className="w-10 h-10 rounded object-cover flex-shrink-0"
                         />
                       ) : (
-                        <div className="w-12 h-12 rounded bg-gray-100 flex items-center justify-center flex-shrink-0">
-                          <Home className="h-5 w-5 text-gray-400" />
+                        <div className="w-10 h-10 rounded bg-gray-100 flex items-center justify-center flex-shrink-0">
+                          <Home className="h-4 w-4 text-gray-400" />
                         </div>
                       )}
                       <div className="flex-1 min-w-0">
-                        <p className="font-medium text-sm text-gray-900 truncate">
-                          {property.title || `Unidad ${property.unitNumber}`}
+                        <p className="font-medium text-xs text-gray-900 truncate">
+                          {property.propertyType || 'Unidad'} {property.unitNumber}
                         </p>
-                        <div className="flex items-center gap-2 text-xs text-gray-500">
+                        <div className="flex items-center gap-1.5 text-[10px] text-gray-500">
                           {property.bedrooms !== undefined && (
                             <span className="flex items-center gap-0.5">
-                              <Bed className="h-3 w-3" />
-                              {property.bedrooms}
+                              <Bed className="h-2.5 w-2.5" />{property.bedrooms}
                             </span>
                           )}
                           {property.bathrooms && (
                             <span className="flex items-center gap-0.5">
-                              <Bath className="h-3 w-3" />
-                              {property.bathrooms}
+                              <Bath className="h-2.5 w-2.5" />{property.bathrooms}
                             </span>
                           )}
-                          {property.price && (
-                            <span className="text-indigo-600 font-medium">
-                              {formatPrice(property.price, property.currency)}
-                            </span>
-                          )}
+                          <span className="text-indigo-600 font-semibold ml-auto">
+                            {formatPrice(property.price, property.currency)}
+                          </span>
                         </div>
                       </div>
-                      <ChevronRight className="h-4 w-4 text-gray-400 flex-shrink-0" />
                     </div>
                   ))}
                 </div>
@@ -422,7 +414,7 @@ export function PropertyMap({
           </InfoWindow>
         )}
 
-        {/* Single property InfoWindow */}
+        {/* Single property InfoWindow - Compact design */}
         {showInfoWindow && selectedProperty && (
           <InfoWindow
             position={{
@@ -432,77 +424,63 @@ export function PropertyMap({
             onCloseClick={() => setSelectedProperty(null)}
             options={{
               pixelOffset: new google.maps.Size(0, -40),
+              maxWidth: 260,
             }}
           >
-            <div className="p-2 min-w-[200px] max-w-[280px]">
-              {selectedProperty.primaryImages && selectedProperty.primaryImages[0] && (
-                <div className="mb-2 rounded overflow-hidden">
-                  <img
-                    src={selectedProperty.primaryImages[0]}
-                    alt={selectedProperty.title || selectedProperty.unitNumber}
-                    className="w-full h-24 object-cover"
-                  />
-                </div>
-              )}
-              
-              <div className="space-y-1">
-                <h3 className="font-semibold text-sm line-clamp-1">
-                  {selectedProperty.title || `Unidad ${selectedProperty.unitNumber}`}
-                </h3>
-                
-                {selectedProperty.zone && (
-                  <p className="text-xs text-gray-500 flex items-center gap-1">
-                    <MapPin className="h-3 w-3" />
-                    {selectedProperty.zone}
-                    {selectedProperty.city && `, ${selectedProperty.city}`}
-                  </p>
+            <Link href={getPropertyLink(selectedProperty)} data-testid={`link-property-${selectedProperty.id}`}>
+              <div className="cursor-pointer hover:opacity-90 transition-opacity" style={{ width: '240px' }}>
+                {selectedProperty.primaryImages && selectedProperty.primaryImages[0] && (
+                  <div className="rounded-t overflow-hidden">
+                    <img
+                      src={selectedProperty.primaryImages[0]}
+                      alt={selectedProperty.title || selectedProperty.unitNumber}
+                      className="w-full h-28 object-cover"
+                    />
+                  </div>
                 )}
+                
+                <div className="p-2 space-y-1">
+                  <div className="flex items-start justify-between gap-1">
+                    <h3 className="font-semibold text-sm line-clamp-1 flex-1">
+                      {selectedProperty.title || `${selectedProperty.propertyType || 'Unidad'} ${selectedProperty.unitNumber}`}
+                    </h3>
+                    {selectedProperty.listingType && (
+                      <Badge variant="secondary" className="text-[10px] px-1.5 py-0 h-4 flex-shrink-0">
+                        {getListingTypeLabel(selectedProperty.listingType)}
+                      </Badge>
+                    )}
+                  </div>
 
-                <div className="flex flex-wrap gap-1 pt-1">
-                  {selectedProperty.listingType && (
-                    <Badge variant="secondary" className="text-xs">
-                      {getListingTypeLabel(selectedProperty.listingType)}
-                    </Badge>
-                  )}
-                  {selectedProperty.price && (
-                    <Badge variant="outline" className="text-xs">
-                      {formatPrice(selectedProperty.price, selectedProperty.currency)}
-                      {selectedProperty.listingType === "rent" && "/mes"}
-                    </Badge>
-                  )}
-                </div>
-
-                <div className="flex items-center gap-3 text-xs text-gray-600 pt-1">
-                  {selectedProperty.bedrooms && (
-                    <span className="flex items-center gap-1">
-                      <Bed className="h-3 w-3" />
-                      {selectedProperty.bedrooms}
-                    </span>
-                  )}
-                  {selectedProperty.bathrooms && (
-                    <span className="flex items-center gap-1">
-                      <Bath className="h-3 w-3" />
-                      {selectedProperty.bathrooms}
-                    </span>
-                  )}
-                  {selectedProperty.area && (
-                    <span className="flex items-center gap-1">
-                      <Square className="h-3 w-3" />
-                      {selectedProperty.area} m²
-                    </span>
-                  )}
-                </div>
-
-                <div className="pt-2">
-                  <Link href={getPropertyLink(selectedProperty)}>
-                    <Button size="sm" className="w-full text-xs" data-testid={`btn-view-property-${selectedProperty.id}`}>
-                      <ExternalLink className="h-3 w-3 mr-1" />
-                      {labels.viewDetails}
-                    </Button>
-                  </Link>
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2 text-xs text-gray-600">
+                      {selectedProperty.bedrooms !== undefined && (
+                        <span className="flex items-center gap-0.5">
+                          <Bed className="h-3 w-3" />
+                          {selectedProperty.bedrooms}
+                        </span>
+                      )}
+                      {selectedProperty.bathrooms && (
+                        <span className="flex items-center gap-0.5">
+                          <Bath className="h-3 w-3" />
+                          {selectedProperty.bathrooms}
+                        </span>
+                      )}
+                      {selectedProperty.area && (
+                        <span className="flex items-center gap-0.5">
+                          <Square className="h-3 w-3" />
+                          {selectedProperty.area}m²
+                        </span>
+                      )}
+                    </div>
+                    {selectedProperty.price && (
+                      <span className="text-sm font-semibold text-indigo-600">
+                        {formatPrice(selectedProperty.price, selectedProperty.currency)}
+                      </span>
+                    )}
+                  </div>
                 </div>
               </div>
-            </div>
+            </Link>
           </InfoWindow>
         )}
       </GoogleMap>

@@ -34180,7 +34180,7 @@ ${{precio}}/mes
     try {
       const { page = 1, limit = 24, q, location, status, propertyType, minPrice, maxPrice, bedrooms, bathrooms, petFriendly, featured, hasCoordinates } = req.query;
       const pageNum = Math.max(1, parseInt(page as string) || 1);
-      const limitNum = Math.min(Math.max(1, parseInt(limit as string) || 24), 50);
+      const limitNum = Math.min(Math.max(1, parseInt(limit as string) || 24), 1000);
       const offset = (pageNum - 1) * limitNum;
       
       // Build where conditions - base conditions
