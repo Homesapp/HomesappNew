@@ -201,30 +201,32 @@ export function PropertyMap({
 
   const getClusterIcon = (count: number) => {
     if (count === 1) {
-      // Single property marker
+      // Single property marker - pin style
+      const width = 30;
+      const height = 38;
       return {
         url: "data:image/svg+xml;charset=UTF-8," + encodeURIComponent(`
-          <svg width="40" height="48" viewBox="0 0 40 48" fill="none" xmlns="http://www.w3.org/2000/svg">
-            <path d="M20 0C8.954 0 0 8.954 0 20c0 14.625 18.125 26.25 20 28 1.875-1.75 20-13.375 20-28C40 8.954 31.046 0 20 0z" fill="#4F46E5"/>
-            <circle cx="20" cy="18" r="8" fill="white"/>
+          <svg width="${width}" height="${height}" viewBox="0 0 30 38" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <path d="M15 0C6.716 0 0 6.716 0 15c0 11.25 14 22 15 23 1-1 15-11.75 15-23C30 6.716 23.284 0 15 0z" fill="#4F46E5"/>
+            <circle cx="15" cy="13" r="6" fill="white"/>
           </svg>
         `),
-        scaledSize: new google.maps.Size(32, 40),
-        anchor: new google.maps.Point(16, 40),
+        scaledSize: new google.maps.Size(width, height),
+        anchor: new google.maps.Point(width / 2, height),
       };
     }
-    // Cluster marker with count
-    const size = count > 50 ? 52 : count > 20 ? 46 : count > 10 ? 42 : 38;
-    const fontSize = count > 99 ? 11 : count > 9 ? 13 : 14;
+    // Cluster marker with count - circle style
+    const size = count > 50 ? 48 : count > 20 ? 44 : count > 10 ? 40 : 36;
+    const fontSize = count > 99 ? 11 : count > 9 ? 12 : 13;
     return {
       url: "data:image/svg+xml;charset=UTF-8," + encodeURIComponent(`
         <svg width="${size}" height="${size}" viewBox="0 0 ${size} ${size}" fill="none" xmlns="http://www.w3.org/2000/svg">
-          <circle cx="${size/2}" cy="${size/2}" r="${size/2 - 2}" fill="#4F46E5" stroke="white" stroke-width="3"/>
+          <circle cx="${size/2}" cy="${size/2}" r="${size/2 - 2}" fill="#4F46E5" stroke="white" stroke-width="2"/>
           <text x="${size/2}" y="${size/2 + fontSize/3}" text-anchor="middle" fill="white" font-family="Arial, sans-serif" font-size="${fontSize}" font-weight="bold">${count}</text>
         </svg>
       `),
       scaledSize: new google.maps.Size(size, size),
-      anchor: new google.maps.Point(size/2, size/2),
+      anchor: new google.maps.Point(size / 2, size / 2),
     };
   };
 
