@@ -223,8 +223,8 @@ export default function LeadOffersSection({ lead, dialogOpen, onDialogOpenChange
                     <Building2 className="h-4 w-4 text-primary" />
                   </div>
                   <div>
-                    <p className="font-medium text-sm">{offer.unitNumber}</p>
-                    <p className="text-xs text-muted-foreground">{offer.condoName}</p>
+                    <p className="font-medium text-sm">{offer.propertyName} - {offer.unitNumber}</p>
+                    <p className="text-xs text-muted-foreground">{offer.sharedVia === 'offer_link' ? 'Oferta' : offer.sharedVia}</p>
                     {offer.rentPrice && (
                       <p className="text-xs flex items-center gap-1 mt-1">
                         <DollarSign className="h-3 w-3" />
