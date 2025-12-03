@@ -39,9 +39,12 @@ import {
 import { SiWhatsapp } from "react-icons/si";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { useToast } from "@/hooks/use-toast";
+import { useAuth } from "@/hooks/useAuth";
 import { queryClient, apiRequest } from "@/lib/queryClient";
 import { SearchableSelect } from "@/components/ui/searchable-select";
 import { LeadEmptyState } from "./LeadEmptyState";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { AlertCircle } from "lucide-react";
 import type { ExternalLead, ExternalUnit, ExternalCondominium, ExternalUnitWithCondominium } from "@shared/schema";
 
 interface LeadRentalFormsTabProps {
@@ -69,14 +72,32 @@ interface UnitOption {
   condoName?: string;
 }
 
+interface OfferToken {
+  id: string;
+  token: string;
+  isUsed: boolean;
+  expiresAt: string;
+  createdAt: string;
+  externalUnitId: string;
+  unitNumber: string;
+  condoName: string;
+  condoId: string;
+  propertyTitle: string;
+  offerData?: any;
+}
+
 export default function LeadRentalFormsTab({ lead, dialogOpen, onDialogOpenChange }: LeadRentalFormsTabProps) {
   const { language } = useLanguage();
   const { toast } = useToast();
+  const { user } = useAuth();
   const locale = language === "es" ? es : enUS;
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [selectedCondominiumId, setSelectedCondominiumId] = useState<string>("");
   const [selectedUnitId, setSelectedUnitId] = useState<string>("");
   const [recipientType, setRecipientType] = useState<string>("tenant");
+  
+  // Check if user is a seller (not admin)
+  const isSeller = user?.role === 'external_agency_seller';
 
   // Sync with controlled props from parent
   useEffect(() => {
@@ -98,6 +119,34 @@ export default function LeadRentalFormsTab({ lead, dialogOpen, onDialogOpenChang
       return response.json();
     },
   });
+
+  // Fetch offer tokens for this lead (to check for completed offers)
+  const { data: offerTokens, isLoading: isLoadingOffers } = useQuery<OfferToken[]>({
+    queryKey: ["/api/external-leads", lead.id, "offer-tokens"],
+    queryFn: async () => {
+      const response = await fetch(`/api/external-leads/${lead.id}/offer-tokens`, { credentials: 'include' });
+      if (!response.ok) return [];
+      return response.json();
+    },
+  });
+
+  // Get completed offers (only for seller restrictions)
+  const completedOffers = useMemo(() => {
+    if (!offerTokens) return [];
+    return offerTokens.filter(token => token.isUsed);
+  }, [offerTokens]);
+
+  // For sellers: get condominiums that have completed offers
+  const sellerAllowedCondoIds = useMemo(() => {
+    if (!isSeller) return null; // No restrictions for admins
+    return new Set(completedOffers.map(offer => offer.condoId).filter(Boolean));
+  }, [isSeller, completedOffers]);
+
+  // For sellers: get units that have completed offers
+  const sellerAllowedUnitIds = useMemo(() => {
+    if (!isSeller) return null; // No restrictions for admins
+    return new Set(completedOffers.map(offer => offer.externalUnitId).filter(Boolean));
+  }, [isSeller, completedOffers]);
 
   // Load all condominiums (no limit)
   const { data: condominiumsResponse, isLoading: isLoadingCondominiums } = useQuery<{ data: any[], total: number }>({
@@ -124,13 +173,20 @@ export default function LeadRentalFormsTab({ lead, dialogOpen, onDialogOpenChang
 
   const condominiumOptions = useMemo(() => {
     const condos = condominiumsResponse?.data || [];
-    return condos
+    let filteredCondos = condos;
+    
+    // For sellers: only show condominiums with completed offers
+    if (isSeller && sellerAllowedCondoIds) {
+      filteredCondos = condos.filter(condo => sellerAllowedCondoIds.has(String(condo.id)));
+    }
+    
+    return filteredCondos
       .map(condo => ({
         value: String(condo.id),
         label: condo.name,
       }))
       .sort((a, b) => a.label.localeCompare(b.label));
-  }, [condominiumsResponse]);
+  }, [condominiumsResponse, isSeller, sellerAllowedCondoIds]);
 
   // Load units for selected condominium
   const { data: unitsResponse, isLoading: isLoadingUnits } = useQuery<{ data: ExternalUnitWithCondominium[], total: number }>({
@@ -158,14 +214,22 @@ export default function LeadRentalFormsTab({ lead, dialogOpen, onDialogOpenChang
 
   const unitOptions = useMemo(() => {
     if (!selectedCondominiumId || !unitsResponse?.data) return [];
-    return unitsResponse.data
+    
+    let filteredUnits = unitsResponse.data;
+    
+    // For sellers: only show units with completed offers
+    if (isSeller && sellerAllowedUnitIds) {
+      filteredUnits = unitsResponse.data.filter(unit => sellerAllowedUnitIds.has(String(unit.id)));
+    }
+    
+    return filteredUnits
       .sort((a, b) => (a.unitNumber || '').localeCompare(b.unitNumber || '', undefined, { numeric: true }))
       .map(unit => ({
         value: String(unit.id),
         label: `${unit.unitNumber}${unit.price ? ` - $${Number(unit.price).toLocaleString()}/mes` : ''}`,
         description: unit.typology || undefined,
       }));
-  }, [unitsResponse, selectedCondominiumId]);
+  }, [unitsResponse, selectedCondominiumId, isSeller, sellerAllowedUnitIds]);
 
   const selectedUnit = useMemo(() => {
     if (!selectedUnitId || !unitsResponse?.data) return null;
@@ -389,35 +453,49 @@ export default function LeadRentalFormsTab({ lead, dialogOpen, onDialogOpenChang
           </DialogHeader>
           
           <div className="space-y-4 py-2">
-            {/* Recipient Type Selection - First */}
-            <div className="space-y-2">
-              <Label className="flex items-center gap-2">
-                <Users className="h-3.5 w-3.5 text-muted-foreground" />
-                {language === "es" ? "Tipo de Destinatario" : "Recipient Type"}
-              </Label>
-              <div className="grid grid-cols-2 gap-2">
-                <Button
-                  type="button"
-                  variant={recipientType === "tenant" ? "default" : "outline"}
-                  className="justify-start gap-2"
-                  onClick={() => setRecipientType("tenant")}
-                  data-testid="button-recipient-tenant"
-                >
-                  <User className="h-4 w-4" />
-                  {language === "es" ? "Inquilino" : "Tenant"}
-                </Button>
-                <Button
-                  type="button"
-                  variant={recipientType === "owner" ? "default" : "outline"}
-                  className="justify-start gap-2"
-                  onClick={() => setRecipientType("owner")}
-                  data-testid="button-recipient-owner"
-                >
-                  <Home className="h-4 w-4" />
-                  {language === "es" ? "Propietario" : "Owner"}
-                </Button>
+            {/* Alert for sellers with no completed offers */}
+            {isSeller && completedOffers.length === 0 && (
+              <Alert variant="destructive">
+                <AlertCircle className="h-4 w-4" />
+                <AlertDescription>
+                  {language === "es" 
+                    ? "No hay ofertas completadas para este lead. Primero debes enviar una oferta y esperar a que el cliente la complete antes de enviar el formato de renta."
+                    : "No completed offers for this lead. You must first send an offer and wait for the client to complete it before sending the rental form."}
+                </AlertDescription>
+              </Alert>
+            )}
+            
+            {/* Recipient Type Selection - First (hidden for sellers, always tenant) */}
+            {!isSeller && (
+              <div className="space-y-2">
+                <Label className="flex items-center gap-2">
+                  <Users className="h-3.5 w-3.5 text-muted-foreground" />
+                  {language === "es" ? "Tipo de Destinatario" : "Recipient Type"}
+                </Label>
+                <div className="grid grid-cols-2 gap-2">
+                  <Button
+                    type="button"
+                    variant={recipientType === "tenant" ? "default" : "outline"}
+                    className="justify-start gap-2"
+                    onClick={() => setRecipientType("tenant")}
+                    data-testid="button-recipient-tenant"
+                  >
+                    <User className="h-4 w-4" />
+                    {language === "es" ? "Inquilino" : "Tenant"}
+                  </Button>
+                  <Button
+                    type="button"
+                    variant={recipientType === "owner" ? "default" : "outline"}
+                    className="justify-start gap-2"
+                    onClick={() => setRecipientType("owner")}
+                    data-testid="button-recipient-owner"
+                  >
+                    <Home className="h-4 w-4" />
+                    {language === "es" ? "Propietario" : "Owner"}
+                  </Button>
+                </div>
               </div>
-            </div>
+            )}
 
             {/* Condominium Selection */}
             <div className="space-y-2">
@@ -497,7 +575,7 @@ export default function LeadRentalFormsTab({ lead, dialogOpen, onDialogOpenChang
             </Button>
             <Button 
               onClick={handleSubmit}
-              disabled={createFormMutation.isPending || !selectedUnitId}
+              disabled={createFormMutation.isPending || !selectedUnitId || (isSeller && completedOffers.length === 0)}
               data-testid="button-confirm-send-form"
             >
               {createFormMutation.isPending && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
