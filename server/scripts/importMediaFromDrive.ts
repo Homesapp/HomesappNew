@@ -207,17 +207,26 @@ async function importMediaForUnit(
   unit: { id: string; sheetRowId: string; unitNumber: string },
   folderId: string,
   dryRun: boolean = true
-): Promise<{ photos: number; videos: number }> {
+): Promise<{ photos: number; videos: number; skippedDuplicates: number }> {
   const { images, videos } = await listAllMediaInFolder(folderId);
   
   const existingCounts = await getExistingMediaCount(unit.id);
+  const existingDriveIds = await getExistingDriveFileIds(unit.id);
   const photosToAdd = MAX_PHOTOS_PER_UNIT - existingCounts.photos;
   const videosToAdd = MAX_VIDEOS_PER_UNIT - existingCounts.videos;
   
   let photosImported = 0;
   let videosImported = 0;
+  let skippedDuplicates = 0;
   
-  const imagesToProcess = images.slice(0, Math.max(0, photosToAdd));
+  // Filter out already imported images
+  const newImages = images.filter(img => img.id && !existingDriveIds.has(img.id));
+  if (images.length !== newImages.length) {
+    skippedDuplicates += images.length - newImages.length;
+    console.log(`    [SKIP] ${images.length - newImages.length} duplicate photos already imported`);
+  }
+  
+  const imagesToProcess = newImages.slice(0, Math.max(0, photosToAdd));
   for (let i = 0; i < imagesToProcess.length; i++) {
     const image = imagesToProcess[i];
     if (!image.id) continue;
@@ -241,11 +250,14 @@ async function importMediaForUnit(
           mimeType: image.mimeType || null,
           fileSize: image.size ? parseInt(image.size) : null,
           status: 'pending',
-          displayOrder: existingCounts.photos + i,
-          isCover: existingCounts.photos === 0 && i === 0,
+          displayOrder: existingCounts.photos + photosImported,
+          isCover: existingCounts.photos === 0 && photosImported === 0,
         });
         
-        console.log(`    Photo ${i + 1}/${imagesToProcess.length}: ${image.name}`);
+        // Add to existing set to prevent duplicates within same run
+        existingDriveIds.add(image.id);
+        
+        console.log(`    Photo ${photosImported + 1}/${imagesToProcess.length}: ${image.name}`);
       }
       
       photosImported++;
@@ -256,7 +268,14 @@ async function importMediaForUnit(
     }
   }
   
-  const videosToProcess = videos.slice(0, Math.max(0, videosToAdd));
+  // Filter out already imported videos
+  const newVideos = videos.filter(vid => vid.id && !existingDriveIds.has(vid.id));
+  if (videos.length !== newVideos.length) {
+    skippedDuplicates += videos.length - newVideos.length;
+    console.log(`    [SKIP] ${videos.length - newVideos.length} duplicate videos already imported`);
+  }
+  
+  const videosToProcess = newVideos.slice(0, Math.max(0, videosToAdd));
   for (let i = 0; i < videosToProcess.length; i++) {
     const video = videosToProcess[i];
     if (!video.id) continue;
@@ -276,10 +295,13 @@ async function importMediaForUnit(
           mimeType: video.mimeType || null,
           fileSize: video.size ? parseInt(video.size) : null,
           status: 'pending',
-          displayOrder: existingCounts.videos + i,
+          displayOrder: existingCounts.videos + videosImported,
         });
         
-        console.log(`    Video ${i + 1}/${videosToProcess.length}: ${video.name}`);
+        // Add to existing set to prevent duplicates within same run
+        existingDriveIds.add(video.id);
+        
+        console.log(`    Video ${videosImported + 1}/${videosToProcess.length}: ${video.name}`);
       }
       
       videosImported++;
@@ -289,7 +311,7 @@ async function importMediaForUnit(
     }
   }
   
-  return { photos: photosImported, videos: videosImported };
+  return { photos: photosImported, videos: videosImported, skippedDuplicates };
 }
 
 async function updateUnitPrimaryImages(unitId: string): Promise<void> {
@@ -372,14 +394,18 @@ async function importMedia(dryRun: boolean = true, limit?: number, skipExisting:
     console.log(`  Source: ${data.directDriveUrl ? 'Column AA' : 'Fichas T'}`);
     
     try {
-      const { photos, videos } = await importMediaForUnit(
+      const { photos, videos, skippedDuplicates } = await importMediaForUnit(
         { id: unit.id, sheetRowId: data.sheetRowId, unitNumber: data.unitNumber },
         folderId,
         dryRun
       );
       
       if (photos > 0 || videos > 0) {
-        console.log(`  → ${photos} photos, ${videos} videos processed`);
+        let msg = `  → ${photos} photos, ${videos} videos processed`;
+        if (skippedDuplicates > 0) {
+          msg += ` (${skippedDuplicates} duplicates skipped)`;
+        }
+        console.log(msg);
         totalPhotos += photos;
         totalVideos += videos;
         
@@ -387,6 +413,8 @@ async function importMedia(dryRun: boolean = true, limit?: number, skipExisting:
           await updateUnitPrimaryImages(unit.id);
           updated++;
         }
+      } else if (skippedDuplicates > 0) {
+        console.log(`  → No new media (${skippedDuplicates} duplicates skipped)`);
       } else {
         console.log(`  → No new media found`);
       }
