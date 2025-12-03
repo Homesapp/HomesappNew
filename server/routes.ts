@@ -26450,17 +26450,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (zone) {
         conditions.push(ilike(externalUnits.zone, '%' + (zone as string) + '%'));
       }
-      if (propertyType) {
-        conditions.push(eq(externalUnits.propertyType, propertyType as string));
-      }
-      if (search) {
-        conditions.push(or(
-          ilike(externalUnits.title, '%' + (search as string) + '%'),
-          ilike(externalUnits.zone, '%' + (search as string) + '%'),
-          ilike(externalUnits.propertyType, '%' + (search as string) + '%')
-        ));
-      }
-
+PLACEHOLDER
+PLACEHOLDER
+PLACEHOLDER
+PLACEHOLDER
+PLACEHOLDER
+PLACEHOLDER
+PLACEHOLDER
+PLACEHOLDER
+PLACEHOLDER
+PLACEHOLDER
+PLACEHOLDER
       const [units, totalResult] = await Promise.all([
         db.select({
           id: externalUnits.id,
