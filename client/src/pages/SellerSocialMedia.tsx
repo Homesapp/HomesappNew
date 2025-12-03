@@ -122,8 +122,9 @@ interface Condominium {
 
 interface AgencyConfig {
   aiCreditsEnabled: boolean;
-  aiCreditBalance: number | null;
-  aiCreditsMonthlyReset: boolean;
+  aiCreditBalance: number;
+  aiCreditUsed: number;
+  aiCreditTotalAssigned: number;
   monthlyUsed: number;
 }
 
@@ -760,8 +761,8 @@ export default function SellerSocialMedia() {
         toast({ 
           title: lang === "es" ? "Sin créditos" : "No credits",
           description: lang === "es" 
-            ? "No tienes créditos de IA disponibles."
-            : "You have no AI credits available.",
+            ? "No tienes créditos de IA disponibles. Usa tus plantillas guardadas en la pestaña 'Plantillas'."
+            : "You have no AI credits available. Use your saved templates in the 'Templates' tab.",
           variant: "destructive" 
         });
       } else {
@@ -1277,8 +1278,8 @@ export default function SellerSocialMedia() {
         
         {/* AI Generator Tab */}
         <TabsContent value="generator" className="p-4 space-y-4">
-          {/* AI Credits Header */}
-          {!aiCreditsDisabled && agencyConfig?.aiCreditBalance !== null && (
+          {/* AI Credits Header - Shows seller's personal credits */}
+          {!aiCreditsDisabled && (
             <div className="flex items-center justify-between bg-gradient-to-r from-primary/10 to-primary/5 dark:from-primary/20 dark:to-primary/10 rounded-lg p-3 border border-primary/20">
               <div className="flex items-center gap-2">
                 <div className="p-2 bg-primary/20 rounded-full">
@@ -1286,24 +1287,41 @@ export default function SellerSocialMedia() {
                 </div>
                 <div>
                   <p className="text-sm font-medium">
-                    {lang === "es" ? "Créditos de IA" : "AI Credits"}
+                    {lang === "es" ? "Mis Créditos de IA" : "My AI Credits"}
                   </p>
                   <p className="text-xs text-muted-foreground">
-                    {lang === "es" ? "Disponibles" : "Available"}
+                    {lang === "es" ? "Disponibles para generar contenido" : "Available to generate content"}
                   </p>
                 </div>
               </div>
               <div className="text-right">
-                <p className="text-2xl font-bold text-primary">
+                <p className={`text-2xl font-bold ${(agencyConfig?.aiCreditBalance ?? 0) > 0 ? "text-primary" : "text-destructive"}`}>
                   {agencyConfig?.aiCreditBalance ?? 0}
                 </p>
-                {agencyConfig?.monthlyUsed > 0 && (
-                  <p className="text-xs text-muted-foreground">
-                    {lang === "es" ? "Usados este mes:" : "Used this month:"} {agencyConfig?.monthlyUsed}
-                  </p>
-                )}
+                <p className="text-xs text-muted-foreground">
+                  {lang === "es" ? "Usados:" : "Used:"} {agencyConfig?.aiCreditUsed ?? 0} / {agencyConfig?.aiCreditTotalAssigned ?? 10}
+                </p>
               </div>
             </div>
+          )}
+          
+          {/* No credits warning */}
+          {!aiCreditsDisabled && (agencyConfig?.aiCreditBalance ?? 0) === 0 && (
+            <Card className="border-orange-300 dark:border-orange-700 bg-orange-50 dark:bg-orange-950">
+              <CardContent className="flex items-center gap-3 p-4">
+                <AlertTriangle className="h-5 w-5 text-orange-600 dark:text-orange-400 flex-shrink-0" />
+                <div>
+                  <p className="font-medium text-orange-800 dark:text-orange-200">
+                    {lang === "es" ? "Sin créditos de IA" : "No AI credits"}
+                  </p>
+                  <p className="text-sm text-orange-700 dark:text-orange-300">
+                    {lang === "es" 
+                      ? "Puedes usar tus plantillas guardadas en la pestaña 'Plantillas' para crear publicaciones sin usar créditos."
+                      : "You can use your saved templates in the 'Templates' tab to create posts without using credits."}
+                  </p>
+                </div>
+              </CardContent>
+            </Card>
           )}
           
           {/* AI Credits Disabled - Show Templates */}
@@ -1816,7 +1834,7 @@ export default function SellerSocialMedia() {
                   
                   <Button 
                     onClick={handleGenerateAI}
-                    disabled={generateMutation.isPending || !aiPropertyInfo.propertyType}
+                    disabled={generateMutation.isPending || !aiPropertyInfo.propertyType || (agencyConfig?.aiCreditBalance ?? 0) <= 0}
                     className="w-full"
                     data-testid="button-generate-ai"
                   >
@@ -1825,15 +1843,18 @@ export default function SellerSocialMedia() {
                         <Loader2 className="h-4 w-4 animate-spin mr-2" />
                         {t.generating}
                       </>
+                    ) : (agencyConfig?.aiCreditBalance ?? 0) <= 0 ? (
+                      <>
+                        <AlertTriangle className="h-4 w-4 mr-2" />
+                        {lang === "es" ? "Sin Créditos" : "No Credits"}
+                      </>
                     ) : (
                       <>
                         <Sparkles className="h-4 w-4 mr-2" />
                         {t.generateContent}
-                        {agencyConfig?.aiCreditBalance !== null && (
-                          <Badge variant="secondary" className="ml-2 text-xs">
-                            -1 {lang === "es" ? "crédito" : "credit"}
-                          </Badge>
-                        )}
+                        <Badge variant="secondary" className="ml-2 text-xs">
+                          -1 {lang === "es" ? "crédito" : "credit"}
+                        </Badge>
                       </>
                     )}
                   </Button>
