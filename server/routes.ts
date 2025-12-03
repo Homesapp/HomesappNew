@@ -26454,10 +26454,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
         conditions.push(eq(externalUnits.propertyType, propertyType as string));
       }
       if (search) {
+        const searchTerm = '%' + (search as string) + '%';
         conditions.push(or(
-          ilike(externalUnits.title, '%' + (search as string) + '%'),
-          ilike(externalUnits.zone, '%' + (search as string) + '%'),
-          ilike(externalUnits.propertyType, '%' + (search as string) + '%')
+          ilike(externalUnits.title, searchTerm),
+          ilike(externalUnits.unitNumber, searchTerm),
+          ilike(externalUnits.zone, searchTerm),
+          ilike(externalUnits.propertyType, searchTerm),
+          ilike(externalCondominiums.name, searchTerm)
         ));
       }
 
