@@ -647,18 +647,18 @@ export function PhotoEditor({
   );
 
   return (
-    <div className="flex flex-col h-full max-h-[90vh]">
-      <div className="flex items-center justify-between p-4 border-b">
-        <h2 className="text-lg font-semibold flex items-center gap-2">
-          <ImageIcon className="h-5 w-5" />
+    <div className="flex flex-col h-full">
+      {/* Compact header */}
+      <div className="flex items-center justify-between px-4 py-2 border-b bg-background">
+        <h2 className="text-sm font-semibold flex items-center gap-2">
+          <ImageIcon className="h-4 w-4" />
           {t.title}
         </h2>
-        <div className="flex items-center gap-2">
-          <div className="flex items-center gap-1 bg-muted rounded-md p-1">
+        <div className="flex items-center gap-1">
+          <div className="flex items-center gap-0.5 bg-muted rounded p-0.5">
             <Button
-              size="icon"
+              size="sm"
               variant="ghost"
-              className="h-7 w-7"
               onClick={() => setZoom(Math.max(25, zoom - 25))}
               data-testid="button-zoom-out"
             >
@@ -666,9 +666,8 @@ export function PhotoEditor({
             </Button>
             <span className="text-xs font-mono w-10 text-center">{zoom}%</span>
             <Button
-              size="icon"
+              size="sm"
               variant="ghost"
-              className="h-7 w-7"
               onClick={() => setZoom(Math.min(200, zoom + 25))}
               data-testid="button-zoom-in"
             >
@@ -683,29 +682,39 @@ export function PhotoEditor({
         </div>
       </div>
 
-      <div className="flex flex-1 overflow-hidden">
+      <div className="flex flex-1 overflow-hidden min-h-0">
+        {/* Canvas preview area - bounded and scrollable */}
         <div className="flex-1 flex items-center justify-center bg-muted/30 overflow-auto p-4">
           {isLoading ? (
-            <div className="flex flex-col items-center gap-3 text-muted-foreground">
-              <RefreshCw className="h-8 w-8 animate-spin" />
-              <span>{t.loading}</span>
+            <div className="flex flex-col items-center gap-2 text-muted-foreground">
+              <RefreshCw className="h-6 w-6 animate-spin" />
+              <span className="text-sm">{t.loading}</span>
             </div>
           ) : (
-            <canvas
-              ref={canvasRef}
-              style={{
-                maxWidth: "100%",
-                maxHeight: "100%",
-                transform: `scale(${zoom / 100})`,
-                transformOrigin: "center",
-                transition: "transform 0.2s ease",
+            <div 
+              className="relative flex items-center justify-center"
+              style={{ 
+                minWidth: "fit-content",
+                minHeight: "fit-content",
               }}
-              className="shadow-lg rounded"
-            />
+            >
+              <canvas
+                ref={canvasRef}
+                style={{
+                  maxWidth: zoom <= 100 ? "100%" : "none",
+                  maxHeight: zoom <= 100 ? "100%" : "none",
+                  transform: `scale(${zoom / 100})`,
+                  transformOrigin: "center",
+                  transition: "transform 0.15s ease",
+                }}
+                className="shadow-md rounded border"
+              />
+            </div>
           )}
         </div>
 
-        <div className="w-80 border-l bg-background overflow-hidden flex flex-col">
+        {/* Controls sidebar - narrower */}
+        <div className="w-72 border-l bg-background overflow-hidden flex flex-col">
           <Tabs defaultValue="adjustments" className="flex-1 flex flex-col">
             <TabsList className="w-full justify-start rounded-none border-b h-auto p-0">
               <TabsTrigger 

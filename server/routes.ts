@@ -26575,10 +26575,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
       let filteredUnits = units;
       
       if (type === 'condo' && condominiumId) {
+        // Filter by specific condominium
         filteredUnits = filteredUnits.filter(u => u.condominiumId === condominiumId);
-      } else if (type === 'house') {
-        filteredUnits = filteredUnits.filter(u => !u.condominiumId);
       }
+      // When type === 'house', load ALL properties (no condominium filter needed)
       
       if (search) {
         const searchLower = (search as string).toLowerCase();

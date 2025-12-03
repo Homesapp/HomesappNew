@@ -2349,9 +2349,9 @@ export default function SellerSocialMedia() {
                   <p className="text-muted-foreground">{t.selectPropertyFirst}</p>
                 </div>
               ) : mediaLoading ? (
-                <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
-                  {[1, 2, 3, 4, 5, 6].map(i => (
-                    <Skeleton key={i} className="aspect-square w-full" />
+                <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 gap-2">
+                  {[1, 2, 3, 4, 5, 6, 7, 8].map(i => (
+                    <Skeleton key={i} className="aspect-[4/3] w-full rounded" />
                   ))}
                 </div>
               ) : !propertyMedia || propertyMedia.length === 0 ? (
@@ -2360,56 +2360,68 @@ export default function SellerSocialMedia() {
                   <p className="text-muted-foreground">{t.noPhotosAvailable}</p>
                 </div>
               ) : (
-                <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
-                  {propertyMedia
-                    .filter(m => m.type === "image")
-                    .map(media => (
-                      <div 
-                        key={media.id}
-                        className="group relative aspect-square rounded-lg overflow-hidden border bg-muted"
-                      >
-                        <img
-                          src={media.url}
-                          alt={media.caption || `Photo ${media.order}`}
-                          className="w-full h-full object-cover"
-                          crossOrigin="anonymous"
-                        />
-                        <div className="absolute inset-0 bg-black/0 group-hover:bg-black/40 transition-colors flex items-center justify-center gap-2 opacity-0 group-hover:opacity-100">
-                          <Button
-                            size="icon"
-                            variant="secondary"
-                            onClick={() => {
-                              setEditingPhotoUrl(media.url);
-                              setEditingMediaId(media.id);
-                            }}
-                            data-testid={`button-edit-photo-${media.id}`}
-                          >
-                            <Wand2 className="h-4 w-4" />
-                          </Button>
-                          <Button
-                            size="icon"
-                            variant="secondary"
-                            onClick={() => {
-                              const link = document.createElement("a");
-                              link.href = media.url;
-                              link.download = `photo-${media.order}.jpg`;
-                              link.click();
-                            }}
-                            data-testid={`button-download-photo-${media.id}`}
-                          >
-                            <Download className="h-4 w-4" />
-                          </Button>
+                <div className="space-y-3">
+                  {/* Album header with count and bulk actions */}
+                  <div className="flex items-center justify-between px-1">
+                    <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                      <Image className="h-4 w-4" />
+                      <span>{(propertyMedia || []).filter(m => m.type === "image").length} {lang === "es" ? "fotos" : "photos"}</span>
+                    </div>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => {
+                        const images = (propertyMedia || []).filter(m => m.type === "image");
+                        if (images.length > 0) {
+                          setEditingPhotoUrl(images[0].url);
+                          setEditingMediaId(images[0].id);
+                        }
+                      }}
+                      data-testid="button-bulk-edit-photos"
+                    >
+                      <Wand2 className="h-4 w-4 mr-1" />
+                      {lang === "es" ? "Editar fotos" : "Edit photos"}
+                    </Button>
+                  </div>
+                  
+                  {/* Compact thumbnail grid */}
+                  <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 gap-2">
+                    {(propertyMedia || [])
+                      .filter(m => m.type === "image")
+                      .map(media => (
+                        <div 
+                          key={media.id}
+                          className="group relative aspect-[4/3] rounded overflow-hidden border bg-muted cursor-pointer hover:ring-2 hover:ring-primary hover:ring-offset-1 transition-all"
+                          onClick={() => {
+                            setEditingPhotoUrl(media.url);
+                            setEditingMediaId(media.id);
+                          }}
+                        >
+                          <img
+                            src={media.url}
+                            alt={media.caption || `Photo ${media.order}`}
+                            className="w-full h-full object-cover"
+                            crossOrigin="anonymous"
+                          />
+                          <div className="absolute inset-0 bg-black/0 group-hover:bg-black/30 transition-colors flex items-center justify-center">
+                            <div className="opacity-0 group-hover:opacity-100 transition-opacity">
+                              <Wand2 className="h-5 w-5 text-white drop-shadow-lg" />
+                            </div>
+                          </div>
+                          {media.section && (
+                            <Badge 
+                              variant="secondary" 
+                              className="absolute bottom-1 left-1 text-[9px] px-1 py-0"
+                            >
+                              {media.section}
+                            </Badge>
+                          )}
+                          <span className="absolute top-1 right-1 bg-black/50 text-white text-[9px] px-1 rounded">
+                            {media.order + 1}
+                          </span>
                         </div>
-                        {media.section && (
-                          <Badge 
-                            variant="secondary" 
-                            className="absolute bottom-2 left-2 text-[10px]"
-                          >
-                            {media.section}
-                          </Badge>
-                        )}
-                      </div>
-                    ))}
+                      ))}
+                  </div>
                 </div>
               )}
             </CardContent>
@@ -2417,7 +2429,7 @@ export default function SellerSocialMedia() {
         </TabsContent>
       </Tabs>
       
-      {/* Photo Editor Dialog */}
+      {/* Photo Editor Dialog - Professional layout */}
       <Dialog 
         open={!!editingPhotoUrl} 
         onOpenChange={(open) => {
@@ -2427,50 +2439,88 @@ export default function SellerSocialMedia() {
           }
         }}
       >
-        <DialogContent className="max-w-4xl max-h-[95vh] overflow-hidden p-0">
-          <DialogHeader className="p-4 pb-0">
-            <DialogTitle className="flex items-center gap-2">
-              <Wand2 className="h-5 w-5" />
-              {t.editPhoto}
-            </DialogTitle>
+        <DialogContent className="max-w-6xl w-[95vw] max-h-[90vh] overflow-hidden p-0">
+          <DialogHeader className="sr-only">
+            <DialogTitle>{t.editPhoto}</DialogTitle>
           </DialogHeader>
           {editingPhotoUrl && (
-            <div className="p-4 pt-2 overflow-auto max-h-[calc(95vh-80px)]">
-              <PhotoEditor
-                imageUrl={editingPhotoUrl}
-                agencyLogo={watermarkConfig?.watermarkImageUrl || watermarkConfig?.agencyLogoUrl}
-                agencyName={watermarkConfig?.watermarkText}
-                showWatermark={watermarkConfig?.watermarkEnabled}
-                initialWatermark={watermarkConfig ? {
-                  enabled: watermarkConfig.watermarkEnabled,
-                  type: (watermarkConfig.watermarkImageUrl || watermarkConfig.agencyLogoUrl) ? "image" : "text",
-                  imageUrl: watermarkConfig.watermarkImageUrl || watermarkConfig.agencyLogoUrl,
-                  position: watermarkConfig.watermarkPosition as "top-left" | "top-right" | "bottom-left" | "bottom-right" | "center",
-                  opacity: watermarkConfig.watermarkOpacity,
-                  size: watermarkConfig.watermarkScale,
-                  padding: 20,
-                  text: watermarkConfig.watermarkText,
-                } : undefined}
-                onSave={async (editedBlob: Blob) => {
-                  try {
-                    const link = document.createElement("a");
-                    link.href = URL.createObjectURL(editedBlob);
-                    link.download = `edited-photo-${Date.now()}.jpg`;
-                    link.click();
-                    URL.revokeObjectURL(link.href);
-                    toast({ title: t.photoEditSuccess });
+            <div className="flex h-[85vh]">
+              {/* Left sidebar - Thumbnail strip for album navigation */}
+              {propertyMedia && propertyMedia.filter(m => m.type === "image").length > 1 && (
+                <div className="w-20 bg-muted/50 border-r flex flex-col">
+                  <div className="p-2 border-b text-xs font-medium text-center text-muted-foreground">
+                    {lang === "es" ? "Álbum" : "Album"}
+                  </div>
+                  <ScrollArea className="flex-1">
+                    <div className="p-1.5 space-y-1.5">
+                      {propertyMedia
+                        .filter(m => m.type === "image")
+                        .map((media, idx) => (
+                          <div
+                            key={media.id}
+                            className={`relative aspect-[4/3] rounded overflow-hidden cursor-pointer transition-all ${
+                              editingPhotoUrl === media.url 
+                                ? "ring-2 ring-primary ring-offset-1" 
+                                : "opacity-70 hover:opacity-100"
+                            }`}
+                            onClick={() => {
+                              setEditingPhotoUrl(media.url);
+                              setEditingMediaId(media.id);
+                            }}
+                          >
+                            <img
+                              src={media.url}
+                              alt={`Thumbnail ${idx + 1}`}
+                              className="w-full h-full object-cover"
+                              crossOrigin="anonymous"
+                            />
+                            <span className="absolute bottom-0.5 right-0.5 bg-black/60 text-white text-[8px] px-1 rounded">
+                              {idx + 1}
+                            </span>
+                          </div>
+                        ))}
+                    </div>
+                  </ScrollArea>
+                </div>
+              )}
+              
+              {/* Main editor area */}
+              <div className="flex-1 overflow-hidden">
+                <PhotoEditor
+                  imageUrl={editingPhotoUrl}
+                  agencyLogo={watermarkConfig?.watermarkImageUrl || watermarkConfig?.agencyLogoUrl}
+                  agencyName={watermarkConfig?.watermarkText}
+                  showWatermark={watermarkConfig?.watermarkEnabled}
+                  language={lang}
+                  initialWatermark={watermarkConfig ? {
+                    enabled: watermarkConfig.watermarkEnabled,
+                    type: (watermarkConfig.watermarkImageUrl || watermarkConfig.agencyLogoUrl) ? "image" : "text",
+                    imageUrl: watermarkConfig.watermarkImageUrl || watermarkConfig.agencyLogoUrl,
+                    position: watermarkConfig.watermarkPosition as "top-left" | "top-right" | "bottom-left" | "bottom-right" | "center",
+                    opacity: watermarkConfig.watermarkOpacity,
+                    size: watermarkConfig.watermarkScale,
+                    padding: 20,
+                    text: watermarkConfig.watermarkText,
+                  } : undefined}
+                  onSave={async (editedBlob: Blob) => {
+                    try {
+                      const link = document.createElement("a");
+                      link.href = URL.createObjectURL(editedBlob);
+                      link.download = `edited-photo-${Date.now()}.jpg`;
+                      link.click();
+                      URL.revokeObjectURL(link.href);
+                      toast({ title: t.photoEditSuccess });
+                    } catch (error) {
+                      console.error("Error saving photo:", error);
+                      toast({ title: t.photoEditError, variant: "destructive" });
+                    }
+                  }}
+                  onClose={() => {
                     setEditingPhotoUrl(null);
                     setEditingMediaId(null);
-                  } catch (error) {
-                    console.error("Error saving photo:", error);
-                    toast({ title: t.photoEditError, variant: "destructive" });
-                  }
-                }}
-                onClose={() => {
-                  setEditingPhotoUrl(null);
-                  setEditingMediaId(null);
-                }}
-              />
+                  }}
+                />
+              </div>
             </div>
           )}
         </DialogContent>
