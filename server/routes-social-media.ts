@@ -848,6 +848,16 @@ export function registerSocialMediaRoutes(app: Express) {
       
       const languageGuide = language === "en" ? "Write in English" : "Escribe en español";
       
+      // Build property link if available
+      let propertyLink = "";
+      if (propertyInfo.publicUrl) {
+        propertyLink = propertyInfo.publicUrl;
+      } else if (propertyInfo.unitId && propertyInfo.agencySlug && propertyInfo.unitSlug) {
+        const protocol = process.env.NODE_ENV === 'production' ? 'https' : req.protocol;
+        const host = req.get('host');
+        propertyLink = `${protocol}://${host}/${propertyInfo.agencySlug}/propiedad/${propertyInfo.unitSlug}`;
+      }
+      
       const prompt = `You are a real estate marketing expert. Generate a compelling social media post for the following:
 
 Platform: ${platform} - ${platformGuide[platform] || "Social media post"}
@@ -856,16 +866,26 @@ Tone: ${toneGuide[tone] || "Professional"}
 Language: ${languageGuide}
 
 Property Details:
-${JSON.stringify(propertyInfo, null, 2)}
+- Name: ${propertyInfo.name || propertyInfo.unitNumber || "Propiedad"}
+- Location/Zone: ${propertyInfo.zone || propertyInfo.location || "Tulum"}
+- Condominium: ${propertyInfo.condominiumName || ""}
+- Bedrooms: ${propertyInfo.bedrooms || "N/A"}
+- Bathrooms: ${propertyInfo.bathrooms || "N/A"}
+- Area: ${propertyInfo.area || propertyInfo.squareMeters || "N/A"} m²
+- Price: ${propertyInfo.price ? `$${Number(propertyInfo.price).toLocaleString()} ${propertyInfo.currency || "MXN"}` : "Consultar"}
+- Property Type: ${propertyInfo.propertyType || "Inmueble"}
+- Amenities: ${propertyInfo.amenities ? (Array.isArray(propertyInfo.amenities) ? propertyInfo.amenities.join(", ") : propertyInfo.amenities) : ""}
+${propertyLink ? `- Property Link: ${propertyLink}` : ""}
 
 Requirements:
 1. Use appropriate emojis for the platform
-2. Include property highlights
-3. Add a call to action
-4. For Instagram, include relevant hashtags (8-12 hashtags)
-5. For WhatsApp, use *bold* for emphasis
+2. Include ALL the property details provided above with their ACTUAL VALUES (price, bedrooms, bathrooms, area, location)
+3. Add a compelling call to action
+4. For Instagram, include relevant hashtags (8-12 hashtags) at the end
+5. For WhatsApp, use *bold* for emphasis on key details
 6. Keep it engaging and platform-appropriate
-7. Use placeholders like {{price}}, {{location}}, {{bedrooms}} where applicable for reusability
+7. If a property link is provided, include it prominently in the post
+8. Do NOT use placeholders like {{price}} - use the actual values provided
 
 Generate ONLY the post content, no additional explanation.`;
 

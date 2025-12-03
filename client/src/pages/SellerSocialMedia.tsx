@@ -603,6 +603,13 @@ export default function SellerSocialMedia() {
     area: "",
     address: "",
     unitId: "",
+    name: "",
+    condominiumName: "",
+    zone: "",
+    currency: "",
+    amenities: "",
+    unitSlug: "",
+    agencySlug: "",
   });
   const [generatedContent, setGeneratedContent] = useState<{ content: string; hashtags: string | null } | null>(null);
   
@@ -1022,10 +1029,17 @@ export default function SellerSocialMedia() {
         location: property.zone || property.city || "",
         bedrooms: property.bedrooms?.toString() || "",
         bathrooms: property.bathrooms?.toString() || "",
-        price: property.price ? `$${Number(property.price).toLocaleString()} ${property.currency || 'MXN'}` : "",
-        area: property.area ? `${property.area} m²` : "",
+        price: property.price?.toString() || "",
+        area: property.area?.toString() || property.squareMeters?.toString() || "",
         address: property.address || "",
         unitId: property.id,
+        name: property.unitNumber || property.title || propertyName,
+        condominiumName: property.condominiumName || "",
+        zone: property.zone || "",
+        currency: property.currency || "MXN",
+        amenities: Array.isArray(property.amenities) ? property.amenities.join(", ") : (property.amenities || ""),
+        unitSlug: (property as any).slug || "",
+        agencySlug: (property as any).agencySlug || "",
       });
     }
   };
