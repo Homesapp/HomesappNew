@@ -401,6 +401,7 @@ const translations: Record<Language, Record<string, string>> = {
     "property.scheduleButton": "Agendar",
     "property.petFriendly": "Acepta Mascotas",
     "property.listedBy": "Listado por",
+    "property.hoaIncluded": "Mant. condominal incluido",
     
     // Property Display
     "property.bedrooms": "hab",
@@ -1412,6 +1413,7 @@ const translations: Record<Language, Record<string, string>> = {
     "property.scheduleButton": "Schedule",
     "property.petFriendly": "Pet Friendly",
     "property.listedBy": "Listed by",
+    "property.hoaIncluded": "HOA included",
     
     // Property Display
     "property.bedrooms": "bed",

@@ -228,21 +228,21 @@ export function PropertyCard({
         {(includedServices?.hoaMaintenance || includedServices?.basicServices?.water?.included || includedServices?.basicServices?.electricity?.included || includedServices?.basicServices?.internet?.included) && (
           <div className="flex flex-wrap gap-2 pt-2 border-t">
             {includedServices?.hoaMaintenance && (
-              <div className="flex items-center gap-1 text-xs text-muted-foreground" data-testid="service-hoa">
-                <CheckCircle className="h-3 w-3 text-green-500" />
-                <span>{t("property.hoaIncluded") || "Mant. incluido"}</span>
-              </div>
+              <Badge variant="default" className="text-xs bg-green-600 hover:bg-green-700" data-testid="service-hoa">
+                <CheckCircle className="h-3 w-3 mr-1" />
+                {t("property.hoaIncluded")}
+              </Badge>
             )}
             {includedServices?.basicServices?.water?.included && (
               <div className="flex items-center gap-1 text-xs text-muted-foreground" data-testid="service-water">
                 <Droplet className="h-3 w-3 text-blue-500" />
-                <span>Agua</span>
+                <span>{t("property.serviceWater") || "Agua"}</span>
               </div>
             )}
             {includedServices?.basicServices?.electricity?.included && (
               <div className="flex items-center gap-1 text-xs text-muted-foreground" data-testid="service-electricity">
                 <Zap className="h-3 w-3 text-yellow-500" />
-                <span>Luz</span>
+                <span>{t("property.serviceElectricity") || "Luz"}</span>
               </div>
             )}
             {includedServices?.basicServices?.internet?.included && (
