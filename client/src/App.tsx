@@ -117,6 +117,7 @@ import SellerCommissions from "@/pages/SellerCommissions";
 import SellerReports from "@/pages/SellerReports";
 import SellerPropertyCatalog from "@/pages/SellerPropertyCatalog";
 import SellerMessageTemplates from "@/pages/SellerMessageTemplates";
+import SellerSocialMedia from "@/pages/SellerSocialMedia";
 import SellerGoals from "@/pages/SellerGoals";
 import SellerCalendar from "@/pages/SellerCalendar";
 import SellerAppointmentManagement from "@/pages/SellerAppointmentManagement";
@@ -503,6 +504,7 @@ function AuthenticatedApp() {
               <Route path="/external/seller-goals" component={SellerGoals} />
               <Route path="/external/seller-catalog" component={SellerPropertyCatalog} />
               <Route path="/external/seller-templates" component={SellerMessageTemplates} />
+              <Route path="/external/seller-social-media" component={SellerSocialMedia} />
               <Route path="/external/seller-calendar" component={SellerCalendar} />
               <Route path="/external/seller-help" component={Help} />
               <Route path="/admin/predictive-analytics" component={AdminPredictiveAnalytics} />

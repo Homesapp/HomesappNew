@@ -17,8 +17,8 @@ import { eq, and, or, desc, asc, gte, lte, isNull } from "drizzle-orm";
 import { z } from "zod";
 import { openAIService } from "./services/openai";
 
-const EXTERNAL_ADMIN_ROLES = ['external_agency_owner', 'external_agency_admin', 'external_agency_manager'];
-const SELLER_ROLES = ['external_agency_seller', ...EXTERNAL_ADMIN_ROLES];
+const EXTERNAL_ADMIN_ROLES = ['master', 'admin', 'external_agency_admin'];
+const SELLER_ROLES = ['external_agency_seller', 'external_agency_staff', ...EXTERNAL_ADMIN_ROLES];
 
 // Helper to get user's agency ID
 async function getUserAgencyId(req: any): Promise<string | null> {
@@ -81,10 +81,19 @@ export function registerSocialMediaRoutes(app: Express) {
       const agencyId = await getUserAgencyId(req);
       if (!agencyId) return res.status(403).json({ message: "No agency access" });
       
+      const { title, platform, category, content, hashtags, isShared } = req.body;
+      
       const parsed = insertSellerSocialMediaTemplateSchema.parse({
-        ...req.body,
+        title,
+        platform,
+        category: category || "general",
+        content,
+        hashtags: hashtags || null,
         agencyId,
-        sellerId: req.body.isShared ? null : req.user.id,
+        sellerId: isShared ? null : req.user.id,
+        isAiGenerated: req.body.isAiGenerated || false,
+        isDefault: false,
+        isActive: true,
       });
       
       const [template] = await db
@@ -487,11 +496,17 @@ Generate ONLY the post content, no additional explanation.`;
       const agencyId = await getUserAgencyId(req);
       if (!agencyId) return res.status(403).json({ message: "No agency access" });
       
+      const { title, platform, notes, scheduledAt, unitId } = req.body;
+      
       const parsed = insertSellerSocialMediaReminderSchema.parse({
-        ...req.body,
+        title,
+        platform,
+        notes: notes || null,
         agencyId,
         sellerId: req.user.id,
-        scheduledAt: new Date(req.body.scheduledAt),
+        unitId: unitId || null,
+        scheduledAt: new Date(scheduledAt),
+        isCompleted: false,
       });
       
       const [reminder] = await db

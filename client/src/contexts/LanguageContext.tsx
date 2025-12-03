@@ -755,6 +755,7 @@ const translations: Record<Language, Record<string, string>> = {
     "sidebar.sellerCalendar": "Mi Calendario",
     "sidebar.sellerCatalog": "Catálogo",
     "sidebar.sellerTemplates": "Plantillas",
+    "sidebar.sellerSocialMedia": "Redes Sociales",
     "sidebar.sellerHelp": "Ayuda",
     "sidebar.configuration": "Configuración",
     
@@ -2123,6 +2124,7 @@ const translations: Record<Language, Record<string, string>> = {
     "sidebar.sellerCalendar": "My Calendar",
     "sidebar.sellerCatalog": "Catalog",
     "sidebar.sellerTemplates": "Templates",
+    "sidebar.sellerSocialMedia": "Social Media",
     "sidebar.sellerHelp": "Help",
     "sidebar.configuration": "Configuration",
     
