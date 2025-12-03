@@ -11,6 +11,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { SearchableSelect } from "@/components/ui/searchable-select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { useToast } from "@/hooks/use-toast";
@@ -680,7 +681,7 @@ export default function SellerSocialMedia() {
       condominiumId: propertySourceType === "condo" && selectedCondominiumId ? selectedCondominiumId : undefined,
       search: propertySearchQuery,
     }],
-    enabled: propertySourceType !== "manual" && (propertySourceType === "house" || propertySourceType === "condo"),
+    enabled: propertySourceType === "house" || (propertySourceType === "condo" && !!selectedCondominiumId),
   });
   
   // Photo properties query (separate from AI generator properties)
@@ -689,7 +690,7 @@ export default function SellerSocialMedia() {
       type: photoSourceType === "condo" ? "condo" : "house",
       condominiumId: photoSourceType === "condo" && photoCondominiumId ? photoCondominiumId : undefined,
     }],
-    enabled: photoSourceType === "house" || photoSourceType === "condo",
+    enabled: photoSourceType === "house" || (photoSourceType === "condo" && !!photoCondominiumId),
   });
   
   // Query for property media/photos
@@ -1479,20 +1480,23 @@ export default function SellerSocialMedia() {
                     </Button>
                   </div>
                   
-                  {/* Condo Selection */}
+                  {/* Condo Selection - with search */}
                   {propertySourceType === "condo" && (
-                    <Select value={selectedCondominiumId} onValueChange={setSelectedCondominiumId}>
-                      <SelectTrigger data-testid="select-condominium">
-                        <SelectValue placeholder={lang === "es" ? "Seleccionar condominio..." : "Select condominium..."} />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {condominiums?.map(condo => (
-                          <SelectItem key={condo.id} value={condo.id}>
-                            {condo.name} {condo.zone && `- ${condo.zone}`}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
+                    <SearchableSelect
+                      value={selectedCondominiumId}
+                      onValueChange={(value) => {
+                        setSelectedCondominiumId(value);
+                        setSelectedPropertyId("");
+                      }}
+                      options={(condominiums || []).map(condo => ({
+                        value: condo.id,
+                        label: condo.name + (condo.zone ? ` - ${condo.zone}` : ""),
+                      }))}
+                      placeholder={lang === "es" ? "Seleccionar condominio..." : "Select condominium..."}
+                      searchPlaceholder={lang === "es" ? "Buscar condominio..." : "Search condominium..."}
+                      emptyMessage={lang === "es" ? "No se encontraron condominios" : "No condominiums found"}
+                      data-testid="select-condominium"
+                    />
                   )}
                   
                   {/* Property Selection */}
@@ -1768,20 +1772,23 @@ export default function SellerSocialMedia() {
                         </Button>
                       </div>
                       
-                      {/* Condo Selection */}
+                      {/* Condo Selection - with search */}
                       {propertySourceType === "condo" && (
-                        <Select value={selectedCondominiumId} onValueChange={setSelectedCondominiumId}>
-                          <SelectTrigger data-testid="select-ai-condominium">
-                            <SelectValue placeholder={lang === "es" ? "Seleccionar condominio..." : "Select condominium..."} />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {condominiums?.map(condo => (
-                              <SelectItem key={condo.id} value={condo.id}>
-                                {condo.name} {condo.zone && `- ${condo.zone}`}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
+                        <SearchableSelect
+                          value={selectedCondominiumId}
+                          onValueChange={(value) => {
+                            setSelectedCondominiumId(value);
+                            setSelectedPropertyId("");
+                          }}
+                          options={(condominiums || []).map(condo => ({
+                            value: condo.id,
+                            label: condo.name + (condo.zone ? ` - ${condo.zone}` : ""),
+                          }))}
+                          placeholder={lang === "es" ? "Seleccionar condominio..." : "Select condominium..."}
+                          searchPlaceholder={lang === "es" ? "Buscar condominio..." : "Search condominium..."}
+                          emptyMessage={lang === "es" ? "No se encontraron condominios" : "No condominiums found"}
+                          data-testid="select-ai-condominium"
+                        />
                       )}
                       
                       {/* Property Selection */}
@@ -2249,27 +2256,27 @@ export default function SellerSocialMedia() {
                 </div>
               </div>
               
-              {/* Condominium Selection (only for condo mode) */}
+              {/* Condominium Selection (only for condo mode) - with search */}
               {photoSourceType === "condo" && (
                 <div>
                   <Label className="text-sm font-medium mb-2 block">
                     {lang === "es" ? "Condominio" : "Condominium"}
                   </Label>
-                  <Select value={photoCondominiumId} onValueChange={(val) => {
-                    setPhotoCondominiumId(val);
-                    setPhotoPropertyId("");
-                  }}>
-                    <SelectTrigger data-testid="select-photo-condominium">
-                      <SelectValue placeholder={lang === "es" ? "Seleccionar condominio..." : "Select condominium..."} />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {condominiums?.map(condo => (
-                        <SelectItem key={condo.id} value={condo.id}>
-                          {condo.name} {condo.zone && `- ${condo.zone}`}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                  <SearchableSelect
+                    value={photoCondominiumId}
+                    onValueChange={(value) => {
+                      setPhotoCondominiumId(value);
+                      setPhotoPropertyId("");
+                    }}
+                    options={(condominiums || []).map(condo => ({
+                      value: condo.id,
+                      label: condo.name + (condo.zone ? ` - ${condo.zone}` : ""),
+                    }))}
+                    placeholder={lang === "es" ? "Seleccionar condominio..." : "Select condominium..."}
+                    searchPlaceholder={lang === "es" ? "Buscar condominio..." : "Search condominium..."}
+                    emptyMessage={lang === "es" ? "No se encontraron condominios" : "No condominiums found"}
+                    data-testid="select-photo-condominium"
+                  />
                 </div>
               )}
               
