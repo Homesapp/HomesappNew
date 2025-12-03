@@ -93,6 +93,12 @@ export default function LeadRegistrationBroker() {
   const [propertyInterests, setPropertyInterests] = useState<PropertyInterest[]>([]);
   const [unitTypeOpen, setUnitTypeOpen] = useState(false);
   const [neighborhoodOpen, setNeighborhoodOpen] = useState(false);
+  
+  // Extract seller name from URL parameter for personalized links
+  // Links format: /leads/broker?seller=NombreVendedor
+  const urlParams = new URLSearchParams(window.location.search);
+  const sellerFromUrl = urlParams.get("seller") || "";
+  const isPersonalizedLink = !!sellerFromUrl;
 
   // Fetch agency info for logo
   const { data: agencyData } = useQuery<{ id: string; name: string; logoUrl: string }>({
@@ -148,7 +154,7 @@ export default function LeadRegistrationBroker() {
       desiredNeighborhoods: [],
       interestedCondominiumId: "",
       interestedUnitIds: [],
-      sellerName: "",
+      sellerName: sellerFromUrl, // Pre-fill from URL parameter if available
       source: "",
       notes: "",
     },
@@ -342,6 +348,23 @@ export default function LeadRegistrationBroker() {
           </CardDescription>
         </CardHeader>
         <CardContent>
+          {/* Personalized Link Banner */}
+          {isPersonalizedLink && (
+            <div className="mb-6 p-4 bg-primary/10 border border-primary/20 rounded-lg">
+              <div className="flex items-center gap-3">
+                <div className="p-2 rounded-full bg-primary/20">
+                  <User className="h-5 w-5 text-primary" />
+                </div>
+                <div>
+                  <p className="font-semibold text-primary">Link de {sellerFromUrl}</p>
+                  <p className="text-sm text-muted-foreground">
+                    Los leads registrados aquí serán asignados a {sellerFromUrl} con derecho al 10% de comisión
+                  </p>
+                </div>
+              </div>
+            </div>
+          )}
+          
           {/* Progress Indicator */}
           <div className="mb-8">
             <div className="flex justify-between mb-2">
@@ -827,12 +850,23 @@ export default function LeadRegistrationBroker() {
                       name="sellerName"
                       render={({ field }) => (
                         <FormItem>
-                          <FormLabel>Tu Nombre (Broker) *</FormLabel>
+                          <FormLabel>
+                            {isPersonalizedLink ? "Vendedor Asignado" : "Tu Nombre (Broker)"} *
+                          </FormLabel>
                           <FormControl>
-                            <Input {...field} placeholder="Tu nombre completo" data-testid="input-seller-name" />
+                            <Input 
+                              {...field} 
+                              placeholder="Tu nombre completo" 
+                              data-testid="input-seller-name"
+                              readOnly={isPersonalizedLink}
+                              className={isPersonalizedLink ? "bg-muted cursor-not-allowed" : ""}
+                            />
                           </FormControl>
                           <FormDescription>
-                            Escribe tu nombre completo para identificar quién registró este lead.
+                            {isPersonalizedLink 
+                              ? `Este lead será asignado a ${sellerFromUrl}. Si el cliente renta, ${sellerFromUrl} recibirá el 10% de comisión.`
+                              : "Escribe tu nombre completo para identificar quién registró este lead."
+                            }
                           </FormDescription>
                           <FormMessage />
                         </FormItem>
