@@ -578,8 +578,7 @@ export default function SellerPropertyCatalog() {
   });
 
   const displayUnits = useMemo(() => {
-    if (mappedUnits.length > 0) return mappedUnits;
-    return SAMPLE_UNITS;
+    return mappedUnits;
   }, [mappedUnits]);
 
   const totalUnits = catalogData?.total || 0;
@@ -2033,89 +2032,77 @@ export default function SellerPropertyCatalog() {
                         </div>
                       </div>
 
-                      {/* Property Specs Row - Recámaras, Baños, M2, Pet Friendly */}
-                      <div className="flex items-center flex-wrap gap-x-3 gap-y-1 py-2 text-sm">
-                        <div className="flex items-center gap-1">
-                          <Bed className="h-4 w-4 text-muted-foreground" />
-                          <span className="font-medium">{unit.bedrooms || 0}</span>
-                          <span className="text-muted-foreground text-xs">rec</span>
+                      {/* Property Specs Row with Service Icons */}
+                      <div className="flex items-center justify-between gap-2 py-1 text-sm">
+                        <div className="flex items-center flex-wrap gap-x-2 gap-y-1">
+                          <div className="flex items-center gap-1">
+                            <Bed className="h-4 w-4 text-muted-foreground" />
+                            <span className="font-medium">{unit.bedrooms || 0}</span>
+                            <span className="text-muted-foreground text-xs">rec</span>
+                          </div>
+                          <Separator orientation="vertical" className="h-4" />
+                          <div className="flex items-center gap-1">
+                            <Bath className="h-4 w-4 text-muted-foreground" />
+                            <span className="font-medium">{unit.bathrooms || 0}</span>
+                            <span className="text-muted-foreground text-xs">baños</span>
+                          </div>
+                          {unit.squareMeters && (
+                            <>
+                              <Separator orientation="vertical" className="h-4" />
+                              <div className="flex items-center gap-1">
+                                <Square className="h-4 w-4 text-muted-foreground" />
+                                <span className="font-medium">{unit.squareMeters}</span>
+                                <span className="text-muted-foreground text-xs">m²</span>
+                              </div>
+                            </>
+                          )}
+                          {unit.petsAllowed && (
+                            <>
+                              <Separator orientation="vertical" className="h-4" />
+                              <div className="flex items-center gap-1 text-green-600 dark:text-green-500">
+                                <PawPrint className="h-4 w-4" />
+                              </div>
+                            </>
+                          )}
                         </div>
-                        <Separator orientation="vertical" className="h-4" />
-                        <div className="flex items-center gap-1">
-                          <Bath className="h-4 w-4 text-muted-foreground" />
-                          <span className="font-medium">{unit.bathrooms || 0}</span>
-                          <span className="text-muted-foreground text-xs">baños</span>
-                        </div>
-                        {unit.squareMeters && (
-                          <>
-                            <Separator orientation="vertical" className="h-4" />
-                            <div className="flex items-center gap-1">
-                              <Square className="h-4 w-4 text-muted-foreground" />
-                              <span className="font-medium">{unit.squareMeters}</span>
-                              <span className="text-muted-foreground text-xs">m²</span>
-                            </div>
-                          </>
-                        )}
-                        {unit.petsAllowed && (
-                          <>
-                            <Separator orientation="vertical" className="h-4" />
-                            <div className="flex items-center gap-1 text-green-600 dark:text-green-500">
-                              <PawPrint className="h-4 w-4" />
-                            </div>
-                          </>
-                        )}
-                      </div>
-
-                      {/* Service Icons Row */}
-                      <div className="flex items-center gap-3 py-1">
+                        
+                        {/* Service Icons - 2x2 grid on right */}
                         {(() => {
                           const waterStatus = getServiceStatus(unit, 'water');
                           const internetStatus = getServiceStatus(unit, 'internet');
                           const hoaIncluded = Boolean(unit.condominiumId || unit.condominiumName);
                           
                           return (
-                            <>
+                            <div className="grid grid-cols-2 gap-x-2 gap-y-0.5 flex-shrink-0">
                               <div 
-                                className={`flex items-center gap-1 ${waterStatus ? 'text-green-600' : 'text-muted-foreground/50'}`}
+                                className={`flex items-center gap-0.5 ${waterStatus ? 'text-green-600' : 'text-muted-foreground/40'}`}
                                 title={waterStatus ? 'Agua incluida' : 'Agua no incluida'}
                               >
-                                <Droplets className="h-4 w-4" />
-                                {waterStatus ? (
-                                  <Check className="h-3 w-3" />
-                                ) : (
-                                  <X className="h-3 w-3" />
-                                )}
+                                <Droplets className="h-3 w-3" />
+                                {waterStatus ? <Check className="h-2.5 w-2.5" /> : <X className="h-2.5 w-2.5" />}
                               </div>
                               <div 
-                                className={`flex items-center gap-1 ${internetStatus ? 'text-green-600' : 'text-muted-foreground/50'}`}
+                                className={`flex items-center gap-0.5 ${internetStatus ? 'text-green-600' : 'text-muted-foreground/40'}`}
                                 title={internetStatus ? 'Internet incluido' : 'Internet no incluido'}
                               >
-                                <Wifi className="h-4 w-4" />
-                                {internetStatus ? (
-                                  <Check className="h-3 w-3" />
-                                ) : (
-                                  <X className="h-3 w-3" />
-                                )}
+                                <Wifi className="h-3 w-3" />
+                                {internetStatus ? <Check className="h-2.5 w-2.5" /> : <X className="h-2.5 w-2.5" />}
                               </div>
                               <div 
-                                className="flex items-center gap-1 text-muted-foreground/50"
+                                className="flex items-center gap-0.5 text-muted-foreground/40"
                                 title="Luz no incluida"
                               >
-                                <Zap className="h-4 w-4" />
-                                <X className="h-3 w-3" />
+                                <Zap className="h-3 w-3" />
+                                <X className="h-2.5 w-2.5" />
                               </div>
                               <div 
-                                className={`flex items-center gap-1 ${hoaIncluded ? 'text-green-600' : 'text-muted-foreground/50'}`}
+                                className={`flex items-center gap-0.5 ${hoaIncluded ? 'text-green-600' : 'text-muted-foreground/40'}`}
                                 title={hoaIncluded ? 'Mantenimiento HOA incluido' : 'Sin HOA'}
                               >
-                                <Building className="h-4 w-4" />
-                                {hoaIncluded ? (
-                                  <Check className="h-3 w-3" />
-                                ) : (
-                                  <X className="h-3 w-3" />
-                                )}
+                                <Building className="h-3 w-3" />
+                                {hoaIncluded ? <Check className="h-2.5 w-2.5" /> : <X className="h-2.5 w-2.5" />}
                               </div>
-                            </>
+                            </div>
                           );
                         })()}
                       </div>
