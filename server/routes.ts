@@ -271,9 +271,14 @@ import {
   insertExternalAgencyRewardRedemptionSchema,
   featuredProperties,
   insertFeaturedPropertySchema,
+  sellerSocialMediaTemplates,
+  sellerSocialMediaReminders,
+  insertSellerSocialMediaTemplateSchema,
+  insertSellerSocialMediaReminderSchema,
 } from "@shared/schema";
 import { db } from "./db";
 import { registerPortalRoutes } from "./portal-routes";
+import { registerSocialMediaRoutes } from "./routes-social-media";
 import { logSellerActivity } from "./activityService";
 import { eq, and, or, not, inArray, desc, asc, sql, ne, isNull, isNotNull, gte, lte, lt, ilike } from "drizzle-orm";
 
@@ -41637,6 +41642,10 @@ const generateSlug = (str: string) => str.toLowerCase().normalize("NFD").replace
       handleGenericError(res, error);
     }
   });
+
+  // Register portal routes for tenant/owner portals
+  // Register social media routes for sellers
+  registerSocialMediaRoutes(app);
 
   // Register portal routes for tenant/owner portals
   registerPortalRoutes(
