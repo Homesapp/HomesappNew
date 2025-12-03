@@ -16,6 +16,7 @@ import {
   externalCondominiums,
   externalAiCreditEvents,
   externalSocialLinkClicks,
+  externalSellerProfiles,
 } from "@shared/schema";
 import { eq, and, or, desc, asc, gte, lte, isNull, ilike, sql } from "drizzle-orm";
 import crypto from "crypto";
@@ -71,47 +72,60 @@ export function registerSocialMediaRoutes(app: Express) {
   // ============================================
   
   // GET /api/external-seller/agency-config - Get agency config for seller (AI credits status, etc.)
+  // Now returns seller-specific credits, not agency-level credits
   app.get("/api/external-seller/agency-config", isAuthenticated, requireRole(SELLER_ROLES), async (req: any, res) => {
     try {
       const agencyId = await getUserAgencyId(req);
       if (!agencyId) return res.status(403).json({ message: "No agency access" });
       
-      const [agency] = await db
-        .select({ 
-          aiCreditsEnabled: externalAgencies.aiCreditsEnabled,
-          aiCreditBalance: externalAgencies.aiCreditBalance,
-          aiCreditsMonthlyReset: externalAgencies.aiCreditsMonthlyReset,
-        })
-        .from(externalAgencies)
-        .where(eq(externalAgencies.id, agencyId));
+      const userId = req.user?.claims?.sub || req.user?.id;
+      if (!userId) return res.status(401).json({ message: "User not found" });
       
-      if (!agency) {
-        return res.status(404).json({ message: "Agency not found" });
-      }
-      
-      // Get current month usage
-      const startOfMonth = new Date();
-      startOfMonth.setDate(1);
-      startOfMonth.setHours(0, 0, 0, 0);
-      
-      const usageResult = await db
+      // Get seller profile with AI credits
+      const [sellerProfile] = await db
         .select({
-          totalUsed: sql<number>`COALESCE(SUM(ABS(credits)), 0)`,
+          aiCreditBalance: externalSellerProfiles.aiCreditBalance,
+          aiCreditUsed: externalSellerProfiles.aiCreditUsed,
+          aiCreditTotalAssigned: externalSellerProfiles.aiCreditTotalAssigned,
         })
-        .from(externalAiCreditEvents)
+        .from(externalSellerProfiles)
         .where(and(
-          eq(externalAiCreditEvents.agencyId, agencyId),
-          eq(externalAiCreditEvents.eventType, 'usage'),
-          gte(externalAiCreditEvents.createdAt, startOfMonth)
+          eq(externalSellerProfiles.agencyId, agencyId),
+          eq(externalSellerProfiles.userId, userId)
         ));
       
-      const monthlyUsed = Number(usageResult[0]?.totalUsed || 0);
+      // If no profile exists, create one with default credits
+      if (!sellerProfile) {
+        const [newProfile] = await db
+          .insert(externalSellerProfiles)
+          .values({
+            agencyId,
+            userId,
+            aiCreditBalance: 10,
+            aiCreditTotalAssigned: 10,
+            aiCreditUsed: 0,
+          })
+          .returning({
+            aiCreditBalance: externalSellerProfiles.aiCreditBalance,
+            aiCreditUsed: externalSellerProfiles.aiCreditUsed,
+            aiCreditTotalAssigned: externalSellerProfiles.aiCreditTotalAssigned,
+          });
+        
+        return res.json({
+          aiCreditsEnabled: true,
+          aiCreditBalance: newProfile?.aiCreditBalance || 10,
+          aiCreditUsed: newProfile?.aiCreditUsed || 0,
+          aiCreditTotalAssigned: newProfile?.aiCreditTotalAssigned || 10,
+          monthlyUsed: 0,
+        });
+      }
       
       res.json({
-        aiCreditsEnabled: agency.aiCreditsEnabled ?? true,
-        aiCreditBalance: agency.aiCreditBalance,
-        aiCreditsMonthlyReset: agency.aiCreditsMonthlyReset ?? false,
-        monthlyUsed,
+        aiCreditsEnabled: true,
+        aiCreditBalance: sellerProfile.aiCreditBalance || 0,
+        aiCreditUsed: sellerProfile.aiCreditUsed || 0,
+        aiCreditTotalAssigned: sellerProfile.aiCreditTotalAssigned || 10,
+        monthlyUsed: sellerProfile.aiCreditUsed || 0,
       });
     } catch (error: any) {
       console.error("Error fetching agency config:", error);
@@ -123,55 +137,44 @@ export function registerSocialMediaRoutes(app: Express) {
   // AI CREDITS MANAGEMENT
   // ============================================
   
-  // GET /api/external-seller/ai-credits/summary - Get AI credits summary for seller
+  // GET /api/external-seller/ai-credits/summary - Get AI credits summary for seller (per-seller credits)
   app.get("/api/external-seller/ai-credits/summary", isAuthenticated, requireRole(SELLER_ROLES), async (req: any, res) => {
     try {
       const agencyId = await getUserAgencyId(req);
       if (!agencyId) return res.status(403).json({ message: "No agency access" });
       
-      const [agency] = await db
+      const userId = req.user?.claims?.sub || req.user?.id;
+      if (!userId) return res.status(401).json({ message: "User not found" });
+      
+      // Get seller profile with credits
+      const [sellerProfile] = await db
         .select({
-          aiCreditsEnabled: externalAgencies.aiCreditsEnabled,
-          aiCreditBalance: externalAgencies.aiCreditBalance,
-          aiCreditsMonthlyReset: externalAgencies.aiCreditsMonthlyReset,
+          aiCreditBalance: externalSellerProfiles.aiCreditBalance,
+          aiCreditUsed: externalSellerProfiles.aiCreditUsed,
+          aiCreditTotalAssigned: externalSellerProfiles.aiCreditTotalAssigned,
         })
-        .from(externalAgencies)
-        .where(eq(externalAgencies.id, agencyId));
-      
-      if (!agency) {
-        return res.status(404).json({ message: "Agency not found" });
-      }
-      
-      // Get current month stats
-      const startOfMonth = new Date();
-      startOfMonth.setDate(1);
-      startOfMonth.setHours(0, 0, 0, 0);
-      
-      const usageStats = await db
-        .select({
-          totalUsed: sql<number>`COALESCE(SUM(CASE WHEN event_type = 'usage' THEN ABS(credits) ELSE 0 END), 0)`,
-          totalGenerated: sql<number>`COUNT(CASE WHEN event_type = 'usage' THEN 1 END)`,
-        })
-        .from(externalAiCreditEvents)
+        .from(externalSellerProfiles)
         .where(and(
-          eq(externalAiCreditEvents.agencyId, agencyId),
-          gte(externalAiCreditEvents.createdAt, startOfMonth)
+          eq(externalSellerProfiles.agencyId, agencyId),
+          eq(externalSellerProfiles.userId, userId)
         ));
       
-      // Get recent transactions
+      // Get recent transactions for this seller
       const recentTransactions = await db
         .select()
         .from(externalAiCreditEvents)
-        .where(eq(externalAiCreditEvents.agencyId, agencyId))
+        .where(and(
+          eq(externalAiCreditEvents.agencyId, agencyId),
+          eq(externalAiCreditEvents.sellerId, userId)
+        ))
         .orderBy(desc(externalAiCreditEvents.createdAt))
         .limit(10);
       
       res.json({
-        enabled: agency.aiCreditsEnabled ?? true,
-        balance: agency.aiCreditBalance,
-        monthlyReset: agency.aiCreditsMonthlyReset ?? false,
-        monthlyUsed: Number(usageStats[0]?.totalUsed || 0),
-        monthlyGenerations: Number(usageStats[0]?.totalGenerated || 0),
+        enabled: true,
+        balance: sellerProfile?.aiCreditBalance || 0,
+        used: sellerProfile?.aiCreditUsed || 0,
+        totalAssigned: sellerProfile?.aiCreditTotalAssigned || 10,
         recentTransactions,
       });
     } catch (error: any) {
@@ -759,32 +762,52 @@ export function registerSocialMediaRoutes(app: Express) {
   // AI GENERATION
   // ============================================
   
-  // POST /api/external-seller/social-templates/generate - Generate template with AI
+  // POST /api/external-seller/social-templates/generate - Generate template with AI (uses seller credits)
   app.post("/api/external-seller/social-templates/generate", isAuthenticated, requireRole(SELLER_ROLES), async (req: any, res) => {
     try {
       const agencyId = await getUserAgencyId(req);
       if (!agencyId) return res.status(403).json({ message: "No agency access" });
       
-      // Check if AI credits are enabled for this agency
-      const [agency] = await db
-        .select({ 
-          aiCreditsEnabled: externalAgencies.aiCreditsEnabled,
-          aiCreditBalance: externalAgencies.aiCreditBalance,
-        })
-        .from(externalAgencies)
-        .where(eq(externalAgencies.id, agencyId));
+      const userId = req.user?.claims?.sub || req.user?.id;
+      if (!userId) return res.status(401).json({ message: "User not found" });
       
-      if (!agency || agency.aiCreditsEnabled === false) {
-        return res.status(403).json({ 
-          message: "AI features are disabled for this agency",
-          code: "AI_CREDITS_DISABLED"
-        });
+      // Get seller profile with credits
+      let [sellerProfile] = await db
+        .select({
+          id: externalSellerProfiles.id,
+          aiCreditBalance: externalSellerProfiles.aiCreditBalance,
+          aiCreditUsed: externalSellerProfiles.aiCreditUsed,
+        })
+        .from(externalSellerProfiles)
+        .where(and(
+          eq(externalSellerProfiles.agencyId, agencyId),
+          eq(externalSellerProfiles.userId, userId)
+        ));
+      
+      // Create profile if doesn't exist
+      if (!sellerProfile) {
+        const [newProfile] = await db
+          .insert(externalSellerProfiles)
+          .values({
+            agencyId,
+            userId,
+            aiCreditBalance: 10,
+            aiCreditTotalAssigned: 10,
+            aiCreditUsed: 0,
+          })
+          .returning();
+        sellerProfile = {
+          id: newProfile.id,
+          aiCreditBalance: newProfile.aiCreditBalance,
+          aiCreditUsed: newProfile.aiCreditUsed,
+        };
       }
       
-      // Check if agency has credits available (null = unlimited)
-      if (agency.aiCreditBalance !== null && agency.aiCreditBalance <= 0) {
+      // Check if seller has credits available
+      if (sellerProfile.aiCreditBalance <= 0) {
         return res.status(403).json({
-          message: "No AI credits available",
+          message: "No tienes créditos de IA disponibles. Puedes usar las plantillas guardadas en la sección Manual.",
+          messageEn: "No AI credits available. You can use saved templates in the Manual section.",
           code: "AI_CREDITS_EXHAUSTED"
         });
       }
@@ -845,25 +868,24 @@ Generate ONLY the post content, no additional explanation.`;
         { role: "user", content: prompt }
       ]);
       
-      // Record AI credit usage
-      const creditCost = 1; // 1 credit per generation
-      const newBalance = agency.aiCreditBalance !== null ? agency.aiCreditBalance - creditCost : null;
+      // Deduct credit from seller profile
+      const creditCost = 1;
+      const newBalance = sellerProfile.aiCreditBalance - creditCost;
+      const newUsed = (sellerProfile.aiCreditUsed || 0) + creditCost;
       
-      // Update agency balance
-      if (agency.aiCreditBalance !== null) {
-        await db
-          .update(externalAgencies)
-          .set({ 
-            aiCreditBalance: newBalance,
-            updatedAt: new Date(),
-          })
-          .where(eq(externalAgencies.id, agencyId));
-      }
+      await db
+        .update(externalSellerProfiles)
+        .set({ 
+          aiCreditBalance: newBalance,
+          aiCreditUsed: newUsed,
+          updatedAt: new Date(),
+        })
+        .where(eq(externalSellerProfiles.id, sellerProfile.id));
       
       // Record the usage event
       await db.insert(externalAiCreditEvents).values({
         agencyId,
-        sellerId: req.user.id,
+        sellerId: userId,
         eventType: 'usage',
         credits: -creditCost,
         balanceAfter: newBalance,
