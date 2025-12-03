@@ -93,6 +93,7 @@ export default function LeadRegistrationBroker() {
   const [propertyInterests, setPropertyInterests] = useState<PropertyInterest[]>([]);
   const [unitTypeOpen, setUnitTypeOpen] = useState(false);
   const [neighborhoodOpen, setNeighborhoodOpen] = useState(false);
+  const [termsAccepted, setTermsAccepted] = useState(false);
   
   // Extract seller name and ID from URL parameters for personalized links
   // Links format: /leads/broker?seller=NombreVendedor&sellerId=userId
@@ -351,22 +352,41 @@ export default function LeadRegistrationBroker() {
           </CardDescription>
         </CardHeader>
         <CardContent>
-          {/* Personalized Link Banner */}
-          {isPersonalizedLink && (
-            <div className="mb-6 p-4 bg-primary/10 border border-primary/20 rounded-lg">
-              <div className="flex items-center gap-3">
-                <div className="p-2 rounded-full bg-primary/20">
-                  <User className="h-5 w-5 text-primary" />
-                </div>
-                <div>
-                  <p className="font-semibold text-primary">Link de {sellerFromUrl}</p>
-                  <p className="text-sm text-muted-foreground">
-                    Los leads registrados aquí serán asignados a {sellerFromUrl} con derecho al 10% de comisión
-                  </p>
-                </div>
+          {/* Broker Terms and Conditions */}
+          <div className="mb-6 p-4 bg-muted/50 border rounded-lg space-y-3">
+            <div className="space-y-2">
+              <p className="font-semibold text-sm">Términos de Comisión para Brokers</p>
+              <div className="text-sm text-muted-foreground space-y-1">
+                <p>Al registrar un lead, acepto los siguientes términos:</p>
+                <ul className="list-disc pl-5 space-y-1">
+                  <li><strong>50% de comisión</strong> si la propiedad rentada no tiene vendedor referido</li>
+                  <li><strong>40% de comisión</strong> si la propiedad rentada tiene un vendedor referido</li>
+                </ul>
+                <p className="text-xs mt-2 text-muted-foreground/80">
+                  El 10% de comisión del vendedor referido es cubierto por la agencia, no se descuenta de tu comisión.
+                </p>
               </div>
             </div>
-          )}
+            <div className="flex items-start gap-3 pt-2 border-t">
+              <Checkbox 
+                id="terms-accept" 
+                checked={termsAccepted}
+                onCheckedChange={(checked) => setTermsAccepted(checked === true)}
+                data-testid="checkbox-terms"
+              />
+              <label 
+                htmlFor="terms-accept" 
+                className="text-sm cursor-pointer leading-tight"
+              >
+                Acepto los términos de comisión y entiendo que mi pago dependerá de si la propiedad tiene referido.
+              </label>
+            </div>
+            {isPersonalizedLink && (
+              <div className="text-xs text-primary font-medium pt-1">
+                Link de referido: {sellerFromUrl}
+              </div>
+            )}
+          </div>
           
           {/* Progress Indicator */}
           <div className="mb-8">
@@ -867,7 +887,7 @@ export default function LeadRegistrationBroker() {
                           </FormControl>
                           <FormDescription>
                             {isPersonalizedLink 
-                              ? `Este lead será asignado a ${sellerFromUrl}. Si el cliente renta, ${sellerFromUrl} recibirá el 10% de comisión.`
+                              ? `Este lead será asignado a ${sellerFromUrl} como vendedor referido.`
                               : "Escribe tu nombre completo para identificar quién registró este lead."
                             }
                           </FormDescription>
@@ -927,7 +947,7 @@ export default function LeadRegistrationBroker() {
                 ) : (
                   <Button
                     type="submit"
-                    disabled={submitMutation.isPending}
+                    disabled={submitMutation.isPending || !termsAccepted}
                     className="gap-2"
                     data-testid="button-submit"
                   >
@@ -935,6 +955,11 @@ export default function LeadRegistrationBroker() {
                       <>
                         <Loader2 className="h-4 w-4 animate-spin" />
                         Enviando...
+                      </>
+                    ) : !termsAccepted ? (
+                      <>
+                        <CheckCircle2 className="h-4 w-4" />
+                        Acepta los términos
                       </>
                     ) : (
                       <>
