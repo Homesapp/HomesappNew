@@ -26537,12 +26537,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       // Get unit media
-      const media = await storage.getExternalUnitMediaByUnitId(unitId);
+      const media = await storage.getUnitMedia(unitId);
       
-      // Return only images sorted by order
+      // Return only images sorted by order, mapped to frontend format
       const images = media
-        .filter(m => m.type === 'image')
-        .sort((a, b) => (a.order || 0) - (b.order || 0));
+        .filter(m => m.mediaType === 'photo')
+        .sort((a, b) => (a.displayOrder || 0) - (b.displayOrder || 0))
+        .map(m => ({
+          id: m.id,
+          url: m.thumbnailUrl || m.driveWebViewUrl || '',
+          type: 'image',
+          order: m.displayOrder || 0,
+          section: m.aiPrimaryLabel || m.manualLabel || undefined,
+          caption: m.aiDescription || undefined,
+        }));
 
       res.json(images);
     } catch (error: any) {
