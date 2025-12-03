@@ -13,8 +13,12 @@ import {
   insertSellerSocialMediaReminderSchema,
   externalUnits,
   externalAgencies,
+  externalCondominiums,
+  externalAiCreditEvents,
+  externalSocialLinkClicks,
 } from "@shared/schema";
-import { eq, and, or, desc, asc, gte, lte, isNull } from "drizzle-orm";
+import { eq, and, or, desc, asc, gte, lte, isNull, ilike, sql } from "drizzle-orm";
+import crypto from "crypto";
 import { z } from "zod";
 import { openAIService } from "./services/openai";
 
@@ -42,7 +46,11 @@ export function registerSocialMediaRoutes(app: Express) {
       if (!agencyId) return res.status(403).json({ message: "No agency access" });
       
       const [agency] = await db
-        .select({ aiCreditsEnabled: externalAgencies.aiCreditsEnabled })
+        .select({ 
+          aiCreditsEnabled: externalAgencies.aiCreditsEnabled,
+          aiCreditBalance: externalAgencies.aiCreditBalance,
+          aiCreditsMonthlyReset: externalAgencies.aiCreditsMonthlyReset,
+        })
         .from(externalAgencies)
         .where(eq(externalAgencies.id, agencyId));
       
@@ -50,11 +58,357 @@ export function registerSocialMediaRoutes(app: Express) {
         return res.status(404).json({ message: "Agency not found" });
       }
       
+      // Get current month usage
+      const startOfMonth = new Date();
+      startOfMonth.setDate(1);
+      startOfMonth.setHours(0, 0, 0, 0);
+      
+      const usageResult = await db
+        .select({
+          totalUsed: sql<number>`COALESCE(SUM(ABS(credits)), 0)`,
+        })
+        .from(externalAiCreditEvents)
+        .where(and(
+          eq(externalAiCreditEvents.agencyId, agencyId),
+          eq(externalAiCreditEvents.eventType, 'usage'),
+          gte(externalAiCreditEvents.createdAt, startOfMonth)
+        ));
+      
+      const monthlyUsed = Number(usageResult[0]?.totalUsed || 0);
+      
       res.json({
         aiCreditsEnabled: agency.aiCreditsEnabled ?? true,
+        aiCreditBalance: agency.aiCreditBalance,
+        aiCreditsMonthlyReset: agency.aiCreditsMonthlyReset ?? false,
+        monthlyUsed,
       });
     } catch (error: any) {
       console.error("Error fetching agency config:", error);
+      res.status(500).json({ message: error.message });
+    }
+  });
+  
+  // ============================================
+  // AI CREDITS MANAGEMENT
+  // ============================================
+  
+  // GET /api/external-seller/ai-credits/summary - Get AI credits summary for seller
+  app.get("/api/external-seller/ai-credits/summary", isAuthenticated, requireRole(SELLER_ROLES), async (req: any, res) => {
+    try {
+      const agencyId = await getUserAgencyId(req);
+      if (!agencyId) return res.status(403).json({ message: "No agency access" });
+      
+      const [agency] = await db
+        .select({
+          aiCreditsEnabled: externalAgencies.aiCreditsEnabled,
+          aiCreditBalance: externalAgencies.aiCreditBalance,
+          aiCreditsMonthlyReset: externalAgencies.aiCreditsMonthlyReset,
+        })
+        .from(externalAgencies)
+        .where(eq(externalAgencies.id, agencyId));
+      
+      if (!agency) {
+        return res.status(404).json({ message: "Agency not found" });
+      }
+      
+      // Get current month stats
+      const startOfMonth = new Date();
+      startOfMonth.setDate(1);
+      startOfMonth.setHours(0, 0, 0, 0);
+      
+      const usageStats = await db
+        .select({
+          totalUsed: sql<number>`COALESCE(SUM(CASE WHEN event_type = 'usage' THEN ABS(credits) ELSE 0 END), 0)`,
+          totalGenerated: sql<number>`COUNT(CASE WHEN event_type = 'usage' THEN 1 END)`,
+        })
+        .from(externalAiCreditEvents)
+        .where(and(
+          eq(externalAiCreditEvents.agencyId, agencyId),
+          gte(externalAiCreditEvents.createdAt, startOfMonth)
+        ));
+      
+      // Get recent transactions
+      const recentTransactions = await db
+        .select()
+        .from(externalAiCreditEvents)
+        .where(eq(externalAiCreditEvents.agencyId, agencyId))
+        .orderBy(desc(externalAiCreditEvents.createdAt))
+        .limit(10);
+      
+      res.json({
+        enabled: agency.aiCreditsEnabled ?? true,
+        balance: agency.aiCreditBalance,
+        monthlyReset: agency.aiCreditsMonthlyReset ?? false,
+        monthlyUsed: Number(usageStats[0]?.totalUsed || 0),
+        monthlyGenerations: Number(usageStats[0]?.totalGenerated || 0),
+        recentTransactions,
+      });
+    } catch (error: any) {
+      console.error("Error fetching AI credits summary:", error);
+      res.status(500).json({ message: error.message });
+    }
+  });
+  
+  // ============================================
+  // PROPERTY CATALOG FOR AI GENERATOR
+  // ============================================
+  
+  // GET /api/external-seller/properties - Get properties for AI generator auto-fill
+  app.get("/api/external-seller/properties", isAuthenticated, requireRole(SELLER_ROLES), async (req: any, res) => {
+    try {
+      const agencyId = await getUserAgencyId(req);
+      if (!agencyId) return res.status(403).json({ message: "No agency access" });
+      
+      const { type, condominiumId, search, listingType } = req.query;
+      
+      // Base conditions
+      const conditions = [
+        eq(externalUnits.agencyId, agencyId),
+        eq(externalUnits.isActive, true),
+      ];
+      
+      // Filter by property type (condo or independent house)
+      if (type === 'house') {
+        conditions.push(isNull(externalUnits.condominiumId));
+      } else if (type === 'condo' && condominiumId) {
+        conditions.push(eq(externalUnits.condominiumId, condominiumId as string));
+      }
+      
+      // Filter by listing type
+      if (listingType && listingType !== 'all') {
+        conditions.push(
+          or(
+            eq(externalUnits.listingType, listingType as string),
+            eq(externalUnits.listingType, 'both')
+          )!
+        );
+      }
+      
+      // Get units with condominium info
+      const units = await db
+        .select({
+          id: externalUnits.id,
+          unitNumber: externalUnits.unitNumber,
+          title: externalUnits.title,
+          description: externalUnits.description,
+          propertyType: externalUnits.propertyType,
+          zone: externalUnits.zone,
+          city: externalUnits.city,
+          address: sql<string>`COALESCE(${externalUnits.address}, ${externalCondominiums.address})`,
+          bedrooms: externalUnits.bedrooms,
+          bathrooms: externalUnits.bathrooms,
+          area: externalUnits.area,
+          price: externalUnits.price,
+          salePrice: externalUnits.salePrice,
+          currency: externalUnits.currency,
+          listingType: externalUnits.listingType,
+          amenities: externalUnits.amenities,
+          petFriendly: externalUnits.petFriendly,
+          includedServices: externalUnits.includedServices,
+          condominiumId: externalUnits.condominiumId,
+          condominiumName: externalCondominiums.name,
+          slug: externalUnits.slug,
+          latitude: externalUnits.latitude,
+          longitude: externalUnits.longitude,
+        })
+        .from(externalUnits)
+        .leftJoin(externalCondominiums, eq(externalUnits.condominiumId, externalCondominiums.id))
+        .where(and(...conditions))
+        .orderBy(desc(externalUnits.updatedAt))
+        .limit(100);
+      
+      // Filter by search term in JS
+      let filtered = units;
+      if (search && typeof search === 'string') {
+        const searchLower = search.toLowerCase();
+        filtered = units.filter(u => 
+          u.unitNumber.toLowerCase().includes(searchLower) ||
+          (u.title && u.title.toLowerCase().includes(searchLower)) ||
+          (u.zone && u.zone.toLowerCase().includes(searchLower)) ||
+          (u.condominiumName && u.condominiumName.toLowerCase().includes(searchLower))
+        );
+      }
+      
+      res.json(filtered);
+    } catch (error: any) {
+      console.error("Error fetching properties:", error);
+      res.status(500).json({ message: error.message });
+    }
+  });
+  
+  // GET /api/external-seller/condominiums - Get condominiums list for property selector
+  app.get("/api/external-seller/condominiums", isAuthenticated, requireRole(SELLER_ROLES), async (req: any, res) => {
+    try {
+      const agencyId = await getUserAgencyId(req);
+      if (!agencyId) return res.status(403).json({ message: "No agency access" });
+      
+      const condominiums = await db
+        .select({
+          id: externalCondominiums.id,
+          name: externalCondominiums.name,
+          zone: externalCondominiums.zone,
+          address: externalCondominiums.address,
+          propertyCategory: externalCondominiums.propertyCategory,
+        })
+        .from(externalCondominiums)
+        .where(and(
+          eq(externalCondominiums.agencyId, agencyId),
+          eq(externalCondominiums.isActive, true)
+        ))
+        .orderBy(asc(externalCondominiums.name));
+      
+      res.json(condominiums);
+    } catch (error: any) {
+      console.error("Error fetching condominiums:", error);
+      res.status(500).json({ message: error.message });
+    }
+  });
+  
+  // GET /api/external-seller/properties/:id - Get single property details for auto-fill
+  app.get("/api/external-seller/properties/:id", isAuthenticated, requireRole(SELLER_ROLES), async (req: any, res) => {
+    try {
+      const agencyId = await getUserAgencyId(req);
+      if (!agencyId) return res.status(403).json({ message: "No agency access" });
+      
+      const { id } = req.params;
+      
+      const [unit] = await db
+        .select({
+          id: externalUnits.id,
+          unitNumber: externalUnits.unitNumber,
+          title: externalUnits.title,
+          description: externalUnits.description,
+          propertyType: externalUnits.propertyType,
+          zone: externalUnits.zone,
+          city: externalUnits.city,
+          address: sql<string>`COALESCE(${externalUnits.address}, ${externalCondominiums.address})`,
+          bedrooms: externalUnits.bedrooms,
+          bathrooms: externalUnits.bathrooms,
+          area: externalUnits.area,
+          floor: externalUnits.floor,
+          price: externalUnits.price,
+          salePrice: externalUnits.salePrice,
+          currency: externalUnits.currency,
+          listingType: externalUnits.listingType,
+          minimumTerm: externalUnits.minimumTerm,
+          maximumTerm: externalUnits.maximumTerm,
+          amenities: externalUnits.amenities,
+          petFriendly: externalUnits.petFriendly,
+          includedServices: externalUnits.includedServices,
+          condominiumId: externalUnits.condominiumId,
+          condominiumName: externalCondominiums.name,
+          condominiumAddress: externalCondominiums.address,
+          slug: externalUnits.slug,
+          latitude: externalUnits.latitude,
+          longitude: externalUnits.longitude,
+        })
+        .from(externalUnits)
+        .leftJoin(externalCondominiums, eq(externalUnits.condominiumId, externalCondominiums.id))
+        .where(and(
+          eq(externalUnits.id, id),
+          eq(externalUnits.agencyId, agencyId)
+        ));
+      
+      if (!unit) {
+        return res.status(404).json({ message: "Property not found" });
+      }
+      
+      res.json(unit);
+    } catch (error: any) {
+      console.error("Error fetching property:", error);
+      res.status(500).json({ message: error.message });
+    }
+  });
+  
+  // ============================================
+  // SOCIAL LINK TRACKING
+  // ============================================
+  
+  // POST /api/external-seller/tracking-links - Create a tracking link
+  app.post("/api/external-seller/tracking-links", isAuthenticated, requireRole(SELLER_ROLES), async (req: any, res) => {
+    try {
+      const agencyId = await getUserAgencyId(req);
+      if (!agencyId) return res.status(403).json({ message: "No agency access" });
+      
+      const { targetUrl, unitId, platform } = req.body;
+      
+      if (!targetUrl) {
+        return res.status(400).json({ message: "Target URL is required" });
+      }
+      
+      // Generate unique token
+      const token = crypto.randomBytes(8).toString('hex');
+      
+      const [link] = await db
+        .insert(externalSocialLinkClicks)
+        .values({
+          agencyId,
+          sellerId: req.user.id,
+          unitId: unitId || null,
+          token,
+          targetUrl,
+          platform: platform || null,
+          isActive: true,
+        })
+        .returning();
+      
+      // Generate tracking URL
+      const baseUrl = process.env.REPLIT_DEV_DOMAIN 
+        ? `https://${process.env.REPLIT_DEV_DOMAIN}` 
+        : 'http://localhost:5000';
+      const trackingUrl = `${baseUrl}/go/${token}`;
+      
+      res.json({
+        ...link,
+        trackingUrl,
+      });
+    } catch (error: any) {
+      console.error("Error creating tracking link:", error);
+      res.status(500).json({ message: error.message });
+    }
+  });
+  
+  // GET /api/external-seller/tracking-links - Get seller's tracking links
+  app.get("/api/external-seller/tracking-links", isAuthenticated, requireRole(SELLER_ROLES), async (req: any, res) => {
+    try {
+      const agencyId = await getUserAgencyId(req);
+      if (!agencyId) return res.status(403).json({ message: "No agency access" });
+      
+      const links = await db
+        .select({
+          id: externalSocialLinkClicks.id,
+          token: externalSocialLinkClicks.token,
+          targetUrl: externalSocialLinkClicks.targetUrl,
+          platform: externalSocialLinkClicks.platform,
+          clickCount: externalSocialLinkClicks.clickCount,
+          lastClickedAt: externalSocialLinkClicks.lastClickedAt,
+          createdAt: externalSocialLinkClicks.createdAt,
+          unitId: externalSocialLinkClicks.unitId,
+          unitNumber: externalUnits.unitNumber,
+        })
+        .from(externalSocialLinkClicks)
+        .leftJoin(externalUnits, eq(externalSocialLinkClicks.unitId, externalUnits.id))
+        .where(and(
+          eq(externalSocialLinkClicks.agencyId, agencyId),
+          eq(externalSocialLinkClicks.sellerId, req.user.id),
+          eq(externalSocialLinkClicks.isActive, true)
+        ))
+        .orderBy(desc(externalSocialLinkClicks.createdAt))
+        .limit(50);
+      
+      // Add tracking URLs
+      const baseUrl = process.env.REPLIT_DEV_DOMAIN 
+        ? `https://${process.env.REPLIT_DEV_DOMAIN}` 
+        : 'http://localhost:5000';
+      
+      const linksWithUrls = links.map(link => ({
+        ...link,
+        trackingUrl: `${baseUrl}/go/${link.token}`,
+      }));
+      
+      res.json(linksWithUrls);
+    } catch (error: any) {
+      console.error("Error fetching tracking links:", error);
       res.status(500).json({ message: error.message });
     }
   });
@@ -382,7 +736,10 @@ export function registerSocialMediaRoutes(app: Express) {
       
       // Check if AI credits are enabled for this agency
       const [agency] = await db
-        .select({ aiCreditsEnabled: externalAgencies.aiCreditsEnabled })
+        .select({ 
+          aiCreditsEnabled: externalAgencies.aiCreditsEnabled,
+          aiCreditBalance: externalAgencies.aiCreditBalance,
+        })
         .from(externalAgencies)
         .where(eq(externalAgencies.id, agencyId));
       
@@ -390,6 +747,14 @@ export function registerSocialMediaRoutes(app: Express) {
         return res.status(403).json({ 
           message: "AI features are disabled for this agency",
           code: "AI_CREDITS_DISABLED"
+        });
+      }
+      
+      // Check if agency has credits available (null = unlimited)
+      if (agency.aiCreditBalance !== null && agency.aiCreditBalance <= 0) {
+        return res.status(403).json({
+          message: "No AI credits available",
+          code: "AI_CREDITS_EXHAUSTED"
         });
       }
       
@@ -449,6 +814,36 @@ Generate ONLY the post content, no additional explanation.`;
         { role: "user", content: prompt }
       ]);
       
+      // Record AI credit usage
+      const creditCost = 1; // 1 credit per generation
+      const newBalance = agency.aiCreditBalance !== null ? agency.aiCreditBalance - creditCost : null;
+      
+      // Update agency balance
+      if (agency.aiCreditBalance !== null) {
+        await db
+          .update(externalAgencies)
+          .set({ 
+            aiCreditBalance: newBalance,
+            updatedAt: new Date(),
+          })
+          .where(eq(externalAgencies.id, agencyId));
+      }
+      
+      // Record the usage event
+      await db.insert(externalAiCreditEvents).values({
+        agencyId,
+        sellerId: req.user.id,
+        eventType: 'usage',
+        credits: -creditCost,
+        balanceAfter: newBalance,
+        source: 'social_media_generator',
+        metadata: {
+          platform,
+          category: category || 'general',
+          unitId: propertyInfo.unitId || null,
+        },
+      });
+      
       // Extract hashtags if present
       let content = response;
       let hashtags = null;
@@ -466,6 +861,7 @@ Generate ONLY the post content, no additional explanation.`;
         platform,
         category: category || "general",
         isAiGenerated: true,
+        creditsRemaining: newBalance,
       });
     } catch (error: any) {
       console.error("Error generating social media content:", error);
@@ -729,6 +1125,50 @@ Generate ONLY the post content, no additional explanation.`;
     } catch (error: any) {
       console.error("Error fetching upcoming reminders:", error);
       res.status(500).json({ message: error.message });
+    }
+  });
+  
+  // ============================================
+  // PUBLIC LINK TRACKING REDIRECT
+  // ============================================
+  
+  // GET /go/:token - Public redirect endpoint for tracking links
+  app.get("/go/:token", async (req: any, res) => {
+    try {
+      const { token } = req.params;
+      
+      // Find the link
+      const [link] = await db
+        .select()
+        .from(externalSocialLinkClicks)
+        .where(and(
+          eq(externalSocialLinkClicks.token, token),
+          eq(externalSocialLinkClicks.isActive, true)
+        ));
+      
+      if (!link) {
+        return res.status(404).send('Link not found');
+      }
+      
+      // Check expiration
+      if (link.expiresAt && new Date(link.expiresAt) < new Date()) {
+        return res.status(410).send('Link expired');
+      }
+      
+      // Update click count and last clicked
+      await db
+        .update(externalSocialLinkClicks)
+        .set({
+          clickCount: (link.clickCount || 0) + 1,
+          lastClickedAt: new Date(),
+        })
+        .where(eq(externalSocialLinkClicks.id, link.id));
+      
+      // Redirect to target URL
+      res.redirect(link.targetUrl);
+    } catch (error: any) {
+      console.error("Error handling tracking redirect:", error);
+      res.status(500).send('Error processing link');
     }
   });
 }
