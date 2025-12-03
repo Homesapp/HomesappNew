@@ -675,21 +675,34 @@ export default function SellerSocialMedia() {
     queryKey: ["/api/external-seller/condominiums"],
   });
   
+  // Build properties query URL with proper query parameters
+  const propertiesQueryUrl = (() => {
+    const params = new URLSearchParams();
+    const type = propertySourceType === "condo" ? "condo" : propertySourceType === "house" ? "house" : undefined;
+    if (type) params.set("type", type);
+    if (propertySourceType === "condo" && selectedCondominiumId) params.set("condominiumId", selectedCondominiumId);
+    if (propertySearchQuery) params.set("search", propertySearchQuery);
+    const queryString = params.toString();
+    return `/api/external-seller/properties${queryString ? `?${queryString}` : ""}`;
+  })();
+  
   const { data: properties, isLoading: propertiesLoading } = useQuery<PropertyCatalogItem[]>({
-    queryKey: ["/api/external-seller/properties", { 
-      type: propertySourceType === "condo" ? "condo" : propertySourceType === "house" ? "house" : undefined,
-      condominiumId: propertySourceType === "condo" && selectedCondominiumId ? selectedCondominiumId : undefined,
-      search: propertySearchQuery,
-    }],
+    queryKey: [propertiesQueryUrl],
     enabled: propertySourceType === "house" || (propertySourceType === "condo" && !!selectedCondominiumId),
   });
   
+  // Build photo properties query URL with proper query parameters
+  const photoPropertiesQueryUrl = (() => {
+    const params = new URLSearchParams();
+    const type = photoSourceType === "condo" ? "condo" : "house";
+    params.set("type", type);
+    if (photoSourceType === "condo" && photoCondominiumId) params.set("condominiumId", photoCondominiumId);
+    return `/api/external-seller/properties?${params.toString()}`;
+  })();
+  
   // Photo properties query (separate from AI generator properties)
   const { data: photoProperties, isLoading: photoPropertiesLoading } = useQuery<PropertyCatalogItem[]>({
-    queryKey: ["/api/external-seller/properties", { 
-      type: photoSourceType === "condo" ? "condo" : "house",
-      condominiumId: photoSourceType === "condo" && photoCondominiumId ? photoCondominiumId : undefined,
-    }],
+    queryKey: [photoPropertiesQueryUrl],
     enabled: photoSourceType === "house" || (photoSourceType === "condo" && !!photoCondominiumId),
   });
   
