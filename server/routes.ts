@@ -26442,6 +26442,121 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+
+  // GET /api/external-seller/unit-media/:unitId - Get unit media/photos for seller
+  app.get("/api/external-seller/unit-media/:unitId", isAuthenticated, requireRole(['external_agency_seller', ...EXTERNAL_ADMIN_ROLES]), async (req: any, res) => {
+    try {
+      const { unitId } = req.params;
+      const agencyId = await getUserAgencyId(req);
+      if (!agencyId) {
+        return res.status(400).json({ message: "User is not assigned to any agency" });
+      }
+
+      // Verify unit belongs to seller's agency
+      const unit = await storage.getExternalUnit(unitId);
+      if (!unit || unit.agencyId !== agencyId) {
+        return res.status(404).json({ message: "Unit not found" });
+      }
+
+      // Get unit media
+      const media = await storage.getExternalUnitMediaByUnitId(unitId);
+      
+      // Return only images sorted by order
+      const images = media
+        .filter(m => m.type === 'image')
+        .sort((a, b) => (a.order || 0) - (b.order || 0));
+
+      res.json(images);
+    } catch (error: any) {
+      console.error("Error fetching unit media for seller:", error);
+      handleGenericError(res, error);
+    }
+
+  // GET /api/external-seller/properties - Get properties for seller (filtered by agency)
+  app.get("/api/external-seller/properties", isAuthenticated, requireRole(['external_agency_seller', ...EXTERNAL_ADMIN_ROLES]), async (req: any, res) => {
+    try {
+      const agencyId = await getUserAgencyId(req);
+      if (!agencyId) {
+        return res.status(400).json({ message: "User is not assigned to any agency" });
+      }
+
+      const { type, condominiumId, search } = req.query;
+      
+      // Get units filtered by agency
+      const units = await storage.getExternalUnitsByAgency(agencyId);
+      
+      // Apply filters
+      let filteredUnits = units;
+      
+      if (type === 'condo' && condominiumId) {
+        filteredUnits = filteredUnits.filter(u => u.condominiumId === condominiumId);
+      } else if (type === 'house') {
+        filteredUnits = filteredUnits.filter(u => !u.condominiumId);
+      }
+      
+      if (search) {
+        const searchLower = (search as string).toLowerCase();
+        filteredUnits = filteredUnits.filter(u => 
+          u.unitNumber?.toLowerCase().includes(searchLower) ||
+          u.title?.toLowerCase().includes(searchLower) ||
+          u.zone?.toLowerCase().includes(searchLower)
+        );
+      }
+      
+      // Return simplified property list
+      const result = filteredUnits.map(u => ({
+        id: u.id,
+        unitNumber: u.unitNumber,
+        title: u.title,
+        description: u.description,
+        propertyType: u.propertyType,
+        zone: u.zone,
+        city: u.city,
+        address: u.address,
+        bedrooms: u.bedrooms,
+        bathrooms: u.bathrooms,
+        area: u.area,
+        price: u.price,
+        salePrice: u.salePrice,
+        currency: u.currency || 'MXN',
+        listingType: u.listingType,
+        amenities: u.amenities,
+        petFriendly: u.petFriendly,
+        includedServices: u.includedServices,
+        condominiumId: u.condominiumId,
+        slug: u.slug,
+      }));
+      
+      res.json(result);
+    } catch (error: any) {
+      console.error("Error fetching properties for seller:", error);
+      handleGenericError(res, error);
+    }
+  });
+
+  // GET /api/external-seller/condominiums - Get condominiums for seller's agency
+  app.get("/api/external-seller/condominiums", isAuthenticated, requireRole(['external_agency_seller', ...EXTERNAL_ADMIN_ROLES]), async (req: any, res) => {
+    try {
+      const agencyId = await getUserAgencyId(req);
+      if (!agencyId) {
+        return res.status(400).json({ message: "User is not assigned to any agency" });
+      }
+
+      const condominiums = await storage.getExternalCondominiumsByAgency(agencyId);
+      
+      res.json(condominiums.map(c => ({
+        id: c.id,
+        name: c.name,
+        zone: c.zone,
+        address: c.address,
+        propertyCategory: c.propertyCategory,
+      })));
+    } catch (error: any) {
+      console.error("Error fetching condominiums for seller:", error);
+      handleGenericError(res, error);
+    }
+  });
+  });
   // GET /api/external-seller/my-leads - Get leads assigned to current seller with search preferences
   app.get("/api/external-seller/my-leads", isAuthenticated, requireRole(['external_agency_seller', ...EXTERNAL_ADMIN_ROLES]), async (req: any, res) => {
     try {

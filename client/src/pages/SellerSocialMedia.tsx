@@ -43,8 +43,13 @@ import {
   Zap,
   Search,
   ChevronDown,
-  ChevronRight
+  ChevronRight,
+  Image,
+  Wand2,
+  RotateCcw,
+  X
 } from "lucide-react";
+import PhotoEditor from "@/components/PhotoEditor";
 import { SiFacebook, SiInstagram, SiWhatsapp } from "react-icons/si";
 import { format, isToday, isTomorrow, isPast } from "date-fns";
 import { es, enUS } from "date-fns/locale";
@@ -417,6 +422,15 @@ const TRANSLATIONS = {
     tabTemplates: "Plantillas",
     tabGenerator: "Generador IA",
     tabReminders: "Recordatorios",
+    tabPhotos: "Fotos",
+    photosTitle: "Editor de Fotos",
+    photosDescription: "Edita y mejora las fotos de tus propiedades para redes sociales",
+    selectPropertyFirst: "Selecciona una propiedad para ver sus fotos",
+    noPhotosAvailable: "Esta propiedad no tiene fotos disponibles",
+    editPhoto: "Editar Foto",
+    downloadPhoto: "Descargar Foto",
+    photoEditSuccess: "Foto editada guardada exitosamente",
+    photoEditError: "Error al guardar la foto editada",
     createTemplate: "Crear Plantilla",
     editTemplate: "Editar Plantilla",
     deleteTemplate: "Eliminar Plantilla",
@@ -482,6 +496,15 @@ const TRANSLATIONS = {
     tabTemplates: "Templates",
     tabGenerator: "AI Generator",
     tabReminders: "Reminders",
+    tabPhotos: "Photos",
+    photosTitle: "Photo Editor",
+    photosDescription: "Edit and enhance property photos for social media",
+    selectPropertyFirst: "Select a property to view its photos",
+    noPhotosAvailable: "This property has no photos available",
+    editPhoto: "Edit Photo",
+    downloadPhoto: "Download Photo",
+    photoEditSuccess: "Edited photo saved successfully",
+    photoEditError: "Error saving edited photo",
     createTemplate: "Create Template",
     editTemplate: "Edit Template",
     deleteTemplate: "Delete Template",
@@ -613,6 +636,11 @@ export default function SellerSocialMedia() {
   const [deleteReminderId, setDeleteReminderId] = useState<string | null>(null);
   const [showCompleted, setShowCompleted] = useState(false);
   
+  // Photo editor state
+  const [photoPropertyId, setPhotoPropertyId] = useState<string>("");
+  const [editingPhotoUrl, setEditingPhotoUrl] = useState<string | null>(null);
+  const [editingMediaId, setEditingMediaId] = useState<string | null>(null);
+  
   // Queries
   // Fetch agency AI credits status
   const { data: agencyConfig, refetch: refetchAgencyConfig } = useQuery<AgencyConfig>({
@@ -651,6 +679,21 @@ export default function SellerSocialMedia() {
       search: propertySearchQuery,
     }],
     enabled: propertySourceType !== "manual",
+  });
+  
+  // Query for property media/photos
+  interface UnitMedia {
+    id: string;
+    url: string;
+    type: string;
+    order: number;
+    section?: string;
+    caption?: string;
+  }
+  
+  const { data: propertyMedia, isLoading: mediaLoading } = useQuery<UnitMedia[]>({
+    queryKey: ["/api/external-seller/unit-media", photoPropertyId],
+    enabled: !!photoPropertyId,
   });
   
   // Template mutations
@@ -1118,7 +1161,7 @@ export default function SellerSocialMedia() {
       
       <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
         {/* Mobile-optimized tabs */}
-        <TabsList className="w-full grid grid-cols-3 h-12 rounded-none border-b">
+        <TabsList className="w-full grid grid-cols-4 h-12 rounded-none border-b">
           <TabsTrigger value="templates" className="gap-1 text-xs sm:text-sm" data-testid="tab-templates">
             <FileText className="h-4 w-4" />
             <span className="hidden sm:inline">{t.tabTemplates}</span>
@@ -1126,6 +1169,10 @@ export default function SellerSocialMedia() {
           <TabsTrigger value="generator" className="gap-1 text-xs sm:text-sm" data-testid="tab-generator">
             <Sparkles className="h-4 w-4" />
             <span className="hidden sm:inline">{t.tabGenerator}</span>
+          </TabsTrigger>
+          <TabsTrigger value="photos" className="gap-1 text-xs sm:text-sm" data-testid="tab-photos">
+            <Image className="h-4 w-4" />
+            <span className="hidden sm:inline">{t.tabPhotos}</span>
           </TabsTrigger>
           <TabsTrigger value="reminders" className="gap-1 text-xs sm:text-sm relative" data-testid="tab-reminders">
             <Bell className="h-4 w-4" />
@@ -2034,7 +2081,158 @@ export default function SellerSocialMedia() {
             </div>
           )}
         </TabsContent>
+        
+        {/* Photos Tab */}
+        <TabsContent value="photos" className="p-4 space-y-4">
+          <Card>
+            <CardHeader className="pb-3">
+              <CardTitle className="text-lg flex items-center gap-2">
+                <Image className="h-5 w-5" />
+                {t.photosTitle}
+              </CardTitle>
+              <CardDescription>{t.photosDescription}</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              {/* Property selector for photos */}
+              <div>
+                <Label className="text-sm font-medium mb-2 block">
+                  {t.selectProperty}
+                </Label>
+                <Select value={photoPropertyId} onValueChange={setPhotoPropertyId}>
+                  <SelectTrigger data-testid="select-photo-property">
+                    <SelectValue placeholder={lang === "es" ? "Seleccionar propiedad..." : "Select property..."} />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {properties?.map(property => (
+                      <SelectItem key={property.id} value={property.id}>
+                        {property.unitNumber} - {property.propertyType || property.title || ""}
+                        {property.zone && ` (${property.zone})`}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              
+              {/* Photo gallery */}
+              {!photoPropertyId ? (
+                <div className="text-center py-8">
+                  <Image className="h-12 w-12 mx-auto text-muted-foreground mb-2" />
+                  <p className="text-muted-foreground">{t.selectPropertyFirst}</p>
+                </div>
+              ) : mediaLoading ? (
+                <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                  {[1, 2, 3, 4, 5, 6].map(i => (
+                    <Skeleton key={i} className="aspect-square w-full" />
+                  ))}
+                </div>
+              ) : !propertyMedia || propertyMedia.length === 0 ? (
+                <div className="text-center py-8">
+                  <Image className="h-12 w-12 mx-auto text-muted-foreground mb-2" />
+                  <p className="text-muted-foreground">{t.noPhotosAvailable}</p>
+                </div>
+              ) : (
+                <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                  {propertyMedia
+                    .filter(m => m.type === "image")
+                    .map(media => (
+                      <div 
+                        key={media.id}
+                        className="group relative aspect-square rounded-lg overflow-hidden border bg-muted"
+                      >
+                        <img
+                          src={media.url}
+                          alt={media.caption || `Photo ${media.order}`}
+                          className="w-full h-full object-cover"
+                          crossOrigin="anonymous"
+                        />
+                        <div className="absolute inset-0 bg-black/0 group-hover:bg-black/40 transition-colors flex items-center justify-center gap-2 opacity-0 group-hover:opacity-100">
+                          <Button
+                            size="icon"
+                            variant="secondary"
+                            onClick={() => {
+                              setEditingPhotoUrl(media.url);
+                              setEditingMediaId(media.id);
+                            }}
+                            data-testid={`button-edit-photo-${media.id}`}
+                          >
+                            <Wand2 className="h-4 w-4" />
+                          </Button>
+                          <Button
+                            size="icon"
+                            variant="secondary"
+                            onClick={() => {
+                              const link = document.createElement("a");
+                              link.href = media.url;
+                              link.download = `photo-${media.order}.jpg`;
+                              link.click();
+                            }}
+                            data-testid={`button-download-photo-${media.id}`}
+                          >
+                            <Download className="h-4 w-4" />
+                          </Button>
+                        </div>
+                        {media.section && (
+                          <Badge 
+                            variant="secondary" 
+                            className="absolute bottom-2 left-2 text-[10px]"
+                          >
+                            {media.section}
+                          </Badge>
+                        )}
+                      </div>
+                    ))}
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </TabsContent>
       </Tabs>
+      
+      {/* Photo Editor Dialog */}
+      <Dialog 
+        open={!!editingPhotoUrl} 
+        onOpenChange={(open) => {
+          if (!open) {
+            setEditingPhotoUrl(null);
+            setEditingMediaId(null);
+          }
+        }}
+      >
+        <DialogContent className="max-w-4xl max-h-[95vh] overflow-hidden p-0">
+          <DialogHeader className="p-4 pb-0">
+            <DialogTitle className="flex items-center gap-2">
+              <Wand2 className="h-5 w-5" />
+              {t.editPhoto}
+            </DialogTitle>
+          </DialogHeader>
+          {editingPhotoUrl && (
+            <div className="p-4 pt-2 overflow-auto max-h-[calc(95vh-80px)]">
+              <PhotoEditor
+                imageUrl={editingPhotoUrl}
+                onSave={async (editedBlob: Blob) => {
+                  try {
+                    const link = document.createElement("a");
+                    link.href = URL.createObjectURL(editedBlob);
+                    link.download = `edited-photo-${Date.now()}.jpg`;
+                    link.click();
+                    URL.revokeObjectURL(link.href);
+                    toast({ title: t.photoEditSuccess });
+                    setEditingPhotoUrl(null);
+                    setEditingMediaId(null);
+                  } catch (error) {
+                    console.error("Error saving photo:", error);
+                    toast({ title: t.photoEditError, variant: "destructive" });
+                  }
+                }}
+                onCancel={() => {
+                  setEditingPhotoUrl(null);
+                  setEditingMediaId(null);
+                }}
+              />
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
       
       {/* Template Dialog */}
       <Dialog open={isTemplateDialogOpen} onOpenChange={setIsTemplateDialogOpen}>
