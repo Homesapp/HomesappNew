@@ -681,22 +681,24 @@ export default function PublicUnitDetail() {
 
       {/* Favorite Dialog - Prompt to Create Account */}
       <Dialog open={showFavoriteDialog} onOpenChange={setShowFavoriteDialog}>
-        <DialogContent className="max-w-md">
-          <DialogHeader className="text-center pb-2">
-            <div className="mx-auto mb-4 w-16 h-16 rounded-full bg-red-50 dark:bg-red-950 flex items-center justify-center">
+        <DialogContent className="max-w-sm w-full mx-auto">
+          <div className="flex flex-col items-center text-center px-2">
+            <div className="mb-4 w-16 h-16 rounded-full bg-red-50 dark:bg-red-950 flex items-center justify-center">
               <Heart className="h-8 w-8 text-red-500" />
             </div>
-            <DialogTitle className="text-xl">
-              {language === "es" ? "Guarda esta propiedad" : "Save this property"}
-            </DialogTitle>
-            <DialogDescription className="text-base">
-              {language === "es" 
-                ? "Crea una cuenta gratuita para guardar tus propiedades favoritas y recibir alertas cuando haya cambios."
-                : "Create a free account to save your favorite properties and get alerts when there are changes."}
-            </DialogDescription>
-          </DialogHeader>
+            <DialogHeader className="text-center w-full">
+              <DialogTitle className="text-xl text-center">
+                {language === "es" ? "Guarda esta propiedad" : "Save this property"}
+              </DialogTitle>
+              <DialogDescription className="text-base text-center">
+                {language === "es" 
+                  ? "Crea una cuenta gratuita para guardar tus propiedades favoritas y recibir alertas cuando haya cambios."
+                  : "Create a free account to save your favorite properties and get alerts when there are changes."}
+              </DialogDescription>
+            </DialogHeader>
+          </div>
           
-          <DialogFooter className="flex flex-col gap-3 pt-4">
+          <div className="flex flex-col gap-3 pt-4 w-full">
             <Button 
               size="lg" 
               className="w-full min-h-[52px] text-base font-semibold"
@@ -721,7 +723,7 @@ export default function PublicUnitDetail() {
             >
               {language === "es" ? "Ya tengo una cuenta" : "I already have an account"}
             </Button>
-          </DialogFooter>
+          </div>
         </DialogContent>
       </Dialog>
 
@@ -880,30 +882,57 @@ export default function PublicUnitDetail() {
         </DialogContent>
       </Dialog>
 
-      {/* Expanded Image Dialog */}
+      {/* Expanded Image Dialog - Fullscreen Gallery */}
       <Dialog open={expandedImageIndex !== null} onOpenChange={() => setExpandedImageIndex(null)}>
-        <DialogContent hideCloseButton className="max-w-[95vw] max-h-[95vh] p-0 bg-background border shadow-xl overflow-hidden">
+        <DialogContent hideCloseButton className="max-w-[95vw] max-h-[95vh] p-0 bg-background border shadow-xl">
           {/* Close button */}
           <Button
             variant="ghost"
             size="icon"
-            className="absolute right-4 top-4 z-20 min-h-[44px] min-w-[44px] bg-background/80 hover:bg-muted rounded-full"
+            className="absolute right-4 top-4 z-50 min-h-[44px] min-w-[44px] bg-background/80 hover:bg-muted rounded-full"
             onClick={() => setExpandedImageIndex(null)}
+            data-testid="button-close-lightbox"
           >
             <X className="h-5 w-5" />
           </Button>
           
+          {/* Left navigation button */}
+          {expandedImageIndex !== null && images.length > 1 && (
+            <Button
+              variant="secondary"
+              size="icon"
+              className="absolute left-4 top-1/2 -translate-y-1/2 z-50 min-h-[52px] min-w-[52px] rounded-full shadow-lg border bg-background/90 hover:bg-background"
+              onClick={() => setExpandedImageIndex((prev) => (prev! - 1 + images.length) % images.length)}
+              data-testid="button-prev-image"
+            >
+              <ChevronLeft className="h-7 w-7" />
+            </Button>
+          )}
+          
+          {/* Right navigation button */}
+          {expandedImageIndex !== null && images.length > 1 && (
+            <Button
+              variant="secondary"
+              size="icon"
+              className="absolute right-4 top-1/2 -translate-y-1/2 z-50 min-h-[52px] min-w-[52px] rounded-full shadow-lg border bg-background/90 hover:bg-background"
+              onClick={() => setExpandedImageIndex((prev) => (prev! + 1) % images.length)}
+              data-testid="button-next-image"
+            >
+              <ChevronRight className="h-7 w-7" />
+            </Button>
+          )}
+          
           {expandedImageIndex !== null && (
             <div 
-              className="flex items-center justify-center h-[90vh] py-8 px-20 relative select-none"
+              className="flex items-center justify-center h-[90vh] py-8 px-16 relative select-none"
               onContextMenu={(e) => e.preventDefault()}
             >
               {/* Image with protection overlay */}
-              <div className="relative">
+              <div className="relative max-h-full max-w-full">
                 <img
                   src={getFullSizeUrl(expandedImageIndex)}
                   alt={`${propertyTitle} - ${expandedImageIndex + 1}`}
-                  className="max-w-full max-h-full object-contain rounded-lg select-none"
+                  className="max-w-full max-h-[85vh] object-contain rounded-lg select-none"
                   draggable={false}
                   onContextMenu={(e) => e.preventDefault()}
                   style={{ 
@@ -913,38 +942,14 @@ export default function PublicUnitDetail() {
                   } as React.CSSProperties}
                 />
                 {/* Transparent overlay to prevent direct image interaction */}
-                <div className="absolute inset-0 bg-transparent" />
+                <div className="absolute inset-0 bg-transparent pointer-events-none" />
               </div>
             </div>
           )}
           
-          {/* Left navigation button - positioned outside image area */}
-          {expandedImageIndex !== null && images.length > 1 && (
-            <Button
-              variant="secondary"
-              size="icon"
-              className="absolute left-3 top-1/2 -translate-y-1/2 z-10 min-h-[52px] min-w-[52px] rounded-full shadow-lg border"
-              onClick={() => setExpandedImageIndex((prev) => (prev! - 1 + images.length) % images.length)}
-            >
-              <ChevronLeft className="h-7 w-7" />
-            </Button>
-          )}
-          
-          {/* Right navigation button - positioned outside image area */}
-          {expandedImageIndex !== null && images.length > 1 && (
-            <Button
-              variant="secondary"
-              size="icon"
-              className="absolute right-3 top-1/2 -translate-y-1/2 z-10 min-h-[52px] min-w-[52px] rounded-full shadow-lg border"
-              onClick={() => setExpandedImageIndex((prev) => (prev! + 1) % images.length)}
-            >
-              <ChevronRight className="h-7 w-7" />
-            </Button>
-          )}
-          
           {/* Image counter */}
           {expandedImageIndex !== null && images.length > 1 && (
-            <div className="absolute bottom-6 left-1/2 -translate-x-1/2 bg-foreground/90 text-background px-4 py-2 rounded-full text-sm font-medium shadow-lg">
+            <div className="absolute bottom-6 left-1/2 -translate-x-1/2 z-50 bg-foreground/90 text-background px-4 py-2 rounded-full text-sm font-medium shadow-lg">
               {expandedImageIndex + 1} / {images.length}
             </div>
           )}

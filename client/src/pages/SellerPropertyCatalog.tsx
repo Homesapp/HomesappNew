@@ -84,6 +84,8 @@ interface Unit {
   commissionType?: string | null;
   referrerName?: string | null;
   listingType?: string | null;
+  slug?: string | null;
+  agencySlug?: string | null;
 }
 
 interface ActiveCardSummary {
@@ -835,11 +837,27 @@ export default function SellerPropertyCatalog() {
     return () => clearTimeout(timer);
   }, [selectedLead, presentationCards, chosenCard]);
 
+  const generatePropertyName = (unit: Unit) => {
+    const condoName = unit.condominiumName || unit.name;
+    const unitNum = unit.unitNumber;
+    if (condoName && unitNum) {
+      return `${condoName} - ${unitNum}`;
+    }
+    return condoName || unitNum || "Propiedad";
+  };
+
+  const generatePropertyLink = (unit: Unit) => {
+    if (unit.agencySlug && unit.slug) {
+      return `${window.location.origin}/${unit.agencySlug}/${unit.slug}`;
+    }
+    return `${window.location.origin}/unidad/${unit.id}`;
+  };
+
   const generateMessageFromTemplate = (template: MessageTemplate, unit: Unit, lead?: Lead | null) => {
     let message = template.content;
     
-    const propertyName = unit.name || unit.condominiumName || unit.unitNumber || "Propiedad";
-    const propertyLink = `${window.location.origin}/unidad/${unit.id}`;
+    const propertyName = generatePropertyName(unit);
+    const propertyLink = generatePropertyLink(unit);
     
     message = message.replace(/\{\{?nombre\}\}?/g, lead?.firstName || "");
     message = message.replace(/\{\{?propiedad\}\}?/g, propertyName);
@@ -859,8 +877,8 @@ export default function SellerPropertyCatalog() {
     message = message.replace(/\{\{?nombre\}\}?/g, lead?.firstName || "");
     
     const propertiesList = unitsList.map((unit, i) => {
-      const propertyName = unit.name || unit.condominiumName || unit.unitNumber || "Propiedad";
-      const propertyLink = `${window.location.origin}/unidad/${unit.id}`;
+      const propertyName = generatePropertyName(unit);
+      const propertyLink = generatePropertyLink(unit);
       return `${i + 1}. ${propertyName}\n   Ubicacion: ${unit.zone || "Sin zona"}\n   ${unit.bedrooms || 0} rec. | $${unit.monthlyRent?.toLocaleString() || "—"} ${unit.currency || "MXN"}/mes\n   Ver: ${propertyLink}`;
     }).join("\n\n");
     

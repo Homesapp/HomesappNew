@@ -182,6 +182,27 @@ async function getExistingMediaCount(unitId: string): Promise<{ photos: number; 
   return counts;
 }
 
+async function isDriveFileAlreadyImported(driveFileId: string): Promise<boolean> {
+  const result = await db.execute(sql`
+    SELECT 1 FROM external_unit_media
+    WHERE drive_file_id = ${driveFileId}
+    LIMIT 1
+  `);
+  return (result.rows?.length || 0) > 0;
+}
+
+async function getExistingDriveFileIds(unitId: string): Promise<Set<string>> {
+  const result = await db.execute(sql`
+    SELECT drive_file_id FROM external_unit_media
+    WHERE unit_id = ${unitId} AND drive_file_id IS NOT NULL
+  `);
+  const ids = new Set<string>();
+  for (const row of (result.rows || [])) {
+    if ((row as any).drive_file_id) ids.add((row as any).drive_file_id);
+  }
+  return ids;
+}
+
 async function importMediaForUnit(
   unit: { id: string; sheetRowId: string; unitNumber: string },
   folderId: string,
