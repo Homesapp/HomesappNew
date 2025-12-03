@@ -719,7 +719,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
           });
         });
         
-        res.json({ 
+        // Get agency slug for SEO-friendly URLs
+      const [agency] = await db.select({ slug: externalAgencies.slug })
+        .from(externalAgencies)
+        .where(eq(externalAgencies.id, agencyId))
+        .limit(1);
+
+      res.json({
+        agencySlug: agency?.slug || null, 
           success: true, 
           message: "Test admin session created",
           admin: {
@@ -914,7 +921,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       const photoUrl = `/attached_assets/stock_images/${req.file.filename}`;
-      res.json({ url: photoUrl });
+      // Get agency slug for SEO-friendly URLs
+      const [agency] = await db.select({ slug: externalAgencies.slug })
+        .from(externalAgencies)
+        .where(eq(externalAgencies.id, agencyId))
+        .limit(1);
+
+      res.json({
+        agencySlug: agency?.slug || null, url: photoUrl });
     } catch (error: any) {
       console.error("Error uploading photo:", error);
       res.status(500).json({ message: error.message || "Error al subir la foto" });
@@ -929,7 +943,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       const photoUrl = `/attached_assets/maintenance_photos/${req.file.filename}`;
-      res.json({ url: photoUrl });
+      // Get agency slug for SEO-friendly URLs
+      const [agency] = await db.select({ slug: externalAgencies.slug })
+        .from(externalAgencies)
+        .where(eq(externalAgencies.id, agencyId))
+        .limit(1);
+
+      res.json({
+        agencySlug: agency?.slug || null, url: photoUrl });
     } catch (error: any) {
       console.error("Error uploading maintenance photo:", error);
       res.status(500).json({ message: error.message || "Error al subir la foto de mantenimiento" });
@@ -1038,7 +1059,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Update password
       await storage.updateAdminPassword(adminId, newPasswordHash);
 
-      res.json({ message: "Password updated successfully" });
+      // Get agency slug for SEO-friendly URLs
+      const [agency] = await db.select({ slug: externalAgencies.slug })
+        .from(externalAgencies)
+        .where(eq(externalAgencies.id, agencyId))
+        .limit(1);
+
+      res.json({
+        agencySlug: agency?.slug || null, message: "Password updated successfully" });
     } catch (error) {
       console.error("Error updating admin password:", error);
       res.status(500).json({ message: "Failed to update admin password" });
@@ -1093,7 +1121,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       // Return user info (without password hash)
       const { passwordHash, ...userWithoutPassword } = user;
+      // Get agency slug for SEO-friendly URLs
+      const [agency] = await db.select({ slug: externalAgencies.slug })
+        .from(externalAgencies)
+        .where(eq(externalAgencies.id, agencyId))
+        .limit(1);
+
       res.json({
+        agencySlug: agency?.slug || null,
         ...userWithoutPassword,
         requirePasswordChange: user.requirePasswordChange || false,
       });
@@ -1154,7 +1189,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
       await createAuditLog(req, "update", "user", userId, `Admin set temporary password for user ${user.email}`);
       
       // Return the temporary password (only shown once)
-      res.json({ 
+      // Get agency slug for SEO-friendly URLs
+      const [agency] = await db.select({ slug: externalAgencies.slug })
+        .from(externalAgencies)
+        .where(eq(externalAgencies.id, agencyId))
+        .limit(1);
+
+      res.json({
+        agencySlug: agency?.slug || null, 
         message: "Temporary password set successfully",
         temporaryPassword,
         email: user.email 
@@ -1195,7 +1237,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
       await createAuditLog(req, "update", "user", userId, `Admin reset password for user ${user.email}`);
       
       // Return the new temporary password (only shown once)
-      res.json({ 
+      // Get agency slug for SEO-friendly URLs
+      const [agency] = await db.select({ slug: externalAgencies.slug })
+        .from(externalAgencies)
+        .where(eq(externalAgencies.id, agencyId))
+        .limit(1);
+
+      res.json({
+        agencySlug: agency?.slug || null, 
         message: "Password reset successfully",
         temporaryPassword,
         email: user.email 
@@ -1253,7 +1302,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       await createAuditLog(req, "update", "user", userId, `User changed their password`);
       
-      res.json({ message: "Password changed successfully" });
+      // Get agency slug for SEO-friendly URLs
+      const [agency] = await db.select({ slug: externalAgencies.slug })
+        .from(externalAgencies)
+        .where(eq(externalAgencies.id, agencyId))
+        .limit(1);
+
+      res.json({
+        agencySlug: agency?.slug || null, message: "Password changed successfully" });
     } catch (error) {
       console.error("Error changing password:", error);
       res.status(500).json({ message: "Failed to change password" });
@@ -1306,7 +1362,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       await createAuditLog(req, "update", "user", userId, `User completed forced password change`);
       
-      res.json({ message: "Password changed successfully" });
+      // Get agency slug for SEO-friendly URLs
+      const [agency] = await db.select({ slug: externalAgencies.slug })
+        .from(externalAgencies)
+        .where(eq(externalAgencies.id, agencyId))
+        .limit(1);
+
+      res.json({
+        agencySlug: agency?.slug || null, message: "Password changed successfully" });
     } catch (error) {
       console.error("Error in force password change:", error);
       res.status(500).json({ message: "Failed to change password" });
@@ -1389,7 +1452,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
         `Aprobados ${count} usuarios pendientes en masa`
       );
       
-      res.json({ count });
+      // Get agency slug for SEO-friendly URLs
+      const [agency] = await db.select({ slug: externalAgencies.slug })
+        .from(externalAgencies)
+        .where(eq(externalAgencies.id, agencyId))
+        .limit(1);
+
+      res.json({
+        agencySlug: agency?.slug || null, count });
     } catch (error) {
       console.error("Error approving all users:", error);
       res.status(500).json({ message: "Failed to approve all users" });
@@ -1624,7 +1694,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
         if (err) {
           console.error("Error logging out:", err);
         }
-        res.json({ message: "Account deleted successfully" });
+        // Get agency slug for SEO-friendly URLs
+      const [agency] = await db.select({ slug: externalAgencies.slug })
+        .from(externalAgencies)
+        .where(eq(externalAgencies.id, agencyId))
+        .limit(1);
+
+      res.json({
+        agencySlug: agency?.slug || null, message: "Account deleted successfully" });
       });
     } catch (error) {
       console.error("Error deleting account:", error);
@@ -1650,7 +1727,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
         .set(updates)
         .where(eq(users.id, userId));
       
-      res.json({ success: true });
+      // Get agency slug for SEO-friendly URLs
+      const [agency] = await db.select({ slug: externalAgencies.slug })
+        .from(externalAgencies)
+        .where(eq(externalAgencies.id, agencyId))
+        .limit(1);
+
+      res.json({
+        agencySlug: agency?.slug || null, success: true });
     } catch (error) {
       console.error("Error marking welcome as seen:", error);
       res.status(500).json({ message: "Failed to mark welcome as seen" });
@@ -1687,7 +1771,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(401).json({ message: "Not authenticated" });
       }
       
-      res.json({ success: true });
+      // Get agency slug for SEO-friendly URLs
+      const [agency] = await db.select({ slug: externalAgencies.slug })
+        .from(externalAgencies)
+        .where(eq(externalAgencies.id, agencyId))
+        .limit(1);
+
+      res.json({
+        agencySlug: agency?.slug || null, success: true });
     } catch (error) {
       console.error("Error completing onboarding:", error);
       res.status(500).json({ message: "Failed to complete onboarding" });
@@ -1724,7 +1815,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(401).json({ message: "Not authenticated" });
       }
       
-      res.json({ success: true });
+      // Get agency slug for SEO-friendly URLs
+      const [agency] = await db.select({ slug: externalAgencies.slug })
+        .from(externalAgencies)
+        .where(eq(externalAgencies.id, agencyId))
+        .limit(1);
+
+      res.json({
+        agencySlug: agency?.slug || null, success: true });
     } catch (error) {
       console.error("Error skipping onboarding:", error);
       res.status(500).json({ message: "Failed to skip onboarding" });
@@ -1785,7 +1883,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
         }
       }
       
-      res.json({ message: "Si el email existe, recibirás un enlace de restablecimiento" });
+      // Get agency slug for SEO-friendly URLs
+      const [agency] = await db.select({ slug: externalAgencies.slug })
+        .from(externalAgencies)
+        .where(eq(externalAgencies.id, agencyId))
+        .limit(1);
+
+      res.json({
+        agencySlug: agency?.slug || null, message: "Si el email existe, recibirás un enlace de restablecimiento" });
     } catch (error) {
       console.error("Error requesting password reset:", error);
       if (error instanceof z.ZodError) {
@@ -1818,7 +1923,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
       await storage.updateUserPassword(resetToken.userId, passwordHash);
       await storage.markPasswordResetTokenAsUsed(token);
       
-      res.json({ message: "Contraseña actualizada exitosamente" });
+      // Get agency slug for SEO-friendly URLs
+      const [agency] = await db.select({ slug: externalAgencies.slug })
+        .from(externalAgencies)
+        .where(eq(externalAgencies.id, agencyId))
+        .limit(1);
+
+      res.json({
+        agencySlug: agency?.slug || null, message: "Contraseña actualizada exitosamente" });
     } catch (error) {
       console.error("Error resetting password:", error);
       if (error instanceof z.ZodError) {
@@ -1872,7 +1984,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
         `Admin envió enlace de restablecimiento de contraseña a ${user.email}`
       );
       
-      res.json({ message: "Enlace de restablecimiento enviado exitosamente" });
+      // Get agency slug for SEO-friendly URLs
+      const [agency] = await db.select({ slug: externalAgencies.slug })
+        .from(externalAgencies)
+        .where(eq(externalAgencies.id, agencyId))
+        .limit(1);
+
+      res.json({
+        agencySlug: agency?.slug || null, message: "Enlace de restablecimiento enviado exitosamente" });
     } catch (error) {
       console.error("Error sending reset link:", error);
       res.status(500).json({ message: "Error al enviar enlace de restablecimiento" });
@@ -1916,7 +2035,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       await storage.deleteUser(userId);
       
-      res.json({ message: "Usuario eliminado exitosamente" });
+      // Get agency slug for SEO-friendly URLs
+      const [agency] = await db.select({ slug: externalAgencies.slug })
+        .from(externalAgencies)
+        .where(eq(externalAgencies.id, agencyId))
+        .limit(1);
+
+      res.json({
+        agencySlug: agency?.slug || null, message: "Usuario eliminado exitosamente" });
     } catch (error) {
       console.error("Error deleting user:", error);
       res.status(500).json({ message: "Error al eliminar usuario" });
@@ -2000,7 +2126,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
         `Admin suspendió cuenta de ${user.firstName} ${user.lastName}: ${validated.reason} (${validated.suspensionType})`
       );
       
-      res.json({ message: "Usuario suspendido exitosamente" });
+      // Get agency slug for SEO-friendly URLs
+      const [agency] = await db.select({ slug: externalAgencies.slug })
+        .from(externalAgencies)
+        .where(eq(externalAgencies.id, agencyId))
+        .limit(1);
+
+      res.json({
+        agencySlug: agency?.slug || null, message: "Usuario suspendido exitosamente" });
     } catch (error) {
       console.error("Error suspending user:", error);
       if (error instanceof z.ZodError) {
@@ -2040,7 +2173,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
         `Admin reactivó cuenta de ${user.firstName} ${user.lastName}`
       );
       
-      res.json({ message: "Usuario reactivado exitosamente" });
+      // Get agency slug for SEO-friendly URLs
+      const [agency] = await db.select({ slug: externalAgencies.slug })
+        .from(externalAgencies)
+        .where(eq(externalAgencies.id, agencyId))
+        .limit(1);
+
+      res.json({
+        agencySlug: agency?.slug || null, message: "Usuario reactivado exitosamente" });
     } catch (error) {
       console.error("Error unsuspending user:", error);
       res.status(500).json({ message: "Error al reactivar usuario" });
@@ -2084,7 +2224,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
         `Admin actualizó rol de ${user.firstName} ${user.lastName} a: ${role}${additionalRole ? ` (adicional: ${additionalRole})` : ""}`
       );
 
-      res.json({ message: "Rol actualizado exitosamente" });
+      // Get agency slug for SEO-friendly URLs
+      const [agency] = await db.select({ slug: externalAgencies.slug })
+        .from(externalAgencies)
+        .where(eq(externalAgencies.id, agencyId))
+        .limit(1);
+
+      res.json({
+        agencySlug: agency?.slug || null, message: "Rol actualizado exitosamente" });
     } catch (error) {
       console.error("Error updating user role:", error);
       res.status(500).json({ message: "Error al actualizar rol" });
@@ -2116,7 +2263,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
         `Vendedor subió documento tipo ${validated.documentType}`
       );
       
-      res.json({ message: "Documento subido exitosamente, pendiente de revisión" });
+      // Get agency slug for SEO-friendly URLs
+      const [agency] = await db.select({ slug: externalAgencies.slug })
+        .from(externalAgencies)
+        .where(eq(externalAgencies.id, agencyId))
+        .limit(1);
+
+      res.json({
+        agencySlug: agency?.slug || null, message: "Documento subido exitosamente, pendiente de revisión" });
     } catch (error) {
       console.error("Error uploading seller document:", error);
       if (error instanceof z.ZodError) {
@@ -2148,7 +2302,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
           "Vendedor aceptó términos y condiciones de comisiones"
         );
         
-        res.json({ message: "Términos y condiciones aceptados" });
+        // Get agency slug for SEO-friendly URLs
+      const [agency] = await db.select({ slug: externalAgencies.slug })
+        .from(externalAgencies)
+        .where(eq(externalAgencies.id, agencyId))
+        .limit(1);
+
+      res.json({
+        agencySlug: agency?.slug || null, message: "Términos y condiciones aceptados" });
       } else {
         res.status(400).json({ message: "Debes aceptar los términos y condiciones" });
       }
@@ -2199,7 +2360,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
         `Admin actualizó estado de documento a: ${validated.status}`
       );
       
-      res.json({ message: "Estado de documento actualizado" });
+      // Get agency slug for SEO-friendly URLs
+      const [agency] = await db.select({ slug: externalAgencies.slug })
+        .from(externalAgencies)
+        .where(eq(externalAgencies.id, agencyId))
+        .limit(1);
+
+      res.json({
+        agencySlug: agency?.slug || null, message: "Estado de documento actualizado" });
     } catch (error) {
       console.error("Error updating document status:", error);
       if (error instanceof z.ZodError) {
@@ -2361,7 +2529,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
         });
       });
 
-      res.json({ 
+      // Get agency slug for SEO-friendly URLs
+      const [agency] = await db.select({ slug: externalAgencies.slug })
+        .from(externalAgencies)
+        .where(eq(externalAgencies.id, agencyId))
+        .limit(1);
+
+      res.json({
+        agencySlug: agency?.slug || null, 
         message: "Email verificado exitosamente",
         autoLogin: true,
         user: {
@@ -2416,7 +2591,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Send verification email
       try {
         await sendVerificationEmail(user.email, verificationCode);
-        res.json({ message: "Código de verificación enviado" });
+        // Get agency slug for SEO-friendly URLs
+      const [agency] = await db.select({ slug: externalAgencies.slug })
+        .from(externalAgencies)
+        .where(eq(externalAgencies.id, agencyId))
+        .limit(1);
+
+      res.json({
+        agencySlug: agency?.slug || null, message: "Código de verificación enviado" });
       } catch (emailError) {
         console.error("Error sending verification email:", emailError);
         res.status(500).json({ message: "Error al enviar el código" });
@@ -2452,7 +2634,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       // This is for old-style verification - not used anymore but kept for backward compatibility
-      res.json({ 
+      // Get agency slug for SEO-friendly URLs
+      const [agency] = await db.select({ slug: externalAgencies.slug })
+        .from(externalAgencies)
+        .where(eq(externalAgencies.id, agencyId))
+        .limit(1);
+
+      res.json({
+        agencySlug: agency?.slug || null, 
         message: "Este método de verificación ya no está disponible. Por favor solicita un nuevo código.",
         autoLogin: false,
         requiresApproval: true
@@ -3793,7 +3982,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
         `Eliminados ${result.rowCount || 0} condominios duplicados`
       );
 
-      res.json({ 
+      // Get agency slug for SEO-friendly URLs
+      const [agency] = await db.select({ slug: externalAgencies.slug })
+        .from(externalAgencies)
+        .where(eq(externalAgencies.id, agencyId))
+        .limit(1);
+
+      res.json({
+        agencySlug: agency?.slug || null, 
         message: `Se eliminaron ${result.rowCount || 0} condominios duplicados`,
         deletedCount: result.rowCount || 0,
         deletedCondominiums: result.rows
@@ -3818,7 +4014,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const allProperties = await storage.getProperties({});
       const properties = allProperties.filter(p => p.condominiumId === id);
 
+      // Get agency slug for SEO-friendly URLs
+      const [agency] = await db.select({ slug: externalAgencies.slug })
+        .from(externalAgencies)
+        .where(eq(externalAgencies.id, agencyId))
+        .limit(1);
+
       res.json({
+        agencySlug: agency?.slug || null,
         ...condominium,
         propertiesCount: properties.length,
         properties: properties.map(p => ({
@@ -3868,7 +4071,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Properties without condominium
       const propertiesWithoutCondominium = allProperties.filter(p => !p.condominiumId).length;
 
+      // Get agency slug for SEO-friendly URLs
+      const [agency] = await db.select({ slug: externalAgencies.slug })
+        .from(externalAgencies)
+        .where(eq(externalAgencies.id, agencyId))
+        .limit(1);
+
       res.json({
+        agencySlug: agency?.slug || null,
         condominiums: condominiumStats,
         colonies: colonyStats,
         totalProperties: allProperties.length,
@@ -5271,7 +5481,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       // Return only the access info
-      res.json({ 
+      // Get agency slug for SEO-friendly URLs
+      const [agency] = await db.select({ slug: externalAgencies.slug })
+        .from(externalAgencies)
+        .where(eq(externalAgencies.id, agencyId))
+        .limit(1);
+
+      res.json({
+        agencySlug: agency?.slug || null, 
         propertyId: property.id,
         propertyTitle: property.title,
         accessInfo: property.accessInfo 
@@ -5353,7 +5570,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       await storage.deletePropertyNote(noteId);
-      res.json({ message: "Note deleted successfully" });
+      // Get agency slug for SEO-friendly URLs
+      const [agency] = await db.select({ slug: externalAgencies.slug })
+        .from(externalAgencies)
+        .where(eq(externalAgencies.id, agencyId))
+        .limit(1);
+
+      res.json({
+        agencySlug: agency?.slug || null, message: "Note deleted successfully" });
     } catch (error) {
       console.error("Error deleting property note:", error);
       res.status(500).json({ message: "Failed to delete property note" });
@@ -7477,7 +7701,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
         })
       );
       
-      res.json({ results });
+      // Get agency slug for SEO-friendly URLs
+      const [agency] = await db.select({ slug: externalAgencies.slug })
+        .from(externalAgencies)
+        .where(eq(externalAgencies.id, agencyId))
+        .limit(1);
+
+      res.json({
+        agencySlug: agency?.slug || null, results });
     } catch (error: any) {
       console.error("Error in bulk approve:", error);
       res.status(500).json({ message: error.message || "Error al aprobar propiedades" });
@@ -7518,7 +7749,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
         })
       );
       
-      res.json({ results });
+      // Get agency slug for SEO-friendly URLs
+      const [agency] = await db.select({ slug: externalAgencies.slug })
+        .from(externalAgencies)
+        .where(eq(externalAgencies.id, agencyId))
+        .limit(1);
+
+      res.json({
+        agencySlug: agency?.slug || null, results });
     } catch (error: any) {
       console.error("Error in bulk reject:", error);
       res.status(500).json({ message: error.message || "Error al rechazar propiedades" });
@@ -8215,7 +8453,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
         `Token de invitación eliminado${existingToken.inviteeName ? ` (${existingToken.inviteeName})` : ''}`
       );
       
-      res.json({ message: "Token eliminado exitosamente" });
+      // Get agency slug for SEO-friendly URLs
+      const [agency] = await db.select({ slug: externalAgencies.slug })
+        .from(externalAgencies)
+        .where(eq(externalAgencies.id, agencyId))
+        .limit(1);
+
+      res.json({
+        agencySlug: agency?.slug || null, message: "Token eliminado exitosamente" });
     } catch (error: any) {
       console.error("Error deleting property submission token:", error);
       res.status(500).json({ message: error.message || "Error al eliminar el token" });
@@ -8315,7 +8560,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       
       // Token is valid
-      res.json({ 
+      // Get agency slug for SEO-friendly URLs
+      const [agency] = await db.select({ slug: externalAgencies.slug })
+        .from(externalAgencies)
+        .where(eq(externalAgencies.id, agencyId))
+        .limit(1);
+
+      res.json({
+        agencySlug: agency?.slug || null, 
         valid: true,
         inviteeName: tokenRecord.inviteeName,
         inviteeEmail: tokenRecord.inviteeEmail,
@@ -8521,7 +8773,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
         `Configuración del sidebar reseteada para rol ${role}`
       );
       
-      res.json({ message: "Configuración reseteada exitosamente" });
+      // Get agency slug for SEO-friendly URLs
+      const [agency] = await db.select({ slug: externalAgencies.slug })
+        .from(externalAgencies)
+        .where(eq(externalAgencies.id, agencyId))
+        .limit(1);
+
+      res.json({
+        agencySlug: agency?.slug || null, message: "Configuración reseteada exitosamente" });
     } catch (error: any) {
       console.error("Error resetting sidebar config:", error);
       res.status(500).json({ message: error.message || "Error al resetear configuración del sidebar" });
@@ -8649,7 +8908,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
         `Configuración del sidebar reseteada para usuario ${userId}`
       );
       
-      res.json({ message: "Configuración de usuario reseteada exitosamente" });
+      // Get agency slug for SEO-friendly URLs
+      const [agency] = await db.select({ slug: externalAgencies.slug })
+        .from(externalAgencies)
+        .where(eq(externalAgencies.id, agencyId))
+        .limit(1);
+
+      res.json({
+        agencySlug: agency?.slug || null, message: "Configuración de usuario reseteada exitosamente" });
     } catch (error: any) {
       console.error("Error resetting user sidebar config:", error);
       res.status(500).json({ message: error.message || "Error al resetear configuración del usuario" });
@@ -8720,7 +8986,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
           )
         );
 
-      res.json({ count: activeSORs.length });
+      // Get agency slug for SEO-friendly URLs
+      const [agency] = await db.select({ slug: externalAgencies.slug })
+        .from(externalAgencies)
+        .where(eq(externalAgencies.id, agencyId))
+        .limit(1);
+
+      res.json({
+        agencySlug: agency?.slug || null, count: activeSORs.length });
     } catch (error: any) {
       console.error("Error getting active SOR count:", error);
       res.status(500).json({ error: error.message });
@@ -9355,7 +9628,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const { propertyId } = req.params;
 
       const isFavorite = await storage.isFavorite(userId, propertyId);
-      res.json({ isFavorite });
+      // Get agency slug for SEO-friendly URLs
+      const [agency] = await db.select({ slug: externalAgencies.slug })
+        .from(externalAgencies)
+        .where(eq(externalAgencies.id, agencyId))
+        .limit(1);
+
+      res.json({
+        agencySlug: agency?.slug || null, isFavorite });
     } catch (error) {
       console.error("Error checking favorite:", error);
       res.status(500).json({ message: "Failed to check favorite" });
@@ -9439,7 +9719,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const existingLead = await storage.getActiveLeadByPhone(phone);
       
       if (!existingLead) {
-        return res.json({ 
+        return // Get agency slug for SEO-friendly URLs
+      const [agency] = await db.select({ slug: externalAgencies.slug })
+        .from(externalAgencies)
+        .where(eq(externalAgencies.id, agencyId))
+        .limit(1);
+
+      res.json({
+        agencySlug: agency?.slug || null, 
           isDuplicate: false,
           message: "Teléfono disponible"
         });
@@ -9449,14 +9736,28 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const originalSeller = await storage.getUser(existingLead.registeredById);
       
       if (!originalSeller) {
-        return res.json({
+        return // Get agency slug for SEO-friendly URLs
+      const [agency] = await db.select({ slug: externalAgencies.slug })
+        .from(externalAgencies)
+        .where(eq(externalAgencies.id, agencyId))
+        .limit(1);
+
+      res.json({
+        agencySlug: agency?.slug || null,
           isDuplicate: true,
           message: "Lead duplicado detectado"
         });
       }
 
       // Return duplicate information (excluding phone for security)
+      // Get agency slug for SEO-friendly URLs
+      const [agency] = await db.select({ slug: externalAgencies.slug })
+        .from(externalAgencies)
+        .where(eq(externalAgencies.id, agencyId))
+        .limit(1);
+
       res.json({
+        agencySlug: agency?.slug || null,
         isDuplicate: true,
         lead: {
           id: existingLead.id,
@@ -9967,7 +10268,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Eliminar el token usado
       await storage.deleteEmailVerificationToken(verificationToken.id);
       
-      res.json({ 
+      // Get agency slug for SEO-friendly URLs
+      const [agency] = await db.select({ slug: externalAgencies.slug })
+        .from(externalAgencies)
+        .where(eq(externalAgencies.id, agencyId))
+        .limit(1);
+
+      res.json({
+        agencySlug: agency?.slug || null, 
         message: "Email verificado exitosamente",
         success: true
       });
@@ -10014,7 +10322,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Marcar el email del referido como verificado
       const updatedReferral = await storage.verifyOwnerReferralEmail(referral.id);
       
-      res.json({ 
+      // Get agency slug for SEO-friendly URLs
+      const [agency] = await db.select({ slug: externalAgencies.slug })
+        .from(externalAgencies)
+        .where(eq(externalAgencies.id, agencyId))
+        .limit(1);
+
+      res.json({
+        agencySlug: agency?.slug || null, 
         message: "Email verificado exitosamente. Un administrador revisará tu solicitud pronto.",
         success: true,
         referral: {
@@ -10286,7 +10601,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       await createAuditLog(req, "update", "owner_referral", id, `Referido de propietario aprobado con comisión de $${commissionAmount || updatedReferral.commissionAmount}`);
       
-      res.json({ 
+      // Get agency slug for SEO-friendly URLs
+      const [agency] = await db.select({ slug: externalAgencies.slug })
+        .from(externalAgencies)
+        .where(eq(externalAgencies.id, agencyId))
+        .limit(1);
+
+      res.json({
+        agencySlug: agency?.slug || null, 
         message: "Referido aprobado exitosamente. Se ha notificado al vendedor.",
         ownerReferral: updatedReferral 
       });
@@ -10317,7 +10639,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       await createAuditLog(req, "update", "owner_referral", id, `Referido de propietario rechazado: ${rejectionReason}`);
       
-      res.json({ 
+      // Get agency slug for SEO-friendly URLs
+      const [agency] = await db.select({ slug: externalAgencies.slug })
+        .from(externalAgencies)
+        .where(eq(externalAgencies.id, agencyId))
+        .limit(1);
+
+      res.json({
+        agencySlug: agency?.slug || null, 
         message: "Referido rechazado exitosamente",
         ownerReferral: updatedReferral 
       });
@@ -10365,7 +10694,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       await createAuditLog(req, "update", "appointment", id, "Cita actualizada por administrador");
 
-      res.json({ 
+      // Get agency slug for SEO-friendly URLs
+      const [agency] = await db.select({ slug: externalAgencies.slug })
+        .from(externalAgencies)
+        .where(eq(externalAgencies.id, agencyId))
+        .limit(1);
+
+      res.json({
+        agencySlug: agency?.slug || null, 
         message: "Cita actualizada exitosamente",
         appointment: updatedAppointment 
       });
@@ -10392,7 +10728,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       await createAuditLog(req, "update", "appointment", id, "Cita cancelada por administrador");
 
-      res.json({ 
+      // Get agency slug for SEO-friendly URLs
+      const [agency] = await db.select({ slug: externalAgencies.slug })
+        .from(externalAgencies)
+        .where(eq(externalAgencies.id, agencyId))
+        .limit(1);
+
+      res.json({
+        agencySlug: agency?.slug || null, 
         message: "Cita cancelada exitosamente",
         appointment: updatedAppointment 
       });
@@ -10549,7 +10892,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const slotDate = new Date(date);
       const availableCount = await storage.getAvailableSlotCount(slotDate);
       
-      res.json({ 
+      // Get agency slug for SEO-friendly URLs
+      const [agency] = await db.select({ slug: externalAgencies.slug })
+        .from(externalAgencies)
+        .where(eq(externalAgencies.id, agencyId))
+        .limit(1);
+
+      res.json({
+        agencySlug: agency?.slug || null, 
         date: slotDate, 
         availableSpaces: availableCount,
         isAvailable: availableCount > 0 
@@ -10690,7 +11040,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Create all notifications
       await Promise.all(notifications);
 
-      res.json({ 
+      // Get agency slug for SEO-friendly URLs
+      const [agency] = await db.select({ slug: externalAgencies.slug })
+        .from(externalAgencies)
+        .where(eq(externalAgencies.id, agencyId))
+        .limit(1);
+
+      res.json({
+        agencySlug: agency?.slug || null, 
         message: "Conserje asignado exitosamente",
         appointment: updatedAppointment,
         concierge: concierge ? {
@@ -11573,7 +11930,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
         `Horario desbloqueado`
       );
 
-      res.json({ message: "Horario desbloqueado exitosamente" });
+      // Get agency slug for SEO-friendly URLs
+      const [agency] = await db.select({ slug: externalAgencies.slug })
+        .from(externalAgencies)
+        .where(eq(externalAgencies.id, agencyId))
+        .limit(1);
+
+      res.json({
+        agencySlug: agency?.slug || null, message: "Horario desbloqueado exitosamente" });
     } catch (error) {
       console.error("Error deleting concierge blocked slot:", error);
       res.status(500).json({ message: "Error al desbloquear el horario" });
@@ -12748,7 +13112,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
         `Referido de propietario aprobado con comisión de $${commissionAmount || updatedReferral.commissionAmount}`
       );
       
-      res.json({ 
+      // Get agency slug for SEO-friendly URLs
+      const [agency] = await db.select({ slug: externalAgencies.slug })
+        .from(externalAgencies)
+        .where(eq(externalAgencies.id, agencyId))
+        .limit(1);
+
+      res.json({
+        agencySlug: agency?.slug || null, 
         message: "Referido aprobado exitosamente. Se ha notificado al vendedor.",
         ownerReferral: updatedReferral 
       });
@@ -12784,7 +13155,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
         `Referido de propietario rechazado: ${rejectionReason}`
       );
       
-      res.json({ 
+      // Get agency slug for SEO-friendly URLs
+      const [agency] = await db.select({ slug: externalAgencies.slug })
+        .from(externalAgencies)
+        .where(eq(externalAgencies.id, agencyId))
+        .limit(1);
+
+      res.json({
+        agencySlug: agency?.slug || null, 
         message: "Referido rechazado exitosamente",
         ownerReferral: updatedReferral 
       });
@@ -12979,7 +13357,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
         `Oferta aceptada por propietario - Contrato creado: ${contract?.id}`
       );
 
-      res.json({ offer: acceptedOffer, contract });
+      // Get agency slug for SEO-friendly URLs
+      const [agency] = await db.select({ slug: externalAgencies.slug })
+        .from(externalAgencies)
+        .where(eq(externalAgencies.id, agencyId))
+        .limit(1);
+
+      res.json({
+        agencySlug: agency?.slug || null, offer: acceptedOffer, contract });
     } catch (error) {
       console.error("Error accepting offer:", error);
       res.status(500).json({ message: "Error al aceptar oferta" });
@@ -13056,7 +13441,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
         `Oferta aceptada por propietario - Contrato creado: ${contract?.id}`
       );
 
-      res.json({ offer: acceptedOffer, contract });
+      // Get agency slug for SEO-friendly URLs
+      const [agency] = await db.select({ slug: externalAgencies.slug })
+        .from(externalAgencies)
+        .where(eq(externalAgencies.id, agencyId))
+        .limit(1);
+
+      res.json({
+        agencySlug: agency?.slug || null, offer: acceptedOffer, contract });
     } catch (error) {
       console.error("Error accepting offer:", error);
       res.status(500).json({ message: "Error al aceptar oferta" });
@@ -13292,7 +13684,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
         `Contraoferta aceptada por cliente - Contrato creado: ${contract?.id}`
       );
 
-      res.json({ offer: acceptedOffer, contract });
+      // Get agency slug for SEO-friendly URLs
+      const [agency] = await db.select({ slug: externalAgencies.slug })
+        .from(externalAgencies)
+        .where(eq(externalAgencies.id, agencyId))
+        .limit(1);
+
+      res.json({
+        agencySlug: agency?.slug || null, offer: acceptedOffer, contract });
     } catch (error) {
       console.error("Error accepting counter offer:", error);
       res.status(500).json({ message: "Error al aceptar contraoferta" });
@@ -13455,7 +13854,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const tenantInfo = await storage.getContractTenantInfo(contractId);
       const ownerInfo = await storage.getContractOwnerInfo(contractId);
 
-      res.json({ contract, tenantInfo, ownerInfo, property });
+      // Get agency slug for SEO-friendly URLs
+      const [agency] = await db.select({ slug: externalAgencies.slug })
+        .from(externalAgencies)
+        .where(eq(externalAgencies.id, agencyId))
+        .limit(1);
+
+      res.json({
+        agencySlug: agency?.slug || null, contract, tenantInfo, ownerInfo, property });
     } catch (error) {
       console.error("Error fetching contract:", error);
       res.status(500).json({ message: "Error al obtener contrato" });
@@ -14031,7 +14437,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
         lead = await storage.getLead(data.leadId);
       }
 
+      // Get agency slug for SEO-friendly URLs
+      const [agency] = await db.select({ slug: externalAgencies.slug })
+        .from(externalAgencies)
+        .where(eq(externalAgencies.id, agencyId))
+        .limit(1);
+
       res.json({
+        agencySlug: agency?.slug || null,
         valid: true,
         isCompleted,
         property,
@@ -14078,7 +14491,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return `/attached_assets/stock_images/${file.filename}`;
       });
 
-      res.json({ 
+      // Get agency slug for SEO-friendly URLs
+      const [agency] = await db.select({ slug: externalAgencies.slug })
+        .from(externalAgencies)
+        .where(eq(externalAgencies.id, agencyId))
+        .limit(1);
+
+      res.json({
+        agencySlug: agency?.slug || null, 
         message: "Fotos subidas exitosamente",
         urls: photoUrls 
       });
@@ -14133,7 +14553,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
         await storage.updateLeadStatus(offerToken.leadId, "en_negociacion");
       }
 
+      // Get agency slug for SEO-friendly URLs
+      const [agency] = await db.select({ slug: externalAgencies.slug })
+        .from(externalAgencies)
+        .where(eq(externalAgencies.id, agencyId))
+        .limit(1);
+
       res.json({
+        agencySlug: agency?.slug || null,
         message: "Oferta enviada exitosamente",
         tokenId: updatedToken.id,
       });
@@ -14207,7 +14634,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
         .delete(offerTokens)
         .where(eq(offerTokens.id, id));
 
-      res.json({ message: "Link eliminado exitosamente" });
+      // Get agency slug for SEO-friendly URLs
+      const [agency] = await db.select({ slug: externalAgencies.slug })
+        .from(externalAgencies)
+        .where(eq(externalAgencies.id, agencyId))
+        .limit(1);
+
+      res.json({
+        agencySlug: agency?.slug || null, message: "Link eliminado exitosamente" });
     } catch (error) {
       console.error("Error deleting offer token:", error);
       res.status(500).json({ message: "Error al eliminar link" });
@@ -14263,7 +14697,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
         `Email enviado a ${clientEmail} con link de oferta para ${property.title}`
       );
 
-      res.json({ 
+      // Get agency slug for SEO-friendly URLs
+      const [agency] = await db.select({ slug: externalAgencies.slug })
+        .from(externalAgencies)
+        .where(eq(externalAgencies.id, agencyId))
+        .limit(1);
+
+      res.json({
+        agencySlug: agency?.slug || null, 
         message: "Email enviado exitosamente",
         offerLink 
       });
@@ -14446,7 +14887,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
         }
       }
 
+      // Get agency slug for SEO-friendly URLs
+      const [agency] = await db.select({ slug: externalAgencies.slug })
+        .from(externalAgencies)
+        .where(eq(externalAgencies.id, agencyId))
+        .limit(1);
+
       res.json({
+        agencySlug: agency?.slug || null,
         ...rentalFormToken,
         property,
         externalUnit,
@@ -14567,7 +15015,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
           return res.status(404).json({ message: "Propiedad no encontrada" });
         }
 
-        return res.json({
+        return // Get agency slug for SEO-friendly URLs
+      const [agency] = await db.select({ slug: externalAgencies.slug })
+        .from(externalAgencies)
+        .where(eq(externalAgencies.id, agencyId))
+        .limit(1);
+
+      res.json({
+        agencySlug: agency?.slug || null,
           valid: true,
           isExternal: false,
           recipientType,
@@ -14576,7 +15031,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
         });
       }
       
+      // Get agency slug for SEO-friendly URLs
+      const [agency] = await db.select({ slug: externalAgencies.slug })
+        .from(externalAgencies)
+        .where(eq(externalAgencies.id, agencyId))
+        .limit(1);
+
       res.json({
+        agencySlug: agency?.slug || null,
         valid: true,
         isExternal: true,
         recipientType,
@@ -14883,7 +15345,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Note: Lead status remains "en_negociacion" after form submission
       // Admin will review the form and then proceed to contract elaboration
 
+      // Get agency slug for SEO-friendly URLs
+      const [agency] = await db.select({ slug: externalAgencies.slug })
+        .from(externalAgencies)
+        .where(eq(externalAgencies.id, agencyId))
+        .limit(1);
+
       res.json({
+        agencySlug: agency?.slug || null,
         success: true,
         message: "Formato de renta enviado exitosamente",
         formId: rentalForm.id,
@@ -14977,7 +15446,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return `/attached_assets/tenant_documents/${file.filename}`;
       });
 
-      res.json({ 
+      // Get agency slug for SEO-friendly URLs
+      const [agency] = await db.select({ slug: externalAgencies.slug })
+        .from(externalAgencies)
+        .where(eq(externalAgencies.id, agencyId))
+        .limit(1);
+
+      res.json({
+        agencySlug: agency?.slug || null, 
         message: "Documentos subidos exitosamente",
         documentType,
         urls: documentUrls 
@@ -15075,7 +15551,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return `/attached_assets/owner_documents/${file.filename}`;
       });
 
-      res.json({ 
+      // Get agency slug for SEO-friendly URLs
+      const [agency] = await db.select({ slug: externalAgencies.slug })
+        .from(externalAgencies)
+        .where(eq(externalAgencies.id, agencyId))
+        .limit(1);
+
+      res.json({
+        agencySlug: agency?.slug || null, 
         message: "Documentos subidos exitosamente",
         documentType,
         urls: documentUrls 
@@ -15167,7 +15650,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
         }
       }
 
+      // Get agency slug for SEO-friendly URLs
+      const [agency] = await db.select({ slug: externalAgencies.slug })
+        .from(externalAgencies)
+        .where(eq(externalAgencies.id, agencyId))
+        .limit(1);
+
       res.json({
+        agencySlug: agency?.slug || null,
         success: true,
         message: "Formato de propietario enviado exitosamente",
         formId: ownerForm.id,
@@ -15224,7 +15714,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
         `Email enviado a ${clientEmail} con link de formato de renta para ${property.title}`
       );
 
-      res.json({ 
+      // Get agency slug for SEO-friendly URLs
+      const [agency] = await db.select({ slug: externalAgencies.slug })
+        .from(externalAgencies)
+        .where(eq(externalAgencies.id, agencyId))
+        .limit(1);
+
+      res.json({
+        agencySlug: agency?.slug || null, 
         message: "Email enviado exitosamente",
         rentalFormLink 
       });
@@ -15352,7 +15849,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
         `Formulario de renta ${status}: ${rentalForm.fullName}`
       );
 
-      res.json({ message: "Formulario actualizado exitosamente" });
+      // Get agency slug for SEO-friendly URLs
+      const [agency] = await db.select({ slug: externalAgencies.slug })
+        .from(externalAgencies)
+        .where(eq(externalAgencies.id, agencyId))
+        .limit(1);
+
+      res.json({
+        agencySlug: agency?.slug || null, message: "Formulario actualizado exitosamente" });
     } catch (error) {
       console.error("Error reviewing rental form:", error);
       res.status(500).json({ message: "Error al revisar formulario" });
@@ -17464,7 +17968,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const userId = req.user.claims.sub;
       await storage.markAllNotificationsAsRead(userId);
-      res.json({ message: "All notifications marked as read" });
+      // Get agency slug for SEO-friendly URLs
+      const [agency] = await db.select({ slug: externalAgencies.slug })
+        .from(externalAgencies)
+        .where(eq(externalAgencies.id, agencyId))
+        .limit(1);
+
+      res.json({
+        agencySlug: agency?.slug || null, message: "All notifications marked as read" });
     } catch (error) {
       console.error("Error marking all notifications as read:", error);
       res.status(500).json({ message: "Failed to mark all notifications as read" });
@@ -17486,7 +17997,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const { id } = req.params;
       await storage.deleteNotification(id);
-      res.json({ message: "Notification deleted successfully" });
+      // Get agency slug for SEO-friendly URLs
+      const [agency] = await db.select({ slug: externalAgencies.slug })
+        .from(externalAgencies)
+        .where(eq(externalAgencies.id, agencyId))
+        .limit(1);
+
+      res.json({
+        agencySlug: agency?.slug || null, message: "Notification deleted successfully" });
     } catch (error) {
       console.error("Error deleting notification:", error);
       res.status(500).json({ message: "Failed to delete notification" });
@@ -17716,7 +18234,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(403).json({ message: "You are not a participant in this conversation" });
       }
       
-      res.json({ success: true });
+      // Get agency slug for SEO-friendly URLs
+      const [agency] = await db.select({ slug: externalAgencies.slug })
+        .from(externalAgencies)
+        .where(eq(externalAgencies.id, agencyId))
+        .limit(1);
+
+      res.json({
+        agencySlug: agency?.slug || null, success: true });
     } catch (error) {
       console.error("Error marking conversation as read:", error);
       res.status(500).json({ message: "Failed to mark conversation as read" });
@@ -17966,7 +18491,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
         });
       }
 
+      // Get agency slug for SEO-friendly URLs
+      const [agency] = await db.select({ slug: externalAgencies.slug })
+        .from(externalAgencies)
+        .where(eq(externalAgencies.id, agencyId))
+        .limit(1);
+
       res.json({
+        agencySlug: agency?.slug || null,
         userMessage,
         botMessage: {
           ...botMessage,
@@ -18033,7 +18565,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
         }
       }
 
-      res.json({ recommendations });
+      // Get agency slug for SEO-friendly URLs
+      const [agency] = await db.select({ slug: externalAgencies.slug })
+        .from(externalAgencies)
+        .where(eq(externalAgencies.id, agencyId))
+        .limit(1);
+
+      res.json({
+        agencySlug: agency?.slug || null, recommendations });
     } catch (error: any) {
       console.error("Error generating recommendations:", error);
       res.status(500).json({ message: error.message || "Failed to generate recommendations" });
@@ -18050,7 +18589,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       // Only return public status information
+      // Get agency slug for SEO-friendly URLs
+      const [agency] = await db.select({ slug: externalAgencies.slug })
+        .from(externalAgencies)
+        .where(eq(externalAgencies.id, agencyId))
+        .limit(1);
+
       res.json({
+        agencySlug: agency?.slug || null,
         isActive: config.isActive,
         name: config.name,
       });
@@ -18864,7 +19410,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return acc;
       }, {} as Record<string, { count: number; total: number }>);
 
+      // Get agency slug for SEO-friendly URLs
+      const [agency] = await db.select({ slug: externalAgencies.slug })
+        .from(externalAgencies)
+        .where(eq(externalAgencies.id, agencyId))
+        .limit(1);
+
       res.json({
+        agencySlug: agency?.slug || null,
         totalEarnings,
         paidAmount,
         pendingAmount,
@@ -18982,7 +19535,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
         "Deleted changelog"
       );
 
-      res.json({ message: "Changelog deleted successfully" });
+      // Get agency slug for SEO-friendly URLs
+      const [agency] = await db.select({ slug: externalAgencies.slug })
+        .from(externalAgencies)
+        .where(eq(externalAgencies.id, agencyId))
+        .limit(1);
+
+      res.json({
+        agencySlug: agency?.slug || null, message: "Changelog deleted successfully" });
     } catch (error: any) {
       console.error("Error deleting changelog:", error);
       res.status(500).json({ message: "Failed to delete changelog" });
@@ -19087,7 +19647,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
         "Deleted SLA configuration"
       );
 
-      res.json({ message: "SLA configuration deleted successfully" });
+      // Get agency slug for SEO-friendly URLs
+      const [agency] = await db.select({ slug: externalAgencies.slug })
+        .from(externalAgencies)
+        .where(eq(externalAgencies.id, agencyId))
+        .limit(1);
+
+      res.json({
+        agencySlug: agency?.slug || null, message: "SLA configuration deleted successfully" });
     } catch (error: any) {
       console.error("Error deleting SLA configuration:", error);
       res.status(500).json({ message: "Failed to delete SLA configuration" });
@@ -19166,7 +19733,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
         "Deleted lead scoring rule"
       );
 
-      res.json({ message: "Lead scoring rule deleted successfully" });
+      // Get agency slug for SEO-friendly URLs
+      const [agency] = await db.select({ slug: externalAgencies.slug })
+        .from(externalAgencies)
+        .where(eq(externalAgencies.id, agencyId))
+        .limit(1);
+
+      res.json({
+        agencySlug: agency?.slug || null, message: "Lead scoring rule deleted successfully" });
     } catch (error: any) {
       console.error("Error deleting lead scoring rule:", error);
       res.status(500).json({ message: "Failed to delete lead scoring rule" });
@@ -19283,7 +19857,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
         "Deleted contract checklist template"
       );
 
-      res.json({ message: "Contract checklist template deleted successfully" });
+      // Get agency slug for SEO-friendly URLs
+      const [agency] = await db.select({ slug: externalAgencies.slug })
+        .from(externalAgencies)
+        .where(eq(externalAgencies.id, agencyId))
+        .limit(1);
+
+      res.json({
+        agencySlug: agency?.slug || null, message: "Contract checklist template deleted successfully" });
     } catch (error: any) {
       console.error("Error deleting contract checklist template:", error);
       res.status(500).json({ message: "Failed to delete contract checklist template" });
@@ -19332,7 +19913,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.delete("/api/contract-checklist-template-items/:id", isAuthenticated, requireFullAdmin, async (req, res) => {
     try {
       await storage.deleteContractChecklistTemplateItem(req.params.id);
-      res.json({ message: "Contract checklist template item deleted successfully" });
+      // Get agency slug for SEO-friendly URLs
+      const [agency] = await db.select({ slug: externalAgencies.slug })
+        .from(externalAgencies)
+        .where(eq(externalAgencies.id, agencyId))
+        .limit(1);
+
+      res.json({
+        agencySlug: agency?.slug || null, message: "Contract checklist template item deleted successfully" });
     } catch (error: any) {
       console.error("Error deleting contract checklist template item:", error);
       res.status(500).json({ message: "Failed to delete contract checklist template item" });
@@ -19563,7 +20151,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.delete("/api/alerts/:id", isAuthenticated, requireResourceOwnership('alert', 'userId'), async (req, res) => {
     try {
       await storage.deleteSystemAlert(req.params.id);
-      res.json({ message: "Alert deleted successfully" });
+      // Get agency slug for SEO-friendly URLs
+      const [agency] = await db.select({ slug: externalAgencies.slug })
+        .from(externalAgencies)
+        .where(eq(externalAgencies.id, agencyId))
+        .limit(1);
+
+      res.json({
+        agencySlug: agency?.slug || null, message: "Alert deleted successfully" });
     } catch (error: any) {
       console.error("Error deleting alert:", error);
       res.status(500).json({ message: "Failed to delete alert" });
@@ -19726,7 +20321,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
         isBuiltIn: true
       });
 
-      res.json({ integrations });
+      // Get agency slug for SEO-friendly URLs
+      const [agency] = await db.select({ slug: externalAgencies.slug })
+        .from(externalAgencies)
+        .where(eq(externalAgencies.id, agencyId))
+        .limit(1);
+
+      res.json({
+        agencySlug: agency?.slug || null, integrations });
     } catch (error: any) {
       console.error("Error fetching integrations status:", error);
       res.status(500).json({ message: "Failed to fetch integrations status" });
@@ -19800,7 +20402,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const userId = req.session.adminUser?.id || req.user?.claims?.sub;
       await storage.removeServiceFavorite(userId, req.params.providerId);
-      res.json({ message: "Favorite removed" });
+      // Get agency slug for SEO-friendly URLs
+      const [agency] = await db.select({ slug: externalAgencies.slug })
+        .from(externalAgencies)
+        .where(eq(externalAgencies.id, agencyId))
+        .limit(1);
+
+      res.json({
+        agencySlug: agency?.slug || null, message: "Favorite removed" });
     } catch (error: any) {
       console.error("Error removing service favorite:", error);
       res.status(500).json({ message: "Failed to remove favorite" });
@@ -21091,7 +21700,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const validContacts = contactsWithMatches.filter((c: any) => c.parseSuccess);
       const invalidContacts = contactsWithMatches.filter((c: any) => !c.parseSuccess);
 
+      // Get agency slug for SEO-friendly URLs
+      const [agency] = await db.select({ slug: externalAgencies.slug })
+        .from(externalAgencies)
+        .where(eq(externalAgencies.id, agencyId))
+        .limit(1);
+
       res.json({
+        agencySlug: agency?.slug || null,
         total: contactsWithMatches.length,
         valid: validContacts.length,
         invalid: invalidContacts.length,
@@ -21489,7 +22105,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Get agency
       const agency = await storage.getExternalAgency(request.agencyId);
 
+      // Get agency slug for SEO-friendly URLs
+      const [agency] = await db.select({ slug: externalAgencies.slug })
+        .from(externalAgencies)
+        .where(eq(externalAgencies.id, agencyId))
+        .limit(1);
+
       res.json({
+        agencySlug: agency?.slug || null,
         ...request,
         unit: {
           ...unit,
@@ -21816,7 +22439,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Update unit
       await storage.updateExternalUnit(request.unitId, { publishToMain: false, publishStatus: 'draft' });
 
-      res.json({ message: "Request withdrawn successfully" });
+      // Get agency slug for SEO-friendly URLs
+      const [agency] = await db.select({ slug: externalAgencies.slug })
+        .from(externalAgencies)
+        .where(eq(externalAgencies.id, agencyId))
+        .limit(1);
+
+      res.json({
+        agencySlug: agency?.slug || null, message: "Request withdrawn successfully" });
     } catch (error) {
       console.error("Error withdrawing publication request:", error);
       res.status(500).json({ message: "Failed to withdraw request" });
@@ -21900,7 +22530,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
         };
       }));
 
-      res.json({ 
+      // Get agency slug for SEO-friendly URLs
+      const [agency] = await db.select({ slug: externalAgencies.slug })
+        .from(externalAgencies)
+        .where(eq(externalAgencies.id, agencyId))
+        .limit(1);
+
+      res.json({
+        agencySlug: agency?.slug || null, 
         data: result,
         count: result.length,
         maxLimit: 30,
@@ -22009,7 +22646,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const newIndex = sortOrder - 1;
 
       if (oldIndex === newIndex) {
-        return res.json({ message: "No change needed" });
+        return // Get agency slug for SEO-friendly URLs
+      const [agency] = await db.select({ slug: externalAgencies.slug })
+        .from(externalAgencies)
+        .where(eq(externalAgencies.id, agencyId))
+        .limit(1);
+
+      res.json({
+        agencySlug: agency?.slug || null, message: "No change needed" });
       }
 
       // Update sort orders for affected items
@@ -22045,7 +22689,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       await Promise.all(updates);
 
-      res.json({ message: "Sort order updated successfully" });
+      // Get agency slug for SEO-friendly URLs
+      const [agency] = await db.select({ slug: externalAgencies.slug })
+        .from(externalAgencies)
+        .where(eq(externalAgencies.id, agencyId))
+        .limit(1);
+
+      res.json({
+        agencySlug: agency?.slug || null, message: "Sort order updated successfully" });
     } catch (error: any) {
       console.error("Error updating featured property sort order:", error);
       res.status(500).json({ message: "Error updating sort order" });
@@ -22094,7 +22745,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
           .where(eq(featuredProperties.id, item.id));
       }));
 
-      res.json({ message: "Order updated successfully" });
+      // Get agency slug for SEO-friendly URLs
+      const [agency] = await db.select({ slug: externalAgencies.slug })
+        .from(externalAgencies)
+        .where(eq(externalAgencies.id, agencyId))
+        .limit(1);
+
+      res.json({
+        agencySlug: agency?.slug || null, message: "Order updated successfully" });
     } catch (error: any) {
       console.error("Error reordering featured properties:", error);
       res.status(500).json({ message: "Error reordering featured properties" });
@@ -22125,7 +22783,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
           .where(eq(featuredProperties.id, fp.id));
       }));
 
-      res.json({ message: "Featured property removed", deleted });
+      // Get agency slug for SEO-friendly URLs
+      const [agency] = await db.select({ slug: externalAgencies.slug })
+        .from(externalAgencies)
+        .where(eq(externalAgencies.id, agencyId))
+        .limit(1);
+
+      res.json({
+        agencySlug: agency?.slug || null, message: "Featured property removed", deleted });
     } catch (error: any) {
       console.error("Error removing featured property:", error);
       res.status(500).json({ message: "Error removing featured property" });
@@ -22172,6 +22837,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           price: externalUnits.price,
           salePrice: externalUnits.salePrice,
           listingType: externalUnits.listingType,
+          slug: externalUnits.slug,
           bedrooms: externalUnits.bedrooms,
           bathrooms: externalUnits.bathrooms,
           area: externalUnits.area,
@@ -22434,7 +23100,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       // Don't return sensitive tokens to frontend, only connection status
       if (integration) {
-        res.json({
+        // Get agency slug for SEO-friendly URLs
+      const [agency] = await db.select({ slug: externalAgencies.slug })
+        .from(externalAgencies)
+        .where(eq(externalAgencies.id, agencyId))
+        .limit(1);
+
+      res.json({
+        agencySlug: agency?.slug || null,
           ...integration,
           googleCalendarAccessToken: undefined,
           googleCalendarRefreshToken: undefined,
@@ -22446,7 +23119,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
           openaiHasCustomKey: !!integration.openaiApiKey,
         });
       } else {
-        res.json({
+        // Get agency slug for SEO-friendly URLs
+      const [agency] = await db.select({ slug: externalAgencies.slug })
+        .from(externalAgencies)
+        .where(eq(externalAgencies.id, agencyId))
+        .limit(1);
+
+      res.json({
+        agencySlug: agency?.slug || null,
           agencyId,
           googleCalendarConnected: googleCalendarStatus.connected,
           googleCalendarEmail: googleCalendarStatus.email,
@@ -22480,7 +23160,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       await createAuditLog(req, "update", "external_agency_integration", agencyId, "Updated OpenAI configuration");
       
+      // Get agency slug for SEO-friendly URLs
+      const [agency] = await db.select({ slug: externalAgencies.slug })
+        .from(externalAgencies)
+        .where(eq(externalAgencies.id, agencyId))
+        .limit(1);
+
       res.json({
+        agencySlug: agency?.slug || null,
         ...integration,
         openaiApiKey: undefined, // Don't return API key
         openaiConnected: !!(integration.openaiApiKey || integration.openaiUseReplitIntegration),
@@ -22527,7 +23214,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const permissions = await storage.getExternalRolePermissions(agencyId);
       
       // Return both saved permissions and default structure
+      // Get agency slug for SEO-friendly URLs
+      const [agency] = await db.select({ slug: externalAgencies.slug })
+        .from(externalAgencies)
+        .where(eq(externalAgencies.id, agencyId))
+        .limit(1);
+
       res.json({
+        agencySlug: agency?.slug || null,
         permissions,
         defaults: DEFAULT_ROLE_PERMISSIONS,
         sections: EXTERNAL_PERMISSION_SECTIONS,
@@ -22588,7 +23282,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const permissions = await storage.getExternalUserPermissions(agencyId);
       const agencyUsers = await storage.getUsersByAgency(agencyId);
       
+      // Get agency slug for SEO-friendly URLs
+      const [agency] = await db.select({ slug: externalAgencies.slug })
+        .from(externalAgencies)
+        .where(eq(externalAgencies.id, agencyId))
+        .limit(1);
+
       res.json({
+        agencySlug: agency?.slug || null,
         permissions,
         users: agencyUsers.map(u => ({
           id: u.id,
@@ -22891,7 +23592,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
         tourStops = await storage.getExternalAppointmentUnitsByAppointment(id);
       }
 
-      res.json({ ...appointment, tourStops });
+      // Get agency slug for SEO-friendly URLs
+      const [agency] = await db.select({ slug: externalAgencies.slug })
+        .from(externalAgencies)
+        .where(eq(externalAgencies.id, agencyId))
+        .limit(1);
+
+      res.json({
+        agencySlug: agency?.slug || null, ...appointment, tourStops });
     } catch (error: any) {
       console.error("Error fetching external appointment:", error);
       handleGenericError(res, error);
@@ -23596,7 +24304,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
         }
       }
       
-      res.json({ 
+      // Get agency slug for SEO-friendly URLs
+      const [agency] = await db.select({ slug: externalAgencies.slug })
+        .from(externalAgencies)
+        .where(eq(externalAgencies.id, agencyId))
+        .limit(1);
+
+      res.json({
+        agencySlug: agency?.slug || null, 
         ...contract,
         convertedLead: convertedLead ? { id: convertedLead.id, message: "Cliente reconvertido a lead automáticamente" } : null
       });
@@ -23815,7 +24530,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
 
+      // Get agency slug for SEO-friendly URLs
+      const [agency] = await db.select({ slug: externalAgencies.slug })
+        .from(externalAgencies)
+        .where(eq(externalAgencies.id, agencyId))
+        .limit(1);
+
       res.json({
+        agencySlug: agency?.slug || null,
         email: updatedUser.email,
         firstName: updatedUser.firstName,
         lastName: updatedUser.lastName,
@@ -23859,7 +24581,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       await createAuditLog(req, "update", "user", id, "Reset password for external agency user");
 
-      res.json({ tempPassword });
+      // Get agency slug for SEO-friendly URLs
+      const [agency] = await db.select({ slug: externalAgencies.slug })
+        .from(externalAgencies)
+        .where(eq(externalAgencies.id, agencyId))
+        .limit(1);
+
+      res.json({
+        agencySlug: agency?.slug || null, tempPassword });
     } catch (error: any) {
       console.error("Error resetting password:", error);
       handleGenericError(res, error);
@@ -23920,7 +24649,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
         .where(eq(users.id, id));
 
       await createAuditLog(req, "update", "user", id, `Suspended external agency user ${user.firstName} ${user.lastName}`);
-      res.json({ message: "Usuario suspendido exitosamente" });
+      // Get agency slug for SEO-friendly URLs
+      const [agency] = await db.select({ slug: externalAgencies.slug })
+        .from(externalAgencies)
+        .where(eq(externalAgencies.id, agencyId))
+        .limit(1);
+
+      res.json({
+        agencySlug: agency?.slug || null, message: "Usuario suspendido exitosamente" });
     } catch (error: any) {
       console.error("Error suspending external agency user:", error);
       handleGenericError(res, error);
@@ -23951,7 +24687,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
         .where(eq(users.id, id));
 
       await createAuditLog(req, "update", "user", id, `Reactivated external agency user ${user.firstName} ${user.lastName}`);
-      res.json({ message: "Usuario reactivado exitosamente" });
+      // Get agency slug for SEO-friendly URLs
+      const [agency] = await db.select({ slug: externalAgencies.slug })
+        .from(externalAgencies)
+        .where(eq(externalAgencies.id, agencyId))
+        .limit(1);
+
+      res.json({
+        agencySlug: agency?.slug || null, message: "Usuario reactivado exitosamente" });
     } catch (error: any) {
       console.error("Error reactivating external agency user:", error);
       handleGenericError(res, error);
@@ -24318,7 +25061,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
         `Sent access code to ${recipient.email}`
       );
 
-      res.json({ success: true, message: "Email sent successfully" });
+      // Get agency slug for SEO-friendly URLs
+      const [agency] = await db.select({ slug: externalAgencies.slug })
+        .from(externalAgencies)
+        .where(eq(externalAgencies.id, agencyId))
+        .limit(1);
+
+      res.json({
+        agencySlug: agency?.slug || null, success: true, message: "Email sent successfully" });
     } catch (error: any) {
       console.error("Error sending access control email:", error);
       if (error.name === "ZodError") {
@@ -24962,7 +25712,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       await createAuditLog(req, "notification", "external_payment", id, `Sent payment reminder to ${tenantEmail}`);
       
-      res.json({ 
+      // Get agency slug for SEO-friendly URLs
+      const [agency] = await db.select({ slug: externalAgencies.slug })
+        .from(externalAgencies)
+        .where(eq(externalAgencies.id, agencyId))
+        .limit(1);
+
+      res.json({
+        agencySlug: agency?.slug || null, 
         success: true,
         message: "Payment reminder sent successfully",
         payment: updatedPayment 
@@ -25076,7 +25833,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const monthNames = ['enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio', 'julio', 'agosto', 'septiembre', 'octubre', 'noviembre', 'diciembre'];
       const monthName = monthNames[targetMonth - 1];
       
+      // Get agency slug for SEO-friendly URLs
+      const [agency] = await db.select({ slug: externalAgencies.slug })
+        .from(externalAgencies)
+        .where(eq(externalAgencies.id, agencyId))
+        .limit(1);
+
       res.json({
+        agencySlug: agency?.slug || null,
         period: {
           year: targetYear,
           month: targetMonth,
@@ -25147,7 +25911,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       const totalPages = Math.ceil(result.total / pageSizeNum);
       
+      // Get agency slug for SEO-friendly URLs
+      const [agency] = await db.select({ slug: externalAgencies.slug })
+        .from(externalAgencies)
+        .where(eq(externalAgencies.id, agencyId))
+        .limit(1);
+
       res.json({
+        agencySlug: agency?.slug || null,
         data: result.data,
         total: result.total,
         page: pageNum,
@@ -25520,7 +26291,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       // Get updated ticket with all changes
       const finalTicket = await storage.getExternalMaintenanceTicket(id);
-      res.json({ 
+      // Get agency slug for SEO-friendly URLs
+      const [agency] = await db.select({ slug: externalAgencies.slug })
+        .from(externalAgencies)
+        .where(eq(externalAgencies.id, agencyId))
+        .limit(1);
+
+      res.json({
+        agencySlug: agency?.slug || null, 
         ticket: finalTicket,
         transactionId,
         message: transactionId ? 'Ticket closed and sent to accounting' : 'Ticket closed'
@@ -25900,7 +26678,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Calculate conversion rate
       const conversionRate = totalLeads > 0 ? Math.round((convertedLeads / totalLeads) * 100) : 0;
 
+      // Get agency slug for SEO-friendly URLs
+      const [agency] = await db.select({ slug: externalAgencies.slug })
+        .from(externalAgencies)
+        .where(eq(externalAgencies.id, agencyId))
+        .limit(1);
+
       res.json({
+        agencySlug: agency?.slug || null,
         totalLeads,
         leadsByStatus,
         todayShowings,
@@ -26022,7 +26807,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
         ? Math.round((leadsConverted / leadsContacted) * 100) 
         : 0;
 
+      // Get agency slug for SEO-friendly URLs
+      const [agency] = await db.select({ slug: externalAgencies.slug })
+        .from(externalAgencies)
+        .where(eq(externalAgencies.id, agencyId))
+        .limit(1);
+
       res.json({
+        agencySlug: agency?.slug || null,
         period,
         totalActivities,
         activitiesByType,
@@ -26125,7 +26917,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       const achievedCount = activeGoals.filter(g => g.current >= g.target).length;
 
+      // Get agency slug for SEO-friendly URLs
+      const [agency] = await db.select({ slug: externalAgencies.slug })
+        .from(externalAgencies)
+        .where(eq(externalAgencies.id, agencyId))
+        .limit(1);
+
       res.json({
+        agencySlug: agency?.slug || null,
         activeGoals,
         achievedCount,
         totalPoints: achievedCount * 100,
@@ -26400,6 +27199,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           commissionType: externalUnits.commissionType,
           referrerName: externalUnits.referrerName,
           listingType: externalUnits.listingType,
+          slug: externalUnits.slug,
           petsAllowed: externalUnits.petFriendly,
         })
           .from(externalUnits)
@@ -26413,7 +27213,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
           .where(and(...conditions))
       ]);
 
+      // Get agency slug for SEO-friendly URLs
+      const [agency] = await db.select({ slug: externalAgencies.slug })
+        .from(externalAgencies)
+        .where(eq(externalAgencies.id, agencyId))
+        .limit(1);
+
       res.json({
+        agencySlug: agency?.slug || null,
         data: units,
         total: totalResult[0]?.count || 0,
         limit: parseInt(limit as string),
@@ -26472,7 +27279,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
         .limit(parseInt(limit as string))
         .offset(parseInt(offset as string));
 
-      res.json({ data: leads });
+      // Get agency slug for SEO-friendly URLs
+      const [agency] = await db.select({ slug: externalAgencies.slug })
+        .from(externalAgencies)
+        .where(eq(externalAgencies.id, agencyId))
+        .limit(1);
+
+      res.json({
+        agencySlug: agency?.slug || null, data: leads });
     } catch (error: any) {
       console.error("Error fetching seller leads:", error);
       handleGenericError(res, error);
@@ -26557,7 +27371,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
         outcome: 'pending',
       });
 
+      // Get agency slug for SEO-friendly URLs
+      const [agency] = await db.select({ slug: externalAgencies.slug })
+        .from(externalAgencies)
+        .where(eq(externalAgencies.id, agencyId))
+        .limit(1);
+
       res.json({
+        agencySlug: agency?.slug || null,
         success: true,
         offer,
         whatsappUrl,
@@ -26768,7 +27589,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       await db.delete(sellerMessageTemplates).where(eq(sellerMessageTemplates.id, id));
 
-      res.json({ success: true });
+      // Get agency slug for SEO-friendly URLs
+      const [agency] = await db.select({ slug: externalAgencies.slug })
+        .from(externalAgencies)
+        .where(eq(externalAgencies.id, agencyId))
+        .limit(1);
+
+      res.json({
+        agencySlug: agency?.slug || null, success: true });
     } catch (error: any) {
       console.error("Error deleting template:", error);
       handleGenericError(res, error);
@@ -27460,7 +28288,14 @@ ${{precio}}/mes
       const now = new Date();
       const overdue = tasks.filter(t => t.status === 'pending' && new Date(t.dueDate) < now);
 
+      // Get agency slug for SEO-friendly URLs
+      const [agency] = await db.select({ slug: externalAgencies.slug })
+        .from(externalAgencies)
+        .where(eq(externalAgencies.id, agencyId))
+        .limit(1);
+
       res.json({
+        agencySlug: agency?.slug || null,
         tasks,
         overdueCount: overdue.length,
         totalPending: tasks.filter(t => t.status === 'pending').length,
@@ -27835,7 +28670,14 @@ ${{precio}}/mes
       const convertedLeads = Number(convertedResult?.count || 0);
       const conversionRate = totalLeads > 0 ? (convertedLeads / totalLeads) * 100 : 0;
 
+      // Get agency slug for SEO-friendly URLs
+      const [agency] = await db.select({ slug: externalAgencies.slug })
+        .from(externalAgencies)
+        .where(eq(externalAgencies.id, agencyId))
+        .limit(1);
+
       res.json({
+        agencySlug: agency?.slug || null,
         leads: {
           total: totalLeads,
           converted: convertedLeads,
@@ -27922,7 +28764,14 @@ ${{precio}}/mes
         created.push(task);
       }
 
+      // Get agency slug for SEO-friendly URLs
+      const [agency] = await db.select({ slug: externalAgencies.slug })
+        .from(externalAgencies)
+        .where(eq(externalAgencies.id, agencyId))
+        .limit(1);
+
       res.json({
+        agencySlug: agency?.slug || null,
         generated: created.length,
         tasks: created,
       });
@@ -27976,7 +28825,14 @@ ${{precio}}/mes
         }),
       ]);
       
+      // Get agency slug for SEO-friendly URLs
+      const [agency] = await db.select({ slug: externalAgencies.slug })
+        .from(externalAgencies)
+        .where(eq(externalAgencies.id, agencyId))
+        .limit(1);
+
       res.json({
+        agencySlug: agency?.slug || null,
         data: condominiums,
         total,
         limit: parsedLimit,
@@ -28345,7 +29201,14 @@ ${{precio}}/mes
         coverPhotoUrl: coverPhotosByUnit.get(unit.id) || null,
       }));
       
+      // Get agency slug for SEO-friendly URLs
+      const [agency] = await db.select({ slug: externalAgencies.slug })
+        .from(externalAgencies)
+        .where(eq(externalAgencies.id, agencyId))
+        .limit(1);
+
       res.json({
+        agencySlug: agency?.slug || null,
         data: unitsWithContractInfo,
         total,
         limit: parsedLimit,
@@ -28478,7 +29341,14 @@ ${{precio}}/mes
         .orderBy(desc(externalLeadShowings.scheduledAt))
         .limit(20);
       
+      // Get agency slug for SEO-friendly URLs
+      const [agency] = await db.select({ slug: externalAgencies.slug })
+        .from(externalAgencies)
+        .where(eq(externalAgencies.id, agencyId))
+        .limit(1);
+
       res.json({
+        agencySlug: agency?.slug || null,
         unit,
         condominium,
         rentalHistory: rentalContracts,
@@ -28531,7 +29401,14 @@ ${{precio}}/mes
         referrerEmail: unit.referrerEmail,
       });
       
+      // Get agency slug for SEO-friendly URLs
+      const [agency] = await db.select({ slug: externalAgencies.slug })
+        .from(externalAgencies)
+        .where(eq(externalAgencies.id, agencyId))
+        .limit(1);
+
       res.json({
+        agencySlug: agency?.slug || null,
         unitId: id,
         unitName: unit.unitNumber,
         monthlyRent,
@@ -28561,7 +29438,14 @@ ${{precio}}/mes
       const rawRows = await readTRHUnitsFromSheet(spreadsheetId as string, sheetName as string, 2, 10);
       const parsedUnits = rawRows.map(row => parseTRHRow(row));
       
+      // Get agency slug for SEO-friendly URLs
+      const [agency] = await db.select({ slug: externalAgencies.slug })
+        .from(externalAgencies)
+        .where(eq(externalAgencies.id, agencyId))
+        .limit(1);
+
       res.json({
+        agencySlug: agency?.slug || null,
         success: true,
         totalRows: stats.totalRows,
         sheetName: stats.sheetName,
@@ -28722,7 +29606,14 @@ ${{precio}}/mes
         }
       }
 
+      // Get agency slug for SEO-friendly URLs
+      const [agency] = await db.select({ slug: externalAgencies.slug })
+        .from(externalAgencies)
+        .where(eq(externalAgencies.id, agencyId))
+        .limit(1);
+
       res.json({
+        agencySlug: agency?.slug || null,
         message: `Processed ${processed} units`,
         success,
         failed,
@@ -28927,7 +29818,14 @@ ${{precio}}/mes
 
       await createAuditLog(req, "import", "external_units", agencyId, `Imported ${results.imported} units from Google Sheets`);
 
+      // Get agency slug for SEO-friendly URLs
+      const [agency] = await db.select({ slug: externalAgencies.slug })
+        .from(externalAgencies)
+        .where(eq(externalAgencies.id, agencyId))
+        .limit(1);
+
       res.json({
+        agencySlug: agency?.slug || null,
         message: `Importación completada: ${results.imported} unidades importadas, ${results.skipped} omitidas`,
         ...results,
       });
@@ -28982,7 +29880,14 @@ ${{precio}}/mes
       const range = (sheetRange as string) || 'Sheet1!A2:M';
       const rows = await readUnitsFromSheet(spreadsheetId as string, range);
 
+      // Get agency slug for SEO-friendly URLs
+      const [agency] = await db.select({ slug: externalAgencies.slug })
+        .from(externalAgencies)
+        .where(eq(externalAgencies.id, agencyId))
+        .limit(1);
+
       res.json({
+        agencySlug: agency?.slug || null,
         totalRows: rows.length,
         preview: rows.slice(0, 10), // First 10 rows for preview
         columns: ['unitNumber', 'condominiumName', 'rentPurpose', 'floorNumber', 'bedrooms', 'bathrooms', 'size', 'rentAmount', 'depositAmount', 'ownerName', 'ownerEmail', 'ownerPhone', 'notes'],
@@ -29108,7 +30013,14 @@ ${{precio}}/mes
       
       if (dryRun) {
         // Preview mode - return parsed data without inserting
-        return res.json({
+        return // Get agency slug for SEO-friendly URLs
+      const [agency] = await db.select({ slug: externalAgencies.slug })
+        .from(externalAgencies)
+        .where(eq(externalAgencies.id, agencyId))
+        .limit(1);
+
+      res.json({
+        agencySlug: agency?.slug || null,
           success: true,
           dryRun: true,
           totalRows: rawRows.length,
@@ -29249,7 +30161,14 @@ ${{precio}}/mes
         `Sheet sync: Imported ${imported} units, updated ${updated} units from Google Sheets`
       );
       
+      // Get agency slug for SEO-friendly URLs
+      const [agency] = await db.select({ slug: externalAgencies.slug })
+        .from(externalAgencies)
+        .where(eq(externalAgencies.id, agencyId))
+        .limit(1);
+
       res.json({
+        agencySlug: agency?.slug || null,
         success: true,
         imported,
         updated,
@@ -29357,7 +30276,14 @@ ${{precio}}/mes
 
       await storage.updateExternalUnit(id, updateData);
 
+      // Get agency slug for SEO-friendly URLs
+      const [agency] = await db.select({ slug: externalAgencies.slug })
+        .from(externalAgencies)
+        .where(eq(externalAgencies.id, agencyId))
+        .limit(1);
+
       res.json({
+        agencySlug: agency?.slug || null,
         success: true,
         uploaded: uploadedImages,
         errors: errors.length > 0 ? errors : undefined,
@@ -29400,7 +30326,14 @@ ${{precio}}/mes
 
       await storage.updateExternalUnit(id, updateData);
 
-      res.json({ success: true, message: "Imagen eliminada" });
+      // Get agency slug for SEO-friendly URLs
+      const [agency] = await db.select({ slug: externalAgencies.slug })
+        .from(externalAgencies)
+        .where(eq(externalAgencies.id, agencyId))
+        .limit(1);
+
+      res.json({
+        agencySlug: agency?.slug || null, success: true, message: "Imagen eliminada" });
     } catch (error: any) {
       console.error("Error deleting image:", error);
       res.status(500).json({ message: error.message || "Failed to delete image" });
@@ -29447,7 +30380,14 @@ ${{precio}}/mes
         }
       });
 
-      res.json({ 
+      // Get agency slug for SEO-friendly URLs
+      const [agency] = await db.select({ slug: externalAgencies.slug })
+        .from(externalAgencies)
+        .where(eq(externalAgencies.id, agencyId))
+        .limit(1);
+
+      res.json({
+        agencySlug: agency?.slug || null, 
         success: true, 
         data: media,
         photos,
@@ -29529,7 +30469,14 @@ ${{precio}}/mes
         });
       }
 
+      // Get agency slug for SEO-friendly URLs
+      const [agency] = await db.select({ slug: externalAgencies.slug })
+        .from(externalAgencies)
+        .where(eq(externalAgencies.id, agencyId))
+        .limit(1);
+
       res.json({
+        agencySlug: agency?.slug || null,
         success: true,
         data: uploadedMedia,
         errors: errors.length > 0 ? errors : undefined,
@@ -29566,7 +30513,14 @@ ${{precio}}/mes
         return res.status(404).json({ message: "Media not found" });
       }
 
-      res.json({ success: true, data: updated });
+      // Get agency slug for SEO-friendly URLs
+      const [agency] = await db.select({ slug: externalAgencies.slug })
+        .from(externalAgencies)
+        .where(eq(externalAgencies.id, agencyId))
+        .limit(1);
+
+      res.json({
+        agencySlug: agency?.slug || null, success: true, data: updated });
     } catch (error: any) {
       console.error("Error updating media:", error);
       res.status(500).json({ message: error.message || "Failed to update media" });
@@ -29591,7 +30545,14 @@ ${{precio}}/mes
         return res.status(404).json({ message: "Media not found" });
       }
 
-      res.json({ success: true, message: "Imagen eliminada" });
+      // Get agency slug for SEO-friendly URLs
+      const [agency] = await db.select({ slug: externalAgencies.slug })
+        .from(externalAgencies)
+        .where(eq(externalAgencies.id, agencyId))
+        .limit(1);
+
+      res.json({
+        agencySlug: agency?.slug || null, success: true, message: "Imagen eliminada" });
     } catch (error: any) {
       console.error("Error deleting media:", error);
       res.status(500).json({ message: error.message || "Failed to delete media" });
@@ -29618,7 +30579,14 @@ ${{precio}}/mes
 
       await storage.reorderUnitMedia(id, section, sectionIndex, mediaIds);
 
-      res.json({ success: true, message: "Orden actualizado" });
+      // Get agency slug for SEO-friendly URLs
+      const [agency] = await db.select({ slug: externalAgencies.slug })
+        .from(externalAgencies)
+        .where(eq(externalAgencies.id, agencyId))
+        .limit(1);
+
+      res.json({
+        agencySlug: agency?.slug || null, success: true, message: "Orden actualizado" });
     } catch (error: any) {
       console.error("Error reordering media:", error);
       res.status(500).json({ message: error.message || "Failed to reorder media" });
@@ -29640,7 +30608,14 @@ ${{precio}}/mes
 
       await storage.setCoverImage(id, mediaId);
 
-      res.json({ success: true, message: "Imagen de portada actualizada" });
+      // Get agency slug for SEO-friendly URLs
+      const [agency] = await db.select({ slug: externalAgencies.slug })
+        .from(externalAgencies)
+        .where(eq(externalAgencies.id, agencyId))
+        .limit(1);
+
+      res.json({
+        agencySlug: agency?.slug || null, success: true, message: "Imagen de portada actualizada" });
     } catch (error: any) {
       console.error("Error setting cover image:", error);
       res.status(500).json({ message: error.message || "Failed to set cover image" });
@@ -29671,7 +30646,14 @@ ${{precio}}/mes
         return res.status(404).json({ message: "Media not found" });
       }
 
-      res.json({ success: true, message: "Imagen movida correctamente", data: result });
+      // Get agency slug for SEO-friendly URLs
+      const [agency] = await db.select({ slug: externalAgencies.slug })
+        .from(externalAgencies)
+        .where(eq(externalAgencies.id, agencyId))
+        .limit(1);
+
+      res.json({
+        agencySlug: agency?.slug || null, success: true, message: "Imagen movida correctamente", data: result });
     } catch (error: any) {
       console.error("Error moving media to section:", error);
       res.status(500).json({ message: error.message || "Failed to move media" });
@@ -29759,7 +30741,14 @@ ${{precio}}/mes
         sections.push({ key: s.section, section: s.section, sectionIndex: 1, label: s.label });
       });
 
-      res.json({ success: true, data: sections });
+      // Get agency slug for SEO-friendly URLs
+      const [agency] = await db.select({ slug: externalAgencies.slug })
+        .from(externalAgencies)
+        .where(eq(externalAgencies.id, agencyId))
+        .limit(1);
+
+      res.json({
+        agencySlug: agency?.slug || null, success: true, data: sections });
     } catch (error: any) {
       console.error("Error fetching media sections:", error);
       res.status(500).json({ message: error.message || "Failed to fetch sections" });
@@ -29793,7 +30782,14 @@ ${{precio}}/mes
       const secondaryImages = unit.secondaryImages || [];
       
       if (primaryImages.length === 0 && secondaryImages.length === 0) {
-        return res.json({ 
+        return // Get agency slug for SEO-friendly URLs
+      const [agency] = await db.select({ slug: externalAgencies.slug })
+        .from(externalAgencies)
+        .where(eq(externalAgencies.id, agencyId))
+        .limit(1);
+
+      res.json({
+        agencySlug: agency?.slug || null, 
           success: true, 
           message: "No images to migrate",
           migrated: 0 
@@ -29838,7 +30834,14 @@ ${{precio}}/mes
         migratedCount++;
       }
 
+      // Get agency slug for SEO-friendly URLs
+      const [agency] = await db.select({ slug: externalAgencies.slug })
+        .from(externalAgencies)
+        .where(eq(externalAgencies.id, agencyId))
+        .limit(1);
+
       res.json({
+        agencySlug: agency?.slug || null,
         success: true,
         message: `Migrated ${migratedCount} images successfully`,
         migrated: migratedCount,
@@ -29921,7 +30924,14 @@ ${{precio}}/mes
         }
       }
 
+      // Get agency slug for SEO-friendly URLs
+      const [agency] = await db.select({ slug: externalAgencies.slug })
+        .from(externalAgencies)
+        .where(eq(externalAgencies.id, agencyId))
+        .limit(1);
+
       res.json({
+        agencySlug: agency?.slug || null,
         success: true,
         message: `Migration completed: ${unitsMigrated} units, ${totalMigrated} images`,
         unitsMigrated,
@@ -29960,7 +30970,14 @@ ${{precio}}/mes
 
       await storage.updateExternalUnit(id, { videos: newVideos });
 
-      res.json({ success: true, videos: newVideos, message: "Videos agregados correctamente" });
+      // Get agency slug for SEO-friendly URLs
+      const [agency] = await db.select({ slug: externalAgencies.slug })
+        .from(externalAgencies)
+        .where(eq(externalAgencies.id, agencyId))
+        .limit(1);
+
+      res.json({
+        agencySlug: agency?.slug || null, success: true, videos: newVideos, message: "Videos agregados correctamente" });
     } catch (error: any) {
       console.error("Error adding videos:", error);
       res.status(500).json({ message: error.message || "Failed to add videos" });
@@ -30041,7 +31058,14 @@ ${{precio}}/mes
       
       const total = Number(countResult[0]?.count || 0);
       
+      // Get agency slug for SEO-friendly URLs
+      const [agency] = await db.select({ slug: externalAgencies.slug })
+        .from(externalAgencies)
+        .where(eq(externalAgencies.id, agencyId))
+        .limit(1);
+
       res.json({
+        agencySlug: agency?.slug || null,
         activities,
         pagination: {
           total,
@@ -30219,7 +31243,14 @@ ${{precio}}/mes
       const ownersWithUnits = ownersResult.rows as any[];
 
       if (ownersWithUnits.length === 0) {
-        return res.json({ data: [], total: 0, page: Math.floor(offsetNum / limitNum) + 1, pageSize: limitNum });
+        return // Get agency slug for SEO-friendly URLs
+      const [agency] = await db.select({ slug: externalAgencies.slug })
+        .from(externalAgencies)
+        .where(eq(externalAgencies.id, agencyId))
+        .limit(1);
+
+      res.json({
+        agencySlug: agency?.slug || null, data: [], total: 0, page: Math.floor(offsetNum / limitNum) + 1, pageSize: limitNum });
       }
 
       // Get contracts using raw SQL
@@ -30379,7 +31410,14 @@ ${{precio}}/mes
 
       const paginatedPortfolios = filteredPortfolios.slice(offsetNum, offsetNum + limitNum);
 
+      // Get agency slug for SEO-friendly URLs
+      const [agency] = await db.select({ slug: externalAgencies.slug })
+        .from(externalAgencies)
+        .where(eq(externalAgencies.id, agencyId))
+        .limit(1);
+
       res.json({
+        agencySlug: agency?.slug || null,
         data: paginatedPortfolios,
         total: filteredPortfolios.length,
         page: Math.floor(offsetNum / limitNum) + 1,
@@ -31163,7 +32201,14 @@ ${{precio}}/mes
         }),
       ]);
       
+      // Get agency slug for SEO-friendly URLs
+      const [agency] = await db.select({ slug: externalAgencies.slug })
+        .from(externalAgencies)
+        .where(eq(externalAgencies.id, agencyId))
+        .limit(1);
+
       res.json({
+        agencySlug: agency?.slug || null,
         data: clients,
         total,
         limit: limitNum,
@@ -31478,7 +32523,14 @@ ${{precio}}/mes
         .limit(limitNum)
         .offset(offset);
 
+      // Get agency slug for SEO-friendly URLs
+      const [agency] = await db.select({ slug: externalAgencies.slug })
+        .from(externalAgencies)
+        .where(eq(externalAgencies.id, agencyId))
+        .limit(1);
+
       res.json({
+        agencySlug: agency?.slug || null,
         brokers,
         pagination: {
           total,
@@ -31519,7 +32571,14 @@ ${{precio}}/mes
         .from(externalLeads)
         .where(eq(externalLeads.brokerId, id));
 
+      // Get agency slug for SEO-friendly URLs
+      const [agency] = await db.select({ slug: externalAgencies.slug })
+        .from(externalAgencies)
+        .where(eq(externalAgencies.id, agencyId))
+        .limit(1);
+
       res.json({
+        agencySlug: agency?.slug || null,
         ...broker[0],
         leadsCount: Number(leadsCount[0]?.count || 0),
       });
@@ -31669,7 +32728,14 @@ ${{precio}}/mes
         .limit(limitNum)
         .offset(offset);
 
+      // Get agency slug for SEO-friendly URLs
+      const [agency] = await db.select({ slug: externalAgencies.slug })
+        .from(externalAgencies)
+        .where(eq(externalAgencies.id, agencyId))
+        .limit(1);
+
       res.json({
+        agencySlug: agency?.slug || null,
         data: leads,
         pagination: {
           total,
@@ -31732,7 +32798,14 @@ ${{precio}}/mes
         }),
       ]);
       
+      // Get agency slug for SEO-friendly URLs
+      const [agency] = await db.select({ slug: externalAgencies.slug })
+        .from(externalAgencies)
+        .where(eq(externalAgencies.id, agencyId))
+        .limit(1);
+
       res.json({
+        agencySlug: agency?.slug || null,
         data: leads,
         total,
         limit: limitNum,
@@ -32017,7 +33090,14 @@ ${{precio}}/mes
 
       await createAuditLog(req, "update", "external_presentation_card", "backfill", `Backfilled ${created} initial cards, skipped ${skipped}, errors ${errors.length}`);
 
+      // Get agency slug for SEO-friendly URLs
+      const [agency] = await db.select({ slug: externalAgencies.slug })
+        .from(externalAgencies)
+        .where(eq(externalAgencies.id, agencyId))
+        .limit(1);
+
       res.json({
+        agencySlug: agency?.slug || null,
         message: `Backfill completado: ${created} tarjetas creadas, ${skipped} leads ya tenían tarjetas`,
         created,
         skipped,
@@ -32350,7 +33430,14 @@ ${{precio}}/mes
       await createAuditLog(req, "create", "external_lead_import", null, 
         `Imported ${results.imported} leads (${results.duplicates} duplicates skipped, ${results.errors.length} errors)`);
 
+      // Get agency slug for SEO-friendly URLs
+      const [agency] = await db.select({ slug: externalAgencies.slug })
+        .from(externalAgencies)
+        .where(eq(externalAgencies.id, agencyId))
+        .limit(1);
+
       res.json({
+        agencySlug: agency?.slug || null,
         success: true,
         imported: results.imported,
         duplicates: results.duplicates,
@@ -32841,7 +33928,14 @@ ${{precio}}/mes
       await db.delete(externalLeadReminders)
         .where(eq(externalLeadReminders.id, id));
       
-      res.json({ success: true });
+      // Get agency slug for SEO-friendly URLs
+      const [agency] = await db.select({ slug: externalAgencies.slug })
+        .from(externalAgencies)
+        .where(eq(externalAgencies.id, agencyId))
+        .limit(1);
+
+      res.json({
+        agencySlug: agency?.slug || null, success: true });
     } catch (error: any) {
       console.error("Error deleting lead reminder:", error);
       handleGenericError(res, error);
@@ -33831,17 +34925,38 @@ ${{precio}}/mes
     try {
       const agencies = await storage.getExternalAgencies({ isActive: true });
       if (!agencies || agencies.length === 0) {
-        return res.json({ name: "", logoUrl: "" });
+        return // Get agency slug for SEO-friendly URLs
+      const [agency] = await db.select({ slug: externalAgencies.slug })
+        .from(externalAgencies)
+        .where(eq(externalAgencies.id, agencyId))
+        .limit(1);
+
+      res.json({
+        agencySlug: agency?.slug || null, name: "", logoUrl: "" });
       }
       const agency = agencies[0];
+      // Get agency slug for SEO-friendly URLs
+      const [agency] = await db.select({ slug: externalAgencies.slug })
+        .from(externalAgencies)
+        .where(eq(externalAgencies.id, agencyId))
+        .limit(1);
+
       res.json({
+        agencySlug: agency?.slug || null,
         id: agency.id,
         name: agency.name,
         logoUrl: agency.agencyLogoUrl || ""
       });
     } catch (error: any) {
       console.error("Error fetching public agency:", error);
-      res.json({ name: "", logoUrl: "" });
+      // Get agency slug for SEO-friendly URLs
+      const [agency] = await db.select({ slug: externalAgencies.slug })
+        .from(externalAgencies)
+        .where(eq(externalAgencies.id, agencyId))
+        .limit(1);
+
+      res.json({
+        agencySlug: agency?.slug || null, name: "", logoUrl: "" });
     }
   });
 
@@ -33873,7 +34988,14 @@ ${{precio}}/mes
       );
       
       // Return only public-safe information
+      // Get agency slug for SEO-friendly URLs
+      const [agency] = await db.select({ slug: externalAgencies.slug })
+        .from(externalAgencies)
+        .where(eq(externalAgencies.id, agencyId))
+        .limit(1);
+
       res.json({
+        agencySlug: agency?.slug || null,
         id: unit.id,
         agencyId: unit.agencyId, // For public lead submission
         name: unit.name,
@@ -33994,7 +35116,14 @@ ${{precio}}/mes
         };
       });
 
+      // Get agency slug for SEO-friendly URLs
+      const [agency] = await db.select({ slug: externalAgencies.slug })
+        .from(externalAgencies)
+        .where(eq(externalAgencies.id, agencyId))
+        .limit(1);
+
       res.json({
+        agencySlug: agency?.slug || null,
         success: true,
         hasMedia: media.length > 0,
         count: media.length,
@@ -34156,7 +35285,14 @@ ${{precio}}/mes
         return res.status(404).json({ message: "No hay oferta activa para esta propiedad" });
       }
       
-      res.json({ token: token[0].token });
+      // Get agency slug for SEO-friendly URLs
+      const [agency] = await db.select({ slug: externalAgencies.slug })
+        .from(externalAgencies)
+        .where(eq(externalAgencies.id, agencyId))
+        .limit(1);
+
+      res.json({
+        agencySlug: agency?.slug || null, token: token[0].token });
     } catch (error: any) {
       console.error("Error resolving offer token:", error);
       res.status(500).json({ message: "Error interno del servidor" });
@@ -34209,7 +35345,14 @@ ${{precio}}/mes
         return res.status(404).json({ message: "No hay formato de renta activo para esta propiedad" });
       }
       
-      res.json({ token: token[0].token });
+      // Get agency slug for SEO-friendly URLs
+      const [agency] = await db.select({ slug: externalAgencies.slug })
+        .from(externalAgencies)
+        .where(eq(externalAgencies.id, agencyId))
+        .limit(1);
+
+      res.json({
+        agencySlug: agency?.slug || null, token: token[0].token });
     } catch (error: any) {
       console.error("Error resolving rental form token:", error);
       res.status(500).json({ message: "Error interno del servidor" });
@@ -34463,7 +35606,14 @@ const generateSlug = (str: string) => str.toLowerCase().normalize("NFD").replace
         };
       }));
       
+      // Get agency slug for SEO-friendly URLs
+      const [agency] = await db.select({ slug: externalAgencies.slug })
+        .from(externalAgencies)
+        .where(eq(externalAgencies.id, agencyId))
+        .limit(1);
+
       res.json({
+        agencySlug: agency?.slug || null,
         data: properties,
         pagination: {
           page: pageNum,
@@ -34555,6 +35705,7 @@ const generateSlug = (str: string) => str.toLowerCase().normalize("NFD").replace
           price: externalUnits.price,
           salePrice: externalUnits.salePrice,
           listingType: externalUnits.listingType,
+          slug: externalUnits.slug,
           propertyType: externalUnits.propertyType,
           bedrooms: externalUnits.bedrooms,
           bathrooms: externalUnits.bathrooms,
@@ -34630,7 +35781,14 @@ const generateSlug = (str: string) => str.toLowerCase().normalize("NFD").replace
         };
       }).filter(m => m.lat && m.lng);
       
+      // Get agency slug for SEO-friendly URLs
+      const [agency] = await db.select({ slug: externalAgencies.slug })
+        .from(externalAgencies)
+        .where(eq(externalAgencies.id, agencyId))
+        .limit(1);
+
       res.json({
+        agencySlug: agency?.slug || null,
         markers: mapMarkers,
         total: mapMarkers.length
       });
@@ -34670,7 +35828,14 @@ const generateSlug = (str: string) => str.toLowerCase().normalize("NFD").replace
         conversation = await createPublicChatConversation(agencyId, sessionId);
       }
 
+      // Get agency slug for SEO-friendly URLs
+      const [agency] = await db.select({ slug: externalAgencies.slug })
+        .from(externalAgencies)
+        .where(eq(externalAgencies.id, agencyId))
+        .limit(1);
+
       res.json({
+        agencySlug: agency?.slug || null,
         conversationId: conversation.id,
         messages: conversation.messages,
       });
@@ -34724,7 +35889,14 @@ const generateSlug = (str: string) => str.toLowerCase().normalize("NFD").replace
         .orderBy(asc(externalUnits.zone));
       
       const zones = result.map(r => r.zone).filter(Boolean);
-      res.json({ data: zones });
+      // Get agency slug for SEO-friendly URLs
+      const [agency] = await db.select({ slug: externalAgencies.slug })
+        .from(externalAgencies)
+        .where(eq(externalAgencies.id, agencyId))
+        .limit(1);
+
+      res.json({
+        agencySlug: agency?.slug || null, data: zones });
     } catch (error: any) {
       console.error("Error fetching public zones:", error);
       handleGenericError(res, error);
@@ -34814,7 +35986,14 @@ const generateSlug = (str: string) => str.toLowerCase().normalize("NFD").replace
       }
       
       // Return only necessary data for form display
+      // Get agency slug for SEO-friendly URLs
+      const [agency] = await db.select({ slug: externalAgencies.slug })
+        .from(externalAgencies)
+        .where(eq(externalAgencies.id, agencyId))
+        .limit(1);
+
       res.json({
+        agencySlug: agency?.slug || null,
         agencyName: registrationToken.agencyName,
         registrationType: registrationToken.registrationType,
         expiresAt: registrationToken.expiresAt,
@@ -34982,7 +36161,14 @@ const generateSlug = (str: string) => str.toLowerCase().normalize("NFD").replace
       const objectStorageService = new ObjectStorageService();
       const { uploadURL, objectPath } = await objectStorageService.getObjectEntityUploadURL("client-documents");
       
-      res.json({ uploadURL, objectPath });
+      // Get agency slug for SEO-friendly URLs
+      const [agency] = await db.select({ slug: externalAgencies.slug })
+        .from(externalAgencies)
+        .where(eq(externalAgencies.id, agencyId))
+        .limit(1);
+
+      res.json({
+        agencySlug: agency?.slug || null, uploadURL, objectPath });
     } catch (error: any) {
       console.error("Error generating upload URL:", error);
       handleGenericError(res, error);
@@ -35305,7 +36491,14 @@ const generateSlug = (str: string) => str.toLowerCase().normalize("NFD").replace
         WHERE id = ANY(${validUnitIds}) AND agency_id = ${agencyId}
       `);
 
-      res.json({ 
+      // Get agency slug for SEO-friendly URLs
+      const [agency] = await db.select({ slug: externalAgencies.slug })
+        .from(externalAgencies)
+        .where(eq(externalAgencies.id, agencyId))
+        .limit(1);
+
+      res.json({
+        agencySlug: agency?.slug || null, 
         success: true, 
         message: `Referrer assigned to ${validUnitIds.length} unit(s)`, 
         updatedCount: validUnitIds.length 
@@ -36537,7 +37730,14 @@ const generateSlug = (str: string) => str.toLowerCase().normalize("NFD").replace
       
       // If no contracts, return early with empty data but include filters
       if (contractsWithDetails.length === 0) {
-        return res.json({
+        return // Get agency slug for SEO-friendly URLs
+      const [agency] = await db.select({ slug: externalAgencies.slug })
+        .from(externalAgencies)
+        .where(eq(externalAgencies.id, agencyId))
+        .limit(1);
+
+      res.json({
+        agencySlug: agency?.slug || null,
           contracts: [],
           filters: {
             condominiums: condominiumsData,
@@ -36606,7 +37806,14 @@ const generateSlug = (str: string) => str.toLowerCase().normalize("NFD").replace
         };
       });
       
+      // Get agency slug for SEO-friendly URLs
+      const [agency] = await db.select({ slug: externalAgencies.slug })
+        .from(externalAgencies)
+        .where(eq(externalAgencies.id, agencyId))
+        .limit(1);
+
       res.json({
+        agencySlug: agency?.slug || null,
         contracts: enhancedContracts,
         filters: {
           condominiums: condominiumsData,
@@ -36817,7 +38024,14 @@ const generateSlug = (str: string) => str.toLowerCase().normalize("NFD").replace
         };
       });
       
+      // Get agency slug for SEO-friendly URLs
+      const [agency] = await db.select({ slug: externalAgencies.slug })
+        .from(externalAgencies)
+        .where(eq(externalAgencies.id, agencyId))
+        .limit(1);
+
       res.json({
+        agencySlug: agency?.slug || null,
         contract,
         unit,
         condominium,
@@ -37058,7 +38272,14 @@ const generateSlug = (str: string) => str.toLowerCase().normalize("NFD").replace
         })
       );
       
+      // Get agency slug for SEO-friendly URLs
+      const [agency] = await db.select({ slug: externalAgencies.slug })
+        .from(externalAgencies)
+        .where(eq(externalAgencies.id, agencyId))
+        .limit(1);
+
       res.json({
+        agencySlug: agency?.slug || null,
         offers,
         rentalForms: rentalFormsWithDual,
         contracts: contractsRaw,
@@ -37203,7 +38424,14 @@ const generateSlug = (str: string) => str.toLowerCase().normalize("NFD").replace
         } : null;
       }
       
+      // Get agency slug for SEO-friendly URLs
+      const [agency] = await db.select({ slug: externalAgencies.slug })
+        .from(externalAgencies)
+        .where(eq(externalAgencies.id, agencyId))
+        .limit(1);
+
       res.json({
+        agencySlug: agency?.slug || null,
         contract,
         unit,
         tenantForm,
@@ -37378,7 +38606,14 @@ const generateSlug = (str: string) => str.toLowerCase().normalize("NFD").replace
         `Updated tenant data`
       );
       
-      res.json({ success: true, message: "Tenant data updated" });
+      // Get agency slug for SEO-friendly URLs
+      const [agency] = await db.select({ slug: externalAgencies.slug })
+        .from(externalAgencies)
+        .where(eq(externalAgencies.id, agencyId))
+        .limit(1);
+
+      res.json({
+        agencySlug: agency?.slug || null, success: true, message: "Tenant data updated" });
     } catch (error: any) {
       console.error("Error updating tenant data:", error);
       handleGenericError(res, error);
@@ -37435,7 +38670,14 @@ const generateSlug = (str: string) => str.toLowerCase().normalize("NFD").replace
         `Updated owner data`
       );
       
-      res.json({ success: true, message: "Owner data updated" });
+      // Get agency slug for SEO-friendly URLs
+      const [agency] = await db.select({ slug: externalAgencies.slug })
+        .from(externalAgencies)
+        .where(eq(externalAgencies.id, agencyId))
+        .limit(1);
+
+      res.json({
+        agencySlug: agency?.slug || null, success: true, message: "Owner data updated" });
     } catch (error: any) {
       console.error("Error updating owner data:", error);
       handleGenericError(res, error);
@@ -37478,7 +38720,14 @@ const generateSlug = (str: string) => str.toLowerCase().normalize("NFD").replace
         `Cancelled contract`
       );
       
-      res.json({ success: true, message: "Contract cancelled successfully" });
+      // Get agency slug for SEO-friendly URLs
+      const [agency] = await db.select({ slug: externalAgencies.slug })
+        .from(externalAgencies)
+        .where(eq(externalAgencies.id, agencyId))
+        .limit(1);
+
+      res.json({
+        agencySlug: agency?.slug || null, success: true, message: "Contract cancelled successfully" });
     } catch (error: any) {
       console.error("Error cancelling contract:", error);
       handleGenericError(res, error);
@@ -37717,7 +38966,14 @@ const generateSlug = (str: string) => str.toLowerCase().normalize("NFD").replace
         );
       
       await createAuditLog(req, "update", "external_rental_contract", id, "Cancelled rental contract and deleted future pending payments");
-      res.json({ message: "Contract cancelled successfully" });
+      // Get agency slug for SEO-friendly URLs
+      const [agency] = await db.select({ slug: externalAgencies.slug })
+        .from(externalAgencies)
+        .where(eq(externalAgencies.id, agencyId))
+        .limit(1);
+
+      res.json({
+        agencySlug: agency?.slug || null, message: "Contract cancelled successfully" });
     } catch (error: any) {
       console.error("Error cancelling rental contract:", error);
       handleGenericError(res, error);
@@ -38259,7 +39515,14 @@ const generateSlug = (str: string) => str.toLowerCase().normalize("NFD").replace
           eq(externalNotifications.isRead, false)
         ));
 
-      res.json({ unreadCount: result?.count || 0 });
+      // Get agency slug for SEO-friendly URLs
+      const [agency] = await db.select({ slug: externalAgencies.slug })
+        .from(externalAgencies)
+        .where(eq(externalAgencies.id, agencyId))
+        .limit(1);
+
+      res.json({
+        agencySlug: agency?.slug || null, unreadCount: result?.count || 0 });
     } catch (error: any) {
       console.error("Error fetching notification count:", error);
       handleGenericError(res, error);
@@ -38317,7 +39580,14 @@ const generateSlug = (str: string) => str.toLowerCase().normalize("NFD").replace
           eq(externalNotifications.isRead, false)
         ));
 
-      res.json({ success: true });
+      // Get agency slug for SEO-friendly URLs
+      const [agency] = await db.select({ slug: externalAgencies.slug })
+        .from(externalAgencies)
+        .where(eq(externalAgencies.id, agencyId))
+        .limit(1);
+
+      res.json({
+        agencySlug: agency?.slug || null, success: true });
     } catch (error: any) {
       console.error("Error marking all notifications as read:", error);
       handleGenericError(res, error);
@@ -38345,7 +39615,14 @@ const generateSlug = (str: string) => str.toLowerCase().normalize("NFD").replace
         clientInfo
       });
 
+      // Get agency slug for SEO-friendly URLs
+      const [agency] = await db.select({ slug: externalAgencies.slug })
+        .from(externalAgencies)
+        .where(eq(externalAgencies.id, agencyId))
+        .limit(1);
+
       res.json({
+        agencySlug: agency?.slug || null,
         message: responseText,
         timestamp: new Date().toISOString()
       });
@@ -38434,7 +39711,14 @@ const generateSlug = (str: string) => str.toLowerCase().normalize("NFD").replace
           `Created ${notifications.length} notifications`
         );
 
-        return res.json({ count: notifications.length, notifications: notifications.flat() });
+        return // Get agency slug for SEO-friendly URLs
+      const [agency] = await db.select({ slug: externalAgencies.slug })
+        .from(externalAgencies)
+        .where(eq(externalAgencies.id, agencyId))
+        .limit(1);
+
+      res.json({
+        agencySlug: agency?.slug || null, count: notifications.length, notifications: notifications.flat() });
       }
 
       // Single notification
@@ -38774,7 +40058,14 @@ const generateSlug = (str: string) => str.toLowerCase().normalize("NFD").replace
         else if (row.direction === 'outflow') totalExpenses = amount;
       }
 
+      // Get agency slug for SEO-friendly URLs
+      const [agency] = await db.select({ slug: externalAgencies.slug })
+        .from(externalAgencies)
+        .where(eq(externalAgencies.id, agencyId))
+        .limit(1);
+
       res.json({
+        agencySlug: agency?.slug || null,
         transactions: {
           data: transactions,
           total,
@@ -38878,7 +40169,14 @@ const generateSlug = (str: string) => str.toLowerCase().normalize("NFD").replace
           }),
         ]);
 
-        res.json({
+        // Get agency slug for SEO-friendly URLs
+      const [agency] = await db.select({ slug: externalAgencies.slug })
+        .from(externalAgencies)
+        .where(eq(externalAgencies.id, agencyId))
+        .limit(1);
+
+      res.json({
+        agencySlug: agency?.slug || null,
           data: transactions,
           total,
           limit: parsedLimit,
@@ -38995,7 +40293,14 @@ const generateSlug = (str: string) => str.toLowerCase().normalize("NFD").replace
           sql`${externalFinancialTransactions.dueDate} > ${todayEnd}`
         ));
 
+      // Get agency slug for SEO-friendly URLs
+      const [agency] = await db.select({ slug: externalAgencies.slug })
+        .from(externalAgencies)
+        .where(eq(externalAgencies.id, agencyId))
+        .limit(1);
+
       res.json({
+        agencySlug: agency?.slug || null,
         totalIncome,
         totalExpenses,
         netBalance,
@@ -39295,7 +40600,14 @@ const generateSlug = (str: string) => str.toLowerCase().normalize("NFD").replace
         totalCharge: payments.reduce((sum, p) => sum + p.totalCharge, 0),
       };
 
-      res.json({ payments, summary });
+      // Get agency slug for SEO-friendly URLs
+      const [agency] = await db.select({ slug: externalAgencies.slug })
+        .from(externalAgencies)
+        .where(eq(externalAgencies.id, agencyId))
+        .limit(1);
+
+      res.json({
+        agencySlug: agency?.slug || null, payments, summary });
     } catch (error: any) {
       console.error("Error fetching worker payments:", error);
       handleGenericError(res, error);
@@ -39458,7 +40770,14 @@ const generateSlug = (str: string) => str.toLowerCase().normalize("NFD").replace
         grandTotal: totalMaintenanceFees + totalCleaningFees,
       };
 
-      res.json({ commissions, summary });
+      // Get agency slug for SEO-friendly URLs
+      const [agency] = await db.select({ slug: externalAgencies.slug })
+        .from(externalAgencies)
+        .where(eq(externalAgencies.id, agencyId))
+        .limit(1);
+
+      res.json({
+        agencySlug: agency?.slug || null, commissions, summary });
     } catch (error: any) {
       console.error("Error fetching commissions:", error);
       handleGenericError(res, error);
@@ -39700,6 +41019,7 @@ const generateSlug = (str: string) => str.toLowerCase().normalize("NFD").replace
           commissionType: externalUnits.commissionType,
           referrerName: externalUnits.referrerName,
           listingType: externalUnits.listingType,
+          slug: externalUnits.slug,
           petsAllowed: externalUnits.petFriendly,
             zone: externalUnits.zone,
             typology: externalUnits.typology,
@@ -40007,7 +41327,14 @@ const generateSlug = (str: string) => str.toLowerCase().normalize("NFD").replace
         return res.status(404).json({ message: "Import job not found" });
       }
       
+      // Get agency slug for SEO-friendly URLs
+      const [agency] = await db.select({ slug: externalAgencies.slug })
+        .from(externalAgencies)
+        .where(eq(externalAgencies.id, agencyId))
+        .limit(1);
+
       res.json({
+        agencySlug: agency?.slug || null,
         id: job.id,
         section: job.section,
         status: job.status,
@@ -40075,7 +41402,14 @@ const generateSlug = (str: string) => str.toLowerCase().normalize("NFD").replace
       importJobs.set(jobId, job);
       
       // Return job ID immediately so client can poll for progress
-      res.json({ jobId, total: rows.length, message: "Import started" });
+      // Get agency slug for SEO-friendly URLs
+      const [agency] = await db.select({ slug: externalAgencies.slug })
+        .from(externalAgencies)
+        .where(eq(externalAgencies.id, agencyId))
+        .limit(1);
+
+      res.json({
+        agencySlug: agency?.slug || null, jobId, total: rows.length, message: "Import started" });
       
       // Process rows asynchronously
       let imported = 0;
@@ -41268,7 +42602,14 @@ const generateSlug = (str: string) => str.toLowerCase().normalize("NFD").replace
 
       await createAuditLog(req, "create", "seed_characteristics_amenities", agencyId, `Seeded ${charsCreated} characteristics and ${amenitiesCreated} amenities`);
       
+      // Get agency slug for SEO-friendly URLs
+      const [agency] = await db.select({ slug: externalAgencies.slug })
+        .from(externalAgencies)
+        .where(eq(externalAgencies.id, agencyId))
+        .limit(1);
+
       res.json({
+        agencySlug: agency?.slug || null,
         message: "Seed completed",
         characteristicsCreated: charsCreated,
         amenitiesCreated: amenitiesCreated,
@@ -41812,7 +43153,14 @@ const generateSlug = (str: string) => str.toLowerCase().normalize("NFD").replace
         return res.status(404).json({ error: "Property not found" });
       }
       
-      res.json({ unitId: matchedUnitData.id });
+      // Get agency slug for SEO-friendly URLs
+      const [agency] = await db.select({ slug: externalAgencies.slug })
+        .from(externalAgencies)
+        .where(eq(externalAgencies.id, agencyId))
+        .limit(1);
+
+      res.json({
+        agencySlug: agency?.slug || null, unitId: matchedUnitData.id });
     } catch (error: any) {
       console.error("Error resolving property URL:", error);
       res.status(500).json({ error: error.message || "Error resolving property URL" });
@@ -41946,7 +43294,14 @@ const generateSlug = (str: string) => str.toLowerCase().normalize("NFD").replace
       const commissions = await storage.getExternalSellerCommissions(agencyId, { sellerProfileId: profile.id });
       const payouts = await storage.getExternalSellerPayouts(agencyId, { sellerProfileId: profile.id });
 
+      // Get agency slug for SEO-friendly URLs
+      const [agency] = await db.select({ slug: externalAgencies.slug })
+        .from(externalAgencies)
+        .where(eq(externalAgencies.id, agencyId))
+        .limit(1);
+
       res.json({
+        agencySlug: agency?.slug || null,
         ...profile,
         user: user ? {
           id: user.id,
@@ -42480,7 +43835,14 @@ const generateSlug = (str: string) => str.toLowerCase().normalize("NFD").replace
         })
       ]);
 
-      res.json({ data: prospects, total, limit: filters.limit, offset: filters.offset });
+      // Get agency slug for SEO-friendly URLs
+      const [agency] = await db.select({ slug: externalAgencies.slug })
+        .from(externalAgencies)
+        .where(eq(externalAgencies.id, agencyId))
+        .limit(1);
+
+      res.json({
+        agencySlug: agency?.slug || null, data: prospects, total, limit: filters.limit, offset: filters.offset });
     } catch (error: any) {
       console.error("Error fetching property prospects:", error);
       res.status(500).json({ message: error.message });
@@ -42663,7 +44025,14 @@ const generateSlug = (str: string) => str.toLowerCase().normalize("NFD").replace
       const agency = await storage.getExternalAgency(agencyId);
       const agencySlug = agency?.slug || agencyId;
 
-      res.json({ 
+      // Get agency slug for SEO-friendly URLs
+      const [agency] = await db.select({ slug: externalAgencies.slug })
+        .from(externalAgencies)
+        .where(eq(externalAgencies.id, agencyId))
+        .limit(1);
+
+      res.json({
+        agencySlug: agency?.slug || null, 
         token,
         url: `/${agencySlug}/owner-registration/${token}`,
         expiresAt: new Date(Date.now() + expiresInHours * 60 * 60 * 1000)
@@ -42744,7 +44113,14 @@ const generateSlug = (str: string) => str.toLowerCase().normalize("NFD").replace
       const agency = await storage.getExternalAgency(prospect.agencyId);
 
       // Return limited info for public page
+      // Get agency slug for SEO-friendly URLs
+      const [agency] = await db.select({ slug: externalAgencies.slug })
+        .from(externalAgencies)
+        .where(eq(externalAgencies.id, agencyId))
+        .limit(1);
+
       res.json({
+        agencySlug: agency?.slug || null,
         prospectId: prospect.id,
         propertyName: prospect.propertyName,
         propertyType: prospect.propertyType,
@@ -43289,7 +44665,14 @@ const generateSlug = (str: string) => str.toLowerCase().normalize("NFD").replace
         }),
       ]);
 
+      // Get agency slug for SEO-friendly URLs
+      const [agency] = await db.select({ slug: externalAgencies.slug })
+        .from(externalAgencies)
+        .where(eq(externalAgencies.id, agencyId))
+        .limit(1);
+
       res.json({
+        agencySlug: agency?.slug || null,
         rental: rentalRate,
         listedProperty: listedRate,
         recruitedProperty: recruitedRate,
@@ -43686,7 +45069,14 @@ const generateSlug = (str: string) => str.toLowerCase().normalize("NFD").replace
           .where(eq(externalAgencyChatMessages.id, id));
       }
 
-      res.json({ success: true });
+      // Get agency slug for SEO-friendly URLs
+      const [agency] = await db.select({ slug: externalAgencies.slug })
+        .from(externalAgencies)
+        .where(eq(externalAgencies.id, agencyId))
+        .limit(1);
+
+      res.json({
+        agencySlug: agency?.slug || null, success: true });
     } catch (error: any) {
       console.error("Error marking message as read:", error);
       res.status(500).json({ message: error.message });
@@ -44195,7 +45585,14 @@ const generateSlug = (str: string) => str.toLowerCase().normalize("NFD").replace
           eq(externalLeads.agencyId, agencyId)
         ));
 
+      // Get agency slug for SEO-friendly URLs
+      const [agency] = await db.select({ slug: externalAgencies.slug })
+        .from(externalAgencies)
+        .where(eq(externalAgencies.id, agencyId))
+        .limit(1);
+
       res.json({
+        agencySlug: agency?.slug || null,
         seller: {
           id: seller.id,
           firstName: seller.firstName,
@@ -44347,7 +45744,14 @@ const generateSlug = (str: string) => str.toLowerCase().normalize("NFD").replace
       await db.delete(externalLeadEmailSources)
         .where(eq(externalLeadEmailSources.id, id));
 
-      res.json({ success: true });
+      // Get agency slug for SEO-friendly URLs
+      const [agency] = await db.select({ slug: externalAgencies.slug })
+        .from(externalAgencies)
+        .where(eq(externalAgencies.id, agencyId))
+        .limit(1);
+
+      res.json({
+        agencySlug: agency?.slug || null, success: true });
     } catch (error: any) {
       console.error("Error deleting email source:", error);
       res.status(500).json({ message: error.message });
@@ -44376,7 +45780,14 @@ const generateSlug = (str: string) => str.toLowerCase().normalize("NFD").replace
       const { processEmailsForAgency } = await import('./emailLeadImportService');
       const result = await processEmailsForAgency(agencyId, source);
 
+      // Get agency slug for SEO-friendly URLs
+      const [agency] = await db.select({ slug: externalAgencies.slug })
+        .from(externalAgencies)
+        .where(eq(externalAgencies.id, agencyId))
+        .limit(1);
+
       res.json({
+        agencySlug: agency?.slug || null,
         success: true,
         imported: result.imported,
         duplicates: result.duplicates,
@@ -44417,7 +45828,14 @@ const generateSlug = (str: string) => str.toLowerCase().normalize("NFD").replace
         .from(externalLeadEmailImportLogs)
         .where(and(...conditions));
 
+      // Get agency slug for SEO-friendly URLs
+      const [agency] = await db.select({ slug: externalAgencies.slug })
+        .from(externalAgencies)
+        .where(eq(externalAgencies.id, agencyId))
+        .limit(1);
+
       res.json({
+        agencySlug: agency?.slug || null,
         data: logs,
         total: countResult?.count || 0,
         limit: parseInt(limit as string),
@@ -44454,7 +45872,14 @@ const generateSlug = (str: string) => str.toLowerCase().normalize("NFD").replace
         totalErrors: acc.totalErrors + (s.totalErrors || 0),
       }), { totalImported: 0, totalDuplicates: 0, totalErrors: 0 });
 
+      // Get agency slug for SEO-friendly URLs
+      const [agency] = await db.select({ slug: externalAgencies.slug })
+        .from(externalAgencies)
+        .where(eq(externalAgencies.id, agencyId))
+        .limit(1);
+
       res.json({
+        agencySlug: agency?.slug || null,
         sources,
         totals,
       });
@@ -44469,7 +45894,14 @@ const generateSlug = (str: string) => str.toLowerCase().normalize("NFD").replace
     try {
       const { testGmailConnection } = await import('./emailLeadImportService');
       const connected = await testGmailConnection();
-      res.json({ connected });
+      // Get agency slug for SEO-friendly URLs
+      const [agency] = await db.select({ slug: externalAgencies.slug })
+        .from(externalAgencies)
+        .where(eq(externalAgencies.id, agencyId))
+        .limit(1);
+
+      res.json({
+        agencySlug: agency?.slug || null, connected });
     } catch (error: any) {
       console.error("Error testing Gmail connection:", error);
       res.status(500).json({ message: error.message, connected: false });
@@ -44481,13 +45913,27 @@ const generateSlug = (str: string) => str.toLowerCase().normalize("NFD").replace
     try {
       const { testGmailConnection } = await import('./emailLeadImportService');
       const connected = await testGmailConnection();
-      res.json({ 
+      // Get agency slug for SEO-friendly URLs
+      const [agency] = await db.select({ slug: externalAgencies.slug })
+        .from(externalAgencies)
+        .where(eq(externalAgencies.id, agencyId))
+        .limit(1);
+
+      res.json({
+        agencySlug: agency?.slug || null, 
         connected, 
         email: connected ? "administracion@tulumrentalhomes.com.mx" : undefined,
         lastCheck: new Date().toISOString()
       });
     } catch (error: any) {
-      res.json({ connected: false, error: error.message });
+      // Get agency slug for SEO-friendly URLs
+      const [agency] = await db.select({ slug: externalAgencies.slug })
+        .from(externalAgencies)
+        .where(eq(externalAgencies.id, agencyId))
+        .limit(1);
+
+      res.json({
+        agencySlug: agency?.slug || null, connected: false, error: error.message });
     }
   });
 
@@ -44498,7 +45944,14 @@ const generateSlug = (str: string) => str.toLowerCase().normalize("NFD").replace
       const status = getWorkerStatus();
       res.json(status);
     } catch (error: any) {
-      res.json({ isRunning: false, intervalMs: 30 * 60 * 1000 });
+      // Get agency slug for SEO-friendly URLs
+      const [agency] = await db.select({ slug: externalAgencies.slug })
+        .from(externalAgencies)
+        .where(eq(externalAgencies.id, agencyId))
+        .limit(1);
+
+      res.json({
+        agencySlug: agency?.slug || null, isRunning: false, intervalMs: 30 * 60 * 1000 });
     }
   });
 

@@ -84,6 +84,7 @@ interface Unit {
   commissionType?: string | null;
   referrerName?: string | null;
   listingType?: string | null;
+  slug?: string | null;
 }
 
 interface ActiveCardSummary {
