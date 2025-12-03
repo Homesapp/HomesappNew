@@ -474,9 +474,10 @@ export default function ExternalConfiguration() {
   };
 
   // Integrations Content Component
-  const IntegrationsContent = ({ agencyId, language, toast }: { agencyId?: string, language: string, toast: any }) => {
+  const IntegrationsContent = ({ agencyId, agency, language, toast }: { agencyId?: string, agency?: any, language: string, toast: any }) => {
     const [openaiApiKey, setOpenaiApiKey] = useState("");
     const [useReplitIntegration, setUseReplitIntegration] = useState(true);
+    const [aiCreditsEnabled, setAiCreditsEnabled] = useState(true);
 
     // Fetch integrations
     const { data: integrations, isLoading: isLoadingIntegrations } = useQuery({
@@ -490,6 +491,37 @@ export default function ExternalConfiguration() {
         setUseReplitIntegration(integrations.openaiUseReplitIntegration ?? true);
       }
     }, [integrations]);
+
+    // Hydrate AI credits toggle from agency data
+    useEffect(() => {
+      if (agency) {
+        setAiCreditsEnabled(agency.aiCreditsEnabled ?? true);
+      }
+    }, [agency]);
+
+    // Update AI Credits mutation
+    const updateAiCreditsMutation = useMutation({
+      mutationFn: async (enabled: boolean) => {
+        return apiRequest('PATCH', `/api/external-agencies/${agencyId}`, { aiCreditsEnabled: enabled });
+      },
+      onSuccess: () => {
+        queryClient.invalidateQueries({ queryKey: ['/api/external-agencies'] });
+        toast({
+          title: language === "es" ? "Configuración actualizada" : "Configuration updated",
+          description: language === "es" 
+            ? "La configuración de IA se actualizó correctamente." 
+            : "AI configuration updated successfully.",
+        });
+      },
+      onError: (error: any) => {
+        setAiCreditsEnabled(!aiCreditsEnabled);
+        toast({
+          title: language === "es" ? "Error" : "Error",
+          description: error.message || (language === "es" ? "Error al actualizar configuración" : "Failed to update configuration"),
+          variant: "destructive",
+        });
+      },
+    });
 
     // Update OpenAI mutation
     const updateOpenAIMutation = useMutation({
@@ -731,6 +763,56 @@ export default function ExternalConfiguration() {
                   : "Google Calendar is connected and ready to sync events."}
               </p>
             )}
+          </CardContent>
+        </Card>
+
+        {/* AI Credits Control - Only visible to admins */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Bot className="h-5 w-5" />
+              {language === "es" ? "Control de Créditos IA" : "AI Credits Control"}
+            </CardTitle>
+            <CardDescription>
+              {language === "es" 
+                ? "Controla el uso de funciones de IA que consumen créditos para los vendedores de esta agencia."
+                : "Control the use of AI features that consume credits for this agency's sellers."}
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="flex items-center justify-between p-4 bg-muted rounded-lg">
+              <div className="flex-1 mr-4">
+                <Label htmlFor="ai-credits-toggle" className="text-base font-medium">
+                  {language === "es" ? "Funciones de IA habilitadas" : "AI features enabled"}
+                </Label>
+                <p className="text-sm text-muted-foreground mt-1">
+                  {language === "es" 
+                    ? "Cuando está desactivado, los vendedores no podrán usar funciones que consuman créditos de IA (generación de contenido, chatbot, etc.)"
+                    : "When disabled, sellers cannot use features that consume AI credits (content generation, chatbot, etc.)"}
+                </p>
+              </div>
+              <Switch
+                id="ai-credits-toggle"
+                checked={aiCreditsEnabled}
+                onCheckedChange={(checked) => {
+                  setAiCreditsEnabled(checked);
+                  updateAiCreditsMutation.mutate(checked);
+                }}
+                disabled={updateAiCreditsMutation.isPending}
+                data-testid="switch-ai-credits"
+              />
+            </div>
+            <div className={`p-3 rounded-lg ${aiCreditsEnabled ? 'bg-green-50 dark:bg-green-950 border border-green-200 dark:border-green-800' : 'bg-orange-50 dark:bg-orange-950 border border-orange-200 dark:border-orange-800'}`}>
+              <p className={`text-sm ${aiCreditsEnabled ? 'text-green-800 dark:text-green-200' : 'text-orange-800 dark:text-orange-200'}`}>
+                {aiCreditsEnabled 
+                  ? (language === "es" 
+                      ? "Las funciones de IA están activas. Los vendedores pueden usar generación de contenido y otras funciones de IA."
+                      : "AI features are active. Sellers can use content generation and other AI features.")
+                  : (language === "es" 
+                      ? "Las funciones de IA están desactivadas. Los vendedores no podrán generar contenido con IA hasta que las actives."
+                      : "AI features are disabled. Sellers cannot generate AI content until you enable them.")}
+              </p>
+            </div>
           </CardContent>
         </Card>
       </div>
@@ -2395,7 +2477,8 @@ export default function ExternalConfiguration() {
               )}
 
               <IntegrationsContent 
-                agencyId={agency?.id} 
+                agencyId={agency?.id}
+                agency={agency}
                 language={language}
                 toast={toast}
               />
