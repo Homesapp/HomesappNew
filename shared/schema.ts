@@ -5020,6 +5020,8 @@ export const externalAgencies = pgTable("external_agencies", {
   assignedToUser: varchar("assigned_to_user").references(() => users.id), // Usuario responsable de la agencia
   autoApprovePublications: boolean("auto_approve_publications").notNull().default(false), // Auto-aprobar publicaciones sin revisión manual
   aiCreditsEnabled: boolean("ai_credits_enabled").notNull().default(true), // Si las funciones de IA con créditos están habilitadas
+  aiCreditBalance: integer("ai_credit_balance").default(100), // Balance de créditos de IA disponibles (null = ilimitado)
+  aiCreditsMonthlyReset: boolean("ai_credits_monthly_reset").default(false), // Si se reinician los créditos mensualmente
   isActive: boolean("is_active").notNull().default(true), // Si está activa
   createdBy: varchar("created_by").references(() => users.id),
   createdAt: timestamp("created_at").defaultNow().notNull(),
@@ -5075,6 +5077,77 @@ export const insertExternalAgencyIntegrationSchema = createInsertSchema(external
 
 export type InsertExternalAgencyIntegration = z.infer<typeof insertExternalAgencyIntegrationSchema>;
 export type ExternalAgencyIntegration = typeof externalAgencyIntegrations.$inferSelect;
+
+// External AI Credit Events - Tracking de uso de créditos de IA por agencia
+export const externalAiCreditEventTypeEnum = pgEnum("external_ai_credit_event_type", [
+  "usage",           // Consumo por generación de contenido
+  "adjustment",      // Ajuste manual por admin
+  "reset",           // Reset mensual
+  "purchase",        // Compra de créditos adicionales
+]);
+
+export const externalAiCreditEvents = pgTable("external_ai_credit_events", {
+  id: varchar("id").primaryKey().$defaultFn(() => crypto.randomUUID()),
+  agencyId: varchar("agency_id").notNull().references(() => externalAgencies.id, { onDelete: "cascade" }),
+  sellerId: varchar("seller_id").references(() => users.id, { onDelete: "set null" }), // Vendedor que usó los créditos
+  eventType: externalAiCreditEventTypeEnum("event_type").notNull(),
+  credits: integer("credits").notNull(), // Positivo para ajustes/resets, negativo para uso
+  balanceAfter: integer("balance_after"), // Balance después de esta transacción
+  source: varchar("source", { length: 100 }), // Fuente del uso: 'social_media_generator', 'chatbot', etc.
+  metadata: jsonb("metadata").$type<{
+    platform?: string;
+    category?: string;
+    unitId?: string;
+    promptTokens?: number;
+    completionTokens?: number;
+    model?: string;
+    reason?: string;
+  }>(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+}, (table) => [
+  index("idx_external_ai_credit_events_agency").on(table.agencyId),
+  index("idx_external_ai_credit_events_seller").on(table.sellerId),
+  index("idx_external_ai_credit_events_created").on(table.createdAt),
+]);
+
+export const insertExternalAiCreditEventSchema = createInsertSchema(externalAiCreditEvents).omit({
+  id: true,
+  createdAt: true,
+});
+
+export type InsertExternalAiCreditEvent = z.infer<typeof insertExternalAiCreditEventSchema>;
+export type ExternalAiCreditEvent = typeof externalAiCreditEvents.$inferSelect;
+
+// External Social Link Tracking - Links rastreables para marketing en redes sociales
+export const externalSocialLinkClicks = pgTable("external_social_link_clicks", {
+  id: varchar("id").primaryKey().$defaultFn(() => crypto.randomUUID()),
+  agencyId: varchar("agency_id").notNull().references(() => externalAgencies.id, { onDelete: "cascade" }),
+  sellerId: varchar("seller_id").references(() => users.id, { onDelete: "set null" }), // Vendedor propietario del link
+  unitId: varchar("unit_id").references(() => externalUnits.id, { onDelete: "set null" }), // Unidad relacionada
+  token: varchar("token", { length: 50 }).notNull().unique(), // Token único para el link
+  targetUrl: text("target_url").notNull(), // URL destino (Google Maps, listado público, etc.)
+  platform: varchar("platform", { length: 50 }), // facebook, instagram, whatsapp
+  clickCount: integer("click_count").default(0), // Contador de clicks
+  lastClickedAt: timestamp("last_clicked_at"),
+  expiresAt: timestamp("expires_at"), // Expiración opcional
+  isActive: boolean("is_active").default(true),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+}, (table) => [
+  index("idx_external_social_link_clicks_agency").on(table.agencyId),
+  index("idx_external_social_link_clicks_seller").on(table.sellerId),
+  index("idx_external_social_link_clicks_token").on(table.token),
+  index("idx_external_social_link_clicks_unit").on(table.unitId),
+]);
+
+export const insertExternalSocialLinkClickSchema = createInsertSchema(externalSocialLinkClicks).omit({
+  id: true,
+  clickCount: true,
+  lastClickedAt: true,
+  createdAt: true,
+});
+
+export type InsertExternalSocialLinkClick = z.infer<typeof insertExternalSocialLinkClickSchema>;
+export type ExternalSocialLinkClick = typeof externalSocialLinkClicks.$inferSelect;
 
 // External Permission Sections - Sections of the external agency system
 export const EXTERNAL_PERMISSION_SECTIONS = [
