@@ -15,6 +15,157 @@ import { useToast } from "@/hooks/use-toast";
 import { Building2, CheckCircle2, Loader2, Home, ChevronDown, Plus, Trash2, ChevronLeft, ChevronRight, User, Search } from "lucide-react";
 import { useState } from "react";
 import logoPath from "@assets/H mes (500 x 300 px)_1759672952263.png";
+import { LanguageToggle } from "@/components/LanguageToggle";
+import { useLanguage } from "@/contexts/LanguageContext";
+
+const translations = {
+  es: {
+    pageTitle: "Registro de Lead para Vendedores",
+    pageDescription: "Registra los datos del cliente interesado en propiedades de renta",
+    smartRealEstate: "Smart Real Estate",
+    step1Title: "Información del Cliente",
+    step1Desc: "Datos de contacto",
+    step2Title: "Detalles de Búsqueda",
+    step2Desc: "Preferencias de propiedad",
+    firstName: "Nombre",
+    lastName: "Apellido",
+    email: "Correo Electrónico",
+    emailPlaceholder: "ejemplo@email.com (opcional)",
+    phone: "Teléfono",
+    countryCode: "Lada",
+    contractDuration: "Tiempo de Contrato",
+    selectDuration: "Seleccionar duración",
+    months6: "6 meses",
+    year1: "1 año",
+    years2: "2 años",
+    years3Plus: "3+ años",
+    checkInDate: "Fecha de Check-in",
+    pets: "Mascotas",
+    hasPetsQuestion: "¿Tiene mascotas?",
+    petNo: "No",
+    pet1Dog: "1 Perro",
+    pet2Dogs: "2 Perros",
+    pet1Cat: "1 Gato",
+    pet2Cats: "2 Gatos",
+    petOther: "Otro",
+    budget: "Presupuesto de Renta (MXN)",
+    budgetMin: "Mín",
+    budgetMax: "Máx",
+    bedrooms: "Recámaras",
+    bedroomsPlaceholder: "Ej: 1-2, 2+, 3",
+    unitType: "Tipo de Unidad (opcional, múltiple)",
+    selectUnitTypes: "Seleccionar tipos de unidad...",
+    selectedTypes: "seleccionado(s)",
+    zone: "Zona Deseada (opcional, múltiple)",
+    selectZones: "Seleccionar zonas...",
+    selectedZones: "zona(s) seleccionada(s)",
+    propertyInterest: "Propiedades de Interés (Opcional)",
+    propertyInterestDesc: "Puedes agregar múltiples propiedades de diferentes condominios que le interesen al cliente.",
+    condominium: "Condominio",
+    selectCondominium: "Seleccionar condominio",
+    unitsOfInterest: "Unidades de Interés",
+    addUnit: "Agregar unidad",
+    selectCondoFirst: "Primero seleccione un condominio",
+    addPropertyInterest: "Agregar Propiedad de Interés",
+    units: "unidad(es)",
+    sellerInfo: "Información del Vendedor",
+    sellerRegistering: "Vendedor que Registra",
+    selectSeller: "Seleccionar vendedor",
+    sellerDesc: "Selecciona tu nombre de la lista de vendedores registrados.",
+    notes: "Notas Adicionales",
+    notesPlaceholder: "Cualquier información adicional sobre el cliente...",
+    previous: "Anterior",
+    next: "Siguiente",
+    submit: "Registrar Lead",
+    submitting: "Enviando...",
+    successTitle: "¡Registro Completado!",
+    successDescription: "Hemos recibido la información del lead. El vendedor asignado será notificado.",
+    successToastTitle: "¡Registro Exitoso!",
+    successToastDesc: "Gracias por registrar este lead. El vendedor será notificado.",
+    errorTitle: "Error",
+    errorDesc: "Hubo un problema al enviar tu registro",
+    required: "*",
+    apartment: "Departamento",
+    house: "Casa",
+    studio: "Estudio",
+    penthouse: "PH / Penthouse",
+    villa: "Villa",
+    loft: "Loft",
+  },
+  en: {
+    pageTitle: "Lead Registration for Sellers",
+    pageDescription: "Register client information interested in rental properties",
+    smartRealEstate: "Smart Real Estate",
+    step1Title: "Client Information",
+    step1Desc: "Contact details",
+    step2Title: "Search Details",
+    step2Desc: "Property preferences",
+    firstName: "First Name",
+    lastName: "Last Name",
+    email: "Email",
+    emailPlaceholder: "example@email.com (optional)",
+    phone: "Phone",
+    countryCode: "Code",
+    contractDuration: "Contract Duration",
+    selectDuration: "Select duration",
+    months6: "6 months",
+    year1: "1 year",
+    years2: "2 years",
+    years3Plus: "3+ years",
+    checkInDate: "Check-in Date",
+    pets: "Pets",
+    hasPetsQuestion: "Has pets?",
+    petNo: "No",
+    pet1Dog: "1 Dog",
+    pet2Dogs: "2 Dogs",
+    pet1Cat: "1 Cat",
+    pet2Cats: "2 Cats",
+    petOther: "Other",
+    budget: "Rent Budget (MXN)",
+    budgetMin: "Min",
+    budgetMax: "Max",
+    bedrooms: "Bedrooms",
+    bedroomsPlaceholder: "Ex: 1-2, 2+, 3",
+    unitType: "Unit Type (optional, multiple)",
+    selectUnitTypes: "Select unit types...",
+    selectedTypes: "selected",
+    zone: "Desired Zone (optional, multiple)",
+    selectZones: "Select zones...",
+    selectedZones: "zone(s) selected",
+    propertyInterest: "Properties of Interest (Optional)",
+    propertyInterestDesc: "You can add multiple properties from different condos that the client is interested in.",
+    condominium: "Condominium",
+    selectCondominium: "Select condominium",
+    unitsOfInterest: "Units of Interest",
+    addUnit: "Add unit",
+    selectCondoFirst: "First select a condominium",
+    addPropertyInterest: "Add Property of Interest",
+    units: "unit(s)",
+    sellerInfo: "Seller Information",
+    sellerRegistering: "Registering Seller",
+    selectSeller: "Select seller",
+    sellerDesc: "Select your name from the list of registered sellers.",
+    notes: "Additional Notes",
+    notesPlaceholder: "Any additional information about the client...",
+    previous: "Previous",
+    next: "Next",
+    submit: "Register Lead",
+    submitting: "Submitting...",
+    successTitle: "Registration Complete!",
+    successDescription: "We have received the lead information. The assigned seller will be notified.",
+    successToastTitle: "Registration Successful!",
+    successToastDesc: "Thank you for registering this lead. The seller will be notified.",
+    errorTitle: "Error",
+    errorDesc: "There was a problem submitting your registration",
+    required: "*",
+    apartment: "Apartment",
+    house: "House",
+    studio: "Studio",
+    penthouse: "PH / Penthouse",
+    villa: "Villa",
+    loft: "Loft",
+  }
+};
 
 interface PropertyInterest {
   condominiumId: string;
@@ -53,9 +204,9 @@ const NEIGHBORHOODS = [
   "Otro",
 ];
 
-const STEPS = [
-  { id: 1, title: "Información del Cliente", description: "Datos de contacto", icon: User },
-  { id: 2, title: "Detalles de Búsqueda", description: "Preferencias de propiedad", icon: Search },
+const getSteps = (t: typeof translations.es) => [
+  { id: 1, title: t.step1Title, description: t.step1Desc, icon: User },
+  { id: 2, title: t.step2Title, description: t.step2Desc, icon: Search },
 ];
 
 const vendedorFormSchema = z.object({
@@ -94,6 +245,10 @@ export default function LeadRegistrationVendedor() {
   const [propertyInterests, setPropertyInterests] = useState<PropertyInterest[]>([]);
   const [unitTypeOpen, setUnitTypeOpen] = useState(false);
   const [neighborhoodOpen, setNeighborhoodOpen] = useState(false);
+  
+  const { language } = useLanguage();
+  const t = translations[language];
+  const STEPS = getSteps(t);
 
   // Fetch agency info for logo
   const { data: agencyData } = useQuery<{ id: string; name: string; logoUrl: string }>({
@@ -229,14 +384,14 @@ export default function LeadRegistrationVendedor() {
     onSuccess: () => {
       setSubmitted(true);
       toast({
-        title: "¡Registro Exitoso!",
-        description: "Gracias por registrar este lead. El vendedor será notificado.",
+        title: t.successToastTitle,
+        description: t.successToastDesc,
       });
     },
     onError: (error: any) => {
       toast({
-        title: "Error",
-        description: error.message || "Hubo un problema al enviar tu registro",
+        title: t.errorTitle,
+        description: error.message || t.errorDesc,
         variant: "destructive",
       });
     },
@@ -332,9 +487,9 @@ export default function LeadRegistrationVendedor() {
             <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-primary/10">
               <CheckCircle2 className="h-10 w-10 text-primary" />
             </div>
-            <CardTitle className="text-2xl">¡Registro Completado!</CardTitle>
+            <CardTitle className="text-2xl">{t.successTitle}</CardTitle>
             <CardDescription className="text-base">
-              Hemos recibido la información del lead. El vendedor asignado será notificado.
+              {t.successDescription}
             </CardDescription>
           </CardHeader>
         </Card>
@@ -345,7 +500,10 @@ export default function LeadRegistrationVendedor() {
   return (
     <div className="min-h-screen flex items-center justify-center p-4 bg-gradient-to-br from-background to-muted">
       <Card className="w-full max-w-2xl">
-        <CardHeader className="text-center">
+        <CardHeader className="text-center relative">
+          <div className="absolute right-4 top-4">
+            <LanguageToggle />
+          </div>
           <div className="flex justify-center items-center gap-6 mb-4">
             <div className="flex flex-col items-center">
               <img 
@@ -353,7 +511,7 @@ export default function LeadRegistrationVendedor() {
                 alt="HomesApp Logo" 
                 className="h-14 w-auto"
               />
-              <span className="text-xs text-muted-foreground mt-1 font-medium tracking-wide">Smart Real Estate</span>
+              <span className="text-xs text-muted-foreground mt-1 font-medium tracking-wide">{t.smartRealEstate}</span>
             </div>
             {agencyData?.logoUrl && (
               <>
@@ -366,9 +524,9 @@ export default function LeadRegistrationVendedor() {
               </>
             )}
           </div>
-          <CardTitle className="text-3xl">Registro de Lead para Vendedores</CardTitle>
+          <CardTitle className="text-3xl">{t.pageTitle}</CardTitle>
           <CardDescription className="text-base">
-            Registra los datos del cliente interesado en propiedades de renta
+            {t.pageDescription}
             {agencyData?.name && <span className="block mt-1 font-medium">{agencyData.name}</span>}
           </CardDescription>
         </CardHeader>
@@ -435,7 +593,7 @@ export default function LeadRegistrationVendedor() {
                       name="firstName"
                       render={({ field }) => (
                         <FormItem>
-                          <FormLabel>Nombre *</FormLabel>
+                          <FormLabel>{t.firstName} {t.required}</FormLabel>
                           <FormControl>
                             <Input {...field} placeholder="Juan" data-testid="input-first-name" />
                           </FormControl>
@@ -448,7 +606,7 @@ export default function LeadRegistrationVendedor() {
                       name="lastName"
                       render={({ field }) => (
                         <FormItem>
-                          <FormLabel>Apellido *</FormLabel>
+                          <FormLabel>{t.lastName} {t.required}</FormLabel>
                           <FormControl>
                             <Input {...field} placeholder="Pérez" data-testid="input-last-name" />
                           </FormControl>
@@ -463,16 +621,16 @@ export default function LeadRegistrationVendedor() {
                       name="email"
                       render={({ field }) => (
                         <FormItem>
-                          <FormLabel>Correo Electrónico</FormLabel>
+                          <FormLabel>{t.email}</FormLabel>
                           <FormControl>
-                            <Input {...field} type="email" placeholder="ejemplo@email.com (opcional)" data-testid="input-email" />
+                            <Input {...field} type="email" placeholder={t.emailPlaceholder} data-testid="input-email" />
                           </FormControl>
                           <FormMessage />
                         </FormItem>
                       )}
                     />
                     <div className="space-y-2">
-                      <FormLabel>Teléfono *</FormLabel>
+                      <FormLabel>{t.phone} {t.required}</FormLabel>
                       <div className="flex gap-2">
                         <FormField
                           control={form.control}
@@ -482,7 +640,7 @@ export default function LeadRegistrationVendedor() {
                               <Select onValueChange={field.onChange} value={field.value}>
                                 <FormControl>
                                   <SelectTrigger data-testid="select-country-code">
-                                    <SelectValue placeholder="Lada" />
+                                    <SelectValue placeholder={t.countryCode} />
                                   </SelectTrigger>
                                 </FormControl>
                                 <SelectContent>
@@ -524,18 +682,18 @@ export default function LeadRegistrationVendedor() {
                       name="contractDuration"
                       render={({ field }) => (
                         <FormItem>
-                          <FormLabel>Tiempo de Contrato *</FormLabel>
+                          <FormLabel>{t.contractDuration} {t.required}</FormLabel>
                           <Select onValueChange={field.onChange} value={field.value}>
                             <FormControl>
                               <SelectTrigger data-testid="select-contract-duration">
-                                <SelectValue placeholder="Seleccionar duración" />
+                                <SelectValue placeholder={t.selectDuration} />
                               </SelectTrigger>
                             </FormControl>
                             <SelectContent>
-                              <SelectItem value="6 meses">6 meses</SelectItem>
-                              <SelectItem value="1 año">1 año</SelectItem>
-                              <SelectItem value="2 años">2 años</SelectItem>
-                              <SelectItem value="3+ años">3+ años</SelectItem>
+                              <SelectItem value="6 meses">{t.months6}</SelectItem>
+                              <SelectItem value="1 año">{t.year1}</SelectItem>
+                              <SelectItem value="2 años">{t.years2}</SelectItem>
+                              <SelectItem value="3+ años">{t.years3Plus}</SelectItem>
                             </SelectContent>
                           </Select>
                           <FormMessage />
@@ -547,7 +705,7 @@ export default function LeadRegistrationVendedor() {
                       name="checkInDate"
                       render={({ field }) => (
                         <FormItem>
-                          <FormLabel>Fecha de Check-in *</FormLabel>
+                          <FormLabel>{t.checkInDate} {t.required}</FormLabel>
                           <FormControl>
                             <Input {...field} type="date" data-testid="input-check-in-date" />
                           </FormControl>
@@ -563,20 +721,20 @@ export default function LeadRegistrationVendedor() {
                       name="hasPets"
                       render={({ field }) => (
                         <FormItem>
-                          <FormLabel>Mascotas *</FormLabel>
+                          <FormLabel>{t.pets} {t.required}</FormLabel>
                           <Select onValueChange={field.onChange} value={field.value}>
                             <FormControl>
                               <SelectTrigger data-testid="select-has-pets">
-                                <SelectValue placeholder="¿Tiene mascotas?" />
+                                <SelectValue placeholder={t.hasPetsQuestion} />
                               </SelectTrigger>
                             </FormControl>
                             <SelectContent>
-                              <SelectItem value="No">No</SelectItem>
-                              <SelectItem value="1 Perro">1 Perro</SelectItem>
-                              <SelectItem value="2 Perros">2 Perros</SelectItem>
-                              <SelectItem value="1 Gato">1 Gato</SelectItem>
-                              <SelectItem value="2 Gatos">2 Gatos</SelectItem>
-                              <SelectItem value="Otro">Otro</SelectItem>
+                              <SelectItem value="No">{t.petNo}</SelectItem>
+                              <SelectItem value="1 Perro">{t.pet1Dog}</SelectItem>
+                              <SelectItem value="2 Perros">{t.pet2Dogs}</SelectItem>
+                              <SelectItem value="1 Gato">{t.pet1Cat}</SelectItem>
+                              <SelectItem value="2 Gatos">{t.pet2Cats}</SelectItem>
+                              <SelectItem value="Otro">{t.petOther}</SelectItem>
                             </SelectContent>
                           </Select>
                           <FormMessage />
@@ -584,7 +742,7 @@ export default function LeadRegistrationVendedor() {
                       )}
                     />
                     <div className="space-y-2">
-                      <FormLabel>Presupuesto de Renta (MXN)</FormLabel>
+                      <FormLabel>{t.budget}</FormLabel>
                       <div className="flex gap-2 items-center">
                         <FormField
                           control={form.control}
@@ -594,7 +752,7 @@ export default function LeadRegistrationVendedor() {
                               <FormControl>
                                 <Input 
                                   type="number" 
-                                  placeholder="Mín"
+                                  placeholder={t.budgetMin}
                                   value={field.value || ""}
                                   onChange={(e) => field.onChange(e.target.value ? Number(e.target.value) : undefined)}
                                   data-testid="input-budget-min"
@@ -612,7 +770,7 @@ export default function LeadRegistrationVendedor() {
                               <FormControl>
                                 <Input 
                                   type="number" 
-                                  placeholder="Máx"
+                                  placeholder={t.budgetMax}
                                   value={field.value || ""}
                                   onChange={(e) => field.onChange(e.target.value ? Number(e.target.value) : undefined)}
                                   data-testid="input-budget-max"
@@ -631,16 +789,16 @@ export default function LeadRegistrationVendedor() {
                       name="bedrooms"
                       render={({ field }) => (
                         <FormItem>
-                          <FormLabel>Recámaras *</FormLabel>
+                          <FormLabel>{t.bedrooms} {t.required}</FormLabel>
                           <FormControl>
-                            <Input {...field} placeholder="Ej: 1-2, 2+, 3" data-testid="input-bedrooms" />
+                            <Input {...field} placeholder={t.bedroomsPlaceholder} data-testid="input-bedrooms" />
                           </FormControl>
                           <FormMessage />
                         </FormItem>
                       )}
                     />
                     <div className="space-y-2">
-                      <FormLabel>Tipo de Unidad (opcional, múltiple)</FormLabel>
+                      <FormLabel>{t.unitType}</FormLabel>
                       <Popover open={unitTypeOpen} onOpenChange={setUnitTypeOpen}>
                         <PopoverTrigger asChild>
                           <Button
@@ -649,8 +807,8 @@ export default function LeadRegistrationVendedor() {
                             data-testid="button-unit-type"
                           >
                             {selectedUnitTypes.length > 0
-                              ? `${selectedUnitTypes.length} seleccionado(s)`
-                              : "Seleccionar tipos de unidad..."}
+                              ? `${selectedUnitTypes.length} ${t.selectedTypes}`
+                              : t.selectUnitTypes}
                             <ChevronDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
                           </Button>
                         </PopoverTrigger>
@@ -684,7 +842,7 @@ export default function LeadRegistrationVendedor() {
                   </div>
 
                   <div className="space-y-2">
-                    <FormLabel>Zona Deseada (opcional, múltiple)</FormLabel>
+                    <FormLabel>{t.zone}</FormLabel>
                     <Popover open={neighborhoodOpen} onOpenChange={setNeighborhoodOpen}>
                       <PopoverTrigger asChild>
                         <Button
@@ -693,8 +851,8 @@ export default function LeadRegistrationVendedor() {
                           data-testid="button-neighborhood"
                         >
                           {selectedNeighborhoods.length > 0
-                            ? `${selectedNeighborhoods.length} zona(s) seleccionada(s)`
-                            : "Seleccionar zonas..."}
+                            ? `${selectedNeighborhoods.length} ${t.selectedZones}`
+                            : t.selectZones}
                           <ChevronDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
                         </Button>
                       </PopoverTrigger>
@@ -730,15 +888,15 @@ export default function LeadRegistrationVendedor() {
                   <div className="space-y-4 pt-4 border-t">
                     <div className="flex items-center gap-2">
                       <Building2 className="h-5 w-5 text-muted-foreground" />
-                      <FormLabel className="text-base">Propiedades de Interés (Opcional)</FormLabel>
+                      <FormLabel className="text-base">{t.propertyInterest}</FormLabel>
                     </div>
                     <FormDescription>
-                      Puedes agregar múltiples propiedades de diferentes condominios que le interesen al cliente.
+                      {t.propertyInterestDesc}
                     </FormDescription>
                     
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                       <div className="space-y-2">
-                        <FormLabel>Condominio</FormLabel>
+                        <FormLabel>{t.condominium}</FormLabel>
                         <Select
                           value={selectedCondominiumId}
                           onValueChange={(value) => {
@@ -747,7 +905,7 @@ export default function LeadRegistrationVendedor() {
                           }}
                         >
                           <SelectTrigger data-testid="select-condominium">
-                            <SelectValue placeholder="Seleccionar condominio" />
+                            <SelectValue placeholder={t.selectCondominium} />
                           </SelectTrigger>
                           <SelectContent>
                             {condominiums.map((condo) => (
@@ -759,7 +917,7 @@ export default function LeadRegistrationVendedor() {
                         </Select>
                       </div>
                       <div className="space-y-2">
-                        <FormLabel>Unidades de Interés</FormLabel>
+                        <FormLabel>{t.unitsOfInterest}</FormLabel>
                         <Select
                           disabled={!selectedCondominiumId}
                           value=""
@@ -770,7 +928,7 @@ export default function LeadRegistrationVendedor() {
                           }}
                         >
                           <SelectTrigger data-testid="select-units">
-                            <SelectValue placeholder={selectedCondominiumId ? "Agregar unidad" : "Primero seleccione un condominio"} />
+                            <SelectValue placeholder={selectedCondominiumId ? t.addUnit : t.selectCondoFirst} />
                           </SelectTrigger>
                           <SelectContent>
                             {units.map((unit) => (
@@ -814,7 +972,7 @@ export default function LeadRegistrationVendedor() {
                         className="gap-2"
                       >
                         <Plus className="h-4 w-4" />
-                        Agregar Propiedad de Interés
+                        {t.addPropertyInterest}
                       </Button>
                     )}
 
@@ -831,7 +989,7 @@ export default function LeadRegistrationVendedor() {
                               <span className="font-medium">{interest.condominiumName}</span>
                               {interest.unitIds.length > 0 && (
                                 <span className="text-sm text-muted-foreground">
-                                  ({interest.unitIds.length} unidad(es))
+                                  ({interest.unitIds.length} {t.units})
                                 </span>
                               )}
                             </div>
@@ -852,17 +1010,17 @@ export default function LeadRegistrationVendedor() {
 
                   {/* Seller Information */}
                   <div className="space-y-4 pt-4 border-t">
-                    <FormLabel className="text-base">Información del Vendedor</FormLabel>
+                    <FormLabel className="text-base">{t.sellerInfo}</FormLabel>
                     <FormField
                       control={form.control}
                       name="sellerId"
                       render={({ field }) => (
                         <FormItem>
-                          <FormLabel>Vendedor que Registra *</FormLabel>
+                          <FormLabel>{t.sellerRegistering} {t.required}</FormLabel>
                           <Select onValueChange={field.onChange} value={field.value}>
                             <FormControl>
                               <SelectTrigger data-testid="select-seller">
-                                <SelectValue placeholder="Seleccionar vendedor" />
+                                <SelectValue placeholder={t.selectSeller} />
                               </SelectTrigger>
                             </FormControl>
                             <SelectContent>
@@ -874,7 +1032,7 @@ export default function LeadRegistrationVendedor() {
                             </SelectContent>
                           </Select>
                           <FormDescription>
-                            Selecciona tu nombre de la lista de vendedores registrados.
+                            {t.sellerDesc}
                           </FormDescription>
                           <FormMessage />
                         </FormItem>
@@ -885,11 +1043,11 @@ export default function LeadRegistrationVendedor() {
                       name="notes"
                       render={({ field }) => (
                         <FormItem>
-                          <FormLabel>Notas Adicionales</FormLabel>
+                          <FormLabel>{t.notes}</FormLabel>
                           <FormControl>
                             <Textarea
                               {...field}
-                              placeholder="Cualquier información adicional sobre el cliente..."
+                              placeholder={t.notesPlaceholder}
                               rows={3}
                               data-testid="input-notes"
                             />
@@ -913,7 +1071,7 @@ export default function LeadRegistrationVendedor() {
                     data-testid="button-previous"
                   >
                     <ChevronLeft className="h-4 w-4" />
-                    Anterior
+                    {t.previous}
                   </Button>
                 ) : (
                   <div />
@@ -926,7 +1084,7 @@ export default function LeadRegistrationVendedor() {
                     className="gap-2"
                     data-testid="button-next"
                   >
-                    Siguiente
+                    {t.next}
                     <ChevronRight className="h-4 w-4" />
                   </Button>
                 ) : (
@@ -939,12 +1097,12 @@ export default function LeadRegistrationVendedor() {
                     {submitMutation.isPending ? (
                       <>
                         <Loader2 className="h-4 w-4 animate-spin" />
-                        Enviando...
+                        {t.submitting}
                       </>
                     ) : (
                       <>
                         <CheckCircle2 className="h-4 w-4" />
-                        Registrar Lead
+                        {t.submit}
                       </>
                     )}
                   </Button>

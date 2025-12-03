@@ -11,10 +11,170 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
 import { CheckCircle2, AlertCircle, Building2, Calendar as CalendarIcon, Home, Sparkles, MapPin, Clock, PawPrint } from "lucide-react";
 import { SearchableSelect } from "@/components/ui/searchable-select";
 import { SearchableMultiSelect } from "@/components/ui/searchable-multi-select";
+import { LanguageToggle } from "@/components/LanguageToggle";
+import { useLanguage } from "@/contexts/LanguageContext";
+
+const translations = {
+  es: {
+    loading: "Cargando...",
+    invalidLink: "Enlace Inválido",
+    invalidLinkDesc: "Este enlace de registro es inválido o ha expirado.",
+    fetchError: "Error al cargar el formulario de registro",
+    successTitle: "¡Registro Exitoso!",
+    successDescription: "¡Gracias por registrarte! Nos pondremos en contacto contigo pronto con la información proporcionada.",
+    sellerRegistration: "Registro de Vendedor",
+    brokerRegistration: "Registro de Broker",
+    formExpires: "Este formulario expira el",
+    notAvailable: "N/D",
+    firstName: "Nombre",
+    lastName: "Apellido",
+    firstNamePlaceholder: "Juan",
+    lastNamePlaceholder: "Pérez",
+    email: "Correo Electrónico",
+    emailPlaceholder: "juan@ejemplo.com",
+    phone: "Número de Teléfono",
+    phonePlaceholder: "+52 (998) 123-4567",
+    phoneLast4: "Últimos 4 dígitos del Teléfono",
+    phoneLast4Placeholder: "1234",
+    searchPreferences: "Preferencias de Búsqueda",
+    propertyType: "Tipo de Propiedad",
+    selectTypes: "Seleccionar tipos...",
+    searchType: "Buscar tipo...",
+    noTypesFound: "No se encontraron tipos.",
+    zoneArea: "Zona / Área",
+    selectAreas: "Seleccionar áreas...",
+    searchArea: "Buscar área...",
+    noAreasFound: "No se encontraron áreas.",
+    rentBudget: "Presupuesto de Renta (MXN)",
+    budgetPlaceholder: "Ej: 18-25 mil",
+    bedrooms: "Recámaras",
+    bedroomsPlaceholder: "Ej: 1-2, 2+",
+    contractDuration: "Duración del Contrato",
+    selectDuration: "Seleccionar duración...",
+    search: "Buscar...",
+    notFound: "No encontrado.",
+    months6: "6 meses",
+    year1: "1 año",
+    years2: "2 años",
+    years3Plus: "3+ años",
+    checkInDate: "Fecha de Check-in Deseada",
+    hasPets: "¿Tiene Mascotas?",
+    selectOption: "Seleccionar...",
+    petNo: "No",
+    petDog: "Sí - Perro",
+    petCat: "Sí - Gato",
+    petOther: "Sí - Otro",
+    numberOfPets: "Número de Mascotas",
+    desiredFeatures: "Características Deseadas (Opcional)",
+    unitCharacteristics: "Características de la Unidad",
+    developmentAmenities: "Amenidades del Desarrollo",
+    additionalNotes: "Notas Adicionales",
+    notesPlaceholder: "Cualquier información adicional que desee compartir...",
+    submitting: "Enviando...",
+    submitRegistration: "Enviar Registro",
+    required: "*",
+    errFirstName: "El nombre es requerido",
+    errLastName: "El apellido es requerido",
+    errEmailRequired: "El correo electrónico es requerido para vendedores",
+    errEmailInvalid: "Formato de correo electrónico inválido",
+    errPhoneRequired: "El teléfono es requerido para vendedores",
+    errPhoneLast4Required: "Los últimos 4 dígitos del teléfono son requeridos para brokers",
+    errPhoneLast4Format: "Deben ser exactamente 4 dígitos",
+    submitError: "Error al enviar el registro",
+    propApartment: "Departamento",
+    propHouse: "Casa",
+    propStudio: "Estudio",
+    propPenthouse: "PH / Penthouse",
+    propVilla: "Villa",
+    zoneAldeaZama: "Aldea Zama",
+    zoneLaVeleta: "La Veleta",
+    zoneCentro: "Centro",
+    zoneOther: "Otro",
+  },
+  en: {
+    loading: "Loading...",
+    invalidLink: "Invalid Link",
+    invalidLinkDesc: "This registration link is invalid or has expired.",
+    fetchError: "Failed to fetch registration form",
+    successTitle: "Registration Successful!",
+    successDescription: "Thank you for registering! We will contact you shortly at the information you provided.",
+    sellerRegistration: "Seller Registration",
+    brokerRegistration: "Broker Registration",
+    formExpires: "This form will expire on",
+    notAvailable: "N/A",
+    firstName: "First Name",
+    lastName: "Last Name",
+    firstNamePlaceholder: "John",
+    lastNamePlaceholder: "Doe",
+    email: "Email",
+    emailPlaceholder: "john@example.com",
+    phone: "Phone Number",
+    phonePlaceholder: "+1 (555) 123-4567",
+    phoneLast4: "Last 4 Digits of Phone",
+    phoneLast4Placeholder: "1234",
+    searchPreferences: "Search Preferences",
+    propertyType: "Property Type",
+    selectTypes: "Select types...",
+    searchType: "Search type...",
+    noTypesFound: "No types found.",
+    zoneArea: "Zone / Area",
+    selectAreas: "Select areas...",
+    searchArea: "Search area...",
+    noAreasFound: "No areas found.",
+    rentBudget: "Rent Budget (MXN)",
+    budgetPlaceholder: "E.g: 18-25 mil",
+    bedrooms: "Bedrooms",
+    bedroomsPlaceholder: "E.g: 1-2, 2+",
+    contractDuration: "Contract Duration",
+    selectDuration: "Select duration...",
+    search: "Search...",
+    notFound: "Not found.",
+    months6: "6 months",
+    year1: "1 year",
+    years2: "2 years",
+    years3Plus: "3+ years",
+    checkInDate: "Desired Check-in Date",
+    hasPets: "Has Pets?",
+    selectOption: "Select...",
+    petNo: "No",
+    petDog: "Yes - Dog",
+    petCat: "Yes - Cat",
+    petOther: "Yes - Other",
+    numberOfPets: "Number of Pets",
+    desiredFeatures: "Desired Features (Optional)",
+    unitCharacteristics: "Unit Characteristics",
+    developmentAmenities: "Development Amenities",
+    additionalNotes: "Additional Notes",
+    notesPlaceholder: "Any additional information you'd like to share...",
+    submitting: "Submitting...",
+    submitRegistration: "Submit Registration",
+    required: "*",
+    errFirstName: "First name is required",
+    errLastName: "Last name is required",
+    errEmailRequired: "Email is required for sellers",
+    errEmailInvalid: "Invalid email format",
+    errPhoneRequired: "Phone is required for sellers",
+    errPhoneLast4Required: "Last 4 digits of phone are required for brokers",
+    errPhoneLast4Format: "Must be exactly 4 digits",
+    submitError: "Failed to submit registration",
+    propApartment: "Apartment",
+    propHouse: "House",
+    propStudio: "Studio",
+    propPenthouse: "PH / Penthouse",
+    propVilla: "Villa",
+    zoneAldeaZama: "Aldea Zama",
+    zoneLaVeleta: "La Veleta",
+    zoneCentro: "Centro",
+    zoneOther: "Other",
+  }
+};
 
 export default function PublicLeadRegistration() {
   const params = useParams<{ token: string }>();
   const token = params.token || "";
+  const { language } = useLanguage();
+  const t = translations[language];
+  
   const [formData, setFormData] = useState({
     firstName: "",
     lastName: "",
@@ -48,7 +208,7 @@ export default function PublicLeadRegistration() {
       const response = await fetch(`/api/leads/${token}`);
       if (!response.ok) {
         const errorData = await response.json();
-        throw new Error(errorData.message || "Failed to fetch registration form");
+        throw new Error(errorData.message || t.fetchError);
       }
       return response.json();
     },
@@ -102,20 +262,20 @@ export default function PublicLeadRegistration() {
   });
   const activeZones = zonesData.filter(z => z.isActive);
 
-  // Default options when API doesn't return data
+  // Default options when API doesn't return data - using translated labels
   const defaultPropertyTypes = [
-    { value: "Departamento", label: "Apartment" },
-    { value: "Casa", label: "House" },
-    { value: "Estudio", label: "Studio" },
-    { value: "PH / Penthouse", label: "PH / Penthouse" },
-    { value: "Villa", label: "Villa" },
+    { value: "Departamento", label: t.propApartment },
+    { value: "Casa", label: t.propHouse },
+    { value: "Estudio", label: t.propStudio },
+    { value: "PH / Penthouse", label: t.propPenthouse },
+    { value: "Villa", label: t.propVilla },
   ];
 
   const defaultZones = [
-    { value: "Aldea Zama", label: "Aldea Zama" },
-    { value: "La Veleta", label: "La Veleta" },
-    { value: "Centro", label: "Centro" },
-    { value: "Otro", label: "Other" },
+    { value: "Aldea Zama", label: t.zoneAldeaZama },
+    { value: "La Veleta", label: t.zoneLaVeleta },
+    { value: "Centro", label: t.zoneCentro },
+    { value: "Otro", label: t.zoneOther },
   ];
 
   const submitMutation = useMutation({
@@ -170,7 +330,7 @@ export default function PublicLeadRegistration() {
       });
       if (!response.ok) {
         const errorData = await response.json();
-        throw new Error(errorData.message || "Failed to submit registration");
+        throw new Error(errorData.message || t.submitError);
       }
       return response.json();
     },
@@ -178,7 +338,7 @@ export default function PublicLeadRegistration() {
       setSubmitSuccess(true);
     },
     onError: (error: any) => {
-      setErrors({ submit: error.message });
+      setErrors({ submit: error.message || t.submitError });
     },
   });
 
@@ -186,27 +346,27 @@ export default function PublicLeadRegistration() {
     const newErrors: Record<string, string> = {};
     
     if (!formData.firstName.trim()) {
-      newErrors.firstName = "First name is required";
+      newErrors.firstName = t.errFirstName;
     }
     
     if (!formData.lastName.trim()) {
-      newErrors.lastName = "Last name is required";
+      newErrors.lastName = t.errLastName;
     }
 
     if (formInfo?.registrationType === "seller") {
       if (!formData.email.trim()) {
-        newErrors.email = "Email is required for sellers";
+        newErrors.email = t.errEmailRequired;
       } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email)) {
-        newErrors.email = "Invalid email format";
+        newErrors.email = t.errEmailInvalid;
       }
       if (!formData.phone.trim()) {
-        newErrors.phone = "Phone is required for sellers";
+        newErrors.phone = t.errPhoneRequired;
       }
     } else if (formInfo?.registrationType === "broker") {
       if (!formData.phoneLast4.trim()) {
-        newErrors.phoneLast4 = "Last 4 digits of phone are required for brokers";
+        newErrors.phoneLast4 = t.errPhoneLast4Required;
       } else if (!/^\d{4}$/.test(formData.phoneLast4)) {
-        newErrors.phoneLast4 = "Must be exactly 4 digits";
+        newErrors.phoneLast4 = t.errPhoneLast4Format;
       }
     }
 
@@ -227,7 +387,7 @@ export default function PublicLeadRegistration() {
         <Card className="w-full max-w-md">
           <CardContent className="pt-6">
             <div className="flex justify-center">
-              <div className="text-muted-foreground">Loading...</div>
+              <div className="text-muted-foreground">{t.loading}</div>
             </div>
           </CardContent>
         </Card>
@@ -238,17 +398,20 @@ export default function PublicLeadRegistration() {
   if (error) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-muted/30 p-4">
-        <Card className="w-full max-w-md">
+        <Card className="w-full max-w-md relative">
+          <div className="absolute right-4 top-4">
+            <LanguageToggle />
+          </div>
           <CardHeader>
             <div className="flex items-center gap-2">
               <AlertCircle className="h-5 w-5 text-destructive" />
-              <CardTitle>Invalid Link</CardTitle>
+              <CardTitle>{t.invalidLink}</CardTitle>
             </div>
           </CardHeader>
           <CardContent>
             <Alert variant="destructive">
               <AlertDescription>
-                {(error as Error).message || "This registration link is invalid or has expired."}
+                {(error as Error).message || t.invalidLinkDesc}
               </AlertDescription>
             </Alert>
           </CardContent>
@@ -264,12 +427,12 @@ export default function PublicLeadRegistration() {
           <CardHeader>
             <div className="flex items-center gap-2">
               <CheckCircle2 className="h-5 w-5 text-green-600" />
-              <CardTitle>Registration Successful</CardTitle>
+              <CardTitle>{t.successTitle}</CardTitle>
             </div>
           </CardHeader>
           <CardContent>
             <p className="text-muted-foreground">
-              Thank you for registering! We will contact you shortly at the information you provided.
+              {t.successDescription}
             </p>
           </CardContent>
         </Card>
@@ -279,18 +442,21 @@ export default function PublicLeadRegistration() {
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-muted/30 p-4">
-      <Card className="w-full max-w-2xl">
+      <Card className="w-full max-w-2xl relative">
+        <div className="absolute right-4 top-4">
+          <LanguageToggle />
+        </div>
         <CardHeader>
           <div className="flex items-center gap-2 mb-2">
             <Building2 className="h-6 w-6" />
             <Badge variant="outline">{formInfo?.agencyName}</Badge>
           </div>
           <CardTitle className="text-2xl">
-            {formInfo?.registrationType === "seller" ? "Seller Registration" : "Broker Registration"}
+            {formInfo?.registrationType === "seller" ? t.sellerRegistration : t.brokerRegistration}
           </CardTitle>
           <CardDescription>
-            Please provide your information below. This form will expire on{" "}
-            {formInfo?.expiresAt ? new Date(formInfo.expiresAt).toLocaleDateString() : "N/A"}.
+            {t.formExpires}{" "}
+            {formInfo?.expiresAt ? new Date(formInfo.expiresAt).toLocaleDateString(language === 'es' ? 'es-MX' : 'en-US') : t.notAvailable}.
           </CardDescription>
         </CardHeader>
         <form onSubmit={handleSubmit}>
@@ -298,23 +464,23 @@ export default function PublicLeadRegistration() {
             {/* First and Last Name */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="space-y-2">
-                <Label htmlFor="firstName">First Name *</Label>
+                <Label htmlFor="firstName">{t.firstName} {t.required}</Label>
                 <Input
                   id="firstName"
                   value={formData.firstName}
                   onChange={(e) => setFormData({ ...formData, firstName: e.target.value })}
-                  placeholder="John"
+                  placeholder={t.firstNamePlaceholder}
                   data-testid="input-firstname"
                 />
                 {errors.firstName && <p className="text-sm text-destructive">{errors.firstName}</p>}
               </div>
               <div className="space-y-2">
-                <Label htmlFor="lastName">Last Name *</Label>
+                <Label htmlFor="lastName">{t.lastName} {t.required}</Label>
                 <Input
                   id="lastName"
                   value={formData.lastName}
                   onChange={(e) => setFormData({ ...formData, lastName: e.target.value })}
-                  placeholder="Doe"
+                  placeholder={t.lastNamePlaceholder}
                   data-testid="input-lastname"
                 />
                 {errors.lastName && <p className="text-sm text-destructive">{errors.lastName}</p>}
@@ -325,25 +491,25 @@ export default function PublicLeadRegistration() {
             {formInfo?.registrationType === "seller" && (
               <>
                 <div className="space-y-2">
-                  <Label htmlFor="email">Email *</Label>
+                  <Label htmlFor="email">{t.email} {t.required}</Label>
                   <Input
                     id="email"
                     type="email"
                     value={formData.email}
                     onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                    placeholder="john@example.com"
+                    placeholder={t.emailPlaceholder}
                     data-testid="input-email"
                   />
                   {errors.email && <p className="text-sm text-destructive">{errors.email}</p>}
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="phone">Phone Number *</Label>
+                  <Label htmlFor="phone">{t.phone} {t.required}</Label>
                   <Input
                     id="phone"
                     type="tel"
                     value={formData.phone}
                     onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
-                    placeholder="+1 (555) 123-4567"
+                    placeholder={t.phonePlaceholder}
                     data-testid="input-phone"
                   />
                   {errors.phone && <p className="text-sm text-destructive">{errors.phone}</p>}
@@ -354,14 +520,14 @@ export default function PublicLeadRegistration() {
             {/* Broker-specific fields */}
             {formInfo?.registrationType === "broker" && (
               <div className="space-y-2">
-                <Label htmlFor="phoneLast4">Last 4 Digits of Phone *</Label>
+                <Label htmlFor="phoneLast4">{t.phoneLast4} {t.required}</Label>
                 <Input
                   id="phoneLast4"
                   type="text"
                   maxLength={4}
                   value={formData.phoneLast4}
                   onChange={(e) => setFormData({ ...formData, phoneLast4: e.target.value.replace(/\D/g, "") })}
-                  placeholder="1234"
+                  placeholder={t.phoneLast4Placeholder}
                   data-testid="input-phone-last4"
                 />
                 {errors.phoneLast4 && <p className="text-sm text-destructive">{errors.phoneLast4}</p>}
@@ -372,7 +538,7 @@ export default function PublicLeadRegistration() {
             <div className="space-y-4 pt-2 border-t">
               <div className="flex items-center gap-2 text-sm font-medium">
                 <Home className="h-4 w-4 text-muted-foreground" />
-                <span>Search Preferences</span>
+                <span>{t.searchPreferences}</span>
               </div>
 
               {/* Property Type & Zone */}
@@ -380,18 +546,18 @@ export default function PublicLeadRegistration() {
                 <div className="space-y-2">
                   <Label className="flex items-center gap-2">
                     <Home className="h-3.5 w-3.5 text-muted-foreground" />
-                    Property Type
+                    {t.propertyType}
                   </Label>
                   <SearchableMultiSelect
                     value={selectedPropertyTypes}
                     onValueChange={setSelectedPropertyTypes}
                     options={activePropertyTypes.length > 0 
-                      ? activePropertyTypes.map(pt => ({ value: pt.name, label: pt.nameEn || pt.name }))
+                      ? activePropertyTypes.map(pt => ({ value: pt.name, label: language === 'es' ? pt.name : (pt.nameEn || pt.name) }))
                       : defaultPropertyTypes
                     }
-                    placeholder="Select types..."
-                    searchPlaceholder="Search type..."
-                    emptyMessage="No types found."
+                    placeholder={t.selectTypes}
+                    searchPlaceholder={t.searchType}
+                    emptyMessage={t.noTypesFound}
                     showSelectedBelow={false}
                     data-testid="multiselect-property-type"
                   />
@@ -399,18 +565,18 @@ export default function PublicLeadRegistration() {
                 <div className="space-y-2">
                   <Label className="flex items-center gap-2">
                     <MapPin className="h-3.5 w-3.5 text-muted-foreground" />
-                    Zone / Area
+                    {t.zoneArea}
                   </Label>
                   <SearchableMultiSelect
                     value={selectedZones}
                     onValueChange={setSelectedZones}
                     options={activeZones.length > 0 
-                      ? activeZones.map(z => ({ value: z.name, label: z.nameEn || z.name }))
+                      ? activeZones.map(z => ({ value: z.name, label: language === 'es' ? z.name : (z.nameEn || z.name) }))
                       : defaultZones
                     }
-                    placeholder="Select areas..."
-                    searchPlaceholder="Search area..."
-                    emptyMessage="No areas found."
+                    placeholder={t.selectAreas}
+                    searchPlaceholder={t.searchArea}
+                    emptyMessage={t.noAreasFound}
                     showSelectedBelow={false}
                     data-testid="multiselect-zone"
                   />
@@ -420,22 +586,22 @@ export default function PublicLeadRegistration() {
               {/* Budget & Bedrooms */}
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className="space-y-2">
-                  <Label htmlFor="estimatedRentCost">Rent Budget (MXN)</Label>
+                  <Label htmlFor="estimatedRentCost">{t.rentBudget}</Label>
                   <Input
                     id="estimatedRentCost"
                     value={formData.estimatedRentCost}
                     onChange={(e) => setFormData({ ...formData, estimatedRentCost: e.target.value })}
-                    placeholder="E.g: 18-25 mil"
+                    placeholder={t.budgetPlaceholder}
                     data-testid="input-rent-budget"
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="bedroomsDesired">Bedrooms</Label>
+                  <Label htmlFor="bedroomsDesired">{t.bedrooms}</Label>
                   <Input
                     id="bedroomsDesired"
                     value={formData.bedroomsDesired}
                     onChange={(e) => setFormData({ ...formData, bedroomsDesired: e.target.value })}
-                    placeholder="E.g: 1-2, 2+"
+                    placeholder={t.bedroomsPlaceholder}
                     data-testid="input-bedrooms"
                   />
                 </div>
@@ -446,27 +612,27 @@ export default function PublicLeadRegistration() {
                 <div className="space-y-2">
                   <Label className="flex items-center gap-2">
                     <Clock className="h-3.5 w-3.5 text-muted-foreground" />
-                    Contract Duration
+                    {t.contractDuration}
                   </Label>
                   <SearchableSelect
                     value={formData.contractDuration}
                     onValueChange={(value) => setFormData({ ...formData, contractDuration: value })}
                     options={[
-                      { value: "6 meses", label: "6 months" },
-                      { value: "1 año", label: "1 year" },
-                      { value: "2 años", label: "2 years" },
-                      { value: "3+ años", label: "3+ years" },
+                      { value: "6 meses", label: t.months6 },
+                      { value: "1 año", label: t.year1 },
+                      { value: "2 años", label: t.years2 },
+                      { value: "3+ años", label: t.years3Plus },
                     ]}
-                    placeholder="Select duration..."
-                    searchPlaceholder="Search..."
-                    emptyMessage="Not found."
+                    placeholder={t.selectDuration}
+                    searchPlaceholder={t.search}
+                    emptyMessage={t.notFound}
                     data-testid="select-contract-duration"
                   />
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="checkInDate" className="flex items-center gap-2">
                     <CalendarIcon className="h-3.5 w-3.5 text-muted-foreground" />
-                    Desired Check-in Date
+                    {t.checkInDate}
                   </Label>
                   <Input
                     id="checkInDate"
@@ -508,7 +674,7 @@ export default function PublicLeadRegistration() {
                 <div className="space-y-2">
                   <Label className="flex items-center gap-2">
                     <PawPrint className="h-3.5 w-3.5 text-muted-foreground" />
-                    Has Pets?
+                    {t.hasPets}
                   </Label>
                   <SearchableSelect
                     value={formData.hasPets}
@@ -520,14 +686,14 @@ export default function PublicLeadRegistration() {
                       });
                     }}
                     options={[
-                      { value: "No", label: "No" },
-                      { value: "Sí - Perro", label: "Yes - Dog" },
-                      { value: "Sí - Gato", label: "Yes - Cat" },
-                      { value: "Sí - Otro", label: "Yes - Other" },
+                      { value: "No", label: t.petNo },
+                      { value: "Sí - Perro", label: t.petDog },
+                      { value: "Sí - Gato", label: t.petCat },
+                      { value: "Sí - Otro", label: t.petOther },
                     ]}
-                    placeholder="Select..."
-                    searchPlaceholder="Search..."
-                    emptyMessage="Not found."
+                    placeholder={t.selectOption}
+                    searchPlaceholder={t.search}
+                    emptyMessage={t.notFound}
                     data-testid="select-pets"
                   />
                 </div>
@@ -535,7 +701,7 @@ export default function PublicLeadRegistration() {
                   <div className="space-y-2">
                     <Label htmlFor="petQuantity" className="flex items-center gap-2">
                       <PawPrint className="h-3.5 w-3.5 text-muted-foreground" />
-                      Number of Pets
+                      {t.numberOfPets}
                     </Label>
                     <Input
                       id="petQuantity"
@@ -556,7 +722,7 @@ export default function PublicLeadRegistration() {
               <div className="space-y-4 pt-2 border-t">
                 <div className="flex items-center gap-2 text-sm font-medium">
                   <Sparkles className="h-4 w-4 text-muted-foreground" />
-                  <span>Desired Features (Optional)</span>
+                  <span>{t.desiredFeatures}</span>
                 </div>
 
                 {/* Unit Characteristics */}
@@ -564,7 +730,7 @@ export default function PublicLeadRegistration() {
                   <div className="space-y-2">
                     <Label className="flex items-center gap-2 text-sm">
                       <Home className="h-3.5 w-3.5 text-muted-foreground" />
-                      Unit Characteristics
+                      {t.unitCharacteristics}
                     </Label>
                     <div className="flex flex-wrap gap-2">
                       {activeCharacteristics.map((char) => (
@@ -583,7 +749,7 @@ export default function PublicLeadRegistration() {
                           }}
                           data-testid={`toggle-char-${char.id}`}
                         >
-                          {char.nameEn || char.name}
+                          {language === 'es' ? char.name : (char.nameEn || char.name)}
                         </Button>
                       ))}
                     </div>
@@ -595,7 +761,7 @@ export default function PublicLeadRegistration() {
                   <div className="space-y-2">
                     <Label className="flex items-center gap-2 text-sm">
                       <Building2 className="h-3.5 w-3.5 text-muted-foreground" />
-                      Development Amenities
+                      {t.developmentAmenities}
                     </Label>
                     <div className="flex flex-wrap gap-2">
                       {activeAmenities.map((amenity) => (
@@ -614,7 +780,7 @@ export default function PublicLeadRegistration() {
                           }}
                           data-testid={`toggle-amenity-${amenity.id}`}
                         >
-                          {amenity.nameEn || amenity.name}
+                          {language === 'es' ? amenity.name : (amenity.nameEn || amenity.name)}
                         </Button>
                       ))}
                     </div>
@@ -624,12 +790,12 @@ export default function PublicLeadRegistration() {
             )}
 
             <div className="space-y-2">
-              <Label htmlFor="notes">Additional Notes</Label>
+              <Label htmlFor="notes">{t.additionalNotes}</Label>
               <Textarea
                 id="notes"
                 value={formData.notes}
                 onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
-                placeholder="Any additional information you'd like to share..."
+                placeholder={t.notesPlaceholder}
                 rows={4}
                 data-testid="input-notes"
               />
@@ -648,7 +814,7 @@ export default function PublicLeadRegistration() {
               disabled={submitMutation.isPending}
               data-testid="button-submit"
             >
-              {submitMutation.isPending ? "Submitting..." : "Submit Registration"}
+              {submitMutation.isPending ? t.submitting : t.submitRegistration}
             </Button>
           </CardFooter>
         </form>
