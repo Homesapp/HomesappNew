@@ -127,7 +127,8 @@ const unitEditSchema = z.object({
     electricity: z.boolean().default(false),
     internet: z.boolean().default(false),
     gas: z.boolean().default(false),
-  }).default({ water: false, electricity: false, internet: false, gas: false }),
+    hoaMaintenance: z.boolean().default(false), // Mantenimiento condominal / HOA
+  }).default({ water: false, electricity: false, internet: false, gas: false, hoaMaintenance: false }),
   accessInfo: z.object({
     lockboxCode: z.string().optional(),
     contactPerson: z.string().optional(),
@@ -721,6 +722,7 @@ export default function ExternalUnitDetail() {
         electricity: (unit.includedServices as any)?.electricity ?? false,
         internet: (unit.includedServices as any)?.internet ?? false,
         gas: (unit.includedServices as any)?.gas ?? false,
+        hoaMaintenance: (unit.includedServices as any)?.hoaMaintenance ?? (unit.condominiumId ? true : false), // Default true for condo units
       },
       accessInfo: unit.accessInfo as any ?? null,
     });
@@ -1452,6 +1454,11 @@ ${language === "es" ? "ACCESOS" : "ACCESSES"}:
                         {language === "es" ? "Servicios Incluidos" : "Included Services"}
                       </Label>
                       <div className="flex flex-wrap gap-1.5">
+                        {(unit.includedServices as any).hoaMaintenance && (
+                          <Badge variant="default" className="text-xs bg-green-600" data-testid="badge-service-hoa">
+                            {language === "es" ? "Mant. Condominal" : "HOA Included"}
+                          </Badge>
+                        )}
                         {(unit.includedServices as any).water && (
                           <Badge variant="outline" className="text-xs" data-testid="badge-service-water">
                             {language === "es" ? "Agua" : "Water"}
@@ -2724,6 +2731,31 @@ ${language === "es" ? "ACCESOS" : "ACCESSES"}:
                         />
                       </FormControl>
                       <FormLabel className="font-normal">{language === "es" ? "Gas" : "Gas"}</FormLabel>
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={unitEditForm.control}
+                  name="includedServices.hoaMaintenance"
+                  render={({ field }) => (
+                    <FormItem className="flex flex-row items-center space-x-3 space-y-0 col-span-2">
+                      <FormControl>
+                        <Switch
+                          checked={field.value || false}
+                          onCheckedChange={field.onChange}
+                          data-testid="switch-edit-hoa"
+                        />
+                      </FormControl>
+                      <div>
+                        <FormLabel className="font-normal">
+                          {language === "es" ? "Mantenimiento Condominal (HOA)" : "HOA Maintenance"}
+                        </FormLabel>
+                        <p className="text-xs text-muted-foreground">
+                          {language === "es" 
+                            ? "Cuota de mantenimiento de áreas comunes incluida en la renta" 
+                            : "Common area maintenance fee included in rent"}
+                        </p>
+                      </div>
                     </FormItem>
                   )}
                 />

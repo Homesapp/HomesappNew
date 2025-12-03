@@ -3,7 +3,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
-import { Bed, Bath, Square, MapPin, Eye, Edit, Calendar, Trash2, Droplet, Zap, Wifi, PawPrint, Building2 } from "lucide-react";
+import { Bed, Bath, Square, MapPin, Eye, Edit, Calendar, Trash2, Droplet, Zap, Wifi, PawPrint, Building2, CheckCircle } from "lucide-react";
 import { useLanguage } from "@/contexts/LanguageContext";
 
 type IncludedServices = {
@@ -29,6 +29,7 @@ type IncludedServices = {
     provider?: string;
     cost?: string;
   }>;
+  hoaMaintenance?: boolean; // Mantenimiento condominal incluido
 };
 
 export type PropertyCardProps = {
@@ -224,21 +225,27 @@ export function PropertyCard({
         </div>
 
         {/* Servicios Incluidos - Solo mostrar servicios incluidos (no los no incluidos) */}
-        {includedServices?.basicServices && (includedServices.basicServices.water?.included || includedServices.basicServices.electricity?.included || includedServices.basicServices.internet?.included) && (
+        {(includedServices?.hoaMaintenance || includedServices?.basicServices?.water?.included || includedServices?.basicServices?.electricity?.included || includedServices?.basicServices?.internet?.included) && (
           <div className="flex flex-wrap gap-2 pt-2 border-t">
-            {includedServices.basicServices.water?.included && (
+            {includedServices?.hoaMaintenance && (
+              <div className="flex items-center gap-1 text-xs text-muted-foreground" data-testid="service-hoa">
+                <CheckCircle className="h-3 w-3 text-green-500" />
+                <span>{t("property.hoaIncluded") || "Mant. incluido"}</span>
+              </div>
+            )}
+            {includedServices?.basicServices?.water?.included && (
               <div className="flex items-center gap-1 text-xs text-muted-foreground" data-testid="service-water">
                 <Droplet className="h-3 w-3 text-blue-500" />
                 <span>Agua</span>
               </div>
             )}
-            {includedServices.basicServices.electricity?.included && (
+            {includedServices?.basicServices?.electricity?.included && (
               <div className="flex items-center gap-1 text-xs text-muted-foreground" data-testid="service-electricity">
                 <Zap className="h-3 w-3 text-yellow-500" />
                 <span>Luz</span>
               </div>
             )}
-            {includedServices.basicServices.internet?.included && (
+            {includedServices?.basicServices?.internet?.included && (
               <div className="flex items-center gap-1 text-xs text-muted-foreground" data-testid="service-internet">
                 <Wifi className="h-3 w-3 text-purple-500" />
                 <span>Internet</span>

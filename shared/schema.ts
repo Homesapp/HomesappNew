@@ -7387,6 +7387,7 @@ export const insertExternalUnitSchema = createInsertSchema(externalUnits).omit({
     electricity: z.boolean().optional(),
     internet: z.boolean().optional(),
     gas: z.boolean().optional(),
+    hoaMaintenance: z.boolean().optional(), // Mantenimiento condominal / HOA fees
   }).optional().nullable(),
   accessInfo: z.object({
     lockboxCode: z.string().optional(),

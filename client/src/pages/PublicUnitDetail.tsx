@@ -39,6 +39,7 @@ import {
   Shield,
   Star,
   Check,
+  CheckCircle,
   Heart,
   Share2,
   Grid3X3,
@@ -480,6 +481,12 @@ export default function PublicUnitDetail() {
               <div>
                 <h2 className="text-xl font-semibold mb-4">{language === "es" ? "Servicios Incluidos" : "Included Services"}</h2>
                 <div className="flex flex-wrap gap-3">
+                  {(unit.includedServices as any).hoaMaintenance && (
+                    <Badge className="gap-2 px-4 py-2.5 text-sm bg-green-600 text-white hover:bg-green-700">
+                      <CheckCircle className="h-4 w-4" />
+                      {language === "es" ? "Mantenimiento Condominal Incluido" : "HOA Maintenance Included"}
+                    </Badge>
+                  )}
                   {unit.includedServices.internet && (
                     <Badge variant="secondary" className="gap-2 px-4 py-2.5 text-sm">
                       <Wifi className="h-4 w-4" />
