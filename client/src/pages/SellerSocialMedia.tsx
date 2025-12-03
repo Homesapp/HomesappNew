@@ -127,19 +127,6 @@ interface AgencyConfig {
   monthlyUsed: number;
 }
 
-interface TrackingLink {
-  id: string;
-  token: string;
-  targetUrl: string;
-  platform: string | null;
-  clickCount: number;
-  lastClickedAt: string | null;
-  createdAt: string;
-  unitId: string | null;
-  unitNumber: string | null;
-  trackingUrl: string;
-}
-
 const DEFAULT_TEMPLATES_ES = [
   {
     id: "default-1",
@@ -600,10 +587,6 @@ export default function SellerSocialMedia() {
   const [selectedPropertyId, setSelectedPropertyId] = useState<string>("");
   const [propertySearchQuery, setPropertySearchQuery] = useState("");
   
-  // Link tracker state
-  const [showLinkTracker, setShowLinkTracker] = useState(false);
-  const [newLinkUrl, setNewLinkUrl] = useState("");
-  const [newLinkPlatform, setNewLinkPlatform] = useState<string>("");
   
   // Template toggle options (for pre-designed templates)
   const [templateOptions, setTemplateOptions] = useState({
@@ -667,12 +650,6 @@ export default function SellerSocialMedia() {
       search: propertySearchQuery,
     }],
     enabled: propertySourceType !== "manual",
-  });
-  
-  // Tracking links query
-  const { data: trackingLinks } = useQuery<TrackingLink[]>({
-    queryKey: ["/api/external-seller/tracking-links"],
-    enabled: showLinkTracker,
   });
   
   // Template mutations
@@ -752,25 +729,6 @@ export default function SellerSocialMedia() {
   });
   
   // AI Generation mutation
-  // Tracking link mutation
-  const createTrackingLinkMutation = useMutation({
-    mutationFn: async (data: { targetUrl: string; unitId?: string; platform?: string }) => {
-      const res = await apiRequest("POST", "/api/external-seller/tracking-links", data);
-      return res.json();
-    },
-    onSuccess: (data) => {
-      queryClient.invalidateQueries({ queryKey: ["/api/external-seller/tracking-links"] });
-      navigator.clipboard.writeText(data.trackingUrl);
-      toast({ 
-        title: lang === "es" ? "Link creado y copiado" : "Link created and copied",
-        description: data.trackingUrl,
-      });
-      setNewLinkUrl("");
-    },
-    onError: () => {
-      toast({ title: lang === "es" ? "Error al crear link" : "Error creating link", variant: "destructive" });
-    },
-  });
   
   const generateMutation = useMutation({
     mutationFn: async (data: any) => {
