@@ -2531,10 +2531,10 @@ export class DatabaseStorage implements IStorage {
     }
 
     if (conditions.length > 0) {
-      query = query.where(and(...conditions)) as any;
+      return await db.select().from(properties).where(and(...conditions)).orderBy(desc(properties.createdAt));
     }
 
-    return await query.orderBy(desc(properties.createdAt));
+    return await db.select().from(properties).orderBy(desc(properties.createdAt));
   }
 
   async createProperty(propertyData: InsertProperty): Promise<Property> {
