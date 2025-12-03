@@ -8766,6 +8766,11 @@ export const externalSellerProfiles = pgTable("external_seller_profiles", {
   monthlyGoal: decimal("monthly_goal", { precision: 12, scale: 2 }),
   annualGoal: decimal("annual_goal", { precision: 12, scale: 2 }),
   
+  // AI Credits - Per-seller credit tracking (starts with 10 credits)
+  aiCreditBalance: integer("ai_credit_balance").notNull().default(10), // Current available credits
+  aiCreditTotalAssigned: integer("ai_credit_total_assigned").notNull().default(10), // Total credits ever assigned by admin
+  aiCreditUsed: integer("ai_credit_used").notNull().default(0), // Total credits used
+  
   // Notes
   notes: text("notes"),
   
