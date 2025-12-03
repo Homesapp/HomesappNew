@@ -33161,6 +33161,52 @@ ${{precio}}/mes
     }
   });
   
+  // GET /api/external-leads/:id/offer-tokens - Get offer tokens for a lead (with completion status)
+  app.get("/api/external-leads/:id/offer-tokens", isAuthenticated, requireRole([...EXTERNAL_ADMIN_ROLES, 'external_agency_seller']), async (req: any, res) => {
+    try {
+      const { id: leadId } = req.params;
+      
+      const lead = await storage.getExternalLead(leadId);
+      if (!lead) {
+        return res.status(404).json({ message: "Lead not found" });
+      }
+      
+      const hasAccess = await verifyExternalAgencyOwnership(req, res, lead.agencyId);
+      if (!hasAccess) return;
+      
+      // Get offer tokens for this lead with unit info
+      const tokens = await db
+        .select({
+          id: offerTokens.id,
+          token: offerTokens.token,
+          isUsed: offerTokens.isUsed,
+          expiresAt: offerTokens.expiresAt,
+          createdAt: offerTokens.createdAt,
+          externalUnitId: offerTokens.externalUnitId,
+          unitNumber: externalUnits.unitNumber,
+          condoName: externalCondominiums.name,
+          condoId: externalCondominiums.id,
+          offerData: offerTokens.offerData,
+        })
+        .from(offerTokens)
+        .leftJoin(externalUnits, eq(offerTokens.externalUnitId, externalUnits.id))
+        .leftJoin(externalCondominiums, eq(externalUnits.condominiumId, externalCondominiums.id))
+        .where(eq(offerTokens.externalLeadId, leadId))
+        .orderBy(desc(offerTokens.createdAt));
+      
+      // Add property title for display
+      const enrichedTokens = tokens.map(token => ({
+        ...token,
+        propertyTitle: `${token.condoName || ''} - ${token.unitNumber || ''}`,
+      }));
+      
+      res.json(enrichedTokens);
+    } catch (error: any) {
+      console.error("Error fetching lead offer tokens:", error);
+      handleGenericError(res, error);
+    }
+  });
+  
   // POST /api/external-leads/:id/offers - Generate offer token for a lead
   app.post("/api/external-leads/:id/offers", isAuthenticated, requireRole([...EXTERNAL_ADMIN_ROLES, 'external_agency_seller']), async (req: any, res) => {
     try {
