@@ -5019,6 +5019,7 @@ export const externalAgencies = pgTable("external_agencies", {
   contactPhone: varchar("contact_phone", { length: 50 }), // Teléfono de contacto
   assignedToUser: varchar("assigned_to_user").references(() => users.id), // Usuario responsable de la agencia
   autoApprovePublications: boolean("auto_approve_publications").notNull().default(false), // Auto-aprobar publicaciones sin revisión manual
+  aiCreditsEnabled: boolean("ai_credits_enabled").notNull().default(true), // Si las funciones de IA con créditos están habilitadas
   isActive: boolean("is_active").notNull().default(true), // Si está activa
   createdBy: varchar("created_by").references(() => users.id),
   createdAt: timestamp("created_at").defaultNow().notNull(),
@@ -5036,6 +5037,7 @@ export const insertExternalAgencySchema = createInsertSchema(externalAgencies).o
   isActive: z.boolean().optional().default(true),
   agencyLogoUrl: z.string().optional(),
   autoApprovePublications: z.boolean().optional().default(false),
+  aiCreditsEnabled: z.boolean().optional().default(true),
   createdBy: z.string().optional(),
 });
 
