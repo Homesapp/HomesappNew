@@ -14139,6 +14139,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (offerToken.leadId) {
         await storage.updateLeadStatus(offerToken.leadId, "en_negociacion");
       }
+      
+      // Update external lead's offerCompletedAt field if externalLeadId exists and not already set
+      if (offerToken.externalLeadId) {
+        const [existingLead] = await db.select({ offerCompletedAt: externalLeads.offerCompletedAt })
+          .from(externalLeads)
+          .where(eq(externalLeads.id, offerToken.externalLeadId))
+          .limit(1);
+        if (existingLead && !existingLead.offerCompletedAt) {
+          await db.update(externalLeads)
+            .set({ offerCompletedAt: new Date(), updatedAt: new Date() })
+            .where(eq(externalLeads.id, offerToken.externalLeadId));
+        }
+      }
 
       res.json({
         message: "Oferta enviada exitosamente",
@@ -14867,6 +14880,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
         })
         .where(eq(tenantRentalFormTokens.id, rentalFormToken.id));
 
+      // Update external lead's formCompletedAt field if externalLeadId exists and not already set
+      if (rentalFormToken.externalLeadId) {
+        const [existingLead] = await db.select({ formCompletedAt: externalLeads.formCompletedAt })
+          .from(externalLeads)
+          .where(eq(externalLeads.id, rentalFormToken.externalLeadId))
+          .limit(1);
+        if (existingLead && !existingLead.formCompletedAt) {
+          await db.update(externalLeads)
+            .set({ formCompletedAt: new Date(), updatedAt: new Date() })
+            .where(eq(externalLeads.id, rentalFormToken.externalLeadId));
+        }
+      }
+
       // Check if this is part of a dual-form group and create contract if both are complete
       let contractId = null;
       if (rentalFormToken.rentalFormGroupId) {
@@ -15156,6 +15182,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
           usedAt: new Date(),
         })
         .where(eq(tenantRentalFormTokens.id, rentalFormToken.id));
+
+      // Update external lead's formCompletedAt field if externalLeadId exists and not already set
+      if (rentalFormToken.externalLeadId) {
+        const [existingLead] = await db.select({ formCompletedAt: externalLeads.formCompletedAt })
+          .from(externalLeads)
+          .where(eq(externalLeads.id, rentalFormToken.externalLeadId))
+          .limit(1);
+        if (existingLead && !existingLead.formCompletedAt) {
+          await db.update(externalLeads)
+            .set({ formCompletedAt: new Date(), updatedAt: new Date() })
+            .where(eq(externalLeads.id, rentalFormToken.externalLeadId));
+        }
+      }
 
       // Check if this is part of a dual-form group and create contract if both are complete
       let contractId = null;
@@ -33332,6 +33371,13 @@ ${{precio}}/mes
         isUsed: false,
       }).returning();
       
+      // Update lead's offerSentAt field if not already set
+      if (!lead.offerSentAt) {
+        await db.update(externalLeads)
+          .set({ offerSentAt: new Date(), updatedAt: new Date() })
+          .where(eq(externalLeads.id, leadId));
+      }
+      
       // Get unit and property details for response
       const property = unit.propertyId ? await storage.getExternalProperty(unit.propertyId) : null;
       
@@ -33526,6 +33572,13 @@ ${{precio}}/mes
         isUsed: false,
       }).returning();
       
+      
+      // Update lead's offerSentAt field if not already set
+      if (!lead.offerSentAt) {
+        await db.update(externalLeads)
+          .set({ offerSentAt: new Date(), updatedAt: new Date() })
+          .where(eq(externalLeads.id, leadId));
+      }
       // Get agency and unit info for URL generation
       const [agency] = await db.select({ slug: externalAgencies.slug })
         .from(externalAgencies)
@@ -33663,6 +33716,13 @@ ${{precio}}/mes
         isUsed: false,
       }).returning();
       
+      
+      // Update lead's formSentAt field if not already set
+      if (!lead.formSentAt) {
+        await db.update(externalLeads)
+          .set({ formSentAt: new Date(), updatedAt: new Date() })
+          .where(eq(externalLeads.id, leadId));
+      }
       const property = unit.propertyId ? await storage.getExternalProperty(unit.propertyId) : null;
       
       const protocol = process.env.NODE_ENV === 'production' ? 'https' : req.protocol;
