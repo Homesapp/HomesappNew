@@ -21430,7 +21430,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const condoIds = [...new Set(requests.filter(r => r.condominiumId).map(r => r.condominiumId!))];
       let condoMap: Record<string, string> = {};
       if (condoIds.length > 0) {
-        const condos = await db.select({ id: externalCondominiums.id, name: externalCondominiums.name })
+        const condos = await db.select({ id: externalCondominiums.id, name: externalCondominiums.name, logoUrl: externalCondominiums.logoUrl, primaryColor: externalCondominiums.primaryColor, zone: externalCondominiums.zone })
           .from(externalCondominiums)
           .where(inArray(externalCondominiums.id, condoIds));
         condoMap = Object.fromEntries(condos.map(c => [c.id, c.name]));
@@ -29509,7 +29509,9 @@ ${{precio}}/mes
           latitude: unit.latitude ? parseFloat(unit.latitude) : null,
           longitude: unit.longitude ? parseFloat(unit.longitude) : null,
                 zone: unit.zone,
-          condominiumName: condoName || null,
+          condominiumName: condoData?.name || null,
+          condominiumLogoUrl: condoData?.logoUrl || null,
+          condominiumColor: condoData?.primaryColor || null,
           petsAllowed: m.petsAllowed || false,
           unitNumber: unit.unitNumber,
           latitude: unit.latitude ? parseFloat(unit.latitude) : null,
@@ -29542,7 +29544,9 @@ ${{precio}}/mes
           latitude: unit.latitude ? parseFloat(unit.latitude) : null,
           longitude: unit.longitude ? parseFloat(unit.longitude) : null,
                 zone: unit.zone,
-          condominiumName: condoName || null,
+          condominiumName: condoData?.name || null,
+          condominiumLogoUrl: condoData?.logoUrl || null,
+          condominiumColor: condoData?.primaryColor || null,
           petsAllowed: m.petsAllowed || false,
           unitNumber: unit.unitNumber,
           latitude: unit.latitude ? parseFloat(unit.latitude) : null,
@@ -35210,7 +35214,7 @@ const generateSlug = (str: string) => str.toLowerCase().normalize("NFD").replace
         let unitSlug: string;
         if (unit.slug) {
           unitSlug = unit.slug;
-        } else if (condoName) {
+        } else if (condoData) {
           // Include condominium name in slug for uniqueness
           unitSlug = generateSlug(`${condoName}-${unit.unitNumber}`);
         } else {
@@ -35245,7 +35249,9 @@ const generateSlug = (str: string) => str.toLowerCase().normalize("NFD").replace
           hasParking: unit.hasParking,
           petsAllowed: unit.petFriendly,
           zone: unit.zone,
-          condominiumName: condoName || null,
+          condominiumName: condoData?.name || null,
+          condominiumLogoUrl: condoData?.logoUrl || null,
+          condominiumColor: condoData?.primaryColor || null,
           unitNumber: unit.unitNumber,
           latitude: unit.latitude ? parseFloat(unit.latitude) : null,
           longitude: unit.longitude ? parseFloat(unit.longitude) : null,
@@ -35375,12 +35381,12 @@ const generateSlug = (str: string) => str.toLowerCase().normalize("NFD").replace
         .where(inArray(externalAgencies.id, agencyIds)) : [];
       
       const condosData = condoIds.length > 0 ? await db
-        .select({ id: externalCondominiums.id, name: externalCondominiums.name })
+        .select({ id: externalCondominiums.id, name: externalCondominiums.name, logoUrl: externalCondominiums.logoUrl, primaryColor: externalCondominiums.primaryColor, zone: externalCondominiums.zone })
         .from(externalCondominiums)
         .where(inArray(externalCondominiums.id, condoIds)) : [];
       
       const agencyMap = new Map(agenciesData.map(a => [a.id, a]));
-      const condoMap = new Map(condosData.map(c => [c.id, c.name]));
+      const condoMap = new Map(condosData.map(c => [c.id, { name: c.name, logoUrl: c.logoUrl, primaryColor: c.primaryColor, zone: c.zone }]));
       
       // Helper to generate slug
       const generateSlug = (str: string) => str.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "");
@@ -35388,14 +35394,14 @@ const generateSlug = (str: string) => str.toLowerCase().normalize("NFD").replace
       // Transform to lightweight marker format
       const mapMarkers = markers.map(m => {
         const agency = agencyMap.get(m.agencyId);
-        const condoName = m.condominiumId ? condoMap.get(m.condominiumId) : null;
+        const condoData = m.condominiumId ? condoMap.get(m.condominiumId) : null;
         
         // Generate slugs
         const agencySlug = agency?.slug || generateSlug(agency?.name || 'agency');
         let unitSlug = m.slug;
         if (!unitSlug) {
-          if (condoName) {
-            unitSlug = generateSlug(`${condoName}-${m.unitNumber}`);
+          if (condoData) {
+            unitSlug = generateSlug(`${condoData.name}-${m.unitNumber}`);
           } else {
             const unitTitle = m.title || `${m.propertyType || 'propiedad'}-${m.unitNumber}`;
             unitSlug = generateSlug(`${unitTitle}-${m.id.substring(0, 8)}`);
@@ -35418,7 +35424,9 @@ const generateSlug = (str: string) => str.toLowerCase().normalize("NFD").replace
           saleCurrency: m.saleCurrency || 'MXN',
           agencySlug,
           unitSlug,
-          condominiumName: condoName || null,
+          condominiumName: condoData?.name || null,
+          condominiumLogoUrl: condoData?.logoUrl || null,
+          condominiumColor: condoData?.primaryColor || null,
           petsAllowed: m.petsAllowed || false,
         };
       }).filter(m => m.lat && m.lng);

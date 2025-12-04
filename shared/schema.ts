@@ -7328,6 +7328,12 @@ export const externalCondominiums = pgTable("external_condominiums", {
   description: text("description"), // Descripción
   totalUnits: integer("total_units"), // Total de unidades en el condominio
   propertyCategory: varchar("property_category", { length: 50 }).default("condominium"), // 'condominium' o 'house' (casa privada)
+  
+  // Branding fields for map markers and property cards
+  logoUrl: text("logo_url"), // URL del logo del condominio
+  primaryColor: varchar("primary_color", { length: 7 }), // Color primario en hex (#RRGGBB)
+  secondaryColor: varchar("secondary_color", { length: 7 }), // Color secundario en hex (#RRGGBB)
+  
   isActive: boolean("is_active").notNull().default(true),
   createdBy: varchar("created_by").references(() => users.id),
   createdAt: timestamp("created_at").defaultNow().notNull(),
