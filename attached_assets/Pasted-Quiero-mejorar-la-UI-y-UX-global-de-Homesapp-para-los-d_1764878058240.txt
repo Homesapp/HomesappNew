@@ -1,0 +1,224 @@
+Quiero mejorar la UI y UX global de Homesapp para los dos roles principales:
+
+Cliente (desde que busca propiedades hasta que se convierte en inquilino y usa el Portal).
+
+Propietario (desde que aplica como owner hasta que usa el Portal de propietario).
+
+Ya tenemos:
+
+Homepage, mapa interactivo y listados públicos.
+
+Flujo de leads y pipeline (prospect, lead, applicant, approved, tenant).
+
+Portal 2.0 con rutas /portal/tenant y /portal/owner y toda la estructura de servicios/pagos/documentos/mensajes.
+
+Documentación del Portal 2.0 (tablas, endpoints, permisos).
+
+Ahora quiero unificar la experiencia de usuario y mejorar la UI en estos puntos.
+
+A) Experiencia del CLIENTE (antes de ser inquilino)
+1) Home del cliente logueado
+
+Cuando un usuario con rol cliente inicia sesión y entra a su “inicio / dashboard”, quiero una página específica para él (no el mismo dashboard que un admin).
+
+Esta página debe incluir:
+
+Un buscador grande arriba, similar al del homepage público:
+
+campo de texto (“Buscar por ubicación, colonia, condominio o descripción”),
+
+botones de tipo de operación (renta, venta),
+
+botón para ir al mapa.
+
+Una sección “Continúa tu proceso de renta”:
+
+tarjetas para cada aplicación/solicitud activa del cliente (pipeline lead/applicant/approved),
+
+cada tarjeta debe mostrar:
+
+nombre de la propiedad,
+
+estado del proceso (ej. “En revisión”, “Cita programada”, “Pendiente de documentos”, “Aprobado”),
+
+próximos pasos (texto corto),
+
+botón: “Ver detalle” (lleva a la vista de “Mis solicitudes” filtrada por esa propiedad).
+
+Si el cliente ya es tenant con contrato activo:
+
+un bloque que diga algo como:
+“Tienes un contrato activo en [Condominio X]” con botón “Ir a Portal” → /portal/tenant.
+
+2) Mis solicitudes (pipeline visual)
+
+Crea o mejora una pantalla “Mis solicitudes” para el cliente, donde vea todas las propiedades con las que tiene un proceso abierto.
+
+Para cada propiedad, muestra:
+
+mini-foto de portada,
+
+nombre del condominio / propiedad,
+
+una línea de tiempo visual del pipeline:
+
+Contacto recibido → Cita programada → En revisión → Aprobado → Contrato / Portal activo.
+
+Estado actual resaltado y los pasos futuros atenuados.
+
+Si hay acciones pendientes del cliente (ej. subir documentos), muéstralas claramente con un botón.
+
+Desde aquí, si el estado ya es “Contrato / Portal activo”, incluye botón “Abrir Portal” que lleva a /portal/tenant con el contrato correcto.
+
+B) Experiencia del CLIENTE como INQUILINO (Portal tenant)
+
+Ya tenemos Portal 2.0 con endpoints y tablas. Lo que quiero es mejorar la UI del tenant para que sea consistente con el resto de la app:
+
+En /portal/tenant, usa el mismo header general (logo, nombre, menú de usuario) que en el resto del sitio para usuarios logueados, pero con un subtítulo: “Portal de inquilino”.
+
+En el tab Overview:
+
+Muestra tarjetas principales:
+
+Próximo pago de renta (monto, fecha, estado, botón “Registrar pago / subir comprobante”).
+
+Servicios próximos a vencer (resumen de electricidad/agua/internet).
+
+Tickets de mantenimiento abiertos (cantidad + botón “Reportar problema”).
+
+Mensajes sin leer en el Portal.
+
+Revisa que la estética (cards, tipografía, botones) sea igual o muy similar a la de:
+
+homepage,
+
+listado de propiedades,
+
+dashboard de cliente descrito antes.
+
+C) Experiencia del PROPIETARIO
+1) Home del propietario logueado
+
+Cuando un usuario con rol owner inicia sesión, quiero una página específica de inicio de propietario.
+
+Esta página debe mostrar:
+
+Tarjeta de resumen:
+
+número de propiedades con TRH,
+
+cuántas están rentadas actualmente,
+
+pagos de renta de este mes (cobrados vs pendientes),
+
+tickets de mantenimiento abiertos.
+
+Sección “Mis propiedades”:
+
+tarjetas por propiedad con:
+
+mini-foto de portada,
+
+nombre del condominio / unidad,
+
+estado (en promoción / rentada / en revisión),
+
+botón:
+
+“Ver Portal” si hay contrato activo,
+
+o “Completar información” si es un borrador/enlistamiento en proceso.
+
+Si el propietario entró por primera vez mediante el flujo de onboarding de propietario:
+
+Sección “Mi solicitud como propietario” con estado (en revisión, aprobado, etc.).
+
+2) Mis propiedades
+
+Crea o mejora una pantalla dedicada “Mis propiedades” para owner, en la que pueda ver todas sus unidades asociadas a TRH:
+
+mini-foto, nombre, zona,
+
+estado (rentada / disponible / en publicación),
+
+badges básicos (tipo de unidad, recámaras).
+
+botón “Ir al Portal” que abre /portal/owner para el contrato correspondiente (si hay varios contratos, que elija).
+
+D) Experiencia del PROPIETARIO en Portal owner
+
+En /portal/owner, unifica el header con el resto de la app (logo, usuario, menú) y subtítulo “Portal de propietario”.
+
+En el tab Overview:
+
+tarjetas con:
+
+Rentas de este mes: total pagado vs pendiente,
+
+Servicios configurados (número de servicios, próximos vencimientos),
+
+Tickets de mantenimiento (abiertos / en progreso / resueltos),
+
+Alertas (pagos vencidos, tickets críticos).
+
+Asegúrate de que en tabs de Pagos / Servicios / Mantenimiento / Documentos:
+
+la UI sea consistente (mismo tipo de cards, tablas simples y limpias, botones primarios bien visibles),
+
+los permisos estén claros (qué puede hacer owner vs tenant vs admin).
+
+E) Detalles generales de UI/UX para ambos roles
+
+Header y navegación
+
+Cuando un usuario está logueado (cliente o propietario), debe ver:
+
+logo a la izquierda,
+
+enlaces a:
+
+“Inicio”,
+
+“Buscar propiedades”,
+
+“Mapa interactivo”,
+
+“Mis solicitudes” (cliente) o “Mis propiedades” (owner),
+
+“Portal” (si tiene contratos activos).
+
+a la derecha: avatar/nombre con menú (Mi cuenta, Portal, Cerrar sesión, etc.).
+
+Mobile first
+
+Todos estos dashboards deben funcionar bien en móvil:
+
+sin scroll horizontal,
+
+cards en una sola columna,
+
+menús accesibles desde un icono de hamburguesa/usuario.
+
+Feedback claro
+
+Siempre que el usuario complete una acción importante (enviar solicitud, aplicar a propiedad, registrar pago, etc.), mostrar:
+
+mensaje de éxito claro,
+
+y cuál es el siguiente paso esperado.
+
+Al final, por favor:
+
+Enumera qué nuevas pantallas/dashboards creaste o modificaste para:
+
+cliente antes de ser inquilino,
+
+cliente como tenant (Portal),
+
+propietario antes y después de tener Portal.
+
+Explica cómo se navega ahora entre:
+
+homepage → login → dashboard → Mis solicitudes / Mis propiedades → Portal.
+
+Indica qué componentes se reutilizan para mantener una UI consistente entre listados, mapa y portal.
